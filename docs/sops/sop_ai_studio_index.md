@@ -43,11 +43,11 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Current contexts with explicit ordering:
   - `text-image` (Create): ByteDance -> Google -> Black Forest Labs.
   - `reference-image` (Edit): ByteDance -> Google -> Black Forest Labs.
-  - `reference-video` (Video standard): Google DeepMind -> ByteDance -> Kling AI.
+  - `reference-video` (Video standard): Google DeepMind -> Kie AI -> ByteDance -> Kling AI.
   - `reference-keyframes`: Google DeepMind.
 - Video policy invariant:
   - `fal-ai/veo3.1/first-last-frame-to-video` is keyframes-only.
-  - Standard Video mode excludes first/last-frame and surfaces standard image-to-video options only.
+  - Standard Video mode excludes first/last-frame and surfaces standard image-to-video options (Fal + Kie) only.
 
 ## Fal reliability rollout notes (v2 architecture)
 - Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`

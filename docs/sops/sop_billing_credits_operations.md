@@ -22,6 +22,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Durable submit queue + lease claim RPCs: `sql/migrations/034_add_generation_submit_queue.sql`.
 - Stale cleanup queue exclusion hardening: `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql`.
 - Queue claim locking compatibility hotfix: `sql/migrations/036_fix_queue_claim_locking.sql`.
+- Queue/recovery provider-family expansion (Fal + Kie): `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql`.
 - Runtime convergence + idempotency migrations: `sql/migrations/020_generation_runtime_convergence.sql` to `sql/migrations/023_generation_reconciler_claims.sql`.
 - Server debit helper: `frontend/lib/server/api/generationBilling.ts`.
 - Fal status settlement helper: `frontend/lib/server/api/falStatusProxy.ts`.
@@ -50,17 +51,18 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 7. Run `sql/migrations/034_add_generation_submit_queue.sql` before enabling `SHORTPULSE_FAL_QUEUE_ENABLED`.
 8. Run `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql` so stale cleanup does not release active queued holds.
 9. Run `sql/migrations/036_fix_queue_claim_locking.sql` to ensure queue claim RPC compatibility with PostgreSQL lock semantics.
-10. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
-11. Confirm relation type for `ai_credit_balance`:
+10. Run `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql` to persist queue submit provider context and include Kie rows in recovery claims.
+11. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
+12. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-12. Verify admin credit adjustment in `/admin` succeeds.
-13. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
-14. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+13. Verify admin credit adjustment in `/admin` succeeds.
+14. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
+15. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
    - Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
    - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
-15. Verify reservation RPC hardening checks are present in staged function bodies and grants:
+16. Verify reservation RPC hardening checks are present in staged function bodies and grants:
    - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
    - explicit `revoke ... from public, anon, authenticated`
    - explicit `grant execute ... to service_role`
@@ -105,7 +107,7 @@ Safety checks:
   - `code: GENERATION_ADMISSION_UNAVAILABLE`
   - immediate refund and `Retry-After`.
 - Successful submit records `provider_request_id` on the reservation/charge context.
-- KEI submit routes also persist `taskId` as `provider_request_id` on the charge context for ownership checks during status polling.
+- Kie submit routes also persist `taskId` as `provider_request_id` on the charge context for ownership checks during status polling.
 - Status polling denies requests unless provider request ownership resolves as `owned` for the caller.
 - Fal status/webhook routes settle generation outcomes idempotently by `provider_request_id`:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.

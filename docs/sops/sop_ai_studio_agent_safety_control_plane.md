@@ -3,7 +3,7 @@
 Purpose: operational guide for safety profile tuning, activation, rollback, cooldown handling, and validation for AI Studio agent safety behavior.
 
 ## Scope
-- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent`, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
+- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent`, `/api/ai/generate-prompt`, and Fal submit routes, image preflight gating for `/api/ai/describe-image`, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
 - Out of scope: model prompt authoring, provider onboarding, and non-agent route behavior.
 
 ## Control Surface Summary
@@ -39,6 +39,7 @@ The safety control surface has six layers:
   - `GET /api/admin/agent-safety-policy/active`
   - `POST /api/admin/agent-safety-policy/activate`
   - `POST /api/admin/agent-safety-policy/rollback`
+  - `POST /api/admin/agent-safety-policy/version`
 - Backed by service-role-only RPCs in:
   - `sql/migrations/047_add_agent_safety_policy_control_plane.sql`
   - `sql/migrations/048_harden_agent_safety_policy_control_plane_grants.sql`
@@ -52,9 +53,12 @@ Current runtime-binding note:
   - `frontend/pages/api/ai/studio-agent.ts`
   - `frontend/features/agent-runtime/legacyImageDescribeService.ts`
 - `/api/ai/studio-agent` now enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
+- `/api/ai/generate-prompt` enforces pre-provider input safety when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED=true` (default) and returns canonical refusal text (`200`) on refusal lanes.
+- `/api/ai/describe-image` runs trusted-host URL preflight and local image safety preflight before OpenAI vision calls.
+- Fal submit routes enforce prompt precheck before provider dispatch when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED=true` (default).
 - Studio-agent client chat path (`useAiAgent`) now runs a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
 - Server remains the source of truth for enforcement decisions.
-- Output post-process remains active as defense-in-depth (`STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED=true` default).
+- Output post-process mode is controlled by `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (`enforce|shadow|off`) with `enforce` default.
 - Runtime can sync profile selection from control-plane active state when
   `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED=true` (default).
 - Admin control-plane state remains the operational/audit store for activation, rollback, and cooldown events.
@@ -65,10 +69,10 @@ Supported profiles:
 - `staging_lenient`
 - `dev_absolute_zero`
 
-Baseline behavior by profile (text/image/video):
-- `prod_safe_v1`: `safe=allow`, `sexual_suggestive=rewrite`, `sexual_explicit=refuse`
-- `staging_lenient`: `safe=allow`, `sexual_suggestive=rewrite`, `sexual_explicit=rewrite`
-- `dev_absolute_zero`: `safe=allow`, `sexual_suggestive=allow`, `sexual_explicit=allow`
+Baseline behavior by profile (text/image/video) across families (`sexual`, `violence`, `self_harm`, `hate`):
+- `prod_safe_v1`: suggestive `rewrite`, explicit `refuse`
+- `staging_lenient`: suggestive `rewrite`, explicit `rewrite`
+- `dev_absolute_zero`: suggestive `allow`, explicit `allow`
 
 Hard-floor rule:
 - In production, `sexual_explicit` is always forced to `refuse` regardless of profile.
@@ -80,6 +84,10 @@ Primary knobs:
 | --- | --- | --- | --- |
 | `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` | `prod_safe_v1` | Selects active profile for policy decisions. | Use `prod_safe_v1` in production unless explicitly running controlled canary/incident procedure. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables server pre-provider safety gate on `/api/ai/studio-agent`. | Keep `true` in production. Disable only as emergency rollback while keeping output post-process enabled. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` | `true` | Enables pre-provider safety gate for `/api/ai/generate-prompt`. | Keep enabled in production. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` | `true` | Enables pre-provider prompt gate for Fal submit routes. | Keep enabled in production. |
+| `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` | `true` | Enables local image safety preflight before `/api/ai/describe-image` vision calls. | Keep enabled in production. |
+| `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` | `prod_closed_nonprod_open` | Classifier-unavailable behavior (`prod_closed_nonprod_open`, `always_closed`, `always_open`). | Keep `prod_closed_nonprod_open` in production. |
 | `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` | `false` | In non-production only, forces allow behavior (`absolute_zero` source). | Keep `false` in production always. Use only in dev for debugging classifier/rewrite paths. |
 | `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` | `production_normalized` | Controls provider error detail normalization (`production_normalized` or `development_verbatim`). | Keep normalized in production; verbatim only in development debugging windows. |
 | `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` | `false` | Enables policy-only rollback on hard-floor incidents. | Enable only when rollback playbook and monitoring are ready. |
@@ -93,6 +101,7 @@ Supporting knobs:
 | --- | --- | --- |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables client pre-send safety gate in studio-agent chat path (`useAiAgent`). |
 | `STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED` | `true` | Enables runtime safety post-process gate. |
+| `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` | `enforce` | Postprocess behavior mode (`enforce`, `shadow`, `off`). |
 | `STUDIO_AGENT_SAFETY_DEBUG` | `false` | Emits debug reasons with telemetry paths. |
 
 ## Operator Workflows
@@ -135,6 +144,11 @@ Supporting knobs:
 - `no_safe_target`
 - `not_initialized`
 3. Confirm `cooldownUntil` is set and recorded.
+
+### 4) Create and validate a new policy version
+1. Call `POST /api/admin/agent-safety-policy/version` with a schemaVersion 2 policy document and `singleReviewerAck=true`.
+2. Confirm mutation result status is `created`.
+3. Promote the new version via `POST /api/admin/agent-safety-policy/activate` when ready.
 
 ## SQL Validation Checklist
 Run after safety-control migration/apply operations:

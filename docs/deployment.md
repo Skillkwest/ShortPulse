@@ -62,6 +62,11 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`; keep aligned with server value)
   - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; server-authoritative Media Library upload route gate)
   - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; client upload-controller migration gate)
+  - `SHORTPULSE_MEDIA_LIST_API_ENABLED` (defaults to `true`; server-authoritative Media Library list route gate)
+  - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED` (defaults to `true`; client list-controller migration gate)
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED` (defaults to `true`; route/modal virtualization gate)
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED` (defaults to `true`; route/modal autoplay budget gate)
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED` (defaults to `true`; route/modal sign-prefetch gate)
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODE` (`legacy|shadow|on`)
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)
@@ -78,6 +83,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`
+  - `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`
   - `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`
@@ -85,6 +91,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS`
   - `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`
+  - `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` (`true` legacy kick behavior, `false` read-only `/api/fal/queue-status`)
   - `SHORTPULSE_FAL_TRUSTED_HOSTS` (optional comma-separated trusted Fal outbound hosts; defaults to Fal-owned hosts)
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
@@ -217,6 +224,26 @@ Use Supabase Cron as the primary scheduler for generation queue dispatch + recov
 Notes:
 - Vercel cron is not required for this route.
 - `CRON_SECRET` remains optional for manual cURL/bearer invocation and non-Supabase fallback workflows.
+
+### Methodical drain cycle (operations)
+
+After enabling production reliability fixes, run a controlled all-user drain cycle:
+
+```bash
+node scripts/run_generation_drain_cycle.mjs \
+  --base-url https://<deployment-domain> \
+  --secret <SHORTPULSE_FAL_RECONCILER_CRON_SECRET> \
+  --interval-ms 60000 \
+  --max-runs 120 \
+  --converged-runs 3 \
+  --max-consecutive-errors 3
+```
+
+Then verify:
+- `sql/check_generation_queue_blockers.sql`
+- `sql/check_generation_settlement_integrity.sql`
+
+Use `/api/admin/generation-recovery/replay` only for residual outlier IDs after the drain converges.
 
 ## Supabase production configuration
 

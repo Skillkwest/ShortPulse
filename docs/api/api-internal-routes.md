@@ -10,20 +10,21 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Route families
 | Route family | Methods | Auth | Purpose | Source of truth |
 | --- | --- | --- | --- | --- |
-| `/api/ai/generate-prompt` | `POST` | Bearer (proxy) | Refine prompts with OpenAI chat completions. | `frontend/pages/api/ai/generate-prompt.ts`, `docs/sops/sop_text_generation.md` |
-| `/api/ai/describe-image` | `POST` | Bearer (proxy) | Describe reference images with OpenAI vision, including fail-closed trusted-host preflight (non-allowlisted external hosts are rejected). | `frontend/pages/api/ai/describe-image.ts`, `docs/sops/sop_text_generation.md` |
-| `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with flow-aware routing, server vision summaries, and structured actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`; no question actions). Includes server-authoritative input safety precheck before provider calls (rewrite/refuse) plus output post-process defense-in-depth. | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
+| `/api/ai/generate-prompt` | `POST` | Bearer (proxy) | Refine prompts with OpenAI chat completions. Includes server-authoritative pre-provider input safety precheck (`rewrite/refuse`) with canonical refusal payload (`200`) on blocked lanes. | `frontend/pages/api/ai/generate-prompt.ts`, `docs/sops/sop_text_generation.md` |
+| `/api/ai/describe-image` | `POST` | Bearer (proxy) | Describe reference images with OpenAI vision. Includes trusted-host URL preflight and local image safety preflight before provider vision calls; classifier-unavailable handling is controlled by `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE`. | `frontend/pages/api/ai/describe-image.ts`, `docs/sops/sop_text_generation.md` |
+| `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with flow-aware routing, server vision summaries, and structured actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`; no question actions). Includes server-authoritative input safety precheck before provider calls (rewrite/refuse) plus configurable output post-process mode (`enforce|shadow|off`). | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
 | `/api/ai/sessions/save` | `POST` | Bearer (proxy + route) | Save one AI Studio session snapshot (`sid` + schema-versioned payload) for the authenticated user. | `frontend/pages/api/ai/sessions/save.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions/:sid` | `GET` | Bearer (proxy + route) | Return one persisted AI Studio session snapshot by `sid` for the authenticated user. | `frontend/pages/api/ai/sessions/[sid].ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions` | `GET` | Bearer (proxy + route) | List persisted AI Studio sessions with `limit` + `cursor` pagination for the authenticated user. | `frontend/pages/api/ai/sessions/index.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
 | `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
+| `/api/media/list` | `POST` | Bearer (proxy + route) | Server-authoritative media listing with tab filtering, keyset pagination, and optional first-slice signed-preview hydration. | `frontend/pages/api/media/list.ts`, `frontend/features/media-library/logic/mediaQueryModel.ts` |
 | `/api/media/upload` | `POST` multipart/raw | Bearer (proxy + route) | Server-authoritative Media Library upload path. Validates destination + file signature, stores scoped object, inserts `media_files`, and returns signed preview metadata. | `frontend/pages/api/media/upload.ts`, `frontend/lib/server/mediaUploadService.ts` |
 | `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + trusted-host, user-scoped direct URL fallback for legacy records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts`, `frontend/lib/mediaPreviewTrustPolicy.ts` |
-| `/api/fal/*` | `POST`, `GET` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic, including queue handoff polling at `/api/fal/queue-status` (dispatch-kick optional via rollout flag; user-scoped due recovery kick guarded by reconciler lease/age/attempt policy). | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/lib/server/api/generationQueue/*.ts`, model docs in `docs/api/api-fal-*.md` |
+| `/api/fal/*` | `POST`, `GET` | Bearer (proxy; some routes also verify user in handler) | Submit/poll provider generations with server-side key handling and credit reservation/capture/refund logic, including queue handoff polling at `/api/fal/queue-status` (dispatch-kick optional via rollout flag; user-scoped due recovery kick guarded by reconciler lease/age/attempt policy). Includes Fal model routes plus Kie routes (`/api/fal/kie-veo-submit`, `/api/fal/kie-veo-status`, `/api/fal/kie-kling-submit`, `/api/fal/kie-kling-status`) behind Kie runtime flags/allowlist. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/lib/server/api/generationQueue/*.ts`, model docs in `docs/api/api-fal-*.md` and `docs/api/api-kie-*.md` |
 | `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; verifies Fal webhook signatures (JWKS/Ed25519 with dual-mode fallback), enforces raw-body size caps (`413` on breach), writes durable webhook inbox records, and executes shared recovery/persistence/settlement path idempotently with sanitized `500` error responses. | `frontend/pages/api/fal/webhook.ts`, `frontend/lib/server/api/falWebhook.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/credits/snapshot` | `GET` | Bearer (proxy + route) | Return user credit snapshot (`availableCents`, `reservedCents`, `spendableCents`) for responsive balance/hold UX. | `frontend/pages/api/credits/snapshot.ts`, `docs/sops/sop_billing_credits_operations.md` |
@@ -42,8 +43,9 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/agent-safety-policy/active` | `GET` | Admin bearer | Return active AI Studio safety control-plane runtime snapshot (active profile/version, last-known-safe profile/version, cooldown metadata). | `frontend/pages/api/admin/agent-safety-policy/active.ts`, `sql/migrations/047_add_agent_safety_policy_control_plane.sql` |
 | `/api/admin/agent-safety-policy/activate` | `POST` | Admin bearer | Activate a requested safety profile (`prod_safe_v1`, `staging_lenient`, `dev_absolute_zero`) with required `singleReviewerAck`; respects cooldown lock windows and writes audit events. | `frontend/pages/api/admin/agent-safety-policy/activate.ts`, `sql/migrations/047_add_agent_safety_policy_control_plane.sql` |
 | `/api/admin/agent-safety-policy/rollback` | `POST` | Admin bearer | Roll back to last-known-safe safety profile/version and apply cooldown lock (`STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS`, bounded). | `frontend/pages/api/admin/agent-safety-policy/rollback.ts`, `sql/migrations/047_add_agent_safety_policy_control_plane.sql` |
+| `/api/admin/agent-safety-policy/version` | `POST` | Admin bearer | Create a new safety policy document version for a profile (`prod_safe_v1`, `staging_lenient`, `dev_absolute_zero`) with validation and audit attribution. | `frontend/pages/api/admin/agent-safety-policy/version.ts`, `frontend/features/agent-runtime/safetyPolicy/policyDocument.ts` |
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
-| `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation recovery by `generationId` or `requestId` (Fal only) using the shared runtime execution engine (provider probe -> persist -> settle -> transition). | `frontend/pages/api/admin/generation-recovery/replay.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
+| `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation recovery by `generationId` or `requestId` (provider-family aware for Fal/Kie) using the shared runtime execution engine (provider probe -> persist -> settle -> transition). | `frontend/pages/api/admin/generation-recovery/replay.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
 | `/api/internal/generation-recovery/run` | `POST`, `GET` | `x-shortpulse-cron-secret` or `Authorization: Bearer <reconciler-secret>` | Trigger queue dispatch + lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns recovery stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`), reservation cleanup metrics (`reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`), and queue dispatch metrics (`queueClaimed`, `queueSubmitted`, `queueRetried`, `queueRequeuedNoCapacity`, `queueExhausted`, `queueSkipped`, `queueDispatchErrors`). Intended for external scheduler invocation (Supabase Cron recommended) and guarded manual replay. | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/api/generationQueue/dispatch.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md`, `sql/configure_generation_recovery_scheduler_supabase.sql` |
 | `/api/log/client-error` | `POST` | Bearer (proxy + route) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
@@ -78,12 +80,17 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 
 ## Required server environment
 - Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
-- Fal: `FAL_KEY`.
+- Fal/Kie provider keys: `FAL_KEY`, and `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`) for Kie routes.
 - OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_VISION_FALLBACK_MODEL`, `OPENAI_API_BASE`, `OPENAI_DESCRIBE_ALLOWED_HOSTS` (describe-image trusted-host allowlist; external hosts fail closed by default).
 - AI Studio safety control-plane runtime flags:
   - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (`prod_safe_v1` default).
   - `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (`true` default; server pre-provider safety gate for `/api/ai/studio-agent`).
+  - `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` (`true` default; server pre-provider gate for `/api/ai/generate-prompt`).
+  - `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (`true` default; server pre-provider prompt gate for Fal submit routes).
+  - `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (`true` default; local image safety preflight for `/api/ai/describe-image`).
+  - `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (`prod_closed_nonprod_open` default; optional `always_closed` or `always_open`).
   - `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` (`false` default; non-production-only bypass control).
+  - `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (`enforce` default; optional `shadow` or `off`).
   - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` (`production_normalized` default; optional `development_verbatim`).
   - `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` (`false` default; enables production hard-floor incident policy rollback path).
   - `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` (`24` default; bounded `1..168` for rollback cooldown lock).
@@ -104,6 +111,12 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - Media upload rollout flags:
   - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (`true` by default; disables `/api/media/upload` when `false`)
   - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (client migration gate for `useMediaUploadController` rollout)
+- Media list/runtime rollout flags:
+  - `SHORTPULSE_MEDIA_LIST_API_ENABLED` (`true` by default; disables `/api/media/list` when `false`)
+  - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED` (client migration gate for route/modal list API usage)
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED` (client virtualization gate for route/modal media grids)
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED` (client autoplay budget gate for route/modal media grids)
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED` (client sign-prefetch gate for route/modal signing passes)
 - OpenAI runtime mode flags:
   - `SHORTPULSE_OPENAI_RESPONSES_ENABLED`
   - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`
@@ -127,6 +140,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`
+  - `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
   - `SHORTPULSE_FAL_ADMISSION_MODE` (`off|shadow|enforce`)
@@ -142,6 +156,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS`
   - `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`
+  - `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE`

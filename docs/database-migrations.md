@@ -87,6 +87,7 @@ If enabling the derivative-first media optimization architecture (virtualized gr
 11. `sql/migrations/005_add_media_processing_and_variants.sql`
 12. `sql/migrations/006_backfill_media_variant_hints.sql`
 13. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
+14. `sql/migrations/050_add_media_list_search_cursor_indexes.sql`
 
 If enabling Character Manager (character sheets + generation history), also apply:
 
@@ -136,7 +137,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 48. `sql/migrations/047_add_agent_safety_policy_control_plane.sql`
 49. `sql/migrations/048_harden_agent_safety_policy_control_plane_grants.sql`
 50. `sql/migrations/049_enforce_expert_default_beginner_mode.sql`
-51. Rollback files:
+51. `sql/migrations/051_add_agent_safety_policy_version_rpc.sql`
+52. `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql`
+53. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -194,6 +197,8 @@ Billing safety note:
 - Migration `047_add_agent_safety_policy_control_plane.sql` adds agent safety policy version/runtime/event persistence with service-role RPCs for active/read, activate, and rollback operations.
 - Migration `048_harden_agent_safety_policy_control_plane_grants.sql` hardens control-plane RPC execute posture to service-role-only.
 - Migration `049_enforce_expert_default_beginner_mode.sql` forces expert-first mode defaults by setting `user_preferences.beginner_mode` default to `false` and backfilling existing rows to `false`; rollback restores only the new-row default (`true`).
+- Migration `051_add_agent_safety_policy_version_rpc.sql` adds service-role-only policy version creation RPC support (`create_agent_safety_policy_version`) and audit event type expansion (`version_created`).
+- Migration `052_extend_queue_recovery_provider_scope_to_kie.sql` updates queued-submit persistence to store provider family from enqueue inputs and broadens recovery claims from Fal-only to Fal/Kie provider families.
 
 ## Media storage scope verification (post-017)
 

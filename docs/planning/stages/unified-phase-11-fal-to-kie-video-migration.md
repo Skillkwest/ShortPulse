@@ -243,6 +243,12 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added recovery-probe integration lock for normalized Kie envelopes:
   - `frontend/lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts`
   - Validates end-to-end convergence to `completed` + media URL extraction when nested Kie `recordInfo` envelope fields are valid but top-level alias fields are malformed.
+- Added Kie submit transport logical-status normalization:
+  - `frontend/lib/server/providerIntegration/kieSubmitTransportContracts.ts`
+  - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieSubmitTransportContracts.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
+  - Ensures HTTP `200` Kie submit responses with non-success body `code` values are treated as logical upstream failures/retry candidates for deterministic fallback and non-ambiguous billing/refund behavior.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

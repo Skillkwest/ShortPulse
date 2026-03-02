@@ -166,6 +166,64 @@ describe("submitProviderDispatcher", () => {
     ).rejects.toThrow("Unsupported Kie model contract: kie-ai/unknown");
   });
 
+  it("treats HTTP 200 with non-success Kie body code as upstream failure", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ code: 402, msg: "Insufficient Credits" }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await dispatchProviderSubmit({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+      payload: { prompt: "hello", image_url: "https://example.com/ref.png" },
+      apiKey: "key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.response.ok).toBe(false);
+    expect(result.response.status).toBe(402);
+    expect(result.providerRequestId).toBeNull();
+  });
+
+  it("falls through to the next Kie target when body code is retryable despite HTTP 200", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: 500, msg: "internal error" }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: 200, data: { taskId: "kie-task-2" } }), {
+          status: 200,
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await dispatchProviderSubmit({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      targets: [
+        { submitUrl: "https://queue.kie.ai/v1/jobs-primary" },
+        { submitUrl: "https://queue.kie.ai/v1/jobs-secondary" },
+      ],
+      payload: { prompt: "hello", image_url: "https://example.com/ref.png" },
+      apiKey: "key",
+      signal: new AbortController().signal,
+      maxAttemptsPerTarget: 1,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.targetIndex).toBe(1);
+    expect(result.response.ok).toBe(true);
+    expect(result.providerRequestId).toBe("kie-task-2");
+  });
+
   it("throws for unsupported non-kie providers", async () => {
     await expect(
       dispatchProviderSubmit({

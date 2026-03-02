@@ -7,6 +7,7 @@ import type { SubmitPayload, SubmitTarget } from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 import { readCanonicalProviderRequestId } from "./canonicalProviderPayload";
 import { normalizeKieSubmitPayloadForModel } from "./kieModelContracts";
+import { normalizeKieSubmitTransportResult } from "./kieSubmitTransportContracts";
 import {
   assertKieRuntimeEnabledForModel,
   isTrustedKieProviderUrl,
@@ -59,15 +60,19 @@ const isRetryableTransportError = (error: unknown): boolean => {
 const isRetryableKieSubmitFailure = ({
   response,
   data,
+  bodyCode,
 }: {
   response: Response;
   data: Record<string, unknown>;
+  bodyCode: number | null;
 }): boolean => {
   if (retryableSubmitStatuses.has(response.status)) return true;
   const retryableHeader = response.headers.get("x-kie-retryable");
   if (typeof retryableHeader === "string" && retryableHeader.trim().toLowerCase() === "true") {
     return true;
   }
+  if (bodyCode !== null && retryableSubmitStatuses.has(bodyCode)) return true;
+  if (bodyCode === 455) return true;
   const upstreamCode = String(data.code ?? "").toLowerCase();
   return upstreamCode === "rate_limit" || upstreamCode === "overloaded";
 };
@@ -108,15 +113,25 @@ const submitKieTarget = async ({
         signal,
       });
       const data = await readJsonSafe(response);
+      const normalized = normalizeKieSubmitTransportResult({ response, data });
       if (
-        !response.ok &&
+        !normalized.response.ok &&
         attempt < maxAttemptsPerTarget &&
-        isRetryableKieSubmitFailure({ response, data })
+        isRetryableKieSubmitFailure({
+          response: normalized.response,
+          data: normalized.data,
+          bodyCode: normalized.bodyCode,
+        })
       ) {
         await sleep(120 * attempt);
         continue;
       }
-      return { response, data, targetUrl: target.submitUrl, targetIndex };
+      return {
+        response: normalized.response,
+        data: normalized.data,
+        targetUrl: target.submitUrl,
+        targetIndex,
+      };
     } catch (error) {
       if (attempt < maxAttemptsPerTarget && isRetryableTransportError(error)) {
         await sleep(120 * attempt);

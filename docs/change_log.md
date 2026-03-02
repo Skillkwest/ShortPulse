@@ -1813,3 +1813,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-03-01 (Phase 11 Kie recovery-probe integration lock)
 - Added recovery-probe integration coverage to verify nested Kie `recordInfo` envelope payloads are normalized and converged to `completed` + media URLs even when top-level alias fields are malformed.
 - Confirmed end-to-end runtime probe path uses canonicalized provider payload parsing under Kie dark-path gating.
+
+## 2026-03-01 (Phase 11 Kie submit transport logical-status normalization)
+- Added Kie submit transport normalization helper:
+  - `frontend/lib/server/providerIntegration/kieSubmitTransportContracts.ts`.
+- Rewired Kie submit dispatch so HTTP `200` responses with non-success Kie body `code` values are treated as logical failures/retry candidates for deterministic fallback:
+  - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`.
+- Added focused regression coverage for logical-status mapping and retry/fallback behavior:
+  - `frontend/lib/server/providerIntegration/__tests__/kieSubmitTransportContracts.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`.

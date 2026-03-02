@@ -64,7 +64,7 @@ Last updated: 2026-03-02
 
 ## Decision 013
 - Topic: Migration collision prevention for cross-plan rollout.
-- Decision: Migration numbers `041`-`046` are centrally reserved and must be assigned only through `docs/planning/migration-number-reservation-map.md` before SQL PRs open.
+- Decision: Migration numbers `041`-`048` are centrally governed through `docs/planning/migration-number-reservation-map.md`; safety control-plane SQL was remapped to `047`/`048` because `045`/`046` are already implemented by Character QuickSwap migrations.
 - Effective phase: 13.
 
 ## Decision 014
@@ -135,4 +135,44 @@ Last updated: 2026-03-02
 ## Decision 027
 - Topic: Session restore-candidate staged rollout boundary.
 - Decision: Wave E restore sequencing introduces read-only candidate loading behind `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (default OFF), selecting freshest snapshot across local shadow and optional remote read by `updatedAt`; workspace hydration apply remains disabled until a later gated pass.
+- Effective phase: 13.
+
+## Decision 028
+- Topic: Session hydration-apply rollout boundary.
+- Decision: Wave E hydration apply is enabled only behind `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default OFF) and applies once per `sid`; initial scope is workspace/output restoration plus chat-mode/prompt-origin alignment.
+- Effective phase: 13.
+
+## Decision 029
+- Topic: Session hydration agent-state restoration contract.
+- Decision: When restore-apply is enabled, hydration applies normalized agent transcript/input state through dedicated seams (`useAiAgent.replaceMessages` and `useAiStudioAgentBridge.hydrateFromSessionAgentSnapshot`) instead of page-local mutation, preserving modular boundaries and one-shot-per-`sid` semantics.
+- Effective phase: 13.
+
+## Decision 030
+- Topic: Staged restore rollout gate split.
+- Decision: Session restore apply remains governed by `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED`, and agent transcript/input hydration is independently gated by `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` so workspace/output restore and agent restore can be promoted on separate evidence windows.
+- Effective phase: 13.
+
+## Decision 031
+- Topic: Provider safety/error normalization contract for safety control rollout.
+- Decision: Wave F must enforce a normalized user-lane contract across providers: production safety blocks map to canonical refusal payloads, transient upstream failures map to stable assistant fallback copy, auth/invalid-request failures remain explicit hard errors, and development diagnostics are controlled independently from production user responses.
+- Effective phase: 13.
+
+## Decision 032
+- Topic: Agent-response tuning knob sequencing.
+- Decision: Tunable agent-response safety controls (modality profiles, provider error mode, rollout profile switching) are introduced only in Wave F via the safety control-plane execution path; earlier waves remain behavior-preserving foundations and must not add ad hoc tuning knobs.
+- Effective phase: 13.
+
+## Decision 033
+- Topic: Wave F runtime safety policy-core authority.
+- Decision: Safety action resolution for agent/describe post-process and provider-error normalization now routes through dedicated `safetyPolicy/*` modules (decision engine + provider-error policy), with fail-closed defaults (`prod_safe_v1`, production-normalized provider error mode) and no default behavior drift.
+- Effective phase: 13.
+
+## Decision 034
+- Topic: Wave F modality submission safety seam authority.
+- Decision: AI Studio submission safety payload decisions for Veo/Seedance image+video routes are resolved only through `hooks/taskSubmission/safetyPolicy.ts`; hardcoded handler-level safety branches are removed, and parity is enforced by submission payload matrix tests.
+- Effective phase: 13.
+
+## Decision 035
+- Topic: Wave F control-plane persistence and admin operation boundary.
+- Decision: Safety control-plane state transitions are executed only through service-role `SECURITY DEFINER` RPCs (`get_active_agent_safety_policy`, `activate_agent_safety_policy`, `rollback_agent_safety_policy`) and admin-authenticated API routes under `/api/admin/agent-safety-policy/*`; direct client-side policy-plane writes are not allowed.
 - Effective phase: 13.

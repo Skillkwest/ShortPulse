@@ -5,6 +5,13 @@
 import Head from "next/head";
 import { useEffect } from "react";
 import { CharacterManagerShell } from "../features/character-manager/components/CharacterManagerShell";
+import {
+  BEGINNER_MODE_FORCE_OFF,
+  isBeginnerModeToggleVisible,
+} from "../lib/ui-modes/beginnerModeRuntime";
+
+const SHOW_BEGINNER_MODE_TOGGLE = isBeginnerModeToggleVisible();
+const BEGINNER_MODE_OVERRIDE = BEGINNER_MODE_FORCE_OFF ? false : undefined;
 
 export default function CharacterPage() {
   useEffect(() => {
@@ -28,7 +35,10 @@ export default function CharacterPage() {
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
-      <CharacterManagerShell />
+      <CharacterManagerShell
+        beginnerModeOverride={BEGINNER_MODE_OVERRIDE}
+        showBeginnerModeToggle={SHOW_BEGINNER_MODE_TOGGLE}
+      />
     </>
   );
 }

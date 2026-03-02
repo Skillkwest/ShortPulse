@@ -35,6 +35,8 @@ Evidence output:
 
 ## RCP-3: Safety Control Plane Contract Alignment
 Trigger: before Safety Control Plane rollout.
+Status: Complete (2026-03-02)
+Evidence: `2026-03-02-phase-13-rcp-3-provider-safety-error-normalization.md`
 
 Required focus:
 1. provider safety/error payload shapes by environment.

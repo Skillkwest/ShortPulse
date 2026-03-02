@@ -7,19 +7,26 @@ import { writeStudioAgentCanonicalPrompt } from "./studioAgentCanonicalPersisten
 import { formatStudioAgentErrorMessage } from "./studioAgentOpenAiGateway";
 import { executeStudioAgentFastPathTurn } from "./studioAgentFastPathTurn";
 import {
-  classifyStudioAgentFailure,
   computeStudioAgentRetryDelayMs,
-  resolveStudioAgentFailureResolution,
   shouldRetryStudioAgentFailure,
   type StudioAgentFailureClass,
   waitForStudioAgentRetry,
 } from "./studioAgentFailurePolicy";
 import {
+  resolveProviderErrorHandling,
+  type ProviderErrorNormalizationMode,
+} from "./safetyPolicy/providerErrorPolicy";
+import {
   postProcessStudioAgentSafetyText,
+  type StudioAgentSafetyDecisionMeta,
   type StudioAgentSafetyPostProcessOutcome,
 } from "./studioAgentSafetyPostProcess";
+import { maybeTriggerSafetyIncidentAutoRollback } from "./safetyPolicy/incidentAutoRollback";
+import { resolveSafetyModality } from "./safetyPolicy/decisionEngine";
+import type { SafetyEnvironment } from "./safetyPolicy/types";
 import {
   buildStudioAgentInfraFallbackPayload,
+  resolvePolicyVersionFromProfileId,
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
@@ -121,9 +128,15 @@ export const executeStudioAgentCoordinator = async ({
   effectiveCanonical,
   normalizedConversationId,
   userId,
+  userEmail,
   canonicalDbEnabled,
   safetyPostProcessEnabled,
   safetyDebugEnabled,
+  safetyProfileId,
+  safetyEnvironment,
+  safetyDevAbsoluteZeroEnabled,
+  safetyProviderErrorMode,
+  safetyAutoRollbackEnabled,
 }: {
   req: NextApiRequest;
   traceId: string;
@@ -153,9 +166,15 @@ export const executeStudioAgentCoordinator = async ({
   effectiveCanonical: string | null;
   normalizedConversationId: string;
   userId: string;
+  userEmail: string | null;
   canonicalDbEnabled: boolean;
   safetyPostProcessEnabled: boolean;
   safetyDebugEnabled: boolean;
+  safetyProfileId?: string | null;
+  safetyEnvironment: SafetyEnvironment;
+  safetyDevAbsoluteZeroEnabled: boolean;
+  safetyProviderErrorMode: ProviderErrorNormalizationMode;
+  safetyAutoRollbackEnabled: boolean;
 }): Promise<{ status: number; payload: Record<string, unknown> }> => {
   const openAiMessages = buildStudioAgentOpenAiMessages({
     messages,
@@ -174,6 +193,17 @@ export const executeStudioAgentCoordinator = async ({
       : orchestration.flow === "TEXT_ONLY"
         ? "text_fast_path"
         : "fallback_fast_path";
+  const safetyPolicyVersion = resolvePolicyVersionFromProfileId(safetyProfileId);
+  const safetyModality = resolveSafetyModality({
+    route: "studio-agent",
+    flow: orchestration.flow,
+  });
+  const safetyTelemetryProfileId =
+    safetyProfileId === "prod_safe_v1" ||
+    safetyProfileId === "staging_lenient" ||
+    safetyProfileId === "dev_absolute_zero"
+      ? safetyProfileId
+      : null;
 
   const mergeSafetyOutcome = (
     current: StudioAgentSafetyPostProcessOutcome,
@@ -183,21 +213,6 @@ export const executeStudioAgentCoordinator = async ({
     if (current === "rewritten" || next === "rewritten") return "rewritten";
     return "pass";
   };
-
-  const resolveFailureClass = ({
-    status,
-    detail,
-    safetyRefusal,
-  }: {
-    status: number;
-    detail: string;
-    safetyRefusal: boolean;
-  }): StudioAgentFailureClass =>
-    classifyStudioAgentFailure({
-      status,
-      detail,
-      safetyRefusal,
-    });
 
   const buildInfraFallbackResponse = ({
     path,
@@ -223,6 +238,11 @@ export const executeStudioAgentCoordinator = async ({
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       fallbackReason,
+      safetyTelemetry: {
+        policyVersion: safetyPolicyVersion,
+        profileId: safetyTelemetryProfileId,
+        modality: safetyModality,
+      },
     });
     return {
       status: 200,
@@ -256,12 +276,14 @@ export const executeStudioAgentCoordinator = async ({
     payload: Record<string, unknown>;
     failureClass: StudioAgentFailureClass;
   } => {
-    const failureClass = resolveFailureClass({
+    const handling = resolveProviderErrorHandling({
       status,
       detail,
       safetyRefusal,
+      normalizationMode: safetyProviderErrorMode,
     });
-    const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
+    const failureClass = handling.failureClass;
+    const failureResolution = handling.failureResolution;
     if (failureResolution === "canonical_refusal") {
       emitStudioAgentTurnTelemetry({
         flow: orchestration.flow,
@@ -273,6 +295,13 @@ export const executeStudioAgentCoordinator = async ({
         retryCount,
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
+        safetyTelemetry: {
+          policyVersion: safetyPolicyVersion,
+          profileId: safetyTelemetryProfileId,
+          modality: safetyModality,
+          decisionAction: "refuse",
+          providerBlocked: safetyRefusal,
+        },
       });
       return {
         status: 200,
@@ -305,12 +334,18 @@ export const executeStudioAgentCoordinator = async ({
       retryCount,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
+      safetyTelemetry: {
+        policyVersion: safetyPolicyVersion,
+        profileId: safetyTelemetryProfileId,
+        modality: safetyModality,
+        providerBlocked: safetyRefusal,
+      },
     });
     return {
       status,
       payload: buildStudioAgentUpstreamErrorPayload({
         stage,
-        detail,
+        detail: handling.detailForClient ?? detail,
         traceId,
       }),
       failureClass,
@@ -328,11 +363,13 @@ export const executeStudioAgentCoordinator = async ({
     safetyRefusal: boolean;
     attempt: number;
   }): Promise<StudioAgentFailureClass | null> => {
-    const failureClass = resolveFailureClass({
+    const handling = resolveProviderErrorHandling({
       status,
       detail,
       safetyRefusal,
+      normalizationMode: safetyProviderErrorMode,
     });
+    const failureClass = handling.failureClass;
     if (
       !shouldRetryStudioAgentFailure({
         failureClass,
@@ -382,14 +419,32 @@ export const executeStudioAgentCoordinator = async ({
     let safetyFallback = false;
     let safetyForcedRefusal = false;
     let safetyDebugReason: string | undefined;
+    let safetyDecisionAction: StudioAgentSafetyDecisionMeta["action"] | null = null;
+    let safetyDecisionCategory: StudioAgentSafetyDecisionMeta["category"] | null = null;
+    let safetyDecisionSource: StudioAgentSafetyDecisionMeta["source"] | null = null;
+    let safetyHardFloorViolation = false;
+    let safetyRollbackTriggered = false;
 
     const registerSafetyResult = (result: {
       outcome: StudioAgentSafetyPostProcessOutcome;
       fallbackUsed: boolean;
       debugReason?: string;
+      decision?: StudioAgentSafetyDecisionMeta;
     }) => {
       safetyOutcome = mergeSafetyOutcome(safetyOutcome, result.outcome);
       safetyFallback = safetyFallback || result.fallbackUsed;
+      if (result.decision) {
+        if (result.decision.action !== "allow" || !safetyDecisionAction) {
+          safetyDecisionAction = result.decision.action;
+        }
+        if (result.decision.category !== "safe" || !safetyDecisionCategory) {
+          safetyDecisionCategory = result.decision.category;
+        }
+        if (result.decision.source !== "profile" || !safetyDecisionSource) {
+          safetyDecisionSource = result.decision.source;
+        }
+        safetyHardFloorViolation = safetyHardFloorViolation || result.decision.hardFloorViolation;
+      }
       if (safetyDebugEnabled && result.debugReason) {
         safetyDebugReason = result.debugReason;
       }
@@ -407,6 +462,10 @@ export const executeStudioAgentCoordinator = async ({
           enabled: safetyPostProcessEnabled,
           debug: safetyDebugEnabled,
           traceId,
+          profileId: safetyProfileId,
+          environment: safetyEnvironment,
+          devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+          modality: safetyModality,
         });
         registerSafetyResult(applyPromptSafety);
         if (applyPromptSafety.outcome === "refusal") {
@@ -434,6 +493,10 @@ export const executeStudioAgentCoordinator = async ({
           enabled: safetyPostProcessEnabled,
           debug: safetyDebugEnabled,
           traceId,
+          profileId: safetyProfileId,
+          environment: safetyEnvironment,
+          devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+          modality: safetyModality,
         });
         registerSafetyResult(messageSafety);
         if (messageSafety.outcome === "refusal") {
@@ -463,6 +526,32 @@ export const executeStudioAgentCoordinator = async ({
         actions: undefined,
       };
       finalResolvedCanonical = effectiveCanonical;
+    }
+
+    if (safetyHardFloorViolation) {
+      try {
+        const rollbackResult = await maybeTriggerSafetyIncidentAutoRollback({
+          environment: safetyEnvironment,
+          autoRollbackEnabled: safetyAutoRollbackEnabled,
+          hardFloorViolation: safetyHardFloorViolation,
+          actorUserId: userId,
+          actorEmail: userEmail,
+          source: "studio_agent_runtime_hard_floor",
+          reason: "Studio agent runtime hard-floor incident.",
+        });
+        safetyRollbackTriggered = rollbackResult.rollbackTriggered;
+      } catch (error) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "ai/studio-agent",
+          metadata: {
+            user_id: userId,
+            conversation_id: normalizedConversationId,
+            stage: "safety_auto_rollback",
+          },
+        });
+      }
     }
 
     if (!finalRefusal) {
@@ -497,6 +586,17 @@ export const executeStudioAgentCoordinator = async ({
       safetyFallback: safetyOutcome === "pass" ? undefined : safetyFallback,
       safetyDebugReason,
       safetyDebugEnabled,
+      safetyTelemetry: {
+        policyVersion: safetyPolicyVersion,
+        profileId: safetyTelemetryProfileId,
+        modality: safetyModality,
+        category: safetyDecisionCategory,
+        decisionAction: safetyDecisionAction,
+        decisionSource: safetyDecisionSource,
+        providerBlocked: false,
+        hardFloorViolation: safetyHardFloorViolation,
+        rollbackTriggered: safetyRollbackTriggered,
+      },
     });
 
     return {
@@ -753,11 +853,11 @@ export const executeStudioAgentCoordinator = async ({
         conversation_id: normalizedConversationId,
       },
     });
-    const failureClass = classifyStudioAgentFailure({
+    const providerError = resolveProviderErrorHandling({
       detail: failureDetail,
+      normalizationMode: safetyProviderErrorMode,
     });
-    const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
-    if (failureResolution === "assistant_fallback") {
+    if (providerError.failureResolution === "assistant_fallback") {
       return buildInfraFallbackResponse({
         path: runtimePath,
         model: openAiModel,
@@ -776,6 +876,11 @@ export const executeStudioAgentCoordinator = async ({
       retryCount: 0,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
+      safetyTelemetry: {
+        policyVersion: safetyPolicyVersion,
+        profileId: safetyTelemetryProfileId,
+        modality: safetyModality,
+      },
     });
     return {
       status: 500,

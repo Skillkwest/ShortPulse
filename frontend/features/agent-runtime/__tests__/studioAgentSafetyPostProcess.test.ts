@@ -11,11 +11,14 @@ describe("studioAgentSafetyPostProcess", () => {
       enabled: true,
     });
 
-    expect(result).toEqual({
-      outcome: "pass",
-      text: "A portrait of a person in a tailored suit at golden hour.",
-      fallbackUsed: false,
-    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        outcome: "pass",
+        text: "A portrait of a person in a tailored suit at golden hour.",
+        fallbackUsed: false,
+      })
+    );
+    expect(result.decision?.action).toBe("allow");
   });
 
   it("rewrites mild explicit language to safe-for-work wording", async () => {
@@ -45,6 +48,7 @@ describe("studioAgentSafetyPostProcess", () => {
 
     expect(result.outcome).toBe("refusal");
     expect(result.text).toBe("I cannot describe this.");
+    expect(result.decision?.hardFloorViolation).toBe(false);
   });
 
   it("uses deterministic fallback rewrite when external rewrite times out", async () => {
@@ -76,10 +80,55 @@ describe("studioAgentSafetyPostProcess", () => {
       enabled: false,
     });
 
-    expect(result).toEqual({
-      outcome: "pass",
-      text: "A sexy portrait with provocative styling.",
-      fallbackUsed: false,
+    expect(result).toEqual(
+      expect.objectContaining({
+        outcome: "pass",
+        text: "A sexy portrait with provocative styling.",
+        fallbackUsed: false,
+      })
+    );
+    expect(result.decision).toBeUndefined();
+  });
+
+  it("allows explicit text in development when absolute-zero mode is enabled", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "Graphic sexual intercourse with explicit anatomy details.",
+      route: "studio-agent",
+      flow: "TEXT_ONLY",
+      source: "model_output",
+      enabled: true,
+      environment: "development",
+      devAbsoluteZeroEnabled: true,
     });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        outcome: "pass",
+        text: "Graphic sexual intercourse with explicit anatomy details.",
+        fallbackUsed: false,
+      })
+    );
+    expect(result.decision?.source).toBe("absolute_zero");
+  });
+
+  it("flags production hard-floor incidents for rollback execution path", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "Graphic sexual intercourse with explicit anatomy details.",
+      route: "studio-agent",
+      flow: "TEXT_ONLY",
+      source: "model_output",
+      enabled: true,
+      environment: "production",
+      profileId: "staging_lenient",
+    });
+
+    expect(result.outcome).toBe("refusal");
+    expect(result.decision).toEqual(
+      expect.objectContaining({
+        action: "refuse",
+        source: "hard_floor",
+        hardFloorViolation: true,
+      })
+    );
   });
 });

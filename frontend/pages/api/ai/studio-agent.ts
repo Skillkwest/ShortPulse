@@ -13,6 +13,8 @@ import {
   resolveStudioAgentOpenAiConfig,
 } from "../../../features/agent-runtime/studioAgentOpenAiGateway";
 import { executeStudioAgentCoordinator } from "../../../features/agent-runtime/studioAgentCoordinator";
+import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
+import { resolveProviderErrorNormalizationMode } from "../../../features/agent-runtime/safetyPolicy/providerErrorPolicy";
 import {
   isStudioAgentFeatureEnabled,
   parseStudioAgentRequestEnvelope,
@@ -102,6 +104,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
   const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
+  const safetyProfileId = process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null;
+  const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
+  const safetyDevAbsoluteZeroEnabled =
+    process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
+  const safetyProviderErrorMode = resolveProviderErrorNormalizationMode(
+    process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
+  );
+  const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const {
     openAiUrl,
@@ -214,9 +224,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     effectiveCanonical,
     normalizedConversationId,
     userId: user.id,
+    userEmail: user.email ?? null,
     canonicalDbEnabled,
     safetyPostProcessEnabled,
     safetyDebugEnabled,
+    safetyProfileId,
+    safetyEnvironment,
+    safetyDevAbsoluteZeroEnabled,
+    safetyProviderErrorMode,
+    safetyAutoRollbackEnabled,
   });
 
   return res.status(coordinatorResult.status).json(coordinatorResult.payload);

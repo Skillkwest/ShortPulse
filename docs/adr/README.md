@@ -22,3 +22,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - `docs/adr/0026-ai-studio-generation-admission-control.md`
 - `docs/adr/0027-ai-studio-reference-grid-reroll-replay-snapshot.md`
+- `docs/adr/0028-agent-safety-control-plane-and-modality-profiles.md`

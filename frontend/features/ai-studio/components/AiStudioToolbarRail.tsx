@@ -11,6 +11,7 @@ type AiStudioToolbarRailProps = {
   selectedTool: ToolId | null;
   showCreateTools: boolean;
   beginnerMode: boolean;
+  showBeginnerModeToggle: boolean;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
   onBeginnerModeChange: (value: boolean) => void;
@@ -20,6 +21,7 @@ export const AiStudioToolbarRail = React.memo(function AiStudioToolbarRail({
   selectedTool,
   showCreateTools,
   beginnerMode,
+  showBeginnerModeToggle,
   onSelectTool,
   onToggleCreateTools,
   onBeginnerModeChange,
@@ -30,10 +32,10 @@ export const AiStudioToolbarRail = React.memo(function AiStudioToolbarRail({
       selectedTool={selectedTool}
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
+      showBeginnerModeToggle={showBeginnerModeToggle}
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onToggleBeginnerMode={onBeginnerModeChange}
-      showOnboardingSteps={beginnerMode}
     />
   );
 });

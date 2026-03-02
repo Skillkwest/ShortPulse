@@ -75,7 +75,7 @@ async function main() {
     },
     aiStudio: {
       createToolOpened: false,
-      beginnerModeDisabledForCharacterStep: false,
+      beginnerToggleVisible: false,
       characterPickerOpened: false,
       characterSelected: false,
       promptSentToAgent: false,
@@ -189,17 +189,10 @@ async function main() {
       out.aiStudio.createToolOpened = true;
     }
 
-    const initialPicker = page.getByRole("button", { name: /Open character picker/i }).first();
-    if (!(await initialPicker.isVisible().catch(() => false))) {
-      const disableBeginner = page
-        .getByRole("button", { name: /Disable beginner mode/i })
-        .first();
-      if (await disableBeginner.isVisible().catch(() => false)) {
-        await disableBeginner.click();
-        out.aiStudio.beginnerModeDisabledForCharacterStep = true;
-        await page.waitForTimeout(600);
-      }
-    }
+    const beginnerToggle = page
+      .getByRole("button", { name: /Disable beginner mode|Enable beginner mode/i })
+      .first();
+    out.aiStudio.beginnerToggleVisible = await beginnerToggle.isVisible().catch(() => false);
 
     const pickerButton = page.getByRole("button", { name: /Open character picker/i }).first();
     if (await pickerButton.isVisible().catch(() => false)) {

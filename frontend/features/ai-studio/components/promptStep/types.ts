@@ -11,6 +11,12 @@ import type {
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 
+export type PromptStepInlineGenerateConfig = {
+  onGenerate: () => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+};
+
 export type PromptStepProps = {
   stepNumber: string | number;
   title?: string;
@@ -49,6 +55,7 @@ export type PromptStepProps = {
   onAgentDescribeTargets?: (targets: string[]) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
+  chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
   // Actions
   onSavePrompt: (customPrompt?: string) => void;
   // State / UI

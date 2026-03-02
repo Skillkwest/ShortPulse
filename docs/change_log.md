@@ -119,6 +119,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2027-01-04 (AI Studio create/recreate polish)
 - Added subtitles and spacing refinements to the Create and Recreate tool headers; tightened header/subtitle gaps for consistency.
 
+## 2026-03-02 (Phase 13 Wave F Pass 4)
+- Added structured safety telemetry fields across `studio-agent` and `describe-image` runtime paths: `policy_version`, `profile_id`, `modality`, `category`, `decision_action`, `decision_source`, `provider_blocked`, `hard_floor_violation`, `rollback_triggered`.
+- Added production-gated hard-floor incident auto-rollback seam (`incidentAutoRollback`) driven by `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` and bounded cooldown (`STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS`).
+- Wired hard-floor auto-rollback trigger path into AI Studio agent and describe-image runtime safety post-process flows with focused regression tests.
+
 ## 2026-02-05
 - Added MVP stabilization plan and aligned docs to current MVP scope (post‑MVP notes, route map, release checklist, testing guidance, and palette rule placement).
 - Expanded doc index coverage and cleaned stale SOP references; clarified file-size guidance as advisory.
@@ -2131,3 +2136,171 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/troubleshooting.md`.
 - Recorded Wave E Pass 10 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-10-session-restore-candidate-readiness.md`.
+
+## 2026-03-02 (Phase 13 Wave C Pass 1 operational settlement closeout)
+- Applied settlement recapture semantics in active environment (migration `041` function body confirmed active).
+- Executed one-time released-conditional success recapture backfill:
+  - `captured = 34` rows.
+- Post-closeout checks are green:
+  - `sql/check_generation_settlement_integrity.sql` => `missing_charge_count = 0`, `duplicate_charge_key_count = 0`.
+  - `sql/check_runtime_sql_security_audit.sql` => `total_checks=102`, `passing_checks=102`, `failing_checks=0`.
+- Recorded operational evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-c-pass-1-settlement-integrity-operational-closeout.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 11 session hydration apply, gated)
+- Added hydration normalization seam for persisted snapshot payloads:
+  - `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts`.
+- Added `useAiStudioState` hydration entrypoint:
+  - `hydrateFromSessionSnapshot(snapshot)` in `frontend/features/ai-studio/hooks/useAiStudioState.ts`.
+- Added one-shot page-level hydration apply behind new default-off flag:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED`
+  - wiring in `frontend/pages/ai-studio.tsx`.
+- Updated docs and API env flag inventory:
+  - `README.md`
+  - `docs/api/api-internal-routes.md`
+  - `docs/troubleshooting.md`.
+- Recorded Wave E Pass 11 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-11-session-hydration-apply-gated.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 12 agent transcript/input hydration, gated)
+- Extended snapshot hydration normalization to include agent-state payloads (`messages`, `input`, `latestAgentPrompt`, `promptOrigin`, `chatModeEnabled`) with malformed-row filtering and deterministic message-id normalization:
+  - `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts`.
+- Added explicit transcript replacement seam to agent runtime hook:
+  - `frontend/features/ai-agent/useAiAgent.ts`
+  - `frontend/features/ai-agent/__tests__/useAiAgent.test.ts`.
+- Added bridge-level agent hydration seam to keep page orchestration decoupled:
+  - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`.
+- Extracted restore-candidate logging + hydration-apply orchestration into a dedicated hook (with focused tests) to keep page size-budget compliant:
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`.
+- Updated gated restore apply path to hydrate workspace/output plus agent transcript/input in one one-shot flow per `sid`:
+  - `frontend/features/ai-studio/hooks/useAiStudioState.ts`
+  - `frontend/pages/ai-studio.tsx`.
+- Recorded Wave E Pass 12 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-12-agent-transcript-input-hydration.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 13 staged restore rollout gating)
+- Added independent restore-apply gate for agent transcript/input hydration:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (defaults to enabled when restore apply is on).
+- Updated restore-hydration orchestration to emit explicit gate telemetry (`agent_hydration_applied`) in hydration breadcrumbs:
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`.
+- Added regression coverage for agent-gate-off behavior:
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`.
+- Updated docs for the new staged rollout gate:
+  - `README.md`
+  - `docs/api/api-internal-routes.md`
+  - `docs/troubleshooting.md`.
+- Recorded Wave E Pass 13 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-13-staged-restore-agent-gate.md`.
+
+## 2026-03-02 (Phase 13 RCP-3 provider safety/error normalization checkpoint)
+- Completed RCP-3 evidence packet before Wave F safety-control implementation:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-rcp-3-provider-safety-error-normalization.md`.
+- Locked Wave F normalization contract:
+  - production user-lane responses remain normalized (canonical refusal + stable fallback),
+  - development diagnostics remain configurable independently,
+  - auth/invalid-request failures remain explicit hard errors.
+- Updated canonical rollout governance docs:
+  - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`
+  - `docs/planning/shortpulse-unified-decision-log.md`
+  - `docs/planning/evidence/unified-buildout/phase-13/research-checkpoints.md`
+  - `docs/planning/evidence/unified-buildout/phase-13/README.md`.
+
+## 2026-03-02 (Phase 13 Wave F Phase 0 safety control-plane governance artifacts)
+- Added Wave F implementation plan and execution tracker:
+  - `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
+  - `docs/planning/ai-studio-agent-safety-control-plane-tracker.md`.
+- Added durable architecture decision record:
+  - `docs/adr/0028-agent-safety-control-plane-and-modality-profiles.md`.
+- Updated canonical indexes and governance docs to keep single-source execution alignment:
+  - `docs/README.md`
+  - `docs/planning/README.md`
+  - `docs/adr/README.md`
+  - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`
+  - `docs/planning/shortpulse-unified-decision-log.md`.
+- Recorded Wave F Pass 0 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-f-pass-0-safety-control-plane-governance-lock.md`.
+
+## 2026-03-02 (Phase 13 Wave F Pass 1 runtime policy core)
+- Added safety-policy core modules under `frontend/features/agent-runtime/safetyPolicy/`:
+  - `types.ts`
+  - `categoryCatalog.ts`
+  - `profileCatalog.ts`
+  - `hardFloors.ts`
+  - `decisionEngine.ts`
+  - `providerErrorPolicy.ts`.
+- Integrated policy seams into:
+  - `frontend/features/agent-runtime/studioAgentCoordinator.ts`
+  - `frontend/features/agent-runtime/studioAgentSafetyPostProcess.ts`
+  - `frontend/features/agent-runtime/legacyImageDescribeService.ts`
+  - `frontend/pages/api/ai/studio-agent.ts`.
+- Added focused safety-policy tests and extended post-process coverage:
+  - `frontend/features/agent-runtime/safetyPolicy/__tests__/decisionEngine.test.ts`
+  - `frontend/features/agent-runtime/safetyPolicy/__tests__/providerErrorPolicy.test.ts`
+  - `frontend/features/agent-runtime/__tests__/studioAgentSafetyPostProcess.test.ts`.
+- Updated docs for new safety control-plane runtime flags:
+  - `README.md`
+  - `docs/api/api-internal-routes.md`
+  - `docs/sops/sop_ai_studio_agent.md`
+  - `docs/troubleshooting.md`.
+- Recorded Wave F Pass 1 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-f-pass-1-runtime-policy-core.md`.
+
+## 2026-03-02 (Phase 13 Wave F Pass 2 modality submission safety wiring)
+- Expanded task-submission safety policy seam from image-only to image+video payload resolution:
+  - `frontend/features/ai-studio/hooks/taskSubmission/safetyPolicy.ts`.
+- Replaced hardcoded Veo/Seedance handler safety branches with shared policy resolver wiring:
+  - `frontend/features/ai-studio/hooks/taskSubmission/videoHandlers.ts`.
+- Added/updated regression coverage for modality safety payload parity:
+  - `frontend/features/ai-studio/hooks/taskSubmission/__tests__/safetyPolicy.test.ts`
+  - `frontend/features/ai-studio/hooks/taskSubmission/__tests__/submissionPayloadMatrix.test.ts`
+  - `frontend/features/ai-studio/hooks/taskSubmission/__tests__/videoHandlers.test.ts`.
+- Recorded Wave F Pass 2 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-f-pass-2-modality-wiring.md`.
+- Corrected migration reservation governance to avoid collisions with existing Character QuickSwap migrations:
+  - safety control-plane persistence/hardening slots moved from `045/046` to `047/048` in
+    `docs/planning/migration-number-reservation-map.md`,
+  - linked phase/decision/safety-tracker docs updated to the new reservation range.
+
+## 2026-03-02 (Phase 13 Wave F Pass 3 control-plane persistence + admin APIs)
+- Added safety control-plane SQL foundation:
+  - `sql/migrations/047_add_agent_safety_policy_control_plane.sql`
+  - `sql/migrations/048_harden_agent_safety_policy_control_plane_grants.sql`
+  - `sql/migrations/rollback/047_add_agent_safety_policy_control_plane_rollback.sql`.
+- Added safety control-plane SQL diagnostics:
+  - `sql/check_agent_safety_policy_control_plane.sql`.
+- Expanded runtime SQL security audit expected-function set:
+  - `sql/check_runtime_sql_security_audit.sql`.
+- Added server helper seam for control-plane RPC access:
+  - `frontend/lib/server/api/agentSafetyPolicyControlPlane.ts`.
+- Added admin control-plane API routes:
+  - `frontend/pages/api/admin/agent-safety-policy/active.ts`
+  - `frontend/pages/api/admin/agent-safety-policy/activate.ts`
+  - `frontend/pages/api/admin/agent-safety-policy/rollback.ts`.
+- Added targeted API route tests:
+  - `frontend/tests/api/admin-agent-safety-policy-active.test.ts`
+  - `frontend/tests/api/admin-agent-safety-policy-activate.test.ts`
+  - `frontend/tests/api/admin-agent-safety-policy-rollback.test.ts`.
+- Updated docs/contracts for new schema/routes/security posture:
+  - `README.md`
+  - `docs/api/api-internal-routes.md`
+  - `docs/data-dictionary.md`
+  - `docs/security-checklist.md`
+  - `docs/database-migrations.md`
+  - `docs/sops/sop_sql_migration_operations.md`
+  - `docs/sops/sop_ai_studio_agent.md`
+  - `docs/planning/migration-number-reservation-map.md`.
+- Recorded Wave F Pass 3 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-f-pass-3-control-plane-persistence-admin-apis.md`.
+
+## 2026-03-02 (expert-first beginner-mode lockdown)
+- Added runtime beginner-mode policy seam at `frontend/lib/ui-modes/beginnerModeRuntime.ts` with two decoupled flags: `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF` and `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE`; force-off now has strict precedence over toggle visibility.
+- Added `useEffectiveBeginnerModePreference` wrapper hook and wired `/ai-studio` to use effective mode + toggle visibility propagation (`AiStudioPageContent` -> `AiStudioToolbarRail` -> `AiStudioToolbar`). Removed dead `showOnboardingSteps` prop drift in toolbar wiring.
+- Extended Character Manager route/shell wiring so force-off can pin expert mode (`beginnerModeOverride=false`) while hiding beginner toggle controls with `showBeginnerModeToggle`.
+- Added migration `sql/migrations/049_enforce_expert_default_beginner_mode.sql` and rollback `sql/migrations/rollback/049_enforce_expert_default_beginner_mode_rollback.sql`; forward migration sets `user_preferences.beginner_mode` default to `false` and backfills existing rows, rollback restores default `true` for new rows only.
+- Updated bootstrap/data/docs parity for the temporary lockdown policy (`sql/create_user_preferences_table.sql`, `frontend/.env.example`, `README.md`, `docs/routes.md`, `docs/data-dictionary.md`, `docs/database-migrations.md`, `docs/sops/sop_sql_migration_operations.md`, `docs/sops/sop_image_generation.md`, `docs/troubleshooting.md`, `docs/planning/migration-number-reservation-map.md`).
+- Added/updated tests for runtime policy parsing, wrapper-hook behavior, toolbar/shell toggle suppression, and AI Studio page hook mocking.

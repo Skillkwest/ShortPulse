@@ -10,14 +10,17 @@ import {
   shouldRetryWithFallbackVisionModel,
 } from "../../lib/server/api/imageDescribeOpenAi";
 import { probeImageUrlForDescribe } from "../../lib/server/api/imageDescribeUrlGuard";
+import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
+import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
+import { maybeTriggerSafetyIncidentAutoRollback } from "./safetyPolicy/incidentAutoRollback";
 import {
-  classifyStudioAgentFailure,
-  resolveStudioAgentFailureResolution,
-  STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
-} from "./studioAgentFailurePolicy";
+  resolveProviderErrorHandling,
+  resolveProviderErrorNormalizationMode,
+} from "./safetyPolicy/providerErrorPolicy";
 import { postProcessStudioAgentSafetyText } from "./studioAgentSafetyPostProcess";
 import {
   isStudioAgentSafetyRefusalUpstreamError,
+  resolvePolicyVersionFromProfileId,
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "./studioAgentRouteOutcomes";
 
@@ -31,12 +34,28 @@ const emitDescribeSafetyTelemetry = ({
   fallbackUsed,
   debugReason,
   debugEnabled,
+  policyVersion,
+  profileId,
+  category,
+  decisionAction,
+  decisionSource,
+  providerBlocked,
+  hardFloorViolation,
+  rollbackTriggered,
 }: {
   routeLabel: string;
   outcome: "pass" | "rewritten" | "refusal";
   fallbackUsed: boolean;
   debugReason?: string;
   debugEnabled: boolean;
+  policyVersion: number | null;
+  profileId: "prod_safe_v1" | "staging_lenient" | "dev_absolute_zero" | null;
+  category: "safe" | "sexual_suggestive" | "sexual_explicit" | null;
+  decisionAction: "allow" | "rewrite" | "refuse" | null;
+  decisionSource: "profile" | "hard_floor" | "absolute_zero" | null;
+  providerBlocked: boolean;
+  hardFloorViolation: boolean;
+  rollbackTriggered: boolean;
 }) => {
   if (outcome === "pass" && !debugEnabled) return;
   console.info(
@@ -46,6 +65,15 @@ const emitDescribeSafetyTelemetry = ({
       safety_outcome: outcome,
       safety_source: "describe_output",
       safety_fallback: fallbackUsed,
+      policy_version: policyVersion,
+      profile_id: profileId,
+      modality: "image",
+      category,
+      decision_action: decisionAction,
+      decision_source: decisionSource,
+      provider_blocked: providerBlocked,
+      hard_floor_violation: hardFloorViolation,
+      rollback_triggered: rollbackTriggered,
       ...(debugEnabled && debugReason ? { safety_debug_reason: debugReason } : {}),
     })
   );
@@ -108,6 +136,21 @@ export const executeLegacyImageDescribe = async ({
   const systemPrompt = loadAgentPrompt(IMAGE_DESCRIBER_ID, process.env[IMAGE_DESCRIBER_ID]);
   const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
+  const safetyProfileId = process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null;
+  const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
+  const safetyDevAbsoluteZeroEnabled =
+    process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
+  const safetyProviderErrorMode = resolveProviderErrorNormalizationMode(
+    process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
+  );
+  const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
+  const safetyPolicyVersion = resolvePolicyVersionFromProfileId(safetyProfileId);
+  const safetyTelemetryProfileId =
+    safetyProfileId === "prod_safe_v1" ||
+    safetyProfileId === "staging_lenient" ||
+    safetyProfileId === "dev_absolute_zero"
+      ? safetyProfileId
+      : null;
 
   if (!apiKey) {
     await logGenerationFailure({
@@ -218,6 +261,14 @@ export const executeLegacyImageDescribe = async ({
           fallbackUsed: false,
           debugReason: "upstream_safety_refusal",
           debugEnabled: safetyDebugEnabled,
+          policyVersion: safetyPolicyVersion,
+          profileId: safetyTelemetryProfileId,
+          category: null,
+          decisionAction: "refuse",
+          decisionSource: null,
+          providerBlocked: true,
+          hardFloorViolation: false,
+          rollbackTriggered: false,
         });
         return {
           ok: true,
@@ -227,11 +278,11 @@ export const executeLegacyImageDescribe = async ({
           },
         };
       }
-      const failureClass = classifyStudioAgentFailure({
+      const providerError = resolveProviderErrorHandling({
         status: describeAttempt.status,
         detail,
+        normalizationMode: safetyProviderErrorMode,
       });
-      const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
       await logGenerationFailure({
         req,
         routeLabel,
@@ -244,14 +295,14 @@ export const executeLegacyImageDescribe = async ({
           detail,
           model: modelUsed,
           attempted_models: attemptedModels,
-          failure_class: failureClass,
-          user_lane_fallback: failureResolution === "assistant_fallback",
+          failure_class: providerError.failureClass,
+          user_lane_fallback: providerError.failureResolution === "assistant_fallback",
         },
       });
-      if (failureResolution === "assistant_fallback") {
+      if (providerError.failureResolution === "assistant_fallback") {
         emitDescribeFallbackTelemetry({
           routeLabel,
-          failureClass,
+          failureClass: providerError.failureClass,
           detail,
         });
         return {
@@ -267,7 +318,7 @@ export const executeLegacyImageDescribe = async ({
         status: describeAttempt.status,
         payload: {
           error: "Upstream error",
-          ...(describeAttempt.status < 500 && detail ? { detail } : {}),
+          ...(providerError.detailForClient ? { detail: providerError.detailForClient } : {}),
           ...(describeAttempt.status < 500 && modelUsed ? { model: modelUsed } : {}),
         },
       };
@@ -283,9 +334,10 @@ export const executeLegacyImageDescribe = async ({
     const completionTokens = usage.completion_tokens;
 
     if (!description) {
-      const failureClass = classifyStudioAgentFailure({
+      const providerError = resolveProviderErrorHandling({
         status: 502,
         detail: "No description returned",
+        normalizationMode: safetyProviderErrorMode,
       });
       await logGenerationFailure({
         req,
@@ -296,13 +348,13 @@ export const executeLegacyImageDescribe = async ({
         userId: user.id,
         userEmail: user.email ?? null,
         metadata: {
-          failure_class: failureClass,
+          failure_class: providerError.failureClass,
           user_lane_fallback: true,
         },
       });
       emitDescribeFallbackTelemetry({
         routeLabel,
-        failureClass,
+        failureClass: providerError.failureClass,
         detail: "No description returned",
       });
       return {
@@ -321,13 +373,52 @@ export const executeLegacyImageDescribe = async ({
       source: "describe_output",
       enabled: safetyPostProcessEnabled,
       debug: safetyDebugEnabled,
+      profileId: safetyProfileId,
+      environment: safetyEnvironment,
+      devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
     });
+    let rollbackTriggered = false;
+    if (safetyPostProcessResult.decision?.hardFloorViolation) {
+      try {
+        const rollbackResult = await maybeTriggerSafetyIncidentAutoRollback({
+          environment: safetyEnvironment,
+          autoRollbackEnabled: safetyAutoRollbackEnabled,
+          hardFloorViolation: true,
+          actorUserId: user.id,
+          actorEmail: user.email ?? null,
+          source: "describe_image_runtime_hard_floor",
+          reason: "Describe-image runtime hard-floor incident.",
+        });
+        rollbackTriggered = rollbackResult.rollbackTriggered;
+      } catch (error) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.image_describe.safety_auto_rollback_failed",
+          message: "Safety auto rollback execution failed",
+          statusCode: 500,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            detail: String(error),
+          },
+        });
+      }
+    }
     emitDescribeSafetyTelemetry({
       routeLabel,
       outcome: safetyPostProcessResult.outcome,
       fallbackUsed: safetyPostProcessResult.fallbackUsed,
       debugReason: safetyPostProcessResult.debugReason,
       debugEnabled: safetyDebugEnabled,
+      policyVersion: safetyPolicyVersion,
+      profileId: safetyTelemetryProfileId,
+      category: safetyPostProcessResult.decision?.category ?? null,
+      decisionAction: safetyPostProcessResult.decision?.action ?? null,
+      decisionSource: safetyPostProcessResult.decision?.source ?? null,
+      providerBlocked: false,
+      hardFloorViolation: safetyPostProcessResult.decision?.hardFloorViolation ?? false,
+      rollbackTriggered,
     });
 
     const safeDescription =
@@ -349,8 +440,10 @@ export const executeLegacyImageDescribe = async ({
     };
   } catch (error) {
     const detail = String(error);
-    const failureClass = classifyStudioAgentFailure({ detail });
-    const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
+    const providerError = resolveProviderErrorHandling({
+      detail,
+      normalizationMode: safetyProviderErrorMode,
+    });
     await logGenerationFailure({
       req,
       routeLabel,
@@ -362,14 +455,14 @@ export const executeLegacyImageDescribe = async ({
       userEmail: user.email ?? null,
       metadata: {
         detail,
-        failure_class: failureClass,
-        user_lane_fallback: failureResolution === "assistant_fallback",
+        failure_class: providerError.failureClass,
+        user_lane_fallback: providerError.failureResolution === "assistant_fallback",
       },
     });
-    if (failureResolution === "assistant_fallback") {
+    if (providerError.failureResolution === "assistant_fallback") {
       emitDescribeFallbackTelemetry({
         routeLabel,
-        failureClass,
+        failureClass: providerError.failureClass,
         detail,
       });
       return {

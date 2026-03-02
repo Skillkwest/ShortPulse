@@ -22,8 +22,6 @@ import type { VideoSubmissionArgs } from "./types";
 import {
   buildKlingElementsPayload,
   buildKlingMultiPromptPayload,
-  resolveKlingShotType,
-  buildKlingVoiceIds,
   resolveSeedanceI2VAspect,
   resolveSeedanceI2VDuration,
   resolveSeedanceI2VResolution,
@@ -35,7 +33,10 @@ import {
   resolveVeoDuration,
   resolveVeoResolution,
   resolveVeoTextAspect,
+  resolveKlingShotType,
+  buildKlingVoiceIds,
 } from "./videoPayloads";
+import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
 
 const handoffSubmitResponse = ({
   response,
@@ -243,8 +244,7 @@ export const handleVideoModelSubmission = async ({
       resolution,
       generate_audio: requestedAudio,
       auto_fix: videoAutoFix,
-      safety_tolerance: "5",
-      enable_safety_checker: false,
+      ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
       response,
@@ -283,7 +283,7 @@ export const handleVideoModelSubmission = async ({
       negative_prompt: "blur, distort, and low quality",
       cfg_scale: 0.5,
       generate_audio: requestedAudio,
-      enable_safety_checker: false,
+      ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
       response,
@@ -311,7 +311,7 @@ export const handleVideoModelSubmission = async ({
       duration,
       generate_audio: requestedAudio,
       camera_fixed: videoCameraFixed,
-      enable_safety_checker: false,
+      ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
       response,
@@ -334,8 +334,7 @@ export const handleVideoModelSubmission = async ({
       resolution,
       generate_audio: requestedAudio,
       auto_fix: videoAutoFix,
-      safety_tolerance: "5",
-      enable_safety_checker: false,
+      ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
       response,
@@ -374,8 +373,7 @@ export const handleVideoModelSubmission = async ({
       resolution,
       generate_audio: requestedAudio,
       auto_fix: videoAutoFix,
-      safety_tolerance: "5",
-      enable_safety_checker: false,
+      ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
       response,

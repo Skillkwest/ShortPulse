@@ -250,6 +250,38 @@ Checklist:
 - Inspect client breadcrumbs for `ai_studio_session_restore_candidate_loaded` to confirm source (`local` or `remote`).
 - Note: this phase loads candidates only; hydration apply remains rollout-gated and is not auto-applied yet.
 
+## AI Studio session snapshot is loaded but not applied to UI
+Checklist:
+- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=true`.
+- Ensure restore-candidate loading is enabled:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=true`.
+- If agent transcript/input should also restore, ensure:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` is not `false`.
+- Verify candidate-load breadcrumb exists:
+  - `ai_studio_session_restore_candidate_loaded`.
+- Verify hydration-apply breadcrumb exists:
+  - `ai_studio_session_hydration_applied`.
+- If candidate breadcrumb exists but hydration breadcrumb does not, confirm current session `sid` has not already been hydrated in this page lifecycle and that snapshot payload includes expected workspace/output fields.
+- When hydration apply is enabled, restored state includes agent transcript + composer input; attachment tray state is intentionally not restored.
+- If hydration breadcrumb is present with `agent_hydration_applied=false`, workspace/output restore ran but transcript/input restore is intentionally staged off.
+
+## AI Studio safety behavior differs from expected mode
+Checklist:
+- Verify runtime safety profile mode:
+  - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (default `prod_safe_v1`).
+- Verify development-only override:
+  - `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` should remain `false` outside controlled development tests.
+- Verify provider-error normalization mode:
+  - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE=production_normalized` keeps user-lane errors normalized.
+  - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE=development_verbatim` allows detailed hard-error payloads for debugging.
+- Verify auto-rollback gate behavior:
+  - `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED=true` enables policy-only rollback when production hard-floor incidents are detected.
+  - `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` controls cooldown lock duration (bounded `1..168`, default `24`).
+- If refusal rates suddenly change after profile/env updates, roll back to:
+  - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE=prod_safe_v1`
+  - `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED=false`
+  - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE=production_normalized`
+
 ## Admin credit adjustments fail with missing ledger columns
 Symptoms:
 - Errors like `Could not find the 'created_by' column of 'ai_credit_ledger' in the schema cache`.
@@ -360,6 +392,15 @@ limit 20;
 Checklist:
 - The provider URL allows browser fetches (some providers block cross-origin downloads).
 - If blocked, consider a Supabase Edge Function proxy (requires an ADR) or store metadata only.
+
+## Beginner mode toggle is missing or expert mode is always on
+Checklist:
+- Verify `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF` and `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE` in `frontend/.env.local`.
+- Precedence is strict: when `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF=true`, beginner mode is forced OFF and toggle controls are hidden even if `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE=true`.
+- To temporarily restore UI controls without DB rollback, set:
+  - `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF=false`
+  - `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE=true`
+- Remember the DB default after migration `049_enforce_expert_default_beginner_mode.sql` is `user_preferences.beginner_mode=false` for new rows.
 
 ## “It works in dev but not in build”
 Checklist:

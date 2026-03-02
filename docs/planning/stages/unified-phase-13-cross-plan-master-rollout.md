@@ -8,7 +8,7 @@ Execute the consolidated cross-plan rollout with strict anti-overlap controls, h
 
 ## In Scope
 1. Consolidated governance lock for incoming plans (runtime hardening, adaptive stabilization, autosave policy, session persistence, safety control plane, and AI Studio UX/prompt-adjacency updates).
-2. Migration reservation and sequencing controls through `046_*`.
+2. Migration reservation and sequencing controls through `048_*`.
 3. Wave-based execution with explicit pass/fail gates, rollback notes, and evidence requirements.
 4. Mandatory targeted research checkpoints before externally coupled implementation slices.
 
@@ -122,17 +122,62 @@ Completed:
    - added local+remote restore-candidate resolver seam with freshest-snapshot selection by `updatedAt`,
    - added default-off restore-candidate hook (`NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED`),
    - added telemetry-only page wiring for candidate-load observability without mutating workspace state.
+18. Wave C Pass 1 operational settlement closeout:
+   - applied migration-041 settlement recapture semantics in target environment,
+   - executed one-time released-conditional success recapture backfill (`captured=34`),
+   - revalidated settlement integrity (`missing_charge_count=0`, `duplicate_charge_key_count=0`) and runtime SQL security audit (`102/102/0`).
+19. Wave E Pass 11 hydration apply (gated):
+   - added snapshot hydration normalizer seam (`sessionSnapshotHydrator`) with focused tests,
+   - added `useAiStudioState` hydration entrypoint (`hydrateFromSessionSnapshot`),
+   - added page-level one-shot hydration apply path gated by `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default OFF),
+   - kept restore-candidate and restore-apply controls independently toggled for staged rollout.
+20. Wave E Pass 12 agent transcript/input hydration (gated):
+   - extended session hydration payload normalization with `agent` state (`messages`, `input`, `latestAgentPrompt`, `promptOrigin`, `chatModeEnabled`) including malformed-row filtering and message-id normalization,
+   - added `useAiAgent.replaceMessages` seam for explicit restored transcript replacement,
+   - added bridge-level hydration seam (`hydrateFromSessionAgentSnapshot`) to keep page orchestration thin and avoid coupling restore logic to UI components,
+   - extracted restore-candidate logging + apply orchestration into `useAiStudioSessionRestoreHydration` to keep `pages/ai-studio.tsx` within size-budget policy,
+   - hydration apply now restores workspace/output + agent transcript/input in one one-shot flow per `sid`, still guarded by `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default OFF).
+21. Wave E Pass 13 staged restore rollout gating:
+   - added independent agent-hydration gate (`NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED`) so workspace/output restore apply and transcript/input restore can be promoted separately,
+   - extended hydration telemetry with `agent_hydration_applied` for promote/hold decision evidence windows,
+   - kept one-shot per-`sid` semantics and fail-closed default gate posture.
+22. RCP-3 safety-control pre-rollout checkpoint complete:
+   - locked provider safety/error normalization matrix (dev diagnostics vs production normalized user-lane behavior),
+   - locked hard-floor incident rollback/cooldown trigger contract for Wave F implementation.
+23. Wave F Phase 0 governance artifacts published:
+   - added `ai-studio-agent-safety-control-plane-plan.md` and `ai-studio-agent-safety-control-plane-tracker.md`,
+   - added ADR `0028-agent-safety-control-plane-and-modality-profiles.md` for durable architecture lock.
+24. Wave F Pass 1 runtime policy core:
+   - added modality-aware safety policy core modules (`types`, category/profile catalogs, hard floors, decision engine, provider-error policy),
+   - integrated policy seams into `studioAgentCoordinator`, `legacyImageDescribeService`, and safety post-process flow with default behavior preserved,
+   - added focused runtime/unit/API regression coverage and completed lint/type-check/test gates.
+25. Wave F Pass 2 modality wiring:
+   - expanded task-submission safety policy seam from image-only to image+video payload resolution,
+   - replaced hardcoded Veo/Seedance safety payload branches in video submission handlers with shared policy resolver wiring,
+   - added modality submission regression locks (`safetyPolicy` + payload matrix) and passed targeted test/lint/type-check gates.
+26. Migration reservation collision correction:
+   - detected existing `045`/`046` Character QuickSwap migrations already landed in chain,
+   - remapped safety control-plane SQL reservations to `047_*` (persistence) and `048_*` (grant hardening/audit parity),
+   - updated reservation/decision/tracker docs to prevent cross-stream migration collisions before Wave F Pass 3 SQL work.
+27. Wave F Pass 3 control-plane persistence + admin APIs (implementation slice):
+   - added migrations `047_add_agent_safety_policy_control_plane.sql` and `048_harden_agent_safety_policy_control_plane_grants.sql` (+ `047` rollback),
+   - added control-plane diagnostics script (`sql/check_agent_safety_policy_control_plane.sql`) and expanded runtime SQL security audit expected-function set for safety RPCs,
+   - added admin control-plane endpoints (`/api/admin/agent-safety-policy/active|activate|rollback`) with auth/cooldown validation tests and green lint/type/docs gates.
+28. Wave F Pass 4 observability + auto-rollback (implementation slice):
+   - expanded runtime safety telemetry fields (`policy_version`, `profile_id`, `modality`, `category`, `decision_action`, `decision_source`, `provider_blocked`, `hard_floor_violation`, `rollback_triggered`) in `studio-agent` and `describe-image` paths,
+   - added hard-floor incident auto-rollback executor seam with production + flag gating (`STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED`) and bounded cooldown reuse (`STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS`),
+   - wired policy-only rollback trigger on hard-floor incidents and added focused regression coverage for telemetry and rollback gating.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (hydration-apply by `sid` and staged restore rollout gating).
-4. Waves F through H.
+3. Wave E remaining passes (promote/hold evidence windows and gate closeout).
+4. Wave F operational SQL apply evidence (`047/048` apply, local SQL lint where available, post-apply runtime/security checks), Wave F integrated validation window closeout, and Waves G-H (`RCP-4 pending`).
 
 ## Surgical Research Checkpoints (Required)
 1. RCP-1: browser lifecycle/autosave transport reliability. Status: complete (`2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`).
 2. RCP-2: Supabase RLS + `SECURITY DEFINER` + upsert/prune semantics. Status: complete (`2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`).
-3. RCP-3: provider safety/error normalization contracts.
+3. RCP-3: provider safety/error normalization contracts. Status: complete (`2026-03-02-phase-13-rcp-3-provider-safety-error-normalization.md`).
 4. RCP-4: Fal/Kie canary threshold and webhook/status contract tuning.
 
 ## Required Deliverables

@@ -19,6 +19,7 @@ import type {
   AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
+import type { PromptStepInlineGenerateConfig } from "./types";
 
 type PromptStepChatSurfaceProps = {
   beginnerMode: boolean;
@@ -61,6 +62,7 @@ type PromptStepChatSurfaceProps = {
   onChatModeEnabledChange?: (value: boolean) => void;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
+  chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
   highlightLatestAssistantOnly: boolean;
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
@@ -126,6 +128,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onChatModeEnabledChange,
   onAgentSend,
   onGenerateOutputPrompt,
+  chatModeInlineGenerate,
   highlightLatestAssistantOnly,
   disableOutputGenerate,
   outputGenerateCostCredits,
@@ -155,6 +158,10 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onAssistantMessageEdit,
 }) => {
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
+  const inlineGenerateCostLabel =
+    outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
+  const inlineGenerateDisabled =
+    Boolean(chatModeInlineGenerate?.disabled) || agentInput.trim().length === 0;
   const hasAgentChatContent =
     !hideAgentIntroMessage ||
     agentMessages.length > 0 ||
@@ -328,12 +335,12 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
             ref={agentInputRef}
             value={agentInput}
             onChange={(value) => onAgentInputChange?.(value)}
-            placeholder="Message the agent..."
+            placeholder={chatModeEnabled ? "Message the agent..." : "Write your prompt..."}
             onKeyDown={handleAgentInputKeyDown}
             className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
             maxHeightPx={agentInputMaxHeightPx}
           />
-          {embedSendButtonInInput ? (
+          {embedSendButtonInInput && chatModeEnabled ? (
             <AgentSendButton
               onClick={handleAgentSendClick}
               disabled={!chatModeEnabled || agentIsSending}
@@ -345,8 +352,27 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           ) : null}
         </div>
         <div className="agent-inline-actions">
-          <div className="character-mode-row agent-chat-mode-row">
-            <span className="tiny helper-text agent-chat-mode-label">Chat Mode</span>
+          {!chatModeEnabled && chatModeInlineGenerate?.onGenerate ? (
+            <button
+              type="button"
+              className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
+              onClick={chatModeInlineGenerate.onGenerate}
+              disabled={inlineGenerateDisabled}
+              aria-label={chatModeInlineGenerate.ariaLabel ?? "Generate with current prompt"}
+            >
+              <span className="agent-generate-label">Generate</span>
+              <span className="model-chip-pill generate-pill">
+                <span aria-hidden="true" className="model-chip-icon">
+                  ✦
+                </span>
+                <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
+              </span>
+            </button>
+          ) : null}
+          <div className="character-mode-row agent-chat-mode-row agent-chat-mode-toggle-shell">
+            <div className="agent-chat-mode-toggle-copy">
+              <span className="agent-chat-mode-label">Chat Mode</span>
+            </div>
             <button
               type="button"
               className={`audio-toggle character-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
@@ -360,7 +386,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
               </span>
             </button>
           </div>
-          {!embedSendButtonInInput ? (
+          {!embedSendButtonInInput && chatModeEnabled ? (
             <AgentSendButton
               onClick={handleAgentSendClick}
               disabled={!chatModeEnabled || agentIsSending}
@@ -396,11 +422,9 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           />
         </div>
       ) : null}
-      {!beginnerMode ? (
+      {!beginnerMode && chatModeEnabled ? (
         <p className="tiny helper-text agent-composer-hint">
-          {chatModeEnabled
-            ? "Enter to send. Shift+Enter for a new line."
-            : "Chat Mode is off. Generate uses your text exactly; agent rewrite is off."}
+          Enter to send. Shift+Enter for a new line.
         </p>
       ) : null}
       {imageAttachmentCounts.total > 0 ? (

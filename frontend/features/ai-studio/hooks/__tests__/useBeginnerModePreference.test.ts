@@ -51,6 +51,45 @@ describe("useBeginnerModePreference", () => {
     expect(result.current.error).toBeNull();
   });
 
+  it("defaults to false when stored preference is missing", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    });
+
+    const { result } = renderHook(() => useBeginnerModePreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.beginnerMode).toBe(false);
+    expect(upsert).toHaveBeenCalledWith(
+      { user_id: "user-1", beginner_mode: false },
+      { onConflict: "user_id" }
+    );
+    expect(window.localStorage.getItem("shortpulse.ai_studio.beginner_mode")).toBe("false");
+  });
+
   it("ignores stale failed writes when a newer write succeeds", async () => {
     const firstWrite = createDeferred<{ error: null | { message: string } }>();
     const secondWrite = createDeferred<{ error: null | { message: string } }>();

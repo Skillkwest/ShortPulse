@@ -29,6 +29,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
 - `sql/check_runtime_sql_security_audit.sql`: runtime RPC security-definer + execute-grant audit (read-only).
 - `sql/check_generation_settlement_integrity.sql`: released-success settlement leakage diagnostics (read-only).
+- `sql/check_agent_safety_policy_control_plane.sql`: agent safety control-plane table/function/execute-posture diagnostics (read-only).
 
 ### 2) Ordered migrations (`sql/migrations/`)
 Use these for durable schema evolution across environments.
@@ -80,6 +81,9 @@ Current set:
 - `044_add_ai_studio_sessions_persistence.sql`
 - `045_add_character_quickswap_deck.sql`
 - `046_fix_character_quickswap_storage_scope_check.sql`
+- `047_add_agent_safety_policy_control_plane.sql`
+- `048_harden_agent_safety_policy_control_plane_grants.sql`
+- `049_enforce_expert_default_beginner_mode.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

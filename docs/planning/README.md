@@ -35,6 +35,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-agent-pipeline-hardening-plan.md`: quality-first hardening plan for deterministic routing, server-owned vision summaries, durable canonical state, and no-question action contracts.
 - `ai-studio-agent-modularization-program.md`: decision-complete hardening and modularization program plan (v3) with architecture invariants, gates, budgets, and rollback policy.
 - `ai-studio-agent-modularization-tracker.md`: execution tracker for phase checklists, risks, blockers, rollout rings, and evidence links.
+- `ai-studio-agent-safety-control-plane-plan.md`: Wave F safety policy control-plane implementation plan (modality profiles, hard floors, admin operations, rollback/cooldown).
+- `ai-studio-agent-safety-control-plane-tracker.md`: Wave F execution tracker for safety control-plane phases, validation gates, and evidence.
 - `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
 - `ai-studio-reference-grid-modularization-program.md`: documentation-first foundation program for no-regression reference-grid modularization (domain contracts, strangler phases, rollback policy, guardrails).
 - `ai-studio-reference-grid-modularization-tracker.md`: phase tracker for reference-grid modularization status, gates, blockers, and evidence links.

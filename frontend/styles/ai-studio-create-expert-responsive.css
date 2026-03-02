@@ -38,6 +38,22 @@
   .create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-inline-actions {
     width: auto;
     justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .create-expert-panel
+    .create-expert-prompt-step
+    .agent-composer-row
+    .agent-chat-mode-row.agent-chat-mode-toggle-shell {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .create-expert-panel
+    .create-expert-prompt-step
+    .agent-composer-row
+    .agent-chat-inline-generate-btn.agent-output-generate-pill.agent-generate-prefab {
+    flex: 0 0 94px;
   }
 
   .create-expert-character-mode-control {

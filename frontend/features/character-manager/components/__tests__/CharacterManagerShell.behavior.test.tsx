@@ -978,6 +978,16 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
+  it("hides beginner toggle controls when `showBeginnerModeToggle` is false", () => {
+    render(<CharacterManagerShell showBeginnerModeToggle={false} />);
+
+    expect(
+      screen.queryByRole("button", {
+        name: /Disable beginner mode|Enable beginner mode/i,
+      })
+    ).not.toBeInTheDocument();
+  });
+
   it("progressively reveals large character libraries in Manage mode", async () => {
     characterManagerMockState.characters = Array.from({ length: 100 }, (_, index) => ({
       characterId: `character-${index + 1}`,

@@ -41,6 +41,7 @@ import {
   CHARACTER_LIBRARY_SMOOTH_TARGET,
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
+import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
 import type {
   CharacterQuickSwapItem,
@@ -55,6 +56,7 @@ type CharacterManagerShellSurface = "page" | "panel";
 type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   beginnerModeOverride?: boolean;
+  showBeginnerModeToggle?: boolean;
 };
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
@@ -446,6 +448,7 @@ const toDroppedReferenceFile = async (reference: DroppedImageReference): Promise
 export function CharacterManagerShell({
   surface = "page",
   beginnerModeOverride,
+  showBeginnerModeToggle = true,
 }: CharacterManagerShellProps) {
   const {
     characters,
@@ -1431,7 +1434,7 @@ export function CharacterManagerShell({
               Manage Characters
             </button>
           </div>
-          {activeTab === "create" && !isEmbeddedSurface ? (
+          {activeTab === "create" && !isEmbeddedSurface && showBeginnerModeToggle ? (
             <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
               <div className="toolbar-beginner-copy">
                 <span className="toolbar-label">Beginner mode</span>
@@ -1495,8 +1498,9 @@ export function CharacterManagerShell({
 
       {activeTab === "create" ? (
         <section className="character-simple-panel">
-          <div className="character-create-flow">
-            <div className="character-create-primary-column">
+          <CharacterCreateWorkspaceLayout
+            surface={surface}
+            identity={
               <section className="character-section character-section--profile">
                 <div className="character-section-head">
                   <div className="character-section-title-row">
@@ -1724,7 +1728,8 @@ export function CharacterManagerShell({
                   </div>
                 </div>
               </section>
-
+            }
+            quickSwap={
               <CharacterQuickSwapDeckSection
                 beginnerMode={effectiveBeginnerMode}
                 isCollapsed={isQuickSwapCollapsed}
@@ -1813,9 +1818,8 @@ export function CharacterManagerShell({
                   void addDroppedReferenceToQuickSwap(droppedReference);
                 }}
               />
-            </div>
-
-            <div className="character-create-secondary-column">
+            }
+            characterSheet={
               <section className="character-section character-section--references">
                 <div className="character-section-head">
                   <div className="character-section-title-row">
@@ -1938,16 +1942,17 @@ export function CharacterManagerShell({
                   })}
                 </div>
               </section>
-
-              {isEmbeddedSurface && effectiveBeginnerMode ? (
+            }
+            embeddedGuidance={
+              isEmbeddedSurface && effectiveBeginnerMode ? (
                 <p className="character-mode-guidance character-mode-guidance--sheet" role="note">
                   <span className="character-mode-guidance-label">Tip:</span>
                   Swap out your character&apos;s style on the fly by dragging and dropping
                   references from the QuickSwap Deck.
                 </p>
-              ) : null}
-            </div>
-          </div>
+              ) : undefined
+            }
+          />
         </section>
       ) : (
         <section className="panel media-panel character-manage-panel">

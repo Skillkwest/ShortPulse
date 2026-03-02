@@ -170,6 +170,7 @@ const createProps = (
   handleReferenceGridFiles: vi.fn(),
   triggerFilePicker: vi.fn(),
   ...overrides,
+  showBeginnerModeToggle: overrides.showBeginnerModeToggle ?? true,
 });
 
 describe("AiStudioPageContent right column drop router", () => {

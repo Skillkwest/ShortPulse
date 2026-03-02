@@ -49,18 +49,62 @@ describe("PromptStep agent actions", () => {
     expect(onChatModeEnabledChange).toHaveBeenCalledWith(false);
   });
 
+  it("renders the chat mode label without helper-text class", () => {
+    render(<PromptStep {...baseProps} />);
+
+    const label = screen.getByText("Chat Mode");
+    expect(label).toHaveClass("agent-chat-mode-label");
+    expect(label).not.toHaveClass("helper-text");
+  });
+
   it("disables send affordances when chat mode is off", () => {
     const onAgentSend = vi.fn();
     render(<PromptStep {...baseProps} chatModeEnabled={false} onAgentSend={onAgentSend} />);
 
-    const composer = screen.getByPlaceholderText("Message the agent...");
+    const composer = screen.getByPlaceholderText("Write your prompt...");
     fireEvent.keyDown(composer, { key: "Enter" });
     expect(onAgentSend).not.toHaveBeenCalled();
 
-    expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Send to agent" })).toBeNull();
     expect(
-      screen.getByText("Chat Mode is off. Generate uses your text exactly; agent rewrite is off.")
-    ).toBeInTheDocument();
+      screen.queryByText("Chat Mode is off. Generate uses your text exactly; agent rewrite is off.")
+    ).toBeNull();
+  });
+
+  it("shows inline generate in chat-off mode and routes clicks", () => {
+    const onInlineGenerate = vi.fn();
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled={false}
+        agentInput="a clear product prompt"
+        chatModeInlineGenerate={{ onGenerate: onInlineGenerate }}
+      />
+    );
+
+    const generateButton = screen.getByRole("button", { name: "Generate with current prompt" });
+    fireEvent.click(generateButton);
+    expect(onInlineGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides inline generate while chat mode is enabled", () => {
+    const onInlineGenerate = vi.fn();
+    render(<PromptStep {...baseProps} chatModeInlineGenerate={{ onGenerate: onInlineGenerate }} />);
+
+    expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
+  });
+
+  it("disables inline generate in chat-off mode when input is empty", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled={false}
+        agentInput=""
+        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
   });
 
   it("renders agent action controls when actions are available", () => {

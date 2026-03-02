@@ -328,7 +328,7 @@ export default function DashboardPage() {
               src="/brand-logo.png"
               alt="ShortPulse logo"
               className="brand-logo"
-              width={240}
+              width={203}
               height={64}
             />
           </Link>

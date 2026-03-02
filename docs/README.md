@@ -134,6 +134,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-agent-modularization-program.md`
 - `docs/planning/ai-studio-agent-modularization-tracker.md`
+- `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
+- `docs/planning/ai-studio-agent-safety-control-plane-tracker.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
@@ -185,6 +187,8 @@ Start here for all repository documentation.
 - `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - `docs/adr/0026-ai-studio-generation-admission-control.md`
+- `docs/adr/0027-ai-studio-reference-grid-reroll-replay-snapshot.md`
+- `docs/adr/0028-agent-safety-control-plane-and-modality-profiles.md`
 
 ## Archive
 - `docs/archive/README.md`

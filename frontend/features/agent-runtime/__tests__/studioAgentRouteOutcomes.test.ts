@@ -5,6 +5,7 @@ import {
   buildStudioAgentUpstreamErrorPayload,
   emitStudioAgentTurnTelemetry,
   isStudioAgentSafetyRefusalUpstreamError,
+  resolvePolicyVersionFromProfileId,
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "../studioAgentRouteOutcomes";
 
@@ -23,11 +24,35 @@ describe("studioAgentRouteOutcomes", () => {
     });
 
     expect(infoSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(infoSpy.mock.calls[0]?.[1] ?? "{}")) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        outcome_class: "success_prompt",
+        policy_version: null,
+        profile_id: null,
+        modality: null,
+        category: null,
+        decision_action: null,
+        provider_blocked: false,
+        hard_floor_violation: false,
+        rollback_triggered: false,
+      })
+    );
     expect(infoSpy).toHaveBeenCalledWith(
       "[studio-agent][telemetry]",
       expect.stringContaining('"outcome_class":"success_prompt"')
     );
     infoSpy.mockRestore();
+  });
+
+  it("resolves policy versions from profile ids", () => {
+    expect(resolvePolicyVersionFromProfileId("prod_safe_v1")).toBe(1);
+    expect(resolvePolicyVersionFromProfileId("staging_lenient")).toBeNull();
+    expect(resolvePolicyVersionFromProfileId("")).toBeNull();
+    expect(resolvePolicyVersionFromProfileId(null)).toBeNull();
   });
 
   it("builds upstream error payloads with optional stage", () => {

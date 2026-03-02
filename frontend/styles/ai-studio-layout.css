@@ -228,10 +228,6 @@ body:has(.ai-studio-page) {
   flex-direction: column;
 }
 
-.ai-studio-page[data-beginner-mode="off"] .helper-text {
-  display: none !important;
-}
-
 .ai-studio-page .generate-rounding-note {
   margin-top: 6px;
   color: var(--ai-card-text-muted);
@@ -1420,6 +1416,10 @@ body.ai-shell-resizing * {
 .toolbar-footer {
   margin-top: auto;
   padding-top: 10px;
+}
+
+.toolbar-footer--toggle-hidden {
+  min-height: 76px;
 }
 
 .toolbar-beginner-toggle {

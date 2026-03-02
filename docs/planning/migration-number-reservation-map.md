@@ -14,11 +14,14 @@ Prevent migration-number collisions across concurrent plan tracks and lock order
 | `042_*` | Runtime Slice C queue/recovery RPC execute-grant parity | Implemented | `042_harden_queue_recovery_rpc_execute_grants.sql` landed. |
 | `043_*` | `user_preferences.media_autosave_enabled` | Implemented | `043_add_user_preferences_media_autosave_enabled.sql` landed with rollback pair. |
 | `044_*` | AI Studio session persistence table/RPC | Implemented | `044_add_ai_studio_sessions_persistence.sql` landed with rollback pair. |
-| `045_*` | Safety control-plane persistence entities | Reserved | Profile/version/runtime/event tables. |
-| `046_*` | Safety control-plane grants/hardening/checks | Reserved | Execute posture, cooldown/rollback helpers, validation checks. |
+| `045_*` | Character QuickSwap persistence foundation | Implemented | `045_add_character_quickswap_deck.sql` already landed. |
+| `046_*` | Character QuickSwap storage-scope check fix | Implemented | `046_fix_character_quickswap_storage_scope_check.sql` already landed. |
+| `047_*` | Safety control-plane persistence entities | Implemented | `047_add_agent_safety_policy_control_plane.sql` landed with rollback pair. |
+| `048_*` | Safety control-plane grants/hardening/checks | Implemented | `048_harden_agent_safety_policy_control_plane_grants.sql` landed. |
+| `049_*` | Global expert-first beginner-mode default enforcement | Implemented | `049_enforce_expert_default_beginner_mode.sql` landed with rollback pair. |
 
 ## Reservation Rules
-1. No migration PR may use `041`-`046` unless mapped here first.
+1. No migration PR may use `041`-`049` unless mapped here first.
 2. One migration number maps to one concern only; no mixed-scope migrations.
 3. Changes to this map must also update:
    - `docs/planning/shortpulse-unified-decision-log.md`

@@ -11,8 +11,8 @@ Reference for pages, auth expectations, and ownership.
 | `/performance-soon` | Yes | Temporary placeholder for the analytics workspace | Explains that the Performance surface is still under construction. |
 | `/saved-creators` | Yes | Saved creators list | Post‑MVP (Coming Soon). |
 | `/media-library` | Yes | Private bucket file manager | Uses `media_library` bucket + `media_files` table (RLS), including Private tab uploads under `<auth.uid()>/private/images/...`. |
-| `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. Session identity contract uses `?sid=<uuid>`; plain `/ai-studio` starts a new session id via shallow replace. |
-| `/character` | Yes | Character Manager (reference intake + character management) | Upload and persist unlimited QuickSwap references per character (500 active, overflow archived), then arrange and persist character-sheet assignments for downstream generation wiring. |
+| `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. Session identity contract uses `?sid=<uuid>`; plain `/ai-studio` starts a new session id via shallow replace. Beginner mode is temporarily force-disabled and toggle controls are hidden by runtime policy flags. |
+| `/character` | Yes | Character Manager (reference intake + character management) | Upload and persist unlimited QuickSwap references per character (500 active, overflow archived), then arrange and persist character-sheet assignments for downstream generation wiring. Beginner toggle controls are temporarily hidden by runtime policy flags. |
 | `/character-soon` | Yes | Legacy placeholder route for Character | Kept as fallback while Character Manager rollout stabilizes. |
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges. |
 | `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. |

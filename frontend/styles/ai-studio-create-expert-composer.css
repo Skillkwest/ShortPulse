@@ -118,6 +118,46 @@
   align-self: center;
 }
 
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-chat-mode-row.agent-chat-mode-toggle-shell {
+  min-height: 64px;
+  padding: 8px 10px;
+  border-color: rgba(201, 205, 214, 0.02);
+  background: rgba(201, 205, 214, 0.02);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-chat-mode-toggle-copy {
+  min-width: 72px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-chat-inline-generate-btn.agent-output-generate-pill.agent-generate-prefab {
+  width: 94px;
+  min-width: 94px;
+  max-width: 94px;
+  min-height: 64px;
+  height: 64px;
+  max-height: 64px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-chat-inline-generate-btn.agent-output-generate-pill.agent-generate-prefab:hover:not(
+    :disabled
+  ) {
+  transform: translateY(1px);
+}
+
 /* Temporarily hide the blue Pin/Save button in Expert mode. */
 .create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-save-prefab,
 .create-expert-panel .create-expert-prompt-step .agent-composer-row .create-chat-pin-btn {
@@ -134,4 +174,10 @@
 .create-expert-panel .step2-input-row .agent-send-btn:hover,
 .create-expert-panel .step2-input-row .step2-send-btn:hover {
   box-shadow: none;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-hint:not(.agent-composer-hint--media) {
+  display: none;
 }

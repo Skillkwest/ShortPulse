@@ -8,7 +8,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
-- Chat Mode toggle (inline composer, right side): default ON. ON keeps normal send-to-agent behavior; OFF disables send affordances and routes Create/Text primary submit through raw prompt generation (`agentInput` fallback to shared prompt) without rewrite.
+- Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps normal send-to-agent behavior; OFF disables send affordances, shows an inline generate button beside the toggle, and routes Create/Text primary submit through raw prompt generation (`agentInput` fallback to shared prompt) without rewrite.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.

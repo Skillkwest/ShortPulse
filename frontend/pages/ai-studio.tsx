@@ -10,7 +10,7 @@ import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWo
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
-import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
+import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import { normalizePromptText } from "../features/ai-studio/logic/agentPromptOwnership";
@@ -42,6 +42,7 @@ import { buildAiStudioSessionSnapshot } from "../features/ai-studio/logic/sessio
 import { useAiStudioSessionWriteShadow } from "../features/ai-studio/hooks/useAiStudioSessionWriteShadow";
 import { persistAiStudioSessionShadow } from "../features/ai-studio/logic/sessionShadowPersistence";
 import { useAiStudioSessionRestoreCandidate } from "../features/ai-studio/hooks/useAiStudioSessionRestoreCandidate";
+import { useAiStudioSessionRestoreHydration } from "../features/ai-studio/hooks/useAiStudioSessionRestoreHydration";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -78,11 +79,7 @@ const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 const FLAG_AGENT_BUBBLE_INLINE_EDIT =
   process.env.NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT === "true";
 
-type OptimisticDebitEntry = {
-  credits: number;
-  outputId: string | null;
-  createdAtMs?: number;
-};
+type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#2ad1ff"/><stop offset="1" stop-color="#0f6fff"/></linearGradient></defs><rect width="240" height="240" fill="url(#g)"/><circle cx="120" cy="94" r="50" fill="rgba(255,255,255,0.24)"/><rect x="48" y="152" width="144" height="56" rx="18" fill="rgba(0,0,0,0.24)"/></svg>'
@@ -198,7 +195,6 @@ type AiStudioPerfWindow = Window & {
 export default function AiStudioPage() {
   const { sessionId } = useAiStudioSessionIdentity();
   const sessionRestoreCandidate = useAiStudioSessionRestoreCandidate({ sessionId });
-  const sessionRestoreCandidateLogKeyRef = useRef<string | null>(null);
 
   const {
     mediaAutosaveEnabled,
@@ -306,6 +302,7 @@ export default function AiStudioPage() {
     addLibraryMediaReference,
     addLibraryPromptReference,
     toggleReferenceIndicator,
+    hydrateFromSessionSnapshot,
     openModelModal,
     closeModelModal,
     updateOutputPrompt,
@@ -989,8 +986,9 @@ export default function AiStudioPage() {
     loading: beginnerModeLoading,
     error: beginnerModeError,
     syncState: beginnerModeSyncState,
+    showBeginnerModeToggle,
     setBeginnerMode,
-  } = useBeginnerModePreference();
+  } = useEffectiveBeginnerModePreference();
   const trackUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
     addBreadcrumb({
       type: "ui",
@@ -1050,6 +1048,7 @@ export default function AiStudioPage() {
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleAgentDescribeTargets,
+    hydrateFromSessionAgentSnapshot,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave,
@@ -1084,37 +1083,12 @@ export default function AiStudioPage() {
     trackAgentUiEvent: trackUiEvent,
   });
 
-  useEffect(() => {
-    if (sessionRestoreCandidate.status !== "ready") return;
-
-    const snapshot = sessionRestoreCandidate.snapshot;
-    const source = sessionRestoreCandidate.source;
-    const logKey = [
-      sessionId ?? "none",
-      source,
-      snapshot?.updatedAt ?? "none",
-      snapshot ? "present" : "empty",
-    ].join("|");
-    if (sessionRestoreCandidateLogKeyRef.current === logKey) return;
-    sessionRestoreCandidateLogKeyRef.current = logKey;
-
-    addBreadcrumb({
-      type: "ui",
-      level: "info",
-      message: "ai_studio_session_restore_candidate_loaded",
-      data: {
-        session_id: sessionId,
-        source,
-        has_snapshot: Boolean(snapshot),
-        snapshot_updated_at: snapshot?.updatedAt ?? null,
-      },
-    });
-  }, [
+  useAiStudioSessionRestoreHydration({
     sessionId,
-    sessionRestoreCandidate.snapshot,
-    sessionRestoreCandidate.source,
-    sessionRestoreCandidate.status,
-  ]);
+    sessionRestoreCandidate,
+    hydrateFromSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
+  });
 
   const sessionSnapshot = useMemo(() => {
     if (!sessionId) return null;
@@ -1212,10 +1186,11 @@ export default function AiStudioPage() {
   const effectiveUiNotice = uiNotice ?? beginnerModeUiNotice ?? mediaAutosaveUiNotice;
   const handleBeginnerModeChange = useCallback(
     (value: boolean) => {
+      if (!showBeginnerModeToggle) return;
       if (beginnerModeLoading || beginnerModeSyncState === "saving") return;
       setBeginnerMode(value);
     },
-    [beginnerModeLoading, beginnerModeSyncState, setBeginnerMode]
+    [beginnerModeLoading, beginnerModeSyncState, setBeginnerMode, showBeginnerModeToggle]
   );
 
   const { visibleFailures, dismissFailure, focusFailure } =
@@ -1656,6 +1631,7 @@ export default function AiStudioPage() {
         onDismissUiNotice={dismissNotice}
         onDismissCharacterError={clearCharacterError}
         beginnerMode={beginnerMode}
+        showBeginnerModeToggle={showBeginnerModeToggle}
         onBeginnerModeChange={handleBeginnerModeChange}
         balanceCredits={effectiveBalanceCredits}
         pendingHoldCredits={pendingHoldCredits > 0 ? pendingHoldCredits : null}

@@ -1,4 +1,10 @@
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
+import type {
+  SafetyCategoryId,
+  SafetyModality,
+  SafetyPolicyAction,
+  SafetyProfileId,
+} from "./safetyPolicy/types";
 
 export type StudioAgentTelemetryStatus = "success" | "refuse" | "error";
 export type StudioAgentTelemetryOutcomeClass =
@@ -10,6 +16,19 @@ export type StudioAgentTelemetryOutcomeClass =
   | "route_error";
 export type StudioAgentSafetyTelemetryOutcome = "pass" | "rewritten" | "refusal";
 export type StudioAgentSafetyTelemetrySource = "model_output" | "describe_output";
+export type StudioAgentSafetyDecisionSource = "profile" | "hard_floor" | "absolute_zero";
+
+export type StudioAgentSafetyTelemetryFields = {
+  policyVersion?: number | null;
+  profileId?: SafetyProfileId | null;
+  modality?: SafetyModality | null;
+  category?: SafetyCategoryId | null;
+  decisionAction?: SafetyPolicyAction | null;
+  decisionSource?: StudioAgentSafetyDecisionSource | null;
+  providerBlocked?: boolean;
+  hardFloorViolation?: boolean;
+  rollbackTriggered?: boolean;
+};
 
 export const STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
 
@@ -29,6 +48,7 @@ export const emitStudioAgentTurnTelemetry = ({
   safetyFallback,
   safetyDebugReason,
   safetyDebugEnabled,
+  safetyTelemetry,
 }: {
   flow: string;
   path: string;
@@ -45,6 +65,7 @@ export const emitStudioAgentTurnTelemetry = ({
   safetyFallback?: boolean;
   safetyDebugReason?: string;
   safetyDebugEnabled?: boolean;
+  safetyTelemetry?: StudioAgentSafetyTelemetryFields;
 }) => {
   console.info(
     "[studio-agent][telemetry]",
@@ -62,11 +83,32 @@ export const emitStudioAgentTurnTelemetry = ({
       ...(safetyOutcome ? { safety_outcome: safetyOutcome } : {}),
       ...(safetySource ? { safety_source: safetySource } : {}),
       ...(typeof safetyFallback === "boolean" ? { safety_fallback: safetyFallback } : {}),
+      policy_version: safetyTelemetry?.policyVersion ?? null,
+      profile_id: safetyTelemetry?.profileId ?? null,
+      modality: safetyTelemetry?.modality ?? null,
+      category: safetyTelemetry?.category ?? null,
+      decision_action: safetyTelemetry?.decisionAction ?? null,
+      decision_source: safetyTelemetry?.decisionSource ?? null,
+      provider_blocked: safetyTelemetry?.providerBlocked ?? false,
+      hard_floor_violation: safetyTelemetry?.hardFloorViolation ?? false,
+      rollback_triggered: safetyTelemetry?.rollbackTriggered ?? false,
       ...(safetyDebugEnabled && safetyDebugReason
         ? { safety_debug_reason: safetyDebugReason }
         : {}),
     })
   );
+};
+
+export const resolvePolicyVersionFromProfileId = (
+  profileId: string | null | undefined
+): number | null => {
+  if (typeof profileId !== "string") return null;
+  const normalized = profileId.trim().toLowerCase();
+  if (!normalized.length) return null;
+  const match = normalized.match(/_v(\d+)$/);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 export const buildStudioAgentUpstreamErrorPayload = ({

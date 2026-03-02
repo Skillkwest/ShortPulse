@@ -254,5 +254,11 @@ export const useAiAgent = ({
     []
   );
 
-  return { ...state, send, reset, appendUserMessage, updateMessageById };
+  const replaceMessages = useCallback((nextMessages: AgentMessage[]) => {
+    setMessages(nextMessages);
+    messagesRef.current = nextMessages;
+    setError(null);
+  }, []);
+
+  return { ...state, send, reset, appendUserMessage, updateMessageById, replaceMessages };
 };

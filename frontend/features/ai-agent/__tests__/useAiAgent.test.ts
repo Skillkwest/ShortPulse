@@ -289,4 +289,21 @@ describe("useAiAgent", () => {
     expect(updatedAssistant?.content).toBe("edited assistant output");
     expect(updatedAssistant?.id).toBe(assistantMessage?.id);
   });
+
+  it("replaces chat history when replaceMessages is used", () => {
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    act(() => {
+      result.current.replaceMessages([
+        { id: "agent-user-restored-1", role: "user", content: "restored user" },
+        { id: "agent-assistant-restored-1", role: "assistant", content: "restored assistant" },
+      ]);
+    });
+
+    expect(result.current.messages).toEqual([
+      { id: "agent-user-restored-1", role: "user", content: "restored user" },
+      { id: "agent-assistant-restored-1", role: "assistant", content: "restored assistant" },
+    ]);
+    expect(result.current.error).toBeNull();
+  });
 });

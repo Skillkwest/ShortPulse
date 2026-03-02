@@ -157,6 +157,8 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalVeo",
     requestedResolution: "4k",
     expectsAudioField: true,
+    expectedSafetyChecker: false,
+    expectedSafetyTolerance: "5",
     expectedReferenceField: "none",
   },
   "fal-ai/veo3.1/image-to-video": {
@@ -164,6 +166,8 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalVeoImageToVideo",
     requestedResolution: "4k",
     expectsAudioField: true,
+    expectedSafetyChecker: false,
+    expectedSafetyTolerance: "5",
     expectedReferenceField: "image_urls",
   },
   "fal-ai/veo3.1/first-last-frame-to-video": {
@@ -171,6 +175,8 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalVeoFirstLast",
     requestedResolution: "4k",
     expectsAudioField: true,
+    expectedSafetyChecker: false,
+    expectedSafetyTolerance: "5",
     expectedReferenceField: "first_last_frame_urls",
   },
   "fal-ai/sora-2/text-to-video/pro": {
@@ -185,6 +191,7 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalSeedance",
     requestedResolution: "1080p",
     expectsAudioField: true,
+    expectedSafetyChecker: false,
     expectedReferenceField: "none",
   },
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
@@ -192,6 +199,7 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalSeedanceI2V",
     requestedResolution: "1080p",
     expectsAudioField: true,
+    expectedSafetyChecker: false,
     expectedReferenceField: "image_url",
   },
 };

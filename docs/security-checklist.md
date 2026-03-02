@@ -38,6 +38,7 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
 - **Conversation-state RPC hardening**: Keep `upsert_ai_agent_conversation_state` execute scope service-role-only, enforce bounded TTL/cap in DB logic, and run scheduled cleanup via `prune_ai_agent_conversation_state_expired`.
 - **AI Studio session RPC hardening**: Keep session persistence RPCs (`upsert_ai_studio_session_snapshot`, `get_ai_studio_session_snapshot`, `list_ai_studio_sessions`, `prune_ai_studio_sessions_expired`) service-role-only with explicit `SECURITY DEFINER` search-path hardening and deterministic bounded prune semantics.
+- **Agent safety control-plane RPC hardening**: Keep control-plane RPCs (`get_active_agent_safety_policy`, `activate_agent_safety_policy`, `rollback_agent_safety_policy`) service-role-only with `SECURITY DEFINER` posture; only admin APIs may invoke these via server-side service-role clients.
 - **Runtime SQL RPC hardening audit**: Run `sql/check_runtime_sql_security_audit.sql` after migration/security updates and before release signoff; require `failing_checks = 0`.
 
 ## Validation

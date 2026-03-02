@@ -249,9 +249,51 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `prune_ai_studio_sessions_expired(p_limit default 10000)`
   - Service-role cleanup helper for bounded stale-row pruning.
 
+### agent_safety_policy_versions
+- `id` (bigint identity, pk): Immutable policy version row id.
+- `profile_id` (text): `prod_safe_v1 | staging_lenient | dev_absolute_zero`.
+- `version` (integer): Profile-local version number (`>=1`).
+- `policy` (jsonb object): Profile policy document (modality -> category -> action mapping).
+- `is_enabled` (boolean): Activation eligibility toggle.
+- `note` (text, nullable): Optional operator note for policy version intent.
+- `created_by_user_id` / `created_by_email` (nullable): Operator attribution metadata.
+- `created_at` (timestamptz, default now).
+- RLS: enabled; service-role RPC paths are authoritative for writes/reads.
+
+### agent_safety_policy_runtime
+- `singleton` (boolean, pk, always `true`): Singleton runtime state row key.
+- `active_policy_version_id` (bigint fk -> `agent_safety_policy_versions.id`): Currently active policy version.
+- `last_known_safe_policy_version_id` (bigint fk -> `agent_safety_policy_versions.id`, nullable): Rollback target version.
+- `cooldown_until` (timestamptz, nullable): Profile activation lock deadline after rollback.
+- `updated_by_user_id` / `updated_by_email` (nullable): Last operator/system update attribution.
+- `updated_at` (timestamptz): Last runtime-state mutation timestamp.
+- RLS: enabled; service-role RPC paths are authoritative for writes/reads.
+
+### agent_safety_policy_events
+- `id` (bigint identity, pk): Event row id.
+- `event_type` (text): `activate | rollback | cooldown_blocked`.
+- `from_policy_version_id` / `to_policy_version_id` (nullable fk -> `agent_safety_policy_versions.id`): Policy transition pointers.
+- `actor_user_id` / `actor_email` (nullable): Operator attribution metadata.
+- `reason` (text, nullable): Operator reason for activation/rollback event.
+- `metadata` (jsonb object): Event context (`source`, `single_reviewer_ack`, cooldown metadata).
+- `created_at` (timestamptz, default now).
+- RLS: enabled; service-role RPC paths are authoritative for writes/reads.
+
+### Agent safety control-plane RPC contract
+- `get_active_agent_safety_policy()`
+  - Service-role-only read helper for active runtime profile/version + last-known-safe + cooldown metadata.
+- `activate_agent_safety_policy(p_profile_id, p_reason, p_actor_user_id, p_actor_email, p_single_reviewer_ack, p_source)`
+  - Service-role-only activation helper.
+  - Enforces profile allowlist, required `singleReviewerAck`, and cooldown lock windows.
+  - Records `activate` or `cooldown_blocked` audit events.
+- `rollback_agent_safety_policy(p_reason, p_actor_user_id, p_actor_email, p_source, p_cooldown_hours)`
+  - Service-role-only rollback helper.
+  - Reverts to last-known-safe policy version and applies bounded cooldown (`1..168` hours).
+  - Records rollback audit events for operator traceability.
+
 ### user_preferences
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
-- `beginner_mode` (boolean, default `true`): AI Studio beginner mode toggle.
+- `beginner_mode` (boolean, default `false`): AI Studio/Character Manager beginner mode preference (expert-first default while runtime lockdown is active).
 - `media_autosave_enabled` (boolean, default `true`): AI Studio autosave policy toggle used by client autosave orchestration and server recovery enforcement.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)

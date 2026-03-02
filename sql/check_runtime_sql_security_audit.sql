@@ -24,7 +24,10 @@ with expected_functions as (
             ('public.upsert_ai_studio_session_snapshot(uuid,uuid,jsonb,integer,text,interval,integer)'),
             ('public.get_ai_studio_session_snapshot(uuid,uuid)'),
             ('public.list_ai_studio_sessions(uuid,integer,timestamptz,uuid)'),
-            ('public.prune_ai_studio_sessions_expired(integer)')
+            ('public.prune_ai_studio_sessions_expired(integer)'),
+            ('public.get_active_agent_safety_policy()'),
+            ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
+            ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
     ) as f(signature)
 ),
 resolved as (
@@ -147,7 +150,10 @@ with expected_functions as (
             ('public.upsert_ai_studio_session_snapshot(uuid,uuid,jsonb,integer,text,interval,integer)'),
             ('public.get_ai_studio_session_snapshot(uuid,uuid)'),
             ('public.list_ai_studio_sessions(uuid,integer,timestamptz,uuid)'),
-            ('public.prune_ai_studio_sessions_expired(integer)')
+            ('public.prune_ai_studio_sessions_expired(integer)'),
+            ('public.get_active_agent_safety_policy()'),
+            ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
+            ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
     ) as f(signature)
 ),
 resolved as (

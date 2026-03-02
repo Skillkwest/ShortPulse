@@ -43,7 +43,17 @@ Example:
 14. `2026-03-02-phase-13-wave-e-pass-9-session-remote-shadow-write-through.md`
 15. `2026-03-02-phase-13-wave-e-pass-8-runtime-sql-audit-green.md`
 16. `2026-03-02-phase-13-wave-e-pass-10-session-restore-candidate-readiness.md`
+17. `2026-03-02-phase-13-wave-c-pass-1-settlement-integrity-operational-closeout.md`
+18. `2026-03-02-phase-13-wave-e-pass-11-session-hydration-apply-gated.md`
+19. `2026-03-02-phase-13-wave-e-pass-12-agent-transcript-input-hydration.md`
+20. `2026-03-02-phase-13-wave-e-pass-13-staged-restore-agent-gate.md`
+21. `2026-03-02-phase-13-wave-f-pass-0-safety-control-plane-governance-lock.md`
+22. `2026-03-02-phase-13-wave-f-pass-1-runtime-policy-core.md`
+23. `2026-03-02-phase-13-wave-f-pass-2-modality-wiring.md`
+24. `2026-03-02-phase-13-wave-f-pass-3-control-plane-persistence-admin-apis.md`
+25. `2026-03-02-phase-13-wave-f-pass-4-observability-auto-rollback.md`
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`
 2. `2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`
+3. `2026-03-02-phase-13-rcp-3-provider-safety-error-normalization.md`

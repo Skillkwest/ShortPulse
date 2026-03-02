@@ -264,12 +264,13 @@ vi.mock("../../features/character/hooks/useCharacterWorkflow", () => ({
   }),
 }));
 
-vi.mock("../../features/ai-studio/hooks/useBeginnerModePreference", () => ({
-  useBeginnerModePreference: () => ({
+vi.mock("../../features/ai-studio/hooks/useEffectiveBeginnerModePreference", () => ({
+  useEffectiveBeginnerModePreference: () => ({
     beginnerMode: false,
     loading: false,
     error: null,
     syncState: "ready",
+    showBeginnerModeToggle: true,
     setBeginnerMode: vi.fn(),
   }),
 }));
@@ -315,6 +316,10 @@ vi.mock("../../lib/appErrorReporter", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioState", () => ({
   useAiStudioState: () => aiStudioStateMock,
+}));
+
+vi.mock("../../features/ai-studio/hooks/useAiStudioSessionIdentity", () => ({
+  useAiStudioSessionIdentity: () => ({ sessionId: "test-session-id" }),
 }));
 
 vi.mock("../../features/ai-studio/hooks/aiStudioOutputStore", () => ({

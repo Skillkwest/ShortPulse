@@ -421,6 +421,11 @@ export function CreatePropertiesPanel({
     onAgentDescribeTargets,
     onAssistantMessageEdit,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
+    chatModeInlineGenerate: {
+      onGenerate,
+      disabled: isGenerateDisabled || isPromptGenerating,
+      ariaLabel: "Generate with current prompt",
+    },
     onSavePrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,

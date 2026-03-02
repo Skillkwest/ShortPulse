@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 
-const DEFAULT_BEGINNER_MODE = true;
+const DEFAULT_BEGINNER_MODE = false;
 const BEGINNER_MODE_STORAGE_KEY = "shortpulse.ai_studio.beginner_mode";
 
 export type BeginnerSyncState = "loading" | "ready" | "saving" | "error";

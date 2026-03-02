@@ -131,6 +131,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Image resolution controls
 
+- Temporary policy note: beginner mode is currently globally force-disabled by runtime flags (`NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF=true`, toggle hidden), so AI Studio runs in expert mode by default across sessions.
 - The image resolution step card appears only when `beginnerMode` is off.
 - The card is shown in both `CreatePropertiesPanel` (text-to-image) and `EditPropertiesPanel` (image-to-image).
 - Resolution options are model-driven from `modelRegistry.ts` (`allowedResolutions` + `defaultResolution`):

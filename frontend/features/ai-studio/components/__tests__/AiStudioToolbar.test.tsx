@@ -22,6 +22,44 @@ vi.mock("../../../../components/DashboardNavPrefab", () => ({
 }));
 
 describe("AiStudioToolbar", () => {
+  it("hides beginner toggle controls when `showBeginnerModeToggle` is false", () => {
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        beginnerMode={false}
+        showBeginnerModeToggle={false}
+        onSelectTool={vi.fn()}
+        onToggleCreateTools={vi.fn()}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: /Disable beginner mode|Enable beginner mode/i,
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a functional beginner toggle when `showBeginnerModeToggle` is true", () => {
+    const onToggleBeginnerMode = vi.fn();
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        beginnerMode={true}
+        showBeginnerModeToggle={true}
+        onSelectTool={vi.fn()}
+        onToggleCreateTools={vi.fn()}
+        onToggleBeginnerMode={onToggleBeginnerMode}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Disable beginner mode/i }));
+    expect(onToggleBeginnerMode).toHaveBeenCalledWith(false);
+  });
+
   it.each([
     { button: "Create", expected: "create" as const },
     { button: "Edit", expected: "edit" as const },

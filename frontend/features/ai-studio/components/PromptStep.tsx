@@ -47,6 +47,7 @@ export function PromptStep({
   onAgentDescribeTargets,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
+  chatModeInlineGenerate,
   onSavePrompt,
   isCollapsed,
   onToggleCollapse,
@@ -255,6 +256,7 @@ export function PromptStep({
                 onChatModeEnabledChange={onChatModeEnabledChange}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
+                chatModeInlineGenerate={chatModeInlineGenerate}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}

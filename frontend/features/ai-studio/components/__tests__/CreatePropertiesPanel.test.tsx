@@ -279,6 +279,68 @@ describe("CreatePropertiesPanel", () => {
     expect(onGenerate).toHaveBeenCalledTimes(1);
   });
 
+  it("shows chat-off inline generate in expert mode and keeps it wired to onGenerate", () => {
+    const onGenerate = vi.fn();
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      agentInput: "Refine this prompt for cinematic lighting.",
+      onGenerate,
+      characterModeEnabled: false,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate with current prompt" }));
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables chat-off inline generate when create generate is disabled", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      agentInput: "A valid prompt should still be blocked when create is disabled.",
+      onGenerate: vi.fn(),
+      characterModeEnabled: false,
+      isGenerateDisabled: true,
+    });
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+  });
+
+  it("disables chat-off inline generate when prompt input is empty", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      agentInput: "",
+      onGenerate: vi.fn(),
+      characterModeEnabled: false,
+      isGenerateDisabled: false,
+    });
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+  });
+
+  it("shows estimated cost on chat-off inline generate", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      onGenerate: vi.fn(),
+      characterModeEnabled: false,
+      outputGenerateCostCredits: 1234,
+    });
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toHaveTextContent(
+      "1,234"
+    );
+  });
+
   it("keeps expert character picker selection wiring intact", () => {
     const onSelectedCharacterIdChange = vi.fn();
     renderPanel({

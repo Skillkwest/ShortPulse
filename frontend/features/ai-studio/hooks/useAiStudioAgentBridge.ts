@@ -22,6 +22,7 @@ import type { AgentModeHint } from "./agentOrchestration/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatModePreference";
+import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 
 type UseAiStudioAgentBridgeParams = {
   mode: StudioMode;
@@ -95,6 +96,7 @@ export const useAiStudioAgentBridge = ({
     send: sendToAgent,
     appendUserMessage,
     updateMessageById,
+    replaceMessages,
     reset: resetAgentChat,
   } = useAiAgent({
     enabled: agentEnabled,
@@ -243,6 +245,27 @@ export const useAiStudioAgentBridge = ({
     [agentMessages, trackAgentUiEvent, updateMessageById]
   );
 
+  const hydrateFromSessionAgentSnapshot = useCallback(
+    (agentSnapshot: AiStudioSessionHydrationPayload["agent"]) => {
+      replaceMessages(agentSnapshot.messages);
+      setAgentInput(agentSnapshot.input);
+      setLatestAgentPrompt(agentSnapshot.latestAgentPrompt);
+      setPromptOrigin(agentSnapshot.promptOrigin);
+      setChatModeEnabled(agentSnapshot.chatModeEnabled);
+      setAgentActions(undefined);
+      setAgentAttachmentError(null);
+      setAgentAttachments([]);
+    },
+    [
+      replaceMessages,
+      setAgentInput,
+      setPromptOrigin,
+      setChatModeEnabled,
+      setAgentAttachmentError,
+      setAgentAttachments,
+    ]
+  );
+
   return {
     agentEnabled,
     agentMessages,
@@ -270,6 +293,7 @@ export const useAiStudioAgentBridge = ({
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleAgentDescribeTargets,
+    hydrateFromSessionAgentSnapshot,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave,

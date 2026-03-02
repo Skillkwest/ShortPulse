@@ -74,15 +74,14 @@ body.character-manager-body {
   gap: 12px;
 }
 
-.character-manager-page--embedded .character-create-flow {
-  grid-template-columns: minmax(0, 1fr) fit-content(var(--character-embedded-sheet-width));
+.character-manager-page--embedded .character-create-workspace-layout {
   align-items: start;
 }
 
 .character-manager-page--embedded .character-section--references {
-  justify-self: start;
+  justify-self: stretch;
   width: 100%;
-  max-width: var(--character-embedded-sheet-width);
+  max-width: none;
 }
 
 .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
@@ -168,27 +167,8 @@ body.character-manager-body {
 }
 
 @media (min-width: 1101px) {
-  .character-manager-page--embedded .character-create-primary-column {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
-    align-content: start;
-    min-width: 0;
-  }
-
-  .character-manager-page--embedded .character-create-secondary-column {
-    grid-column: 2;
-    grid-row: 1;
-    display: grid;
-    gap: 14px;
-    min-width: 0;
-    align-content: start;
-  }
-
-  .character-manager-page--embedded .character-section--reference-drop {
-    grid-column: 1;
-    grid-row: 2;
-    width: 100%;
+  .character-manager-page--embedded .character-create-workspace-layout {
+    grid-template-columns: minmax(0, 1fr) fit-content(var(--character-embedded-sheet-width));
   }
 
   .character-manager-page--embedded .character-mode-guidance--sheet {
@@ -506,24 +486,40 @@ body.character-manager-body {
   gap: 12px;
 }
 
-.character-create-flow {
+.character-create-workspace-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 14px;
 }
 
-.character-create-primary-column {
+.character-layout-region {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
 
-.character-create-secondary-column {
-  display: grid;
-  gap: 14px;
-  min-width: 0;
-  align-content: start;
+@media (min-width: 1101px) {
+  .character-create-workspace-layout {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+    grid-template-areas:
+      "identity quickswap"
+      "sheet quickswap";
+  }
+
+  .character-layout-region--identity {
+    grid-area: identity;
+  }
+
+  .character-layout-region--quickswap {
+    grid-area: quickswap;
+    align-content: start;
+  }
+
+  .character-layout-region--sheet {
+    grid-area: sheet;
+    align-content: start;
+  }
 }
 
 .character-section {

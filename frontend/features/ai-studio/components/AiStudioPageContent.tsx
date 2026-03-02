@@ -399,6 +399,7 @@ export type AiStudioPageContentProps = {
   onDismissUiNotice: () => void;
   onDismissCharacterError: () => void;
   beginnerMode: boolean;
+  showBeginnerModeToggle: boolean;
   onBeginnerModeChange: (value: boolean) => void;
   balanceCredits: number | null;
   pendingHoldCredits: number | null;
@@ -460,6 +461,7 @@ export function AiStudioPageContent({
   onDismissUiNotice,
   onDismissCharacterError,
   beginnerMode,
+  showBeginnerModeToggle,
   onBeginnerModeChange,
   balanceCredits,
   pendingHoldCredits,
@@ -645,6 +647,7 @@ export function AiStudioPageContent({
       selectedTool={selectedTool}
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
+      showBeginnerModeToggle={showBeginnerModeToggle}
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onBeginnerModeChange={onBeginnerModeChange}
@@ -654,10 +657,10 @@ export function AiStudioPageContent({
       selectedTool={selectedTool}
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
+      showBeginnerModeToggle={showBeginnerModeToggle}
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onToggleBeginnerMode={onBeginnerModeChange}
-      showOnboardingSteps={beginnerMode}
     />
   );
 

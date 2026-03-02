@@ -133,7 +133,10 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 45. `sql/migrations/044_add_ai_studio_sessions_persistence.sql`
 46. `sql/migrations/045_add_character_quickswap_deck.sql`
 47. `sql/migrations/046_fix_character_quickswap_storage_scope_check.sql`
-48. Rollback files:
+48. `sql/migrations/047_add_agent_safety_policy_control_plane.sql`
+49. `sql/migrations/048_harden_agent_safety_policy_control_plane_grants.sql`
+50. `sql/migrations/049_enforce_expert_default_beginner_mode.sql`
+51. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -151,6 +154,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/044_add_ai_studio_sessions_persistence_rollback.sql`
     - `sql/migrations/rollback/045_add_character_quickswap_deck_rollback.sql`
     - `sql/migrations/rollback/046_fix_character_quickswap_storage_scope_check_rollback.sql`
+    - `sql/migrations/rollback/047_add_agent_safety_policy_control_plane_rollback.sql`
+    - `sql/migrations/rollback/049_enforce_expert_default_beginner_mode_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -186,6 +191,9 @@ Billing safety note:
 - Migration `044_add_ai_studio_sessions_persistence.sql` adds durable AI Studio session snapshot persistence (`ai_studio_sessions`) with service-role-only save/get/list/prune RPCs and deterministic per-user cap/TTL pruning semantics.
 - Migration `045_add_character_quickswap_deck.sql` adds dynamic Character Manager QuickSwap persistence (`character_quick_swap_items`), `character_quickswap` media-source integrity checks, and deterministic legacy backfill with 500-active archive behavior.
 - Migration `046_fix_character_quickswap_storage_scope_check.sql` corrects the `character_quick_swap_items` storage-scope check to allow user-scoped character paths used by deterministic legacy backfill (not only `/quickswap/`-prefixed paths).
+- Migration `047_add_agent_safety_policy_control_plane.sql` adds agent safety policy version/runtime/event persistence with service-role RPCs for active/read, activate, and rollback operations.
+- Migration `048_harden_agent_safety_policy_control_plane_grants.sql` hardens control-plane RPC execute posture to service-role-only.
+- Migration `049_enforce_expert_default_beginner_mode.sql` forces expert-first mode defaults by setting `user_preferences.beginner_mode` default to `false` and backfilling existing rows to `false`; rollback restores only the new-row default (`true`).
 
 ## Media storage scope verification (post-017)
 

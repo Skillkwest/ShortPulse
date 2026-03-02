@@ -24,6 +24,11 @@ import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionState";
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
 import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
+import type { AiStudioSessionSnapshotV1 } from "../logic/sessionSnapshot";
+import {
+  buildAiStudioSessionHydrationPayload,
+  type AiStudioSessionHydrationPayload,
+} from "../logic/sessionSnapshotHydrator";
 import {
   createEmptyReferenceProjectionState,
   markReferenceRemovedFromAllRefs,
@@ -549,6 +554,80 @@ export const useAiStudioState = ({
       setSaved,
     });
 
+  const hydrateFromSessionSnapshot = useCallback(
+    (snapshot: AiStudioSessionSnapshotV1): AiStudioSessionHydrationPayload => {
+      const payload = buildAiStudioSessionHydrationPayload(snapshot);
+      const workspace = payload.workspace;
+      const outputPayload = payload.outputs;
+
+      setMode(workspace.mode);
+      setSelectedTool(workspace.selectedTool);
+      setSharedPrompt(workspace.prompt);
+      setModel(workspace.model);
+      setAspect(workspace.aspect);
+      setReferenceImageUrl(workspace.referenceImageUrl);
+      workspace.extraImageUrls.forEach((url, index) => {
+        setExtraImageUrl(index, url);
+      });
+      setEditReferenceText(workspace.editReferenceText);
+      setVideoReferenceText(workspace.videoReferenceText);
+      setVideoReferenceMode(workspace.videoReferenceMode);
+      setVideoDurationSeconds(workspace.videoDurationSeconds);
+      setVideoResolution(workspace.videoResolution);
+      setImageResolution(workspace.imageResolution);
+      setVideoGenerateAudio(workspace.videoGenerateAudio);
+      setVideoCameraFixed(workspace.videoCameraFixed);
+      setVideoAutoFix(workspace.videoAutoFix);
+      setKlingNegativePrompt(workspace.klingNegativePrompt);
+      setKlingCfgScale(workspace.klingCfgScale);
+      setKlingShotType(workspace.klingShotType);
+      setKlingVoiceIds(workspace.klingVoiceIds);
+      setKlingMultiPrompts(workspace.klingMultiPrompts);
+      setKlingElements(workspace.klingElements);
+      setMotionReferenceVideoUrl(workspace.motionReferenceVideoUrl);
+
+      setOutputsState(outputPayload.active);
+      setArchivedOutputs(outputPayload.archived);
+      setReferenceProjectionState({
+        quickSlotIds: outputPayload.curatedReferenceIds,
+        removedFromAllRefsIds: outputPayload.removedFromAllRefsIds,
+      });
+      setActiveOutputId(outputPayload.activeOutputId);
+      setSaved(false);
+      return payload;
+    },
+    [
+      setAspect,
+      setEditReferenceText,
+      setExtraImageUrl,
+      setImageResolution,
+      setKlingCfgScale,
+      setKlingElements,
+      setKlingMultiPrompts,
+      setKlingNegativePrompt,
+      setKlingShotType,
+      setKlingVoiceIds,
+      setMode,
+      setModel,
+      setMotionReferenceVideoUrl,
+      setReferenceImageUrl,
+      setSelectedTool,
+      setSharedPrompt,
+      setVideoAutoFix,
+      setVideoCameraFixed,
+      setVideoDurationSeconds,
+      setVideoGenerateAudio,
+      setVideoReferenceMode,
+      setVideoReferenceText,
+      setVideoResolution,
+      setActiveOutputId,
+      setSaved,
+      setOutputsState,
+      setArchivedOutputs,
+      setReferenceProjectionState,
+    ]
+  );
+
   const {
     addAgentPromptReference,
     addPastedPromptReference,
@@ -679,6 +758,7 @@ export const useAiStudioState = ({
     addLibraryMediaReference,
     addLibraryPromptReference,
     addOutputsFromFiles,
+    hydrateFromSessionSnapshot,
     toggleReferenceIndicator,
     clearReferenceImages,
     openModelModal,

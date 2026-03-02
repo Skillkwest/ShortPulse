@@ -17,6 +17,7 @@ const IMAGE_RESOLUTION_LABELS: Record<string, string> = {
   [MODEL_DEFAULT_IMAGE_RESOLUTION]: "Model default",
   [SEEDREAM_AUTO_2K_IMAGE_SIZE]: "2K",
   [SEEDREAM_AUTO_4K_IMAGE_SIZE]: "4K",
+  "0.5K": "0.5K",
   "1K": "1K",
   "2K": "2K",
   "4K": "4K",
@@ -41,6 +42,7 @@ const getImageResolutionPriority = (value: string): number => {
   if (normalized === "1080p") return 350;
   if (normalized === "720p") return 300;
   if (normalized === "1k") return 200;
+  if (normalized === "0.5k") return 150;
   if (normalized === MODEL_DEFAULT_IMAGE_RESOLUTION) return 0;
 
   const kiloMatch = normalized.match(/^(\d+)k$/);
@@ -103,8 +105,22 @@ export const normalizeImageResolutionForPricing = (
   const normalized = value.trim().toLowerCase();
   if (normalized === "auto_4k" || normalized === "4k") return "4K";
   if (normalized === "auto_2k" || normalized === "2k") return "2K";
+  if (normalized === "0.5k") return "0.5K";
   if (normalized === "1k") return "1K";
   return value;
+};
+
+export const normalizeNanoBanana2Resolution = (
+  value: string | null | undefined,
+  fallback: "0.5K" | "1K" | "2K" | "4K" = "1K"
+): "0.5K" | "1K" | "2K" | "4K" => {
+  if (!value) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes("4k")) return "4K";
+  if (normalized.includes("2k")) return "2K";
+  if (normalized.includes("0.5k") || normalized === "0.5" || normalized === "half") return "0.5K";
+  if (normalized.includes("1k")) return "1K";
+  return fallback;
 };
 
 export const normalizeNanoBananaProResolution = (

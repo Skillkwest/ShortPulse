@@ -246,6 +246,19 @@ export type FalNanoBananaProSubmitRequest = {
   image_urls?: string[];
 };
 
+export type FalNanoBanana2SubmitRequest = {
+  prompt: string;
+  num_images?: number;
+  aspect_ratio?: string;
+  output_format?: "jpeg" | "png" | "webp";
+  resolution?: "0.5K" | "1K" | "2K" | "4K";
+  seed?: number;
+  sync_mode?: boolean;
+  limit_generations?: boolean;
+  enable_web_search?: boolean;
+  image_urls?: string[];
+};
+
 const FAL_API_BASE = "/api/fal";
 const SUBMIT_AUTH_TIMEOUT_MS = 4_000;
 
@@ -419,6 +432,14 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/nano-banana-edit-submit`,
     missingRequestIdMessage: "Fal Nano Banana Edit did not return a request_id",
   },
+  nanoBanana2: {
+    route: `${FAL_API_BASE}/nano-banana-2-submit`,
+    missingRequestIdMessage: "Fal Nano Banana 2 did not return a request_id",
+  },
+  nanoBanana2Edit: {
+    route: `${FAL_API_BASE}/nano-banana-2-edit-submit`,
+    missingRequestIdMessage: "Fal Nano Banana 2 Edit did not return a request_id",
+  },
   nanoBananaPro: {
     route: `${FAL_API_BASE}/nano-banana-pro-submit`,
     missingRequestIdMessage: "Fal Nano Banana Pro did not return a request_id",
@@ -503,6 +524,14 @@ const statusEndpointRegistry = {
   },
   nanoBananaEdit: {
     route: `${FAL_API_BASE}/nano-banana-edit-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  nanoBanana2: {
+    route: `${FAL_API_BASE}/nano-banana-2-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  nanoBanana2Edit: {
+    route: `${FAL_API_BASE}/nano-banana-2-edit-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
   nanoBananaPro: {
@@ -686,6 +715,17 @@ export const submitFalNanoBananaEdit = (payload: FalNanoBananaEditSubmitRequest)
   submitFalEndpoint("nanoBananaEdit", payload);
 export const fetchFalNanoBananaEditStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("nanoBananaEdit", requestId);
+
+export const submitFalNanoBanana2 = (payload: FalNanoBanana2SubmitRequest) =>
+  submitFalEndpoint("nanoBanana2", payload);
+export const fetchFalNanoBanana2Status = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBanana2", requestId);
+
+export const submitFalNanoBanana2Edit = (
+  payload: FalNanoBanana2SubmitRequest & { image_urls: string[] }
+) => submitFalEndpoint("nanoBanana2Edit", payload);
+export const fetchFalNanoBanana2EditStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBanana2Edit", requestId);
 
 export const submitFalNanoBananaPro = (payload: FalNanoBananaProSubmitRequest) =>
   submitFalEndpoint("nanoBananaPro", payload);

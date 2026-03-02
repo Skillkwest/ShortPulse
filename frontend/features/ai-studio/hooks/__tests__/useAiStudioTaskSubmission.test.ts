@@ -39,6 +39,7 @@ describe("useAiStudioTaskSubmission", () => {
     "fal/flux-2/edit",
     "fal/flux-2-pro/edit",
     "fal-ai/nano-banana/edit",
+    "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
     "fal-ai/bytedance/seedream/v4.5/edit",
     "custom/legacy-image",

@@ -12,6 +12,8 @@ import {
 
 const createImageOptions: ModelOption[] = [
   { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
+  { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
+  { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2 Edit", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro Edit", mediaType: "image" },
   { value: CREATE_DEFAULT_MODEL_ID, label: "Seedream 4.5", mediaType: "image" },
@@ -31,6 +33,7 @@ const createImageOptions: ModelOption[] = [
 const getModelConfig = (id: string) => {
   if (
     id === "fal-ai/flux-2/klein/9b" ||
+    id === "fal-ai/nano-banana-2" ||
     id === "fal-ai/nano-banana-pro" ||
     id === CREATE_DEFAULT_MODEL_ID ||
     id === "fal/flux-2-pro"
@@ -41,7 +44,11 @@ const getModelConfig = (id: string) => {
       supportsImageToImage: false,
     };
   }
-  if (id === "fal-ai/nano-banana-pro/edit" || id === "fal-ai/bytedance/seedream/v4.5/edit") {
+  if (
+    id === "fal-ai/nano-banana-2/edit" ||
+    id === "fal-ai/nano-banana-pro/edit" ||
+    id === "fal-ai/bytedance/seedream/v4.5/edit"
+  ) {
     return {
       provider: "fal",
       supportsTextToImage: false,
@@ -86,7 +93,11 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual(["fal-ai/nano-banana-pro/edit", "fal-ai/bytedance/seedream/v4.5/edit"]);
+    expect(values).toEqual([
+      "fal-ai/nano-banana-2/edit",
+      "fal-ai/nano-banana-pro/edit",
+      "fal-ai/bytedance/seedream/v4.5/edit",
+    ]);
   });
 
   it("keeps create startup fallback model precedence unchanged", () => {

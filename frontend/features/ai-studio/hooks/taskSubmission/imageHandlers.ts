@@ -9,13 +9,18 @@ import {
   submitFalFlux2Pro,
   submitFalFlux2ProEdit,
   submitFalNanoBananaEdit,
+  submitFalNanoBanana2Edit,
   submitFalNanoBananaProEdit,
   submitFalSeedreamEdit,
 } from "../../../../lib/falClient";
 import { falNanoBananaAllowedAspects, falNanoBananaProAllowedAspects } from "../../constants";
-import { normalizeNanoBananaProResolution } from "../../logic/imageResolution";
+import {
+  normalizeNanoBanana2Resolution,
+  normalizeNanoBananaProResolution,
+} from "../../logic/imageResolution";
 import { falSizeForAspect } from "../../logic/pricing";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
+import { normalizeAspectForFalNanoBanana2 } from "../../logic/stateParsers";
 import { resolveImageSubmissionSafetyPayload } from "./safetyPolicy";
 import type { ImageSubmissionArgs } from "./types";
 
@@ -28,6 +33,7 @@ const handoffSubmitResponse = ({
   pollingProvider:
     | "fal-seedream"
     | "fal-nano-banana-edit"
+    | "fal-nano-banana-2-edit"
     | "fal-nano-banana-pro-edit"
     | "fal-flux2"
     | "fal-flux2-klein"
@@ -97,6 +103,27 @@ export const handleImageModelSubmission = async ({
     handoffSubmitResponse({
       response,
       pollingProvider: "fal-nano-banana-pro-edit",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
+  if (finalModel === "fal-ai/nano-banana-2/edit") {
+    if (!preparedImageInputs.length) {
+      notifyGenerationFailure(id, "Nano Banana 2 Edit requires at least one reference image.");
+      return true;
+    }
+    const response = await submitFalNanoBanana2Edit({
+      prompt: cleanedPrompt,
+      num_images: 1,
+      aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),
+      output_format: "png",
+      resolution: normalizeNanoBanana2Resolution(requestedResolution, "1K"),
+      image_urls: preparedImageInputs.slice(0, 8),
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-nano-banana-2-edit",
       startPollingWithGeneration,
     });
     return true;

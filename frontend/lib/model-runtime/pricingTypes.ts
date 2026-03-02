@@ -8,6 +8,7 @@ export type PricingStrategyId =
   | "fal-flux2-pro-per-mp"
   | "gpt-image-per-image"
   | "google-nano-banana-per-image"
+  | "nano-banana-2-per-image"
   | "gpt41nano-per-token"
   | "nano-banana-per-image"
   | "seedream-per-image"

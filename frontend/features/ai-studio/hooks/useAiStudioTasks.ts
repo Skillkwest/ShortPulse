@@ -13,6 +13,8 @@ import {
   fetchFalKlingV3ImageToVideoStatus,
   fetchFalNanoBananaStatus,
   fetchFalNanoBananaEditStatus,
+  fetchFalNanoBanana2Status,
+  fetchFalNanoBanana2EditStatus,
   fetchFalNanoBananaProStatus,
   fetchFalNanoBananaProEditStatus,
   fetchFalStatus,
@@ -157,6 +159,10 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalNanoBananaStatus(taskId);
     case "fal-nano-banana-edit":
       return fetchFalNanoBananaEditStatus(taskId);
+    case "fal-nano-banana-2":
+      return fetchFalNanoBanana2Status(taskId);
+    case "fal-nano-banana-2-edit":
+      return fetchFalNanoBanana2EditStatus(taskId);
     case "fal-nano-banana-pro":
       return fetchFalNanoBananaProStatus(taskId);
     case "fal-nano-banana-pro-edit":

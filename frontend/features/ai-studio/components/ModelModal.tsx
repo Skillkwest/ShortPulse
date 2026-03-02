@@ -173,6 +173,19 @@ const modelMeta: Record<string, ModelMeta> = {
     logo: "Google",
     tags: ["Image", "Image-to-Image", "1K-4K"],
   },
+  "fal-ai/nano-banana-2": {
+    provider: "Google",
+    description:
+      "Nano Banana 2 text-to-image supports faster generations with selectable 0.5K, 1K, 2K, or 4K output.",
+    tags: ["Image", "Text-to-Image", "0.5K-4K", "Fast"],
+  },
+  "fal-ai/nano-banana-2/edit": {
+    provider: "Google",
+    description:
+      "Nano Banana 2 Edit applies image-to-image edits with selectable 0.5K, 1K, 2K, or 4K output.",
+    logo: "Google",
+    tags: ["Image", "Image-to-Image", "0.5K-4K", "Fast"],
+  },
 };
 
 const isImageToImageModel = (modelId: string) =>
@@ -192,6 +205,7 @@ const tooltipTagPriority: Record<string, number> = {
   "Motion Transfer": 2,
   "9B": 3,
   "1K-4K": 3,
+  "0.5K-4K": 3,
   "Native/2K/4K": 3,
   "720p-4K": 3,
   "720p/1080p": 3,
@@ -275,6 +289,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
     "fal/flux-2-pro/edit",
     "fal/flux-2/edit",
     "fal-ai/nano-banana/edit",
+    "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
     "fal-ai/bytedance/seedream/v4.5/edit",
   ],
@@ -403,6 +418,8 @@ export function ModelModal({
     const googleOrder = [
       "fal-ai/nano-banana",
       "fal-ai/nano-banana/edit",
+      "fal-ai/nano-banana-2",
+      "fal-ai/nano-banana-2/edit",
       "fal-ai/nano-banana-pro",
       "fal-ai/nano-banana-pro/edit",
     ];

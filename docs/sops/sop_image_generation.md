@@ -76,6 +76,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 - Model policy:
   - Create/Image model list is restricted to:
     - `fal-ai/bytedance/seedream/v4.5/edit`
+    - `fal-ai/nano-banana-2/edit`
     - `fal-ai/nano-banana-pro/edit`
   - Toggle remap is paired and deterministic:
     - OFF -> ON maps paired text-to-image models to edit variants (fallback `seedream/edit`).
@@ -126,7 +127,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 - Defaults: `gpt-5-nano` for text/vision calls (prompt refinement/describe); image models are chosen from the picker (Fal) and use provider-specific clients without agent prompts.  
 - Aspect normalization is provider/model-specific (see `pricing.ts` and submit logic in `useAiStudioState`).
-- Cost computation: `computeCostForModel` uses aspect + selected image resolution where applicable (Nano Banana Pro + Seedream tiers) for estimate display; generation charging happens server-side in submit APIs.
+- Cost computation: `computeCostForModel` uses aspect + selected image resolution where applicable (Nano Banana 2/Pro + Seedream tiers) for estimate display; generation charging happens server-side in submit APIs.
 - Local reference ingestion: blob/data image inputs are uploaded through `/api/upload-image` and replaced with signed HTTPS URLs before submit; provider submit routes should receive URL payloads, not base64 bodies.
 
 ## Image resolution controls
@@ -136,6 +137,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 - The card is shown in both `CreatePropertiesPanel` (text-to-image) and `EditPropertiesPanel` (image-to-image).
 - Resolution options are model-driven from `modelRegistry.ts` (`allowedResolutions` + `defaultResolution`):
   - FLUX models / Nano Banana: `model_default` (no separate resolution enum exposed in current UI payload mapping).
+  - Nano Banana 2 + Nano Banana 2 Edit: `0.5K`, `1K`, `2K`, `4K`.
   - Nano Banana Pro + Nano Banana Pro Edit: `1K`, `2K`, `4K`.
   - Seedream 4.5 + Seedream 4.5 Edit: `model_default`, `auto_2K`, `auto_4K`.
 
@@ -150,6 +152,8 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 | Fal | `fal/flux-2-pro/edit` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Image-to-image/edit; requires `image_urls`; least-restrictive safety (checker off, tolerance 5); pricing matches FLUX.2 Pro text-to-image; proxied through `/api/fal/flux2pro-edit-*`. |
 | Fal | `fal-ai/nano-banana` | 1:1 default (allowed: 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Text-to-image via the Fal queue; flat per-image pricing ($0.039 -> 5 credits with 5-credit rounding) and PNG outputs, proxied through `/api/fal/nano-banana-*`. |
 | Fal | `fal-ai/nano-banana/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; flat per-image pricing (5 credits), proxied through `/api/fal/nano-banana-edit-*`. |
+| Fal | `fal-ai/nano-banana-2` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Text-to-image via the Fal queue; base per-image pricing starts at $0.08 with resolution multipliers (`0.5K x0.75`, `2K x1.5`, `4K x2`) and optional web-search surcharge, proxied through `/api/fal/nano-banana-2-*`. |
+| Fal | `fal-ai/nano-banana-2/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; pricing mirrors Nano Banana 2 text-to-image with resolution multipliers and optional web-search surcharge, proxied through `/api/fal/nano-banana-2-edit-*`. |
 | Fal | `fal-ai/nano-banana-pro` | 4:5 default (wide/portrait variants allowed via the allowed list) | Text-to-image via the Fal queue with flat per-image pricing (4K doubles cost, web-search adds a surcharge) and PNG outputs; proxied through `/api/fal/nano-banana-pro-*`. |
 | Fal | `fal-ai/nano-banana-pro/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; flat per-image pricing (15 credits; 4K doubles; web_search adds 1.5 credits), proxied through `/api/fal/nano-banana-pro-edit-*`. |
 | Fal | `fal-ai/bytedance/seedream/v4.5/text-to-image` | 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9) | Uses native `image_size` enums for core ratios and exact custom `{width,height}` payloads for non-native ratios (`5:4`, `4:5`, `3:2`, `2:3`, `21:9`); for `auto_2K`/`auto_4K`, the client now sends explicit aspect-locked dimensions (no ambiguous auto enum pass-through); safety checker off by default. |

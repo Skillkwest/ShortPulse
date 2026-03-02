@@ -1,0 +1,14 @@
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
+import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
+
+export default createFalSubmitHandler({
+  modelId: "fal-ai/nano-banana-2/edit",
+  submitUrl: getFalSubmitUrlRequired("fal-ai/nano-banana-2/edit"),
+  routeLabel: "Fal Nano Banana 2 Edit",
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/nano-banana-2/edit", 20000),
+  validatePayload: validateFalPayloadForModel("fal-ai/nano-banana-2/edit"),
+});

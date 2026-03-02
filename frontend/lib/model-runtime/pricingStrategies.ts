@@ -236,6 +236,26 @@ const computeSeedreamPerImageCost: StrategyFn = ({ resolution }) => {
   });
 };
 
+const computeNanoBanana2PerImageCost: StrategyFn = ({ resolution, webSearch }) => {
+  const baseUsd = 0.08;
+  const normalizedResolution = (resolution ?? "1K").trim().toUpperCase();
+  const resolutionMultiplier =
+    normalizedResolution === "4K"
+      ? 2
+      : normalizedResolution === "2K"
+        ? 1.5
+        : normalizedResolution === "0.5K"
+          ? 0.75
+          : 1;
+  const webSearchUsd = webSearch ? 0.015 : 0;
+  return toCostBreakdown({
+    usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  });
+};
+
 const computeNanoBananaPerImageCost: StrategyFn = ({ resolution, webSearch }) => {
   const baseUsd = 0.15;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
@@ -354,6 +374,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-flux2-pro-per-mp": computeFlux2ProPerMpCost,
   "gpt-image-per-image": computeGptImagePerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
+  "nano-banana-2-per-image": computeNanoBanana2PerImageCost,
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,
   "seedream-per-image": computeSeedreamPerImageCost,

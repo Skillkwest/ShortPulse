@@ -15,6 +15,7 @@ describe("createCharacterModeModelMapping", () => {
 
   it("detects create character-mode models", () => {
     expect(isCreateCharacterModeModel("fal-ai/bytedance/seedream/v4.5/edit")).toBe(true);
+    expect(isCreateCharacterModeModel("fal-ai/nano-banana-2/edit")).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/nano-banana-pro/edit")).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(false);
   });
@@ -26,6 +27,12 @@ describe("createCharacterModeModelMapping", () => {
         isCharacterModeEnabled: true,
       })
     ).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+    expect(
+      mapCreateModelOnCharacterModeToggle({
+        currentModelId: "fal-ai/nano-banana-2",
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("fal-ai/nano-banana-2/edit");
     expect(
       mapCreateModelOnCharacterModeToggle({
         currentModelId: "fal-ai/nano-banana-pro",
@@ -49,6 +56,12 @@ describe("createCharacterModeModelMapping", () => {
     ).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
     expect(
       mapCreateModelOnCharacterModeToggle({
+        currentModelId: "fal-ai/nano-banana-2/edit",
+        isCharacterModeEnabled: false,
+      })
+    ).toBe("fal-ai/nano-banana-2");
+    expect(
+      mapCreateModelOnCharacterModeToggle({
         currentModelId: "fal-ai/nano-banana-pro/edit",
         isCharacterModeEnabled: false,
       })
@@ -62,6 +75,12 @@ describe("createCharacterModeModelMapping", () => {
   });
 
   it("coerces create submit model to paired edit model while character mode is enabled", () => {
+    expect(
+      resolveCreateCharacterModeSubmitModel({
+        currentModelId: "fal-ai/nano-banana-2",
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("fal-ai/nano-banana-2/edit");
     expect(
       resolveCreateCharacterModeSubmitModel({
         currentModelId: "fal-ai/nano-banana-pro",

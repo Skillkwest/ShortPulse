@@ -4,12 +4,17 @@
 import {
   type FalSubmitResponse,
   submitFalNanoBanana,
+  submitFalNanoBanana2,
   submitFalNanoBananaPro,
   submitFalSeedream,
 } from "../../../../lib/falClient";
-import { normalizeNanoBananaProResolution } from "../../logic/imageResolution";
+import {
+  normalizeNanoBanana2Resolution,
+  normalizeNanoBananaProResolution,
+} from "../../logic/imageResolution";
 import {
   normalizeAspectForFalNanoBanana,
+  normalizeAspectForFalNanoBanana2,
   normalizeAspectForFalNanoBananaPro,
 } from "../../logic/stateParsers";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
@@ -22,7 +27,7 @@ const handoffSubmitResponse = ({
   startPollingWithGeneration,
 }: {
   response: FalSubmitResponse;
-  pollingProvider: "fal-seedream" | "fal-nano-banana" | "fal-nano-banana-pro";
+  pollingProvider: "fal-seedream" | "fal-nano-banana" | "fal-nano-banana-2" | "fal-nano-banana-pro";
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
 }) => {
   if ("status" in response && response.status === "queued") {
@@ -48,7 +53,11 @@ export const handleDefaultModelSubmission = async ({
   startPollingWithGeneration,
 }: ImageSubmissionArgs): Promise<void> => {
   let response: FalSubmitResponse;
-  let pollingProvider: "fal-seedream" | "fal-nano-banana" | "fal-nano-banana-pro";
+  let pollingProvider:
+    | "fal-seedream"
+    | "fal-nano-banana"
+    | "fal-nano-banana-2"
+    | "fal-nano-banana-pro";
 
   if (finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image") {
     const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
@@ -79,6 +88,15 @@ export const handleDefaultModelSubmission = async ({
       ...falReferencePayload,
     });
     pollingProvider = "fal-nano-banana-pro";
+  } else if (finalModel === "fal-ai/nano-banana-2") {
+    response = await submitFalNanoBanana2({
+      prompt: cleanedPrompt,
+      num_images: 1,
+      aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),
+      output_format: "png",
+      resolution: normalizeNanoBanana2Resolution(requestedResolution, "1K"),
+    });
+    pollingProvider = "fal-nano-banana-2";
   } else {
     throw new Error(`Unsupported model '${finalModel}' for default Fal submission handler.`);
   }

@@ -17,8 +17,10 @@ export type Provider =
   | "fal-flux2-pro-edit"
   | "fal-kling"
   | "fal-nano-banana"
+  | "fal-nano-banana-2"
   | "fal-kling-3"
   | "fal-nano-banana-edit"
+  | "fal-nano-banana-2-edit"
   | "fal-nano-banana-pro"
   | "fal-nano-banana-pro-edit"
   | "fal-sora"
@@ -35,6 +37,8 @@ export const resolveModelLabel = (value?: string) =>
 
 export const normalizeAspectForFalNanoBanana = (value: string) =>
   resolveEffectiveAspectForModel("fal-ai/nano-banana", value, "1:1");
+export const normalizeAspectForFalNanoBanana2 = (value: string) =>
+  resolveEffectiveAspectForModel("fal-ai/nano-banana-2", value, "auto");
 export const normalizeAspectForFalNanoBananaPro = (value: string) =>
   resolveEffectiveAspectForModel("fal-ai/nano-banana-pro", value, "4:5");
 export const resolveKlingAspectRatio = (

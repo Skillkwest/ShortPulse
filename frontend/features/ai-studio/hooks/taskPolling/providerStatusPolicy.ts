@@ -40,6 +40,8 @@ export const imageGenerationProviders = new Set<Provider>([
   "fal-seedream",
   "fal-nano-banana",
   "fal-nano-banana-edit",
+  "fal-nano-banana-2",
+  "fal-nano-banana-2-edit",
   "fal-nano-banana-pro",
   "fal-nano-banana-pro-edit",
 ]);

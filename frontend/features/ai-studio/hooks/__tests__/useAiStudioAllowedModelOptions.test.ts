@@ -14,7 +14,11 @@ describe("useAiStudioAllowedModelOptions", () => {
     );
 
     const values = result.current.map((option) => option.value);
-    expect(values).toEqual(["fal-ai/nano-banana-pro/edit", "fal-ai/bytedance/seedream/v4.5/edit"]);
+    expect(values).toEqual([
+      "fal-ai/nano-banana-2/edit",
+      "fal-ai/nano-banana-pro/edit",
+      "fal-ai/bytedance/seedream/v4.5/edit",
+    ]);
   });
 
   it("keeps text-to-image create options when character mode is disabled", () => {

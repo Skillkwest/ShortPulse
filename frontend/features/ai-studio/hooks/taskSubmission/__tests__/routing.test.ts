@@ -11,6 +11,7 @@ describe("resolveSubmissionHandlerRoute", () => {
   it("routes known image/edit models to image handler", () => {
     expect(resolveSubmissionHandlerRoute("fal/flux-2")).toBe("image");
     expect(resolveSubmissionHandlerRoute("fal/flux-2/edit")).toBe("image");
+    expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana-2/edit")).toBe("image");
     expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana-pro/edit")).toBe("image");
   });
 

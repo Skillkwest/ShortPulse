@@ -50,6 +50,8 @@ const MODEL_DOC_MAP = {
   "fal/flux-2-pro/edit": "api-fal-flux-2-pro-edit.md",
   "fal-ai/nano-banana": "api-fal-nano-banana.md",
   "fal-ai/nano-banana/edit": "api-fal-nano-banana-edit.md",
+  "fal-ai/nano-banana-2": "api-fal-nano-banana-2.md",
+  "fal-ai/nano-banana-2/edit": "api-fal-nano-banana-2-edit.md",
   "fal-ai/nano-banana-pro": "api-fal-nano-banana-pro.md",
   "fal-ai/nano-banana-pro/edit": "api-fal-nano-banana-pro-edit.md",
   "fal-ai/bytedance/seedream/v4.5/text-to-image": "api-fal-seedream-4-5.md",

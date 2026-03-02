@@ -162,6 +162,50 @@ describe("computeCostForModel (Nano Banana Pro)", () => {
   });
 });
 
+describe("computeCostForModel (Nano Banana 2)", () => {
+  const modelId = "fal-ai/nano-banana-2";
+
+  it("charges 10 credits for 1K defaults", () => {
+    const cost = computeCostForModel(modelId, { resolution: "1K" });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.08, 6);
+    expect(cost?.rawCredits).toBe(8);
+    expect(cost?.credits).toBe(10);
+  });
+
+  it("supports 0.5K pricing multiplier", () => {
+    const cost = computeCostForModel(modelId, { resolution: "0.5K" });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.06, 6);
+    expect(cost?.rawCredits).toBe(6);
+    expect(cost?.credits).toBe(10);
+  });
+
+  it("charges 15 credits at 2K", () => {
+    const cost = computeCostForModel(modelId, { resolution: "2K" });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.12, 6);
+    expect(cost?.rawCredits).toBe(12);
+    expect(cost?.credits).toBe(15);
+  });
+
+  it("charges 20 credits at 4K", () => {
+    const cost = computeCostForModel(modelId, { resolution: "4K" });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.16, 6);
+    expect(cost?.rawCredits).toBe(16);
+    expect(cost?.credits).toBe(20);
+  });
+
+  it("adds web-search surcharge and keeps 5-credit quantization", () => {
+    const cost = computeCostForModel(modelId, { resolution: "1K", webSearch: true });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.095, 6);
+    expect(cost?.rawCredits).toBe(10);
+    expect(cost?.credits).toBe(10);
+  });
+});
+
 describe("computeCostForModel (Seedream 4.5)", () => {
   const modelId = "fal-ai/bytedance/seedream/v4.5/text-to-image";
 

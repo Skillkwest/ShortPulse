@@ -39,4 +39,20 @@ describe("generationBilling pricing params normalization", () => {
 
     expect(params.webSearch).toBe(true);
   });
+
+  it("maps enable_web_search alias for nano-banana-2 pricing", () => {
+    const params = buildPricingParams("fal-ai/nano-banana-2", {
+      enable_web_search: true,
+    });
+
+    expect(params.webSearch).toBe(true);
+  });
+
+  it("normalizes 0.5K resolution for nano-banana-2", () => {
+    const params = buildPricingParams("fal-ai/nano-banana-2/edit", {
+      resolution: "0.5k",
+    });
+
+    expect(params.resolution).toBe("0.5K");
+  });
 });

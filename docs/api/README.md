@@ -36,6 +36,8 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-flux-dev.md`
 - `docs/api/api-fal-nano-banana.md`
 - `docs/api/api-fal-nano-banana-edit.md`
+- `docs/api/api-fal-nano-banana-2.md`
+- `docs/api/api-fal-nano-banana-2-edit.md`
 - `docs/api/api-fal-nano-banana-pro.md`
 - `docs/api/api-fal-nano-banana-pro-edit.md`
 - `docs/api/api-fal-seedream-4-5.md`

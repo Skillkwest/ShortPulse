@@ -86,7 +86,11 @@ describe("useAiStudioPageDerivations", () => {
 
     const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
     expect(values).toEqual(
-      new Set(["fal-ai/bytedance/seedream/v4.5/edit", "fal-ai/nano-banana-pro/edit"])
+      new Set([
+        "fal-ai/bytedance/seedream/v4.5/edit",
+        "fal-ai/nano-banana-2/edit",
+        "fal-ai/nano-banana-pro/edit",
+      ])
     );
   });
 });

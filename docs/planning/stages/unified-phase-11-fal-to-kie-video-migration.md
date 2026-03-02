@@ -157,6 +157,12 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPolicy.ts`
   - Removes duplicated boolean-header parsing logic and decouples Kie status model-support checks from submit-contract module exports.
+- Added model-runtime Kie model-id canonicalization across runtime + provider boundaries:
+  - `frontend/lib/model-runtime/providerModelIds.ts`
+  - `frontend/lib/model-runtime/modelCatalog.ts`
+  - `frontend/lib/model-runtime/modelRegistry.ts`
+  - `frontend/lib/server/providerIntegration/kieModelIds.ts`
+  - Removes remaining cross-layer duplicated Kie model-id literals by promoting one canonical runtime source.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

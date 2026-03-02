@@ -1,23 +1,12 @@
 /**
- * Canonical Kie model id constants for provider-integration boundaries.
- * Keeps dark-path contract modules aligned on one model-id source of truth.
+ * Provider-integration re-export for canonical Kie model ids.
+ * Source of truth lives in model-runtime to prevent cross-layer drift.
  */
 
-export const KIE_VEO_31_FAST_I2V_MODEL_ID = "kie-ai/veo-3.1-fast-i2v";
-export const KIE_KLING_30_MODEL_ID = "kie-ai/kling-3.0";
-
-export const KIE_SUPPORTED_MODEL_IDS = [
-  KIE_VEO_31_FAST_I2V_MODEL_ID,
+export {
   KIE_KLING_30_MODEL_ID,
-] as const;
-
-export type SupportedKieModelId = (typeof KIE_SUPPORTED_MODEL_IDS)[number];
-
-const supportedKieModelIdSet = new Set<string>(KIE_SUPPORTED_MODEL_IDS);
-
-/**
- * Returns true when the model id is part of the canonical Kie dark-path model set.
- */
-export const isKnownKieModelId = (modelId: string): modelId is SupportedKieModelId => {
-  return supportedKieModelIdSet.has(modelId);
-};
+  KIE_SUPPORTED_MODEL_IDS,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+  isKnownKieModelId,
+  type SupportedKieModelId,
+} from "../../model-runtime/providerModelIds";

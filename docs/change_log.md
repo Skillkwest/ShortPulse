@@ -1711,3 +1711,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/lib/server/providerIntegration/providerHeaderUtils.ts`.
 - Rewired `kieStatusContracts.ts` and `statusProviderPolicy.ts` to shared header parsing and decoupled Kie status model-support checks from submit-contract module exports.
 - Added focused helper coverage and reran full `test:phase11:fal-regression` gate with passing results.
+
+## 2026-03-01 (phase-11 kie model-id runtime canonicalization)
+- Added canonical runtime model-id constants module:
+  - `frontend/lib/model-runtime/providerModelIds.ts`.
+- Rewired model catalog/registry Kie entries and provider-integration Kie model-id exports to consume the same canonical runtime ids.
+- Hardened `scripts/check_model_catalog_parity.js` TypeScript loader to resolve relative module imports so docs parity checks remain stable with modularized runtime constants.
+- Added focused model-id coverage and reran full `test:phase11:fal-regression` gate with passing results.

@@ -3,6 +3,7 @@
  */
 import { PricingStrategyId } from "./pricingTypes";
 import { AspectSize, falImageSizeMap } from "./modelSizes";
+import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
 import {
   getModelAllowedAspects,
   getModelAllowedDurations,
@@ -488,36 +489,36 @@ const registry: Record<string, ModelConfig> = {
     ),
     supportsImageToVideo: true,
   },
-  "kie-ai/veo-3.1-fast-i2v": {
-    id: "kie-ai/veo-3.1-fast-i2v",
+  [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
+    id: KIE_VEO_31_FAST_I2V_MODEL_ID,
     label: "Veo 3.1 Fast I2V (Kie)",
     provider: "kie",
     mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect("kie-ai/veo-3.1-fast-i2v", "16:9"),
-    allowedAspects: contractAllowedAspects("kie-ai/veo-3.1-fast-i2v", ["16:9", "9:16"]),
+    defaultAspect: contractDefaultAspect(KIE_VEO_31_FAST_I2V_MODEL_ID, "16:9"),
+    allowedAspects: contractAllowedAspects(KIE_VEO_31_FAST_I2V_MODEL_ID, ["16:9", "9:16"]),
     pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration("kie-ai/veo-3.1-fast-i2v", 5),
+    defaultDurationSeconds: contractDefaultDuration(KIE_VEO_31_FAST_I2V_MODEL_ID, 5),
     minDurationSeconds: 5,
     maxDurationSeconds: 8,
-    defaultResolution: contractDefaultResolution("kie-ai/veo-3.1-fast-i2v", "720p"),
+    defaultResolution: contractDefaultResolution(KIE_VEO_31_FAST_I2V_MODEL_ID, "720p"),
     defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions("kie-ai/veo-3.1-fast-i2v", ["720p", "1080p"]),
-    allowedDurations: contractAllowedDurations("kie-ai/veo-3.1-fast-i2v", [5, 8]),
+    allowedResolutions: contractAllowedResolutions(KIE_VEO_31_FAST_I2V_MODEL_ID, ["720p", "1080p"]),
+    allowedDurations: contractAllowedDurations(KIE_VEO_31_FAST_I2V_MODEL_ID, [5, 8]),
     supportsImageToVideo: true,
   },
-  "kie-ai/kling-3.0": {
-    id: "kie-ai/kling-3.0",
+  [KIE_KLING_30_MODEL_ID]: {
+    id: KIE_KLING_30_MODEL_ID,
     label: "Kling 3.0 (Kie)",
     provider: "kie",
     mediaType: "video",
-    defaultAspect: contractDefaultAspect("kie-ai/kling-3.0", "16:9"),
-    allowedAspects: contractAllowedAspects("kie-ai/kling-3.0", ["16:9", "9:16", "1:1"]),
+    defaultAspect: contractDefaultAspect(KIE_KLING_30_MODEL_ID, "16:9"),
+    allowedAspects: contractAllowedAspects(KIE_KLING_30_MODEL_ID, ["16:9", "9:16", "1:1"]),
     pricingStrategy: "kling-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration("kie-ai/kling-3.0", 10),
+    defaultDurationSeconds: contractDefaultDuration(KIE_KLING_30_MODEL_ID, 10),
     minDurationSeconds: 5,
     maxDurationSeconds: 10,
     defaultAudio: true,
-    allowedDurations: contractAllowedDurations("kie-ai/kling-3.0", [5, 10]),
+    allowedDurations: contractAllowedDurations(KIE_KLING_30_MODEL_ID, [5, 10]),
   },
   "gpt-5-nano": {
     id: "gpt-5-nano",

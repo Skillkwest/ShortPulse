@@ -54,30 +54,66 @@ function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
 }
 
+const tsModuleCache = new Map();
+
+function resolveLocalModule(fromFilePath, requestPath) {
+  const base = path.resolve(path.dirname(fromFilePath), requestPath);
+  const candidates = [
+    base,
+    `${base}.ts`,
+    `${base}.js`,
+    path.join(base, "index.ts"),
+    path.join(base, "index.js"),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
+
 function loadTsModule(filePath) {
+  const normalizedPath = path.resolve(filePath);
+  if (tsModuleCache.has(normalizedPath)) {
+    return tsModuleCache.get(normalizedPath);
+  }
+
   const ts = require(path.join(FRONTEND_ROOT, "node_modules", "typescript"));
-  const source = readText(filePath);
+  const source = readText(normalizedPath);
   const transpiled = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2020,
       esModuleInterop: true,
     },
-    fileName: filePath,
+    fileName: normalizedPath,
   }).outputText;
 
+  const moduleRecord = { exports: {} };
+  tsModuleCache.set(normalizedPath, moduleRecord.exports);
+
+  const localRequire = (requestPath) => {
+    if (typeof requestPath === "string" && requestPath.startsWith(".")) {
+      const resolved = resolveLocalModule(normalizedPath, requestPath);
+      if (!resolved) {
+        throw new Error(`Cannot resolve module '${requestPath}' from '${normalizedPath}'`);
+      }
+      if (resolved.endsWith(".ts")) {
+        return loadTsModule(resolved);
+      }
+      return require(resolved);
+    }
+    return require(requestPath);
+  };
+
   const sandbox = {
-    module: { exports: {} },
-    exports: {},
-    require,
-    __dirname: path.dirname(filePath),
-    __filename: filePath,
+    module: moduleRecord,
+    exports: moduleRecord.exports,
+    require: localRequire,
+    __dirname: path.dirname(normalizedPath),
+    __filename: normalizedPath,
     process,
     console,
   };
-  sandbox.exports = sandbox.module.exports;
 
-  new vm.Script(transpiled, { filename: filePath }).runInNewContext(sandbox);
+  new vm.Script(transpiled, { filename: normalizedPath }).runInNewContext(sandbox);
+  tsModuleCache.set(normalizedPath, sandbox.module.exports);
   return sandbox.module.exports;
 }
 

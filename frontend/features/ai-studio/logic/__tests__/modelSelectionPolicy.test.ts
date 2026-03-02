@@ -2,6 +2,7 @@
  * Regression coverage for shared AI Studio model-selection policy behavior.
  */
 import { describe, expect, it } from "vitest";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { ModelOption } from "../../constants";
 import {
   CREATE_DEFAULT_MODEL_ID,
@@ -21,7 +22,7 @@ const createImageOptions: ModelOption[] = [
   },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   {
-    value: "kie-ai/veo-3.1-fast-i2v",
+    value: KIE_VEO_31_FAST_I2V_MODEL_ID,
     label: "Veo 3.1 Fast I2V (Kie)",
     mediaType: "image-to-video",
   },
@@ -47,7 +48,7 @@ const getModelConfig = (id: string) => {
       supportsImageToImage: true,
     };
   }
-  if (id === "kie-ai/veo-3.1-fast-i2v") {
+  if (id === KIE_VEO_31_FAST_I2V_MODEL_ID) {
     return {
       provider: "kie",
       supportsTextToImage: false,
@@ -109,13 +110,13 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(values.has("kie-ai/veo-3.1-fast-i2v")).toBe(false);
+    expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
   });
 
   it("ignores saved kie model ids for startup fallback selection", () => {
     const model = resolveCreateWorkflowStartupModel({
       mode: "image",
-      savedModelId: "kie-ai/veo-3.1-fast-i2v",
+      savedModelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
       getModelConfig,
     });
 

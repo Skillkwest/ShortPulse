@@ -2,6 +2,7 @@
  * Canonical model catalog shared by AI Studio client logic and server runtime.
  * Keep model capabilities, provider docs provenance, and Fal routing aliases in one place.
  */
+import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
 
 export type ModelAspectSubmitField = "aspect_ratio" | "image_size" | "none";
 export type ModelProvider = "fal" | "kie" | "openai";
@@ -610,8 +611,8 @@ const catalog: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["seed"],
     },
   },
-  "kie-ai/veo-3.1-fast-i2v": {
-    modelId: "kie-ai/veo-3.1-fast-i2v",
+  [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
+    modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
     provider: "kie",
     sourceUrl: "https://docs.kie.ai/",
     verifiedAt: VERIFIED_AT,
@@ -634,8 +635,8 @@ const catalog: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["duration"],
     },
   },
-  "kie-ai/kling-3.0": {
-    modelId: "kie-ai/kling-3.0",
+  [KIE_KLING_30_MODEL_ID]: {
+    modelId: KIE_KLING_30_MODEL_ID,
     provider: "kie",
     sourceUrl: "https://docs.kie.ai/",
     verifiedAt: VERIFIED_AT,

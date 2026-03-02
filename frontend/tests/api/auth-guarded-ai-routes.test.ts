@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import generatePromptHandler from "../../pages/api/ai/generate-prompt";
 import describeImageHandler from "../../pages/api/ai/describe-image";
 import studioAgentHandler from "../../pages/api/ai/studio-agent";
+import saveSessionHandler from "../../pages/api/ai/sessions/save";
+import getSessionHandler from "../../pages/api/ai/sessions/[sid]";
+import listSessionsHandler from "../../pages/api/ai/sessions";
 
 const requireApiUserMock = vi.fn();
 
@@ -67,6 +70,45 @@ describe("API auth guards: AI routes", () => {
     const res = createMockResponse();
 
     await studioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(requireApiUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unauthenticated session-save requests", async () => {
+    const req = {
+      method: "POST",
+      body: { sid: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", snapshot: {} },
+    };
+    const res = createMockResponse();
+
+    await saveSessionHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(requireApiUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unauthenticated session-get requests", async () => {
+    const req = {
+      method: "GET",
+      query: { sid: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a" },
+    };
+    const res = createMockResponse();
+
+    await getSessionHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(requireApiUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unauthenticated session-list requests", async () => {
+    const req = {
+      method: "GET",
+      query: {},
+    };
+    const res = createMockResponse();
+
+    await listSessionsHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);

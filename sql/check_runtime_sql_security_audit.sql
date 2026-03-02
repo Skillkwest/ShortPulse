@@ -20,7 +20,11 @@ with expected_functions as (
             ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'),
             ('public.release_stale_generation_reservations(integer,integer)'),
             ('public.upsert_ai_agent_conversation_state(uuid,text,text,interval,integer)'),
-            ('public.prune_ai_agent_conversation_state_expired(integer)')
+            ('public.prune_ai_agent_conversation_state_expired(integer)'),
+            ('public.upsert_ai_studio_session_snapshot(uuid,uuid,jsonb,integer,text,interval,integer)'),
+            ('public.get_ai_studio_session_snapshot(uuid,uuid)'),
+            ('public.list_ai_studio_sessions(uuid,integer,timestamptz,uuid)'),
+            ('public.prune_ai_studio_sessions_expired(integer)')
     ) as f(signature)
 ),
 resolved as (
@@ -139,7 +143,11 @@ with expected_functions as (
             ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'),
             ('public.release_stale_generation_reservations(integer,integer)'),
             ('public.upsert_ai_agent_conversation_state(uuid,text,text,interval,integer)'),
-            ('public.prune_ai_agent_conversation_state_expired(integer)')
+            ('public.prune_ai_agent_conversation_state_expired(integer)'),
+            ('public.upsert_ai_studio_session_snapshot(uuid,uuid,jsonb,integer,text,interval,integer)'),
+            ('public.get_ai_studio_session_snapshot(uuid,uuid)'),
+            ('public.list_ai_studio_sessions(uuid,integer,timestamptz,uuid)'),
+            ('public.prune_ai_studio_sessions_expired(integer)')
     ) as f(signature)
 ),
 resolved as (

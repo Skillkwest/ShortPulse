@@ -7,6 +7,7 @@ import {
   submitFalNanoBanana2,
   submitFalNanoBananaPro,
   submitFalSeedream,
+  submitFalSeedreamV5Lite,
 } from "../../../../lib/falClient";
 import {
   normalizeNanoBanana2Resolution,
@@ -59,13 +60,23 @@ export const handleDefaultModelSubmission = async ({
     | "fal-nano-banana-2"
     | "fal-nano-banana-pro";
 
-  if (finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image") {
+  if (
+    finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image" ||
+    finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
+  ) {
     const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
-    response = await submitFalSeedream({
+    const submitSeedream =
+      finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
+        ? submitFalSeedreamV5Lite
+        : submitFalSeedream;
+    response = await submitSeedream({
       prompt: cleanedPrompt,
       image_size,
       num_images: 1,
       ...resolveImageSubmissionSafetyPayload(finalModel),
+      ...(finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
+        ? { enable_safety_checker: false }
+        : {}),
       output_format: "png",
     });
     pollingProvider = "fal-seedream";

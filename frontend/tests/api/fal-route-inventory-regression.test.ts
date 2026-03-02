@@ -43,6 +43,8 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "seedream-edit-submit.ts",
   "seedream-status.ts",
   "seedream-submit.ts",
+  "seedream-v5-lite-edit-submit.ts",
+  "seedream-v5-lite-submit.ts",
   "sora-status.ts",
   "sora-submit.ts",
   "status.ts",

@@ -52,6 +52,9 @@ const resolveResolution = (payload: JsonObject): string | undefined => {
   const imageSize = asString(payload.image_size);
   if (!imageSize) return undefined;
   const normalized = imageSize.toLowerCase();
+  if (normalized.includes("auto_4k")) return "auto_4K";
+  if (normalized.includes("auto_3k")) return "auto_3K";
+  if (normalized.includes("auto_2k")) return "auto_2K";
   if (normalized.includes("4k")) return "4K";
   if (normalized.includes("1080")) return "1080p";
   if (normalized.includes("720")) return "720p";

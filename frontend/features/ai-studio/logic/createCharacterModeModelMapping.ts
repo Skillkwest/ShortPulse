@@ -6,6 +6,7 @@ export const CREATE_DEFAULT_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/text-to-i
 export const CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 export const CREATE_CHARACTER_MODE_ALLOWED_MODEL_IDS = [
   CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
+  "fal-ai/bytedance/seedream/v5/lite/edit",
   "fal-ai/nano-banana-2/edit",
   "fal-ai/nano-banana-pro/edit",
 ] as const;
@@ -18,6 +19,10 @@ const CREATE_MODEL_PAIRS = [
   {
     textToImageModelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
     imageToImageModelId: "fal-ai/bytedance/seedream/v4.5/edit",
+  },
+  {
+    textToImageModelId: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    imageToImageModelId: "fal-ai/bytedance/seedream/v5/lite/edit",
   },
   {
     textToImageModelId: "fal-ai/nano-banana-2",

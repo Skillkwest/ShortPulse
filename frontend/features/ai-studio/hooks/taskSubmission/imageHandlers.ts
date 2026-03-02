@@ -12,6 +12,7 @@ import {
   submitFalNanoBanana2Edit,
   submitFalNanoBananaProEdit,
   submitFalSeedreamEdit,
+  submitFalSeedreamV5LiteEdit,
 } from "../../../../lib/falClient";
 import { falNanoBananaAllowedAspects, falNanoBananaProAllowedAspects } from "../../constants";
 import {
@@ -140,6 +141,28 @@ export const handleImageModelSubmission = async ({
       image_size,
       num_images: 1,
       ...resolveImageSubmissionSafetyPayload(finalModel),
+      image_urls: preparedImageInputs.slice(0, 10),
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-seedream",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
+  if (finalModel === "fal-ai/bytedance/seedream/v5/lite/edit") {
+    if (!preparedImageInputs.length) {
+      notifyGenerationFailure(id, "Seedream 5 Lite Edit requires at least one reference image.");
+      return true;
+    }
+    const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
+    const response = await submitFalSeedreamV5LiteEdit({
+      prompt: cleanedPrompt,
+      image_size,
+      num_images: 1,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
+      enable_safety_checker: false,
       image_urls: preparedImageInputs.slice(0, 10),
     });
     handoffSubmitResponse({

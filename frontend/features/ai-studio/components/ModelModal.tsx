@@ -141,11 +141,25 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image", "Text-to-Image", "Native/2K/4K"],
     verified: true,
   },
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
+    provider: "ByteDance",
+    description:
+      "Seedream 5 Lite text-to-image supports faster generation with automatic 2K and 3K output modes.",
+    tags: ["Image", "Text-to-Image", "Auto 2K/3K", "Fast"],
+    verified: true,
+  },
   "fal-ai/bytedance/seedream/v4.5/edit": {
     provider: "ByteDance",
     description:
       "Seedream 4.5 Edit applies image-to-image changes with native output plus automatic 2K and 4K upscale modes.",
     tags: ["Image", "Image-to-Image", "Native/2K/4K"],
+    verified: true,
+  },
+  "fal-ai/bytedance/seedream/v5/lite/edit": {
+    provider: "ByteDance",
+    description:
+      "Seedream 5 Lite Edit applies fast image-to-image edits with automatic 2K and 3K output modes.",
+    tags: ["Image", "Image-to-Image", "Auto 2K/3K", "Fast"],
     verified: true,
   },
   "fal-ai/nano-banana": {
@@ -291,6 +305,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
     "fal-ai/nano-banana/edit",
     "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
+    "fal-ai/bytedance/seedream/v5/lite/edit",
     "fal-ai/bytedance/seedream/v4.5/edit",
   ],
 };

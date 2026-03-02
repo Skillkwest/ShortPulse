@@ -19,6 +19,7 @@ const IMAGE_MODELS = new Set([
   "fal-ai/nano-banana-2/edit",
   "fal-ai/nano-banana-pro/edit",
   "fal-ai/bytedance/seedream/v4.5/edit",
+  "fal-ai/bytedance/seedream/v5/lite/edit",
   "fal/flux-2",
   "fal-ai/flux-2/klein/9b",
   "fal/flux-2/edit",

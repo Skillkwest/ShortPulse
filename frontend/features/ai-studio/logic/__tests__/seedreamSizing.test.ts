@@ -34,7 +34,7 @@ describe("resolveSeedreamImageSize", () => {
       "21:9",
     ];
     for (const aspect of seedreamAspects) {
-      for (const resolution of ["auto_2K", "auto_4K"] as const) {
+      for (const resolution of ["auto_2K", "auto_3K", "auto_4K"] as const) {
         const imageSize = resolveSeedreamImageSize(aspect, resolution);
         expect(typeof imageSize).toBe("object");
         if (typeof imageSize === "string") continue;

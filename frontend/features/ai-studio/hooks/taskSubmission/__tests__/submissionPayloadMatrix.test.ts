@@ -29,6 +29,8 @@ import {
   submitFalSeedanceI2V,
   submitFalSeedream,
   submitFalSeedreamEdit,
+  submitFalSeedreamV5Lite,
+  submitFalSeedreamV5LiteEdit,
   submitFalSoraPro,
   submitFalVeo,
   submitFalVeoFirstLast,
@@ -53,6 +55,8 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalSeedanceI2V: vi.fn(),
   submitFalSeedream: vi.fn(),
   submitFalSeedreamEdit: vi.fn(),
+  submitFalSeedreamV5Lite: vi.fn(),
+  submitFalSeedreamV5LiteEdit: vi.fn(),
   submitFalSoraPro: vi.fn(),
   submitFalVeo: vi.fn(),
   submitFalVeoFirstLast: vi.fn(),
@@ -153,6 +157,20 @@ const CASES: Record<string, CaseConfig> = {
     route: "image",
     submitName: "submitFalSeedreamEdit",
     requestedResolution: "auto_4K",
+    expectedSafetyChecker: false,
+    expectedReferenceField: "image_urls",
+  },
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
+    route: "default",
+    submitName: "submitFalSeedreamV5Lite",
+    requestedResolution: "auto_3K",
+    expectedSafetyChecker: false,
+    expectedReferenceField: "none",
+  },
+  "fal-ai/bytedance/seedream/v5/lite/edit": {
+    route: "image",
+    submitName: "submitFalSeedreamV5LiteEdit",
+    requestedResolution: "auto_3K",
     expectedSafetyChecker: false,
     expectedReferenceField: "image_urls",
   },
@@ -285,6 +303,8 @@ const submitSpyByName = {
   submitFalSeedanceI2V: vi.mocked(submitFalSeedanceI2V),
   submitFalSeedream: vi.mocked(submitFalSeedream),
   submitFalSeedreamEdit: vi.mocked(submitFalSeedreamEdit),
+  submitFalSeedreamV5Lite: vi.mocked(submitFalSeedreamV5Lite),
+  submitFalSeedreamV5LiteEdit: vi.mocked(submitFalSeedreamV5LiteEdit),
   submitFalSoraPro: vi.mocked(submitFalSoraPro),
   submitFalVeo: vi.mocked(submitFalVeo),
   submitFalVeoFirstLast: vi.mocked(submitFalVeoFirstLast),
@@ -301,6 +321,7 @@ const resetFalSubmitMocks = () => {
 describe("task submission payload matrix", () => {
   beforeEach(() => {
     resetFalSubmitMocks();
+    process.env.NEXT_PUBLIC_AI_STUDIO_GENERATION_SAFETY_LEVEL = "off";
   });
 
   it("keeps matrix coverage in sync with every non-text model in model registry", () => {
@@ -345,7 +366,11 @@ describe("task submission payload matrix", () => {
         expect(payload.aspect_ratio).toBeDefined();
       }
 
-      if (modelId.includes("seedream") && config.requestedResolution === "auto_4K") {
+      if (
+        modelId.includes("seedream") &&
+        config.requestedResolution &&
+        ["auto_2K", "auto_3K", "auto_4K"].includes(config.requestedResolution)
+      ) {
         expect(typeof payload.image_size).toBe("object");
         const imageSize = payload.image_size as { width: number; height: number };
         expect(

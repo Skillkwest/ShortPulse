@@ -88,6 +88,7 @@ describe("useAiStudioPageDerivations", () => {
     expect(values).toEqual(
       new Set([
         "fal-ai/bytedance/seedream/v4.5/edit",
+        "fal-ai/bytedance/seedream/v5/lite/edit",
         "fal-ai/nano-banana-2/edit",
         "fal-ai/nano-banana-pro/edit",
       ])

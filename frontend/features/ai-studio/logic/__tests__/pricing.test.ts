@@ -222,3 +222,23 @@ describe("computeCostForModel (Seedream 4.5)", () => {
     expect(cost?.credits).toBe(10);
   });
 });
+
+describe("computeCostForModel (Seedream 5 Lite)", () => {
+  const modelId = "fal-ai/bytedance/seedream/v5/lite/text-to-image";
+
+  it("charges 5 credits per run from $0.035 pricing", () => {
+    const cost = computeCostForModel(modelId, { resolution: "auto_2K" });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.035, 6);
+    expect(cost?.rawCredits).toBe(4);
+    expect(cost?.credits).toBe(5);
+    expect(cost?.usd).toBeCloseTo(0.05, 2);
+  });
+
+  it("keeps pricing flat across auto_2K and auto_3K", () => {
+    const auto2k = computeCostForModel(modelId, { resolution: "auto_2K" });
+    const auto3k = computeCostForModel(modelId, { resolution: "auto_3K" });
+    expect(auto2k?.usdRaw).toBeCloseTo(auto3k?.usdRaw ?? 0, 6);
+    expect(auto2k?.credits).toBe(auto3k?.credits);
+  });
+});

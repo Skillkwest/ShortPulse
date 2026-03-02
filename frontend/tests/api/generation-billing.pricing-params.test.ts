@@ -55,4 +55,12 @@ describe("generationBilling pricing params normalization", () => {
 
     expect(params.resolution).toBe("0.5K");
   });
+
+  it("preserves auto_3K resolution for seedream 5 lite", () => {
+    const params = buildPricingParams("fal-ai/bytedance/seedream/v5/lite/edit", {
+      image_size: "auto_3K",
+    });
+
+    expect(params.resolution).toBe("auto_3K");
+  });
 });

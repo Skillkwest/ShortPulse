@@ -236,6 +236,15 @@ const computeSeedreamPerImageCost: StrategyFn = ({ resolution }) => {
   });
 };
 
+const computeSeedream5LitePerImageCost: StrategyFn = () => {
+  return toCostBreakdown({
+    usdRaw: 0.035,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  });
+};
+
 const computeNanoBanana2PerImageCost: StrategyFn = ({ resolution, webSearch }) => {
   const baseUsd = 0.08;
   const normalizedResolution = (resolution ?? "1K").trim().toUpperCase();
@@ -378,6 +387,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,
   "seedream-per-image": computeSeedreamPerImageCost,
+  "seedream-5-lite-per-image": computeSeedream5LitePerImageCost,
   "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
   "sora-2-pro-per-second": computeSora2ProPerSecondCost,

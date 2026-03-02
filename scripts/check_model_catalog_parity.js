@@ -56,6 +56,8 @@ const MODEL_DOC_MAP = {
   "fal-ai/nano-banana-pro/edit": "api-fal-nano-banana-pro-edit.md",
   "fal-ai/bytedance/seedream/v4.5/text-to-image": "api-fal-seedream-4-5.md",
   "fal-ai/bytedance/seedream/v4.5/edit": "api-fal-seedream-4-5-edit.md",
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": "api-fal-seedream-5-lite.md",
+  "fal-ai/bytedance/seedream/v5/lite/edit": "api-fal-seedream-5-lite-edit.md",
   "fal-ai/kling-video/v3/pro/text-to-video": "api-fal-kling-3-pro-text-to-video.md",
   "fal-ai/kling-video/v3/pro/image-to-video": "api-fal-kling-3-pro-image-to-video.md",
   "fal-ai/veo3.1": "api-fal-veo3.md",

@@ -42,6 +42,8 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-nano-banana-pro-edit.md`
 - `docs/api/api-fal-seedream-4-5.md`
 - `docs/api/api-fal-seedream-4-5-edit.md`
+- `docs/api/api-fal-seedream-5-lite.md`
+- `docs/api/api-fal-seedream-5-lite-edit.md`
 
 ## Maintenance checklist
 1. Add/update the model in code (`frontend/lib/model-runtime/modelCatalog.ts`, pricing, submit/status handlers).

@@ -76,6 +76,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 - Model policy:
   - Create/Image model list is restricted to:
     - `fal-ai/bytedance/seedream/v4.5/edit`
+    - `fal-ai/bytedance/seedream/v5/lite/edit`
     - `fal-ai/nano-banana-2/edit`
     - `fal-ai/nano-banana-pro/edit`
   - Toggle remap is paired and deterministic:
@@ -140,6 +141,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
   - Nano Banana 2 + Nano Banana 2 Edit: `0.5K`, `1K`, `2K`, `4K`.
   - Nano Banana Pro + Nano Banana Pro Edit: `1K`, `2K`, `4K`.
   - Seedream 4.5 + Seedream 4.5 Edit: `model_default`, `auto_2K`, `auto_4K`.
+  - Seedream 5 Lite + Seedream 5 Lite Edit: `auto_2K`, `auto_3K`.
 
 ## Supported image models (current)
 
@@ -158,6 +160,8 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 | Fal | `fal-ai/nano-banana-pro/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; flat per-image pricing (15 credits; 4K doubles; web_search adds 1.5 credits), proxied through `/api/fal/nano-banana-pro-edit-*`. |
 | Fal | `fal-ai/bytedance/seedream/v4.5/text-to-image` | 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9) | Uses native `image_size` enums for core ratios and exact custom `{width,height}` payloads for non-native ratios (`5:4`, `4:5`, `3:2`, `2:3`, `21:9`); for `auto_2K`/`auto_4K`, the client now sends explicit aspect-locked dimensions (no ambiguous auto enum pass-through); safety checker off by default. |
 | Fal | `fal-ai/bytedance/seedream/v4.5/edit` | 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9) | Image-to-image/edit; requires `image_urls`; uses native + exact custom `image_size` mapping like text-to-image, including explicit aspect-locked dimensions for `auto_2K`/`auto_4K`; safety checker off by default; proxied through `/api/fal/seedream-edit-submit` + `/api/fal/seedream-status`. |
+| Fal | `fal-ai/bytedance/seedream/v5/lite/text-to-image` | 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9) | Text-to-image; supports `auto_2K`/`auto_3K` and custom `{width,height}` sizing; safety checker off by default; proxied through `/api/fal/seedream-v5-lite-submit` + `/api/fal/seedream-status`; pricing uses fixed `$0.035` base (5 billed credits after rounding). |
+| Fal | `fal-ai/bytedance/seedream/v5/lite/edit` | 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9) | Image-to-image/edit; requires `image_urls` (up to 10); supports `auto_2K`/`auto_3K` and custom `{width,height}` sizing; safety checker off by default; proxied through `/api/fal/seedream-v5-lite-edit-submit` + `/api/fal/seedream-status`; pricing mirrors Seedream 5 Lite text-to-image. |
 
 ## Maintenance rules
 

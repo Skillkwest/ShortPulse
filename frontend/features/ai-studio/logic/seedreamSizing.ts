@@ -5,6 +5,7 @@
 import {
   isSeedreamAutoImageSize,
   SEEDREAM_AUTO_2K_IMAGE_SIZE,
+  SEEDREAM_AUTO_3K_IMAGE_SIZE,
   SEEDREAM_AUTO_4K_IMAGE_SIZE,
 } from "./imageResolution";
 
@@ -27,10 +28,13 @@ const customImageSizeByAspect: Record<string, { width: number; height: number }>
 };
 
 const AUTO_IMAGE_AREA_BY_RESOLUTION: Record<
-  typeof SEEDREAM_AUTO_2K_IMAGE_SIZE | typeof SEEDREAM_AUTO_4K_IMAGE_SIZE,
+  | typeof SEEDREAM_AUTO_2K_IMAGE_SIZE
+  | typeof SEEDREAM_AUTO_3K_IMAGE_SIZE
+  | typeof SEEDREAM_AUTO_4K_IMAGE_SIZE,
   number
 > = {
   [SEEDREAM_AUTO_2K_IMAGE_SIZE]: 3_686_400,
+  [SEEDREAM_AUTO_3K_IMAGE_SIZE]: 5_308_416,
   [SEEDREAM_AUTO_4K_IMAGE_SIZE]: 8_294_400,
 };
 
@@ -57,7 +61,10 @@ const resolveAspectRatio = (aspect: string): number => {
 
 const resolveSeedreamAutoSize = (
   aspect: string,
-  requestedResolution: typeof SEEDREAM_AUTO_2K_IMAGE_SIZE | typeof SEEDREAM_AUTO_4K_IMAGE_SIZE
+  requestedResolution:
+    | typeof SEEDREAM_AUTO_2K_IMAGE_SIZE
+    | typeof SEEDREAM_AUTO_3K_IMAGE_SIZE
+    | typeof SEEDREAM_AUTO_4K_IMAGE_SIZE
 ): { width: number; height: number } => {
   const area = AUTO_IMAGE_AREA_BY_RESOLUTION[requestedResolution];
   const ratio = resolveAspectRatio(aspect);

@@ -41,6 +41,7 @@ describe("useAiStudioTaskSubmission", () => {
     "fal-ai/nano-banana/edit",
     "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
+    "fal-ai/bytedance/seedream/v5/lite/edit",
     "fal-ai/bytedance/seedream/v4.5/edit",
     "custom/legacy-image",
   ] as const;

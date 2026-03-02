@@ -352,6 +352,62 @@ const registry: Record<string, ModelConfig> = {
     ]),
     supportsImageToImage: true,
   },
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
+    id: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    label: "Seedream 5 Lite",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v5/lite/text-to-image", "1:1"),
+    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v5/lite/text-to-image", [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "4:5",
+      "5:4",
+      "9:16",
+      "16:9",
+    ]),
+    pricingStrategy: "seedream-5-lite-per-image",
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+      "auto_2K"
+    ),
+    allowedResolutions: contractAllowedResolutions(
+      "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+      ["auto_2K", "auto_3K"]
+    ),
+    supportsTextToImage: true,
+  },
+  "fal-ai/bytedance/seedream/v5/lite/edit": {
+    id: "fal-ai/bytedance/seedream/v5/lite/edit",
+    label: "Seedream 5 Lite Edit",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v5/lite/edit", "1:1"),
+    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v5/lite/edit", [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "4:5",
+      "5:4",
+      "9:16",
+      "16:9",
+    ]),
+    pricingStrategy: "seedream-5-lite-per-image",
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/bytedance/seedream/v5/lite/edit",
+      "auto_2K"
+    ),
+    allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v5/lite/edit", [
+      "auto_2K",
+      "auto_3K",
+    ]),
+    supportsImageToImage: true,
+  },
   "fal-ai/kling-video/v3/pro/text-to-video": {
     id: "fal-ai/kling-video/v3/pro/text-to-video",
     label: "Kling 3.0",

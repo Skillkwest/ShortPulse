@@ -4,6 +4,7 @@ import { validateSeedreamImageSizePayload } from "../../lib/server/api/seedreamP
 describe("validateSeedreamImageSizePayload", () => {
   it("accepts known image_size enums", () => {
     expect(validateSeedreamImageSizePayload({ image_size: "landscape_16_9" })).toBeNull();
+    expect(validateSeedreamImageSizePayload({ image_size: "auto_3K" })).toBeNull();
     expect(validateSeedreamImageSizePayload({ image_size: "auto_4K" })).toBeNull();
   });
 

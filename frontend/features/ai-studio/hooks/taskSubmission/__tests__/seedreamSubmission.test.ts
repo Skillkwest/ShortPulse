@@ -6,6 +6,8 @@ import { getModelConfig } from "../../../logic/modelRegistry";
 import {
   submitFalSeedream,
   submitFalSeedreamEdit,
+  submitFalSeedreamV5Lite,
+  submitFalSeedreamV5LiteEdit,
   submitFalNanoBanana,
   submitFalNanoBananaPro,
   submitFalNanoBananaEdit,
@@ -20,6 +22,8 @@ import {
 vi.mock("../../../../../lib/falClient", () => ({
   submitFalSeedream: vi.fn(),
   submitFalSeedreamEdit: vi.fn(),
+  submitFalSeedreamV5Lite: vi.fn(),
+  submitFalSeedreamV5LiteEdit: vi.fn(),
   submitFalNanoBanana: vi.fn(),
   submitFalNanoBananaPro: vi.fn(),
   submitFalNanoBananaEdit: vi.fn(),
@@ -76,6 +80,10 @@ describe("Seedream submission payloads", () => {
     vi.clearAllMocks();
     vi.mocked(submitFalSeedream).mockResolvedValue({ request_id: "seedream-req" });
     vi.mocked(submitFalSeedreamEdit).mockResolvedValue({ request_id: "seedream-edit-req" });
+    vi.mocked(submitFalSeedreamV5Lite).mockResolvedValue({ request_id: "seedream-v5-lite-req" });
+    vi.mocked(submitFalSeedreamV5LiteEdit).mockResolvedValue({
+      request_id: "seedream-v5-lite-edit-req",
+    });
     vi.mocked(submitFalNanoBanana).mockResolvedValue({ request_id: "nano-req" });
     vi.mocked(submitFalNanoBananaPro).mockResolvedValue({ request_id: "nano-pro-req" });
     vi.mocked(submitFalNanoBananaEdit).mockResolvedValue({ request_id: "nano-edit-req" });
@@ -125,6 +133,21 @@ describe("Seedream submission payloads", () => {
     expectAspectLockedAutoSize(payload?.image_size, "16:9");
   });
 
+  it("sends aspect-locked auto_3K dimensions in Seedream 5 Lite text payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v5/lite/text-to-image"),
+      aspect: "16:9",
+      requestedResolution: "auto_3K",
+    });
+
+    await handleDefaultModelSubmission(args);
+
+    const payload = vi.mocked(submitFalSeedreamV5Lite).mock.calls[0]?.[0];
+    expect(payload).toBeDefined();
+    expectAspectLockedAutoSize(payload?.image_size, "16:9");
+  });
+
   it("sends exact custom Seedream image_size for 5:4 edit payload", async () => {
     const args = makeArgs({
       finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -162,6 +185,22 @@ describe("Seedream submission payloads", () => {
     await handleImageModelSubmission(args);
 
     const payload = vi.mocked(submitFalSeedreamEdit).mock.calls[0]?.[0];
+    expect(payload).toBeDefined();
+    expectAspectLockedAutoSize(payload?.image_size, "9:16");
+  });
+
+  it("sends aspect-locked auto_3K dimensions in Seedream 5 Lite edit payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/bytedance/seedream/v5/lite/edit",
+      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v5/lite/edit"),
+      aspect: "9:16",
+      requestedResolution: "auto_3K",
+      preparedImageInputs: ["https://cdn.test/ref-1.png"],
+    });
+
+    await handleImageModelSubmission(args);
+
+    const payload = vi.mocked(submitFalSeedreamV5LiteEdit).mock.calls[0]?.[0];
     expect(payload).toBeDefined();
     expectAspectLockedAutoSize(payload?.image_size, "9:16");
   });

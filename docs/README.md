@@ -71,6 +71,8 @@ Start here for all repository documentation.
 - `docs/api/api-fal-nano-banana-pro-edit.md`
 - `docs/api/api-fal-seedream-4-5.md`
 - `docs/api/api-fal-seedream-4-5-edit.md`
+- `docs/api/api-fal-seedream-5-lite.md`
+- `docs/api/api-fal-seedream-5-lite-edit.md`
 
 ## SOPs
 - `docs/sops/README.md`

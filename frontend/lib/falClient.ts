@@ -476,6 +476,14 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/seedream-edit-submit`,
     missingRequestIdMessage: "Fal Seedream Edit did not return a request_id",
   },
+  seedreamV5Lite: {
+    route: `${FAL_API_BASE}/seedream-v5-lite-submit`,
+    missingRequestIdMessage: "Fal Seedream 5 Lite did not return a request_id",
+  },
+  seedreamV5LiteEdit: {
+    route: `${FAL_API_BASE}/seedream-v5-lite-edit-submit`,
+    missingRequestIdMessage: "Fal Seedream 5 Lite Edit did not return a request_id",
+  },
   seedance: {
     route: `${FAL_API_BASE}/seedance-submit`,
     missingRequestIdMessage: "Fal Seedance did not return a request_id",
@@ -762,6 +770,10 @@ export const submitFalSeedream = (payload: FalSeedreamSubmitRequest) =>
   submitFalEndpoint("seedream", payload);
 export const submitFalSeedreamEdit = (payload: FalSeedreamEditSubmitRequest) =>
   submitFalEndpoint("seedreamEdit", payload);
+export const submitFalSeedreamV5Lite = (payload: FalSeedreamSubmitRequest) =>
+  submitFalEndpoint("seedreamV5Lite", payload);
+export const submitFalSeedreamV5LiteEdit = (payload: FalSeedreamEditSubmitRequest) =>
+  submitFalEndpoint("seedreamV5LiteEdit", payload);
 export const fetchFalSeedreamStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("seedream", requestId);
 

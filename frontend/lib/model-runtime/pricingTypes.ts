@@ -12,6 +12,7 @@ export type PricingStrategyId =
   | "gpt41nano-per-token"
   | "nano-banana-per-image"
   | "seedream-per-image"
+  | "seedream-5-lite-per-image"
   | "veo-3-per-second"
   | "kling-3-per-second"
   | "sora-2-pro-per-second"

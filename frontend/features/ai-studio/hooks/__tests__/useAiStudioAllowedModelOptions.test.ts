@@ -17,6 +17,7 @@ describe("useAiStudioAllowedModelOptions", () => {
     expect(values).toEqual([
       "fal-ai/nano-banana-2/edit",
       "fal-ai/nano-banana-pro/edit",
+      "fal-ai/bytedance/seedream/v5/lite/edit",
       "fal-ai/bytedance/seedream/v4.5/edit",
     ]);
   });

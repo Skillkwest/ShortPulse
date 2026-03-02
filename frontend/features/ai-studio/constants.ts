@@ -28,6 +28,8 @@ export const modelLogos: Record<string, string> = {
   "fal-ai/nano-banana-2/edit": GOOGLE_LOGO_SRC,
   "fal-ai/nano-banana-pro": GOOGLE_LOGO_SRC,
   "fal-ai/nano-banana-pro/edit": GOOGLE_LOGO_SRC,
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": SEEDREAM_LOGO_SRC,
+  "fal-ai/bytedance/seedream/v5/lite/edit": SEEDREAM_LOGO_SRC,
   "fal-ai/bytedance/seedream/v4.5/text-to-image": SEEDREAM_LOGO_SRC,
   "fal-ai/bytedance/seedream/v4.5/edit": SEEDREAM_LOGO_SRC,
   "fal-ai/kling-video/v3/pro/text-to-video": KLING_LOGO_SRC,
@@ -94,6 +96,16 @@ export const modelOptions: ModelOption[] = [
   { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
+  {
+    value: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    label: "Seedream 5 Lite",
+    mediaType: "image",
+  },
+  {
+    value: "fal-ai/bytedance/seedream/v5/lite/edit",
+    label: "Seedream 5 Lite",
+    mediaType: "image",
+  },
   { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5", mediaType: "image" },
   {
     value: "fal-ai/bytedance/seedream/v4.5/text-to-image",

@@ -110,7 +110,7 @@ Pending:
 
 ## Surgical Research Checkpoints (Required)
 1. RCP-1: browser lifecycle/autosave transport reliability. Status: complete (`2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`).
-2. RCP-2: Supabase RLS + `SECURITY DEFINER` + upsert/prune semantics.
+2. RCP-2: Supabase RLS + `SECURITY DEFINER` + upsert/prune semantics. Status: complete (`2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`).
 3. RCP-3: provider safety/error normalization contracts.
 4. RCP-4: Fal/Kie canary threshold and webhook/status contract tuning.
 

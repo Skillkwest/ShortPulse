@@ -20,6 +20,8 @@ Evidence output:
 
 ## RCP-2: Supabase/Postgres Persistence Security Posture
 Trigger: before Session SQL/API finalize.
+Status: Complete (2026-03-02)
+Evidence: `2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`
 
 Required focus:
 1. RLS isolation (`user_id = auth.uid()`).

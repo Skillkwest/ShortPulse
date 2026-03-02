@@ -2055,3 +2055,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/pages/ai-studio.tsx`.
 - Recorded Wave E Pass 7 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-7-session-write-shadow-local-durability.md`.
+
+## 2026-03-02 (Phase 13 RCP-2 session SQL/API security research lock)
+- Completed targeted research checkpoint for Wave E session SQL/API persistence security posture:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`.
+- Locked implementation constraints for migration `044_*`:
+  - service-role-only `SECURITY DEFINER` RPC execution posture,
+  - explicit function `search_path` hardening,
+  - atomic upsert + deterministic per-user prune with bounded TTL/cap policy,
+  - scheduled bounded expired-row pruning via `pg_cron`.

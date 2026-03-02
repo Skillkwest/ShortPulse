@@ -116,3 +116,8 @@ Last updated: 2026-03-02
 - Topic: Session persistence rollout ordering and local write-shadow boundary.
 - Decision: Wave E enables local write-shadow durability before restore/server APIs; persistence writes are currently local-only (schema-versioned snapshot + IndexedDB shadow storage + lifecycle flush triggers) and restore hydration remains disabled until later Wave E passes.
 - Effective phase: 13.
+
+## Decision 024
+- Topic: Session SQL/API security boundary and prune/upsert posture.
+- Decision: Wave E session SQL/API uses service-role-only `SECURITY DEFINER` RPCs with explicit `search_path`, strict execute-grant hardening, and atomic upsert+deterministic prune semantics (bounded TTL/cap, per-user advisory lock, last-write-wins monotonic `save_seq`).
+- Effective phase: 13.

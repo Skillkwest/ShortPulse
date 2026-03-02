@@ -42,3 +42,4 @@ Example:
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`
+2. `2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`

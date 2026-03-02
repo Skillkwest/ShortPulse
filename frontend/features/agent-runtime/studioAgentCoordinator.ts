@@ -133,6 +133,7 @@ export const executeStudioAgentCoordinator = async ({
   safetyPostProcessEnabled,
   safetyDebugEnabled,
   safetyProfileId,
+  safetyPolicyVersion,
   safetyEnvironment,
   safetyDevAbsoluteZeroEnabled,
   safetyProviderErrorMode,
@@ -171,6 +172,7 @@ export const executeStudioAgentCoordinator = async ({
   safetyPostProcessEnabled: boolean;
   safetyDebugEnabled: boolean;
   safetyProfileId?: string | null;
+  safetyPolicyVersion?: number | null;
   safetyEnvironment: SafetyEnvironment;
   safetyDevAbsoluteZeroEnabled: boolean;
   safetyProviderErrorMode: ProviderErrorNormalizationMode;
@@ -193,7 +195,10 @@ export const executeStudioAgentCoordinator = async ({
       : orchestration.flow === "TEXT_ONLY"
         ? "text_fast_path"
         : "fallback_fast_path";
-  const safetyPolicyVersion = resolvePolicyVersionFromProfileId(safetyProfileId);
+  const resolvedSafetyPolicyVersion =
+    typeof safetyPolicyVersion === "number" && Number.isFinite(safetyPolicyVersion)
+      ? safetyPolicyVersion
+      : resolvePolicyVersionFromProfileId(safetyProfileId);
   const safetyModality = resolveSafetyModality({
     route: "studio-agent",
     flow: orchestration.flow,
@@ -239,7 +244,7 @@ export const executeStudioAgentCoordinator = async ({
       stageLatencyMs,
       fallbackReason,
       safetyTelemetry: {
-        policyVersion: safetyPolicyVersion,
+        policyVersion: resolvedSafetyPolicyVersion,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
       },
@@ -296,7 +301,7 @@ export const executeStudioAgentCoordinator = async ({
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
         safetyTelemetry: {
-          policyVersion: safetyPolicyVersion,
+          policyVersion: resolvedSafetyPolicyVersion,
           profileId: safetyTelemetryProfileId,
           modality: safetyModality,
           decisionAction: "refuse",
@@ -335,7 +340,7 @@ export const executeStudioAgentCoordinator = async ({
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyTelemetry: {
-        policyVersion: safetyPolicyVersion,
+        policyVersion: resolvedSafetyPolicyVersion,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
         providerBlocked: safetyRefusal,
@@ -587,7 +592,7 @@ export const executeStudioAgentCoordinator = async ({
       safetyDebugReason,
       safetyDebugEnabled,
       safetyTelemetry: {
-        policyVersion: safetyPolicyVersion,
+        policyVersion: resolvedSafetyPolicyVersion,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
         category: safetyDecisionCategory,
@@ -877,7 +882,7 @@ export const executeStudioAgentCoordinator = async ({
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyTelemetry: {
-        policyVersion: safetyPolicyVersion,
+        policyVersion: resolvedSafetyPolicyVersion,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
       },

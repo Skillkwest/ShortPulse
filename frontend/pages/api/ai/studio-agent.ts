@@ -233,6 +233,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     safetyPostProcessEnabled,
     safetyDebugEnabled,
     safetyProfileId,
+    safetyPolicyVersion: safetyProfile.policyVersion,
     safetyEnvironment,
     safetyDevAbsoluteZeroEnabled,
     safetyProviderErrorMode,

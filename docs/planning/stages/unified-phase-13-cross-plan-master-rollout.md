@@ -167,6 +167,10 @@ Completed:
    - expanded runtime safety telemetry fields (`policy_version`, `profile_id`, `modality`, `category`, `decision_action`, `decision_source`, `provider_blocked`, `hard_floor_violation`, `rollback_triggered`) in `studio-agent` and `describe-image` paths,
    - added hard-floor incident auto-rollback executor seam with production + flag gating (`STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED`) and bounded cooldown reuse (`STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS`),
    - wired policy-only rollback trigger on hard-floor incidents and added focused regression coverage for telemetry and rollback gating.
+29. Wave F Pass 4 telemetry-version alignment hardening:
+   - wired `studio-agent` coordinator telemetry to consume DB/control-plane resolved `policyVersion` when provided by runtime profile resolution,
+   - preserved fail-closed fallback to profile-id-derived version when runtime profile resolution does not provide a numeric version,
+   - added runtime API regression coverage locking telemetry parity for non-suffixed profile IDs (for example `staging_lenient` with control-plane version `7`).
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.

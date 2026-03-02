@@ -52,6 +52,7 @@ Example:
 23. `2026-03-02-phase-13-wave-f-pass-2-modality-wiring.md`
 24. `2026-03-02-phase-13-wave-f-pass-3-control-plane-persistence-admin-apis.md`
 25. `2026-03-02-phase-13-wave-f-pass-4-observability-auto-rollback.md`
+26. `2026-03-02-phase-13-wave-f-pass-4-policy-version-telemetry-alignment.md`
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`

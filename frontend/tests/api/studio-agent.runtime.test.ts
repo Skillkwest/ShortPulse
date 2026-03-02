@@ -6,6 +6,7 @@ const runThinkerFormatterTurnMock = vi.fn();
 const readAgentConversationCanonicalPromptMock = vi.fn();
 const upsertAgentConversationCanonicalPromptMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const resolveRuntimeSafetyProfileMock = vi.fn();
 let apiUserCounter = 0;
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -29,6 +30,10 @@ vi.mock("../../lib/server/api/agentConversationState", async () => {
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/api/agentSafetyPolicyControlPlane", () => ({
+  resolveRuntimeSafetyProfile: (...args: unknown[]) => resolveRuntimeSafetyProfileMock(...args),
 }));
 
 const createMockResponse = () => {
@@ -67,6 +72,19 @@ const extractTelemetryPaths = (infoSpy: ReturnType<typeof vi.spyOn>): string[] =
     })
     .filter(Boolean);
 
+const extractTelemetryPayloads = (
+  infoSpy: ReturnType<typeof vi.spyOn>
+): Array<Record<string, unknown>> =>
+  infoSpy.mock.calls
+    .filter((call: unknown[]) => call[0] === "[studio-agent][telemetry]")
+    .map((call: unknown[]) => {
+      try {
+        return JSON.parse(String(call[1])) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    });
+
 describe("POST /api/ai/studio-agent runtime hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -89,6 +107,11 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     requireApiUserMock.mockImplementation(async () => {
       apiUserCounter += 1;
       return { id: `user-${apiUserCounter}`, email: "user@example.com" };
+    });
+    resolveRuntimeSafetyProfileMock.mockResolvedValue({
+      profileId: "prod_safe_v1",
+      policyVersion: 1,
+      source: "env",
     });
     readAgentConversationCanonicalPromptMock.mockResolvedValue(null);
     upsertAgentConversationCanonicalPromptMock.mockResolvedValue("saved prompt");
@@ -144,6 +167,56 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         actions: expect.objectContaining({ applyPrompt: "Enhanced prompt output" }),
       })
     );
+  });
+
+  it("emits telemetry with control-plane policy version when provided by runtime profile resolution", async () => {
+    resolveRuntimeSafetyProfileMock.mockResolvedValue({
+      profileId: "staging_lenient",
+      policyVersion: 7,
+      source: "control_plane",
+    });
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "telemetry version check",
+                  actions: { apply_prompt: "telemetry version check" },
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-policy-version",
+        messages: [{ role: "user", content: "refine this prompt" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const telemetryPayload = extractTelemetryPayloads(infoSpy).find(
+      (payload) => payload.outcome_class === "success_prompt"
+    );
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        policy_version: 7,
+        profile_id: "staging_lenient",
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("falls back to default timeout when STUDIO_AGENT_TIMEOUT_MS is invalid", async () => {

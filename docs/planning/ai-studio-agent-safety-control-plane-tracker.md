@@ -24,7 +24,10 @@ Program Doc: `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 6. Operational SQL apply evidence is now green in target environment:
    - `check_agent_safety_policy_control_plane.sql` => `7/7/0`
    - `check_runtime_sql_security_audit.sql` => `120/120/0`
-7. RCP-4 remains pending and is tracked under Wave H canary promotion gates.
+7. Wave F Pass 4 telemetry-version alignment is landed:
+   - `studio-agent` coordinator now emits control-plane/runtime-resolved `policyVersion` values (with fallback),
+   - regression coverage locks telemetry parity for non-suffixed profile IDs.
+8. RCP-4 remains pending and is tracked under Wave H canary promotion gates.
 
 ## Execution Checklist
 ### F0: Docs + Contract Lock

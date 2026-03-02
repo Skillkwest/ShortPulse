@@ -13,6 +13,7 @@ type CharacterQuickSwapDeckSectionProps = {
   contentId: string;
   pageBusy: boolean;
   isDropActive: boolean;
+  isDropPending?: boolean;
   remainingCapacityHint: number;
   activeItems: CharacterQuickSwapItem[];
   archivedItems: CharacterQuickSwapItem[];
@@ -48,6 +49,7 @@ export function CharacterQuickSwapDeckSection({
   contentId,
   pageBusy,
   isDropActive,
+  isDropPending = false,
   remainingCapacityHint,
   activeItems,
   archivedItems,
@@ -119,18 +121,30 @@ export function CharacterQuickSwapDeckSection({
 
       <div id={contentId} className="character-reference-drop-content" hidden={isCollapsed}>
         {isDropActive ? (
-          <div className="character-reference-drop-overlay" aria-hidden="true">
+          <div
+            className={`character-reference-drop-overlay ${isDropPending ? "is-pending" : ""}`}
+            aria-live={isDropPending ? "polite" : undefined}
+            role={isDropPending ? "status" : undefined}
+          >
             <div className="character-reference-drop-overlay-content">
-              <UploadSimple
-                size={34}
-                weight="bold"
-                className="character-reference-drop-overlay-icon"
-              />
-              <p className="character-reference-drop-overlay-title">Drop reference images here</p>
+              {isDropPending ? (
+                <span className="character-reference-drop-overlay-spinner" aria-hidden="true" />
+              ) : (
+                <UploadSimple
+                  size={34}
+                  weight="bold"
+                  className="character-reference-drop-overlay-icon"
+                />
+              )}
+              <p className="character-reference-drop-overlay-title">
+                {isDropPending ? "Adding image to QuickSwap Deck..." : "Drop reference images here"}
+              </p>
               <p className="tiny subdued">
-                {remainingCapacityHint > 0
-                  ? `${remainingCapacityHint} active slot(s) remaining before archive overflow.`
-                  : "New uploads will auto-archive oldest active references beyond 500."}
+                {isDropPending
+                  ? "Saving reference and syncing your QuickSwap Deck."
+                  : remainingCapacityHint > 0
+                    ? `${remainingCapacityHint} active slot(s) remaining before archive overflow.`
+                    : "New uploads will auto-archive oldest active references beyond 500."}
               </p>
             </div>
           </div>

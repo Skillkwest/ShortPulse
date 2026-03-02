@@ -2056,6 +2056,7 @@ export function CharacterManagerShell({
                   pendingDropTarget?.target === "quickswap"
                 }
                 isDropActive={isDropActive || pendingDropTarget?.target === "quickswap"}
+                isDropPending={pendingDropTarget?.target === "quickswap"}
                 remainingCapacityHint={quickSwapRemainingActiveCapacity}
                 activeItems={quickSwapActiveItems}
                 archivedItems={quickSwapArchivedItems}

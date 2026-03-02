@@ -226,6 +226,10 @@ const characterManagerMockState = vi.hoisted(() => ({
   selectedCharacterId: "character-1",
 }));
 
+const quickSwapDeckMockState = vi.hoisted(() => ({
+  appendExistingMediaReferenceImpl: null as null | ((mediaFileId: string) => Promise<boolean>),
+}));
+
 const getReferenceCard = (index: number): HTMLElement => {
   const removeButtons = screen.getAllByRole("button", { name: /Remove reference/i });
   const removeButton = removeButtons[index - 1];
@@ -554,6 +558,9 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
           return true;
         },
         appendExistingMediaReference: async (mediaFileId: string) => {
+          if (quickSwapDeckMockState.appendExistingMediaReferenceImpl) {
+            return quickSwapDeckMockState.appendExistingMediaReferenceImpl(mediaFileId);
+          }
           const trimmedMediaFileId = mediaFileId.trim();
           if (!trimmedMediaFileId) return false;
           setActiveItems((previous) => {
@@ -602,6 +609,7 @@ describe("CharacterManagerShell behavior", () => {
       data: null,
       error: { message: "not found" },
     });
+    quickSwapDeckMockState.appendExistingMediaReferenceImpl = null;
   });
 
   afterAll(() => {
@@ -1174,6 +1182,58 @@ describe("CharacterManagerShell behavior", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("shows a pending QuickSwap overlay state while internal drop attachment is in flight", async () => {
+    let resolveAppend: ((value: boolean) => void) | null = null;
+    quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveAppend = resolve;
+        })
+    );
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "media-internal-pending-1",
+      previewUrl: "https://example.com/unallowlisted-pending.png",
+      outputId: "output-internal-pending-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+
+    render(
+      <CharacterManagerShell
+        resolveCharacterDropReference={resolveCharacterDropReference}
+        surface="panel"
+      />
+    );
+
+    const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+    if (!quickSwapSection) {
+      throw new Error("Unable to resolve QuickSwap deck section.");
+    }
+    const internalDrag = createDataTransfer();
+    addInternalReferenceDragPayload(internalDrag, {
+      outputId: "output-internal-pending-1",
+      mediaId: "media-internal-pending-1",
+      sourceSurface: "all-refs",
+      referenceUrl: "https://example.com/unallowlisted-pending.png",
+    });
+
+    fireEvent.dragEnter(quickSwapSection, { dataTransfer: internalDrag });
+    fireEvent.dragOver(quickSwapSection, { dataTransfer: internalDrag });
+    fireEvent.drop(quickSwapSection, { dataTransfer: internalDrag });
+
+    await waitFor(() => {
+      expect(screen.getByText("Adding image to QuickSwap Deck...")).toBeInTheDocument();
+      expect(
+        screen.getByText("Saving reference and syncing your QuickSwap Deck.")
+      ).toBeInTheDocument();
+    });
+
+    resolveAppend?.(true);
+    await waitFor(() => {
+      expect(screen.queryByText("Adding image to QuickSwap Deck...")).not.toBeInTheDocument();
+    });
   });
 
   it("fails closed when internal reference-grid drop resolution cannot produce a media id", async () => {

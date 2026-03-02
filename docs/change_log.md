@@ -2334,3 +2334,31 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `cd frontend && npm run test` reported 3 unrelated pre-existing failures in Fal recovery server tests:
     - `lib/server/falIntegration/__tests__/recoveryGenerationLookup.test.ts` (2 assertions)
     - `lib/server/falIntegration/__tests__/recoveryLifecycleTransitions.test.ts` (1 assertion).
+
+## 2026-03-02 (post-unification validation closeout)
+- Resolved previously failing Fal recovery test drift by updating expectations/fixtures to current recovery contracts:
+  - `frontend/lib/server/falIntegration/__tests__/recoveryGenerationLookup.test.ts` now includes required `created_at` fixture field for typed row parsing.
+  - `frontend/lib/server/falIntegration/__tests__/recoveryLifecycleTransitions.test.ts` now asserts autosave metadata fields emitted by recovered-success updates.
+- Hardened character E2E audit selectors to support both legacy and new AI Studio picker class namespaces:
+  - `frontend/tests/e2e/character-pipeline.audit.js` now looks for `.ai-character-picker-modal` / `.character-picker-modal` and `.ai-character-list-select-btn` / `.character-list-select-btn`.
+- Validation evidence:
+  - `cd frontend && npm run test -- lib/server/falIntegration/__tests__/recoveryGenerationLookup.test.ts lib/server/falIntegration/__tests__/recoveryLifecycleTransitions.test.ts` passed.
+  - `cd frontend && npm run test` passed (`293` files, `1520` tests).
+  - `cd frontend && npm run lint` passed.
+  - `cd frontend && npm run build` passed.
+  - `cd frontend && npm run test:e2e:character` remains environment-gated until `PLAYWRIGHT_AUDIT_EMAIL` is provided.
+
+## 2026-03-02 (agent safety control-plane ops guide)
+- Added a dedicated SOP for AI Studio agent safety control-plane operations and tuning knobs:
+  - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
+- Documented the operational control surface in one place:
+  - supported profiles (`prod_safe_v1`, `staging_lenient`, `dev_absolute_zero`),
+  - runtime tuning env vars and safe usage guidance,
+  - admin activation/rollback workflows and status handling,
+  - SQL validation gates (`check_agent_safety_policy_control_plane.sql`, `check_runtime_sql_security_audit.sql`),
+  - structured telemetry fields and hard-floor rollback guardrails.
+- Linked the new SOP from discovery/index docs:
+  - `docs/sops/README.md`
+  - `docs/sops/sop_ai_studio_index.md`
+  - `docs/sops/sop_ai_studio_agent.md`
+  - `docs/README.md`

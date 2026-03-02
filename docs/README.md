@@ -83,6 +83,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
+- `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_new_model_ingestion.md`

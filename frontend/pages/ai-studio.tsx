@@ -37,6 +37,7 @@ import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAi
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking";
+import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -191,6 +192,8 @@ type AiStudioPerfWindow = Window & {
 };
 
 export default function AiStudioPage() {
+  useAiStudioSessionIdentity();
+
   const {
     mediaAutosaveEnabled,
     syncState: mediaAutosaveSyncState,

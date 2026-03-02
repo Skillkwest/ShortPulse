@@ -13,6 +13,9 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/ai/generate-prompt` | `POST` | Bearer (proxy) | Refine prompts with OpenAI chat completions. | `frontend/pages/api/ai/generate-prompt.ts`, `docs/sops/sop_text_generation.md` |
 | `/api/ai/describe-image` | `POST` | Bearer (proxy) | Describe reference images with OpenAI vision, including fail-closed trusted-host preflight (non-allowlisted external hosts are rejected). | `frontend/pages/api/ai/describe-image.ts`, `docs/sops/sop_text_generation.md` |
 | `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with flow-aware routing, server vision summaries, and structured actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`; no question actions). | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
+| `/api/ai/sessions/save` | `POST` | Bearer (proxy + route) | Save one AI Studio session snapshot (`sid` + schema-versioned payload) for the authenticated user. | `frontend/pages/api/ai/sessions/save.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
+| `/api/ai/sessions/:sid` | `GET` | Bearer (proxy + route) | Return one persisted AI Studio session snapshot by `sid` for the authenticated user. | `frontend/pages/api/ai/sessions/[sid].ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
+| `/api/ai/sessions` | `GET` | Bearer (proxy + route) | List persisted AI Studio sessions with `limit` + `cursor` pagination for the authenticated user. | `frontend/pages/api/ai/sessions/index.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
 | `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
@@ -74,6 +77,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 - Fal: `FAL_KEY`.
 - OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_VISION_FALLBACK_MODEL`, `OPENAI_API_BASE`, `OPENAI_DESCRIBE_ALLOWED_HOSTS` (describe-image trusted-host allowlist; external hosts fail closed by default).
+- AI Studio sessions API flag:
+  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (`true` by default; disables `/api/ai/sessions/*` when `false`).
 - Media preview trust policy:
   - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)

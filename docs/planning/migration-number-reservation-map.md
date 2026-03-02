@@ -13,7 +13,7 @@ Prevent migration-number collisions across concurrent plan tracks and lock order
 | `041_*` | Runtime Slice C settlement integrity semantics | Implemented | `041_harden_released_reservation_recapture_semantics.sql` landed. |
 | `042_*` | Runtime Slice C queue/recovery RPC execute-grant parity | Implemented | `042_harden_queue_recovery_rpc_execute_grants.sql` landed. |
 | `043_*` | `user_preferences.media_autosave_enabled` | Implemented | `043_add_user_preferences_media_autosave_enabled.sql` landed with rollback pair. |
-| `044_*` | AI Studio session persistence table/RPC | Reserved | Session snapshot persistence (`save/get/list`) with strict user isolation. |
+| `044_*` | AI Studio session persistence table/RPC | Implemented | `044_add_ai_studio_sessions_persistence.sql` landed with rollback pair. |
 | `045_*` | Safety control-plane persistence entities | Reserved | Profile/version/runtime/event tables. |
 | `046_*` | Safety control-plane grants/hardening/checks | Reserved | Execute posture, cooldown/rollback helpers, validation checks. |
 

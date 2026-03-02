@@ -2064,3 +2064,24 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - explicit function `search_path` hardening,
   - atomic upsert + deterministic per-user prune with bounded TTL/cap policy,
   - scheduled bounded expired-row pruning via `pg_cron`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 8 session SQL/API foundation)
+- Added migration `044_add_ai_studio_sessions_persistence.sql` (+ rollback) with:
+  - `ai_studio_sessions` table and RLS ownership policies,
+  - service-role-only `SECURITY DEFINER` RPCs for save/get/list/prune,
+  - deterministic per-user cap/TTL pruning with advisory-lock serialization.
+- Added server helper seam for AI session validation/cursor handling/RPC calls:
+  - `frontend/lib/server/api/aiStudioSessions.ts`
+  - `frontend/lib/server/api/__tests__/aiStudioSessions.test.ts`.
+- Added authenticated AI session API routes:
+  - `frontend/pages/api/ai/sessions/save.ts`
+  - `frontend/pages/api/ai/sessions/[sid].ts`
+  - `frontend/pages/api/ai/sessions/index.ts`
+  - with rollout gate `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`.
+- Added API route coverage:
+  - `frontend/tests/api/ai-sessions.routes.test.ts`
+  - expanded `frontend/tests/api/auth-guarded-ai-routes.test.ts`.
+- Expanded runtime SQL security audit expected function set to include new session RPCs:
+  - `sql/check_runtime_sql_security_audit.sql`.
+- Recorded Wave E Pass 8 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-8-session-sql-api-foundation.md`.

@@ -121,3 +121,8 @@ Last updated: 2026-03-02
 - Topic: Session SQL/API security boundary and prune/upsert posture.
 - Decision: Wave E session SQL/API uses service-role-only `SECURITY DEFINER` RPCs with explicit `search_path`, strict execute-grant hardening, and atomic upsert+deterministic prune semantics (bounded TTL/cap, per-user advisory lock, last-write-wins monotonic `save_seq`).
 - Effective phase: 13.
+
+## Decision 025
+- Topic: Session API route surface and rollout gate.
+- Decision: Wave E session server surface is fixed to three authenticated endpoints (`POST /api/ai/sessions/save`, `GET /api/ai/sessions/:sid`, `GET /api/ai/sessions`) backed by shared server helpers; rollout remains fail-closed via `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`.
+- Effective phase: 13.

@@ -77,6 +77,7 @@ Current set:
 - `041_harden_released_reservation_recapture_semantics.sql`
 - `042_harden_queue_recovery_rpc_execute_grants.sql`
 - `043_add_user_preferences_media_autosave_enabled.sql`
+- `044_add_ai_studio_sessions_persistence.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

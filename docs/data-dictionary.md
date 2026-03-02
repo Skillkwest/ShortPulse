@@ -208,6 +208,32 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `prune_ai_agent_conversation_state_expired(p_limit default 10000)`
   - Service-role cleanup helper for scheduled stale-row pruning.
 
+### ai_studio_sessions
+- `user_id` (uuid, pk segment, fk -> `auth.users.id`): Session owner.
+- `session_id` (uuid, pk segment): Stable AI Studio session identity (`sid` query contract).
+- `title` (text, nullable, `<=120` chars): Optional display label.
+- `schema_version` (integer, default `1`): Snapshot schema version (`1..100` bounded).
+- `snapshot` (jsonb object): Persisted workspace snapshot payload.
+- `save_seq` (bigint): Monotonic per-session save sequence used for last-write-wins observability.
+- `created_at` / `updated_at` / `expires_at` (timestamptz): Creation/update timestamps + retention horizon.
+- RLS: enabled with user ownership policies (`auth.uid() = user_id`) for select/insert/update/delete.
+- Retention:
+  - Save RPC enforces per-user cap and TTL bounds server-side.
+  - Expired rows are cleaned in save path and by scheduled prune RPC.
+
+### AI Studio session RPC contract
+- `upsert_ai_studio_session_snapshot(p_user_id, p_session_id, p_snapshot, p_schema_version, p_title, p_ttl, p_user_cap)`
+  - Service-role-only execute posture.
+  - Requires JSON-object snapshot payload and valid user/session ids.
+  - Atomic upsert (`INSERT ... ON CONFLICT`) with monotonic `save_seq`.
+  - Deterministic cap/TTL pruning under per-user advisory lock.
+- `get_ai_studio_session_snapshot(p_user_id, p_session_id)`
+  - Service-role-only read helper that returns one non-expired snapshot row.
+- `list_ai_studio_sessions(p_user_id, p_limit, p_cursor_updated_at, p_cursor_session_id)`
+  - Service-role-only listing helper ordered by `(updated_at desc, session_id desc)` with cursor windowing.
+- `prune_ai_studio_sessions_expired(p_limit default 10000)`
+  - Service-role cleanup helper for bounded stale-row pruning.
+
 ### user_preferences
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
 - `beginner_mode` (boolean, default `true`): AI Studio beginner mode toggle.

@@ -101,11 +101,17 @@ Completed:
    - added write-shadow orchestrator hook (`useAiStudioSessionWriteShadow`) with debounce + max-dirty timers and lifecycle flush triggers (`visibilitychange(hidden)`, `pagehide`),
    - wired `/ai-studio` page orchestration to persist local write-shadow snapshots keyed by `sid`,
    - added focused serializer and hook integration tests.
+14. Wave E Pass 8 session SQL/API foundation:
+   - added migration `044_add_ai_studio_sessions_persistence.sql` (+ rollback) with `ai_studio_sessions` table, RLS policies, and service-role-only `SECURITY DEFINER` RPCs (`upsert/get/list/prune`),
+   - added server helper seam (`aiStudioSessions.ts`) for session id/snapshot validation, cursor encode/decode, and RPC interactions,
+   - added authenticated AI session APIs (`/api/ai/sessions/save`, `/api/ai/sessions/:sid`, `/api/ai/sessions`) with route-level flag gate (`SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`),
+   - expanded runtime SQL security audit expected-function set for new session RPCs,
+   - added focused helper/API auth route test coverage.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (session restore hydration and server persistence APIs).
+3. Wave E remaining passes (client write-through to server persistence APIs and restore hydration by `sid`).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

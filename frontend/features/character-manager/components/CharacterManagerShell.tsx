@@ -31,7 +31,6 @@ import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry"
 import {
   CHARACTER_QUICK_SWAP_ACTIVE_LIMIT,
   CHARACTER_SHEET_DROP_ZONES,
-  CHARACTER_SHEET_PRESET_IDS,
   createEmptyCharacterSheetPresetAssignments,
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
@@ -49,6 +48,7 @@ import type {
   CharacterProfileImageTransform,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
+  CharacterSheetPresetId,
 } from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
@@ -456,6 +456,8 @@ export function CharacterManagerShell({
     characterName,
     characterDescription,
     activeCharacterSheetPresetId,
+    visibleCharacterSheetPresetIds,
+    characterSheetPresetLabels,
     characterSheetPresetAssignments,
     profileImageUrl,
     profileImageTransform,
@@ -466,6 +468,7 @@ export function CharacterManagerShell({
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingProfileImage,
+    isSavingCharacterSheetPreset,
     setCharacterName,
     setCharacterDescription,
     setProfileImageFile,
@@ -473,6 +476,9 @@ export function CharacterManagerShell({
     clearProfileImage,
     setActiveCharacterSheetPreset,
     saveCharacterSheetPresetAssignments,
+    addCharacterSheetPreset,
+    renameCharacterSheetPreset,
+    deleteCharacterSheetPreset,
     setCharacterSheetPresetFile,
     createCharacter,
     selectCharacter,
@@ -495,6 +501,8 @@ export function CharacterManagerShell({
     characterId: string;
     characterName: string;
   } | null>(null);
+  const [deleteTargetCharacterSheetPresetId, setDeleteTargetCharacterSheetPresetId] =
+    useState<CharacterSheetPresetId | null>(null);
   const [referencePreview, setReferencePreview] = useState<{
     index: number;
     aspectRatio: number;
@@ -962,6 +970,11 @@ export function CharacterManagerShell({
     setDeleteTargetCharacter(null);
   }, [isDeletingCharacter]);
 
+  const cancelDeleteCharacterSheetPreset = useCallback(() => {
+    if (isSavingCharacterSheetPreset) return;
+    setDeleteTargetCharacterSheetPresetId(null);
+  }, [isSavingCharacterSheetPreset]);
+
   const confirmDeleteCharacter = useCallback(async () => {
     if (!deleteTargetCharacter) return;
     const deleted = await deleteCharacter(deleteTargetCharacter.characterId);
@@ -969,6 +982,14 @@ export function CharacterManagerShell({
       setDeleteTargetCharacter(null);
     }
   }, [deleteCharacter, deleteTargetCharacter]);
+
+  const confirmDeleteCharacterSheetPreset = useCallback(async () => {
+    if (!deleteTargetCharacterSheetPresetId) return;
+    const deleted = await deleteCharacterSheetPreset(deleteTargetCharacterSheetPresetId);
+    if (deleted) {
+      setDeleteTargetCharacterSheetPresetId(null);
+    }
+  }, [deleteCharacterSheetPreset, deleteTargetCharacterSheetPresetId]);
 
   const applyDragGhost = useCallback((event: React.DragEvent<HTMLElement>) => {
     const dragNode = event.currentTarget as HTMLElement;
@@ -1845,10 +1866,22 @@ export function CharacterManagerShell({
                 </div>
 
                 <CharacterSheetPresetTabs
-                  presetIds={CHARACTER_SHEET_PRESET_IDS}
+                  presetIds={visibleCharacterSheetPresetIds}
                   activePresetId={activeCharacterSheetPresetId}
+                  presetLabels={characterSheetPresetLabels}
                   onSelectPreset={(presetId) => {
                     void setActiveCharacterSheetPreset(presetId);
+                  }}
+                  onAddPreset={() => {
+                    void addCharacterSheetPreset();
+                  }}
+                  onRenamePreset={(presetId, nextLabel) => {
+                    void renameCharacterSheetPreset(presetId, nextLabel);
+                  }}
+                  onDeletePreset={(presetId) => {
+                    if (pageBusy || isSavingCharacterSheetPreset) return;
+                    clearAllMessages();
+                    setDeleteTargetCharacterSheetPresetId(presetId);
                   }}
                   panelId={characterSheetPresetPanelId}
                   disabled={pageBusy}
@@ -2179,6 +2212,42 @@ export function CharacterManagerShell({
                 disabled={isDeletingCharacter}
               >
                 {isDeletingCharacter ? "Deleting..." : "Yes, delete character"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteTargetCharacterSheetPresetId ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-character-sheet-preset-title"
+        >
+          <div className="modal-card character-delete-confirm-card">
+            <h3 id="delete-character-sheet-preset-title">Delete this preset tab?</h3>
+            <p className="subdued tiny character-delete-confirm-copy">
+              This will delete your saved character sheet references. Do you wish to continue?
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={cancelDeleteCharacterSheetPreset}
+                disabled={isSavingCharacterSheetPreset}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="btn-danger character-delete-confirm-btn"
+                onClick={() => {
+                  void confirmDeleteCharacterSheetPreset();
+                }}
+                disabled={isSavingCharacterSheetPreset}
+              >
+                {isSavingCharacterSheetPreset ? "Deleting..." : "Yes"}
               </button>
             </div>
           </div>

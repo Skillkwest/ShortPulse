@@ -29,7 +29,7 @@ export type CharacterSheetAssignments = Record<
   CharacterReferenceSlotKey | null
 >;
 
-export type CharacterSheetPresetId = "1" | "2" | "3" | "4";
+export type CharacterSheetPresetId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10";
 
 export type CharacterSheetPresetMediaReference = {
   mediaFileId: string;
@@ -47,9 +47,13 @@ export type CharacterSheetPresetMap = Record<
   CharacterSheetPresetAssignments
 >;
 
+export type CharacterSheetPresetLabelMap = Record<CharacterSheetPresetId, string>;
+
 export type CharacterSheetPresetState = {
   activePresetId: CharacterSheetPresetId;
   presets: CharacterSheetPresetMap;
+  tabOrder: CharacterSheetPresetId[];
+  tabLabels: CharacterSheetPresetLabelMap;
 };
 
 export type CharacterSlotValidationStatus = "pending" | "pass" | "warn" | "fail";

@@ -5,6 +5,7 @@
 import type {
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
+  CharacterSheetPresetLabelMap,
   CharacterSheetPresetAssignments,
   CharacterSheetPresetId,
   CharacterSheetPresetMap,
@@ -110,8 +111,17 @@ export const CHARACTER_SHEET_PRESET_IDS = [
   "2",
   "3",
   "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
 ] as const satisfies ReadonlyArray<CharacterSheetPresetId>;
 export const DEFAULT_CHARACTER_SHEET_PRESET_ID: CharacterSheetPresetId = "1";
+export const DEFAULT_CHARACTER_SHEET_PRESET_TAB_ORDER = [
+  DEFAULT_CHARACTER_SHEET_PRESET_ID,
+] as const satisfies ReadonlyArray<CharacterSheetPresetId>;
 
 export const createEmptyCharacterSheetAssignments = (): CharacterSheetAssignments =>
   CHARACTER_SHEET_DROP_ZONES.reduce((acc, slot) => {
@@ -131,7 +141,15 @@ export const createEmptyCharacterSheetPresetMap = (): CharacterSheetPresetMap =>
     return acc;
   }, {} as CharacterSheetPresetMap);
 
+export const createDefaultCharacterSheetPresetLabels = (): CharacterSheetPresetLabelMap =>
+  CHARACTER_SHEET_PRESET_IDS.reduce((acc, presetId) => {
+    acc[presetId] = presetId;
+    return acc;
+  }, {} as CharacterSheetPresetLabelMap);
+
 export const createDefaultCharacterSheetPresetState = (): CharacterSheetPresetState => ({
   activePresetId: DEFAULT_CHARACTER_SHEET_PRESET_ID,
   presets: createEmptyCharacterSheetPresetMap(),
+  tabOrder: [...DEFAULT_CHARACTER_SHEET_PRESET_TAB_ORDER],
+  tabLabels: createDefaultCharacterSheetPresetLabels(),
 });

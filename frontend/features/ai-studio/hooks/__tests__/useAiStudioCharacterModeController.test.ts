@@ -5,6 +5,7 @@ import {
   useAiStudioCharacterModeController,
   type CharacterModeInjectionBundle,
 } from "../useAiStudioCharacterModeController";
+import { createDefaultCharacterSheetPresetState } from "../../../character-manager/constants";
 import { loadCharacterManagerDraftByCharacterId } from "../../../character-manager/logic/characterManagerPersistence";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import { reportAppError } from "../../../../lib/appErrorReporter";
@@ -50,20 +51,36 @@ const createSnapshotWithPresetReference = (
     previewUrl?: string;
   } = {}
 ) =>
-  ({
-    characterId: "char-1",
-    characterSheetId: "sheet-1",
-    characterName: "Hero",
-    characterDescription: input.description ?? "Hero description",
-    characterSheetAssignments: {
-      portrait: null,
-      close_up: null,
-      front_shot: null,
-      back_shot: null,
-    },
-    activeCharacterSheetPresetId: "1",
-    characterSheetPresets: {
-      "1": {
+  (() => {
+    const defaultPresetState = createDefaultCharacterSheetPresetState();
+    return {
+      characterId: "char-1",
+      characterSheetId: "sheet-1",
+      characterName: "Hero",
+      characterDescription: input.description ?? "Hero description",
+      characterSheetAssignments: {
+        portrait: null,
+        close_up: null,
+        front_shot: null,
+        back_shot: null,
+      },
+      activeCharacterSheetPresetId: "1",
+      characterSheetPresets: {
+        ...defaultPresetState.presets,
+        "1": {
+          portrait: {
+            mediaFileId: "media-portrait",
+            storagePath: input.storagePath ?? "user/chars/ref.png",
+            previewUrl: input.previewUrl ?? "https://example.com/ref-stale.png",
+          },
+          close_up: null,
+          front_shot: null,
+          back_shot: null,
+        },
+      },
+      visibleCharacterSheetPresetIds: ["1"],
+      characterSheetPresetLabels: defaultPresetState.tabLabels,
+      characterSheetPresetAssignments: {
         portrait: {
           mediaFileId: "media-portrait",
           storagePath: input.storagePath ?? "user/chars/ref.png",
@@ -73,39 +90,26 @@ const createSnapshotWithPresetReference = (
         front_shot: null,
         back_shot: null,
       },
-      "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-      "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-      "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-    },
-    characterSheetPresetAssignments: {
-      portrait: {
-        mediaFileId: "media-portrait",
-        storagePath: input.storagePath ?? "user/chars/ref.png",
-        previewUrl: input.previewUrl ?? "https://example.com/ref-stale.png",
+      profileImageUrl: null,
+      profileImageTransform: {
+        zoom: 1,
+        offsetX: 0,
+        offsetY: 0,
       },
-      close_up: null,
-      front_shot: null,
-      back_shot: null,
-    },
-    profileImageUrl: null,
-    profileImageTransform: {
-      zoom: 1,
-      offsetX: 0,
-      offsetY: 0,
-    },
-    slots: {
-      front_full: null,
-      side_profile: null,
-      back_full: null,
-      top_down: null,
-      front_left_34: null,
-      front_right_34: null,
-      back_left_34: null,
-      back_right_34: null,
-      portrait_close: null,
-      fullbody_wide: null,
-    },
-  }) as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>;
+      slots: {
+        front_full: null,
+        side_profile: null,
+        back_full: null,
+        top_down: null,
+        front_left_34: null,
+        front_right_34: null,
+        back_left_34: null,
+        back_right_34: null,
+        portrait_close: null,
+        fullbody_wide: null,
+      },
+    };
+  })() as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>;
 
 describe("useAiStudioCharacterModeController", () => {
   beforeEach(() => {

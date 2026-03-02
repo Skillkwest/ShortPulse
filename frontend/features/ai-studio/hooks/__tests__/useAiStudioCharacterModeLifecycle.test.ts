@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioCharacterModeLifecycle } from "../useAiStudioCharacterModeLifecycle";
+import { createDefaultCharacterSheetPresetState } from "../../../character-manager/constants";
 import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
@@ -31,20 +32,40 @@ const createParams = (
 });
 
 const createSnapshotWithPresetReferences = () =>
-  ({
-    characterId: "char-1",
-    characterSheetId: "sheet-1",
-    characterName: "Hero",
-    characterDescription: "Hero description",
-    characterSheetAssignments: {
-      portrait: "portrait_close",
-      close_up: "front_full",
-      front_shot: null,
-      back_shot: null,
-    },
-    activeCharacterSheetPresetId: "1",
-    characterSheetPresets: {
-      "1": {
+  (() => {
+    const defaultPresetState = createDefaultCharacterSheetPresetState();
+    return {
+      characterId: "char-1",
+      characterSheetId: "sheet-1",
+      characterName: "Hero",
+      characterDescription: "Hero description",
+      characterSheetAssignments: {
+        portrait: "portrait_close",
+        close_up: "front_full",
+        front_shot: null,
+        back_shot: null,
+      },
+      activeCharacterSheetPresetId: "1",
+      characterSheetPresets: {
+        ...defaultPresetState.presets,
+        "1": {
+          portrait: {
+            mediaFileId: "media-portrait",
+            storagePath: "user/chars/portrait.png",
+            previewUrl: "https://example.com/portrait.png",
+          },
+          close_up: {
+            mediaFileId: "media-closeup",
+            storagePath: "user/chars/closeup.png",
+            previewUrl: "https://example.com/closeup.png",
+          },
+          front_shot: null,
+          back_shot: null,
+        },
+      },
+      visibleCharacterSheetPresetIds: ["1"],
+      characterSheetPresetLabels: defaultPresetState.tabLabels,
+      characterSheetPresetAssignments: {
         portrait: {
           mediaFileId: "media-portrait",
           storagePath: "user/chars/portrait.png",
@@ -58,49 +79,32 @@ const createSnapshotWithPresetReferences = () =>
         front_shot: null,
         back_shot: null,
       },
-      "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-      "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-      "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-    },
-    characterSheetPresetAssignments: {
-      portrait: {
-        mediaFileId: "media-portrait",
-        storagePath: "user/chars/portrait.png",
-        previewUrl: "https://example.com/portrait.png",
+      profileImageUrl: null,
+      profileImageTransform: {
+        zoom: 1,
+        offsetX: 0,
+        offsetY: 0,
       },
-      close_up: {
-        mediaFileId: "media-closeup",
-        storagePath: "user/chars/closeup.png",
-        previewUrl: "https://example.com/closeup.png",
+      slots: {
+        front_full: {
+          storagePath: "user/chars/legacy-closeup.png",
+          previewUrl: "https://example.com/legacy-closeup.png",
+        },
+        side_profile: null,
+        back_full: null,
+        top_down: null,
+        front_left_34: null,
+        front_right_34: null,
+        back_left_34: null,
+        back_right_34: null,
+        portrait_close: {
+          storagePath: "user/chars/legacy-portrait.png",
+          previewUrl: "https://example.com/legacy-portrait.png",
+        },
+        fullbody_wide: null,
       },
-      front_shot: null,
-      back_shot: null,
-    },
-    profileImageUrl: null,
-    profileImageTransform: {
-      zoom: 1,
-      offsetX: 0,
-      offsetY: 0,
-    },
-    slots: {
-      front_full: {
-        storagePath: "user/chars/legacy-closeup.png",
-        previewUrl: "https://example.com/legacy-closeup.png",
-      },
-      side_profile: null,
-      back_full: null,
-      top_down: null,
-      front_left_34: null,
-      front_right_34: null,
-      back_left_34: null,
-      back_right_34: null,
-      portrait_close: {
-        storagePath: "user/chars/legacy-portrait.png",
-        previewUrl: "https://example.com/legacy-portrait.png",
-      },
-      fullbody_wide: null,
-    },
-  }) as unknown as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>;
+    };
+  })() as unknown as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>;
 
 describe("useAiStudioCharacterModeLifecycle", () => {
   beforeEach(() => {

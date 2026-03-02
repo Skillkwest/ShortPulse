@@ -14,9 +14,16 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Active deck keeps newest 500 references.
    - Overflow references are auto-archived (restorable).
 3. Uploaded references persist to Supabase per character in `character_quick_swap_items`.
-4. Character Sheet drop zones are persisted per character with four preset tabs (`1`..`4`):
+4. Character Sheet drop zones are persisted per character with dynamic preset tabs (`1`..`10`):
+   - New users start with one visible preset tab (`1`).
+   - A `+` control at the end of the tab rail appends the next preset id and activates it.
+   - Double-clicking a tab enters rename mode; `Enter`/blur autosaves and `Escape` cancels.
+   - Tabs after `1` expose a delete (`X`) control.
+   - Deleting a tab requires confirmation and permanently removes that tab's saved preset references.
    - Active tab id persists to character metadata (`character_sheet_presets_v1.active_preset_id`).
    - Each tab stores independent zone media references for `portrait`, `close_up`, `front_shot`, and `back_shot`.
+   - Visible tab ids persist to `character_sheet_presets_v1.tab_order`.
+   - Tab display names persist to `character_sheet_presets_v1.tab_labels`.
    - Preset tabs use `tablist/tab/tabpanel` semantics with roving tab focus (`tabindex=0` on active tab, `-1` otherwise).
    - Keyboard support is required: `ArrowLeft/ArrowRight` wrap navigation, `Home/End` jump to first/last tab, and `Enter/Space` activate focused tab.
    - Dragging a reference onto a drop zone assigns that reference to the zone.
@@ -78,7 +85,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 
 3. Character Sheet presets and drag/drop (persisted)
 - Keep per-character preset state in Character Manager draft state.
-- Persist active tab id and active-tab drop-zone assignments to Supabase character metadata.
+- Persist active tab id, visible tab ids, tab labels, and active-tab drop-zone assignments to Supabase character metadata.
 - Keep DnD behavior stable (assign/replace/swap) without activation gating.
 - Keep preset media lifecycle independent from QuickSwap Deck entries.
 
@@ -127,7 +134,9 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - QuickSwap deck is scrollable and remains interactive at high active counts.
 - Uploading beyond 500 active references archives oldest active references.
 - Archived references can be restored back into active deck.
-- Preset tabs `1..4` render and switch without cross-tab assignment bleed.
+- New users start with one visible preset tab (`1`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.
+- Double-click tab rename autosaves on `Enter`/blur and cancels on `Escape`.
+- Deleting a tab (`X`) shows confirmation; selecting `Yes` removes the tab and its saved preset references.
 - Character Sheet preset assignments persist after refresh and character switching.
 - Untrusted external dropped URLs are blocked in Character Sheet and QuickSwap drop surfaces.
 - Selected character persists after refresh/re-entry and becomes the preferred default for future sessions.

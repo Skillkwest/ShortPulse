@@ -6,6 +6,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../features/ai-studio/types";
+import { createDefaultCharacterSheetPresetState } from "../../features/character-manager/constants";
 import type { CharacterManagerDraftSnapshot } from "../../features/character-manager/logic/characterManagerPersistence";
 import AiStudioPage from "../../pages/ai-studio";
 
@@ -359,20 +360,36 @@ const createCharacterSnapshot = (
   url: string,
   storagePath: string
 ): CharacterManagerDraftSnapshot =>
-  ({
-    characterId: "char-1",
-    characterSheetId: "sheet-1",
-    characterName: "Taylor",
-    characterDescription: description,
-    characterSheetAssignments: {
-      portrait: "portrait_close",
-      close_up: null,
-      front_shot: null,
-      back_shot: null,
-    },
-    activeCharacterSheetPresetId: "1",
-    characterSheetPresets: {
-      "1": {
+  (() => {
+    const defaultPresetState = createDefaultCharacterSheetPresetState();
+    return {
+      characterId: "char-1",
+      characterSheetId: "sheet-1",
+      characterName: "Taylor",
+      characterDescription: description,
+      characterSheetAssignments: {
+        portrait: "portrait_close",
+        close_up: null,
+        front_shot: null,
+        back_shot: null,
+      },
+      activeCharacterSheetPresetId: "1",
+      characterSheetPresets: {
+        ...defaultPresetState.presets,
+        "1": {
+          portrait: {
+            mediaFileId: "media-portrait",
+            storagePath,
+            previewUrl: url,
+          },
+          close_up: null,
+          front_shot: null,
+          back_shot: null,
+        },
+      },
+      visibleCharacterSheetPresetIds: ["1"],
+      characterSheetPresetLabels: defaultPresetState.tabLabels,
+      characterSheetPresetAssignments: {
         portrait: {
           mediaFileId: "media-portrait",
           storagePath,
@@ -382,35 +399,22 @@ const createCharacterSnapshot = (
         front_shot: null,
         back_shot: null,
       },
-      "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-      "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-      "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-    },
-    characterSheetPresetAssignments: {
-      portrait: {
-        mediaFileId: "media-portrait",
-        storagePath,
-        previewUrl: url,
+      profileImageUrl: null,
+      profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+      slots: {
+        front_full: null,
+        side_profile: null,
+        back_full: null,
+        top_down: null,
+        front_left_34: null,
+        front_right_34: null,
+        back_left_34: null,
+        back_right_34: null,
+        portrait_close: { storagePath, previewUrl: url },
+        fullbody_wide: null,
       },
-      close_up: null,
-      front_shot: null,
-      back_shot: null,
-    },
-    profileImageUrl: null,
-    profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
-    slots: {
-      front_full: null,
-      side_profile: null,
-      back_full: null,
-      top_down: null,
-      front_left_34: null,
-      front_right_34: null,
-      back_left_34: null,
-      back_right_34: null,
-      portrait_close: { storagePath, previewUrl: url },
-      fullbody_wide: null,
-    },
-  }) as CharacterManagerDraftSnapshot;
+    };
+  })() as CharacterManagerDraftSnapshot;
 
 const createOutput = (id: string, taskState: StudioOutput["taskState"]): StudioOutput => ({
   id,

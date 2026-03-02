@@ -7,10 +7,12 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
 import {
+  CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSheetPresetAssignments,
 } from "../../constants";
+import { getNextCharacterSheetPresetId } from "../../logic/characterSheetPresetTabs";
 import type {
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
@@ -300,6 +302,17 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         React.useState<CharacterSheetPresetId>("1");
       const [characterSheetPresets, setCharacterSheetPresets] =
         React.useState<CharacterSheetPresetMap>(() => createInitialPresetMap());
+      const [visibleCharacterSheetPresetIds, setVisibleCharacterSheetPresetIds] = React.useState<
+        CharacterSheetPresetId[]
+      >(["1"]);
+      const [characterSheetPresetLabels, setCharacterSheetPresetLabels] = React.useState<
+        Record<CharacterSheetPresetId, string>
+      >(
+        () =>
+          Object.fromEntries(
+            CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, presetId])
+          ) as Record<CharacterSheetPresetId, string>
+      );
       const [characterSheetPresetAssignments, setCharacterSheetPresetAssignments] =
         React.useState<CharacterSheetPresetAssignments>(() =>
           createEmptyCharacterSheetPresetAssignments()
@@ -325,6 +338,8 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         characterSheetAssignments,
         activeCharacterSheetPresetId,
         characterSheetPresets,
+        visibleCharacterSheetPresetIds,
+        characterSheetPresetLabels,
         characterSheetPresetAssignments,
         profileImageUrl: null,
         profileImageTransform: {
@@ -368,6 +383,53 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
             [activePreset]: assignments,
           }));
           setCharacterSheetPresetAssignments(assignments);
+          return true;
+        },
+        addCharacterSheetPreset: async () => {
+          const nextPresetId = getNextCharacterSheetPresetId(visibleCharacterSheetPresetIds);
+          if (!nextPresetId) return false;
+          setVisibleCharacterSheetPresetIds((previous) => [...previous, nextPresetId]);
+          setActiveCharacterSheetPresetId(nextPresetId);
+          setCharacterSheetPresetAssignments(
+            presetMapRef.current[nextPresetId] ?? createEmptyCharacterSheetPresetAssignments()
+          );
+          return true;
+        },
+        renameCharacterSheetPreset: async (presetId: CharacterSheetPresetId, nextLabel: string) => {
+          setCharacterSheetPresetLabels((previous) => ({
+            ...previous,
+            [presetId]: nextLabel.trim() || presetId,
+          }));
+          return true;
+        },
+        deleteCharacterSheetPreset: async (presetId: CharacterSheetPresetId) => {
+          if (presetId === "1") {
+            return false;
+          }
+          const nextVisiblePresetIds = visibleCharacterSheetPresetIds.filter(
+            (visiblePresetId) => visiblePresetId !== presetId
+          );
+          if (!nextVisiblePresetIds.length) {
+            return false;
+          }
+          const nextActivePresetId =
+            activePresetRef.current === presetId
+              ? (nextVisiblePresetIds[0] ?? "1")
+              : activePresetRef.current;
+          const nextPresetMap = {
+            ...presetMapRef.current,
+            [presetId]: createEmptyCharacterSheetPresetAssignments(),
+          };
+          setCharacterSheetPresets(nextPresetMap);
+          setVisibleCharacterSheetPresetIds(nextVisiblePresetIds);
+          setCharacterSheetPresetLabels((previous) => ({
+            ...previous,
+            [presetId]: presetId,
+          }));
+          setActiveCharacterSheetPresetId(nextActivePresetId);
+          setCharacterSheetPresetAssignments(
+            nextPresetMap[nextActivePresetId] ?? createEmptyCharacterSheetPresetAssignments()
+          );
           return true;
         },
         setCharacterSheetPresetFile: async (zoneKey: CharacterSheetDropZoneKey) => {
@@ -572,38 +634,97 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("renders preset tabs 1 through 4", () => {
+  it("defaults to one visible preset tab and shows add-tab control", () => {
     render(<CharacterManagerShell />);
 
     expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "2" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "4" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add character sheet preset tab" })
+    ).toBeInTheDocument();
   });
 
-  it("applies roving tabindex semantics and tabpanel linkage for preset tabs", () => {
+  it("supports renaming preset tabs with Enter", () => {
     render(<CharacterManagerShell />);
+
+    const tabOne = screen.getByRole("tab", { name: "1" });
+    fireEvent.doubleClick(tabOne);
+    const renameInput = screen.getByLabelText("Rename preset 1");
+    fireEvent.change(renameInput, { target: { value: "Hero Look" } });
+    fireEvent.keyDown(renameInput, { key: "Enter" });
+
+    expect(screen.getByRole("tab", { name: "Hero Look" })).toBeInTheDocument();
+  });
+
+  it("confirms before deleting a preset tab and deletes on Yes", async () => {
+    render(<CharacterManagerShell />);
+    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+
+    expect(screen.queryByRole("button", { name: "Delete preset 1" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
+
+    expect(screen.getByText("Delete this preset tab?")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This will delete your saved character sheet references. Do you wish to continue?"
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "No" }));
+    await waitFor(() => {
+      expect(screen.queryByText("Delete this preset tab?")).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "2" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
+  });
+
+  it("applies roving tabindex semantics and tabpanel linkage for preset tabs", async () => {
+    render(<CharacterManagerShell />);
+    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
+    });
 
     const tabOne = screen.getByRole("tab", { name: "1" });
     const tabThree = screen.getByRole("tab", { name: "3" });
     const panel = screen.getByRole("tabpanel");
 
-    expect(tabOne).toHaveAttribute("aria-selected", "true");
-    expect(tabOne).toHaveAttribute("tabindex", "0");
-    expect(tabThree).toHaveAttribute("aria-selected", "false");
-    expect(tabThree).toHaveAttribute("tabindex", "-1");
-    expect(panel).toHaveAttribute("aria-labelledby", tabOne.id);
-
-    fireEvent.click(tabThree);
-
+    // Add-tab activates the newly created tab.
     expect(tabThree).toHaveAttribute("aria-selected", "true");
     expect(tabThree).toHaveAttribute("tabindex", "0");
+    expect(tabOne).toHaveAttribute("aria-selected", "false");
     expect(tabOne).toHaveAttribute("tabindex", "-1");
     expect(panel).toHaveAttribute("aria-labelledby", tabThree.id);
+
+    fireEvent.click(tabOne);
+
+    await waitFor(() => {
+      expect(tabOne).toHaveAttribute("aria-selected", "true");
+      expect(tabOne).toHaveAttribute("tabindex", "0");
+      expect(tabThree).toHaveAttribute("tabindex", "-1");
+      expect(panel).toHaveAttribute("aria-labelledby", tabOne.id);
+    });
   });
 
   it("supports keyboard navigation for preset tabs including wrap, Home/End, Enter, and Space", async () => {
     render(<CharacterManagerShell />);
+    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
 
     const tabOne = screen.getByRole("tab", { name: "1" });
     const tabTwo = screen.getByRole("tab", { name: "2" });
@@ -653,6 +774,8 @@ describe("CharacterManagerShell behavior", () => {
 
   it("isolates character sheet assignments per active preset tab", async () => {
     render(<CharacterManagerShell />);
+    fireEvent.click(screen.getByRole("button", { name: "Add character sheet preset tab" }));
+    fireEvent.click(screen.getByRole("tab", { name: "1" }));
 
     const portraitZone = getCharacterSheetZone("Portrait");
     const firstReferenceCard = getReferenceCard(1);

@@ -59,8 +59,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - `reference_pack_assignments` (legacy alias kept in sync for backward compatibility)
   - Character sheet preset key:
     - `character_sheet_presets_v1`
-      - `active_preset_id`: `"1" | "2" | "3" | "4"`
-      - `presets`: record keyed by preset id (`1..4`)
+      - `active_preset_id`: `"1"`..`"10"`
+      - `presets`: record keyed by preset id (`1..10`)
+      - `tab_order`: visible preset-tab id list (`1..10` ids, default `["1"]` for new users)
+      - `tab_labels`: display label map keyed by preset id (`1..10`)
       - Each preset stores `portrait | close_up | front_shot | back_shot`
       - Each zone is `null` or `{ media_file_id, storage_path }`
       - Preset references are user-scoped and used by AI Studio Character Mode injection.

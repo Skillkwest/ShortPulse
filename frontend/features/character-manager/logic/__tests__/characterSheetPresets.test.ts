@@ -4,6 +4,7 @@ import {
   getCharacterSheetPresetState,
   listCharacterSheetPresetMediaReferences,
   normalizeCharacterSheetPresetAssignments,
+  normalizeCharacterSheetPresetState,
   serializeCharacterSheetPresetState,
 } from "../characterManagerPersistenceCore";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
@@ -64,6 +65,12 @@ describe("characterSheetPresets metadata helpers", () => {
     const parsed = getCharacterSheetPresetState({
       character_sheet_presets_v1: {
         active_preset_id: "3",
+        tab_order: ["1", "2", "3"],
+        tab_labels: {
+          "1": "Primary",
+          "2": "Alt",
+          "3": "Look B",
+        },
         presets: {
           "1": {
             portrait: null,
@@ -87,25 +94,57 @@ describe("characterSheetPresets metadata helpers", () => {
       storagePath: "user/chars/presets/portrait.png",
       previewUrl: null,
     });
+    expect(parsed?.tabOrder).toEqual(["1", "2", "3"]);
+    expect(parsed?.tabLabels["1"]).toBe("Primary");
+    expect(parsed?.tabLabels["4"]).toBe("4");
 
     const serialized = serializeCharacterSheetPresetState(parsed!);
-    expect(serialized).toEqual({
-      active_preset_id: "3",
-      presets: {
-        "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-        "2": {
-          portrait: {
-            media_file_id: "media-portrait",
-            storage_path: "user/chars/presets/portrait.png",
-          },
-          close_up: null,
-          front_shot: null,
-          back_shot: null,
+    expect(serialized).toEqual(
+      expect.objectContaining({
+        active_preset_id: "3",
+        tab_order: ["1", "2", "3"],
+        tab_labels: expect.objectContaining({
+          "1": "Primary",
+          "2": "Alt",
+          "3": "Look B",
+          "10": "10",
+        }),
+      })
+    );
+    expect(Object.keys(serialized.presets as Record<string, unknown>).length).toBe(10);
+  });
+
+  it("derives legacy visible tabs from preset keys when tab_order is absent", () => {
+    const parsed = getCharacterSheetPresetState({
+      character_sheet_presets_v1: {
+        active_preset_id: "3",
+        presets: {
+          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
         },
-        "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-        "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
       },
     });
+
+    expect(parsed?.tabOrder).toEqual(["1", "2", "4", "3"]);
+  });
+
+  it("normalizes malformed tab order and labels to safe defaults", () => {
+    const normalized = normalizeCharacterSheetPresetState({
+      activePresetId: "2",
+      tabOrder: ["2", "2", "1", "9"],
+      tabLabels: {
+        "1": "  Hero  ",
+        "2": "   ",
+      },
+      presets: {
+        "1": null,
+      },
+    });
+
+    expect(normalized.tabOrder).toEqual(["2", "1", "9"]);
+    expect(normalized.tabLabels["1"]).toBe("Hero");
+    expect(normalized.tabLabels["2"]).toBe("2");
   });
 
   it("collects deduplicated preset media references for cleanup guards", () => {

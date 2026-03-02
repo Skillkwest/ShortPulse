@@ -13,14 +13,21 @@ import {
   CHARACTER_MANAGER_SLOT_KEYS,
   CHARACTER_SHEET_DROP_ZONES,
   createDefaultCharacterSheetPresetState,
+  createEmptyCharacterSheetPresetAssignments,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSlotMap,
 } from "../constants";
+import {
+  createNormalizedCharacterSheetPresetTabLabels,
+  deriveLegacyCharacterSheetPresetTabOrder,
+  normalizeCharacterSheetPresetTabOrder,
+} from "./characterSheetPresetTabs";
 import { createDefaultCharacterValidationNotes } from "./referenceValidation";
 import type {
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
+  CharacterSheetPresetLabelMap,
   CharacterSheetPresetId,
   CharacterSheetPresetMediaReference,
   CharacterSheetPresetState,
@@ -214,7 +221,7 @@ export const normalizeCharacterSheetAssignments = (
 export const normalizeCharacterSheetPresetAssignments = (
   assignments: Partial<Record<CharacterSheetDropZoneKey, CharacterSheetPresetMediaReference | null>>
 ): CharacterSheetPresetAssignments => {
-  const normalized = createDefaultCharacterSheetPresetState().presets["1"];
+  const normalized = createEmptyCharacterSheetPresetAssignments();
   for (const [rawZoneKey, rawValue] of Object.entries(assignments)) {
     if (!isCharacterSheetDropZoneKey(rawZoneKey)) continue;
     const normalizedReference = toCharacterSheetPresetMediaReference(rawValue);
@@ -230,6 +237,8 @@ export const normalizeCharacterSheetPresetState = (
   state: Partial<{
     activePresetId: CharacterSheetPresetId | null;
     presets: Partial<Record<CharacterSheetPresetId, CharacterSheetPresetAssignments | null>>;
+    tabOrder: CharacterSheetPresetId[];
+    tabLabels: Partial<Record<CharacterSheetPresetId, string>>;
   }>
 ): CharacterSheetPresetState => {
   const normalized = createDefaultCharacterSheetPresetState();
@@ -242,6 +251,13 @@ export const normalizeCharacterSheetPresetState = (
       presetAssignments ?? {}
     );
   }
+  normalized.tabOrder = normalizeCharacterSheetPresetTabOrder({
+    tabOrder: state.tabOrder ?? normalized.tabOrder,
+    activePresetId: normalized.activePresetId,
+  });
+  normalized.tabLabels = createNormalizedCharacterSheetPresetTabLabels({
+    labels: state.tabLabels ?? normalized.tabLabels,
+  });
   return normalized;
 };
 
@@ -350,6 +366,23 @@ export const getCharacterSheetPresetState = (
   const rawActivePresetId =
     asText(rawPresetState.active_preset_id) ?? asText(rawPresetState.activePresetId);
   const rawPresets = toObjectRecord(rawPresetState.presets);
+  const rawTabOrder = Array.isArray(rawPresetState.tab_order)
+    ? rawPresetState.tab_order
+    : Array.isArray(rawPresetState.tabOrder)
+      ? rawPresetState.tabOrder
+      : null;
+  const parsedTabOrder = Array.isArray(rawTabOrder)
+    ? rawTabOrder.filter(
+        (rawPresetId): rawPresetId is CharacterSheetPresetId =>
+          typeof rawPresetId === "string" && isCharacterSheetPresetId(rawPresetId)
+      )
+    : [];
+  const rawTabLabels = toObjectRecord(rawPresetState.tab_labels ?? rawPresetState.tabLabels);
+  const parsedTabLabels: Partial<Record<CharacterSheetPresetId, string>> = {};
+  for (const [rawPresetId, rawLabel] of Object.entries(rawTabLabels)) {
+    if (!isCharacterSheetPresetId(rawPresetId) || typeof rawLabel !== "string") continue;
+    parsedTabLabels[rawPresetId] = rawLabel;
+  }
   const parsedPresets: Partial<
     Record<CharacterSheetPresetId, CharacterSheetPresetAssignments | null>
   > = {};
@@ -362,10 +395,17 @@ export const getCharacterSheetPresetState = (
     );
     parsedPresets[rawPresetId] = parsedAssignments;
   }
+  const normalizedActivePresetId =
+    rawActivePresetId && isCharacterSheetPresetId(rawActivePresetId) ? rawActivePresetId : "1";
+  const fallbackLegacyTabOrder = deriveLegacyCharacterSheetPresetTabOrder({
+    rawPresetIds: Object.keys(rawPresets),
+    activePresetId: normalizedActivePresetId,
+  });
   return normalizeCharacterSheetPresetState({
-    activePresetId:
-      rawActivePresetId && isCharacterSheetPresetId(rawActivePresetId) ? rawActivePresetId : null,
+    activePresetId: normalizedActivePresetId,
     presets: parsedPresets,
+    tabOrder: parsedTabOrder.length ? parsedTabOrder : fallbackLegacyTabOrder,
+    tabLabels: parsedTabLabels,
   });
 };
 
@@ -376,6 +416,10 @@ export const serializeCharacterSheetPresetState = (
   state: CharacterSheetPresetState
 ): Record<string, unknown> => ({
   active_preset_id: state.activePresetId,
+  tab_order: state.tabOrder,
+  tab_labels: Object.fromEntries(
+    CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, state.tabLabels[presetId] ?? presetId])
+  ) as CharacterSheetPresetLabelMap,
   presets: Object.fromEntries(
     CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
       presetId,

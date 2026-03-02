@@ -7,6 +7,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CharacterPanel } from "../CharacterPanel";
 import {
+  CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSheetPresetAssignments,
@@ -42,6 +43,10 @@ vi.mock("../../../character-manager/hooks/useCharacterManagerDraft", () => ({
     characterSheetAssignments: createEmptyCharacterSheetAssignments(),
     activeCharacterSheetPresetId: "1",
     characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
+    visibleCharacterSheetPresetIds: ["1"],
+    characterSheetPresetLabels: Object.fromEntries(
+      CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, presetId])
+    ),
     characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
     profileImageUrl: null,
     profileImageTransform: {
@@ -66,6 +71,9 @@ vi.mock("../../../character-manager/hooks/useCharacterManagerDraft", () => ({
     saveCharacterSheetAssignments: async () => true,
     setActiveCharacterSheetPreset: async () => true,
     saveCharacterSheetPresetAssignments: async () => true,
+    addCharacterSheetPreset: async () => true,
+    renameCharacterSheetPreset: async () => true,
+    deleteCharacterSheetPreset: async () => true,
     setCharacterSheetPresetFile: async () => true,
     createCharacter: async () => undefined,
     selectCharacter: async () => undefined,

@@ -166,10 +166,18 @@ Checklist:
   );
   ```
 - If `failed_ratio` is elevated or `p95_duration_ms` is high, verify:
+  - `/api/media/list` returns `200` for authenticated users when list API rollout is enabled,
   - `/api/media/sign-batch` returns `200` with a `urls` map for authenticated users,
   - signed URL requests are only for visible/buffered cards,
   - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
   - device/network constraints are applying reduced sign/autoplay budgets.
+- Inspect open-to-first-media attribution events:
+  - `media.route.open_to_first_media`
+  - `media.modal.open_to_first_media`
+- If modal/route grids stutter at higher counts, verify rollout flags:
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED=true`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED=true`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED=true`
 - If Reference Grid interactions degrade in long sessions, verify:
   - soft archive is active (`NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE` not set to `false`),
   - adaptive preview routing is active (`NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`),
@@ -184,6 +192,21 @@ Checklist:
   - DnD backpressure is enabled (`NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE` not set to `false`),
   - panel memoization is enabled (`NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION` not set to `false`),
   - high-density shell mode is enabled (`NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE` not set to `false`).
+
+## Media Library modal flashes "Loading media library…" while scrolling
+Symptoms:
+- While loading the next page or stale-refreshing, cards disappear and the modal briefly shows a blocking loading message.
+
+Checklist:
+- Confirm modal stale-refresh path is non-blocking:
+  - `frontend/features/ai-studio/components/MediaLibraryModal.tsx` should preserve rows during `stale_refresh`.
+  - blocking copy should be gated by `showBlockingLoading` with zero active media rows.
+- Confirm shared fetch transition is active:
+  - `frontend/features/media-library/logic/mediaFetchTransition.ts` should return `preserveRowsDuringFetch=true` for `stale_refresh` with existing rows.
+- Confirm controller parity:
+  - `frontend/features/media-library/hooks/useMediaTabDataController.ts` should apply the same transition behavior as modal.
+- Run focused tests:
+  - `npm -C frontend run test -- MediaLibraryModal useMediaTabDataController`
 
 ## Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)
 Symptoms:

@@ -2504,6 +2504,40 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/shortpulse-unified-buildout-tracker.md`
   - `docs/planning/shortpulse-unified-decision-log.md` (Decision 040)
 
+## 2026-03-02 (Media Library speed program: route + modal)
+- Added server-authoritative media list API with authenticated tab/query keyset pagination and first-slice signed preview hydration:
+  - `frontend/pages/api/media/list.ts`
+  - `frontend/features/media-library/logic/mediaListApi.ts`
+- Migrated Media Library route and AI Studio modal list controllers to use `/api/media/list` behind rollout flag with legacy direct-query fallback retained.
+- Added Media Library performance rollout flags:
+  - `SHORTPULSE_MEDIA_LIST_API_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED`
+- Added route/modal open-to-first-media perf attribution events and wired timer-based logging.
+- Added shared route/modal masonry virtualization and bounded video autoplay runtime:
+  - `frontend/features/media-library/logic/mediaGridVirtualization.ts`
+  - `frontend/features/media-library/hooks/useMediaMasonryVirtualization.ts`
+  - `frontend/features/media-library/hooks/useMediaGridVideoBudgetController.ts`
+  - integrated in route grid and modal grid renderers.
+- Hardened signing/resolve instrumentation for route/modal tuning:
+  - `frontend/pages/api/media/sign-batch.ts`
+  - `frontend/pages/api/media/resolve-previews.ts`
+  - `frontend/lib/mediaSignedUrlCache.ts`
+  - `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
+- Added SQL migration for media cursor + search index hardening (`pg_trgm` + cursor composite indexes):
+  - `sql/migrations/050_add_media_list_search_cursor_indexes.sql`
+- Added/updated coverage:
+  - `frontend/tests/api/media-list.test.ts`
+  - `frontend/features/media-library/logic/__tests__/mediaGridVirtualization.test.ts`
+- Updated operations/docs for list API + virtualization rollout and troubleshooting:
+  - `frontend/.env.example`
+  - `docs/api/api-internal-routes.md`
+  - `docs/deployment.md`
+  - `docs/sops/sop_media_performance_operations.md`
+  - `docs/troubleshooting.md`
+
 ## 2026-03-02 (Profile account autosave toggle UI)
 - Added a reusable profile preference toggle card for account settings:
   - `frontend/features/profile/components/ProfilePreferenceToggleCard.tsx`
@@ -2528,3 +2562,18 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Synced documentation to reflect the shipped picker behavior:
   - `docs/sops/sop_video_generation.md`
   - `docs/sops/sop_ai_studio_index.md`
+
+## 2026-03-02 (Media Library modal no-flash stale-refresh hardening)
+- Fixed modal pagination/stale-refresh flashing where cards could disappear behind a blocking loading state:
+  - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- Added shared route/modal fetch-transition policy for reset vs preserve-rows semantics:
+  - `frontend/features/media-library/logic/mediaFetchTransition.ts`
+  - `frontend/features/media-library/hooks/useMediaTabDataController.ts`
+- Added regression coverage for:
+  - initial blocking loader behavior on empty first load,
+  - non-blocking stale refresh with existing rows preserved,
+  - load-more append behavior with no destructive row clearing.
+- Updated media operations/troubleshooting docs for no-flash stale refresh validation:
+  - `docs/sops/sop_media_performance_operations.md`
+  - `docs/sops/sop_media_library_ui.md`
+  - `docs/troubleshooting.md`

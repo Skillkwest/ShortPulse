@@ -3,7 +3,7 @@
  * Loads user media/prompts and lets creators add them to the reference grid.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
   type MediaSignBudget,
@@ -48,6 +48,15 @@ import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGr
 import { MediaLibraryModalControls } from "./media-library-modal/MediaLibraryModalControls";
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
+import {
+  MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
+  MEDIA_LIST_API_ENABLED,
+} from "../../media-library/logic/mediaLibraryFeatureFlags";
+import { fetchMediaListPage } from "../../media-library/logic/mediaListApi";
+import {
+  resolveMediaFetchTransition,
+  type MediaFetchReason,
+} from "../../media-library/logic/mediaFetchTransition";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
   hydrateMediaPreviewViaStorageDownload,
@@ -96,7 +105,10 @@ export function MediaLibraryModal({
   const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const firstCardShellLoggedRef = useRef(false);
   const firstMediaPaintLoggedRef = useRef(false);
+  const openToFirstMediaTimerRef = useRef<ReturnType<typeof createMediaPerfTimer> | null>(null);
+  const openToFirstMediaLoggedRef = useRef(false);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const modalBodyRef = useRef<HTMLDivElement | null>(null);
   const activeTabRef = useRef<MediaTab>(activeTab);
   const activeMediaQueryRef = useRef("");
   const isOpenRef = useRef(isOpen);
@@ -377,16 +389,35 @@ export function MediaLibraryModal({
         tab: activeTab,
         asset_kind: assetKind,
       });
+      if (!openToFirstMediaLoggedRef.current) {
+        openToFirstMediaLoggedRef.current = true;
+        openToFirstMediaTimerRef.current?.("media.modal.open_to_first_media", {
+          surface: "media-library-modal",
+          tab: activeTab,
+          asset_kind: assetKind,
+          query_mode: activeMediaQuery ? "search" : "default",
+        });
+      }
     },
-    [activeTab]
+    [activeMediaQuery, activeTab]
   );
 
   const fetchMediaTabPage = useCallback(
-    async (tab: MediaDataTab, options?: { reset?: boolean; query?: string }) => {
+    async (
+      tab: MediaDataTab,
+      options?: { reset?: boolean; query?: string; reason?: MediaFetchReason }
+    ) => {
       if (!isOpen) return;
       const cache = mediaTabCache[tab];
       const normalizedQuery = normalizeMediaSearchTerm(options?.query ?? cache.query);
-      const shouldReset = (options?.reset ?? false) || cache.query !== normalizedQuery;
+      const transition = resolveMediaFetchTransition({
+        reason: options?.reason,
+        explicitReset: options?.reset ?? false,
+        queryChanged: cache.query !== normalizedQuery,
+        cacheLoaded: cache.loaded,
+        hasRows: cache.rows.length > 0,
+      });
+      const { preserveRowsDuringFetch, shouldReset, shouldShowBlockingLoading } = transition;
       if (cache.loading) return;
       if (!shouldReset && !cache.hasMore) return;
       const requestId = mediaTabRequestRef.current[tab] + 1;
@@ -400,7 +431,7 @@ export function MediaLibraryModal({
         ...prev,
         [tab]: {
           ...prev[tab],
-          rows: shouldReset ? [] : prev[tab].rows,
+          rows: shouldReset && !preserveRowsDuringFetch ? [] : prev[tab].rows,
           nextCursor: shouldReset ? null : prev[tab].nextCursor,
           pagesLoaded: shouldReset ? 0 : prev[tab].pagesLoaded,
           query: normalizedQuery,
@@ -409,7 +440,7 @@ export function MediaLibraryModal({
           error: null,
         },
       }));
-      if (activeTabRef.current === tab && (shouldReset || !cache.loaded)) {
+      if (activeTabRef.current === tab && shouldShowBlockingLoading) {
         setLoading(true);
       }
 
@@ -420,63 +451,90 @@ export function MediaLibraryModal({
         if (!userId) throw new Error("Not signed in.");
         currentUserIdRef.current = userId;
 
-        const selectColumns =
-          "id, filename, storage_path, file_type, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path";
-        const buildBaseQuery = () => {
-          let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
-          query = withMediaTabFilter(query, tab);
-          query = withMediaSearchFilter(query, normalizedQuery);
-          return query.order("created_at", { ascending: false }).order("id", { ascending: false });
-        };
+        let fetchedRows: MediaFileRow[] = [];
+        let derivedCursor = cursor;
+        let hasMore = false;
+        let apiSignedById = new Map<string, string>();
+        let usedListApi = false;
 
-        const fetchedRows: MediaFileRow[] = [];
-        if (!cursor) {
-          const firstPageResponse = await buildBaseQuery().limit(MEDIA_MODAL_PAGE_SIZE);
-          if (firstPageResponse.error) throw firstPageResponse.error;
-          fetchedRows.push(...((firstPageResponse.data ?? []) as MediaFileRow[]));
-        } else {
-          const sameTimestampResponse = await buildBaseQuery()
-            .eq("created_at", cursor.createdAt)
-            .lt("id", cursor.id)
-            .limit(MEDIA_MODAL_PAGE_SIZE);
-          if (sameTimestampResponse.error) throw sameTimestampResponse.error;
-          const sameTimestampRows = (sameTimestampResponse.data ?? []) as MediaFileRow[];
-          fetchedRows.push(...sameTimestampRows);
-
-          const remaining = MEDIA_MODAL_PAGE_SIZE - sameTimestampRows.length;
-          if (remaining > 0) {
-            const olderRowsResponse = await buildBaseQuery()
-              .lt("created_at", cursor.createdAt)
-              .limit(remaining);
-            if (olderRowsResponse.error) throw olderRowsResponse.error;
-            fetchedRows.push(...((olderRowsResponse.data ?? []) as MediaFileRow[]));
+        if (MEDIA_LIST_API_ENABLED) {
+          const apiResult = await fetchMediaListPage<MediaFileRow>({
+            tab,
+            query: normalizedQuery,
+            cursor,
+            limit: MEDIA_MODAL_PAGE_SIZE,
+            surface: "media-library-modal",
+          });
+          if (apiResult) {
+            usedListApi = true;
+            fetchedRows = mergePageRows([], apiResult.rows).slice(0, MEDIA_MODAL_PAGE_SIZE);
+            derivedCursor = apiResult.nextCursor;
+            hasMore = apiResult.hasMore;
+            apiSignedById = apiResult.signedById;
           }
+        }
+
+        if (!usedListApi) {
+          const selectColumns =
+            "id, filename, storage_path, file_type, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path";
+          const buildBaseQuery = () => {
+            let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
+            query = withMediaTabFilter(query, tab);
+            query = withMediaSearchFilter(query, normalizedQuery);
+            return query
+              .order("created_at", { ascending: false })
+              .order("id", { ascending: false });
+          };
+
+          if (!cursor) {
+            const firstPageResponse = await buildBaseQuery().limit(MEDIA_MODAL_PAGE_SIZE);
+            if (firstPageResponse.error) throw firstPageResponse.error;
+            fetchedRows = (firstPageResponse.data ?? []) as MediaFileRow[];
+          } else {
+            const sameTimestampResponse = await buildBaseQuery()
+              .eq("created_at", cursor.createdAt)
+              .lt("id", cursor.id)
+              .limit(MEDIA_MODAL_PAGE_SIZE);
+            if (sameTimestampResponse.error) throw sameTimestampResponse.error;
+            const sameTimestampRows = (sameTimestampResponse.data ?? []) as MediaFileRow[];
+            fetchedRows = [...sameTimestampRows];
+
+            const remaining = MEDIA_MODAL_PAGE_SIZE - sameTimestampRows.length;
+            if (remaining > 0) {
+              const olderRowsResponse = await buildBaseQuery()
+                .lt("created_at", cursor.createdAt)
+                .limit(remaining);
+              if (olderRowsResponse.error) throw olderRowsResponse.error;
+              fetchedRows.push(...((olderRowsResponse.data ?? []) as MediaFileRow[]));
+            }
+          }
+          fetchedRows = mergePageRows([], fetchedRows).slice(0, MEDIA_MODAL_PAGE_SIZE);
+          derivedCursor = buildCursorFromRows(fetchedRows);
+          hasMore = fetchedRows.length === MEDIA_MODAL_PAGE_SIZE && Boolean(derivedCursor);
         }
         if (isStaleRequest()) return;
 
-        const rows = mergePageRows([], fetchedRows).slice(0, MEDIA_MODAL_PAGE_SIZE);
         const existingById = new Map(cache.rows.map((row) => [row.id, row]));
-        const normalizedRows = rows.map((row) => {
+        const normalizedRows = fetchedRows.map((row) => {
           const previewStoragePath =
             resolveMediaSigningStoragePaths(row, userId)[0] ?? row.storage_path;
           const cachedRow = existingById.get(row.id);
+          const signedFromApi = apiSignedById.get(row.id);
           return {
             ...row,
             source: row.source ?? "upload",
             preview_storage_path: previewStoragePath,
-            signedUrl: cachedRow?.signedUrl ?? null,
+            signedUrl: cachedRow?.signedUrl ?? signedFromApi ?? null,
           } as MediaFileRow;
         });
 
-        const derivedCursor = buildCursorFromRows(rows);
-        const hasMore = rows.length === MEDIA_MODAL_PAGE_SIZE && Boolean(derivedCursor);
         const nextRows = shouldReset ? normalizedRows : mergePageRows(cache.rows, normalizedRows);
         setMediaTabCache((prev) => ({
           ...prev,
           [tab]: {
             ...prev[tab],
             rows: nextRows,
-            nextCursor: hasMore ? derivedCursor : null,
+            nextCursor: hasMore && derivedCursor ? derivedCursor : null,
             pagesLoaded: pageToLoad + 1,
             query: normalizedQuery,
             loadedAtMs: Date.now(),
@@ -557,9 +615,15 @@ export function MediaLibraryModal({
     }
     if (cache.loaded && !queryChanged && isStale) {
       setFiles(cache.rows);
-      setLoading(true);
+      setLoading(cache.rows.length === 0);
     }
-    void fetchMediaTabPage(activeTab, { reset: true, query: activeMediaQuery });
+    const fetchReason: MediaFetchReason =
+      cache.loaded && !queryChanged && isStale
+        ? "stale_refresh"
+        : cache.loaded
+          ? "tab_or_query_reset"
+          : "initial";
+    void fetchMediaTabPage(activeTab, { query: activeMediaQuery, reason: fetchReason });
   }, [
     activeMediaQuery,
     activeTab,
@@ -579,7 +643,7 @@ export function MediaLibraryModal({
       (entries) => {
         const entry = entries[0];
         if (!entry?.isIntersecting) return;
-        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery });
+        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery, reason: "load_more" });
       },
       { rootMargin: "500px 0px" }
     );
@@ -605,6 +669,16 @@ export function MediaLibraryModal({
       setActiveTab((prev) => prev ?? "uploaded_images");
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || activeTab === "saved_prompts") return;
+    openToFirstMediaTimerRef.current = createMediaPerfTimer({
+      surface: "media-library-modal",
+      tab: activeTab,
+      query_mode: activeMediaQuery ? "search" : "default",
+    });
+    openToFirstMediaLoggedRef.current = false;
+  }, [activeMediaQuery, activeTab, isOpen]);
 
   const mediaSearchTerm = useMemo(() => activeMediaQuery.toLowerCase(), [activeMediaQuery]);
   const promptSearchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
@@ -652,13 +726,17 @@ export function MediaLibraryModal({
     surface: "media-library-modal",
     unresolvedWarningPrefix: "[media-library-modal]",
     maxSignAttemptsPerItem: MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
+    isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
     isResultStillRelevant: ({ tab, query }) =>
       isOpenRef.current && activeTabRef.current === tab && activeMediaQueryRef.current === query,
   });
 
-  const loadingMoreMedia = Boolean(activeMediaCache?.loaded && activeMediaCache?.loading);
-  const hasMoreMediaPages = Boolean(activeMediaCache?.hasMore);
   const isMediaTab = activeTab !== "saved_prompts";
+  const loadingMoreMedia = Boolean(activeMediaCache?.loaded && activeMediaCache?.loading);
+  const showBlockingLoading = loading && activeTab !== "saved_prompts" && activeMedia.length === 0;
+  const showBackgroundRefreshing =
+    isMediaTab && activeMedia.length > 0 && Boolean(activeMediaCache?.loading);
+  const hasMoreMediaPages = Boolean(activeMediaCache?.hasMore);
   const handleSelectPromptCard = useCallback(
     (prompt: PromptRow) => {
       setSelectedIds((prev) => {
@@ -742,11 +820,12 @@ export function MediaLibraryModal({
           onSearchChange={setSearch}
         />
 
-        <div className="media-library-modal-body">
-          {loading ? <p className="tiny subdued">Loading media library…</p> : null}
+        <div className="media-library-modal-body" ref={modalBodyRef}>
+          {showBlockingLoading ? <p className="tiny subdued">Loading media library…</p> : null}
+          {showBackgroundRefreshing ? <p className="tiny subdued">Refreshing media…</p> : null}
           {error ? <p className="tiny subdued">{error}</p> : null}
 
-          {!loading && !error && activeTab === "saved_prompts" ? (
+          {!showBlockingLoading && !error && activeTab === "saved_prompts" ? (
             <MediaLibraryPromptGrid
               prompts={prompts}
               sortedPrompts={sortedPrompts}
@@ -755,12 +834,13 @@ export function MediaLibraryModal({
             />
           ) : null}
 
-          {!loading && !error && isMediaTab ? (
+          {!showBlockingLoading && !error && isMediaTab ? (
             <>
               <MediaLibraryMediaGrid
                 activeMedia={activeMedia}
                 selectedIds={selectedIds}
                 optimizerFallbackMediaIds={optimizerFallbackMediaIds}
+                scrollContainerRef={modalBodyRef as React.MutableRefObject<HTMLElement | null>}
                 getMediaCardRef={getMediaCardRef}
                 onSelectMediaFile={(file) => {
                   void handleSelectMediaFile(file);
@@ -778,7 +858,10 @@ export function MediaLibraryModal({
                     className="btn-secondary"
                     onClick={() => {
                       if (!activeMediaTab) return;
-                      void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery });
+                      void fetchMediaTabPage(activeMediaTab, {
+                        query: activeMediaQuery,
+                        reason: "load_more",
+                      });
                     }}
                     disabled={loadingMoreMedia}
                   >

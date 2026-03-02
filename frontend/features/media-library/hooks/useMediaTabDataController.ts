@@ -12,6 +12,9 @@ import {
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
+import { MEDIA_LIST_API_ENABLED } from "../logic/mediaLibraryFeatureFlags";
+import { fetchMediaListPage } from "../logic/mediaListApi";
+import { resolveMediaFetchTransition, type MediaFetchReason } from "../logic/mediaFetchTransition";
 import {
   MEDIA_DATA_TABS,
   buildCursorFromRows,
@@ -155,10 +158,20 @@ export const useMediaTabDataController = <
   );
 
   const fetchMediaTabPage = useCallback(
-    async (tab: MediaDataTab, options?: { reset?: boolean; query?: string }) => {
+    async (
+      tab: MediaDataTab,
+      options?: { reset?: boolean; query?: string; reason?: MediaFetchReason }
+    ) => {
       const cache = mediaTabCache[tab];
       const normalizedQuery = normalizeMediaSearchTerm(options?.query ?? cache.query);
-      const shouldReset = (options?.reset ?? false) || cache.query !== normalizedQuery;
+      const transition = resolveMediaFetchTransition({
+        reason: options?.reason,
+        explicitReset: options?.reset ?? false,
+        queryChanged: cache.query !== normalizedQuery,
+        cacheLoaded: cache.loaded,
+        hasRows: cache.rows.length > 0,
+      });
+      const { preserveRowsDuringFetch, shouldReset, shouldShowBlockingLoading } = transition;
       if (cache.loading) return;
       if (!shouldReset && !cache.hasMore) return;
       const requestId = mediaTabRequestRef.current[tab] + 1;
@@ -172,7 +185,7 @@ export const useMediaTabDataController = <
         ...prev,
         [tab]: {
           ...prev[tab],
-          rows: shouldReset ? [] : prev[tab].rows,
+          rows: shouldReset && !preserveRowsDuringFetch ? [] : prev[tab].rows,
           nextCursor: shouldReset ? null : prev[tab].nextCursor,
           pagesLoaded: shouldReset ? 0 : prev[tab].pagesLoaded,
           query: normalizedQuery,
@@ -181,7 +194,7 @@ export const useMediaTabDataController = <
           error: null,
         },
       }));
-      if (activeTabRef.current === tab && (shouldReset || !cache.loaded)) {
+      if (activeTabRef.current === tab && shouldShowBlockingLoading) {
         setLoading(true);
       }
 
@@ -192,63 +205,90 @@ export const useMediaTabDataController = <
         if (!userId) throw new Error("Not signed in");
         currentUserIdRef.current = userId;
 
-        const selectColumns =
-          "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
-        const buildBaseQuery = () => {
-          let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
-          query = withMediaTabFilter(query, tab);
-          query = withMediaSearchFilter(query, normalizedQuery);
-          return query.order("created_at", { ascending: false }).order("id", { ascending: false });
-        };
+        let fetchedRows: TRow[] = [];
+        let derivedCursor = cursor;
+        let hasMore = false;
+        let apiSignedById = new Map<string, string>();
+        let usedListApi = false;
 
-        const fetchedRows: TRow[] = [];
-        if (!cursor) {
-          const firstPageResponse = await buildBaseQuery().limit(pageSize);
-          if (firstPageResponse.error) throw firstPageResponse.error;
-          fetchedRows.push(...((firstPageResponse.data ?? []) as TRow[]));
-        } else {
-          const sameTimestampResponse = await buildBaseQuery()
-            .eq("created_at", cursor.createdAt)
-            .lt("id", cursor.id)
-            .limit(pageSize);
-          if (sameTimestampResponse.error) throw sameTimestampResponse.error;
-          const sameTimestampRows = (sameTimestampResponse.data ?? []) as TRow[];
-          fetchedRows.push(...sameTimestampRows);
-
-          const remaining = pageSize - sameTimestampRows.length;
-          if (remaining > 0) {
-            const olderRowsResponse = await buildBaseQuery()
-              .lt("created_at", cursor.createdAt)
-              .limit(remaining);
-            if (olderRowsResponse.error) throw olderRowsResponse.error;
-            fetchedRows.push(...((olderRowsResponse.data ?? []) as TRow[]));
+        if (MEDIA_LIST_API_ENABLED) {
+          const apiResult = await fetchMediaListPage<TRow>({
+            tab,
+            query: normalizedQuery,
+            cursor,
+            limit: pageSize,
+            surface: "media-library-route",
+          });
+          if (apiResult) {
+            usedListApi = true;
+            fetchedRows = mergePageRows([], apiResult.rows).slice(0, pageSize);
+            derivedCursor = apiResult.nextCursor;
+            hasMore = apiResult.hasMore;
+            apiSignedById = apiResult.signedById;
           }
         }
-        if (isStaleRequest()) return;
 
-        const rows = mergePageRows([], fetchedRows).slice(0, pageSize);
+        if (!usedListApi) {
+          const selectColumns =
+            "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
+          const buildBaseQuery = () => {
+            let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
+            query = withMediaTabFilter(query, tab);
+            query = withMediaSearchFilter(query, normalizedQuery);
+            return query
+              .order("created_at", { ascending: false })
+              .order("id", { ascending: false });
+          };
+
+          if (!cursor) {
+            const firstPageResponse = await buildBaseQuery().limit(pageSize);
+            if (firstPageResponse.error) throw firstPageResponse.error;
+            fetchedRows = (firstPageResponse.data ?? []) as TRow[];
+          } else {
+            const sameTimestampResponse = await buildBaseQuery()
+              .eq("created_at", cursor.createdAt)
+              .lt("id", cursor.id)
+              .limit(pageSize);
+            if (sameTimestampResponse.error) throw sameTimestampResponse.error;
+            const sameTimestampRows = (sameTimestampResponse.data ?? []) as TRow[];
+            fetchedRows = [...sameTimestampRows];
+
+            const remaining = pageSize - sameTimestampRows.length;
+            if (remaining > 0) {
+              const olderRowsResponse = await buildBaseQuery()
+                .lt("created_at", cursor.createdAt)
+                .limit(remaining);
+              if (olderRowsResponse.error) throw olderRowsResponse.error;
+              fetchedRows.push(...((olderRowsResponse.data ?? []) as TRow[]));
+            }
+          }
+          fetchedRows = mergePageRows([], fetchedRows).slice(0, pageSize);
+          derivedCursor = buildCursorFromRows(fetchedRows);
+          hasMore = fetchedRows.length === pageSize && Boolean(derivedCursor);
+        }
+
+        if (isStaleRequest()) return;
         const existingById = new Map(cache.rows.map((row) => [row.id, row]));
-        const normalizedRows = rows.map((row) => {
+        const normalizedRows = fetchedRows.map((row) => {
           const signingCandidates = resolveMediaSigningStoragePaths(row, userId);
           const previewStoragePath = signingCandidates[0] ?? row.storage_path;
           const cachedRow = existingById.get(row.id);
+          const signedFromApi = apiSignedById.get(row.id);
           return {
             ...row,
             source: row.source ?? "upload",
             preview_storage_path: previewStoragePath,
-            signedUrl: cachedRow?.signedUrl,
+            signedUrl: cachedRow?.signedUrl ?? signedFromApi,
           } as TRow;
         });
 
-        const derivedCursor = buildCursorFromRows(rows);
-        const hasMore = rows.length === pageSize && Boolean(derivedCursor);
         const nextRows = shouldReset ? normalizedRows : mergePageRows(cache.rows, normalizedRows);
         setMediaTabCache((prev) => ({
           ...prev,
           [tab]: {
             ...prev[tab],
             rows: nextRows,
-            nextCursor: hasMore ? derivedCursor : null,
+            nextCursor: hasMore && derivedCursor ? derivedCursor : null,
             pagesLoaded: pageToLoad + 1,
             query: normalizedQuery,
             loadedAtMs: Date.now(),
@@ -336,9 +376,15 @@ export const useMediaTabDataController = <
     }
     if (cache.loaded && !queryChanged && isStale) {
       setFiles(cache.rows);
-      setLoading(true);
+      setLoading(cache.rows.length === 0);
     }
-    void fetchMediaTabPage(activeTab, { reset: true, query: activeMediaQuery });
+    const fetchReason: MediaFetchReason =
+      cache.loaded && !queryChanged && isStale
+        ? "stale_refresh"
+        : cache.loaded
+          ? "tab_or_query_reset"
+          : "initial";
+    void fetchMediaTabPage(activeTab, { query: activeMediaQuery, reason: fetchReason });
   }, [
     activeMediaQuery,
     activeTab,
@@ -362,7 +408,7 @@ export const useMediaTabDataController = <
       (entries) => {
         const entry = entries[0];
         if (!entry?.isIntersecting) return;
-        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery });
+        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery, reason: "load_more" });
       },
       { rootMargin: "600px 0px" }
     );

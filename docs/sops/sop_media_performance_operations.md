@@ -18,10 +18,14 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - `frontend/lib/mediaSignedUrlCache.ts`
 - Batch signing API:
   - `frontend/pages/api/media/sign-batch.ts`
+- Server-authoritative list API:
+  - `frontend/pages/api/media/list.ts`
 - Media Library route:
   - `frontend/pages/media-library.tsx`
 - AI Studio Media Library modal:
   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- Shared route/modal virtualization math:
+  - `frontend/features/media-library/logic/mediaGridVirtualization.ts`
 - Reference Grid autoplay budget:
   - `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - Reference Grid archive + output lifecycle controls:
@@ -50,6 +54,11 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 1. Open Media Library route and AI Studio modal.
 2. Confirm media cards render quickly with placeholders first, then preview hydration.
 3. Confirm pagination/search remains responsive with large tabs.
+4. Confirm `POST /api/media/list` is active when `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED=true`.
+5. Confirm stale refresh is non-blocking in the AI Studio modal:
+   - Existing cards remain visible while refresh is in-flight.
+   - `Loading media library…` appears only when there are zero visible media rows.
+   - `Refreshing media…` can appear while cards remain mounted.
 
 ### 2) Validate Batch Signing Contract
 1. Open browser network tab while loading media grids.
@@ -94,6 +103,9 @@ Key indicators:
 - `p95_duration_ms` for `media.sign.batch.completed`
 - `failed_ratio` grouped by `surface`/`tab`/`query_mode`
 - first-card/first-media-paint timing trends
+- open-to-first-media timers:
+  - `media.route.open_to_first_media`
+  - `media.modal.open_to_first_media`
 - bulk move timings/failures via `media.move.bulk.completed` and `media.move.bulk.failed`
 - reference-grid render and heap trends via:
   - `media.grid.render.commit`
@@ -110,6 +122,15 @@ Key indicators:
   - `MEDIA_ROUTE_SIGN_BUDGET_*` in `frontend/pages/media-library.tsx`
 - Modal sign budget constants:
   - `MEDIA_MODAL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- Route/modal fetch-transition rules:
+  - `resolveMediaFetchTransition` in `frontend/features/media-library/logic/mediaFetchTransition.ts`
+  - fetch reasons: `initial`, `tab_or_query_reset`, `stale_refresh`, `load_more`
+- Media list/runtime rollout gates:
+  - `SHORTPULSE_MEDIA_LIST_API_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED`
 - Reference Grid autoplay caps:
   - `REFERENCE_AUTOPLAY_MAX_*` in `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - Reference Grid active/archived caps:

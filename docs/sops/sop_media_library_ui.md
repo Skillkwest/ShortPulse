@@ -68,6 +68,8 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
   - Placeholder-first rendering is expected while previews are being signed/hydrated.
 - Cache freshness:
   - Tab caches can be reused briefly, then refreshed in the background.
+  - Stale refresh must be non-destructive for populated media tabs: keep existing cards rendered while refresh runs.
+  - Use full blocking loading copy only when active media rows are empty.
   - Upload/delete/rename/move operations should invalidate stale tab views.
 
 For operational runbooks and tuning procedures, see `docs/sops/sop_media_performance_operations.md`.

@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaTabDataController } from "../useMediaTabDataController";
@@ -15,6 +15,14 @@ vi.mock("../../../../lib/mediaPreviewPath", () => ({
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseClient: vi.fn(),
+}));
+
+vi.mock("../../logic/mediaLibraryFeatureFlags", () => ({
+  MEDIA_LIST_API_ENABLED: false,
+}));
+
+vi.mock("../../logic/mediaListApi", () => ({
+  fetchMediaListPage: vi.fn(async () => null),
 }));
 
 const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
@@ -93,6 +101,16 @@ const createMediaClient = (rows: Row[]) => {
       throw new Error(`Unexpected table: ${table}`);
     }),
   };
+};
+
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 };
 
 describe("useMediaTabDataController", () => {
@@ -338,5 +356,258 @@ describe("useMediaTabDataController", () => {
       source: "upload",
     });
     expect(result.current.currentUserIdRef.current).toBe("user-1");
+  });
+
+  it("keeps existing rows visible while stale refresh is unresolved", async () => {
+    const existingRow = makeRow({
+      id: "row-stale-1",
+      filename: "stale.png",
+      storage_path: "user-1/images/stale.png",
+      created_at: "2026-02-14T00:00:00.000Z",
+    });
+    const deferred = createDeferred<{ data: Row[]; error: null }>();
+    const queryBuilder = {
+      eq: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      limit: vi.fn(() => deferred.promise),
+      lt: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+    };
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: {
+            session: {
+              user: { id: "user-1" },
+            },
+          },
+        })),
+      },
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => queryBuilder),
+          };
+        }
+        if (table === "media_prompts") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  order: vi.fn(async () => ({ data: [], error: null })),
+                }),
+              }),
+            })),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([existingRow]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => {
+        const cache = createMediaTabCacheState<Row>();
+        cache.uploaded_images = {
+          ...cache.uploaded_images,
+          rows: [existingRow],
+          query: "",
+          loaded: true,
+          loadedAtMs: 1,
+          hasMore: true,
+          nextCursor: {
+            createdAt: "2026-02-14T00:00:00.000Z",
+            id: existingRow.id,
+          },
+        };
+        return cache;
+      });
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 1,
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+      };
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
+    });
+    expect(result.current.files.map((row) => row.id)).toEqual([existingRow.id]);
+    expect(result.current.mediaTabCache.uploaded_images.rows.map((row) => row.id)).toEqual([
+      existingRow.id,
+    ]);
+
+    deferred.resolve({
+      data: [existingRow],
+      error: null,
+    });
+    await waitFor(() => {
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
+    });
+  });
+
+  it("appends rows on load-more without clearing existing items", async () => {
+    const rowOne = makeRow({
+      id: "row-load-more-1",
+      filename: "older.png",
+      storage_path: "user-1/images/older.png",
+      created_at: "2026-02-14T00:00:00.000Z",
+    });
+    const rowTwo = makeRow({
+      id: "row-load-more-2",
+      filename: "newer.png",
+      storage_path: "user-1/images/newer.png",
+      created_at: "2026-02-13T00:00:00.000Z",
+    });
+    const queryBuilder = {
+      eq: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      limit: vi.fn(async () => ({ data: [rowTwo], error: null })),
+      lt: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+    };
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: {
+            session: {
+              user: {
+                id: "user-1",
+              },
+            },
+          },
+        })),
+      },
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => queryBuilder),
+          };
+        }
+        if (table === "media_prompts") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  order: vi.fn(async () => ({ data: [], error: null })),
+                }),
+              }),
+            })),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([rowOne]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => {
+        const cache = createMediaTabCacheState<Row>();
+        cache.uploaded_images = {
+          ...cache.uploaded_images,
+          rows: [rowOne],
+          query: "",
+          loaded: true,
+          loadedAtMs: Date.now(),
+          pagesLoaded: 1,
+          hasMore: true,
+          nextCursor: {
+            createdAt: rowOne.created_at,
+            id: rowOne.id,
+          },
+        };
+        return cache;
+      });
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 1,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+        tabData,
+      };
+    });
+
+    await act(async () => {
+      await result.current.tabData.fetchMediaTabPage("uploaded_images", {
+        query: "",
+        reason: "load_more",
+      });
+    });
+
+    expect(result.current.files.map((row) => row.id)).toEqual([rowOne.id, rowTwo.id]);
+    expect(result.current.mediaTabCache.uploaded_images.rows.map((row) => row.id)).toEqual([
+      rowOne.id,
+      rowTwo.id,
+    ]);
+    expect(result.current.mediaTabCache.uploaded_images.pagesLoaded).toBe(2);
   });
 });

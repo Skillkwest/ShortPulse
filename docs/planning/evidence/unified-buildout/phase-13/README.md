@@ -33,3 +33,4 @@ Example:
 4. `2026-03-02-phase-13-wave-c-pass-4-webhook-canary-controls.md`
 5. `2026-03-02-phase-13-wave-d-autosave-policy-foundation.md`
 6. `2026-03-02-phase-13-wave-e-pass-1-agent-message-identity-foundation.md`
+7. `2026-03-02-phase-13-wave-e-pass-2-structured-generate-callback.md`

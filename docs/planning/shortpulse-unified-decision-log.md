@@ -86,3 +86,8 @@ Last updated: 2026-03-02
 - Topic: Agent message identity prerequisite.
 - Decision: Wave E requires stable message IDs at hook-generation time (`useAiAgent`) before any structured generate-callback payload, bubble-media linkage, or inline assistant-edit workflows can be enabled.
 - Effective phase: 13.
+
+## Decision 018
+- Topic: Structured output-generate callback transition strategy.
+- Decision: Agent output-generate callbacks now use structured payload `{ messageId, prompt, source }`; page boundary must keep a compatibility shim for legacy string payloads until all call sites are migrated.
+- Effective phase: 13.

@@ -70,11 +70,15 @@ Completed:
    - `useAiAgent` now guarantees IDs for hook-generated user/assistant messages,
    - added message update seam (`updateMessageById`) for targeted assistant bubble mutation without history rewrites,
    - message-store tests and agent hook tests updated to lock ID and update behavior.
+8. Wave E Pass 2 structured generate callback payload:
+   - output-generate callbacks now pass `{ messageId, prompt, source }` from chat surfaces,
+   - page boundary keeps compatibility shim for legacy string callback input,
+   - callback contract threaded through create/prompt/shell hook composition layers.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (structured generate callback payload, thumbnail linking, inline edit wiring, session persistence write-shadow/restore).
+3. Wave E remaining passes (thumbnail linking, inline edit wiring, session persistence write-shadow/restore).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

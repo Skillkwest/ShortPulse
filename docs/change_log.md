@@ -1938,3 +1938,18 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/ai-agent/__tests__/useAiAgent.test.ts`
 - Recorded Wave E Pass 1 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-1-agent-message-identity-foundation.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 2 structured output-generate callback)
+- Upgraded agent output-generate callback contract from raw string to structured payload:
+  - `{ messageId, prompt, source }`.
+- Updated chat prefab emission behavior:
+  - staged prompts emit `source='staged'` with virtual key `staged-agent-output`,
+  - history assistant bubbles emit `source='history'` with assistant message id.
+- Added page-level compatibility shim so legacy string callback payloads are still accepted during transition:
+  - `frontend/pages/ai-studio.tsx`.
+- Threaded updated callback types through AI Studio create/prompt/shell prop contracts and hook composition layers.
+- Updated targeted callback behavior tests:
+  - `frontend/prefabs/agent/panels/__tests__/AgentChatPanel.actions.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx`.
+- Recorded Wave E Pass 2 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-2-structured-generate-callback.md`.

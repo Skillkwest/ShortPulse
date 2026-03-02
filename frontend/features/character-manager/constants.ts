@@ -78,6 +78,7 @@ export const CHARACTER_MANAGER_SLOT_DEFINITIONS: CharacterReferenceSlotDefinitio
 ];
 
 export const CHARACTER_MANAGER_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+export const CHARACTER_QUICK_SWAP_ACTIVE_LIMIT = 500;
 
 export const createEmptyCharacterSlotMap = (): CharacterSlotFileMap =>
   CHARACTER_MANAGER_SLOT_DEFINITIONS.reduce((acc, slot) => {

@@ -19,7 +19,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `storage_path` (text): Full path in the `media_library` bucket (prefix with `auth.uid()`). Private tab uploads use `<auth.uid()>/private/images/<filename>`.
 - `file_type` (text): image | video (or MIME-derived fallback).
 - `file_size` (bigint, nullable): Bytes.
-- `source` (text, default `upload`): upload | private_upload | ai_studio | character_reference | character_generation.
+- `source` (text, default `upload`): upload | private_upload | ai_studio | character_reference | character_generation | character_quickswap.
 - `source_ref` (uuid, nullable): References `ai_generations.id` when source is `ai_studio`.
 - `prompt_id` (uuid, nullable): References `media_prompts.id` when saved from a prompt.
 - `metadata` (jsonb, default `{}`): Provider/model metadata and any generation context.
@@ -29,11 +29,12 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `updated_at` (timestamptz, default now)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Integrity checks:
-  - `source` constrained to `upload | private_upload | ai_studio | character_reference | character_generation`.
+  - `source` constrained to `upload | private_upload | ai_studio | character_reference | character_generation | character_quickswap`.
   - `source` is non-null with default `upload` (see `sql/migrations/007_harden_media_source_and_usage_rpc.sql`).
   - `source = private_upload` requires `file_type = image` and `storage_path` under `<user_id>/private/images/...`.
   - Any row with `storage_path` under `<user_id>/private/images/...` must use `source = private_upload`.
   - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `character_sheet_id` (legacy `reference_pack_id` is still accepted), and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql` and `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`).
+  - `source = character_quickswap` requires `file_type = image`, `storage_path` under `<user_id>/characters/<character_id>/quickswap/...`, and metadata key `character_id` (see `sql/migrations/045_add_character_quickswap_deck.sql`).
 
 ### Media usage RPCs
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
@@ -93,6 +94,20 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Integrity:
   - `storage_path` must match the character/pack/slot path convention.
   - Trigger `trg_character_reference_images_media_integrity` enforces that linked `media_files` row stays user-owned, uses `source = character_reference`, and has matching path/metadata.
+
+### character_quick_swap_items
+- `id` (uuid, pk)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `character_id` (uuid): Parent character.
+- `media_file_id` (uuid): Linked `media_files` row.
+- `storage_path` (text): Canonical private object path under `<user_id>/characters/<character_id>/quickswap/...`.
+- `status` (text): active | archived.
+- `created_at` (timestamptz): Insertion timestamp used for active/archive ordering.
+- `archived_at` (timestamptz, nullable): Set when item is archived.
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Notes:
+  - QuickSwap Deck keeps newest 500 rows active; overflow rows are archived.
+  - Legacy `character_reference_images` remains compatibility data for fixed-slot fallback only.
 
 ### character_generation_jobs
 - `id` (uuid, pk)

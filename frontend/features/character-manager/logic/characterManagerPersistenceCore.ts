@@ -125,6 +125,14 @@ type CharacterSheetImageRow = {
 export const asErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
 
+const isMissingRelationError = (error: unknown): boolean =>
+  Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === "42P01"
+  );
+
 export const isCharacterReferenceSlotKey = (value: string): value is CharacterReferenceSlotKey =>
   CHARACTER_MANAGER_SLOT_KEYS.includes(value as CharacterReferenceSlotKey);
 
@@ -601,6 +609,18 @@ export const cleanupOrphanedMedia = async ({
   storagePath: string | null;
 }) => {
   const { supabase, userId } = await resolveSupabaseContext();
+  const { count: quickSwapCount, error: quickSwapRefError } = await supabase
+    .from("character_quick_swap_items")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("media_file_id", mediaFileId);
+  if (quickSwapRefError && !isMissingRelationError(quickSwapRefError)) {
+    throw new Error(asErrorMessage(quickSwapRefError, "Failed to validate quick swap references."));
+  }
+  if ((quickSwapCount ?? 0) > 0) {
+    return;
+  }
+
   const { count, error: refCheckError } = await supabase
     .from("character_reference_images")
     .select("id", { count: "exact", head: true })

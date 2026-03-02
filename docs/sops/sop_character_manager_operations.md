@@ -10,8 +10,10 @@ Define the operational contract for the `/character` Character Manager surface, 
 
 ## Current Product Contract
 1. Users can upload reference images by drag/drop or file picker in the Drop References card.
-2. The persisted QuickSwap Deck intake limit is 10 images per character (`SIMPLE_REFERENCE_IMAGE_LIMIT`).
-3. Uploaded references persist to Supabase per character.
+2. QuickSwap Deck persists an unlimited number of references per character:
+   - Active deck keeps newest 500 references.
+   - Overflow references are auto-archived (restorable).
+3. Uploaded references persist to Supabase per character in `character_quick_swap_items`.
 4. Character Sheet drop zones are persisted per character with four preset tabs (`1`..`4`):
    - Active tab id persists to character metadata (`character_sheet_presets_v1.active_preset_id`).
    - Each tab stores independent zone media references for `portrait`, `close_up`, `front_shot`, and `back_shot`.
@@ -19,8 +21,8 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Dropping onto an occupied zone replaces the previous assignment.
    - Dragging from one drop zone to another swaps assignments.
    - Assignments are saved to character metadata (`character_sheet_presets_v1`).
-   - Preset zone uploads are independent of QuickSwap Deck slot usage.
-   - Removing a QuickSwap Deck slot does not clear preset zone assignments.
+   - Preset zone uploads are independent of QuickSwap Deck capacity/archival.
+   - Removing a QuickSwap Deck reference does not clear preset zone assignments.
    - No activation gate or completion requirement is enforced in the current UI.
 5. Dropped external reference URLs are trust-scoped:
    - Trusted local/internal/supabase-hosted image URLs are accepted for Character Sheet and QuickSwap drop flows.
@@ -46,6 +48,9 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
 - Draft state + persistence orchestration: `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
+- QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`
+- QuickSwap state orchestration: `frontend/features/character-manager/hooks/useCharacterQuickSwapDeck.ts`
+- QuickSwap UI section: `frontend/features/character-manager/components/CharacterQuickSwapDeckSection.tsx`
 - File validation rules: `frontend/features/character-manager/logic/referenceValidation.ts`
 - Character Manager route shell: `frontend/pages/character.tsx`
 - AI Studio Create integration: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/logic/characterModePayload.ts`
@@ -55,19 +60,19 @@ Define the operational contract for the `/character` Character Manager surface, 
 1. Character bootstrap
 - Load or create a character draft on entry.
 - Prefer the persisted selected character id when available.
-- Hydrate profile image, name, description, and persisted reference slots.
+- Hydrate profile image, name, description, and persisted QuickSwap active/archive state.
 
 2. Reference intake
 - Accept only `image/*` MIME files.
 - Enforce max file size using `CHARACTER_MANAGER_MAX_IMAGE_BYTES`.
-- Run deterministic validation via `validateCharacterReferenceFile(...)`.
-- Persist slot metadata through `saveCharacterManagerSlot(...)`.
+- Persist quickswap metadata through `appendQuickSwapFiles(...)`.
+- Enforce active-limit archive semantics (500 active, oldest overflow archived).
 
 3. Character Sheet presets and drag/drop (persisted)
 - Keep per-character preset state in Character Manager draft state.
 - Persist active tab id and active-tab drop-zone assignments to Supabase character metadata.
 - Keep DnD behavior stable (assign/replace/swap) without activation gating.
-- Keep preset media lifecycle independent from QuickSwap Deck slots.
+- Keep preset media lifecycle independent from QuickSwap Deck entries.
 
 4. Character lifecycle
 - Create character: create draft + refresh rail.
@@ -88,6 +93,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - `sql/migrations/010_harden_character_reference_media_integrity.sql`
 - `sql/migrations/011_add_character_description_to_characters.sql`
 - `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
+- `sql/migrations/045_add_character_quickswap_deck.sql`
 
 2. Run drift diagnostics:
 - Execute `sql/check_character_sheet_alias_drift.sql`.
@@ -102,14 +108,17 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 
 ## QA Checklist (Before Ship)
 - Upload from file picker works and persists after refresh.
-- Drag/drop upload works and fills first available reference slots deterministically.
+- Multi-file drag/drop upload works and appends all valid references.
 - Non-image files are rejected with clear message.
 - Oversize images are rejected with clear message.
-- Deleting one reference clears only that slot and persists.
+- Deleting one QuickSwap reference removes only that item and persists.
 - Dragging a reference into a Character Sheet zone assigns it.
 - Dropping another reference into that same zone replaces it.
 - Dragging zone-to-zone swaps assignments.
 - Dropped external reference URLs are accepted only from trusted local/internal/supabase-hosted sources.
+- QuickSwap deck is scrollable and remains interactive at high active counts.
+- Uploading beyond 500 active references archives oldest active references.
+- Archived references can be restored back into active deck.
 - Preset tabs `1..4` render and switch without cross-tab assignment bleed.
 - Character Sheet preset assignments persist after refresh and character switching.
 - Untrusted external dropped URLs are blocked in Character Sheet and QuickSwap drop surfaces.

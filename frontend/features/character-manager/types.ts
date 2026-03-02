@@ -80,6 +80,19 @@ export type CharacterSlotFile = {
 
 export type CharacterSlotFileMap = Record<CharacterReferenceSlotKey, CharacterSlotFile | null>;
 
+export type CharacterQuickSwapStatus = "active" | "archived";
+
+export type CharacterQuickSwapItem = {
+  id: string;
+  mediaFileId: string;
+  storagePath: string;
+  previewUrl: string;
+  status: CharacterQuickSwapStatus;
+  createdAt: string;
+  archivedAt: string | null;
+  legacySlotKey: CharacterReferenceSlotKey | null;
+};
+
 export type CharacterProfileImageTransform = {
   zoom: number;
   offsetX: number;

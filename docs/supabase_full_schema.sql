@@ -30,7 +30,7 @@ create table if not exists media_files (
     storage_path text not null,
     file_type text not null,
     file_size bigint,
-    source text not null default 'upload', -- upload | private_upload | ai_studio | character_reference | character_generation
+    source text not null default 'upload', -- upload | private_upload | ai_studio | character_reference | character_generation | character_quickswap
     source_ref uuid,
     prompt_id uuid,
     metadata jsonb not null default '{}'::jsonb,
@@ -43,7 +43,16 @@ alter table media_files
     drop constraint if exists media_files_source_check;
 alter table media_files
     add constraint media_files_source_check
-    check (source in ('upload', 'private_upload', 'ai_studio', 'character_reference', 'character_generation'));
+    check (
+        source in (
+            'upload',
+            'private_upload',
+            'ai_studio',
+            'character_reference',
+            'character_generation',
+            'character_quickswap'
+        )
+    );
 
 alter table media_files
     drop constraint if exists media_files_storage_scope_check;
@@ -95,6 +104,22 @@ alter table media_files
                 'portrait_close',
                 'fullbody_wide'
             )
+        )
+    );
+
+alter table media_files
+    drop constraint if exists media_files_character_quickswap_source_shape_check;
+alter table media_files
+    add constraint media_files_character_quickswap_source_shape_check
+    check (
+        source <> 'character_quickswap'
+        or (
+            lower(coalesce(file_type, '')) = 'image'
+            and coalesce(metadata->>'character_id', '') <> ''
+            and storage_path like user_id::text
+                || '/characters/'
+                || coalesce(metadata->>'character_id', '')
+                || '/quickswap/%'
         )
     );
 

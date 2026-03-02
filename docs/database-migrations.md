@@ -131,7 +131,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 43. `sql/migrations/042_harden_queue_recovery_rpc_execute_grants.sql`
 44. `sql/migrations/043_add_user_preferences_media_autosave_enabled.sql`
 45. `sql/migrations/044_add_ai_studio_sessions_persistence.sql`
-46. Rollback files:
+46. `sql/migrations/045_add_character_quickswap_deck.sql`
+47. `sql/migrations/046_fix_character_quickswap_storage_scope_check.sql`
+48. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -147,6 +149,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/039_admin_error_status_atomic_update_rollback.sql`
     - `sql/migrations/rollback/043_add_user_preferences_media_autosave_enabled_rollback.sql`
     - `sql/migrations/rollback/044_add_ai_studio_sessions_persistence_rollback.sql`
+    - `sql/migrations/rollback/045_add_character_quickswap_deck_rollback.sql`
+    - `sql/migrations/rollback/046_fix_character_quickswap_storage_scope_check_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -180,6 +184,8 @@ Billing safety note:
 - Migration `042_harden_queue_recovery_rpc_execute_grants.sql` enforces service-role-only execute grants for queue/recovery enqueue and claim RPCs (`enqueue_generation_submit`, `claim_generation_submit_queue_batch`, `claim_generation_recovery_batch`).
 - Migration `043_add_user_preferences_media_autosave_enabled.sql` adds `user_preferences.media_autosave_enabled` with a non-null default (`true`) so server/client autosave policy enforcement has a durable per-user contract.
 - Migration `044_add_ai_studio_sessions_persistence.sql` adds durable AI Studio session snapshot persistence (`ai_studio_sessions`) with service-role-only save/get/list/prune RPCs and deterministic per-user cap/TTL pruning semantics.
+- Migration `045_add_character_quickswap_deck.sql` adds dynamic Character Manager QuickSwap persistence (`character_quick_swap_items`), `character_quickswap` media-source integrity checks, and deterministic legacy backfill with 500-active archive behavior.
+- Migration `046_fix_character_quickswap_storage_scope_check.sql` corrects the `character_quick_swap_items` storage-scope check to allow user-scoped character paths used by deterministic legacy backfill (not only `/quickswap/`-prefixed paths).
 
 ## Media storage scope verification (post-017)
 

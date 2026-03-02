@@ -119,6 +119,14 @@ const toMetadataRecord = (value: unknown): Record<string, unknown> =>
     ? { ...(value as Record<string, unknown>) }
     : {};
 
+const isMissingRelationError = (error: unknown): boolean =>
+  Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === "42P01"
+  );
+
 const toPresetReferenceFromSlot = (
   slotFile: CharacterSlotFile | null
 ): CharacterSheetPresetMediaReference | null => {
@@ -939,6 +947,17 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
     throw new Error(asErrorMessage(mediaRowsError, "Failed to load character media for deletion."));
   }
 
+  const { data: quickSwapRows, error: quickSwapRowsError } = await supabase
+    .from("character_quick_swap_items")
+    .select("media_file_id, storage_path")
+    .eq("user_id", userId)
+    .eq("character_id", characterId);
+  if (quickSwapRowsError && !isMissingRelationError(quickSwapRowsError)) {
+    throw new Error(
+      asErrorMessage(quickSwapRowsError, "Failed to load quick swap media for deletion.")
+    );
+  }
+
   const profileMedia = getCharacterProfileImageMetadata(characterRow?.metadata);
   const presetCleanupCandidates = listCharacterSheetPresetMediaReferences(characterRow?.metadata);
   const referenceCleanupCandidates = Array.from(
@@ -954,16 +973,30 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
       )
     ).values()
   );
+  const quickSwapCleanupCandidates = Array.from(
+    new Map(
+      ((quickSwapRows ?? []) as Array<{ media_file_id: string; storage_path: string | null }>).map(
+        (row) => [
+          row.media_file_id,
+          {
+            mediaFileId: row.media_file_id,
+            storagePath: row.storage_path ?? null,
+          },
+        ]
+      )
+    ).values()
+  );
   const cleanupCandidates = profileMedia.mediaFileId
     ? [
         ...referenceCleanupCandidates,
+        ...quickSwapCleanupCandidates,
         ...presetCleanupCandidates,
         {
           mediaFileId: profileMedia.mediaFileId,
           storagePath: profileMedia.storagePath,
         },
       ]
-    : [...referenceCleanupCandidates, ...presetCleanupCandidates];
+    : [...referenceCleanupCandidates, ...quickSwapCleanupCandidates, ...presetCleanupCandidates];
 
   const { error: deleteCharacterError } = await supabase
     .from("characters")

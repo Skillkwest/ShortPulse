@@ -14,15 +14,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  CaretDown,
-  Plus,
-  PencilSimpleLine,
-  ShieldCheck,
-  Trash,
-  UploadSimple,
-  XCircle,
-} from "phosphor-react";
+import { Plus, PencilSimpleLine, ShieldCheck, Trash, UploadSimple, XCircle } from "phosphor-react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import {
   isAdaptiveSurfaceEnabled,
@@ -37,24 +29,25 @@ import { isTrustedMediaDirectPreviewUrl } from "../../../lib/mediaPreviewTrustPo
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
-  CHARACTER_MANAGER_SLOT_DEFINITIONS,
-  CHARACTER_MANAGER_SLOT_LABEL_BY_KEY,
+  CHARACTER_QUICK_SWAP_ACTIVE_LIMIT,
   CHARACTER_SHEET_DROP_ZONES,
   CHARACTER_SHEET_PRESET_IDS,
   createEmptyCharacterSheetPresetAssignments,
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
+import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import {
   CHARACTER_LIBRARY_EXPAND_STEP,
   CHARACTER_LIBRARY_SMOOTH_TARGET,
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
+import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
 import type {
+  CharacterQuickSwapItem,
   CharacterProfileImageTransform,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
   CharacterSheetPresetId,
-  CharacterReferenceSlotKey,
 } from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
@@ -63,7 +56,6 @@ type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   beginnerModeOverride?: boolean;
 };
-const SIMPLE_REFERENCE_IMAGE_LIMIT = 10;
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
 const PROFILE_OFFSET_MIN = -40;
@@ -77,6 +69,7 @@ const CHARACTER_DESCRIPTION_HELPER_TEXT =
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
+const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
@@ -463,7 +456,6 @@ export function CharacterManagerShell({
     characterSheetPresetAssignments,
     profileImageUrl,
     profileImageTransform,
-    slots,
     error,
     loading,
     isSavingName,
@@ -480,20 +472,16 @@ export function CharacterManagerShell({
     setActiveCharacterSheetPreset,
     saveCharacterSheetPresetAssignments,
     setCharacterSheetPresetFile,
-    setSlotFile,
-    clearSlot,
     createCharacter,
     selectCharacter,
     deleteCharacter,
-    isSlotBusy,
     clearMessages,
   } = useCharacterManagerDraft();
 
   const [activeTab, setActiveTab] = useState<CharacterWorkflowTab>("create");
   const [isDropActive, setIsDropActive] = useState(false);
   const [isQuickSwapCollapsed, setIsQuickSwapCollapsed] = useState(false);
-  const [draggedReferenceSlotKey, setDraggedReferenceSlotKey] =
-    useState<CharacterReferenceSlotKey | null>(null);
+  const [draggedQuickSwapItemId, setDraggedQuickSwapItemId] = useState<string | null>(null);
   const [draggedCharacterSheetZoneKey, setDraggedCharacterSheetZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
   const [activeCharacterSheetDropZone, setActiveCharacterSheetDropZone] =
@@ -510,13 +498,11 @@ export function CharacterManagerShell({
     aspectRatio: number;
   } | null>(null);
   const [referencePreviewSignedUrl, setReferencePreviewSignedUrl] = useState<{
-    slotKey: CharacterReferenceSlotKey;
+    itemId: string;
     url: string;
   } | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
-  const [pendingReferenceUploadSlotKey, setPendingReferenceUploadSlotKey] =
-    useState<CharacterReferenceSlotKey | null>(null);
   const [characterLibraryVisibleCount, setCharacterLibraryVisibleCount] = useState(
     CHARACTER_LIBRARY_SMOOTH_TARGET
   );
@@ -538,6 +524,24 @@ export function CharacterManagerShell({
     isDeletingCharacter ||
     isSavingProfileImage ||
     isSavingCharacterSheetPreset;
+
+  const {
+    activeItems: quickSwapItems,
+    archivedItems: quickSwapArchivedItems,
+    archivedCount: quickSwapArchivedCount,
+    hasMoreArchived: quickSwapHasMoreArchived,
+    loading: quickSwapLoading,
+    loadingArchived: quickSwapLoadingArchived,
+    mutating: quickSwapMutating,
+    error: quickSwapError,
+    appendFiles: appendQuickSwapFilesFromHook,
+    removeItem: removeQuickSwapItem,
+    restoreItem: restoreQuickSwapItem,
+    loadMoreArchived: loadMoreQuickSwapArchived,
+    clearError: clearQuickSwapError,
+  } = useCharacterQuickSwapDeck({
+    characterId: selectedCharacterId,
+  });
   const profileInitials = useMemo(() => {
     const words = characterName.trim().split(/\s+/).filter(Boolean).slice(0, 2);
     if (!words.length) return "NC";
@@ -595,47 +599,14 @@ export function CharacterManagerShell({
     () => characterSheetPresetAssignments ?? createEmptyCharacterSheetPresetAssignments(),
     [characterSheetPresetAssignments]
   );
-
-  const simpleReferenceSlotKeys = useMemo(
-    () =>
-      CHARACTER_MANAGER_SLOT_DEFINITIONS.map((slot) => slot.key).slice(
-        0,
-        SIMPLE_REFERENCE_IMAGE_LIMIT
-      ),
-    []
-  );
-
-  const availableReferenceSlotKeys = useMemo(
-    () => simpleReferenceSlotKeys.filter((slotKey) => !slots[slotKey]),
-    [simpleReferenceSlotKeys, slots]
-  );
-
-  const uploadedReferenceEntries = useMemo(
-    () =>
-      simpleReferenceSlotKeys
-        .map((slotKey) => {
-          const slotFile = slots[slotKey];
-          if (!slotFile) return null;
-          return {
-            slotKey,
-            slotFile,
-            slotLabel: CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey],
-          };
-        })
-        .filter(
-          (
-            entry
-          ): entry is {
-            slotKey: (typeof simpleReferenceSlotKeys)[number];
-            slotFile: NonNullable<(typeof slots)[(typeof simpleReferenceSlotKeys)[number]]>;
-            slotLabel: string;
-          } => Boolean(entry)
-        ),
-    [simpleReferenceSlotKeys, slots]
+  const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
+  const quickSwapRemainingActiveCapacity = useMemo(
+    () => Math.max(0, CHARACTER_QUICK_SWAP_ACTIVE_LIMIT - quickSwapActiveItems.length),
+    [quickSwapActiveItems.length]
   );
   const referencePreviewEntry =
-    referencePreview && uploadedReferenceEntries[referencePreview.index]
-      ? uploadedReferenceEntries[referencePreview.index]
+    referencePreview && quickSwapActiveItems[referencePreview.index]
+      ? quickSwapActiveItems[referencePreview.index]
       : null;
   const resolveCharacterGridPreviewUrl = useCallback(
     (url: string | null | undefined, cardLongEdgePx: number): string | null => {
@@ -661,10 +632,24 @@ export function CharacterManagerShell({
     },
     []
   );
-  const uploadedReferenceBySlotKey = useMemo(
-    () => new Map(uploadedReferenceEntries.map((entry) => [entry.slotKey, entry])),
-    [uploadedReferenceEntries]
+  const quickSwapItemById = useMemo(
+    () => new Map(quickSwapActiveItems.map((item) => [item.id, item])),
+    [quickSwapActiveItems]
   );
+  const quickSwapItemByMediaFileId = useMemo(
+    () => new Map(quickSwapActiveItems.map((item) => [item.mediaFileId, item])),
+    [quickSwapActiveItems]
+  );
+  const quickSwapItemByLegacySlotKey = useMemo(
+    () =>
+      new Map(
+        quickSwapActiveItems
+          .filter((item) => item.legacySlotKey)
+          .map((item) => [item.legacySlotKey as string, item])
+      ),
+    [quickSwapActiveItems]
+  );
+  const combinedError = error ?? quickSwapError;
   const isEmbeddedSurface = surface === "panel";
   const RootContainer: "div" | "main" = isEmbeddedSurface ? "div" : "main";
   const profileImageRenderSize = isEmbeddedSurface
@@ -676,12 +661,16 @@ export function CharacterManagerShell({
   const rootClassName = isEmbeddedSurface
     ? "character-manager-page character-manager-page--embedded"
     : "page page-wide character-manager-page";
+  const clearAllMessages = useCallback(() => {
+    clearMessages();
+    clearQuickSwapError();
+  }, [clearMessages, clearQuickSwapError]);
 
   useVisibleErrorTelemetry({
     source: "client.character_manager.error_banner",
     scope: "app",
     severity: "medium",
-    message: error,
+    message: combinedError,
     metadata: {
       surface,
       active_tab: activeTab,
@@ -705,13 +694,13 @@ export function CharacterManagerShell({
     });
     void getSignedMediaUrl({
       bucket: MEDIA_BUCKET,
-      storagePath: referencePreviewEntry.slotFile.storagePath,
+      storagePath: referencePreviewEntry.storagePath,
       expiresInSeconds: 3600,
       forceRefresh: false,
     }).then((signedUrl) => {
       if (!active || !signedUrl) return;
       setReferencePreviewSignedUrl({
-        slotKey: referencePreviewEntry.slotKey,
+        itemId: referencePreviewEntry.id,
         url: signedUrl,
       });
     });
@@ -837,30 +826,13 @@ export function CharacterManagerShell({
   }, []);
 
   const uploadSimpleFiles = useCallback(
-    async (
-      incomingFiles: FileList | File[],
-      preferredSlotKey: CharacterReferenceSlotKey | null = null
-    ) => {
+    async (incomingFiles: FileList | File[]) => {
       const files = Array.from(incomingFiles);
-      if (!files.length || pageBusy || !availableReferenceSlotKeys.length) return;
-
-      clearMessages();
-      const targetSlotKeys = [...availableReferenceSlotKeys];
-      if (preferredSlotKey && targetSlotKeys.includes(preferredSlotKey)) {
-        targetSlotKeys.splice(targetSlotKeys.indexOf(preferredSlotKey), 1);
-        targetSlotKeys.unshift(preferredSlotKey);
-      }
-
-      const assignableFiles = files.slice(0, targetSlotKeys.length);
-      for (let index = 0; index < assignableFiles.length; index += 1) {
-        const slotKey = targetSlotKeys[index];
-        const file = assignableFiles[index];
-        if (!slotKey || !file) continue;
-        // Keep mapping deterministic: first dropped files fill first open reference slots.
-        await setSlotFile(slotKey, file);
-      }
+      if (!files.length || pageBusy || quickSwapMutating) return;
+      clearAllMessages();
+      await appendQuickSwapFilesFromHook(files);
     },
-    [availableReferenceSlotKeys, clearMessages, pageBusy, setSlotFile]
+    [appendQuickSwapFilesFromHook, clearAllMessages, pageBusy, quickSwapMutating]
   );
 
   const isFileDragEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
@@ -881,22 +853,20 @@ export function CharacterManagerShell({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files ? Array.from(event.target.files) : [];
       event.target.value = "";
-      const targetSlotKey = pendingReferenceUploadSlotKey;
-      setPendingReferenceUploadSlotKey(null);
       if (!files.length) return;
-      void uploadSimpleFiles(files, targetSlotKey);
+      void uploadSimpleFiles(files);
     },
-    [pendingReferenceUploadSlotKey, uploadSimpleFiles]
+    [uploadSimpleFiles]
   );
 
   const openCharacterSheetPicker = useCallback(
     (dropZoneKey: CharacterSheetDropZoneKey) => {
       if (pageBusy) return;
-      clearMessages();
+      clearAllMessages();
       setPendingCharacterSheetUploadZoneKey(dropZoneKey);
       characterSheetFileInputRef.current?.click();
     },
-    [clearMessages, pageBusy]
+    [clearAllMessages, pageBusy]
   );
 
   const openProfilePicker = useCallback(() => {
@@ -906,19 +876,21 @@ export function CharacterManagerShell({
       setIsProfileAdjusterVisible(true);
       return;
     }
-    clearMessages();
+    clearAllMessages();
     profileFileInputRef.current?.click();
-  }, [clearMessages, isProfileAdjusterVisible, pageBusy, profileImageTransform, profileImageUrl]);
+  }, [
+    clearAllMessages,
+    isProfileAdjusterVisible,
+    pageBusy,
+    profileImageTransform,
+    profileImageUrl,
+  ]);
 
-  const openSimpleReferenceSlotPicker = useCallback(
-    (slotKey: CharacterReferenceSlotKey) => {
-      if (pageBusy || isSlotBusy(slotKey)) return;
-      clearMessages();
-      setPendingReferenceUploadSlotKey(slotKey);
-      simpleFileInputRef.current?.click();
-    },
-    [clearMessages, isSlotBusy, pageBusy]
-  );
+  const openQuickSwapUploadPicker = useCallback(() => {
+    if (pageBusy || quickSwapMutating) return;
+    clearAllMessages();
+    simpleFileInputRef.current?.click();
+  }, [clearAllMessages, pageBusy, quickSwapMutating]);
 
   const handleProfileSelection = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1029,28 +1001,25 @@ export function CharacterManagerShell({
   );
 
   const assignReferenceToCharacterSheetSlot = useCallback(
-    (
-      characterSheetSlotKey: CharacterSheetDropZoneKey,
-      referenceSlotKey: CharacterReferenceSlotKey
-    ) => {
+    (characterSheetSlotKey: CharacterSheetDropZoneKey, quickSwapItemId: string) => {
       if (!selectedCharacterId) return;
-      const referenceEntry = uploadedReferenceBySlotKey.get(referenceSlotKey);
+      const referenceEntry = quickSwapItemById.get(quickSwapItemId);
       if (!referenceEntry) return;
       const nextAssignments = {
         ...resolvedCharacterSheetPresetAssignments,
         [characterSheetSlotKey]: {
-          mediaFileId: referenceEntry.slotFile.mediaFileId,
-          storagePath: referenceEntry.slotFile.storagePath,
-          previewUrl: referenceEntry.slotFile.previewUrl,
+          mediaFileId: referenceEntry.mediaFileId,
+          storagePath: referenceEntry.storagePath,
+          previewUrl: referenceEntry.previewUrl,
         },
       };
       persistCharacterSheetPresetAssignments(nextAssignments);
     },
     [
       persistCharacterSheetPresetAssignments,
+      quickSwapItemById,
       resolvedCharacterSheetPresetAssignments,
       selectedCharacterId,
-      uploadedReferenceBySlotKey,
     ]
   );
 
@@ -1135,35 +1104,81 @@ export function CharacterManagerShell({
   const navigateReferencePreview = useCallback(
     (step: -1 | 1) => {
       setReferencePreview((current) => {
-        if (!current || uploadedReferenceEntries.length === 0) return current;
-        const total = uploadedReferenceEntries.length;
+        if (!current || quickSwapActiveItems.length === 0) return current;
+        const total = quickSwapActiveItems.length;
         const nextIndex = (current.index + step + total) % total;
-        const nextEntry = uploadedReferenceEntries[nextIndex];
         return {
           index: nextIndex,
-          aspectRatio: clampReferencePreviewAspectRatio(
-            nextEntry?.slotFile.validationNotes.aspectRatio ?? null
-          ),
+          aspectRatio: clampReferencePreviewAspectRatio(null),
         };
       });
     },
-    [uploadedReferenceEntries]
+    [quickSwapActiveItems]
+  );
+
+  const resolveDraggedQuickSwapItem = useCallback(
+    (transfer: DataTransfer): CharacterQuickSwapItem | null => {
+      const rawPayload = transfer.getData(DND_QUICK_SWAP_ITEM);
+      if (rawPayload) {
+        try {
+          const parsed = JSON.parse(rawPayload) as { id?: string };
+          const parsedId = parsed.id?.trim();
+          if (parsedId && quickSwapItemById.has(parsedId)) {
+            return quickSwapItemById.get(parsedId) ?? null;
+          }
+        } catch {
+          // Ignore malformed payload and continue with compatibility fallbacks.
+        }
+      }
+      const mediaId =
+        transfer.getData(DND_REFERENCE_SLOT_KEY)?.trim() ||
+        transfer.getData("text/plain")?.trim() ||
+        "";
+      if (!mediaId)
+        return draggedQuickSwapItemId
+          ? (quickSwapItemById.get(draggedQuickSwapItemId) ?? null)
+          : null;
+      if (quickSwapItemByMediaFileId.has(mediaId)) {
+        return quickSwapItemByMediaFileId.get(mediaId) ?? null;
+      }
+      if (quickSwapItemByLegacySlotKey.has(mediaId)) {
+        return quickSwapItemByLegacySlotKey.get(mediaId) ?? null;
+      }
+      return draggedQuickSwapItemId
+        ? (quickSwapItemById.get(draggedQuickSwapItemId) ?? null)
+        : null;
+    },
+    [
+      draggedQuickSwapItemId,
+      quickSwapItemById,
+      quickSwapItemByLegacySlotKey,
+      quickSwapItemByMediaFileId,
+    ]
   );
 
   const handleReferenceDragStart = useCallback(
-    (slotKey: CharacterReferenceSlotKey) => (event: React.DragEvent<HTMLElement>) => {
-      if (pageBusy || isSlotBusy(slotKey)) {
+    (item: CharacterQuickSwapItem) => (event: React.DragEvent<HTMLElement>) => {
+      if (pageBusy || quickSwapMutating) {
         event.preventDefault();
         return;
       }
       event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, slotKey);
-      event.dataTransfer.setData("text/plain", slotKey);
-      setDraggedReferenceSlotKey(slotKey);
+      event.dataTransfer.setData(
+        DND_QUICK_SWAP_ITEM,
+        JSON.stringify({
+          id: item.id,
+          mediaFileId: item.mediaFileId,
+          storagePath: item.storagePath,
+          previewUrl: item.previewUrl,
+        })
+      );
+      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, item.mediaFileId);
+      event.dataTransfer.setData("text/plain", item.mediaFileId);
+      setDraggedQuickSwapItemId(item.id);
       setDraggedCharacterSheetZoneKey(null);
       applyDragGhost(event);
     },
-    [applyDragGhost, isSlotBusy, pageBusy]
+    [applyDragGhost, pageBusy, quickSwapMutating]
   );
 
   const handleCharacterSheetDragStart = useCallback(
@@ -1182,7 +1197,7 @@ export function CharacterManagerShell({
       event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, assignedReference.mediaFileId);
       event.dataTransfer.setData("text/plain", assignedReference.mediaFileId);
       setDraggedCharacterSheetZoneKey(characterSheetSlotKey);
-      setDraggedReferenceSlotKey(null);
+      setDraggedQuickSwapItemId(null);
       applyDragGhost(event);
     },
     [applyDragGhost, pageBusy, resolvedCharacterSheetPresetAssignments]
@@ -1196,7 +1211,7 @@ export function CharacterManagerShell({
       ghost.remove();
       dragGhostMapRef.current.delete(dragNode);
     }
-    setDraggedReferenceSlotKey(null);
+    setDraggedQuickSwapItemId(null);
     setDraggedCharacterSheetZoneKey(null);
     setActiveCharacterSheetDropZone(null);
   }, []);
@@ -1208,28 +1223,19 @@ export function CharacterManagerShell({
         (event.dataTransfer.getData(DND_CHARACTER_SHEET_ZONE_KEY) as
           | CharacterSheetDropZoneKey
           | "") || draggedCharacterSheetZoneKey;
-      const droppedSlotKey =
-        (event.dataTransfer.getData(DND_REFERENCE_SLOT_KEY) as CharacterReferenceSlotKey | "") ||
-        (event.dataTransfer.getData("text/plain") as CharacterReferenceSlotKey | "") ||
-        draggedReferenceSlotKey;
-      const normalizedDroppedSlotKey =
-        typeof droppedSlotKey === "string" && droppedSlotKey.length > 0
-          ? (droppedSlotKey as CharacterReferenceSlotKey)
-          : null;
+      const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
       const hasExternalImageReference = hasDroppedImageReferenceTransfer(event.dataTransfer);
       const isInternalSheetDrag =
         Boolean(sourceCharacterSheetZoneKey) &&
         CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey);
-      const isInternalReferenceDrag =
-        normalizedDroppedSlotKey !== null &&
-        uploadedReferenceBySlotKey.has(normalizedDroppedSlotKey);
+      const isInternalReferenceDrag = Boolean(quickSwapItem);
       if (!isInternalSheetDrag && !isInternalReferenceDrag && !hasExternalImageReference) return;
       event.preventDefault();
       event.dataTransfer.dropEffect =
         isInternalSheetDrag || isInternalReferenceDrag ? "move" : "copy";
       setActiveCharacterSheetDropZone(characterSheetSlotKey);
     },
-    [draggedCharacterSheetZoneKey, draggedReferenceSlotKey, pageBusy, uploadedReferenceBySlotKey]
+    [draggedCharacterSheetZoneKey, pageBusy, resolveDraggedQuickSwapItem]
   );
 
   const clearCharacterSheetAssignment = useCallback(
@@ -1277,12 +1283,9 @@ export function CharacterManagerShell({
         return;
       }
 
-      const droppedSlotKey =
-        (event.dataTransfer.getData(DND_REFERENCE_SLOT_KEY) as CharacterReferenceSlotKey | "") ||
-        (event.dataTransfer.getData("text/plain") as CharacterReferenceSlotKey | "") ||
-        draggedReferenceSlotKey;
-      if (droppedSlotKey && uploadedReferenceBySlotKey.has(droppedSlotKey)) {
-        assignReferenceToCharacterSheetSlot(characterSheetSlotKey, droppedSlotKey);
+      const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
+      if (quickSwapItem) {
+        assignReferenceToCharacterSheetSlot(characterSheetSlotKey, quickSwapItem.id);
         return;
       }
 
@@ -1306,12 +1309,11 @@ export function CharacterManagerShell({
     [
       assignReferenceToCharacterSheetSlot,
       draggedCharacterSheetZoneKey,
-      draggedReferenceSlotKey,
       pageBusy,
       persistCharacterSheetPresetAssignments,
+      resolveDraggedQuickSwapItem,
       resolvedCharacterSheetPresetAssignments,
       setCharacterSheetFileFromDroppedReference,
-      uploadedReferenceBySlotKey,
     ]
   );
 
@@ -1481,10 +1483,10 @@ export function CharacterManagerShell({
         </div>
       </section>
 
-      {error ? (
+      {combinedError ? (
         <div className="character-feedback error" role="status">
           <XCircle size={16} weight="fill" />
-          <span>{error}</span>
+          <span>{combinedError}</span>
         </div>
       ) : null}
       <p className="sr-only" role="status" aria-live="polite">
@@ -1723,15 +1725,42 @@ export function CharacterManagerShell({
                 </div>
               </section>
 
-              <section
-                className={`character-section character-section--reference-drop ${
-                  isQuickSwapCollapsed ? "is-collapsed" : ""
-                }`}
+              <CharacterQuickSwapDeckSection
+                beginnerMode={effectiveBeginnerMode}
+                isCollapsed={isQuickSwapCollapsed}
+                contentId={quickSwapContentId}
+                pageBusy={pageBusy || quickSwapMutating || quickSwapLoading}
+                isDropActive={isDropActive}
+                remainingCapacityHint={quickSwapRemainingActiveCapacity}
+                activeItems={quickSwapActiveItems}
+                archivedItems={quickSwapArchivedItems}
+                archivedCount={quickSwapArchivedCount}
+                hasMoreArchived={quickSwapHasMoreArchived}
+                loadingArchived={quickSwapLoadingArchived}
+                onToggleCollapsed={() => {
+                  fileDragDepthRef.current = 0;
+                  setIsDropActive(false);
+                  setIsQuickSwapCollapsed((current) => !current);
+                }}
+                onOpenUploadPicker={openQuickSwapUploadPicker}
+                onRemoveItem={(itemId) => {
+                  void removeQuickSwapItem(itemId);
+                }}
+                onRestoreArchivedItem={(itemId) => {
+                  void restoreQuickSwapItem(itemId);
+                }}
+                onLoadMoreArchived={() => {
+                  void loadMoreQuickSwapArchived();
+                }}
+                onReferenceDragStart={handleReferenceDragStart}
+                onReferenceDragEnd={handleReferenceDragEnd}
+                onOpenReferencePreview={openReferencePreview}
+                resolveCharacterGridPreviewUrl={resolveCharacterGridPreviewUrl}
                 onDragEnter={(event) => {
                   if (isQuickSwapCollapsed) return;
                   if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   event.preventDefault();
-                  if (pageBusy || !availableReferenceSlotKeys.length) return;
+                  if (pageBusy || quickSwapMutating) return;
                   fileDragDepthRef.current += 1;
                   setIsDropActive(true);
                 }}
@@ -1739,7 +1768,7 @@ export function CharacterManagerShell({
                   if (isQuickSwapCollapsed) return;
                   if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   event.preventDefault();
-                  if (pageBusy || !availableReferenceSlotKeys.length) {
+                  if (pageBusy || quickSwapMutating) {
                     event.dataTransfer.dropEffect = "none";
                     return;
                   }
@@ -1749,7 +1778,7 @@ export function CharacterManagerShell({
                 onDragLeave={(event) => {
                   if (isQuickSwapCollapsed) return;
                   if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
-                  if (pageBusy || !availableReferenceSlotKeys.length) return;
+                  if (pageBusy || quickSwapMutating) return;
                   fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
                   if (fileDragDepthRef.current === 0) {
                     setIsDropActive(false);
@@ -1761,7 +1790,7 @@ export function CharacterManagerShell({
                   event.preventDefault();
                   fileDragDepthRef.current = 0;
                   setIsDropActive(false);
-                  if (pageBusy || !availableReferenceSlotKeys.length) return;
+                  if (pageBusy || quickSwapMutating) return;
                   const files = event.dataTransfer?.files;
                   if (files?.length) {
                     void uploadSimpleFiles(files);
@@ -1783,141 +1812,7 @@ export function CharacterManagerShell({
                   }
                   void addDroppedReferenceToQuickSwap(droppedReference);
                 }}
-              >
-                <div className="character-section-head">
-                  <div className="character-section-title-row">
-                    {effectiveBeginnerMode ? (
-                      <span className="character-step-badge" aria-hidden="true">
-                        2
-                      </span>
-                    ) : null}
-                    <div className="character-section-title-copy">
-                      <h3 className="character-section-title">QuickSwap Deck</h3>
-                      {effectiveBeginnerMode && !isQuickSwapCollapsed ? (
-                        <p className="character-section-helper tiny subdued">
-                          The quick swap deck is a small library of images you can quickly access to
-                          swap out your character&apos;s style on the fly.
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="character-section-head-actions">
-                    <button
-                      type="button"
-                      className="ghost-btn mini character-section-collapse-btn"
-                      aria-label={`${isQuickSwapCollapsed ? "Expand" : "Collapse"} QuickSwap Deck`}
-                      aria-expanded={!isQuickSwapCollapsed}
-                      aria-controls={quickSwapContentId}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        fileDragDepthRef.current = 0;
-                        setIsDropActive(false);
-                        setIsQuickSwapCollapsed((current) => !current);
-                      }}
-                    >
-                      <CaretDown
-                        size={16}
-                        weight="bold"
-                        className="character-section-collapse-icon"
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </div>
-                </div>
-                <div
-                  id={quickSwapContentId}
-                  className="character-reference-drop-content"
-                  hidden={isQuickSwapCollapsed}
-                >
-                  {availableReferenceSlotKeys.length && isDropActive ? (
-                    <div className="character-reference-drop-overlay" aria-hidden="true">
-                      <div className="character-reference-drop-overlay-content">
-                        <UploadSimple
-                          size={34}
-                          weight="bold"
-                          className="character-reference-drop-overlay-icon"
-                        />
-                        <p className="character-reference-drop-overlay-title">
-                          Drop reference images here
-                        </p>
-                        <p className="tiny subdued">
-                          {`Up to ${availableReferenceSlotKeys.length} more image(s) can be added (max ${SIMPLE_REFERENCE_IMAGE_LIMIT})`}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div
-                    className="character-reference-upload-grid character-reference-upload-grid--drop-card"
-                    role="list"
-                    aria-label="Uploaded references"
-                  >
-                    {uploadedReferenceEntries.map((entry, index) => (
-                      <article
-                        key={entry.slotKey}
-                        role="listitem"
-                        className={`character-reference-upload-card ${
-                          draggedReferenceSlotKey === entry.slotKey ? "is-dragging" : ""
-                        }`}
-                        draggable={!pageBusy && !isSlotBusy(entry.slotKey)}
-                        onDragStart={handleReferenceDragStart(entry.slotKey)}
-                        onDragEnd={handleReferenceDragEnd}
-                      >
-                        <button
-                          type="button"
-                          className="character-list-delete-btn character-reference-delete-btn"
-                          aria-label={`Remove reference ${index + 1}`}
-                          onClick={() => {
-                            void clearSlot(entry.slotKey);
-                          }}
-                          disabled={pageBusy || isSlotBusy(entry.slotKey)}
-                        >
-                          <Trash size={12} weight="bold" />
-                        </button>
-                        <div
-                          className="character-reference-upload-image-wrap"
-                          onDoubleClick={() => {
-                            openReferencePreview(index, entry.slotFile.validationNotes.aspectRatio);
-                          }}
-                          title="Double-click to preview this reference image"
-                        >
-                          <Image
-                            src={
-                              resolveCharacterGridPreviewUrl(entry.slotFile.previewUrl, 320) ??
-                              entry.slotFile.previewUrl
-                            }
-                            alt={`Reference ${index + 1}: ${entry.slotLabel}`}
-                            className="character-reference-upload-image"
-                            width={320}
-                            height={240}
-                            unoptimized
-                          />
-                        </div>
-                      </article>
-                    ))}
-                    {availableReferenceSlotKeys.map((slotKey) => (
-                      <button
-                        key={`reference-upload-placeholder-${slotKey}`}
-                        type="button"
-                        className="character-reference-upload-placeholder"
-                        onClick={() => openSimpleReferenceSlotPicker(slotKey)}
-                        disabled={pageBusy || isSlotBusy(slotKey)}
-                        aria-label={`Upload ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]} reference image`}
-                      >
-                        <UploadSimple
-                          size={16}
-                          weight="bold"
-                          className="character-reference-upload-placeholder-icon"
-                          aria-hidden="true"
-                        />
-                        <span className="character-reference-upload-placeholder-label">
-                          Click to upload
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </section>
+              />
             </div>
 
             <div className="character-create-secondary-column">
@@ -2219,11 +2114,11 @@ export function CharacterManagerShell({
             <Image
               src={
                 referencePreviewSignedUrl &&
-                referencePreviewSignedUrl.slotKey === referencePreviewEntry.slotKey
+                referencePreviewSignedUrl.itemId === referencePreviewEntry.id
                   ? referencePreviewSignedUrl.url
-                  : referencePreviewEntry.slotFile.previewUrl
+                  : referencePreviewEntry.previewUrl
               }
-              alt={`Reference ${referencePreview.index + 1}: ${referencePreviewEntry.slotLabel}`}
+              alt={`Reference ${referencePreview.index + 1}`}
               className="character-reference-preview-image"
               width={1600}
               height={1600}
@@ -2233,8 +2128,8 @@ export function CharacterManagerShell({
                 const clampedAspectRatio = clampReferencePreviewAspectRatio(loadedAspectRatio);
                 setReferencePreview((current) => {
                   if (!current) return current;
-                  const currentEntry = uploadedReferenceEntries[current.index];
-                  if (!currentEntry || currentEntry.slotKey !== referencePreviewEntry.slotKey) {
+                  const currentEntry = quickSwapActiveItems[current.index];
+                  if (!currentEntry || currentEntry.id !== referencePreviewEntry.id) {
                     return current;
                   }
                   if (Math.abs(current.aspectRatio - clampedAspectRatio) < 0.001) return current;

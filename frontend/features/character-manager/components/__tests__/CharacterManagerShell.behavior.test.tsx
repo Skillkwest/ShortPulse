@@ -1,6 +1,6 @@
 /**
  * Character Manager interaction tests.
- * Verifies Character Sheet drag/drop behavior and 10-reference intake constraints.
+ * Verifies Character Sheet drag/drop behavior and dynamic QuickSwap deck intake.
  */
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -122,6 +122,40 @@ const createInitialSlots = (): MockCharacterSlotFileMap => ({
   front_full: createMockSlotFile("front_full", "https://example.com/front-full-initial.png"),
   side_profile: createMockSlotFile("side_profile", "https://example.com/side-profile-initial.png"),
 });
+
+type MockQuickSwapItem = {
+  id: string;
+  mediaFileId: string;
+  storagePath: string;
+  previewUrl: string;
+  status: "active" | "archived";
+  createdAt: string;
+  archivedAt: string | null;
+  legacySlotKey: MockCharacterReferenceSlotKey | null;
+};
+
+const createInitialQuickSwapItems = (): MockQuickSwapItem[] => [
+  {
+    id: "qs-1",
+    mediaFileId: "media-front-full",
+    storagePath: "quick/front-full.png",
+    previewUrl: "https://example.com/front-full-initial.png",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    archivedAt: null,
+    legacySlotKey: "front_full",
+  },
+  {
+    id: "qs-2",
+    mediaFileId: "media-side-profile",
+    storagePath: "quick/side-profile.png",
+    previewUrl: "https://example.com/side-profile-initial.png",
+    status: "active",
+    createdAt: "2026-01-01T00:00:01.000Z",
+    archivedAt: null,
+    legacySlotKey: "side_profile",
+  },
+];
 
 const createInitialPresetMap = (): CharacterSheetPresetMap =>
   createDefaultCharacterSheetPresetState().presets;
@@ -306,6 +340,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         isDeletingCharacter: false,
         isSwitchingCharacter: false,
         isSavingProfileImage: false,
+        isSavingCharacterSheetPreset: false,
         setCharacterName: () => undefined,
         setCharacterDescription: () => undefined,
         setProfileImageFile: async () => undefined,
@@ -379,6 +414,56 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         deleteCharacter: async () => true,
         isSlotBusy: () => false,
         clearMessages: () => undefined,
+      };
+    },
+  };
+});
+
+vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
+  const React = await import("react");
+
+  return {
+    useCharacterQuickSwapDeck: () => {
+      const [activeItems, setActiveItems] = React.useState<MockQuickSwapItem[]>(() =>
+        createInitialQuickSwapItems()
+      );
+      const [error, setError] = React.useState<string | null>(null);
+      const uploadCounterRef = React.useRef(0);
+
+      return {
+        activeItems,
+        archivedItems: [] as MockQuickSwapItem[],
+        archivedCount: 0,
+        loading: false,
+        loadingArchived: false,
+        mutating: false,
+        error,
+        hasMoreArchived: false,
+        appendFiles: async (files: File[]) => {
+          uploadCounterRef.current += 1;
+          setActiveItems((previous) => [
+            ...previous,
+            ...files.map((file, index) => ({
+              id: `qs-upload-${uploadCounterRef.current}-${index + 1}-${crypto.randomUUID()}`,
+              mediaFileId: `media-upload-${uploadCounterRef.current}-${index + 1}`,
+              storagePath: `quick/upload-${uploadCounterRef.current}-${index + 1}.png`,
+              previewUrl: `https://example.com/upload-${uploadCounterRef.current}-${index + 1}.png`,
+              status: "active" as const,
+              createdAt: new Date().toISOString(),
+              archivedAt: null,
+              legacySlotKey: null,
+            })),
+          ]);
+          return true;
+        },
+        removeItem: async (itemId: string) => {
+          setActiveItems((previous) => previous.filter((item) => item.id !== itemId));
+          return true;
+        },
+        restoreItem: async () => true,
+        loadMoreArchived: async () => undefined,
+        refresh: async () => undefined,
+        clearError: () => setError(null),
       };
     },
   };
@@ -471,6 +556,22 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
+  it("keeps legacy slot-key drop compatibility for Character Sheet assignment", async () => {
+    render(<CharacterManagerShell />);
+
+    const portraitZone = getCharacterSheetZone("Portrait");
+    const legacySlotDrag = createDataTransfer();
+    legacySlotDrag.setData("application/x-shortpulse-reference-slot-key", "front_full");
+    legacySlotDrag.setData("text/plain", "front_full");
+
+    fireEvent.dragOver(portraitZone, { dataTransfer: legacySlotDrag });
+    fireEvent.drop(portraitZone, { dataTransfer: legacySlotDrag });
+
+    await waitFor(() => {
+      expect(getZoneImageSrc("Portrait")).toBe("https://example.com/front-full-initial.png");
+    });
+  });
+
   it("renders preset tabs 1 through 4", () => {
     render(<CharacterManagerShell />);
 
@@ -554,14 +655,14 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("limits persisted uploaded references to ten cards", async () => {
+  it("supports uploading beyond ten quickswap references", async () => {
     render(<CharacterManagerShell />);
 
     const referenceUploadGrid = screen.getByRole("list", {
       name: /Uploaded references/i,
     });
     const files = Array.from(
-      { length: 10 },
+      { length: 12 },
       (_, index) => new File([`file-${index + 1}`], `file-${index + 1}.png`, { type: "image/png" })
     );
     fireEvent.drop(referenceUploadGrid, {
@@ -569,19 +670,17 @@ describe("CharacterManagerShell behavior", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(14);
     });
   });
 
-  it("uploads into the clicked empty reference slot from file picker", async () => {
+  it("uploads into quickswap from file picker", async () => {
     render(<CharacterManagerShell />);
 
-    const topDownSlotButtonName = /Upload Top-Down View reference image/i;
-    const backFullSlotButtonName = /Upload Back Full Body reference image/i;
-    const topDownSlotButton = screen.getByRole("button", {
-      name: topDownSlotButtonName,
+    const uploadButton = screen.getByRole("button", {
+      name: /Upload quick swap reference image/i,
     });
-    fireEvent.click(topDownSlotButton);
+    fireEvent.click(uploadButton);
 
     const simpleUploadInput = document.querySelector(
       'input[type="file"][accept="image/*"][multiple]'
@@ -594,16 +693,6 @@ describe("CharacterManagerShell behavior", () => {
     fireEvent.change(simpleUploadInput, { target: { files: [uploadFile] } });
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole("button", {
-          name: topDownSlotButtonName,
-        })
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", {
-          name: backFullSlotButtonName,
-        })
-      ).toBeInTheDocument();
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
     });
   });
@@ -615,7 +704,7 @@ describe("CharacterManagerShell behavior", () => {
       name: /Uploaded references/i,
     });
     const files = Array.from(
-      { length: 8 },
+      { length: 12 },
       (_, index) => new File([`file-${index + 1}`], `file-${index + 1}.png`, { type: "image/png" })
     );
     fireEvent.drop(referenceUploadGrid, {
@@ -623,7 +712,7 @@ describe("CharacterManagerShell behavior", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(14);
     });
 
     fireEvent.click(getCharacterSheetZone("Action or Expression"));
@@ -639,7 +728,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(getZoneImageSrc("Action or Expression")).toBe(
         "https://example.com/preset-1-back_shot-1.png"
       );
-      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(14);
     });
   });
 
@@ -858,7 +947,7 @@ describe("CharacterManagerShell behavior", () => {
       const previewImage = document.querySelector(".character-reference-preview-image");
       expect(previewImage).toBeTruthy();
       expect(previewImage?.getAttribute("src")).toBe(
-        "https://example.com/full-quality/front_full.png"
+        "https://example.com/full-quality/quick/front-full.png"
       );
     });
   });

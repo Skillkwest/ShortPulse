@@ -6,7 +6,11 @@ import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
-import { createEmptyCharacterSheetAssignments } from "../../constants";
+import {
+  createDefaultCharacterSheetPresetState,
+  createEmptyCharacterSheetAssignments,
+  createEmptyCharacterSheetPresetAssignments,
+} from "../../constants";
 
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => <div data-testid="mock-next-image" {...props} />,
@@ -36,6 +40,9 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     characterName: "Taylor",
     characterDescription: "",
     characterSheetAssignments: createEmptyCharacterSheetAssignments(),
+    activeCharacterSheetPresetId: "1",
+    characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
+    characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
     profileImageUrl: null,
     profileImageTransform: {
       zoom: 1,
@@ -50,19 +57,39 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     isDeletingCharacter: false,
     isSwitchingCharacter: false,
     isSavingProfileImage: false,
+    isSavingCharacterSheetPreset: false,
     setCharacterName: () => undefined,
     setCharacterDescription: () => undefined,
     setProfileImageFile: async () => undefined,
     saveProfileImageTransform: async () => true,
     clearProfileImage: async () => undefined,
     saveCharacterSheetAssignments: async () => true,
-    setSlotFile: async () => undefined,
-    clearSlot: async () => undefined,
+    setActiveCharacterSheetPreset: async () => true,
+    saveCharacterSheetPresetAssignments: async () => true,
+    setCharacterSheetPresetFile: async () => true,
     createCharacter: async () => undefined,
     selectCharacter: async () => undefined,
     deleteCharacter: async () => true,
-    isSlotBusy: () => false,
     clearMessages: () => undefined,
+  }),
+}));
+
+vi.mock("../../hooks/useCharacterQuickSwapDeck", () => ({
+  useCharacterQuickSwapDeck: () => ({
+    activeItems: [],
+    archivedItems: [],
+    archivedCount: 0,
+    loading: false,
+    loadingArchived: false,
+    mutating: false,
+    error: null,
+    hasMoreArchived: false,
+    appendFiles: async () => true,
+    removeItem: async () => true,
+    restoreItem: async () => true,
+    loadMoreArchived: async () => undefined,
+    refresh: async () => undefined,
+    clearError: () => undefined,
   }),
 }));
 

@@ -40,6 +40,29 @@ const createImageOptions: ModelOption[] = [
   },
 ];
 
+const videoReferenceOptions: ModelOption[] = [
+  {
+    value: "fal-ai/veo3.1/first-last-frame-to-video",
+    label: "Google Veo 3.1 (First/Last Frame)",
+    mediaType: "image-to-video",
+  },
+  {
+    value: "fal-ai/veo3.1/image-to-video",
+    label: "Google Veo 3.1",
+    mediaType: "image-to-video",
+  },
+  {
+    value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    label: "Seedance 1.5 Pro",
+    mediaType: "image-to-video",
+  },
+  {
+    value: "fal-ai/kling-video/v3/pro/image-to-video",
+    label: "Kling 3.0",
+    mediaType: "image-to-video",
+  },
+];
+
 const getModelConfig = (id: string) => {
   if (
     id === "fal-ai/flux-2/klein/9b" ||
@@ -145,5 +168,32 @@ describe("modelSelectionPolicy", () => {
     });
 
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
+  });
+
+  it("excludes first/last-frame and Kling models from standard video reference mode", () => {
+    const values = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "standard",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(values).toEqual([
+      "fal-ai/veo3.1/image-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    ]);
+  });
+
+  it("keeps keyframes mode restricted to the first/last-frame model", () => {
+    const values = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "keyframes",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(values).toEqual(["fal-ai/veo3.1/first-last-frame-to-video"]);
   });
 });

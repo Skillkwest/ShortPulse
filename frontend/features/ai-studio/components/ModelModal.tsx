@@ -295,19 +295,34 @@ const contextTooltipTagMap: Record<ModelModalContext, string> = {
 };
 
 const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "reference-image": ["Black Forest Labs", "Google", "ByteDance"],
+  "text-image": ["ByteDance", "Google", "Black Forest Labs"],
+  "reference-image": ["ByteDance", "Google", "Black Forest Labs"],
+  "reference-video": ["Google DeepMind", "ByteDance", "Kling AI"],
+  "reference-keyframes": ["Google DeepMind"],
 };
 
 const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
+  "text-image": [
+    "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    "fal-ai/nano-banana-2",
+    "fal-ai/nano-banana-pro",
+    "fal-ai/flux-2/klein/9b",
+  ],
   "reference-image": [
-    "fal/flux-2-pro/edit",
-    "fal/flux-2/edit",
+    "fal-ai/bytedance/seedream/v4.5/edit",
+    "fal-ai/bytedance/seedream/v5/lite/edit",
     "fal-ai/nano-banana/edit",
     "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
-    "fal-ai/bytedance/seedream/v5/lite/edit",
-    "fal-ai/bytedance/seedream/v4.5/edit",
+    "fal/flux-2/edit",
+    "fal/flux-2-pro/edit",
   ],
+  "reference-video": [
+    "fal-ai/veo3.1/image-to-video",
+    "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+  ],
+  "reference-keyframes": ["fal-ai/veo3.1/first-last-frame-to-video"],
 };
 
 const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
@@ -390,60 +405,45 @@ export function ModelModal({
   );
 
   const orderedOptions = useMemo(() => {
-    if (context === "reference-image") {
-      const providerPriority = providerPriorityByContext[context] ?? [];
-      const modelPriority = modelPriorityByContext[context] ?? [];
-      const providerRank = new Map(providerPriority.map((provider, index) => [provider, index]));
-      const modelRank = new Map(modelPriority.map((value, index) => [value, index]));
-      const originalIndex = new Map(filteredOptions.map((option, index) => [option.value, index]));
-
-      return [...filteredOptions].sort((a, b) => {
-        const providerA = modelMeta[a.value]?.provider ?? "Other";
-        const providerB = modelMeta[b.value]?.provider ?? "Other";
-        const providerDiff =
-          (providerRank.get(providerA) ?? Number.MAX_SAFE_INTEGER) -
-          (providerRank.get(providerB) ?? Number.MAX_SAFE_INTEGER);
-
-        if (providerDiff !== 0) {
-          return providerDiff;
-        }
-        if (providerA !== providerB) {
-          return providerA.localeCompare(providerB);
-        }
-
-        const modelDiff =
-          (modelRank.get(a.value) ?? Number.MAX_SAFE_INTEGER) -
-          (modelRank.get(b.value) ?? Number.MAX_SAFE_INTEGER);
-        if (modelDiff !== 0) {
-          return modelDiff;
-        }
-        return (originalIndex.get(a.value) ?? 0) - (originalIndex.get(b.value) ?? 0);
-      });
+    if (!context) {
+      return filteredOptions;
+    }
+    const providerPriority = providerPriorityByContext[context] ?? [];
+    const modelPriority = modelPriorityByContext[context] ?? [];
+    if (!providerPriority.length && !modelPriority.length) {
+      return filteredOptions;
     }
 
-    const fluxOrder = [
-      "fal-ai/flux-2/klein/9b",
-      "fal/flux-2",
-      "fal/flux-2-pro",
-      "fal/flux-2-pro/edit",
-    ];
-    const fluxOptions = fluxOrder
-      .map((value) => filteredOptions.find((option) => option.value === value))
-      .filter((item): item is ModelOption => Boolean(item));
-    const googleOrder = [
-      "fal-ai/nano-banana",
-      "fal-ai/nano-banana/edit",
-      "fal-ai/nano-banana-2",
-      "fal-ai/nano-banana-2/edit",
-      "fal-ai/nano-banana-pro",
-      "fal-ai/nano-banana-pro/edit",
-    ];
-    const googleOptions = googleOrder
-      .map((value) => filteredOptions.find((option) => option.value === value))
-      .filter((item): item is ModelOption => Boolean(item));
-    const handledValues = new Set([...fluxOrder, ...googleOrder]);
-    const otherOptions = filteredOptions.filter((option) => !handledValues.has(option.value));
-    return [...fluxOptions, ...googleOptions, ...otherOptions];
+    const providerRank = new Map(providerPriority.map((provider, index) => [provider, index]));
+    const modelRank = new Map(modelPriority.map((value, index) => [value, index]));
+    const originalIndex = new Map(filteredOptions.map((option, index) => [option.value, index]));
+
+    return [...filteredOptions].sort((a, b) => {
+      const providerA = modelMeta[a.value]?.provider ?? "Other";
+      const providerB = modelMeta[b.value]?.provider ?? "Other";
+      const providerDiff =
+        (providerRank.get(providerA) ?? Number.MAX_SAFE_INTEGER) -
+        (providerRank.get(providerB) ?? Number.MAX_SAFE_INTEGER);
+      if (providerDiff !== 0) {
+        return providerDiff;
+      }
+      if (providerA !== providerB) {
+        return providerA.localeCompare(providerB);
+      }
+
+      const modelDiff =
+        (modelRank.get(a.value) ?? Number.MAX_SAFE_INTEGER) -
+        (modelRank.get(b.value) ?? Number.MAX_SAFE_INTEGER);
+      if (modelDiff !== 0) {
+        return modelDiff;
+      }
+
+      const labelDiff = a.label.localeCompare(b.label);
+      if (labelDiff !== 0) {
+        return labelDiff;
+      }
+      return (originalIndex.get(a.value) ?? 0) - (originalIndex.get(b.value) ?? 0);
+    });
   }, [context, filteredOptions]);
   const modalTitle = context && contextTitleMap[context] ? contextTitleMap[context] : "Models";
   const tooltipContextTag = context ? contextTooltipTagMap[context] : undefined;

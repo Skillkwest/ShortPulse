@@ -81,7 +81,10 @@ export const resolveAiStudioAllowedModelOptions = ({
       );
     }
     return selectableOptions.filter(
-      (option) => option.mediaType === "image-to-video" && !option.value.includes("kling-video")
+      (option) =>
+        option.mediaType === "image-to-video" &&
+        !option.value.includes("kling-video") &&
+        option.value !== "fal-ai/veo3.1/first-last-frame-to-video"
     );
   }
 

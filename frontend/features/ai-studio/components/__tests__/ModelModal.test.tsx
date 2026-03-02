@@ -23,6 +23,11 @@ const baseOptions: ModelOption[] = [
   },
 ];
 
+const readChipTitles = (container: HTMLElement): string[] =>
+  Array.from(container.querySelectorAll(".model-chip-title"))
+    .map((element) => element.textContent?.trim() ?? "")
+    .filter(Boolean);
+
 describe("ModelModal", () => {
   it("hides FLUX.2 and Nano Banana chips in text-image context", () => {
     render(
@@ -39,6 +44,114 @@ describe("ModelModal", () => {
     expect(screen.queryByRole("button", { name: /FLUX\.2/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Nano Banana/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Seedream 4\.5/i })).toBeInTheDocument();
+  });
+
+  it("orders text-image chips by provider-grouped workflow priority", () => {
+    const options: ModelOption[] = [
+      { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
+      {
+        value: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+        label: "Seedream 5 Lite",
+        mediaType: "image",
+      },
+      { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
+      { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
+      {
+        value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        label: "Seedream 4.5",
+        mediaType: "image",
+      },
+    ];
+    const { container } = render(
+      <ModelModal
+        isOpen
+        position={null}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="text-image"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual([
+      "Seedream 4.5",
+      "Seedream 5 Lite",
+      "Nano Banana 2",
+      "Nano Banana Pro",
+      "FLUX.2 Lite",
+    ]);
+  });
+
+  it("orders reference-image chips by provider-grouped workflow priority", () => {
+    const options: ModelOption[] = [
+      { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
+      { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro", mediaType: "image" },
+      { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
+      {
+        value: "fal-ai/bytedance/seedream/v5/lite/edit",
+        label: "Seedream 5 Lite",
+        mediaType: "image",
+      },
+      { value: "fal/flux-2/edit", label: "FLUX.2", mediaType: "image" },
+      { value: "fal-ai/nano-banana/edit", label: "Nano Banana", mediaType: "image" },
+      {
+        value: "fal-ai/bytedance/seedream/v4.5/edit",
+        label: "Seedream 4.5",
+        mediaType: "image",
+      },
+    ];
+    const { container } = render(
+      <ModelModal
+        isOpen
+        position={null}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="reference-image"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual([
+      "Seedream 4.5",
+      "Seedream 5 Lite",
+      "Nano Banana",
+      "Nano Banana 2",
+      "Nano Banana Pro",
+      "FLUX.2",
+      "FLUX.2 Pro",
+    ]);
+  });
+
+  it("orders reference-video chips by provider-grouped workflow priority", () => {
+    const options: ModelOption[] = [
+      {
+        value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+        label: "Seedance 1.5 Pro",
+        mediaType: "image-to-video",
+      },
+      {
+        value: "fal-ai/kling-video/v3/pro/image-to-video",
+        label: "Kling 3.0",
+        mediaType: "image-to-video",
+      },
+      {
+        value: "fal-ai/veo3.1/image-to-video",
+        label: "Google Veo 3.1",
+        mediaType: "image-to-video",
+      },
+    ];
+    const { container } = render(
+      <ModelModal
+        isOpen
+        position={null}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="reference-video"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual(["Google Veo 3.1", "Seedance 1.5 Pro", "Kling 3.0"]);
   });
 
   it("keeps FLUX.2 and Nano Banana chips visible outside text-image context", () => {

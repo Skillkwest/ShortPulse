@@ -348,6 +348,9 @@ export const executeGenerationRecovery = async ({
       attempts,
       effectiveMaxAttempts,
       nextDelaySeconds,
+      generationAgeSeconds,
+      exhaustMinAgeSeconds: runtimeFlags.noMediaExhaustMinAgeSeconds,
+      enforceMinAgeForExhaustion: true,
     });
     await updateGenerationRecoveryState({
       generation,

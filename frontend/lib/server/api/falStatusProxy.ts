@@ -5,11 +5,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
+import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveProviderRequestOwnership, settleGenerationOutcome } from "./generationBilling";
 import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 import {
   buildFalStatusErrorPayload,
+  buildFalStatusTransientPayload,
   probeResponseUrlsForMedia,
   readJsonSafe,
   type JsonObject,
@@ -233,6 +235,42 @@ export const createFalStatusHandler = ({
         stage: "queue_base_url_validation",
       });
     }
+    const runtimeFlags = readFalRuntimeFlags();
+    const statusTransientFailuresEnabled = runtimeFlags.statusTransientFailuresEnabled;
+    const respondTransientWithTelemetry = async ({
+      source,
+      stage,
+      detail,
+      upstreamStatus,
+    }: {
+      source: string;
+      stage: "status" | "result";
+      detail?: unknown;
+      upstreamStatus?: number | null;
+    }) => {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source,
+        message: "Fal status proxy encountered transient upstream state; continuing polling.",
+        statusCode: upstreamStatus ?? 200,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          provider_request_id: requestId,
+          stage,
+          detail: detail ?? null,
+        },
+      });
+      return res.status(200).json(
+        buildFalStatusTransientPayload({
+          requestId,
+          detail: {
+            stage,
+          },
+        })
+      );
+    };
 
     try {
       let statusResp: Response | null = null;
@@ -421,6 +459,14 @@ export const createFalStatusHandler = ({
       ].filter((baseUrl): baseUrl is string => Boolean(baseUrl));
 
       if (!statusData.isJson) {
+        if (statusTransientFailuresEnabled) {
+          return respondTransientWithTelemetry({
+            source: "telemetry.fal.status.transient.non_json_status",
+            stage: "status",
+            detail: statusData.text.slice(0, 500),
+            upstreamStatus: statusResp.status,
+          });
+        }
         await settleFailure({
           userId: user.id,
           requestId,
@@ -648,7 +694,7 @@ export const createFalStatusHandler = ({
           index,
           baseUrl,
           isJson: data.isJson,
-          isRetryableAlias: !data.isJson || response.status === 404 || response.status === 405,
+          isRetryableAlias: response.status === 404 || response.status === 405,
           httpStatus: response.status,
           isHttpOk: response.ok,
           status: candidateStatus,
@@ -674,7 +720,7 @@ export const createFalStatusHandler = ({
         });
       }
 
-      // Treat a full sweep of retryable responses (404/405/non-JSON across aliases) as
+      // Treat a full sweep of retryable alias responses (404/405) as
       // transient so polling can continue instead of settling terminal failure.
       if (!resultCandidates.length) {
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
@@ -711,6 +757,14 @@ export const createFalStatusHandler = ({
           })
         ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+        }
+        if (statusTransientFailuresEnabled) {
+          return respondTransientWithTelemetry({
+            source: "telemetry.fal.status.transient.non_json_result",
+            stage: "result",
+            detail: resultData.text.slice(0, 500),
+            upstreamStatus: resultResp.status,
+          });
         }
         await settleFailure({
           userId: user.id,
@@ -797,12 +851,26 @@ export const createFalStatusHandler = ({
         provider: providerKey,
         payload: resultData.json,
       });
-      if (
-        resultStatus === "error" ||
-        resultStatus === "failed" ||
-        asProviderString(resultData.json.error) ||
-        !providerPayloadHasMedia({ provider: providerKey, payload: resultData.json })
-      ) {
+      const resultErrorMessage = asProviderString(resultData.json.error);
+      const explicitResultFailure =
+        resultStatus === "error" || resultStatus === "failed" || Boolean(resultErrorMessage);
+      const resultHasMedia = providerPayloadHasMedia({
+        provider: providerKey,
+        payload: resultData.json,
+      });
+
+      if (!explicitResultFailure && !resultHasMedia && statusTransientFailuresEnabled) {
+        return respondTransientWithTelemetry({
+          source: "telemetry.fal.status.transient.no_media",
+          stage: "result",
+          detail: {
+            result_status: resultStatus,
+          },
+          upstreamStatus: resultResp.status,
+        });
+      }
+
+      if (explicitResultFailure || !resultHasMedia) {
         await settleFailure({
           userId: user.id,
           requestId,
@@ -815,8 +883,7 @@ export const createFalStatusHandler = ({
         });
         return respondErrorWithLogging({
           requestId,
-          error:
-            asProviderString(resultData.json.error) || "Generation failed to produce media output",
+          error: resultErrorMessage || "Generation failed to produce media output",
           statusCode: 502,
           source: "api.fal_status.result_missing_media",
           stage: "result",
@@ -832,6 +899,13 @@ export const createFalStatusHandler = ({
         }),
       });
     } catch (error) {
+      if (statusTransientFailuresEnabled) {
+        return respondTransientWithTelemetry({
+          source: "telemetry.fal.status.transient.transport",
+          stage: "status",
+          detail: String(error),
+        });
+      }
       await settleFailure({
         userId: user.id,
         requestId,

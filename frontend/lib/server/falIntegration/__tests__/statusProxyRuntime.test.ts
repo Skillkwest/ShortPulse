@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildFalStatusTransientPayload,
   isRetryableUpstreamResponse,
   readJsonSafe,
   resolveSuccessfulPayloadStatus,
@@ -60,6 +61,18 @@ describe("statusProxyRuntime", () => {
     expect(parsed.json).toEqual({ status: "COMPLETED" });
     expect(unparsed.isJson).toBe(false);
     expect(typeof unparsed.json.raw).toBe("string");
+  });
+
+  it("builds transient polling payloads for non-terminal fallback handling", () => {
+    expect(
+      buildFalStatusTransientPayload({
+        requestId: "req-1",
+      })
+    ).toEqual({
+      status: "IN_PROGRESS",
+      state: "running",
+      request_id: "req-1",
+    });
   });
 
   it("resolves completed payload status from mixed candidate values", () => {

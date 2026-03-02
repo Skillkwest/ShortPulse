@@ -16,6 +16,7 @@ export type FalWebhookVerifyMode = "dual" | "fal_only" | "hmac_only";
 export type FalRuntimeFlags = {
   integrationMode: FalIntegrationMode;
   modelAllowlist: Set<string>;
+  statusTransientFailuresEnabled: boolean;
   reconcilerEnabled: boolean;
   reconcilerCronSecret: string | null;
   reconcilerBatchSize: number;
@@ -46,6 +47,7 @@ export type FalRuntimeFlags = {
   queueBaseBackoffSeconds: number;
   queueMaxWaitSeconds: number;
   recoveryProbeTimeoutMs: number;
+  noMediaExhaustMinAgeSeconds: number;
   runningExhaustMinAgeSeconds: number;
 };
 
@@ -113,6 +115,10 @@ const matchAllowlistEntry = (modelId: string, entry: string): boolean => {
 export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   integrationMode: parseMode(process.env.SHORTPULSE_FAL_INTEGRATION_MODE),
   modelAllowlist: parseAllowlist(process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST),
+  statusTransientFailuresEnabled: parseBoolean(
+    process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED,
+    false
+  ),
   reconcilerEnabled: parseBoolean(process.env.SHORTPULSE_FAL_RECONCILER_ENABLED, false),
   reconcilerCronSecret: process.env.SHORTPULSE_FAL_RECONCILER_CRON_SECRET?.trim() || null,
   reconcilerBatchSize: parseInteger(process.env.SHORTPULSE_FAL_RECONCILER_BATCH_SIZE, 25, 1),
@@ -196,6 +202,11 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS,
     15000,
     1000
+  ),
+  noMediaExhaustMinAgeSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS,
+    7200,
+    0
   ),
   runningExhaustMinAgeSeconds: parseInteger(
     process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS,

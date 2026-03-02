@@ -29,6 +29,8 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST;
     delete process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST;
     delete process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS;
+    delete process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED;
+    delete process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS;
 
     const flags = readFalRuntimeFlags();
@@ -57,6 +59,8 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(Array.from(flags.webhookCanaryUserAllowlist)).toEqual([]);
     expect(Array.from(flags.webhookCanaryModelAllowlist)).toEqual([]);
     expect(flags.recoveryProbeTimeoutMs).toBe(15000);
+    expect(flags.statusTransientFailuresEnabled).toBe(false);
+    expect(flags.noMediaExhaustMinAgeSeconds).toBe(7200);
     expect(flags.runningExhaustMinAgeSeconds).toBe(7200);
   });
 
@@ -81,6 +85,8 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST = "user-1,user-2";
     process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST = "fal-ai/*,fal-ai/nano-banana-pro";
     process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS = "22000";
+    process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS = "10800";
     process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS = "14400";
 
     const flags = readFalRuntimeFlags();
@@ -112,6 +118,8 @@ describe("readFalRuntimeFlags admission config", () => {
       "fal-ai/nano-banana-pro",
     ]);
     expect(flags.recoveryProbeTimeoutMs).toBe(22000);
+    expect(flags.statusTransientFailuresEnabled).toBe(true);
+    expect(flags.noMediaExhaustMinAgeSeconds).toBe(10800);
     expect(flags.runningExhaustMinAgeSeconds).toBe(14400);
   });
 

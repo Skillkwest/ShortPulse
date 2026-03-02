@@ -118,6 +118,7 @@ describe("executeGenerationRecovery", () => {
     vi.clearAllMocks();
     readFalRuntimeFlagsMock.mockReturnValue({
       reconcilerMaxAttempts: 3,
+      noMediaExhaustMinAgeSeconds: 7200,
       runningExhaustMinAgeSeconds: 7200,
     });
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
@@ -445,6 +446,47 @@ describe("executeGenerationRecovery", () => {
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "fail",
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "fail",
+        failure_reason_code: "terminal_success_no_media",
+        recovery_state: "queued",
+      })
+    );
+    expect(typeof scenario.updatePayloads[0]?.next_recovery_at).toBe("string");
+  });
+
+  it("defers no-media exhaustion when attempts reached max but generation age is below no-media minimum threshold", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        status: "running",
+        recovery_attempts: 5,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      maxAttempts: 5,
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "no_media",
+        processed: true,
       })
     );
     expect(scenario.updatePayloads).toHaveLength(1);

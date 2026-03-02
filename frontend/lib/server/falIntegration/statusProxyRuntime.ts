@@ -82,6 +82,19 @@ export const buildFalStatusErrorPayload = ({
   request_id: requestId,
 });
 
+export const buildFalStatusTransientPayload = ({
+  requestId,
+  detail,
+}: {
+  requestId: string;
+  detail?: unknown;
+}): JsonObject => ({
+  status: "IN_PROGRESS",
+  state: "running",
+  request_id: requestId,
+  ...(detail !== undefined ? { transient_detail: detail } : {}),
+});
+
 export const probeResponseUrlsForMedia = async ({
   provider = "fal",
   responseUrls,

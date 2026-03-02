@@ -68,6 +68,40 @@ const lookupLedgerOwnerByProviderRequestId = async (
   }
 };
 
+const lookupGenerationOwnersByProviderRequestId = async (
+  providerRequestId: string
+): Promise<string[]> => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from("ai_generations")
+      .select("user_id")
+      .eq("request_id", providerRequestId)
+      .limit(20);
+    if (error) {
+      console.error("[generationBilling] lookupGenerationOwnersByProviderRequestId failed", {
+        providerRequestId,
+        message: error.message,
+      });
+      return [];
+    }
+    if (!Array.isArray(data)) return [];
+    return Array.from(
+      new Set(
+        data
+          .map((row) => (row as { user_id?: unknown } | null)?.user_id)
+          .filter((userId): userId is string => typeof userId === "string" && userId.length > 0)
+      )
+    );
+  } catch (error) {
+    console.error(
+      "[generationBilling] lookupGenerationOwnersByProviderRequestId threw",
+      String(error)
+    );
+    return [];
+  }
+};
+
 /**
  * Resolves whether a provider request id is owned by the current user.
  * "unknown" means ownership could not be proven from persisted reservation/ledger records.
@@ -90,6 +124,11 @@ export const resolveProviderRequestOwnership = async ({
   const ledgerOwner = await lookupLedgerOwnerByProviderRequestId(normalized);
   if (ledgerOwner) {
     return ledgerOwner === userId ? "owned" : "forbidden";
+  }
+
+  const generationOwners = await lookupGenerationOwnersByProviderRequestId(normalized);
+  if (generationOwners.length) {
+    return generationOwners.includes(userId) ? "owned" : "forbidden";
   }
 
   return "unknown";

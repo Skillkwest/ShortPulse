@@ -34,6 +34,7 @@ describe("createFalStatusHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-fal-key";
+    delete process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     settleGenerationOutcomeMock.mockResolvedValue({
@@ -676,6 +677,261 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         providerRequestId: "req-result-terminal-failure",
         outcome: "success",
+      })
+    );
+  });
+
+  it("treats transport failures as transient when status transient failures are enabled", async () => {
+    process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-transient-transport" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        state: "running",
+        request_id: "req-transient-transport",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.fal.status.transient.transport",
+      })
+    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-transient-transport",
+        outcome: "fail",
+      })
+    );
+  });
+
+  it("treats non-JSON status responses as transient when status transient failures are enabled", async () => {
+    process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response("<html>upstream gateway</html>", {
+        status: 502,
+        headers: { "Content-Type": "text/html" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-transient-status-non-json" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        state: "running",
+        request_id: "req-transient-status-non-json",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.fal.status.transient.non_json_status",
+      })
+    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-transient-status-non-json",
+        outcome: "fail",
+      })
+    );
+  });
+
+  it("treats non-JSON result responses as transient when status transient failures are enabled", async () => {
+    process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response("<html>invalid-result-payload</html>", {
+          status: 422,
+          headers: { "Content-Type": "text/html" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-transient-result-non-json" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        state: "running",
+        request_id: "req-transient-result-non-json",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.fal.status.transient.non_json_result",
+      })
+    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-transient-result-non-json",
+        outcome: "fail",
+      })
+    );
+  });
+
+  it("treats completed-without-media as transient when status transient failures are enabled", async () => {
+    process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+            data: {},
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-transient-no-media" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        state: "running",
+        request_id: "req-transient-no-media",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.fal.status.transient.no_media",
+      })
+    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-transient-no-media",
+        outcome: "fail",
+      })
+    );
+  });
+
+  it("keeps missing-media terminal behavior when status transient failures are disabled", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+            data: {},
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-terminal-no-media" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        state: "error",
+        request_id: "req-terminal-no-media",
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-terminal-no-media",
+        outcome: "fail",
       })
     );
   });

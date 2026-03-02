@@ -141,6 +141,28 @@ describe("statusProviderTopology", () => {
     ).toEqual(["https://queue.kie.ai/v1/requests/1"]);
   });
 
+  it("resolves kie status base templates with {requestId} tokens", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS =
+      "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}";
+
+    expect(
+      resolveProviderConfiguredStatusBaseUrls({
+        provider: "kie",
+        configuredBaseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual(["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"]);
+
+    expect(
+      resolveProviderModelStatusBaseUrls({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual(["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"]);
+  });
+
   it("fails closed for kie status topology when model id is missing", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";

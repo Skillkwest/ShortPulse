@@ -9,6 +9,19 @@ import {
   resolveProviderResponseProbeUrls,
 } from "./statusProviderTopology";
 
+const REQUEST_ID_TEMPLATE_TOKEN = "{requestId}";
+
+const resolveTemplateRequestUrl = ({
+  templateUrl,
+  requestId,
+}: {
+  templateUrl: string;
+  requestId: string;
+}): string | null => {
+  if (!templateUrl.includes(REQUEST_ID_TEMPLATE_TOKEN)) return null;
+  return templateUrl.replaceAll(REQUEST_ID_TEMPLATE_TOKEN, encodeURIComponent(requestId));
+};
+
 /**
  * Resolves trusted status base URLs for a provider.
  */
@@ -69,7 +82,12 @@ export const dispatchProviderStatusRequest = async ({
     });
   }
   if (isKieProviderKey(provider)) {
-    return await fetch(`${baseUrl}/${requestId}/status`, {
+    const statusUrl =
+      resolveTemplateRequestUrl({
+        templateUrl: baseUrl,
+        requestId,
+      }) ?? `${baseUrl}/${requestId}/status`;
+    return await fetch(statusUrl, {
       method: "GET",
       headers: { Authorization: `Bearer ${apiKey}` },
       signal,
@@ -102,7 +120,12 @@ export const dispatchProviderResultRequest = async ({
     });
   }
   if (isKieProviderKey(provider)) {
-    return await fetch(`${baseUrl}/${requestId}`, {
+    const resultUrl =
+      resolveTemplateRequestUrl({
+        templateUrl: baseUrl,
+        requestId,
+      }) ?? `${baseUrl}/${requestId}`;
+    return await fetch(resultUrl, {
       method: "GET",
       headers: { Authorization: `Bearer ${apiKey}` },
       signal,

@@ -1789,3 +1789,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - callback lifecycle convergence,
   - callback `resultJson` media extraction.
 - Locked canonical callback failure normalization (`state=fail` -> `failed`) with fixture-backed coverage.
+
+## 2026-03-01 (Phase 11 Kie dispatch anti-drift)
+- Added template-safe Kie status/details URL dispatch support with optional `{requestId}` token substitution so query-style Kie polling endpoints can be configured without changing Fal routing behavior.
+- Hardened Kie runtime URL parsing/trust checks to accept `{requestId}` only in path/query and fail closed when token usage appears in authority/hostname.
+- Added regression coverage for Kie template dispatch and runtime config parsing, then re-ran Phase 11 Fal no-regression and docs parity checks.

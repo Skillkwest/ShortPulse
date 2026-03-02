@@ -176,6 +176,46 @@ describe("statusProviderDispatcher", () => {
     );
   });
 
+  it("dispatches kie requests from {requestId} url templates", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "running" }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "completed" }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await dispatchProviderStatusRequest({
+      provider: "kie",
+      baseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+      requestId: "task-kie-1",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+    await dispatchProviderResultRequest({
+      provider: "kie",
+      baseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+      requestId: "task-kie-1",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task-kie-1",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer test-key" }),
+      })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task-kie-1",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer test-key" }),
+      })
+    );
+  });
+
   it("fails closed for kie status topology when model id is missing", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";

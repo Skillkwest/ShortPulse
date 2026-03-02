@@ -210,6 +210,13 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/__tests__/kieStatusContracts.test.ts`
   - `frontend/lib/server/providerIntegration/__tests__/kieResultMediaContracts.test.ts`
   - Includes callback success/failure fixture coverage and canonical `state=fail -> failed` normalization lock.
+- Added template-safe Kie status/details dispatch support to match query-style endpoint contracts:
+  - `frontend/lib/server/providerIntegration/statusProviderDispatcher.ts`
+  - `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`
+  - `frontend/.env.example`
+  - Kie status base URLs now accept optional `{requestId}` token templates (for query-param endpoints) while preserving legacy `/{requestId}/status` probing and Fal dispatch behavior.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

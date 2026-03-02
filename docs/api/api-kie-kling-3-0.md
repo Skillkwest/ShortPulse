@@ -11,6 +11,10 @@ This document tracks the internal ShortPulse dark-path contract for `kie-ai/klin
 
 ## Current Runtime Contract (Pre-Cutover)
 - Endpoint: `POST /api/v1/jobs/createTask`
+- Status/details polling:
+  - configured via `SHORTPULSE_KIE_STATUS_BASE_URLS`
+  - supports optional `{requestId}` template token for query-style endpoints (for example `.../recordInfo?taskId={requestId}`)
+  - falls back to legacy `/{requestId}/status` probing when template is not used
 - Submit shape normalizes to:
   - root: `model="kling-3.0/video"`, optional `callBackUrl`
   - payload body under `input`

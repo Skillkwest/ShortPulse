@@ -11,6 +11,10 @@ This document tracks the internal ShortPulse dark-path contract for `kie-ai/veo-
 
 ## Current Runtime Contract (Pre-Cutover)
 - Endpoint: `POST /api/v1/veo/generate`
+- Status/details polling:
+  - configured via `SHORTPULSE_KIE_STATUS_BASE_URLS`
+  - supports optional `{requestId}` template token for query-style endpoints (for example `.../record-info?taskId={requestId}`)
+  - falls back to legacy `/{requestId}/status` probing when template is not used
 - Submit aspect field: `aspect_ratio`
 - Allowed aspects (dark-path subset): `16:9`, `9:16`, `Auto`
 - Allowed durations (dark-path subset): `5`, `8` (seconds)

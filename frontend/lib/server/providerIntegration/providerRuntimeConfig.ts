@@ -10,6 +10,7 @@ import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./prov
 
 const DEFAULT_KIE_TRUSTED_HOSTS = ["kie.ai"];
 const DEFAULT_KIE_STATUS_TIMEOUT_MS = 60000;
+const REQUEST_ID_TEMPLATE_TOKEN = "{requestId}";
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (!value) return fallback;
@@ -63,12 +64,27 @@ const parseTrustedHosts = (value: string | undefined): string[] => {
   return parsed.length ? parsed : DEFAULT_KIE_TRUSTED_HOSTS;
 };
 
+const hasRequestIdTemplateInAuthority = (value: string): boolean => {
+  const authorityMatch = value.trim().match(/^https?:\/\/([^/?#]+)/i);
+  if (!authorityMatch) return false;
+  return authorityMatch[1].includes(REQUEST_ID_TEMPLATE_TOKEN);
+};
+
+const replaceRequestIdTemplateToken = (value: string): string =>
+  value.replaceAll(REQUEST_ID_TEMPLATE_TOKEN, "request-id");
+
 const normalizeHttpsUrl = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed) return null;
+  const hasTemplateToken = trimmed.includes(REQUEST_ID_TEMPLATE_TOKEN);
+  if (hasTemplateToken && hasRequestIdTemplateInAuthority(trimmed)) return null;
+  const parseCandidate = hasTemplateToken ? replaceRequestIdTemplateToken(trimmed) : trimmed;
   try {
-    const parsed = new URL(trimmed);
+    const parsed = new URL(parseCandidate);
     if (parsed.protocol !== "https:") return null;
+    if (hasTemplateToken) {
+      return trimmed.replace(/\/+$/, "");
+    }
     return parsed.toString().replace(/\/+$/, "");
   } catch {
     return null;
@@ -194,9 +210,14 @@ export const isTrustedKieProviderUrl = (
   url: string,
   flags: KieRuntimeFlags = readKieRuntimeFlags()
 ): boolean => {
+  const candidate = url.trim();
+  const hasTemplateToken = candidate.includes(REQUEST_ID_TEMPLATE_TOKEN);
+  if (hasTemplateToken && hasRequestIdTemplateInAuthority(candidate)) return false;
+  const parseCandidate = hasTemplateToken ? replaceRequestIdTemplateToken(candidate) : candidate;
+
   let parsed: URL;
   try {
-    parsed = new URL(url);
+    parsed = new URL(parseCandidate);
   } catch {
     return false;
   }
@@ -293,9 +314,11 @@ export const resolveKieSubmitTargetsForModel = (
   flags: KieRuntimeFlags = readKieRuntimeFlags()
 ): SubmitTarget[] => {
   assertKieRuntimeEnabledForModel({ modelId, flags });
-  return filterTrustedKieProviderUrls(flags.submitUrls, flags).map((submitUrl) => ({
-    submitUrl,
-  }));
+  return filterTrustedKieProviderUrls(flags.submitUrls, flags)
+    .filter((submitUrl) => !submitUrl.includes(REQUEST_ID_TEMPLATE_TOKEN))
+    .map((submitUrl) => ({
+      submitUrl,
+    }));
 };
 
 /**

@@ -33,6 +33,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 28. `2026-03-01-phase-11-slice-b-kie-primary-source-contract-capture-and-alignment.md` - captures Veo/Kling primary-source contract details and aligns Kie dark-path submit/status/media adapters with documented request/callback shapes.
 29. `2026-03-01-phase-11-slice-b-kie-callback-code-and-aspect-alias-alignment.md` - aligns remaining Kie doc-shape deltas (`aspectRatio` submit alias and callback `code` lifecycle fallback mapping).
 30. `2026-03-01-phase-11-slice-b-kie-primary-source-fixture-regression-lock.md` - adds shared primary-source-shaped Veo/Kling fixtures and fixture-backed contract tests to lock request/callback behavior against drift.
+31. `2026-03-01-phase-11-slice-b-kie-status-url-template-dispatch.md` - adds `{requestId}` query-template support for Kie status/detail polling URLs while preserving Fal dispatch behavior and trusted-host fail-closed checks.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

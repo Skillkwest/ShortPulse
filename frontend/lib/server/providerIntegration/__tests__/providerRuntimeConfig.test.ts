@@ -8,6 +8,7 @@ import {
   filterTrustedKieProviderUrls,
   readKieRuntimeFlags,
   readProviderApiKey,
+  resolveKieSubmitTargetsForModel,
   resolveProviderFromGenerationContext,
   resolveProviderFromModelId,
 } from "../providerRuntimeConfig";
@@ -82,6 +83,37 @@ describe("providerRuntimeConfig", () => {
         "https://evil.example.com/v1/requests",
       ])
     ).toEqual(["https://queue.kie.ai/v1/requests"]);
+  });
+
+  it("accepts trusted kie status url templates with {requestId}", () => {
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS =
+      "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    const flags = readKieRuntimeFlags();
+
+    expect(flags.statusBaseUrls).toEqual([
+      "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+    ]);
+    expect(filterTrustedKieProviderUrls(flags.statusBaseUrls, flags)).toEqual([
+      "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+    ]);
+  });
+
+  it("rejects kie status url templates when {requestId} appears in hostname", () => {
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS =
+      "https://{requestId}.kie.ai/api/v1/jobs/recordInfo";
+    const flags = readKieRuntimeFlags();
+    expect(flags.statusBaseUrls).toEqual([]);
+  });
+
+  it("keeps {requestId} templates out of submit target resolution", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_SUBMIT_URLS =
+      "https://api.kie.ai/api/v1/veo/generate?taskId={requestId},https://api.kie.ai/api/v1/veo/generate";
+
+    const targets = resolveKieSubmitTargetsForModel("kie-ai/veo-3.1-fast-i2v");
+    expect(targets).toEqual([{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }]);
   });
 
   it("resolves provider keys from model and generation context", () => {

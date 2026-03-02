@@ -990,6 +990,42 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
   return nextState;
 };
 
+const resolveActivePresetAfterDelete = ({
+  originalTabOrder,
+  filteredTabOrder,
+  presetId,
+  requestedActivePresetId,
+}: {
+  originalTabOrder: CharacterSheetPresetId[];
+  filteredTabOrder: CharacterSheetPresetId[];
+  presetId: CharacterSheetPresetId;
+  requestedActivePresetId: CharacterSheetPresetId;
+}): CharacterSheetPresetId | null => {
+  if (!filteredTabOrder.length) return null;
+
+  if (requestedActivePresetId !== presetId && filteredTabOrder.includes(requestedActivePresetId)) {
+    return requestedActivePresetId;
+  }
+
+  const deletedIndex = originalTabOrder.indexOf(presetId);
+  if (deletedIndex >= 0) {
+    for (let index = deletedIndex - 1; index >= 0; index -= 1) {
+      const candidate = originalTabOrder[index];
+      if (candidate && filteredTabOrder.includes(candidate)) {
+        return candidate;
+      }
+    }
+    for (let index = deletedIndex + 1; index < originalTabOrder.length; index += 1) {
+      const candidate = originalTabOrder[index];
+      if (candidate && filteredTabOrder.includes(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return filteredTabOrder[0] ?? null;
+};
+
 /**
  * Permanently delete a visible preset tab and clear its assignments.
  */
@@ -1029,18 +1065,29 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
     return previousState;
   }
 
-  const filteredTabOrder = nextTabOrder.filter((visiblePresetId) => visiblePresetId !== presetId);
+  const requestedFilteredTabOrder = nextTabOrder.filter(
+    (visiblePresetId) =>
+      visiblePresetId !== presetId && previousState.tabOrder.includes(visiblePresetId)
+  );
+  const filteredTabOrder = requestedFilteredTabOrder.length
+    ? requestedFilteredTabOrder
+    : previousState.tabOrder.filter((visiblePresetId) => visiblePresetId !== presetId);
   if (!filteredTabOrder.length) {
     throw new Error("At least one preset tab must remain visible.");
   }
-  const resolvedActivePresetId =
-    nextActivePresetId !== presetId && filteredTabOrder.includes(nextActivePresetId)
-      ? nextActivePresetId
-      : (filteredTabOrder[0] ?? "1");
+  const resolvedActivePresetId = resolveActivePresetAfterDelete({
+    originalTabOrder: previousState.tabOrder,
+    filteredTabOrder,
+    presetId,
+    requestedActivePresetId: nextActivePresetId,
+  });
+  if (!resolvedActivePresetId) {
+    throw new Error("At least one preset tab must remain visible.");
+  }
   const normalizedTabOrder = normalizeCharacterSheetPresetTabOrder({
     tabOrder: filteredTabOrder,
     activePresetId: resolvedActivePresetId,
-  }).filter((visiblePresetId) => visiblePresetId !== presetId);
+  });
   const nextState = normalizeCharacterSheetPresetState({
     activePresetId: resolvedActivePresetId,
     presets: {
@@ -1066,20 +1113,6 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
   if (updateError) {
     throw new Error(asErrorMessage(updateError, "Failed to delete character preset tab."));
   }
-
-  const previousReferences = listPresetReferencesFromState(previousState);
-  const nextReferences = listPresetReferencesFromState(nextState);
-  const nextById = new Set(nextReferences.map((reference) => reference.mediaFileId));
-  await Promise.allSettled(
-    previousReferences
-      .filter((reference) => !nextById.has(reference.mediaFileId))
-      .map((reference) =>
-        cleanupOrphanedMedia({
-          mediaFileId: reference.mediaFileId,
-          storagePath: reference.storagePath,
-        })
-      )
-  );
 
   try {
     return await hydratePresetStateWithPreviewUrls(nextState);

@@ -673,6 +673,10 @@ export function CharacterManagerShell({
     characterSheetPresetTabsIdBase,
     activeCharacterSheetPresetId
   );
+  const deleteTargetCharacterSheetPresetLabel = deleteTargetCharacterSheetPresetId
+    ? (characterSheetPresetLabels[deleteTargetCharacterSheetPresetId] ??
+      deleteTargetCharacterSheetPresetId)
+    : null;
   const rootClassName = isEmbeddedSurface
     ? "character-manager-page character-manager-page--embedded"
     : "page page-wide character-manager-page";
@@ -2226,9 +2230,11 @@ export function CharacterManagerShell({
           aria-labelledby="delete-character-sheet-preset-title"
         >
           <div className="modal-card character-delete-confirm-card">
-            <h3 id="delete-character-sheet-preset-title">Delete this preset tab?</h3>
+            <h3 id="delete-character-sheet-preset-title">
+              Delete preset &ldquo;{deleteTargetCharacterSheetPresetLabel}&rdquo;?
+            </h3>
             <p className="subdued tiny character-delete-confirm-copy">
-              This will delete your saved character sheet references. Do you wish to continue?
+              This removes saved references from this preset tab. Do you wish to continue?
             </p>
             <div className="modal-actions">
               <button

@@ -565,14 +565,14 @@ body.character-manager-body {
   );
   --character-preset-active-border: rgba(93, 223, 255, 0.78);
   --character-preset-tab-max-width: 25%;
-  display: flex;
-  align-items: flex-end;
+  display: grid;
+  grid-template-rows: 12px auto;
   flex: 1 1 auto;
   gap: 0;
   width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 4px 4px 0;
+  padding: 2px 4px 0;
   border-radius: 14px 14px 0 0;
   border: 1px solid var(--character-preset-rail-border);
   border-bottom: 0;
@@ -587,12 +587,33 @@ body.character-manager-body {
   display: none;
 }
 
+.character-sheet-preset-tablist {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.character-sheet-preset-delete-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+
 .character-sheet-preset-tab-shell {
   position: relative;
   flex: 0 0 var(--character-preset-tab-max-width);
   max-width: var(--character-preset-tab-max-width);
   min-width: 0;
-  padding-top: 4px;
+}
+
+.character-sheet-preset-delete-slot {
+  position: relative;
+  flex: 0 0 var(--character-preset-tab-max-width);
+  max-width: var(--character-preset-tab-max-width);
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 4px;
 }
 
 .character-sheet-preset-tab {
@@ -648,10 +669,8 @@ body.character-manager-body {
 }
 
 .character-sheet-preset-delete-btn {
-  position: absolute;
-  top: 0;
-  right: 4px;
-  transform: translate(44%, -36%);
+  position: relative;
+  transform: translate(44%, 26%);
   width: 16px;
   height: 16px;
   border-radius: 999px;
@@ -675,6 +694,7 @@ body.character-manager-body {
   border-color: rgba(255, 166, 166, 0.92);
   background: linear-gradient(180deg, rgba(66, 20, 29, 0.98) 0%, rgba(43, 14, 20, 0.98) 100%);
   color: #ffe7e7;
+  transform: translate(44%, 18%);
 }
 
 .character-sheet-preset-delete-btn:focus-visible {

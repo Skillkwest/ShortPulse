@@ -883,8 +883,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         return false;
       }
 
+      const deletedPresetIndex = previousVisiblePresetIds.indexOf(presetId);
+      const nearestLeftPresetId =
+        deletedPresetIndex > 0 ? (previousVisiblePresetIds[deletedPresetIndex - 1] ?? null) : null;
+      const nearestRightPresetId =
+        deletedPresetIndex >= 0 ? (previousVisiblePresetIds[deletedPresetIndex + 1] ?? null) : null;
       const nextActivePresetId =
-        previousPresetId === presetId ? (optimisticVisiblePresetIds[0] ?? "1") : previousPresetId;
+        previousPresetId === presetId
+          ? (nearestLeftPresetId ?? nearestRightPresetId ?? optimisticVisiblePresetIds[0] ?? "1")
+          : previousPresetId;
       const optimisticPresets = {
         ...previousPresets,
         [presetId]: createEmptyCharacterSheetPresetAssignments(),

@@ -36,3 +36,4 @@ Example:
 7. `2026-03-02-phase-13-wave-e-pass-2-structured-generate-callback.md`
 8. `2026-03-02-phase-13-wave-e-pass-3-bubble-thumbnail-linking.md`
 9. `2026-03-02-phase-13-wave-e-pass-4-inline-assistant-edit.md`
+10. `2026-03-02-phase-13-wave-e-pass-5-chat-mode-toggle-and-raw-submit.md`

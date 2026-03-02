@@ -85,11 +85,16 @@ Completed:
    - wired bridge-level edit commits via existing `useAiAgent.updateMessageById` with targeted telemetry,
    - implemented double-click inline edit UX in `AgentChatPanel` (Enter/blur commit, Escape cancel, drag disabled while editing),
    - gated behavior by `NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT` at page orchestration for default-safe rollout.
+11. Wave E Pass 5 chat mode toggle + raw-submit behavior:
+   - added local chat-mode preference seam (`chatModePreference.ts`) with default ON and legacy raw-mode storage fallback handling,
+   - threaded `chatModeEnabled` through bridge/panel/prompt contracts so chat-mode state remains decoupled from page orchestration,
+   - added right-of-composer `Chat Mode` toggle using the same toggle classes/visual behavior as Character Mode controls,
+   - enforced behavior split: Chat Mode ON keeps agent send/respond flow; Chat Mode OFF disables chat-send affordances and routes primary Create/Text submit through direct raw prompt generation (`agentInput` fallback to shared prompt).
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (raw prompt mode, session persistence write-shadow/restore).
+3. Wave E remaining passes (session persistence write-shadow/restore).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

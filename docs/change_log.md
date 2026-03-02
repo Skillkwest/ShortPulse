@@ -1994,3 +1994,29 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/prefabs/agent/panels/__tests__/AgentChatPanel.actions.test.tsx`.
 - Recorded Wave E Pass 4 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-4-inline-assistant-edit.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 5 chat mode toggle + raw submit behavior)
+- Added chat-mode preference seam with default ON and legacy raw-mode fallback compatibility:
+  - `frontend/features/ai-studio/logic/chatModePreference.ts`
+  - `frontend/features/ai-studio/logic/__tests__/chatModePreference.test.ts`.
+- Extended bridge/panel contracts to thread chat-mode state as a decoupled UI policy:
+  - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioCreatePanelProps.ts`
+  - `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`
+  - `frontend/features/ai-studio/components/PromptStep.tsx`
+  - `frontend/features/ai-studio/components/promptStep/types.ts`.
+- Added Chat Mode toggle UI to the right side of the inline composer using Character Mode toggle styling:
+  - `frontend/features/ai-studio/components/promptStep/PromptStepChatSurface.tsx`
+  - `frontend/styles/prefabs-agent.css`.
+- Enforced behavior split in primary create/text submit flow:
+  - Chat Mode ON keeps agent send/respond path,
+  - Chat Mode OFF disables send affordances and routes submit through direct raw generation (`agentInput` fallback to shared prompt):
+  - `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`
+  - `frontend/pages/ai-studio.tsx`.
+- Updated targeted regression coverage:
+  - `frontend/features/ai-studio/components/__tests__/PromptStep.actions.test.tsx`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioGenerationController.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts`.
+- Recorded Wave E Pass 5 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-5-chat-mode-toggle-and-raw-submit.md`.

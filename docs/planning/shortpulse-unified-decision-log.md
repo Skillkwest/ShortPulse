@@ -101,3 +101,8 @@ Last updated: 2026-03-02
 - Topic: Inline assistant bubble edit authority and rollout gate.
 - Decision: Assistant bubble edits are local-only mutations applied via `useAiAgent.updateMessageById` with normalization/no-op rejection in a shared helper seam; rollout is fail-closed unless `NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT=true`.
 - Effective phase: 13.
+
+## Decision 021
+- Topic: Chat Mode naming/default and raw-submit behavior.
+- Decision: AI Studio toggle label is `Chat Mode` with default ON; ON preserves existing agent send/respond behavior, OFF disables chat-send affordances and routes primary Create/Text submit through direct raw prompt generation (`agentInput` fallback to shared prompt) without agent rewrite.
+- Effective phase: 13.

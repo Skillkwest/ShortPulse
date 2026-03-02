@@ -22,6 +22,8 @@ describe("kieStatusContracts", () => {
     expect(readKieLifecycleStatus({ status: "processing" })).toBe("running");
     expect(readKieLifecycleStatus({ status: "done" })).toBe("completed");
     expect(readKieLifecycleStatus({ status: "cancelled" })).toBe("canceled");
+    expect(readKieLifecycleStatus({ code: 200 })).toBe("completed");
+    expect(readKieLifecycleStatus({ code: 501 })).toBe("failed");
   });
 
   it("reads response urls and media payload presence", () => {
@@ -69,6 +71,7 @@ describe("kieStatusContracts", () => {
 
   it("classifies retryable upstream payload codes", () => {
     expect(isKieRetryableUpstreamPayload({ code: "rate_limit" })).toBe(true);
+    expect(isKieRetryableUpstreamPayload({ code: 429 })).toBe(true);
     expect(isKieRetryableUpstreamPayload({ error: { code: "temporarily_unavailable" } })).toBe(
       true
     );

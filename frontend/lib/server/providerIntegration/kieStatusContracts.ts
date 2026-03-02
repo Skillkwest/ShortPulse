@@ -24,6 +24,8 @@ const kieRetryablePayloadCodes = new Set([
 ]);
 const kieStatusFieldKeys = ["status", "state"] as const;
 const kieResponseUrlFieldKeys = ["response_url", "responseUrl"] as const;
+const kieCompletedCallbackCodes = new Set([200]);
+const kieFailedCallbackCodes = new Set([501]);
 
 const normalizeKieStatusAlias = (status: string): string => {
   const normalized = status.trim().toLowerCase();
@@ -51,6 +53,21 @@ const collectKiePayloadCandidates = (payload: unknown): Record<string, unknown>[
   return [root, data, result, response, output].filter(
     (candidate) => Object.keys(candidate).length > 0
   );
+};
+
+const readNumericCode = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (!normalized) return null;
+    const parsed = Number.parseInt(normalized, 10);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
 };
 
 const hasInvalidFieldType = ({
@@ -118,8 +135,17 @@ export const validateKieStatusPayloadForModel = ({
  */
 export const readKieLifecycleStatus = (payload: unknown): string | null => {
   if (validateKieStatusPayloadForModel({ payload })) return null;
-  const status = readCanonicalProviderStatus(payload);
-  return status ? normalizeKieStatusAlias(status) : null;
+  const root = asProviderRecord(payload);
+  const status = readCanonicalProviderStatus(root);
+  if (status) return normalizeKieStatusAlias(status);
+  const candidates = collectKiePayloadCandidates(root);
+  for (const candidate of candidates) {
+    const code = readNumericCode(candidate.code);
+    if (code === null) continue;
+    if (kieCompletedCallbackCodes.has(code)) return "completed";
+    if (kieFailedCallbackCodes.has(code)) return "failed";
+  }
+  return null;
 };
 
 /**
@@ -233,6 +259,10 @@ export const isKieRetryableUpstreamResponse = (response: Response): boolean => {
 export const isKieRetryableUpstreamPayload = (payload: unknown): boolean => {
   const candidates = collectKiePayloadCandidates(payload);
   for (const candidate of candidates) {
+    const numericCode = readNumericCode(candidate.code);
+    if (numericCode !== null && kieRetryableUpstreamStatuses.has(numericCode)) {
+      return true;
+    }
     const code =
       asString(candidate.code) ??
       asString(candidate.error_code) ??

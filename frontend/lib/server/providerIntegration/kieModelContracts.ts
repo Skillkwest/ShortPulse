@@ -129,13 +129,15 @@ const normalizeAspectRatio = ({
   modelLabel: string;
 }): string => {
   const resolved = asNonEmptyString(payload.aspect_ratio) ?? asNonEmptyString(payload.aspect);
-  if (!resolved) return defaultValue;
-  if (!allowedValues.includes(resolved)) {
+  const camelResolved = asNonEmptyString(payload.aspectRatio);
+  const candidate = resolved ?? camelResolved;
+  if (!candidate) return defaultValue;
+  if (!allowedValues.includes(candidate)) {
     throw new Error(
-      `${modelLabel} submit uses unsupported aspect ratio: ${resolved}. Allowed: ${allowedValues.join(", ")}`
+      `${modelLabel} submit uses unsupported aspect ratio: ${candidate}. Allowed: ${allowedValues.join(", ")}`
     );
   }
-  return resolved;
+  return candidate;
 };
 
 const normalizeOptionalDuration = ({

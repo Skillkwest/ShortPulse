@@ -200,6 +200,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
   - `docs/api/api-kie-kling-3-0.md`
   - Added Veo alias + generation-type normalization (`imageUrls`, `callBackUrl`, `generationType`, `seeds` range), Kling create-task payload normalization (`model` + `input`), callback `state=fail` terminal mapping, and callback `resultJson.resultUrls` media extraction support.
+- Added follow-on callback/status alias convergence updates from primary-source compare pass:
+  - `frontend/lib/server/providerIntegration/kieModelContracts.ts`
+  - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
+  - Added `aspectRatio` submit alias handling and lifecycle fallback mapping from callback numeric `code` values (`200` completed, `501` failed) when `status/state` is absent.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

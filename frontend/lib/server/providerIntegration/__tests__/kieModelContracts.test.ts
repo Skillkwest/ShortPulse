@@ -85,6 +85,7 @@ describe("kieModelContracts", () => {
           imageUrls: ["https://example.com/ref.png", "https://example.com/ref-2.png"],
           generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
           seeds: 12345,
+          aspectRatio: "9:16",
         },
       })
     ).toEqual(
@@ -92,6 +93,7 @@ describe("kieModelContracts", () => {
         imageUrls: ["https://example.com/ref.png", "https://example.com/ref-2.png"],
         generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
         seeds: 12345,
+        aspect_ratio: "9:16",
       })
     );
 

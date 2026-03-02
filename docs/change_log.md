@@ -1772,3 +1772,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - terminal `state=fail` handling in Kie status contracts,
   - `resultJson.resultUrls` media extraction in Kie result-media contracts.
 - Added Phase 11 evidence/stage/tracker updates for this primary-source alignment slice.
+
+## 2026-03-01 (phase-11 kie callback code + aspect alias follow-on alignment)
+- Added `aspectRatio` submit alias support in Kie submit contract normalization.
+- Added lifecycle fallback mapping for callback payloads that only include numeric `code` values:
+  - `200` -> `completed`
+  - `501` -> `failed`
+- Added numeric retryable-code handling in Kie upstream retry classification.
+- Added focused Kie contract test coverage and updated Phase 11 evidence/stage/tracker notes.

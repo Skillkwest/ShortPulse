@@ -11,6 +11,7 @@ import {
   captureGenerationReservationByProviderRequest,
   releaseGenerationReservationByProviderRequest,
 } from "./reservationRpcAdapter";
+import { resolveCaptureSettlementPolicy } from "./settlementPolicy";
 import type {
   FailedGenerationSettlementOptions,
   FailedGenerationSettlementResult,
@@ -229,18 +230,19 @@ export const settleGenerationOutcome = async ({
         ...detail,
       },
     });
-    if (captureResult.status === "captured" || captureResult.status === "already_captured") {
+    const capturePolicy = resolveCaptureSettlementPolicy(captureResult.status);
+    if (capturePolicy.settled) {
       return {
         settled: true,
         sourceRef: captureResult.sourceRef ?? null,
-        note: captureResult.status,
+        note: capturePolicy.note,
       };
     }
-    if (captureResult.status === "already_released") {
+    if (!capturePolicy.allowLegacyFallback) {
       return {
         settled: false,
         sourceRef: captureResult.sourceRef ?? null,
-        note: "already_released",
+        note: capturePolicy.note,
       };
     }
     if (captureResult.status === "failed" && !isRecoverableReservationFailure(captureResult)) {

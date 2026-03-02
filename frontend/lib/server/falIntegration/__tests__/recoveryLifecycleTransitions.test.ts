@@ -30,13 +30,35 @@ describe("recoveryLifecycleTransitions", () => {
 
     expect(queuedPlan).toEqual({
       isExhausted: false,
+      exhaustionDeferredByMinAge: false,
       recoveryState: "queued",
       nextRecoveryAt: new Date(1_700_000_000_000 + 120_000).toISOString(),
     });
     expect(exhaustedPlan).toEqual({
       isExhausted: true,
+      exhaustionDeferredByMinAge: false,
       recoveryState: "exhausted",
       nextRecoveryAt: null,
+    });
+  });
+
+  it("defers exhaustion when min-age policy is active and row is too young", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+
+    const deferredPlan = buildRecoveryQueuePlan({
+      attempts: 3,
+      effectiveMaxAttempts: 3,
+      nextDelaySeconds: 120,
+      generationAgeSeconds: 1800,
+      exhaustMinAgeSeconds: 7200,
+      enforceMinAgeForExhaustion: true,
+    });
+
+    expect(deferredPlan).toEqual({
+      isExhausted: false,
+      exhaustionDeferredByMinAge: true,
+      recoveryState: "queued",
+      nextRecoveryAt: new Date(1_700_000_000_000 + 120_000).toISOString(),
     });
   });
 
@@ -44,11 +66,13 @@ describe("recoveryLifecycleTransitions", () => {
     const nowIso = "2026-02-23T12:00:00.000Z";
     const queuePlan = {
       isExhausted: false,
+      exhaustionDeferredByMinAge: false,
       recoveryState: "queued" as const,
       nextRecoveryAt: "2026-02-23T12:02:00.000Z",
     };
     const exhaustedQueuePlan = {
       isExhausted: true,
+      exhaustionDeferredByMinAge: false,
       recoveryState: "exhausted" as const,
       nextRecoveryAt: null,
     };
@@ -78,6 +102,7 @@ describe("recoveryLifecycleTransitions", () => {
     expect(
       buildProviderRunningUpdate({
         nowIso,
+        attempts: 1,
         queuePlan,
       })
     ).toEqual({
@@ -85,11 +110,13 @@ describe("recoveryLifecycleTransitions", () => {
       failure_reason_code: null,
       last_recovery_at: nowIso,
       next_recovery_at: "2026-02-23T12:02:00.000Z",
+      recovery_attempts: 1,
     });
 
     expect(
       buildProviderRunningUpdate({
         nowIso,
+        attempts: 3,
         queuePlan: exhaustedQueuePlan,
       })
     ).toEqual({
@@ -99,6 +126,25 @@ describe("recoveryLifecycleTransitions", () => {
       failure_reason_code: "recovery_exhausted",
       last_recovery_at: nowIso,
       next_recovery_at: null,
+    });
+
+    expect(
+      buildProviderRunningUpdate({
+        nowIso,
+        attempts: 3,
+        queuePlan: {
+          isExhausted: false,
+          exhaustionDeferredByMinAge: true,
+          recoveryState: "queued",
+          nextRecoveryAt: "2026-02-23T12:05:00.000Z",
+        },
+      })
+    ).toEqual({
+      recovery_state: "queued",
+      failure_reason_code: null,
+      last_recovery_at: nowIso,
+      next_recovery_at: "2026-02-23T12:05:00.000Z",
+      recovery_attempts: 2,
     });
 
     expect(buildProviderFailedUpdate(nowIso)).toEqual({

@@ -399,7 +399,10 @@ export const createFalSubmitHandler =
       });
       return res.status(500).json({ error: "No Fal submit target configured for route" });
     }
-    const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags);
+    const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
+      userId: charge.userId,
+      modelId,
+    });
     const resolvedTargetsWithWebhook = withWebhookTargets(
       resolvedSubmitTargets,
       webhookCallbackUrl

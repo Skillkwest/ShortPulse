@@ -7,6 +7,7 @@ type JsonObject = Record<string, unknown>;
 
 export type RecoveryQueuePlan = {
   isExhausted: boolean;
+  exhaustionDeferredByMinAge: boolean;
   recoveryState: "queued" | "exhausted";
   nextRecoveryAt: string | null;
 };
@@ -15,14 +16,25 @@ export const buildRecoveryQueuePlan = ({
   attempts,
   effectiveMaxAttempts,
   nextDelaySeconds,
+  generationAgeSeconds = Number.POSITIVE_INFINITY,
+  exhaustMinAgeSeconds = 0,
+  enforceMinAgeForExhaustion = false,
 }: {
   attempts: number;
   effectiveMaxAttempts: number;
   nextDelaySeconds: number;
+  generationAgeSeconds?: number;
+  exhaustMinAgeSeconds?: number;
+  enforceMinAgeForExhaustion?: boolean;
 }): RecoveryQueuePlan => {
-  const isExhausted = attempts >= effectiveMaxAttempts;
+  const reachedAttemptBudget = attempts >= effectiveMaxAttempts;
+  const reachedExhaustAge = generationAgeSeconds >= Math.max(exhaustMinAgeSeconds, 0);
+  const exhaustionDeferredByMinAge =
+    enforceMinAgeForExhaustion && reachedAttemptBudget && !reachedExhaustAge;
+  const isExhausted = reachedAttemptBudget && (!enforceMinAgeForExhaustion || reachedExhaustAge);
   return {
     isExhausted,
+    exhaustionDeferredByMinAge,
     recoveryState: isExhausted ? "exhausted" : "queued",
     nextRecoveryAt: isExhausted
       ? null
@@ -55,9 +67,11 @@ export const buildAlreadyPersistedSuccessUpdate = ({
 
 export const buildProviderRunningUpdate = ({
   nowIso,
+  attempts,
   queuePlan,
 }: {
   nowIso: string;
+  attempts: number;
   queuePlan: RecoveryQueuePlan;
 }): Record<string, unknown> => {
   if (queuePlan.isExhausted) {
@@ -76,6 +90,7 @@ export const buildProviderRunningUpdate = ({
     failure_reason_code: null,
     last_recovery_at: nowIso,
     next_recovery_at: queuePlan.nextRecoveryAt,
+    recovery_attempts: queuePlan.exhaustionDeferredByMinAge ? Math.max(attempts - 1, 0) : attempts,
   };
 };
 
@@ -109,12 +124,18 @@ export const buildRecoveredSuccessUpdate = ({
   mediaUrls,
   mediaFileIds,
   actor,
+  autosaveEnabled,
+  autosaveDecision,
+  autosaveDecisionReason,
 }: {
   nowIso: string;
   metadata: JsonObject;
   mediaUrls: string[];
   mediaFileIds: string[];
   actor: "reconciler" | "admin_replay" | "webhook" | "status_proxy";
+  autosaveEnabled?: boolean;
+  autosaveDecision?: string;
+  autosaveDecisionReason?: string;
 }): Record<string, unknown> => ({
   status: "success",
   completed_at: nowIso,
@@ -124,6 +145,10 @@ export const buildRecoveredSuccessUpdate = ({
     media_file_ids: mediaFileIds,
     recovery_execution_at: nowIso,
     recovery_execution_actor: actor,
+    autosave_enabled: autosaveEnabled ?? true,
+    autosave_decision: autosaveDecision ?? "auto_persisted",
+    autosave_decision_reason: autosaveDecisionReason ?? "auto_allowed",
+    autosave_skipped: autosaveDecision === "autosave_skipped",
   },
   recovery_state: "recovered",
   last_recovery_at: nowIso,

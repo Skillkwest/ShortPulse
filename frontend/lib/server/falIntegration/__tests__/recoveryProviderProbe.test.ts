@@ -64,4 +64,26 @@ describe("recoveryProviderProbe trusted base policy", () => {
       })
     );
   });
+
+  it("maps probe timeout/abort transport failures to running state without throwing", async () => {
+    process.env.SHORTPULSE_FAL_TRUSTED_HOSTS = "queue.fal.run";
+    process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS = "10";
+
+    const abortError = new DOMException("Aborted", "AbortError");
+    const fetchMock = vi.fn().mockRejectedValue(abortError);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const observation = await probeProviderResult({
+      requestId: "req-1",
+      modelId: "fal-ai/nano-banana-pro",
+      apiKey: "test-fal-key",
+    });
+
+    expect(observation).toEqual({
+      state: "running",
+      payload: null,
+      mediaUrls: [],
+    });
+    expect(fetchMock).toHaveBeenCalled();
+  });
 });

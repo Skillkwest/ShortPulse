@@ -1,5 +1,6 @@
 import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
 import { assertTrustedFalProviderUrl } from "./providerTrustPolicy";
+import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import {
   dispatchProviderResponseProbeRequest,
   dispatchProviderResultRequest,
@@ -28,6 +29,7 @@ import {
   isKieProviderKey,
   normalizeProviderKey,
 } from "../providerIntegration/providerKey";
+import { recoveryFetchWithTimeout } from "./recoveryFetchWithTimeout";
 
 type JsonObject = Record<string, unknown>;
 
@@ -109,6 +111,7 @@ export const probeProviderResult = async ({
     provider: providerKey,
     modelId,
   });
+  const runtimeFlags = readFalRuntimeFlags();
 
   try {
     for (const [index, baseUrl] of queueBaseUrls.entries()) {
@@ -117,13 +120,37 @@ export const probeProviderResult = async ({
       } else {
         assertTrustedKieProviderUrl(baseUrl, `recovery_status_base_${index}`);
       }
-      const statusResponse = await dispatchProviderStatusRequest({
-        provider: providerKey,
-        baseUrl,
-        requestId,
-        apiKey,
-        signal: pollingSession.signal,
-      });
+      let statusResponse: Response;
+      try {
+        statusResponse = await recoveryFetchWithTimeout({
+          timeoutMs: runtimeFlags.recoveryProbeTimeoutMs,
+          signal: pollingSession.signal,
+          execute: (signal) =>
+            dispatchProviderStatusRequest({
+              provider: providerKey,
+              baseUrl,
+              requestId,
+              apiKey,
+              signal,
+            }),
+        });
+      } catch {
+        statusCandidates.push({
+          index,
+          baseUrl,
+          isJson: false,
+          isRetryableAlias: false,
+          httpStatus: 0,
+          isHttpOk: false,
+          status: null,
+          isTerminal: false,
+          isCompleted: false,
+          isFailed: false,
+          hasResponseUrl: false,
+          hasMedia: false,
+        });
+        continue;
+      }
       const statusData = await readJsonSafe(statusResponse);
       const payload = Object.keys(statusData.json).length ? statusData.json : {};
       const statusValue = readProviderLifecycleStatus({
@@ -194,12 +221,22 @@ export const probeProviderResult = async ({
       responseUrls: Array.from(responseUrlSet),
       modelId,
     })) {
-      const responseProbe = await dispatchProviderResponseProbeRequest({
-        provider: providerKey,
-        responseUrl,
-        apiKey,
-        signal: pollingSession.signal,
-      });
+      let responseProbe: Response;
+      try {
+        responseProbe = await recoveryFetchWithTimeout({
+          timeoutMs: runtimeFlags.recoveryProbeTimeoutMs,
+          signal: pollingSession.signal,
+          execute: (signal) =>
+            dispatchProviderResponseProbeRequest({
+              provider: providerKey,
+              responseUrl,
+              apiKey,
+              signal,
+            }),
+        });
+      } catch {
+        continue;
+      }
       const responseData = await readJsonSafe(responseProbe);
       if (
         !responseProbe.ok ||
@@ -227,13 +264,34 @@ export const probeProviderResult = async ({
       } else {
         assertTrustedKieProviderUrl(baseUrl, `recovery_result_base_${index}`);
       }
-      const resultResponse = await dispatchProviderResultRequest({
-        provider: providerKey,
-        baseUrl,
-        requestId,
-        apiKey,
-        signal: pollingSession.signal,
-      });
+      let resultResponse: Response;
+      try {
+        resultResponse = await recoveryFetchWithTimeout({
+          timeoutMs: runtimeFlags.recoveryProbeTimeoutMs,
+          signal: pollingSession.signal,
+          execute: (signal) =>
+            dispatchProviderResultRequest({
+              provider: providerKey,
+              baseUrl,
+              requestId,
+              apiKey,
+              signal,
+            }),
+        });
+      } catch {
+        resultCandidates.push({
+          index,
+          baseUrl,
+          isJson: false,
+          isRetryableAlias: false,
+          httpStatus: 0,
+          isHttpOk: false,
+          status: null,
+          hasError: true,
+          hasMedia: false,
+        });
+        continue;
+      }
       const resultData = await readJsonSafe(resultResponse);
       const payload = Object.keys(resultData.json).length ? resultData.json : {};
       const statusValue = readProviderLifecycleStatus({

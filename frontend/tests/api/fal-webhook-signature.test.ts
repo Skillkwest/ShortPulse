@@ -18,6 +18,8 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   webhookVerifyMode: "fal_only",
   webhookJwksUrl: "https://example.test/jwks",
   webhookToleranceSeconds: 300,
+  webhookCanaryUserAllowlist: new Set<string>(),
+  webhookCanaryModelAllowlist: new Set<string>(),
   publicApiBaseUrl: "https://shortpulse.test",
   directDebitFallbackEnabled: false,
   admission: {
@@ -43,6 +45,8 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   queueBaseBackoffSeconds: 5,
   ...overrides,
   queueMaxWaitSeconds: overrides.queueMaxWaitSeconds ?? 1200,
+  recoveryProbeTimeoutMs: overrides.recoveryProbeTimeoutMs ?? 15000,
+  runningExhaustMinAgeSeconds: overrides.runningExhaustMinAgeSeconds ?? 7200,
 });
 
 const buildFalSignedMessage = ({

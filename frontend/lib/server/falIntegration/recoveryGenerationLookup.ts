@@ -10,6 +10,7 @@ type JsonObject = Record<string, unknown>;
 
 export type RecoveryGenerationRow = {
   id: string;
+  created_at: string;
   user_id: string;
   request_id: string | null;
   model_id: string;
@@ -30,6 +31,7 @@ const asObject = (value: unknown): JsonObject =>
 const parseRecoveryGenerationRow = (value: unknown): RecoveryGenerationRow | null => {
   const row = asObject(value);
   const id = asString(row.id);
+  const createdAt = asString(row.created_at);
   const userId = asString(row.user_id);
   const modelId = asString(row.model_id);
   const provider = asString(row.provider);
@@ -37,11 +39,12 @@ const parseRecoveryGenerationRow = (value: unknown): RecoveryGenerationRow | nul
   const promptText = asString(row.prompt_text);
   const status = asString(row.status);
   const recoveryState = asString(row.recovery_state) ?? "none";
-  if (!id || !userId || !modelId || !provider || !mode || !promptText || !status) {
+  if (!id || !createdAt || !userId || !modelId || !provider || !mode || !promptText || !status) {
     return null;
   }
   return {
     id,
+    created_at: createdAt,
     user_id: userId,
     request_id: asString(row.request_id),
     model_id: modelId,
@@ -69,6 +72,7 @@ export const readRecoveryGenerationRow = async ({
   const supabaseAdmin = getSupabaseAdmin();
   const selectFields = [
     "id",
+    "created_at",
     "user_id",
     "request_id",
     "model_id",

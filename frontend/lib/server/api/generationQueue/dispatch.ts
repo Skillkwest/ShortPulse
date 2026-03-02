@@ -441,7 +441,10 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags);
+  const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
+    userId: item.userId,
+    modelId: item.modelId,
+  });
   const providerSubmitTargetResolution = readQueueSubmitTargets({
     provider,
     modelId: item.modelId,

@@ -30,9 +30,16 @@ vi.mock("../../providerIntegration/recoveryProviderDispatcher", () => ({
   probeGenerationProviderResult: (...args: unknown[]) => probeGenerationProviderResultMock(...args),
 }));
 
-const createAiGenerationsAdmin = (rows: Array<Record<string, unknown>>) => {
+const createAiGenerationsAdmin = (
+  rows: Array<Record<string, unknown>>,
+  options?: {
+    mediaAutosaveEnabled?: boolean;
+    userPreferenceError?: { code?: string; message?: string } | null;
+  }
+) => {
   const selectResponses = rows.map((row) => ({ data: [row], error: null }));
   const updatePayloads: Array<Record<string, unknown>> = [];
+  const mediaEventInserts: Array<Record<string, unknown>> = [];
 
   const table = {
     select: vi.fn(() => {
@@ -53,19 +60,45 @@ const createAiGenerationsAdmin = (rows: Array<Record<string, unknown>>) => {
     }),
   };
 
+  const userPreferencesTable = {
+    select: vi.fn(() => {
+      const builder: Record<string, unknown> = {};
+      builder.eq = vi.fn(() => builder);
+      builder.maybeSingle = vi.fn(async () => ({
+        data:
+          options?.userPreferenceError == null
+            ? { media_autosave_enabled: options?.mediaAutosaveEnabled ?? true }
+            : null,
+        error: options?.userPreferenceError ?? null,
+      }));
+      return builder;
+    }),
+  };
+
+  const mediaEventsTable = {
+    insert: vi.fn(async (payload: Record<string, unknown>) => {
+      mediaEventInserts.push(payload);
+      return { error: null };
+    }),
+  };
+
   const from = vi.fn((tableName: string) => {
-    if (tableName !== "ai_generations") throw new Error(`unexpected table ${tableName}`);
-    return table;
+    if (tableName === "ai_generations") return table;
+    if (tableName === "user_preferences") return userPreferencesTable;
+    if (tableName === "media_events") return mediaEventsTable;
+    throw new Error(`unexpected table ${tableName}`);
   });
 
   return {
     admin: { from },
     updatePayloads,
+    mediaEventInserts,
   };
 };
 
 const baseGenerationRow = {
   id: "gen-1",
+  created_at: "2026-02-20T00:00:00.000Z",
   user_id: "user-1",
   request_id: "req-1",
   model_id: "fal-ai/nano-banana-pro",
@@ -83,7 +116,10 @@ const baseGenerationRow = {
 describe("executeGenerationRecovery", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    readFalRuntimeFlagsMock.mockReturnValue({ reconcilerMaxAttempts: 3 });
+    readFalRuntimeFlagsMock.mockReturnValue({
+      reconcilerMaxAttempts: 3,
+      runningExhaustMinAgeSeconds: 7200,
+    });
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
@@ -164,6 +200,42 @@ describe("executeGenerationRecovery", () => {
       })
     );
     expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
+  });
+
+  it("defers running exhaustion when attempts reached max but generation age is below minimum threshold", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        recovery_attempts: 3,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      maxAttempts: 3,
+      observation: {
+        state: "running",
+        payload: null,
+        mediaUrls: [],
+      },
+    });
+
+    expect(result.state).toBe("provider_running");
+    expect(result.processed).toBe(true);
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        recovery_state: "queued",
+        failure_reason_code: null,
+        recovery_attempts: 2,
+      })
+    );
+    expect(typeof scenario.updatePayloads[0]?.next_recovery_at).toBe("string");
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
   });
 
   it("keeps monotonic behavior by skipping fail->success when transition is not allowed", async () => {
@@ -249,6 +321,94 @@ describe("executeGenerationRecovery", () => {
       expect.objectContaining({
         status: "success",
         recovery_state: "recovered",
+      })
+    );
+    expect(scenario.mediaEventInserts).toHaveLength(1);
+    expect(scenario.mediaEventInserts[0]).toEqual(
+      expect.objectContaining({
+        event_type: "generation_autosave_decision",
+        entity_type: "ai_generation",
+        entity_id: "gen-1",
+        metadata: expect.objectContaining({
+          autosave_enabled: true,
+          autosave_decision: "auto_persisted",
+          decision_reason: "auto_allowed",
+          actor: "webhook",
+        }),
+      })
+    );
+  });
+
+  it("skips persistence when media autosave preference is off and still settles success", async () => {
+    const scenario = createAiGenerationsAdmin(
+      [
+        {
+          ...baseGenerationRow,
+          status: "running",
+          failure_reason_code: "terminal_success_no_media",
+          recovery_state: "queued",
+        },
+      ],
+      { mediaAutosaveEnabled: false }
+    );
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: [],
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        note: "autosave_skipped",
+      })
+    );
+    expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+        reason: "Generation recovered; autosave skipped by user preference.",
+        detail: expect.objectContaining({
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          decision_reason: "autosave_disabled",
+        }),
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "success",
+        recovery_state: "recovered",
+        metadata: expect.objectContaining({
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "autosave_disabled",
+          autosave_skipped: true,
+        }),
+      })
+    );
+    expect(scenario.mediaEventInserts).toHaveLength(1);
+    expect(scenario.mediaEventInserts[0]).toEqual(
+      expect.objectContaining({
+        event_type: "generation_autosave_decision",
+        metadata: expect.objectContaining({
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          decision_reason: "autosave_disabled",
+          actor: "reconciler",
+        }),
       })
     );
   });

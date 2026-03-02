@@ -26,6 +26,10 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS;
     delete process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS;
+    delete process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST;
+    delete process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST;
+    delete process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS;
+    delete process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS;
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -50,6 +54,10 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.queueMaxAttempts).toBe(5);
     expect(flags.queueBaseBackoffSeconds).toBe(5);
     expect(flags.queueMaxWaitSeconds).toBe(1200);
+    expect(Array.from(flags.webhookCanaryUserAllowlist)).toEqual([]);
+    expect(Array.from(flags.webhookCanaryModelAllowlist)).toEqual([]);
+    expect(flags.recoveryProbeTimeoutMs).toBe(15000);
+    expect(flags.runningExhaustMinAgeSeconds).toBe(7200);
   });
 
   it("parses admission env overrides with per-tier fallback", () => {
@@ -70,6 +78,10 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS = "7";
     process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS = "9";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS = "1800";
+    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST = "user-1,user-2";
+    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST = "fal-ai/*,fal-ai/nano-banana-pro";
+    process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS = "22000";
+    process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS = "14400";
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -94,6 +106,13 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.queueMaxAttempts).toBe(7);
     expect(flags.queueBaseBackoffSeconds).toBe(9);
     expect(flags.queueMaxWaitSeconds).toBe(1800);
+    expect(Array.from(flags.webhookCanaryUserAllowlist)).toEqual(["user-1", "user-2"]);
+    expect(Array.from(flags.webhookCanaryModelAllowlist)).toEqual([
+      "fal-ai/*",
+      "fal-ai/nano-banana-pro",
+    ]);
+    expect(flags.recoveryProbeTimeoutMs).toBe(22000);
+    expect(flags.runningExhaustMinAgeSeconds).toBe(14400);
   });
 
   it("enables reservation cleanup by default when reconciler is enabled", () => {

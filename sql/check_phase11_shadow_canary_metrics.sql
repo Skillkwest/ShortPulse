@@ -220,12 +220,26 @@ with params as (
         now() as end_at
 )
 select
-    count(*)::bigint as queue_dispatch_error_events
+    count(*) filter (
+        where lower(coalesce(e.source, '')) = 'telemetry.queue.dispatch.claim_failed'
+    )::bigint as queue_dispatch_claim_failed_events,
+    count(*) filter (
+        where lower(coalesce(e.source, '')) = 'telemetry.queue.dispatch.retry'
+    )::bigint as queue_dispatch_retry_events,
+    count(*) filter (
+        where lower(coalesce(e.source, '')) = 'telemetry.queue.dispatch.exhausted'
+    )::bigint as queue_dispatch_exhausted_events,
+    count(*) filter (
+        where lower(coalesce(e.source, '')) in (
+            'telemetry.queue.dispatch.claim_failed',
+            'telemetry.queue.dispatch.retry',
+            'telemetry.queue.dispatch.exhausted'
+        )
+    )::bigint as queue_dispatch_error_events
 from public.app_error_events e
 cross join params p
 where e.occurred_at >= p.start_at
-  and e.occurred_at < p.end_at
-  and lower(coalesce(e.source, '')) like 'telemetry.queue.dispatch.%';
+  and e.occurred_at < p.end_at;
 
 -- -----------------------------------------------------------------------------
 -- G) One-row gate summary (uses defaults from this script)

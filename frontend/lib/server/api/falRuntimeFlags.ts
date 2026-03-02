@@ -28,6 +28,8 @@ export type FalRuntimeFlags = {
   webhookVerifyMode: FalWebhookVerifyMode;
   webhookJwksUrl: string | null;
   webhookToleranceSeconds: number;
+  webhookCanaryUserAllowlist: Set<string>;
+  webhookCanaryModelAllowlist: Set<string>;
   publicApiBaseUrl: string | null;
   directDebitFallbackEnabled: boolean;
   admission: GenerationAdmissionConfig;
@@ -43,6 +45,8 @@ export type FalRuntimeFlags = {
   queueMaxAttempts: number;
   queueBaseBackoffSeconds: number;
   queueMaxWaitSeconds: number;
+  recoveryProbeTimeoutMs: number;
+  runningExhaustMinAgeSeconds: number;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -135,6 +139,12 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     300,
     1
   ),
+  webhookCanaryUserAllowlist: parseAllowlist(
+    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST
+  ),
+  webhookCanaryModelAllowlist: parseAllowlist(
+    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST
+  ),
   publicApiBaseUrl: normalizeBaseUrl(
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL ?? process.env.APP_BASE_URL
   ),
@@ -182,6 +192,16 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     1
   ),
   queueMaxWaitSeconds: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS, 1200, 60),
+  recoveryProbeTimeoutMs: parseInteger(
+    process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS,
+    15000,
+    1000
+  ),
+  runningExhaustMinAgeSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS,
+    7200,
+    0
+  ),
 });
 
 export const isFalRuntimeEnabledForModel = (

@@ -1953,3 +1953,23 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx`.
 - Recorded Wave E Pass 2 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-2-structured-generate-callback.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 3 assistant-bubble thumbnail linking)
+- Added assistant bubble media-link orchestration seam:
+  - `frontend/features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking.ts`.
+- Added optimistic output-link hook coverage:
+  - `frontend/features/ai-studio/hooks/agentOrchestration/__tests__/useAgentOutputBubbleLinking.test.ts`.
+- Updated generation controller contract to return `{ accepted, optimisticOutputId }` so page orchestration can register post-submit bubble links without changing route contracts:
+  - `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioGenerationController.test.ts`.
+- Wired assistant bubble media mapping through inline and expanded chat surfaces and rendered thumbnail/status states above generate pills:
+  - `frontend/prefabs/agent/panels/AgentChatPanel.tsx`
+  - `frontend/features/ai-studio/components/*` + `frontend/features/ai-studio/hooks/*PanelProps.ts`
+  - `frontend/pages/ai-studio.tsx`.
+- Updated styling for compact generate controls with thumbnail/status support:
+  - `frontend/styles/prefabs-agent-variants.css`
+  - `frontend/styles/ai-studio-create-expert-output-generate.css`.
+- Added/updated targeted UI tests:
+  - `frontend/prefabs/agent/panels/__tests__/AgentChatPanel.actions.test.tsx`.
+- Recorded Wave E Pass 3 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-3-bubble-thumbnail-linking.md`.

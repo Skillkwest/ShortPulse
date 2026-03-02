@@ -91,3 +91,8 @@ Last updated: 2026-03-02
 - Topic: Structured output-generate callback transition strategy.
 - Decision: Agent output-generate callbacks now use structured payload `{ messageId, prompt, source }`; page boundary must keep a compatibility shim for legacy string payloads until all call sites are migrated.
 - Effective phase: 13.
+
+## Decision 019
+- Topic: Agent bubble media-linking contract.
+- Decision: Bubble thumbnail/status UI is linked by assistant `messageId -> optimisticOutputId` mapping, with generation-controller return payload `{ accepted, optimisticOutputId }` as the only orchestration seam; no server/API route contract changes are introduced for this linkage.
+- Effective phase: 13.

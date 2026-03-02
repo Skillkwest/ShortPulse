@@ -74,11 +74,16 @@ Completed:
    - output-generate callbacks now pass `{ messageId, prompt, source }` from chat surfaces,
    - page boundary keeps compatibility shim for legacy string callback input,
    - callback contract threaded through create/prompt/shell hook composition layers.
+9. Wave E Pass 3 bubble thumbnail linkage:
+   - introduced `useAgentOutputBubbleLinking` to map assistant message IDs to optimistic output IDs and resolve `pending/ready/failed` bubble media states,
+   - `handleGenerate` now returns `{ accepted, optimisticOutputId }` so page orchestration can register post-submit message-output links without route contract changes,
+   - threaded `assistantBubbleMedia` through inline and expanded chat surfaces and rendered thumbnail/status UI above generate pills,
+   - added focused hook, generation-controller, and agent-panel regression coverage.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (thumbnail linking, inline edit wiring, session persistence write-shadow/restore).
+3. Wave E remaining passes (inline assistant edit wiring, raw prompt mode, session persistence write-shadow/restore).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

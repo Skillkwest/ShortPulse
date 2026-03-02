@@ -107,11 +107,17 @@ Completed:
    - added authenticated AI session APIs (`/api/ai/sessions/save`, `/api/ai/sessions/:sid`, `/api/ai/sessions`) with route-level flag gate (`SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`),
    - expanded runtime SQL security audit expected-function set for new session RPCs,
    - added focused helper/API auth route test coverage.
+15. Wave E Pass 9 client remote-shadow write-through foundation:
+   - added authenticated client API seam (`sessionApiClient.ts`) for `/api/ai/sessions/save`,
+   - added transport seam (`sessionShadowPersistence.ts`) that persists local shadow first and mirrors to server only when `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=true`,
+   - updated write-shadow hook to forward `keepalive` intent on lifecycle-triggered flushes,
+   - wired page write-shadow persistence through transport seam without changing restore behavior,
+   - added focused client transport and hook regression tests.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (client write-through to server persistence APIs and restore hydration by `sid`).
+3. Wave E remaining passes (restore hydration by `sid` and staged restore rollout gating).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

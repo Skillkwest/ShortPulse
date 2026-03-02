@@ -126,3 +126,8 @@ Last updated: 2026-03-02
 - Topic: Session API route surface and rollout gate.
 - Decision: Wave E session server surface is fixed to three authenticated endpoints (`POST /api/ai/sessions/save`, `GET /api/ai/sessions/:sid`, `GET /api/ai/sessions`) backed by shared server helpers; rollout remains fail-closed via `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`.
 - Effective phase: 13.
+
+## Decision 026
+- Topic: Client remote-shadow transport behavior.
+- Decision: Wave E remote session shadow writes are local-first and fail-soft: local IndexedDB persistence remains authoritative, while server mirroring to `/api/ai/sessions/save` is optional (`NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED`) and must not block user flow or trigger hard failure loops.
+- Effective phase: 13.

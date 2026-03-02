@@ -2085,3 +2085,22 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `sql/check_runtime_sql_security_audit.sql`.
 - Recorded Wave E Pass 8 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-8-session-sql-api-foundation.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 9 client remote-shadow write-through)
+- Added authenticated session save API client seam:
+  - `frontend/features/ai-studio/logic/sessionApiClient.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionApiClient.test.ts`.
+- Added local-first write-shadow transport seam with optional remote mirror:
+  - `frontend/features/ai-studio/logic/sessionShadowPersistence.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionShadowPersistence.test.ts`.
+- Updated write-shadow hook to pass lifecycle `keepalive` intent to persistence transport and updated tests:
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionWriteShadow.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionWriteShadow.test.ts`.
+- Wired page write-shadow path to use transport seam:
+  - `frontend/pages/ai-studio.tsx`.
+- Added docs updates for remote-shadow rollout flag and troubleshooting:
+  - `README.md`
+  - `docs/api/api-internal-routes.md`
+  - `docs/troubleshooting.md`.
+- Recorded Wave E Pass 9 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-9-session-remote-shadow-write-through.md`.

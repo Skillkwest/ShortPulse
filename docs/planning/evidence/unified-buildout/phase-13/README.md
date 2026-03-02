@@ -40,6 +40,7 @@ Example:
 11. `2026-03-02-phase-13-wave-e-pass-6-session-identity-url-contract.md`
 12. `2026-03-02-phase-13-wave-e-pass-7-session-write-shadow-local-durability.md`
 13. `2026-03-02-phase-13-wave-e-pass-8-session-sql-api-foundation.md`
+14. `2026-03-02-phase-13-wave-e-pass-9-session-remote-shadow-write-through.md`
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`

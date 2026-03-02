@@ -218,6 +218,16 @@ Checklist:
   from user_preferences
   where user_id = auth.uid();
   ```
+
+## AI Studio session shadow persistence not syncing to server
+Checklist:
+- Ensure migration `sql/migrations/044_add_ai_studio_sessions_persistence.sql` is applied.
+- Ensure server route flag is enabled (or unset):
+  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` must not be `false`.
+- Ensure client remote-shadow flag is enabled for write-through shadow mode:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=true`.
+- Verify authenticated `POST /api/ai/sessions/save` responses are `200` for active users.
+- Note: local IndexedDB shadow remains active even when remote shadow is disabled/unavailable.
 - Expected behavior:
   - `media_autosave_enabled = true`: eligible generated/uploaded/pasted media can auto-persist.
   - `media_autosave_enabled = false`: recovery path settles generation success but skips background `media_files` insert; manual save remains available.

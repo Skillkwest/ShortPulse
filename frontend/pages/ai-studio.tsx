@@ -44,6 +44,7 @@ import {
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
 import type {
+  AgentAssistantMessageEditRequest,
   AgentOutputGenerateInput,
   AgentOutputGenerateRequest,
 } from "../features/ai-agent/types";
@@ -69,6 +70,8 @@ const FLAG_PAGE_OUTPUT_DECOUPLE =
   !AI_STUDIO_EMERGENCY_DISABLE_SELECTOR_STORE && PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
+const FLAG_AGENT_BUBBLE_INLINE_EDIT =
+  process.env.NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT === "true";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -1043,6 +1046,7 @@ export default function AiStudioPage() {
     handleClearAgentAttachments,
     handleAgentApplyPrompt,
     handleAgentSelectVariation,
+    handleAssistantMessageEdit,
     handleExpandChat,
     handleAgentAddToGrid,
     handleClearAgentChat,
@@ -1301,6 +1305,13 @@ export default function AiStudioPage() {
       setVideoReferenceText,
     ]
   );
+  const handleAssistantBubbleMessageEdit = useCallback(
+    (request: AgentAssistantMessageEditRequest) => {
+      if (!FLAG_AGENT_BUBBLE_INLINE_EDIT) return false;
+      return handleAssistantMessageEdit(request);
+    },
+    [handleAssistantMessageEdit]
+  );
   const disableAgentOutputGenerate = useMemo(
     () =>
       shouldDisableAgentOutputGenerate({
@@ -1360,6 +1371,7 @@ export default function AiStudioPage() {
     handleAgentApplyPrompt,
     handleAgentSelectVariation,
     handleAgentDescribeTargets,
+    handleAssistantMessageEdit: handleAssistantBubbleMessageEdit,
     handleGenerateFromAgentOutputPrompt,
     assistantBubbleMedia,
     useReferenceImageIndicator,
@@ -1572,6 +1584,7 @@ export default function AiStudioPage() {
           onAgentApplyPrompt: handleAgentApplyPrompt,
           onAgentSelectVariation: handleAgentSelectVariation,
           onAgentDescribeTargets: handleAgentDescribeTargets,
+          onAssistantMessageEdit: handleAssistantBubbleMessageEdit,
           onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
           assistantBubbleMedia,
           outputGenerateCostCredits: promptReferenceGenerateCostCredits,

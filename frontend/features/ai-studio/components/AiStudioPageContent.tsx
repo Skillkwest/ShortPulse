@@ -21,6 +21,7 @@ import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -266,6 +267,7 @@ type AgentChatProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
   disableOutputGenerate?: boolean;

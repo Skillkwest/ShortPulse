@@ -11,6 +11,7 @@ import type { ModelModalContext } from "./ModelModal";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -80,6 +81,7 @@ export type CreatePropertiesPanelProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromAgentOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
   onSavePrompt: (customPrompt?: string) => void;
@@ -254,6 +256,7 @@ export function CreatePropertiesPanel({
   onAgentApplyPrompt,
   onAgentSelectVariation,
   onAgentDescribeTargets,
+  onAssistantMessageEdit,
   onGenerateFromAgentOutputPrompt,
   agentChatOpen = false,
   onSavePrompt,
@@ -410,6 +413,7 @@ export function CreatePropertiesPanel({
     onAgentApplyPrompt,
     onAgentSelectVariation,
     onAgentDescribeTargets,
+    onAssistantMessageEdit,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     onSavePrompt,
     isGenerating: isPromptGenerating,

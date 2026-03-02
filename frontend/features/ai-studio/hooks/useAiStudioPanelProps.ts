@@ -11,6 +11,7 @@ import {
 } from "react";
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -54,6 +55,7 @@ export type UseAiStudioPanelPropsParams = {
   handleAgentApplyPrompt: (promptText: string) => void;
   handleAgentSelectVariation: (promptText: string) => void;
   handleAgentDescribeTargets: (targets: string[]) => void;
+  handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
   useReferenceImageIndicator: boolean;
   activeOutput: StudioOutput | null;
@@ -183,6 +185,7 @@ export const useAiStudioPanelProps = ({
   handleAgentApplyPrompt,
   handleAgentSelectVariation,
   handleAgentDescribeTargets,
+  handleAssistantMessageEdit,
   handleGenerateFromAgentOutputPrompt,
   useReferenceImageIndicator,
   activeOutput,
@@ -320,6 +323,7 @@ export const useAiStudioPanelProps = ({
     handleAgentApplyPrompt,
     handleAgentSelectVariation,
     handleAgentDescribeTargets,
+    handleAssistantMessageEdit,
     handleGenerateFromAgentOutputPrompt,
     useReferenceImageIndicator,
     activeOutput,

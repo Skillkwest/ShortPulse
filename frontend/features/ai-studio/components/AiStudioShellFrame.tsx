@@ -6,6 +6,7 @@ import React from "react";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -44,6 +45,7 @@ type AgentChatProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
   disableOutputGenerate?: boolean;
@@ -185,6 +187,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
                 onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
                 onAgentSelectVariation={agentChat.onAgentSelectVariation}
                 onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
+                onAssistantMessageEdit={agentChat.onAssistantMessageEdit}
                 onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
                 outputGenerateCostCredits={agentChat.outputGenerateCostCredits}
                 disableOutputGenerate={agentChat.disableOutputGenerate}

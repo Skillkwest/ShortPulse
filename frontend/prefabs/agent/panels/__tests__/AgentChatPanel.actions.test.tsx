@@ -187,6 +187,44 @@ describe("AgentChatPanel prompt actions", () => {
     );
   });
 
+  it("supports assistant bubble inline edit with commit and cancel paths", () => {
+    const onAssistantMessageEdit = vi.fn(() => true);
+    render(
+      <AgentChatPanel
+        messages={[
+          { id: "a-1", role: "assistant", content: "Assistant output one." },
+          { id: "u-1", role: "user", content: "User input one." },
+        ]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onAssistantMessageEdit={onAssistantMessageEdit}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByText("Assistant output one."));
+    const editor = screen.getByLabelText("Edit assistant message");
+    const editingMessage = editor.closest(".agent-message") as HTMLElement;
+    expect(editingMessage.getAttribute("draggable")).toBe("false");
+    fireEvent.change(editor, { target: { value: "Edited assistant output." } });
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(onAssistantMessageEdit).toHaveBeenCalledWith({
+      messageId: "a-1",
+      content: "Edited assistant output.",
+    });
+    expect(screen.queryByLabelText("Edit assistant message")).not.toBeInTheDocument();
+
+    fireEvent.doubleClick(screen.getByText("Assistant output one."));
+    const secondEditor = screen.getByLabelText("Edit assistant message");
+    fireEvent.change(secondEditor, { target: { value: "Should not persist" } });
+    fireEvent.keyDown(secondEditor, { key: "Escape" });
+
+    expect(onAssistantMessageEdit).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("Edit assistant message")).not.toBeInTheDocument();
+  });
+
   it("exposes prompt text on drag start for assistant and user bubbles", () => {
     render(
       <AgentChatPanel

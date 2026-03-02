@@ -4,7 +4,11 @@
  */
 import { useCallback, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useAiAgent } from "../../ai-agent/useAiAgent";
-import type { AgentActions, AgentContext } from "../../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentAssistantMessageEditRequest,
+  AgentContext,
+} from "../../../prefabs/agent";
 import {
   getStagedAgentPrompt,
   resolvePromptSourceBadge,
@@ -16,6 +20,7 @@ import { useAiStudioAgentInteractions } from "./useAiStudioAgentInteractions";
 import { useAiStudioAgentOrchestration } from "./useAiStudioAgentOrchestration";
 import type { AgentModeHint } from "./agentOrchestration/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 
 type UseAiStudioAgentBridgeParams = {
   mode: StudioMode;
@@ -77,6 +82,7 @@ export const useAiStudioAgentBridge = ({
     error: agentError,
     send: sendToAgent,
     appendUserMessage,
+    updateMessageById,
     reset: resetAgentChat,
   } = useAiAgent({
     enabled: agentEnabled,
@@ -198,6 +204,33 @@ export const useAiStudioAgentBridge = ({
     setAgentActions,
   });
 
+  const handleAssistantMessageEdit = useCallback(
+    ({ messageId, content }: AgentAssistantMessageEditRequest): boolean => {
+      const targetMessage = agentMessages.find(
+        (message) => message.id === messageId && message.role === "assistant"
+      );
+      if (!targetMessage) return false;
+
+      const commitContent = resolveAssistantMessageEditCommit({
+        currentContent: targetMessage.content,
+        nextContent: content,
+      });
+      if (!commitContent) return false;
+
+      const didUpdate = updateMessageById(messageId, (message) =>
+        message.role === "assistant" ? { ...message, content: commitContent } : message
+      );
+      if (didUpdate) {
+        trackAgentUiEvent("studio_agent_message_edit_committed", {
+          message_id: messageId,
+          content_length: commitContent.length,
+        });
+      }
+      return didUpdate;
+    },
+    [agentMessages, trackAgentUiEvent, updateMessageById]
+  );
+
   return {
     agentEnabled,
     agentMessages,
@@ -231,6 +264,7 @@ export const useAiStudioAgentBridge = ({
     handleClearAgentAttachments,
     handleAgentApplyPrompt,
     handleAgentSelectVariation,
+    handleAssistantMessageEdit,
     handleExpandChat,
     handleAgentAddToGrid,
     handleClearAgentChat,

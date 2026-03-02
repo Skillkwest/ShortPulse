@@ -43,6 +43,7 @@ export function PromptStep({
   onAgentApplyPrompt,
   onAgentSelectVariation,
   onAgentDescribeTargets,
+  onAssistantMessageEdit,
   onGenerateOutputPrompt,
   onSavePrompt,
   isCollapsed,
@@ -275,6 +276,7 @@ export function PromptStep({
                 onAgentApplyPrompt={onAgentApplyPrompt}
                 onAgentSelectVariation={onAgentSelectVariation}
                 onAgentDescribeTargets={onAgentDescribeTargets}
+                onAssistantMessageEdit={onAssistantMessageEdit}
               />
             ) : (
               <PromptStepEnhancedSurface

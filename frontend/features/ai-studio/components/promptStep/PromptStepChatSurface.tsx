@@ -13,6 +13,7 @@ import {
 } from "../../../../prefabs/agent";
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -89,6 +90,7 @@ type PromptStepChatSurfaceProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
 };
 
 export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
@@ -146,6 +148,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onAgentApplyPrompt,
   onAgentSelectVariation,
   onAgentDescribeTargets,
+  onAssistantMessageEdit,
 }) => {
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
   const hasAgentChatContent =
@@ -247,6 +250,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
             onInputChange={(value) => onAgentInputChange?.(value)}
             onSend={onAgentSend ?? (() => {})}
             onGenerateOutputPrompt={onGenerateOutputPrompt}
+            onAssistantMessageEdit={onAssistantMessageEdit}
             highlightLatestAssistantOnly={highlightLatestAssistantOnly}
             disableOutputGenerate={disableOutputGenerate}
             outputGenerateCostCredits={outputGenerateCostCredits}

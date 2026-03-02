@@ -3,6 +3,7 @@
  * Keeps existing feature imports stable while canonical types live in `prefabs/agent`.
  */
 export type {
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentActions,
   AgentApiContext,

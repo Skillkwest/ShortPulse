@@ -365,6 +365,29 @@
   padding-bottom: 12px;
 }
 
+.agent-message.is-editing-assistant-message {
+  cursor: text;
+}
+
+.agent-message .agent-message-edit-input {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  margin: 0;
+  border: 1px solid rgba(52, 200, 255, 0.32);
+  border-radius: 12px;
+  background: rgba(8, 18, 30, 0.75);
+  color: #dff6ff !important;
+  padding: 10px 12px;
+  line-height: 1.35;
+}
+
+.agent-message .agent-message-edit-input:focus-visible {
+  outline: none;
+  border-color: rgba(66, 216, 255, 0.74);
+  box-shadow: 0 0 0 1px rgba(66, 216, 255, 0.22);
+}
+
 .agent-message .agent-output-bubble-controls {
   position: absolute;
   right: 10px;

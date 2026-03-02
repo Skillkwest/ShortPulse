@@ -4,6 +4,7 @@
  */
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -44,6 +45,7 @@ export type PromptStepProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   // Actions
   onSavePrompt: (customPrompt?: string) => void;

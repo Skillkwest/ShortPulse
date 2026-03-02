@@ -2,12 +2,13 @@
  * Lightweight chat panel to replace prompt textareas.
  * UI stays minimal so existing panel styles remain dominant.
  */
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
 import { AgentPromptActions } from "../components/AgentPromptActions";
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -84,6 +85,7 @@ type AgentChatPanelProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -126,6 +128,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onAgentApplyPrompt,
   onAgentSelectVariation,
   onAgentDescribeTargets,
+  onAssistantMessageEdit,
   onGenerateOutputPrompt,
   onDrop,
   onDragOver,
@@ -139,6 +142,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const skipBlurCommitRef = useRef(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [editingOriginalValue, setEditingOriginalValue] = useState("");
   const latestAssistantMessageIndex = (() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       if (messages[index]?.role === "assistant") {
@@ -169,6 +177,14 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     },
     []
   );
+
+  useEffect(() => {
+    if (!editingMessageId) return;
+    const editor = editInputRef.current;
+    if (!editor) return;
+    editor.focus();
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+  }, [editingMessageId]);
 
   const handleMessageClick = useCallback(
     (message: AgentMessage) => {
@@ -249,6 +265,51 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     },
     [disableOutputGenerate, onGenerateOutputPrompt]
   );
+
+  const startAssistantMessageEdit = useCallback(
+    (message: AgentMessage) => {
+      if (!onAssistantMessageEdit) return;
+      if (message.role !== "assistant") return;
+      const messageId = message.id?.trim();
+      if (!messageId) return;
+      setEditingMessageId(messageId);
+      setEditingValue(message.content);
+      setEditingOriginalValue(message.content);
+      skipBlurCommitRef.current = false;
+    },
+    [onAssistantMessageEdit]
+  );
+
+  const cancelAssistantMessageEdit = useCallback(() => {
+    setEditingMessageId(null);
+    setEditingValue("");
+    setEditingOriginalValue("");
+    skipBlurCommitRef.current = false;
+  }, []);
+
+  const commitAssistantMessageEdit = useCallback(() => {
+    if (!onAssistantMessageEdit || !editingMessageId) {
+      cancelAssistantMessageEdit();
+      return;
+    }
+    const normalizedNext = editingValue.trim();
+    const normalizedCurrent = editingOriginalValue.trim();
+    if (!normalizedNext || normalizedNext === normalizedCurrent) {
+      cancelAssistantMessageEdit();
+      return;
+    }
+    onAssistantMessageEdit({
+      messageId: editingMessageId,
+      content: normalizedNext,
+    });
+    cancelAssistantMessageEdit();
+  }, [
+    cancelAssistantMessageEdit,
+    editingMessageId,
+    editingOriginalValue,
+    editingValue,
+    onAssistantMessageEdit,
+  ]);
 
   const resolveBubbleMediaState = useCallback(
     (messageId: string): AgentOutputBubbleMediaState | null => {
@@ -384,9 +445,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 : null}
               {messages.map((message, index) => {
                 const isClickable = Boolean(onMessageClick);
+                const resolvedMessageId = message.id?.trim() || `history-agent-output-${index}`;
+                const isEditingMessage =
+                  Boolean(editingMessageId) && editingMessageId === resolvedMessageId;
                 const isDraggable =
                   (message.role === "assistant" || message.role === "user") &&
-                  Boolean(message.content.trim());
+                  Boolean(message.content.trim()) &&
+                  !isEditingMessage;
                 const showOutputGenerateButton = message.role === "assistant";
                 const isLatestAssistantMessage =
                   highlightLatestAssistantOnly &&
@@ -396,7 +461,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   highlightLatestAssistantOnly &&
                   message.role === "assistant" &&
                   index !== latestAssistantMessageIndex;
-                const resolvedMessageId = message.id?.trim() || `history-agent-output-${index}`;
                 const bubbleMedia = resolveBubbleMediaState(resolvedMessageId);
                 const hasOutputThumbnail = Boolean(
                   bubbleMedia && bubbleMedia.state !== "idle" && showOutputGenerateButton
@@ -406,10 +470,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 return (
                   <div
                     key={key}
-                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}`}
-                    onClick={isClickable ? () => handleMessageClick(message) : undefined}
+                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}`}
+                    onClick={
+                      isClickable && !isEditingMessage
+                        ? () => handleMessageClick(message)
+                        : undefined
+                    }
+                    onDoubleClick={
+                      !isEditingMessage ? () => startAssistantMessageEdit(message) : undefined
+                    }
                     onKeyDown={
-                      isClickable ? (event) => handleMessageKeyDown(event, message) : undefined
+                      isClickable && !isEditingMessage
+                        ? (event) => handleMessageKeyDown(event, message)
+                        : undefined
                     }
                     role={isClickable ? "button" : undefined}
                     tabIndex={isClickable ? 0 : undefined}
@@ -421,8 +494,43 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                     }
                     onDragEnd={isDraggable ? handlePromptDragEnd : undefined}
                   >
-                    <p className="tiny">{message.content}</p>
-                    {showOutputGenerateButton ? (
+                    {isEditingMessage ? (
+                      <textarea
+                        ref={editInputRef}
+                        value={editingValue}
+                        className="agent-message-edit-input tiny"
+                        aria-label="Edit assistant message"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
+                        onChange={(event) => {
+                          setEditingValue(event.target.value);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            skipBlurCommitRef.current = true;
+                            cancelAssistantMessageEdit();
+                            return;
+                          }
+                          if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault();
+                            skipBlurCommitRef.current = true;
+                            commitAssistantMessageEdit();
+                          }
+                        }}
+                        onBlur={() => {
+                          if (skipBlurCommitRef.current) {
+                            skipBlurCommitRef.current = false;
+                            return;
+                          }
+                          commitAssistantMessageEdit();
+                        }}
+                      />
+                    ) : (
+                      <p className="tiny">{message.content}</p>
+                    )}
+                    {showOutputGenerateButton && !isEditingMessage ? (
                       <div className="agent-output-bubble-controls">
                         {renderOutputBubbleMedia(bubbleMedia)}
                         <button

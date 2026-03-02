@@ -23,6 +23,11 @@ export type AgentOutputBubbleMediaState = {
   state: "idle" | "pending" | "ready" | "failed";
 };
 
+export type AgentAssistantMessageEditRequest = {
+  messageId: string;
+  content: string;
+};
+
 export type AgentMessage = {
   id?: string;
   role: AgentMessageRole;

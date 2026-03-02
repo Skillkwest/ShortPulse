@@ -5,6 +5,7 @@
 import { useMemo, type Dispatch, type DragEvent, type RefObject, type SetStateAction } from "react";
 import type {
   AgentActions,
+  AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
@@ -44,6 +45,7 @@ type UseAiStudioCreatePanelPropsParams = {
   handleAgentApplyPrompt: (promptText: string) => void;
   handleAgentSelectVariation: (promptText: string) => void;
   handleAgentDescribeTargets: (targets: string[]) => void;
+  handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
   useReferenceImageIndicator: boolean;
   activeOutput: StudioOutput | null;
@@ -123,6 +125,7 @@ export const useAiStudioCreatePanelProps = ({
   handleAgentApplyPrompt,
   handleAgentSelectVariation,
   handleAgentDescribeTargets,
+  handleAssistantMessageEdit,
   handleGenerateFromAgentOutputPrompt,
   useReferenceImageIndicator,
   activeOutput,
@@ -188,6 +191,7 @@ export const useAiStudioCreatePanelProps = ({
       onAgentApplyPrompt: handleAgentApplyPrompt,
       onAgentSelectVariation: handleAgentSelectVariation,
       onAgentDescribeTargets: handleAgentDescribeTargets,
+      onAssistantMessageEdit: handleAssistantMessageEdit,
       onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
       useReferenceImageIndicator,
       hasReferencePreview: Boolean(activeOutput?.previewUrl),
@@ -248,6 +252,7 @@ export const useAiStudioCreatePanelProps = ({
       handleAgentDescribeTargets,
       handleAgentEnhanceSend,
       handleAgentInputChange,
+      handleAssistantMessageEdit,
       handleAgentSelectVariation,
       handleAgentSend,
       handleClearAgentAttachments,

@@ -15,6 +15,12 @@ const MODEL_CATALOG_PATH = path.join(
   "model-runtime",
   "modelCatalog.ts",
 );
+const MODEL_REGISTRY_PATH = path.join(
+  FRONTEND_ROOT,
+  "lib",
+  "model-runtime",
+  "modelRegistry.ts",
+);
 const PROVIDER_MODEL_IDS_PATH = path.join(
   FRONTEND_ROOT,
   "lib",
@@ -177,10 +183,15 @@ function run() {
   }
 
   const modelCatalogModule = loadTsModule(MODEL_CATALOG_PATH);
+  const modelRegistryModule = loadTsModule(MODEL_REGISTRY_PATH);
   const providerModelIdsModule = loadTsModule(PROVIDER_MODEL_IDS_PATH);
   const listModelCatalogEntries = modelCatalogModule.listModelCatalogEntries;
+  const listModelConfigs = modelRegistryModule.listModelConfigs;
   if (typeof listModelCatalogEntries !== "function") {
     throw new Error("listModelCatalogEntries export missing from modelCatalog.ts");
+  }
+  if (typeof listModelConfigs !== "function") {
+    throw new Error("listModelConfigs export missing from modelRegistry.ts");
   }
   const kieSupportedModelIds = Array.isArray(providerModelIdsModule.KIE_SUPPORTED_MODEL_IDS)
     ? providerModelIdsModule.KIE_SUPPORTED_MODEL_IDS
@@ -190,8 +201,12 @@ function run() {
   }
 
   const entries = listModelCatalogEntries();
+  const registryEntries = listModelConfigs();
   if (!Array.isArray(entries) || !entries.length) {
     errors.push("Model catalog is empty.");
+  }
+  if (!Array.isArray(registryEntries) || !registryEntries.length) {
+    errors.push("Model registry is empty.");
   }
 
   const seenIds = new Set();
@@ -284,6 +299,8 @@ function run() {
   const kieModelIdSet = new Set(kieSupportedModelIds.map((modelId) => String(modelId)));
   const kieCatalogEntries = entries.filter((entry) => entry.provider === "kie");
   const kieCatalogModelIds = new Set(kieCatalogEntries.map((entry) => String(entry.modelId || "")));
+  const kieRegistryEntries = registryEntries.filter((entry) => entry.provider === "kie");
+  const kieRegistryModelIds = new Set(kieRegistryEntries.map((entry) => String(entry.id || "")));
 
   for (const modelId of kieModelIdSet) {
     if (!seenIds.has(modelId)) {
@@ -295,6 +312,9 @@ function run() {
     }
     if (!MODEL_DOC_MAP[modelId]) {
       errors.push(`Canonical Kie model id missing MODEL_DOC_MAP entry: ${modelId}`);
+    }
+    if (!kieRegistryModelIds.has(modelId)) {
+      errors.push(`Canonical Kie model id missing from model registry: ${modelId}`);
     }
   }
 
@@ -308,6 +328,12 @@ function run() {
     if (!modelId.startsWith("kie-ai/")) continue;
     if (!kieModelIdSet.has(modelId)) {
       errors.push(`Kie MODEL_DOC_MAP entry missing canonical KIE_SUPPORTED_MODEL_IDS mapping: ${modelId}`);
+    }
+  }
+
+  for (const modelId of kieRegistryModelIds) {
+    if (!kieModelIdSet.has(modelId)) {
+      errors.push(`Model registry Kie model id missing from canonical KIE_SUPPORTED_MODEL_IDS: ${modelId}`);
     }
   }
 

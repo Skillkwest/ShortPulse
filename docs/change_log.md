@@ -1723,3 +1723,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Hardened `scripts/check_model_catalog_parity.js` with canonical Kie ID drift enforcement:
   - validates parity between `KIE_SUPPORTED_MODEL_IDS`, model catalog Kie provider entries, and Kie API doc mappings.
 - Added Phase 11 evidence/stage/tracker updates for the new canonical-id guardrails.
+
+## 2026-03-01 (phase-11 kie registry canonical-id parity guard)
+- Extended `scripts/check_model_catalog_parity.js` to enforce canonical Kie ID parity with runtime model registry entries (`listModelConfigs()`).
+- Added Phase 11 evidence/stage/tracker updates so Chunk 5 reflects runtime/catalog/registry/docs parity enforcement.

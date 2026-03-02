@@ -25,6 +25,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 20. `2026-03-01-phase-11-slice-b-provider-header-contract-centralization.md` - centralizes provider header boolean parsing and decouples Kie status contracts from submit-contract module dependencies.
 21. `2026-03-01-phase-11-slice-b-kie-model-id-runtime-canonicalization.md` - promotes Kie model ids into model-runtime canonical constants and rewires catalog/registry + provider-integration re-exports to remove cross-layer literal drift.
 22. `2026-03-01-phase-11-slice-b-kie-canonical-id-parity-guard.md` - enforces canonical Kie model-id parity across runtime constants, model catalog provider classification, and API-doc mapping checks.
+23. `2026-03-01-phase-11-slice-b-kie-registry-canonical-id-parity-guard.md` - extends canonical Kie model-id parity checks to model registry entries so runtime catalog/registry/docs stay in lockstep.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

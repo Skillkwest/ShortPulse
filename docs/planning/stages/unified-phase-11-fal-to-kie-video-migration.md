@@ -166,6 +166,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added canonical Kie model-id parity guard in model-catalog governance checks:
   - `scripts/check_model_catalog_parity.js`
   - Enforces parity between `KIE_SUPPORTED_MODEL_IDS`, model catalog `provider="kie"` entries, and Kie API doc map coverage.
+- Extended canonical Kie model-id parity guard to runtime registry:
+  - `scripts/check_model_catalog_parity.js`
+  - Enforces parity between `KIE_SUPPORTED_MODEL_IDS` and `modelRegistry` Kie provider entries.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

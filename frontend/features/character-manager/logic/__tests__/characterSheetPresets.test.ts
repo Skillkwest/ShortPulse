@@ -164,6 +164,15 @@ describe("characterSheetPresets metadata helpers", () => {
             })),
           };
         }
+        if (table === "character_quick_swap_items") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(async () => ({ count: 0, error: null })),
+              })),
+            })),
+          };
+        }
         if (table === "characters") {
           return {
             select: vi.fn(() => ({

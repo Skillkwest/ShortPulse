@@ -47,6 +47,7 @@ type UseMediaPreviewSigningControllerArgs<TRow extends PreviewSigningRowBase> = 
   visibleMediaIdsRef: MutableRefObject<Set<string>>;
   visibleMediaVersion: number;
   isSigningPassEnabled?: boolean;
+  isSignPrefetchEnabled?: boolean;
   surface?: "media-library-route" | "media-library-modal";
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
@@ -79,6 +80,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
   visibleMediaIdsRef,
   visibleMediaVersion,
   isSigningPassEnabled = true,
+  isSignPrefetchEnabled = true,
   surface = "media-library-route",
   unresolvedWarningPrefix = "[media-library]",
   isResultStillRelevant,
@@ -122,29 +124,31 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       enqueue(row);
     }
 
-    const visibleIndexes: number[] = [];
-    for (let idx = 0; idx < readyRows.length; idx += 1) {
-      if (visibleMediaIdsRef.current.has(readyRows[idx].id)) {
-        visibleIndexes.push(idx);
+    if (isSignPrefetchEnabled) {
+      const visibleIndexes: number[] = [];
+      for (let idx = 0; idx < readyRows.length; idx += 1) {
+        if (visibleMediaIdsRef.current.has(readyRows[idx].id)) {
+          visibleIndexes.push(idx);
+        }
       }
-    }
 
-    if (visibleIndexes.length) {
-      const firstVisible = Math.min(...visibleIndexes);
-      const lastVisible = Math.max(...visibleIndexes);
-      const before = Math.floor(signBudget.prefetchWindow / 3);
-      const start = Math.max(0, firstVisible - before);
-      const end = Math.min(readyRows.length, lastVisible + 1 + signBudget.prefetchWindow);
-      for (let idx = start; idx < end; idx += 1) {
-        enqueue(readyRows[idx]);
-      }
-    } else {
-      const fallbackEnd = Math.min(
-        readyRows.length,
-        signBudget.initialSignLimit + signBudget.prefetchWindow
-      );
-      for (let idx = signBudget.initialSignLimit; idx < fallbackEnd; idx += 1) {
-        enqueue(readyRows[idx]);
+      if (visibleIndexes.length) {
+        const firstVisible = Math.min(...visibleIndexes);
+        const lastVisible = Math.max(...visibleIndexes);
+        const before = Math.floor(signBudget.prefetchWindow / 3);
+        const start = Math.max(0, firstVisible - before);
+        const end = Math.min(readyRows.length, lastVisible + 1 + signBudget.prefetchWindow);
+        for (let idx = start; idx < end; idx += 1) {
+          enqueue(readyRows[idx]);
+        }
+      } else {
+        const fallbackEnd = Math.min(
+          readyRows.length,
+          signBudget.initialSignLimit + signBudget.prefetchWindow
+        );
+        for (let idx = signBudget.initialSignLimit; idx < fallbackEnd; idx += 1) {
+          enqueue(readyRows[idx]);
+        }
       }
     }
 
@@ -160,6 +164,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       batch_size: signBatch.length,
       page_index: activeMediaCachePagesLoaded,
       query_mode: queryForBatch ? "search" : "default",
+      sign_prefetch_enabled: isSignPrefetchEnabled,
     });
 
     const signCandidatesByRow = signBatch.map((row) => {
@@ -181,6 +186,9 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       bucket: BUCKET,
       storagePaths: signPaths,
       expiresInSeconds: 3600,
+      surface,
+      queryMode: queryForBatch ? "search" : "default",
+      tab: tabForBatch,
     })
       .then((signedByPath) =>
         signCandidatesByRow.map((entry) => {
@@ -222,6 +230,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
         const unresolvedAfterResolver = unresolvedRows.length
           ? await resolveSignedUrlsByMediaIds(tabForBatch, unresolvedRows)
           : new Set<string>();
+        const unresolvedAfterResolverCount = unresolvedAfterResolver.size;
         for (const unresolvedRow of unresolvedRows.slice(0, 4)) {
           if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
           void hydrateViaStorageDownload(unresolvedRow);
@@ -235,6 +244,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
           signed_count: signedById.size,
           failed_count: failedCount,
           fallback_count: fallbackCount,
+          unresolved_after_resolver_count: unresolvedAfterResolverCount,
         });
         if (failedCount > 0) {
           if (process.env.NODE_ENV !== "production") {
@@ -255,8 +265,10 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
             batch_size: results.length,
             failed_count: failedCount,
             fallback_count: fallbackCount,
+            unresolved_after_resolver_count: unresolvedAfterResolverCount,
             page_index: activeMediaCachePagesLoaded,
             query_mode: queryForBatch ? "search" : "default",
+            sign_prefetch_enabled: isSignPrefetchEnabled,
           });
         }
       })
@@ -278,6 +290,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
     hydrateViaStorageDownload,
     isMountedRef,
     isResultStillRelevant,
+    isSignPrefetchEnabled,
     isSigningPassEnabled,
     mediaSignInFlightRef,
     maxSignAttemptsPerItem,

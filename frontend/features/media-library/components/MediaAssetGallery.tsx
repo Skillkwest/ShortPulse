@@ -10,6 +10,12 @@ import {
   resolveAdaptiveMedia,
   resolveAdaptiveSourceKind,
 } from "../../../lib/adaptive-media";
+import { useMediaGridVideoBudgetController } from "../hooks/useMediaGridVideoBudgetController";
+import { useMediaMasonryVirtualization } from "../hooks/useMediaMasonryVirtualization";
+import {
+  MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
+  MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
+} from "../logic/mediaLibraryFeatureFlags";
 
 type MediaAssetRow = {
   id: string;
@@ -71,10 +77,43 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
   selectedIds,
   toggleSelect,
 }: MediaAssetGalleryProps<TRow>) {
+  const {
+    containerRef: virtualContainerRef,
+    isVirtualized,
+    totalHeight: virtualTotalHeight,
+    renderItems: virtualRenderItems,
+  } = useMediaMasonryVirtualization({
+    items: files,
+    getItemId: (item) => item.id,
+    getAspectRatio: (item) => aspectMap[item.id] || (isVideoFile(item.file_type) ? 9 / 16 : 4 / 5),
+    enabled: MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
+    targetColumnWidth: 260,
+    gap: 1,
+    overscanPx: 960,
+    minItemsToVirtualize: 28,
+  });
+
+  const { getVideoNodeRef, isVideoAutoplayEnabled, resolveVideoSource } =
+    useMediaGridVideoBudgetController({
+      items: files.map((file) => ({ id: file.id, fileType: file.file_type })),
+      enabled: MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
+      surface: "media-library-route",
+      isVideoFile: (fileType) => isVideoFile(fileType ?? ""),
+      detachDelayMs: 900,
+      visibilityThreshold: 0.52,
+    });
+
   return (
     <>
-      <div className="media-grid media-grid-fixed media-grid-shell media-grid-packed">
-        {files.map((file) => {
+      <div
+        ref={virtualContainerRef}
+        className={`media-grid media-grid-fixed media-grid-shell media-grid-packed${
+          isVirtualized ? " media-grid-virtualized" : ""
+        }`}
+        style={isVirtualized ? { height: `${virtualTotalHeight}px` } : undefined}
+      >
+        {virtualRenderItems.map((renderItem) => {
+          const file = renderItem.item;
           const aspectRatio = aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
           const adaptiveCardPreview = file.signedUrl
             ? resolveAdaptiveMedia({
@@ -94,6 +133,9 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
               })
             : null;
           const cardPreviewUrl = adaptiveCardPreview?.previewUrl ?? file.signedUrl;
+          const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
+          const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
+          const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
           return (
             <div
               className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
@@ -101,6 +143,7 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
               }`}
               key={file.id}
               ref={getMediaCardRef(file.id)}
+              style={renderItem.style}
               role="button"
               tabIndex={0}
               onClick={() => toggleSelect(file)}
@@ -123,12 +166,13 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
                 isVideoFile(file.file_type) ? (
                   <video
                     className="media-thumb"
-                    src={cardPreviewUrl}
+                    ref={getVideoNodeRef(file.id)}
+                    src={managedVideoSrc}
                     muted
                     playsInline
                     loop
-                    autoPlay
-                    preload="metadata"
+                    autoPlay={autoPlayEnabled}
+                    preload={autoPlayEnabled ? "metadata" : "none"}
                     onLoadedMetadata={(event) => handleVideoMeta(file.id, event)}
                     onError={() => handleMediaPreviewError(file)}
                     style={{ aspectRatio }}
@@ -138,9 +182,12 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
                     {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
+                      {...({ fetchpriority: fetchPriorityAttr } as Record<string, string>)}
                       src={cardPreviewUrl}
                       alt={file.filename}
                       className="media-thumb"
+                      loading="lazy"
+                      decoding="async"
                       onLoad={(event) => handleImageLoad(file.id, event)}
                       onError={() => handleMediaPreviewError(file)}
                       style={{ aspectRatio }}

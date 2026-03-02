@@ -158,6 +158,10 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
     signAttemptRef.current = {};
   }, [activeMediaQuery, activeTab]);
 
+  useEffect(() => {
+    firstMediaPaintLoggedRef.current = false;
+  }, [activeMediaQuery, activeTab]);
+
   useEffect(
     () => () => {
       for (const objectUrl of Object.values(objectUrlByMediaIdRef.current)) {

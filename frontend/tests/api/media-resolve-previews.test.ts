@@ -30,6 +30,7 @@ type MediaLookupRow = {
 };
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });

@@ -426,6 +426,23 @@
   min-height: 160px;
 }
 
+.media-library-modal-grid.media-library-modal-grid-packed.media-library-modal-grid-virtualized {
+  column-width: auto;
+  column-gap: 0;
+  padding: 0;
+  position: relative;
+  contain: layout paint;
+  overflow-anchor: none;
+}
+
+.media-library-modal-grid.media-library-modal-grid-packed.media-library-modal-grid-virtualized
+  .media-library-modal-card {
+  position: absolute;
+  display: block;
+  margin: 0;
+  break-inside: auto;
+}
+
 .media-library-select-indicator {
   position: absolute;
   top: 10px;

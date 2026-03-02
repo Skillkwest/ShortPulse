@@ -22,6 +22,9 @@ type SignedMediaUrlBatchOptions = {
   storagePaths: string[];
   expiresInSeconds?: number;
   forceRefresh?: boolean;
+  surface?: "media-library-route" | "media-library-modal" | "reference-grid";
+  queryMode?: "default" | "search";
+  tab?: string;
 };
 
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
@@ -94,7 +97,8 @@ const signStoragePathDirect = async (
 const signStoragePathsViaApi = async (
   bucket: string,
   storagePaths: string[],
-  expiresInSeconds: number
+  expiresInSeconds: number,
+  options?: { surface?: string; queryMode?: string; tab?: string }
 ): Promise<Record<string, string | null> | null> => {
   if (!storagePaths.length) return {};
   const response = await fetchWithAuth("/api/media/sign-batch", {
@@ -106,6 +110,9 @@ const signStoragePathsViaApi = async (
       bucket,
       paths: storagePaths,
       expiresInSeconds,
+      surface: options?.surface,
+      queryMode: options?.queryMode,
+      tab: options?.tab,
     }),
     shortpulseLogScope: "app",
   }).catch(() => null);
@@ -164,6 +171,9 @@ export const getSignedMediaUrlsBatch = async ({
   storagePaths,
   expiresInSeconds = DEFAULT_SIGNED_URL_TTL_SECONDS,
   forceRefresh = false,
+  surface,
+  queryMode,
+  tab,
 }: SignedMediaUrlBatchOptions): Promise<Map<string, string | null>> => {
   const dedupedPaths = Array.from(new Set(storagePaths.map((path) => path.trim()).filter(Boolean)));
   const result = new Map<string, string | null>();
@@ -184,7 +194,11 @@ export const getSignedMediaUrlsBatch = async ({
   if (!unresolvedPaths.length) return result;
 
   for (const unresolvedChunk of chunkStoragePaths(unresolvedPaths, MAX_BATCH_SIGN_PATHS)) {
-    const apiResults = await signStoragePathsViaApi(bucket, unresolvedChunk, expiresInSeconds);
+    const apiResults = await signStoragePathsViaApi(bucket, unresolvedChunk, expiresInSeconds, {
+      surface,
+      queryMode,
+      tab,
+    });
     if (apiResults) {
       for (const path of unresolvedChunk) {
         const signedUrl = apiResults[path] ?? null;

@@ -1,0 +1,205 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MutableRefObject,
+} from "react";
+import { computeMediaVirtualLayout, type MediaVirtualItem } from "../logic/mediaGridVirtualization";
+
+type UseMediaMasonryVirtualizationArgs<TItem> = {
+  items: TItem[];
+  getItemId: (item: TItem) => string;
+  getAspectRatio: (item: TItem) => number;
+  enabled: boolean;
+  scrollContainerRef?: MutableRefObject<HTMLElement | null>;
+  targetColumnWidth: number;
+  gap: number;
+  overscanPx: number;
+  minItemsToVirtualize?: number;
+};
+
+export type VirtualizedRenderItem<TItem> = {
+  id: string;
+  item: TItem;
+  index: number;
+  style?: CSSProperties;
+};
+
+type UseMediaMasonryVirtualizationResult<TItem> = {
+  containerRef: MutableRefObject<HTMLDivElement | null>;
+  isVirtualized: boolean;
+  totalHeight: number;
+  columnCount: number;
+  renderItems: VirtualizedRenderItem<TItem>[];
+};
+
+/**
+ * Shared route/modal hook for virtualized masonry rendering.
+ */
+export const useMediaMasonryVirtualization = <TItem>({
+  items,
+  getItemId,
+  getAspectRatio,
+  enabled,
+  scrollContainerRef,
+  targetColumnWidth,
+  gap,
+  overscanPx,
+  minItemsToVirtualize = 24,
+}: UseMediaMasonryVirtualizationArgs<TItem>): UseMediaMasonryVirtualizationResult<TItem> => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState(
+    typeof window !== "undefined" ? Math.max(0, window.innerWidth) : 0
+  );
+  const [viewportTop, setViewportTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+
+  const sourceItems = useMemo<MediaVirtualItem[]>(
+    () =>
+      items.map((item) => ({
+        id: getItemId(item),
+        aspectRatio: getAspectRatio(item),
+      })),
+    [getAspectRatio, getItemId, items]
+  );
+
+  const shouldVirtualize = enabled && items.length >= minItemsToVirtualize && containerWidth > 0;
+
+  const measureViewport = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (scrollContainerRef?.current) {
+      const root = scrollContainerRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const relativeTop = containerRect.top - rootRect.top + root.scrollTop;
+      setViewportTop(Math.max(0, root.scrollTop - relativeTop));
+      setViewportHeight(Math.max(0, root.clientHeight));
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const containerRect = container.getBoundingClientRect();
+    const containerTop = window.scrollY + containerRect.top;
+    setViewportTop(Math.max(0, window.scrollY - containerTop));
+    setViewportHeight(Math.max(0, window.innerHeight));
+  }, [scrollContainerRef]);
+
+  const scheduleMeasureViewport = useCallback(() => {
+    if (rafIdRef.current != null || typeof window === "undefined") return;
+    rafIdRef.current = window.requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      measureViewport();
+    });
+  }, [measureViewport]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width ?? 0;
+      setContainerWidth(Math.max(0, Math.round(nextWidth)));
+      scheduleMeasureViewport();
+    });
+    resizeObserver.observe(container);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [scheduleMeasureViewport]);
+
+  useEffect(() => {
+    measureViewport();
+  }, [items.length, measureViewport, shouldVirtualize]);
+
+  useEffect(() => {
+    const root = scrollContainerRef?.current;
+    if (root) {
+      root.addEventListener("scroll", scheduleMeasureViewport, { passive: true });
+      return () => {
+        root.removeEventListener("scroll", scheduleMeasureViewport);
+      };
+    }
+    if (typeof window === "undefined") return;
+    window.addEventListener("scroll", scheduleMeasureViewport, { passive: true });
+    window.addEventListener("resize", scheduleMeasureViewport);
+    return () => {
+      window.removeEventListener("scroll", scheduleMeasureViewport);
+      window.removeEventListener("resize", scheduleMeasureViewport);
+    };
+  }, [scheduleMeasureViewport, scrollContainerRef]);
+
+  useEffect(
+    () => () => {
+      if (rafIdRef.current != null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(rafIdRef.current);
+      }
+      rafIdRef.current = null;
+    },
+    []
+  );
+
+  const itemById = useMemo(
+    () => new Map(items.map((item) => [getItemId(item), item])),
+    [getItemId, items]
+  );
+
+  const layout = useMemo(() => {
+    if (!shouldVirtualize) return null;
+    return computeMediaVirtualLayout({
+      items: sourceItems,
+      containerWidth,
+      viewportTop,
+      viewportHeight,
+      targetColumnWidth,
+      gap,
+      overscanPx,
+    });
+  }, [
+    containerWidth,
+    gap,
+    overscanPx,
+    shouldVirtualize,
+    sourceItems,
+    targetColumnWidth,
+    viewportHeight,
+    viewportTop,
+  ]);
+
+  const renderItems = useMemo<VirtualizedRenderItem<TItem>[]>(() => {
+    if (!shouldVirtualize || !layout) {
+      return items.map((item, index) => ({
+        id: getItemId(item),
+        item,
+        index,
+      }));
+    }
+    return layout.visibleItems
+      .map((entry) => {
+        const item = itemById.get(entry.id);
+        if (!item) return null;
+        return {
+          id: entry.id,
+          item,
+          index: entry.index,
+          style: {
+            position: "absolute",
+            top: `${entry.top}px`,
+            left: `${entry.left}px`,
+            width: `${entry.width}px`,
+          },
+        };
+      })
+      .filter(Boolean) as VirtualizedRenderItem<TItem>[];
+  }, [getItemId, itemById, items, layout, shouldVirtualize]);
+
+  return {
+    containerRef,
+    isVirtualized: shouldVirtualize && Boolean(layout),
+    totalHeight: layout?.totalHeight ?? 0,
+    columnCount: layout?.columnCount ?? 1,
+    renderItems,
+  };
+};

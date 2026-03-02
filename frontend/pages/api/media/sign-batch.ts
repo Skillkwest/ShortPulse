@@ -22,6 +22,8 @@ const MIN_SIGNED_URL_TTL_SECONDS = 60;
 const MAX_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_SIGN_PATHS = 60;
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
+const ALLOWED_SURFACE_VALUES = new Set(["media-library-route", "media-library-modal"]);
+const ALLOWED_QUERY_MODE_VALUES = new Set(["default", "search"]);
 
 const toSafePath = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -53,6 +55,18 @@ const toSafeExpiresInSeconds = (value: unknown): number => {
   return normalized;
 };
 
+const toSafeTelemetryLabel = (
+  value: unknown,
+  allowed?: Set<string>,
+  fallback = "unknown"
+): string => {
+  if (typeof value !== "string") return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (allowed && !allowed.has(normalized)) return fallback;
+  return normalized;
+};
+
 /**
  * Signs media storage paths in a single call for lower list-render latency.
  */
@@ -79,6 +93,13 @@ export default async function handler(
     if (!paths.length) {
       return res.status(200).json({ urls: {} });
     }
+    const telemetrySurface = toSafeTelemetryLabel(body?.surface, ALLOWED_SURFACE_VALUES);
+    const telemetryQueryMode = toSafeTelemetryLabel(
+      body?.queryMode,
+      ALLOWED_QUERY_MODE_VALUES,
+      "default"
+    );
+    const telemetryTab = toSafeTelemetryLabel(body?.tab);
 
     const userPrefix = `${user.id}/`;
     const hasOutOfScopePath = paths.some((path) => !path.startsWith(userPrefix));
@@ -109,6 +130,11 @@ export default async function handler(
       const signedUrl = (signedItem as { signedUrl?: unknown }).signedUrl;
       urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;
     }
+
+    res.setHeader("x-shortpulse-media-sign-surface", telemetrySurface);
+    res.setHeader("x-shortpulse-media-sign-query-mode", telemetryQueryMode);
+    res.setHeader("x-shortpulse-media-sign-tab", telemetryTab);
+    res.setHeader("x-shortpulse-media-sign-path-count", String(paths.length));
 
     return res.status(200).json({ urls });
   } catch (error) {

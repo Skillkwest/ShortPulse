@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { logMediaPerf } from "../lib/mediaPerfTelemetry";
+import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 import {
   isMoveDestinationDataTab,
@@ -27,6 +27,7 @@ import { useMediaPreviewSigningController } from "../features/media-library/hook
 import { useMediaSingleMoveController } from "../features/media-library/hooks/useMediaSingleMoveController";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
 import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
+import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../features/media-library/logic/mediaLibraryFeatureFlags";
 import {
   BUCKET,
   MEDIA_DATA_TABS,
@@ -118,6 +119,8 @@ export default function MediaLibrary() {
     setSelectedIds,
   });
   const firstCardShellLoggedRef = useRef(false);
+  const openToFirstMediaTimerRef = useRef<ReturnType<typeof createMediaPerfTimer> | null>(null);
+  const openToFirstMediaLoggedRef = useRef(false);
   const cachedMediaBytes = useMemo(() => {
     const byId = new Map<string, number>();
     for (const tab of MEDIA_DATA_TABS) {
@@ -239,6 +242,20 @@ export default function MediaLibrary() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (!isMediaDataTab(activeTab)) {
+      openToFirstMediaTimerRef.current = null;
+      openToFirstMediaLoggedRef.current = false;
+      return;
+    }
+    openToFirstMediaTimerRef.current = createMediaPerfTimer({
+      surface: "media-library-route",
+      tab: activeTab,
+      query_mode: activeMediaQuery ? "search" : "default",
+    });
+    openToFirstMediaLoggedRef.current = false;
+  }, [activeMediaQuery, activeTab]);
+
+  useEffect(() => {
     if (selectedIds.length) return;
     setBulkMoveMenuOpen(false);
     setBulkMoveError(null);
@@ -323,6 +340,7 @@ export default function MediaLibrary() {
     signPassNonce,
     visibleMediaIdsRef,
     visibleMediaVersion,
+    isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
   });
 
   const filteredPrompts = useMemo(() => {
@@ -409,6 +427,15 @@ export default function MediaLibrary() {
     signedUrlRetryRef.current[id] = 0;
     cacheAspectRatio(id, img.naturalWidth / img.naturalHeight);
     markFirstMediaPaint("image");
+    if (!openToFirstMediaLoggedRef.current) {
+      openToFirstMediaLoggedRef.current = true;
+      openToFirstMediaTimerRef.current?.("media.route.open_to_first_media", {
+        surface: "media-library-route",
+        tab: activeTab,
+        asset_kind: "image",
+        query_mode: activeMediaQuery ? "search" : "default",
+      });
+    }
   };
 
   const handleVideoMeta = (id: string, event: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -417,6 +444,15 @@ export default function MediaLibrary() {
     signedUrlRetryRef.current[id] = 0;
     cacheAspectRatio(id, vid.videoWidth / vid.videoHeight);
     markFirstMediaPaint("video");
+    if (!openToFirstMediaLoggedRef.current) {
+      openToFirstMediaLoggedRef.current = true;
+      openToFirstMediaTimerRef.current?.("media.route.open_to_first_media", {
+        surface: "media-library-route",
+        tab: activeTab,
+        asset_kind: "video",
+        query_mode: activeMediaQuery ? "search" : "default",
+      });
+    }
   };
 
   const toggleSelect = (file: MediaRow) => {

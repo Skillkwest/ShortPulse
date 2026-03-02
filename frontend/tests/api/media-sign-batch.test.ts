@@ -19,6 +19,7 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 const createMockResponse = () => {
   const res = {
+    setHeader: vi.fn().mockReturnThis(),
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
   };

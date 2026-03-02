@@ -174,6 +174,19 @@ export default async function handler(
     }
 
     const resolvedPathById = new Map<string, string>();
+    const basenameLookupPromiseByName = new Map<string, Promise<string | null>>();
+    let fallbackLookupCount = 0;
+    const resolveObjectByBasenameCached = (basename: string): Promise<string | null> => {
+      const key = basename.trim().toLowerCase();
+      if (!key) return Promise.resolve(null);
+      const existing = basenameLookupPromiseByName.get(key);
+      if (existing) return existing;
+      fallbackLookupCount += 1;
+      const task = resolveObjectByBasename(user.id, basename).catch(() => null);
+      basenameLookupPromiseByName.set(key, task);
+      return task;
+    };
+
     for (const row of rows) {
       const candidates = candidatesById.get(row.id) ?? [];
       const fromCandidates = candidates.find((candidate) => existingPaths.has(candidate));
@@ -184,11 +197,11 @@ export default async function handler(
 
       const basenameCandidates = Array.from(
         new Set(
-          [basenameOf(row.storage_path), basenameOf(row.filename)].filter(Boolean) as string[]
+          [basenameOf(row.filename), basenameOf(row.storage_path)].filter(Boolean) as string[]
         )
       );
       for (const basename of basenameCandidates) {
-        const matchedObject = await resolveObjectByBasename(user.id, basename);
+        const matchedObject = await resolveObjectByBasenameCached(basename);
         if (!matchedObject || !isUserScopedStoragePath(matchedObject, user.id)) continue;
         resolvedPathById.set(row.id, matchedObject);
         break;
@@ -238,6 +251,12 @@ export default async function handler(
       }
       urls[mediaId] = resolveMediaDirectPreviewUrls(row, user.id)[0] ?? null;
     }
+
+    res.setHeader("x-shortpulse-media-resolve-row-count", String(mediaIds.length));
+    res.setHeader(
+      "x-shortpulse-media-resolve-fallback-lookups",
+      String(Math.max(0, fallbackLookupCount))
+    );
 
     return res.status(200).json({ urls });
   } catch (error) {

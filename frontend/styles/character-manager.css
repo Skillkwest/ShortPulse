@@ -2266,8 +2266,15 @@ body.character-manager-body {
 }
 
 @media (max-width: 1280px) and (min-width: 1101px) {
-  .character-create-flow {
+  .character-create-workspace-layout {
     grid-template-columns: 1fr;
+    grid-template-areas: none;
+  }
+
+  .character-layout-region--identity,
+  .character-layout-region--quickswap,
+  .character-layout-region--sheet {
+    grid-area: auto;
   }
 
   .character-section--references {
@@ -2292,7 +2299,7 @@ body.character-manager-body {
 }
 
 @media (max-width: 1100px) {
-  .character-create-flow {
+  .character-create-workspace-layout {
     grid-template-columns: 1fr;
   }
 

@@ -756,7 +756,7 @@ describe("ReferenceGrid curated split", () => {
     expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "out-1" }));
   });
 
-  it("shows only the curated remove action in quick slot card actions", () => {
+  it("shows curated remove and download actions in quick slot card actions for image media", () => {
     const { container } = render(
       <ReferenceGrid
         {...createProps({
@@ -772,9 +772,67 @@ describe("ReferenceGrid curated split", () => {
     const curatedQueries = within(curatedSection);
 
     expect(curatedQueries.getByLabelText("Remove from curated")).toBeInTheDocument();
+    expect(curatedQueries.getByLabelText("Download reference")).toBeInTheDocument();
     expect(curatedQueries.queryByLabelText("Save to media library")).toBeNull();
-    expect(curatedQueries.queryByLabelText("Download reference")).toBeNull();
     expect(curatedQueries.queryByLabelText("Remove reference from grid")).toBeNull();
+  });
+
+  it("shows curated download action for quick slot video media", () => {
+    const videoOutput: StudioOutput = {
+      id: "out-video",
+      prompt: "Video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/video.mp4",
+    };
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [videoOutput],
+          activeOutputId: videoOutput.id,
+          curatedReferenceIds: [videoOutput.id],
+          onDownload: vi.fn(),
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const curatedQueries = within(curatedSection);
+
+    expect(curatedQueries.getByLabelText("Download reference")).toBeInTheDocument();
+    expect(curatedQueries.getByLabelText("Remove from curated")).toBeInTheDocument();
+  });
+
+  it("does not show curated download action for quick slot prompt-only cards", () => {
+    const promptOutput: StudioOutput = {
+      id: "out-prompt-only",
+      prompt: "Prompt only",
+      mode: "text",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewText: "Prompt reference",
+    };
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [promptOutput],
+          activeOutputId: promptOutput.id,
+          curatedReferenceIds: [promptOutput.id],
+          onDownload: vi.fn(),
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const curatedQueries = within(curatedSection);
+
+    expect(curatedQueries.queryByLabelText("Download reference")).toBeNull();
+    expect(curatedQueries.getByLabelText("Remove from curated")).toBeInTheDocument();
   });
 
   it("rejects non-internal drops in curated section", () => {

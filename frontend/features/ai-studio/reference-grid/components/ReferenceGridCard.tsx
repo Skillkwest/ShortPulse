@@ -272,6 +272,20 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {showCuratedRemoveAction && onRemoveCuratedReference && isSelected ? (
         <div className="reference-card-actions" aria-label="Curated actions">
+          {onDownload && (isImagePreview || isVideoPreview) ? (
+            <button
+              type="button"
+              className="reference-card-action-btn"
+              aria-label="Download reference"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onDownload(item);
+              }}
+            >
+              <DownloadSimple size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
           <button
             type="button"
             className="reference-card-action-btn reference-card-action-btn--danger"

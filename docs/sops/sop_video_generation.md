@@ -41,6 +41,15 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 5. Reference Grid prepends the new output card; Studio Preview shows the latest video thumbnail/preview if available.  
 6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
+### Model picker policy (Create → Video)
+
+- Model chips are ordered deterministically by provider + workflow priority in the modal.
+- Standard Video mode (`reference-video` context) surfaces image-to-video models in this order:
+  1. `fal-ai/veo3.1/image-to-video`
+  2. `fal-ai/bytedance/seedance/v1.5/pro/image-to-video`
+- `fal-ai/veo3.1/first-last-frame-to-video` is intentionally excluded from standard Video mode and is available only in Keyframes mode (`reference-keyframes` context).
+- Keyframes mode remains explicitly locked to `fal-ai/veo3.1/first-last-frame-to-video`.
+
 ## Reference-based video workflow (Create → Video, image-to-video models)
 
 1. User opens the Video tool (`VideoPropertiesPanel`) and selects aspect + model.
@@ -86,7 +95,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 | --- | --- | --- | --- |
 | Fal | `fal-ai/kling-video/v3/pro/image-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video queue; requires a start image (`start_image_url`); optional end image when using keyframes. Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Defaults to 10s with `generate_audio: true` and proxies through `/api/fal/kling-v3-image-to-video-*`. |
 | Fal | `fal-ai/kling-video/v3/pro/text-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Text-to-video queue; per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Defaults to 10s with `generate_audio: true` and proxies through `/api/fal/kling-v3-text-submit`. |
-| Fal | `fal-ai/veo3.1/first-last-frame-to-video` | auto default (allowed: auto, 16:9, 9:16) | First/Last Frame queue; requires `first_frame_url` + `last_frame_url`; per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p); defaults to 8s @ 720p with audio (320 credits). |
+| Fal | `fal-ai/veo3.1/first-last-frame-to-video` | auto default (allowed: auto, 16:9, 9:16) | First/Last Frame queue; requires `first_frame_url` + `last_frame_url`; per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p); defaults to 8s @ 720p with audio (320 credits). Exposed in Keyframes mode only (not shown in standard Video model picker). |
 | Fal | `fal-ai/veo3.1/image-to-video` | auto default (allowed: auto, 16:9, 9:16) | Image-to-video queue; requires `image_url`; per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p; 4K $0.40/$0.60). Defaults to 8s @ 720p with audio on. |
 | Fal | `fal-ai/veo3.1` | 16:9 default (allowed: 16:9, 9:16) | Per-second pricing (unchanged); defaults to 8s @ 1080p with audio on (still billed via `veo-3-per-second`); 4K/audio-on is higher. |
 | Fal | `fal-ai/sora-2/text-to-video/pro` | 16:9 default (allowed: 16:9, 9:16) | Tiered pricing: `rawCredits = ceil(usd / 0.01)`, final `credits = ceil(rawCredits / 5) * 5`. Standard tier uses 10s pricing (150 cr) for <=10s requests; High tier 10s = 330 cr (default). Queue accepts 4/8/12s; ShortPulse requests 8s by default (audio on) and polls Fal queue. |

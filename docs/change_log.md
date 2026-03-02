@@ -2516,3 +2516,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `README.md`
   - `docs/routes.md`
   - `docs/planning/backlog.md`
+
+## 2026-03-02 (AI Studio model modal ordering + video keyframes picker policy)
+- Enforced deterministic, provider-grouped model-chip ordering in AI Studio model modals across Create, Edit, and Video contexts:
+  - `frontend/features/ai-studio/components/ModelModal.tsx`
+- Updated video model-selection policy so standard Video mode excludes `fal-ai/veo3.1/first-last-frame-to-video`, while Keyframes mode remains first/last-frame-only:
+  - `frontend/features/ai-studio/logic/modelSelectionPolicy.ts`
+- Added regression coverage for modal ordering and standard-vs-keyframes filtering behavior:
+  - `frontend/features/ai-studio/components/__tests__/ModelModal.test.tsx`
+  - `frontend/features/ai-studio/logic/__tests__/modelSelectionPolicy.test.ts`
+- Synced documentation to reflect the shipped picker behavior:
+  - `docs/sops/sop_video_generation.md`
+  - `docs/sops/sop_ai_studio_index.md`

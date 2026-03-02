@@ -37,6 +37,18 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
   2. For Create + Image when saved model is missing/invalid, default to `fal-ai/bytedance/seedream/v4.5/text-to-image`.
   3. Return `null` when no valid/default candidate exists for the active mode.
 
+## Model modal ordering policy
+- Source of truth: `frontend/features/ai-studio/components/ModelModal.tsx`.
+- Model chips are ordered deterministically by context using provider-priority and model-priority maps.
+- Current contexts with explicit ordering:
+  - `text-image` (Create): ByteDance -> Google -> Black Forest Labs.
+  - `reference-image` (Edit): ByteDance -> Google -> Black Forest Labs.
+  - `reference-video` (Video standard): Google DeepMind -> ByteDance -> Kling AI.
+  - `reference-keyframes`: Google DeepMind.
+- Video policy invariant:
+  - `fal-ai/veo3.1/first-last-frame-to-video` is keyframes-only.
+  - Standard Video mode excludes first/last-frame and surfaces standard image-to-video options only.
+
 ## Fal reliability rollout notes (v2 architecture)
 - Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
 - Audit snapshot: `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`

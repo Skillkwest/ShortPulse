@@ -348,7 +348,8 @@ describe("ReferenceGrid curated split", () => {
 
     vi.stubGlobal("Image", MockHydrationImage as unknown as typeof Image);
 
-    const fallbackUrl = "https://cdn.example.com/generated-image.png?token=raw";
+    const fallbackUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/images/generated-image.png?token=raw";
     const generatedOutput: StudioOutput = {
       id: "generated-1",
       prompt: "Generated image",
@@ -413,7 +414,8 @@ describe("ReferenceGrid curated split", () => {
 
     vi.stubGlobal("Image", MockHydrationImage as unknown as typeof Image);
 
-    const fallbackUrl = "https://cdn.example.com/shared-source.png?token=raw";
+    const fallbackUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/images/shared-source.png?token=raw";
     const generatedOutputOne: StudioOutput = {
       id: "generated-same-source-1",
       prompt: "Generated image 1",
@@ -1136,7 +1138,7 @@ describe("ReferenceGrid curated split", () => {
     expect(queryByLabelText("Save to media library")).toBeNull();
   });
 
-  it("hides save action for generated video references", () => {
+  it("shows save action for generated video references", () => {
     const onSaveToLibrary = vi.fn();
     const generatedVideo: StudioOutput = {
       id: "generated-video-1",
@@ -1150,7 +1152,7 @@ describe("ReferenceGrid curated split", () => {
       mediaSource: "generated",
     };
 
-    const { queryByLabelText } = render(
+    const { getByLabelText } = render(
       <ReferenceGrid
         {...createProps({
           outputs: [generatedVideo],
@@ -1160,7 +1162,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(queryByLabelText("Save to media library")).toBeNull();
+    expect(getByLabelText("Save to media library")).toBeInTheDocument();
   });
 
   it("keeps save action for uploaded video references", () => {

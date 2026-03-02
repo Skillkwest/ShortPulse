@@ -154,6 +154,46 @@ export type SaveMediaUrlResult = {
   };
 };
 
+const isDuplicateInsertError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as { code?: unknown; message?: unknown };
+  if (maybeError.code === "23505") return true;
+  return (
+    typeof maybeError.message === "string" && maybeError.message.toLowerCase().includes("duplicate")
+  );
+};
+
+const readExistingAiStudioMediaRowByOutputIndex = async ({
+  supabase,
+  userId,
+  generationId,
+  index,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseClient>;
+  userId: string;
+  generationId: string;
+  index: number;
+}): Promise<{ id: string; storagePath: string | null; fileType: "image" | "video" } | null> => {
+  const { data, error } = await supabase
+    .from("media_files")
+    .select("id, storage_path, file_type")
+    .eq("user_id", userId)
+    .eq("source", "ai_studio")
+    .eq("source_ref", generationId)
+    .contains("metadata", { generation_output_index: index })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const id = typeof data.id === "string" ? data.id : null;
+  if (!id) return null;
+  const storagePath = typeof data.storage_path === "string" ? data.storage_path : null;
+  const fileType =
+    String(data.file_type ?? "").toLowerCase() === "video"
+      ? ("video" as const)
+      : ("image" as const);
+  return { id, storagePath, fileType };
+};
+
 /**
  * Save a prompt record to the media library.
  */
@@ -199,6 +239,29 @@ export const logMediaEvent = async (input: MediaEventInput) => {
  */
 export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   const { supabase, userId } = await resolveSupabaseContext();
+  if (input.source === "ai_studio" && input.generationId) {
+    const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
+      supabase,
+      userId,
+      generationId: input.generationId,
+      index: input.index,
+    });
+    if (existingRow) {
+      const delivery = {
+        previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
+        fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
+        previewUrl: input.previewUrlHint ?? null,
+        fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
+      };
+      return {
+        mediaFileId: existingRow.id,
+        storagePath: existingRow.storagePath ?? "",
+        fileType: existingRow.fileType,
+        fileSize: 0,
+        delivery,
+      } satisfies SaveMediaUrlResult;
+    }
+  }
   const { blob, contentType } = await fetchBlobWithTimeout(input.url);
   const fileType = resolveFileType(contentType, input.mode, input.fileTypeHint);
   const extension = resolveExtension(contentType, input.url);
@@ -244,6 +307,36 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     .single();
 
   if (error) {
+    if (input.source === "ai_studio" && input.generationId && isDuplicateInsertError(error)) {
+      const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
+        supabase,
+        userId,
+        generationId: input.generationId,
+        index: input.index,
+      });
+      if (existingRow) {
+        try {
+          if (storagePath) {
+            await supabase.storage.from(BUCKET).remove([storagePath]);
+          }
+        } catch {
+          // best-effort cleanup only
+        }
+        const delivery = {
+          previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
+          fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
+          previewUrl: input.previewUrlHint ?? null,
+          fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
+        };
+        return {
+          mediaFileId: existingRow.id,
+          storagePath: existingRow.storagePath ?? storagePath,
+          fileType: existingRow.fileType,
+          fileSize: blob.size,
+          delivery,
+        } satisfies SaveMediaUrlResult;
+      }
+    }
     throw error;
   }
 

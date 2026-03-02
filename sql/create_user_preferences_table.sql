@@ -2,9 +2,23 @@
 create table if not exists user_preferences (
     user_id uuid primary key references auth.users(id) on delete cascade,
     beginner_mode boolean not null default true,
+    media_autosave_enabled boolean not null default true,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table if exists user_preferences
+    add column if not exists media_autosave_enabled boolean default true;
+
+update user_preferences
+   set media_autosave_enabled = true
+ where media_autosave_enabled is null;
+
+alter table if exists user_preferences
+    alter column media_autosave_enabled set default true;
+
+alter table if exists user_preferences
+    alter column media_autosave_enabled set not null;
 
 alter table user_preferences enable row level security;
 drop policy if exists select_user_preferences_isolation on user_preferences;

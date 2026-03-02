@@ -11,6 +11,8 @@ import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
+import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
+import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import { normalizePromptText } from "../features/ai-studio/logic/agentPromptOwnership";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -181,6 +183,11 @@ type AiStudioPerfWindow = Window & {
 };
 
 export default function AiStudioPage() {
+  const {
+    mediaAutosaveEnabled,
+    syncState: mediaAutosaveSyncState,
+    error: mediaAutosaveError,
+  } = useMediaAutosavePreference();
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
@@ -303,6 +310,11 @@ export default function AiStudioPage() {
     getOutputSnapshot,
   } = useAiStudioState({
     isCharacterModeEnabled,
+  });
+  useAiStudioMediaAutosaveOrchestrator({
+    outputs,
+    mediaAutosaveEnabled,
+    saveReferenceToLibrary,
   });
   const selectorInFlightOutputIds = useOutputSelector((snapshot) => snapshot.indexes.inFlightIds);
   const fallbackInFlightOutputIds = useMemo(
@@ -1058,7 +1070,12 @@ export default function AiStudioPage() {
     : beginnerModeSyncState === "saving"
       ? "Saving beginner mode preference..."
       : null;
-  const effectiveUiNotice = uiNotice ?? beginnerModeUiNotice;
+  const mediaAutosaveUiNotice = mediaAutosaveError
+    ? `Media autosave preference sync failed: ${mediaAutosaveError}`
+    : mediaAutosaveSyncState === "saving"
+      ? "Saving media autosave preference..."
+      : null;
+  const effectiveUiNotice = uiNotice ?? beginnerModeUiNotice ?? mediaAutosaveUiNotice;
   const handleBeginnerModeChange = useCallback(
     (value: boolean) => {
       if (beginnerModeLoading || beginnerModeSyncState === "saving") return;

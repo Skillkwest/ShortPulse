@@ -121,12 +121,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const isSelected = activeOutputId === item.id;
   const saveDisabled = item.saveState === "saving";
   const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
-  const isGeneratedReference =
-    item.mediaSource === "generated" || Boolean(item.generationId || item.taskId);
   const shouldShowSaveAction = Boolean(
     onSaveToLibrary &&
     item.saveState !== "saved" &&
-    (isPromptOnly || isImagePreview || (isVideoPreview && !isGeneratedReference))
+    (isPromptOnly || isImagePreview || isVideoPreview)
   );
   const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
   const shouldShowReferenceActionRow = Boolean(

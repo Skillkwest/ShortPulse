@@ -20,6 +20,7 @@ export function PromptStep({
   agentMessages = [],
   agentActions,
   agentInput = "",
+  chatModeEnabled = true,
   agentIsSending = false,
   agentError,
   agentPrimaryPrompt = null,
@@ -30,6 +31,7 @@ export function PromptStep({
   agentDropActive = false,
   agentChatOpen = false,
   onAgentInputChange,
+  onChatModeEnabledChange,
   onAgentSend,
   onAgentEnhanceSend,
   onAgentAttachmentDrop,
@@ -107,7 +109,7 @@ export function PromptStep({
   };
 
   const handleAgentInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
+    if (event.key !== "Enter" || event.shiftKey || agentIsSending || !chatModeEnabled) return;
     event.preventDefault();
     onAgentSend?.();
     // Keep focus in the composer so the user can immediately type the next message.
@@ -150,6 +152,7 @@ export function PromptStep({
     };
   }, [stagedAttachments]);
   const handleAgentSendClick = () => {
+    if (!chatModeEnabled) return;
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };
@@ -248,6 +251,8 @@ export function PromptStep({
                 onRemoveAgentAttachment={onRemoveAgentAttachment}
                 onClearAgentAttachments={onClearAgentAttachments}
                 onAgentInputChange={onAgentInputChange}
+                chatModeEnabled={chatModeEnabled}
+                onChatModeEnabledChange={onChatModeEnabledChange}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}

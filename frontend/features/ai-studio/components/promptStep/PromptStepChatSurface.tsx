@@ -57,6 +57,8 @@ type PromptStepChatSurfaceProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAgentInputChange?: (value: string) => void;
+  chatModeEnabled: boolean;
+  onChatModeEnabledChange?: (value: boolean) => void;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   highlightLatestAssistantOnly: boolean;
@@ -120,6 +122,8 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAgentInputChange,
+  chatModeEnabled,
+  onChatModeEnabledChange,
   onAgentSend,
   onGenerateOutputPrompt,
   highlightLatestAssistantOnly,
@@ -332,7 +336,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           {embedSendButtonInInput ? (
             <AgentSendButton
               onClick={handleAgentSendClick}
-              disabled={agentIsSending}
+              disabled={!chatModeEnabled || agentIsSending}
               loading={agentIsSending}
               ariaLabel="Send to agent"
               icon="arrow-up"
@@ -341,10 +345,25 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           ) : null}
         </div>
         <div className="agent-inline-actions">
+          <div className="character-mode-row agent-chat-mode-row">
+            <span className="tiny helper-text agent-chat-mode-label">Chat Mode</span>
+            <button
+              type="button"
+              className={`audio-toggle character-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
+              aria-pressed={chatModeEnabled}
+              aria-label={chatModeEnabled ? "Disable chat mode" : "Enable chat mode"}
+              disabled={!onChatModeEnabledChange}
+              onClick={() => onChatModeEnabledChange?.(!chatModeEnabled)}
+            >
+              <span className="audio-toggle-track" aria-hidden="true">
+                <span className="audio-toggle-dot" />
+              </span>
+            </button>
+          </div>
           {!embedSendButtonInInput ? (
             <AgentSendButton
               onClick={handleAgentSendClick}
-              disabled={agentIsSending}
+              disabled={!chatModeEnabled || agentIsSending}
               loading={agentIsSending}
               ariaLabel="Send to agent"
               label="Send"
@@ -379,7 +398,9 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       ) : null}
       {!beginnerMode ? (
         <p className="tiny helper-text agent-composer-hint">
-          Enter to send. Shift+Enter for a new line.
+          {chatModeEnabled
+            ? "Enter to send. Shift+Enter for a new line."
+            : "Chat Mode is off. Generate uses your text exactly; agent rewrite is off."}
         </p>
       ) : null}
       {imageAttachmentCounts.total > 0 ? (

@@ -22,6 +22,7 @@ export type PromptStepProps = {
   agentMessages?: AgentMessage[];
   agentActions?: AgentActions;
   agentInput?: string;
+  chatModeEnabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
   agentPrimaryPrompt?: string | null;
@@ -32,6 +33,7 @@ export type PromptStepProps = {
   agentDropActive?: boolean;
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
+  onChatModeEnabledChange?: (value: boolean) => void;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;

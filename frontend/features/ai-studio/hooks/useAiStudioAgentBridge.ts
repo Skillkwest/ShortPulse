@@ -21,6 +21,7 @@ import { useAiStudioAgentOrchestration } from "./useAiStudioAgentOrchestration";
 import type { AgentModeHint } from "./agentOrchestration/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
+import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatModePreference";
 
 type UseAiStudioAgentBridgeParams = {
   mode: StudioMode;
@@ -75,6 +76,17 @@ export const useAiStudioAgentBridge = ({
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
   const agentEnabled = agentFlag && agentSessionEnabled;
+  const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return readChatModeFromStorage(window.localStorage);
+  });
+
+  const setChatModeEnabled = useCallback((value: boolean) => {
+    setChatModeEnabledState(value);
+    if (typeof window !== "undefined") {
+      writeChatModeToStorage(value, window.localStorage);
+    }
+  }, []);
 
   const {
     messages: agentMessages,
@@ -245,6 +257,8 @@ export const useAiStudioAgentBridge = ({
     isAgentChatOpen,
     latestAgentPrompt,
     promptOrigin,
+    chatModeEnabled,
+    setChatModeEnabled,
     setPromptOrigin,
     agentPrimarySource,
     stagedAgentPrompt,

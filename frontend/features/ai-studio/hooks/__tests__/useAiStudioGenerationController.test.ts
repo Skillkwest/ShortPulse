@@ -18,6 +18,7 @@ const createParams = (
   prompt: "",
   agentInput: "",
   agentBusy: false,
+  chatModeEnabled: true,
   currentCostCredits: 3,
   isGenerateDisabled: false,
   isCreditGuardrail: false,
@@ -76,6 +77,40 @@ describe("useAiStudioGenerationController", () => {
     expect(addAgentPromptReference).toHaveBeenCalledWith("refined from agent", "Refined");
     expect(setPromptOrigin).toHaveBeenCalledWith("agent");
     expect(generateOutput).not.toHaveBeenCalled();
+  });
+
+  it("routes primary text create submit directly to generate when chat mode is off", async () => {
+    const handleAgentSend = vi.fn(async () => ({
+      prompt: "agent prompt should not be used",
+      referenceTitle: "unused",
+    }));
+    const generateOutput = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "shared fallback",
+      agentInput: "raw composer prompt",
+      chatModeEnabled: false,
+      handleAgentSend,
+      generateOutput,
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handlePrimarySubmit();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(handleAgentSend).not.toHaveBeenCalled();
+    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+    expect(generateOutput).toHaveBeenCalledWith(
+      "raw composer prompt",
+      expect.objectContaining({ modeOverride: "image", selectedToolOverride: "create" })
+    );
   });
 
   it("prevents rapid double-generate submissions via click lock", async () => {

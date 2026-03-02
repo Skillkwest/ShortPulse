@@ -37,6 +37,32 @@ describe("PromptStep agent actions", () => {
     expect(onSavePrompt).toHaveBeenCalledWith("a dog in a park");
   });
 
+  it("renders chat mode toggle as enabled by default and forwards toggle intent", () => {
+    const onChatModeEnabledChange = vi.fn();
+
+    render(<PromptStep {...baseProps} onChatModeEnabledChange={onChatModeEnabledChange} />);
+
+    const toggle = screen.getByRole("button", { name: "Disable chat mode" });
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(toggle);
+    expect(onChatModeEnabledChange).toHaveBeenCalledWith(false);
+  });
+
+  it("disables send affordances when chat mode is off", () => {
+    const onAgentSend = vi.fn();
+    render(<PromptStep {...baseProps} chatModeEnabled={false} onAgentSend={onAgentSend} />);
+
+    const composer = screen.getByPlaceholderText("Message the agent...");
+    fireEvent.keyDown(composer, { key: "Enter" });
+    expect(onAgentSend).not.toHaveBeenCalled();
+
+    expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
+    expect(
+      screen.getByText("Chat Mode is off. Generate uses your text exactly; agent rewrite is off.")
+    ).toBeInTheDocument();
+  });
+
   it("renders agent action controls when actions are available", () => {
     render(
       <PromptStep

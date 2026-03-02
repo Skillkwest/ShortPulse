@@ -25,6 +25,7 @@ type UseAiStudioCreatePanelPropsParams = {
   agentMessages: AgentMessage[];
   agentActions?: AgentActions;
   agentInput: string;
+  chatModeEnabled: boolean;
   agentBusy: boolean;
   agentAttachmentError: string | null;
   agentError?: string | null;
@@ -34,6 +35,7 @@ type UseAiStudioCreatePanelPropsParams = {
   agentAttachments: AgentAttachment[];
   isAgentDropActive: boolean;
   handleAgentInputChange: (value: string) => void;
+  setChatModeEnabled: (value: boolean) => void;
   handleAgentSend: () => void;
   handleAgentEnhanceSend: () => void;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
@@ -105,6 +107,7 @@ export const useAiStudioCreatePanelProps = ({
   agentMessages,
   agentActions,
   agentInput,
+  chatModeEnabled,
   agentBusy,
   agentAttachmentError,
   agentError,
@@ -114,6 +117,7 @@ export const useAiStudioCreatePanelProps = ({
   agentAttachments,
   isAgentDropActive,
   handleAgentInputChange,
+  setChatModeEnabled,
   handleAgentSend,
   handleAgentEnhanceSend,
   handleAgentAttachmentDrop,
@@ -172,6 +176,7 @@ export const useAiStudioCreatePanelProps = ({
       agentMessages,
       agentActions,
       agentInput,
+      chatModeEnabled,
       agentIsSending: agentBusy,
       agentError: agentAttachmentError ?? agentError ?? undefined,
       agentPrimarySource,
@@ -180,6 +185,7 @@ export const useAiStudioCreatePanelProps = ({
       stagedAttachments: agentAttachments,
       agentDropActive: isAgentDropActive,
       onAgentInputChange: handleAgentInputChange,
+      onChatModeEnabledChange: setChatModeEnabled,
       onAgentSend: handleAgentSend,
       onAgentEnhanceSend: handleAgentEnhanceSend,
       onAgentAttachmentDrop: handleAgentAttachmentDrop,
@@ -230,6 +236,7 @@ export const useAiStudioCreatePanelProps = ({
       agentAttachmentError,
       agentAttachments,
       agentBusy,
+      chatModeEnabled,
       agentEnabled,
       agentError,
       agentInput,
@@ -282,6 +289,7 @@ export const useAiStudioCreatePanelProps = ({
       promptReferenceGenerateCostCredits,
       savePromptReference,
       selectedCharacterId,
+      setChatModeEnabled,
       setAspect,
       setImageResolution,
       setIsCharacterModeEnabled,

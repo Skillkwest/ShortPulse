@@ -653,6 +653,17 @@
   align-items: center;
 }
 
+.agent-chat-mode-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agent-chat-mode-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
 .agent-cost-prefab {
   width: 60px;
   height: 60px;

@@ -35,6 +35,7 @@ export type UseAiStudioPanelPropsParams = {
   agentMessages: AgentMessage[];
   agentActions?: AgentActions;
   agentInput: string;
+  chatModeEnabled: boolean;
   agentBusy: boolean;
   agentAttachmentError: string | null;
   agentError?: string | null;
@@ -44,6 +45,7 @@ export type UseAiStudioPanelPropsParams = {
   agentAttachments: AgentAttachment[];
   isAgentDropActive: boolean;
   handleAgentInputChange: (value: string) => void;
+  setChatModeEnabled: (value: boolean) => void;
   handleAgentSend: () => void;
   handleAgentEnhanceSend: () => void;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
@@ -165,6 +167,7 @@ export const useAiStudioPanelProps = ({
   agentMessages,
   agentActions,
   agentInput,
+  chatModeEnabled,
   agentBusy,
   agentAttachmentError,
   agentError,
@@ -174,6 +177,7 @@ export const useAiStudioPanelProps = ({
   agentAttachments,
   isAgentDropActive,
   handleAgentInputChange,
+  setChatModeEnabled,
   handleAgentSend,
   handleAgentEnhanceSend,
   handleAgentAttachmentDrop,
@@ -303,6 +307,7 @@ export const useAiStudioPanelProps = ({
     agentMessages,
     agentActions,
     agentInput,
+    chatModeEnabled,
     agentBusy,
     agentAttachmentError,
     agentError,
@@ -312,6 +317,7 @@ export const useAiStudioPanelProps = ({
     agentAttachments,
     isAgentDropActive,
     handleAgentInputChange,
+    setChatModeEnabled,
     handleAgentSend,
     handleAgentEnhanceSend,
     handleAgentAttachmentDrop,

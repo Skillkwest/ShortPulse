@@ -57,6 +57,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   prompt: string;
   agentInput: string;
   agentBusy: boolean;
+  chatModeEnabled: boolean;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
@@ -146,6 +147,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   isCharacterModeEnabled,
   prompt,
   agentInput,
+  chatModeEnabled,
   currentCostCredits,
   isGenerateDisabled,
   isCreditGuardrail,
@@ -431,19 +433,28 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
   const handlePrimarySubmit = useCallback(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
-        const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
-        if (agentRes?.prompt) {
-          addAgentPromptReference(agentRes.prompt, agentRes.referenceTitle);
-          setPromptOrigin("agent");
+      if (chatModeEnabled) {
+        handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
+          const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
+          if (agentRes?.prompt) {
+            addAgentPromptReference(agentRes.prompt, agentRes.referenceTitle);
+            setPromptOrigin("agent");
+          }
+        });
+      } else {
+        const rawPrompt = agentInput.trim() || prompt.trim() || undefined;
+        if (rawPrompt) {
+          setPromptOrigin("manual");
         }
-      });
+        void handleGenerate(rawPrompt, { modeOverride: "image", toolOverride: "create" });
+      }
       return;
     }
     void handleGenerate();
   }, [
     addAgentPromptReference,
     agentInput,
+    chatModeEnabled,
     handleAgentSend,
     handleGenerate,
     mode,

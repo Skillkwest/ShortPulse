@@ -94,6 +94,22 @@ describe("falClient status timeout budgets", () => {
     expect((init as RequestInit | undefined)?.method).toBe("POST");
   });
 
+  it("preserves optional generationId from immediate submit responses", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse({ request_id: "req-submit-2", generationId: "gen-submit-2" })
+    );
+
+    await expect(
+      submitFalNanoBananaProEdit({
+        prompt: "Character pose",
+        image_urls: ["https://cdn.test/ref.png"],
+      })
+    ).resolves.toEqual({
+      request_id: "req-submit-2",
+      generationId: "gen-submit-2",
+    });
+  });
+
   it("uses GET for queue-status polling and returns queue state", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       createJsonResponse({

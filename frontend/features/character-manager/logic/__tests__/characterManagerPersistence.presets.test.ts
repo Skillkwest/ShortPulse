@@ -21,7 +21,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
     vi.clearAllMocks();
   });
 
-  it("returns hydrated preview urls after preset-tab switch persistence", async () => {
+  it("persists active preset selection without rehydrating preview urls", async () => {
     const metadata = {
       character_sheet_presets_v1: {
         active_preset_id: "1",
@@ -73,24 +73,14 @@ describe("characterManagerPersistence preset preview hydration", () => {
       })),
     } as unknown as ReturnType<typeof ensureSupabaseClient>);
 
-    getSignedMediaUrlsBatchMock.mockResolvedValue(
-      new Map([
-        ["user/chars/presets/portrait.png", "https://signed.test/portrait.png"],
-        ["user/chars/presets/alt-portrait.png", "https://signed.test/alt-portrait.png"],
-      ])
-    );
-
     const result = await saveCharacterManagerActiveCharacterSheetPreset({
       characterId: "char-1",
       presetId: "2",
     });
 
     expect(result.activePresetId).toBe("2");
-    expect(result.presets["1"].portrait?.previewUrl).toBe("https://signed.test/portrait.png");
-    expect(result.presets["2"].portrait?.previewUrl).toBe("https://signed.test/alt-portrait.png");
-    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
-      bucket: "media_library",
-      storagePaths: ["user/chars/presets/portrait.png", "user/chars/presets/alt-portrait.png"],
-    });
+    expect(result.presets["1"].portrait?.previewUrl ?? null).toBeNull();
+    expect(result.presets["2"].portrait?.previewUrl ?? null).toBeNull();
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
   });
 });

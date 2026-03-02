@@ -270,11 +270,6 @@ body:has(.ai-studio-page) {
   color: #f8fcff;
 }
 
-.ai-credit-inline .credit-hold-value {
-  font-size: 11px;
-  color: rgba(223, 232, 245, 0.72);
-}
-
 .ai-credit-inline.header-embedded {
   border-right: none;
   padding-right: 0;

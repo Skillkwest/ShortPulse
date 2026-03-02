@@ -590,7 +590,7 @@ describe("ai-studio page character mode submission", () => {
     expect(aiStudioStateMock.setImageResolution).not.toHaveBeenCalled();
   });
 
-  it("keeps pending holds visible across pending to running and clears after success", async () => {
+  it("tracks pending holds across pending to running and clears after success", async () => {
     creditsStateMock.balanceCents = 100;
     aiStudioStateMock.outputs = [];
 

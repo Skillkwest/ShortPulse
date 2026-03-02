@@ -199,6 +199,11 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           .maybeSingle();
         const existingRowId = asString(asObject(existingData).id);
         if (existingRowId) {
+          try {
+            await supabaseAdmin.storage.from(MEDIA_BUCKET).remove([storagePath]);
+          } catch {
+            // best-effort cleanup only
+          }
           mediaFileIds.push(existingRowId);
           continue;
         }

@@ -18,7 +18,10 @@ export type FalSubmitRequest = {
   acceleration?: "none" | "regular" | "high";
 };
 
-export type FalImmediateSubmitResponse = { request_id: string };
+export type FalImmediateSubmitResponse = {
+  request_id: string;
+  generationId?: string;
+};
 
 export type FalQueuedSubmitResponse = {
   status: "queued";
@@ -577,7 +580,8 @@ const submitFalEndpoint = async <TPayload>(
   if (!requestId) {
     throw new Error(config.missingRequestIdMessage);
   }
-  return { request_id: requestId };
+  const generationId = asNonEmptyString((data as { generationId?: unknown }).generationId);
+  return generationId ? { request_id: requestId, generationId } : { request_id: requestId };
 };
 
 export const fetchFalQueueStatus = async ({

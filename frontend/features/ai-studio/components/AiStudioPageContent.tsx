@@ -464,7 +464,6 @@ export function AiStudioPageContent({
   showBeginnerModeToggle,
   onBeginnerModeChange,
   balanceCredits,
-  pendingHoldCredits,
   balanceLoading,
   visibleFailures,
   onDismissFailure,
@@ -714,11 +713,6 @@ export function AiStudioPageContent({
                     ? balanceCredits.toLocaleString()
                     : "—"}
               </span>
-              {pendingHoldCredits != null ? (
-                <span className="credit-hold-value tiny helper-text">
-                  Pending holds: {pendingHoldCredits.toLocaleString()}
-                </span>
-              ) : null}
               <Link
                 href="/profile?section=account"
                 className="header-profile-link"

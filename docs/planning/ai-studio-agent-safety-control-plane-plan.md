@@ -3,7 +3,7 @@
 Date: 2026-03-02  
 Authority: Working  
 Owner: AI Platform + Frontend  
-Status: Active (F0/F1/F2/F3 implementation complete; F4 in progress)
+Status: Active (F0/F1/F2/F3 complete; F4 implementation complete; F5 validation in progress)
 
 ## Summary
 This plan defines the Wave F implementation path for AI Studio safety tuning knobs across text, image, and video. It follows Phase 13 constraints: no broad rewrites, no duplicated governance systems, and rollback-first operations.
@@ -13,7 +13,9 @@ Entry gate status:
 2. Wave F is now implementation-eligible.
 3. F1 runtime policy core completed and evidenced.
 4. F2 modality submission wiring completed and evidenced.
-5. F3 persistence/admin implementation slice landed; operational SQL apply evidence remains pending.
+5. F3 persistence/admin implementation slice landed and operational SQL apply evidence is green (`check_agent_safety_policy_control_plane=7/7/0`, `check_runtime_sql_security_audit=120/120/0`).
+6. F4 observability/auto-rollback implementation is landed with local integrated validation green; staging admin API observation evidence remains pending.
+7. Target-environment SQL control-plane observation window is green (cooldown-blocked activation and already-safe rollback semantics confirmed via direct RPC calls).
 
 ## Goals
 1. Introduce a modality-aware safety policy control plane with immutable production hard floors.

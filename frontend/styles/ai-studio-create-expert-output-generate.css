@@ -2,7 +2,7 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 94px;
+  grid-template-columns: minmax(0, 1fr) var(--create-expert-output-column-width, 94px);
   align-items: stretch;
   column-gap: 12px;
   padding: 0;
@@ -78,9 +78,9 @@
   bottom: auto;
   grid-column: 2;
   grid-row: 1;
-  width: 94px;
-  min-width: 94px;
-  max-width: 94px;
+  width: var(--create-expert-output-column-width, 94px);
+  min-width: var(--create-expert-output-column-width, 94px);
+  max-width: var(--create-expert-output-column-width, 94px);
   align-self: center;
   justify-self: end;
   display: flex;
@@ -94,9 +94,27 @@
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-output-bubble-media {
-  width: 94px;
-  height: 60px;
+  width: var(--create-expert-output-column-width, 94px);
+  height: auto;
+  aspect-ratio: 4 / 5;
   border-radius: 8px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail
+  .agent-output-bubble-controls {
+  align-self: stretch;
+  justify-content: flex-start;
+  padding-top: 12px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail
+  .agent-output-bubble-controls
+  .agent-output-generate-pill.agent-generate-prefab {
+  margin-top: auto;
 }
 
 .create-expert-panel
@@ -116,9 +134,9 @@
   position: static;
   right: auto;
   bottom: auto;
-  width: 94px;
-  min-width: 94px;
-  max-width: 94px;
+  width: var(--create-expert-output-column-width, 94px);
+  min-width: var(--create-expert-output-column-width, 94px);
+  max-width: var(--create-expert-output-column-width, 94px);
   min-height: 54px;
   height: auto;
   max-height: none;

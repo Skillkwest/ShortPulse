@@ -581,6 +581,76 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.getByRole("tab", { name: "4" })).toBeInTheDocument();
   });
 
+  it("applies roving tabindex semantics and tabpanel linkage for preset tabs", () => {
+    render(<CharacterManagerShell />);
+
+    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabThree = screen.getByRole("tab", { name: "3" });
+    const panel = screen.getByRole("tabpanel");
+
+    expect(tabOne).toHaveAttribute("aria-selected", "true");
+    expect(tabOne).toHaveAttribute("tabindex", "0");
+    expect(tabThree).toHaveAttribute("aria-selected", "false");
+    expect(tabThree).toHaveAttribute("tabindex", "-1");
+    expect(panel).toHaveAttribute("aria-labelledby", tabOne.id);
+
+    fireEvent.click(tabThree);
+
+    expect(tabThree).toHaveAttribute("aria-selected", "true");
+    expect(tabThree).toHaveAttribute("tabindex", "0");
+    expect(tabOne).toHaveAttribute("tabindex", "-1");
+    expect(panel).toHaveAttribute("aria-labelledby", tabThree.id);
+  });
+
+  it("supports keyboard navigation for preset tabs including wrap, Home/End, Enter, and Space", async () => {
+    render(<CharacterManagerShell />);
+
+    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabTwo = screen.getByRole("tab", { name: "2" });
+    const tabThree = screen.getByRole("tab", { name: "3" });
+    const tabFour = screen.getByRole("tab", { name: "4" });
+
+    fireEvent.keyDown(tabOne, { key: "ArrowLeft" });
+    await waitFor(() => {
+      expect(tabFour).toHaveAttribute("aria-selected", "true");
+    });
+    expect(document.activeElement).toBe(tabFour);
+
+    fireEvent.keyDown(tabFour, { key: "ArrowRight" });
+    await waitFor(() => {
+      expect(tabOne).toHaveAttribute("aria-selected", "true");
+    });
+    expect(document.activeElement).toBe(tabOne);
+
+    fireEvent.keyDown(tabOne, { key: "End" });
+    await waitFor(() => {
+      expect(tabFour).toHaveAttribute("aria-selected", "true");
+    });
+
+    fireEvent.keyDown(tabFour, { key: "Home" });
+    await waitFor(() => {
+      expect(tabOne).toHaveAttribute("aria-selected", "true");
+    });
+
+    fireEvent.keyDown(tabOne, { key: "ArrowRight" });
+    await waitFor(() => {
+      expect(tabTwo).toHaveAttribute("aria-selected", "true");
+    });
+    fireEvent.keyDown(tabTwo, { key: " " });
+    await waitFor(() => {
+      expect(tabTwo).toHaveAttribute("aria-selected", "true");
+    });
+
+    fireEvent.keyDown(tabTwo, { key: "ArrowRight" });
+    await waitFor(() => {
+      expect(tabThree).toHaveAttribute("aria-selected", "true");
+    });
+    fireEvent.keyDown(tabThree, { key: "Enter" });
+    await waitFor(() => {
+      expect(tabThree).toHaveAttribute("aria-selected", "true");
+    });
+  });
+
   it("isolates character sheet assignments per active preset tab", async () => {
     render(<CharacterManagerShell />);
 

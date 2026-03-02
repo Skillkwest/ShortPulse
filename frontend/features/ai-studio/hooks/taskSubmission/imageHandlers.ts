@@ -44,7 +44,7 @@ const handoffSubmitResponse = ({
     "request_id" in response && typeof response.request_id === "string"
       ? response.request_id
       : undefined;
-  startPollingWithGeneration(requestId, pollingProvider);
+  startPollingWithGeneration(requestId, pollingProvider, undefined, response);
 };
 
 /**

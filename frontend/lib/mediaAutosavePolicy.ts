@@ -45,7 +45,11 @@ export const canAutoSaveOutput = (input: AutoSaveEligibilityInput): AutoSaveDeci
   if (input.source === "library" && hasPersistedMediaIds(input.savedMediaIds)) {
     return { allowed: false, reason: "already_persisted_library" };
   }
-  if (hasPersistedMediaIds(input.savedMediaIds) || input.saveState === "saved") {
+  if (
+    hasPersistedMediaIds(input.savedMediaIds) ||
+    input.saveState === "saved" ||
+    input.saveState === "saving"
+  ) {
     return { allowed: false, reason: "already_saved" };
   }
   if (input.hasPromptOnlyText && !input.hasMedia) {

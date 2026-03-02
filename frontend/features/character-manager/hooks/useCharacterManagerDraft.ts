@@ -144,6 +144,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   );
   const characterSheetAssignmentsRequestRef = useRef(0);
   const activeCharacterSheetPresetIdRef = useRef<CharacterSheetPresetId>("1");
+  const activeCharacterSheetPresetRequestRef = useRef(0);
   const characterSheetPresetsRef = useRef<CharacterSheetPresetState["presets"]>(
     createDefaultCharacterSheetPresetState().presets
   );
@@ -552,29 +553,40 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       setCharacterSheetPresetAssignments(
         characterSheetPresetsRef.current[presetId] ?? createEmptyCharacterSheetPresetAssignments()
       );
+      const requestId = activeCharacterSheetPresetRequestRef.current + 1;
+      activeCharacterSheetPresetRequestRef.current = requestId;
       setIsSavingCharacterSheetPreset(true);
       try {
         const persistedState = await saveCharacterManagerActiveCharacterSheetPreset({
           characterId,
           presetId,
         });
+        if (activeCharacterSheetPresetRequestRef.current !== requestId) {
+          return true;
+        }
         setActiveCharacterSheetPresetIdState(persistedState.activePresetId);
         activeCharacterSheetPresetIdRef.current = persistedState.activePresetId;
-        setCharacterSheetPresets(persistedState.presets);
-        characterSheetPresetsRef.current = persistedState.presets;
-        setCharacterSheetPresetAssignments(
+        // Keep local preset references stable on tab switches to avoid unnecessary preview URL churn.
+        const resolvedPresets = characterSheetPresetsRef.current;
+        const resolvedActiveAssignments =
+          resolvedPresets[persistedState.activePresetId] ??
           persistedState.presets[persistedState.activePresetId] ??
-            createEmptyCharacterSheetPresetAssignments()
-        );
+          createEmptyCharacterSheetPresetAssignments();
+        setCharacterSheetPresetAssignments(resolvedActiveAssignments);
         return true;
       } catch (nextError) {
+        if (activeCharacterSheetPresetRequestRef.current !== requestId) {
+          return false;
+        }
         setActiveCharacterSheetPresetIdState(previousPresetId);
         activeCharacterSheetPresetIdRef.current = previousPresetId;
         setCharacterSheetPresetAssignments(previousAssignments);
         setError(toErrorMessage(nextError, "Failed to switch character sheet preset."));
         return false;
       } finally {
-        setIsSavingCharacterSheetPreset(false);
+        if (activeCharacterSheetPresetRequestRef.current === requestId) {
+          setIsSavingCharacterSheetPreset(false);
+        }
       }
     },
     [characterId, clearMessages]

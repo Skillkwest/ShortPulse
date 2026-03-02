@@ -17,6 +17,8 @@ Define the operational contract for the `/character` Character Manager surface, 
 4. Character Sheet drop zones are persisted per character with four preset tabs (`1`..`4`):
    - Active tab id persists to character metadata (`character_sheet_presets_v1.active_preset_id`).
    - Each tab stores independent zone media references for `portrait`, `close_up`, `front_shot`, and `back_shot`.
+   - Preset tabs use `tablist/tab/tabpanel` semantics with roving tab focus (`tabindex=0` on active tab, `-1` otherwise).
+   - Keyboard support is required: `ArrowLeft/ArrowRight` wrap navigation, `Home/End` jump to first/last tab, and `Enter/Space` activate focused tab.
    - Dragging a reference onto a drop zone assigns that reference to the zone.
    - Dropping onto an occupied zone replaces the previous assignment.
    - Dragging from one drop zone to another swaps assignments.
@@ -51,6 +53,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 ## Architecture Map
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
 - Create layout wrapper: `frontend/features/character-manager/components/CharacterCreateWorkspaceLayout.tsx`
+- Character sheet preset tabs UI/a11y seam: `frontend/features/character-manager/components/CharacterSheetPresetTabs.tsx`
 - Draft state + persistence orchestration: `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
 - QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`

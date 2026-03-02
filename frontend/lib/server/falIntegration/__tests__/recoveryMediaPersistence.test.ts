@@ -65,7 +65,8 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
   };
 
   const upload = vi.fn(async () => uploadResponses.shift() ?? { error: null });
-  const fromStorage = vi.fn(() => ({ upload }));
+  const remove = vi.fn(async () => ({ error: null }));
+  const fromStorage = vi.fn(() => ({ upload, remove }));
   const fromTable = vi.fn((table: string) => {
     if (table === "media_files") return mediaFilesTable;
     if (table === "media_events") return mediaEventsTable;
@@ -78,6 +79,7 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
       storage: { from: fromStorage },
     },
     upload,
+    remove,
     mediaFileInsertPayloads,
     mediaEventInsertPayloads,
     mediaFilesTable,
@@ -204,6 +206,7 @@ describe("recoveryMediaPersistence", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(scenario.upload).toHaveBeenCalledTimes(2);
+    expect(scenario.remove).toHaveBeenCalledTimes(1);
     expect(mediaFileIds).toEqual(["media-new-1", "media-existing-2"]);
     expect(scenario.mediaFileInsertPayloads).toHaveLength(2);
     expect(scenario.mediaFileInsertPayloads[0]).toEqual(

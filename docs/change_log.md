@@ -2348,6 +2348,37 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `cd frontend && npm run build` passed.
   - `cd frontend && npm run test:e2e:character` remains environment-gated until `PLAYWRIGHT_AUDIT_EMAIL` is provided.
 
+## 2026-03-02 (Character Sheet preset tabs redesign + accessibility hardening)
+- Replaced inline Character Sheet preset-tab strip rendering with a dedicated component:
+  - `frontend/features/character-manager/components/CharacterSheetPresetTabs.tsx`.
+- Hardened preset-tab interaction semantics:
+  - added roving `tabindex` behavior (`0` on active tab, `-1` otherwise),
+  - added keyboard support for `ArrowLeft/ArrowRight` with wrap, `Home/End`, and `Enter/Space`,
+  - wired explicit `aria-controls` + `aria-labelledby` linkage between tabs and tabpanel.
+- Updated `CharacterManagerShell` to consume the new tab component and wrap the sheet-grid region in a single `role="tabpanel"` container while preserving existing preset persistence and DnD behavior.
+- Restyled Character Sheet tabs from block buttons to a connected sculpted rail system in:
+  - `frontend/styles/character-manager.css`
+  - active tab now visually fuses into panel chrome with neon-teal accent language,
+  - mobile keeps single-row tab concept with horizontal scroll.
+- Added focused accessibility tests:
+  - `frontend/features/character-manager/components/__tests__/CharacterSheetPresetTabs.a11y.test.tsx`.
+- Extended integrated shell behavior tests for tab semantics/keyboard behavior:
+  - `frontend/features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx`.
+- Updated Character Manager SOP with the tab keyboard/ARIA contract:
+  - `docs/sops/sop_character_manager_operations.md`.
+- Validation evidence:
+  - `cd frontend && npm run test -- features/character-manager/components/__tests__/CharacterSheetPresetTabs.a11y.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.layout.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.copy.test.tsx features/ai-studio/components/__tests__/CharacterPanel.layout.test.tsx` passed.
+  - Follow-up visual polish:
+    - removed tab lift/translate motion on hover/active to avoid button-like detachment,
+    - tightened tab rail spacing and panel seam fusion so active tab remains visually connected to the sheet panel.
+  - Follow-up interaction stability fix:
+    - removed `isSavingCharacterSheetPreset` from global Character Manager `pageBusy` gating so preset-save round trips no longer dim/disable unrelated surfaces,
+    - hardened `setActiveCharacterSheetPreset` against stale async responses via request-id guards,
+    - stopped rehydrating signed preset preview URLs during tab-switch persistence to reduce avoidable image URL churn/flicker.
+  - `cd frontend && npm run test -- features/character-manager/logic/__tests__/characterManagerPersistence.presets.test.ts features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx features/character-manager/components/__tests__/CharacterSheetPresetTabs.a11y.test.tsx` passed.
+  - `cd frontend && npm run test -- features/character-manager/components/__tests__/CharacterSheetPresetTabs.a11y.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.layout.test.tsx features/ai-studio/components/__tests__/CharacterPanel.layout.test.tsx` passed.
+  - `cd frontend && npm run lint` passed.
+
 ## 2026-03-02 (agent safety control-plane ops guide)
 - Added a dedicated SOP for AI Studio agent safety control-plane operations and tuning knobs:
   - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`

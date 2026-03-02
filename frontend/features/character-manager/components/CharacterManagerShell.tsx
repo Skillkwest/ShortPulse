@@ -42,13 +42,13 @@ import {
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
+import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
 import type {
   CharacterQuickSwapItem,
   CharacterProfileImageTransform,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
-  CharacterSheetPresetId,
 } from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
@@ -466,7 +466,6 @@ export function CharacterManagerShell({
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingProfileImage,
-    isSavingCharacterSheetPreset,
     setCharacterName,
     setCharacterDescription,
     setProfileImageFile,
@@ -525,8 +524,7 @@ export function CharacterManagerShell({
     isSwitchingCharacter ||
     isCreatingCharacter ||
     isDeletingCharacter ||
-    isSavingProfileImage ||
-    isSavingCharacterSheetPreset;
+    isSavingProfileImage;
 
   const {
     activeItems: quickSwapItems,
@@ -661,6 +659,12 @@ export function CharacterManagerShell({
   const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
   const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
   const quickSwapContentId = useId();
+  const characterSheetPresetTabsIdBase = `character-sheet-preset-${useId()}`;
+  const characterSheetPresetPanelId = `${characterSheetPresetTabsIdBase}-panel`;
+  const activeCharacterSheetPresetTabId = getCharacterSheetPresetTabId(
+    characterSheetPresetTabsIdBase,
+    activeCharacterSheetPresetId
+  );
   const rootClassName = isEmbeddedSurface
     ? "character-manager-page character-manager-page--embedded"
     : "page page-wide character-manager-page";
@@ -1840,106 +1844,103 @@ export function CharacterManagerShell({
                   </div>
                 </div>
 
-                <div
-                  className="character-sheet-preset-tab-row"
-                  role="tablist"
-                  aria-label="Character sheet style presets"
-                >
-                  {CHARACTER_SHEET_PRESET_IDS.map((presetId) => (
-                    <button
-                      key={presetId}
-                      type="button"
-                      role="tab"
-                      aria-selected={activeCharacterSheetPresetId === presetId}
-                      className={`character-sheet-preset-tab ${
-                        activeCharacterSheetPresetId === presetId ? "is-active" : ""
-                      }`}
-                      onClick={() => {
-                        void setActiveCharacterSheetPreset(presetId as CharacterSheetPresetId);
-                      }}
-                      disabled={pageBusy}
-                    >
-                      {presetId}
-                    </button>
-                  ))}
-                </div>
+                <CharacterSheetPresetTabs
+                  presetIds={CHARACTER_SHEET_PRESET_IDS}
+                  activePresetId={activeCharacterSheetPresetId}
+                  onSelectPreset={(presetId) => {
+                    void setActiveCharacterSheetPreset(presetId);
+                  }}
+                  panelId={characterSheetPresetPanelId}
+                  disabled={pageBusy}
+                  idBase={characterSheetPresetTabsIdBase}
+                />
 
-                <div className="character-reference-empty-grid">
-                  {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
-                    const assignedReference = resolvedCharacterSheetPresetAssignments[dropZone.key];
-                    const isDropActive = activeCharacterSheetDropZone === dropZone.key;
-                    const isRequiredSlot = dropZone.key === "portrait";
-                    const slotRequirementCopy = isRequiredSlot ? "(Required)" : "(Optional)";
-                    return (
-                      <article
-                        key={dropZone.key}
-                        className={`character-character-sheet-card ${
-                          assignedReference ? "is-filled" : "is-empty"
-                        } ${isDropActive ? "is-drop-active" : ""} ${
-                          draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
-                        }`}
-                        draggable={!pageBusy && Boolean(assignedReference)}
-                        onClick={handleCharacterSheetCardClick(dropZone.key)}
-                        onDragStart={handleCharacterSheetDragStart(dropZone.key)}
-                        onDragEnd={handleReferenceDragEnd}
-                        onDragOver={handleCharacterSheetDragOver(dropZone.key)}
-                        onDragLeave={() => {
-                          setActiveCharacterSheetDropZone((current) =>
-                            current === dropZone.key ? null : current
-                          );
-                        }}
-                        onDrop={handleCharacterSheetDrop(dropZone.key)}
-                      >
-                        {assignedReference ? (
-                          <button
-                            type="button"
-                            className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
-                            aria-label={`Clear ${dropZone.label} reference`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              clearCharacterSheetAssignment(dropZone.key);
-                            }}
-                            disabled={pageBusy}
-                          >
-                            <Trash size={12} weight="bold" />
-                          </button>
-                        ) : null}
-                        <div className="character-character-sheet-media">
-                          {assignedReference?.previewUrl ? (
-                            <Image
-                              src={
-                                resolveCharacterGridPreviewUrl(assignedReference.previewUrl, 300) ??
-                                assignedReference.previewUrl
-                              }
-                              alt={`${dropZone.label} reference`}
-                              className="character-character-sheet-image"
-                              width={240}
-                              height={300}
-                              unoptimized
-                            />
-                          ) : (
-                            <span className="character-character-sheet-drop-copy tiny">
-                              <UploadSimple
-                                size={14}
-                                weight="bold"
-                                className="character-character-sheet-drop-icon"
-                                aria-hidden="true"
+                <div
+                  className="character-sheet-preset-panel"
+                  role="tabpanel"
+                  id={characterSheetPresetPanelId}
+                  aria-labelledby={activeCharacterSheetPresetTabId}
+                >
+                  <div className="character-reference-empty-grid">
+                    {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
+                      const assignedReference =
+                        resolvedCharacterSheetPresetAssignments[dropZone.key];
+                      const isDropActive = activeCharacterSheetDropZone === dropZone.key;
+                      const isRequiredSlot = dropZone.key === "portrait";
+                      const slotRequirementCopy = isRequiredSlot ? "(Required)" : "(Optional)";
+                      return (
+                        <article
+                          key={dropZone.key}
+                          className={`character-character-sheet-card ${
+                            assignedReference ? "is-filled" : "is-empty"
+                          } ${isDropActive ? "is-drop-active" : ""} ${
+                            draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
+                          }`}
+                          draggable={!pageBusy && Boolean(assignedReference)}
+                          onClick={handleCharacterSheetCardClick(dropZone.key)}
+                          onDragStart={handleCharacterSheetDragStart(dropZone.key)}
+                          onDragEnd={handleReferenceDragEnd}
+                          onDragOver={handleCharacterSheetDragOver(dropZone.key)}
+                          onDragLeave={() => {
+                            setActiveCharacterSheetDropZone((current) =>
+                              current === dropZone.key ? null : current
+                            );
+                          }}
+                          onDrop={handleCharacterSheetDrop(dropZone.key)}
+                        >
+                          {assignedReference ? (
+                            <button
+                              type="button"
+                              className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
+                              aria-label={`Clear ${dropZone.label} reference`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                clearCharacterSheetAssignment(dropZone.key);
+                              }}
+                              disabled={pageBusy}
+                            >
+                              <Trash size={12} weight="bold" />
+                            </button>
+                          ) : null}
+                          <div className="character-character-sheet-media">
+                            {assignedReference?.previewUrl ? (
+                              <Image
+                                src={
+                                  resolveCharacterGridPreviewUrl(
+                                    assignedReference.previewUrl,
+                                    300
+                                  ) ?? assignedReference.previewUrl
+                                }
+                                alt={`${dropZone.label} reference`}
+                                className="character-character-sheet-image"
+                                width={240}
+                                height={300}
+                                unoptimized
                               />
-                              <span>Drop reference or click to upload</span>
-                              <span
-                                className={`character-character-sheet-drop-requirement ${
-                                  isRequiredSlot ? "is-required" : "is-optional"
-                                }`}
-                              >
-                                {slotRequirementCopy}
+                            ) : (
+                              <span className="character-character-sheet-drop-copy tiny">
+                                <UploadSimple
+                                  size={14}
+                                  weight="bold"
+                                  className="character-character-sheet-drop-icon"
+                                  aria-hidden="true"
+                                />
+                                <span>Drop reference or click to upload</span>
+                                <span
+                                  className={`character-character-sheet-drop-requirement ${
+                                    isRequiredSlot ? "is-required" : "is-optional"
+                                  }`}
+                                >
+                                  {slotRequirementCopy}
+                                </span>
                               </span>
-                            </span>
-                          )}
-                        </div>
-                        <span className="character-reference-empty-hint">{dropZone.label}</span>
-                      </article>
-                    );
-                  })}
+                            )}
+                          </div>
+                          <span className="character-reference-empty-hint">{dropZone.label}</span>
+                        </article>
+                      );
+                    })}
+                  </div>
                 </div>
               </section>
             }

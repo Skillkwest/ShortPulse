@@ -53,6 +53,9 @@ Example:
 24. `2026-03-02-phase-13-wave-f-pass-3-control-plane-persistence-admin-apis.md`
 25. `2026-03-02-phase-13-wave-f-pass-4-observability-auto-rollback.md`
 26. `2026-03-02-phase-13-wave-f-pass-4-policy-version-telemetry-alignment.md`
+27. `2026-03-02-phase-13-wave-f-pass-5-local-validation-window-1.md`
+28. `2026-03-02-phase-13-wave-f-pass-6-control-plane-sql-observation-window-1.md`
+29. `2026-03-02-phase-13-wave-g-pass-0-governance-lock.md`
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`

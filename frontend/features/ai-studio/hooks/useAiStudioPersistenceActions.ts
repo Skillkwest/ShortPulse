@@ -1,7 +1,7 @@
 /**
  * Persistence and save-action callbacks for AI Studio outputs and prompts.
  */
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { randomId } from "../logic/ids";
 import { isVideoUrl, resolveModelLabel, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
@@ -37,6 +37,8 @@ export const useAiStudioPersistenceActions = ({
   aspect,
   prompt,
 }: UseAiStudioPersistenceActionsArgs) => {
+  const saveInFlightRef = useRef<Set<string>>(new Set());
+
   const markOutputSaved = useCallback(
     (
       outputId: string,
@@ -238,83 +240,91 @@ export const useAiStudioPersistenceActions = ({
     async (outputId: string) => {
       const output = findOutputById(outputId);
       if (!output) return;
+      if (saveInFlightRef.current.has(outputId) || output.saveState === "saving") {
+        return;
+      }
+      saveInFlightRef.current.add(outputId);
       updateOutputById(outputId, (item) => ({
         ...item,
         saveState: "saving",
         saveError: null,
       }));
-      if (output.savedMediaIds?.length) {
-        await new Promise((resolve) => window.setTimeout(resolve, 260));
-        markOutputSaved(outputId, output.savedMediaIds);
-        return;
-      }
-
-      const previewText = output.previewText?.trim();
-      const promptOnly = Boolean(previewText) && !output.previewUrl;
-      if (promptOnly && previewText) {
-        if (output.promptId) {
-          await new Promise((resolve) => window.setTimeout(resolve, 220));
-          markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
+      try {
+        if (output.savedMediaIds?.length) {
+          await new Promise((resolve) => window.setTimeout(resolve, 260));
+          markOutputSaved(outputId, output.savedMediaIds);
           return;
         }
-        const promptId = await persistPromptSave({
-          promptText: previewText,
-          modelId: output.modelId ?? null,
+
+        const previewText = output.previewText?.trim();
+        const promptOnly = Boolean(previewText) && !output.previewUrl;
+        if (promptOnly && previewText) {
+          if (output.promptId) {
+            await new Promise((resolve) => window.setTimeout(resolve, 220));
+            markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
+            return;
+          }
+          const promptId = await persistPromptSave({
+            promptText: previewText,
+            modelId: output.modelId ?? null,
+          });
+          if (promptId) {
+            updateOutputById(outputId, (item) => ({ ...item, promptId }));
+            markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
+            return;
+          }
+          markOutputSaveFailed(outputId, "Unable to save prompt.");
+          return;
+        }
+
+        const urls = output.resultUrls?.length
+          ? output.resultUrls
+          : output.previewUrl
+            ? [output.previewUrl]
+            : [];
+        if (!urls.length) {
+          markOutputSaveFailed(outputId, "No media available to save.");
+          setUiError("No media available to save.");
+          return;
+        }
+        const provider = (output.provider ?? "fal") as Provider;
+        const source = output.generationId || output.taskId ? "ai_studio" : "upload";
+        const generationId =
+          source === "ai_studio"
+            ? (output.generationId ??
+              (await ensureGenerationRecord({
+                outputId,
+                provider,
+                taskId: output.taskId,
+              })))
+            : null;
+        const { mediaFileIds, errors, delivery } = await persistMediaUrls({
+          outputId,
+          urls,
+          provider,
+          source,
+          generationId: generationId ?? null,
         });
-        if (promptId) {
-          updateOutputById(outputId, (item) => ({ ...item, promptId }));
-          markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
+        if (delivery) {
+          updateOutputById(outputId, (item) => ({
+            ...item,
+            previewStoragePath: delivery.previewStoragePath ?? item.previewStoragePath ?? null,
+            fullStoragePath:
+              delivery.fullStoragePath ?? item.fullStoragePath ?? item.previewStoragePath ?? null,
+            previewUrl: item.previewUrl ?? delivery.previewUrl ?? delivery.fullUrl ?? undefined,
+          }));
+        }
+        if (mediaFileIds.length) {
+          markOutputSaved(outputId, mediaFileIds);
           return;
         }
-        markOutputSaveFailed(outputId, "Unable to save prompt.");
-        return;
+        if (errors.length) {
+          markOutputSaveFailed(outputId, errors[0] ?? "Unable to save media to the library.");
+        }
+        setUiError("Unable to save media to the library.");
+      } finally {
+        saveInFlightRef.current.delete(outputId);
       }
-
-      const urls = output.resultUrls?.length
-        ? output.resultUrls
-        : output.previewUrl
-          ? [output.previewUrl]
-          : [];
-      if (!urls.length) {
-        markOutputSaveFailed(outputId, "No media available to save.");
-        setUiError("No media available to save.");
-        return;
-      }
-      const provider = (output.provider ?? "fal") as Provider;
-      const source = output.generationId || output.taskId ? "ai_studio" : "upload";
-      const generationId =
-        source === "ai_studio"
-          ? (output.generationId ??
-            (await ensureGenerationRecord({
-              outputId,
-              provider,
-              taskId: output.taskId,
-            })))
-          : null;
-      const { mediaFileIds, errors, delivery } = await persistMediaUrls({
-        outputId,
-        urls,
-        provider,
-        source,
-        generationId: generationId ?? null,
-      });
-      if (delivery) {
-        updateOutputById(outputId, (item) => ({
-          ...item,
-          previewStoragePath: delivery.previewStoragePath ?? item.previewStoragePath ?? null,
-          fullStoragePath:
-            delivery.fullStoragePath ?? item.fullStoragePath ?? item.previewStoragePath ?? null,
-          previewUrl: item.previewUrl ?? delivery.previewUrl ?? delivery.fullUrl ?? undefined,
-        }));
-      }
-      if (mediaFileIds.length) {
-        markOutputSaved(outputId, mediaFileIds);
-        return;
-      }
-      if (errors.length) {
-        markOutputSaveFailed(outputId, errors[0] ?? "Unable to save media to the library.");
-      }
-      setUiError("Unable to save media to the library.");
     },
     [
       ensureGenerationRecord,

@@ -171,12 +171,29 @@ Completed:
    - wired `studio-agent` coordinator telemetry to consume DB/control-plane resolved `policyVersion` when provided by runtime profile resolution,
    - preserved fail-closed fallback to profile-id-derived version when runtime profile resolution does not provide a numeric version,
    - added runtime API regression coverage locking telemetry parity for non-suffixed profile IDs (for example `staging_lenient` with control-plane version `7`).
+30. Wave F Pass 5 local integrated validation window 1:
+   - executed consolidated runtime/admin safety regression suite (`67/67` passing),
+   - reconfirmed local gates (`lint`, `type-check`, `build`, `docs:check`) green for the Wave F surface.
+31. Wave F staging SQL hard-gate revalidation:
+   - `sql/check_agent_safety_policy_control_plane.sql` summary is green (`7/7/0`),
+   - `sql/check_runtime_sql_security_audit.sql` summary is green (`120/120/0`).
+32. Wave F Pass 6 target-environment SQL control-plane observation window 1:
+   - `activate_agent_safety_policy(...)` returned `cooldown_blocked` under active cooldown lock,
+   - `rollback_agent_safety_policy(...)` returned `already_safe` while active profile remained `prod_safe_v1`,
+   - `get_active_agent_safety_policy()` snapshot remained consistent post-call (`prod_safe_v1`, version `1`, canonical policy payload).
+33. Wave F admin API observation probe attempted via staging alias:
+   - authenticated probe flow (temporary admin bearer token) executed,
+   - current staging alias deployment bundle returned `404` on `/api/admin/agent-safety-policy/active` after bearer auth,
+   - probe indicates deployment/DB parity lag (SQL control-plane present in DB; admin route bundle not yet on alias target).
+34. Wave G Pass 0 governance lock:
+   - added Wave G rollout plan/tracker for consolidated UX + prompt-adjacency execution under Phase 13,
+   - recorded explicit deferment policy: Wave F staging admin-API observation remains pending deployment parity while Wave G local/code-gated slices proceed.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
 3. Wave E remaining passes (promote/hold evidence windows and gate closeout).
-4. Wave F integrated validation window closeout and Waves G-H (`RCP-4 pending`).
+4. Wave F staging/target-environment integrated validation window closeout and Waves G-H (`RCP-4 pending`).
 
 ## Surgical Research Checkpoints (Required)
 1. RCP-1: browser lifecycle/autosave transport reliability. Status: complete (`2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`).

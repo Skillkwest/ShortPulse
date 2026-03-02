@@ -176,3 +176,8 @@ Last updated: 2026-03-02
 - Topic: Wave F control-plane persistence and admin operation boundary.
 - Decision: Safety control-plane state transitions are executed only through service-role `SECURITY DEFINER` RPCs (`get_active_agent_safety_policy`, `activate_agent_safety_policy`, `rollback_agent_safety_policy`) and admin-authenticated API routes under `/api/admin/agent-safety-policy/*`; direct client-side policy-plane writes are not allowed.
 - Effective phase: 13.
+
+## Decision 036
+- Topic: Wave F staging parity deferment and Wave G continuation.
+- Decision: Wave F staging admin-API observation gate is deferred until staging alias deployment parity includes the Wave F admin route bundle; Wave G local/code-gated implementation is allowed to proceed in parallel under canonical Phase 13 tracking.
+- Effective phase: 13.

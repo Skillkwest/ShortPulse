@@ -100,7 +100,14 @@ describe("Seedream submission payloads", () => {
         image_size: { width: 2400, height: 1920 },
       })
     );
-    expect(args.startPollingWithGeneration).toHaveBeenCalledWith("seedream-req", "fal-seedream");
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "seedream-req",
+      "fal-seedream",
+      undefined,
+      {
+        request_id: "seedream-req",
+      }
+    );
   });
 
   it("sends aspect-locked auto_4K dimensions in text-to-image payload", async () => {
@@ -135,7 +142,11 @@ describe("Seedream submission payloads", () => {
     );
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
       "seedream-edit-req",
-      "fal-seedream"
+      "fal-seedream",
+      undefined,
+      {
+        request_id: "seedream-edit-req",
+      }
     );
   });
 

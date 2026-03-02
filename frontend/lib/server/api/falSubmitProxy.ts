@@ -423,6 +423,8 @@ export const createFalSubmitHandler =
       const upstream = upstreamResult.response;
       const data = upstreamResult.data;
 
+      let persistedGenerationId: string | null = null;
+
       if (!upstream.ok) {
         await charge.refund("Auto-refund: Fal submit rejected.", {
           upstream_status: upstream.status,
@@ -502,9 +504,18 @@ export const createFalSubmitHandler =
               persistence_error: persistenceResult.error,
             },
           });
+        } else {
+          persistedGenerationId = persistenceResult.generationId ?? null;
         }
       }
-      return res.status(upstream.status).json(data);
+      const responsePayload =
+        persistedGenerationId != null
+          ? {
+              ...data,
+              generationId: persistedGenerationId,
+            }
+          : data;
+      return res.status(upstream.status).json(responsePayload);
     } catch (error) {
       await charge.refund("Auto-refund: Fal submit transport failure.", {
         error: String(error),

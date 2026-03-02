@@ -201,7 +201,7 @@ async function main() {
         await pickerButton.click();
         out.aiStudio.characterPickerOpened = true;
         await page.waitForTimeout(400);
-        const modal = page.locator(".character-picker-modal");
+        const modal = page.locator(".ai-character-picker-modal, .character-picker-modal");
         if (await modal.isVisible().catch(() => false)) {
           const exactCharacter = modal
             .getByRole("button", { name: new RegExp(characterName, "i") })
@@ -210,7 +210,9 @@ async function main() {
             await exactCharacter.click();
             out.aiStudio.characterSelected = true;
           } else {
-            const fallbackCharacter = modal.locator(".character-list-select-btn").first();
+            const fallbackCharacter = modal
+              .locator(".ai-character-list-select-btn, .character-list-select-btn")
+              .first();
             if (await fallbackCharacter.isVisible().catch(() => false)) {
               await fallbackCharacter.click();
               out.aiStudio.characterSelected = true;

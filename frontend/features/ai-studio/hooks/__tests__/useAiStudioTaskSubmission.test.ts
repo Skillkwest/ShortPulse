@@ -68,6 +68,83 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("applies submit-proxy generation id for non-queued submissions", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("image");
+    vi.mocked(handleImageModelSubmission).mockImplementationOnce(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration("image-req-1", "fal-seedream", undefined, {
+          request_id: "image-req-1",
+          generationId: "gen-immediate-1",
+        });
+        return true;
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(startPollingTask).toHaveBeenCalledTimes(1);
+    const firstStartPollingCall = startPollingTask.mock.calls[0];
+    expect(firstStartPollingCall?.[0]).toBe("image-req-1");
+    expect(firstStartPollingCall?.[3]).toBe("fal-seedream");
+    expect(outputs[0]?.taskId).toBe("image-req-1");
+    expect(outputs[0]?.generationId).toBe("gen-immediate-1");
+  });
+
   it("keeps Veo First/Last strict when references are missing (no text-video fallback)", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

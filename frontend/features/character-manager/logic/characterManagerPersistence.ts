@@ -783,11 +783,7 @@ export const saveCharacterManagerActiveCharacterSheetPreset = async ({
     throw new Error(asErrorMessage(updateError, "Failed to save active character preset tab."));
   }
 
-  try {
-    return await hydratePresetStateWithPreviewUrls(nextState);
-  } catch {
-    return nextState;
-  }
+  return nextState;
 };
 
 /**

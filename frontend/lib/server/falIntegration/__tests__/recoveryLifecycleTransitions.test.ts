@@ -185,6 +185,10 @@ describe("recoveryLifecycleTransitions", () => {
       status: "success",
       completed_at: nowIso,
       metadata: {
+        autosave_enabled: true,
+        autosave_decision: "auto_persisted",
+        autosave_decision_reason: "auto_allowed",
+        autosave_skipped: false,
         prior: true,
         result_urls: ["https://cdn.shortpulse.test/out.png"],
         media_file_ids: ["media-1"],

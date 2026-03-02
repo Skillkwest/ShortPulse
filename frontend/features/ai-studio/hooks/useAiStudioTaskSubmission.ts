@@ -495,6 +495,20 @@ export const useAiStudioTaskSubmission = ({
               return;
             }
 
+            const submitGenerationId =
+              submitResponse &&
+              "request_id" in submitResponse &&
+              typeof submitResponse.generationId === "string" &&
+              submitResponse.generationId.trim().length > 0
+                ? submitResponse.generationId.trim()
+                : null;
+            const effectivePatch =
+              submitGenerationId && !patch.generationId
+                ? {
+                    ...patch,
+                    generationId: submitGenerationId,
+                  }
+                : patch;
             const normalizedTaskId = taskId?.trim();
             if (!normalizedTaskId) throw new Error("Provider returned an empty request id.");
             taskStarted = true;
@@ -504,7 +518,7 @@ export const useAiStudioTaskSubmission = ({
             updateOutputById(id, (item) =>
               applyDispatchedSubmissionPatch({
                 item,
-                patch,
+                patch: effectivePatch,
                 provider,
                 taskId: normalizedTaskId,
               })

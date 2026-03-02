@@ -80,4 +80,22 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
 
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
   });
+
+  it("does not autosave outputs that are already saving", () => {
+    const saveReferenceToLibrary = vi.fn();
+    renderHook(() =>
+      useAiStudioMediaAutosaveOrchestrator({
+        outputs: [
+          createOutput({
+            id: "saving-1",
+            saveState: "saving",
+          }),
+        ],
+        mediaAutosaveEnabled: true,
+        saveReferenceToLibrary,
+      })
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
 });

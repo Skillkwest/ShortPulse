@@ -137,6 +137,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-agent-modularization-tracker.md`
 - `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 - `docs/planning/ai-studio-agent-safety-control-plane-tracker.md`
+- `docs/planning/ai-studio-ux-prompt-adjacency-rollout-plan.md`
+- `docs/planning/ai-studio-ux-prompt-adjacency-rollout-tracker.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`

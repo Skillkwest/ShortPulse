@@ -28,6 +28,7 @@ const createLookupAdmin = (responses: Array<{ data: unknown; error: unknown }>) 
 
 const fullRow = {
   id: "gen-1",
+  created_at: "2026-03-02T17:00:00.000Z",
   user_id: "user-1",
   request_id: "req-1",
   model_id: "fal-ai/nano-banana-pro",

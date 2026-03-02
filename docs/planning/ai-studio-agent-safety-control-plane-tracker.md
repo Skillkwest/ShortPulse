@@ -11,7 +11,7 @@ Program Doc: `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 | F0: Docs + Contract Lock | Completed | Engineering | Phase 13 Wave F pending + RCP-3 required | Plan/tracker/ADR published and indexed | `docs/planning/evidence/unified-buildout/phase-13/` |
 | F1: Runtime Policy Core | Completed | AI Platform | F0 complete | Policy engine integrated + contract tests green | `docs/planning/evidence/unified-buildout/phase-13/` |
 | F2: Modality Wiring | Completed | Frontend + AI Platform | F1 complete | Text/image/video policy wiring validated | `docs/planning/evidence/unified-buildout/phase-13/` |
-| F3: Persistence + Admin Operations | In Progress | Platform | F2 complete | Migrations + admin APIs + security checks green | `docs/planning/evidence/unified-buildout/phase-13/` |
+| F3: Persistence + Admin Operations | Completed | Platform | F2 complete | Migrations + admin APIs + security checks green | `docs/planning/evidence/unified-buildout/phase-13/` |
 | F4: Observability + Auto-Rollback | In Progress | Platform + Ops | F3 implementation landed | Incident rollback/cooldown path verified in integrated runtime + rollout window | `docs/planning/evidence/unified-buildout/phase-13/` |
 | F5: Validation + Rollout | Planned | Platform + Ops | F4 complete | Promotion gates + rollback drill evidence green | `docs/planning/evidence/unified-buildout/phase-13/` |
 
@@ -27,7 +27,20 @@ Program Doc: `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 7. Wave F Pass 4 telemetry-version alignment is landed:
    - `studio-agent` coordinator now emits control-plane/runtime-resolved `policyVersion` values (with fallback),
    - regression coverage locks telemetry parity for non-suffixed profile IDs.
-8. RCP-4 remains pending and is tracked under Wave H canary promotion gates.
+8. Wave F Pass 5 local integrated validation window 1 is green:
+   - combined safety runtime/admin/API regression suite passed (`67/67`),
+   - local lint/type-check/build/docs gates passed.
+9. Staging SQL hard-gate revalidation is green (operator-executed):
+   - `check_agent_safety_policy_control_plane.sql` => `7/7/0`
+   - `check_runtime_sql_security_audit.sql` => `120/120/0`
+10. Wave F Pass 6 SQL control-plane observation window 1 is green (operator-executed):
+   - `activate_agent_safety_policy(...)` returned `cooldown_blocked` while cooldown was active,
+   - `rollback_agent_safety_policy(...)` returned `already_safe` on `prod_safe_v1`,
+   - post-call `get_active_agent_safety_policy()` snapshot remained consistent with expected safe profile/version payload.
+11. Admin API observation window remains open due deployment drift:
+   - current staging alias (`shortpulse-git-staging-preview-kirk-artmans-projects.vercel.app`) resolves to deployment commit `d8020d6bad40884aebab20a2f9096cad73be1ead` (`2026-02-27T00:23:54.852Z`),
+   - SQL control-plane functions are present in target DB, but route-level probe of `/api/admin/agent-safety-policy/active` on that deployment returns app-lane `404` after bearer auth (endpoint not present in deployed bundle).
+12. RCP-4 remains pending and is tracked under Wave H canary promotion gates.
 
 ## Execution Checklist
 ### F0: Docs + Contract Lock
@@ -59,6 +72,7 @@ Program Doc: `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 - [x] Implement and test cooldown enforcement.
 
 ### F5: Validation + Rollout
+- [x] Run local integrated validation window 1.
 - [ ] Run staging shadow validation.
 - [ ] Collect promotion/hold evidence windows.
 - [ ] Execute rollback drill and archive evidence.

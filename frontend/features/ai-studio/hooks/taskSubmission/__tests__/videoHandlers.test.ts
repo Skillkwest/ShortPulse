@@ -86,9 +86,16 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
         },
       ],
     });
-    expect(args.startPollingWithGeneration).toHaveBeenCalledWith("req-123", "fal-kling-3", {
-      previewUrl: "https://example.com/character.png",
-    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "req-123",
+      "fal-kling-3",
+      {
+        previewUrl: "https://example.com/character.png",
+      },
+      {
+        request_id: "req-123",
+      }
+    );
   });
 
   it("uploads blob motion video before submitting and updates timestamps", async () => {

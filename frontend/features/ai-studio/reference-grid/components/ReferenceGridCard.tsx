@@ -130,6 +130,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldShowReferenceActionRow = Boolean(
     shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview))
   );
+  const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
+  const dragImageSrc =
+    dragPreviewKind === "image" ? (imageSrc ?? cardPreviewUrl ?? undefined) : undefined;
   const saveIcon =
     item.saveState === "failed" ? (
       <ArrowClockwise size={16} weight="bold" aria-hidden />
@@ -143,6 +146,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       role="button"
       aria-busy={isLoading}
       data-loading={isLoading ? "true" : "false"}
+      data-drag-preview-url={cardPreviewUrl ?? undefined}
+      data-drag-image-src={dragImageSrc}
+      data-drag-preview-kind={dragPreviewKind}
       tabIndex={0}
       onClick={() => onSelectOutput(item.id)}
       onKeyDown={(event) => {
@@ -228,16 +234,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         </div>
       ) : null}
       {loadingVisual !== "none" ? (
-        <div
-          className={`reference-loading${
-            loadingVisual === "hydrating" ? " reference-loading--hydrating" : ""
-          }`}
-        >
-          {loadingVisual === "spinner" ? (
-            <div className="reference-spinner" />
-          ) : (
-            <div className="reference-hydration-indicator" aria-hidden="true" />
-          )}
+        <div className="reference-loading">
+          <div className="reference-spinner" />
         </div>
       ) : null}
       {isLoading && canRetryStatus && isSelected ? (

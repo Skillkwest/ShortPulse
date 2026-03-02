@@ -18,6 +18,8 @@
   --reference-selection-active-shadow: rgba(0, 255, 251, 0.317);
   --reference-selection-active-outline: rgb(0, 217, 255);
   --reference-selection-active-glow: rgba(6, 215, 252, 0.25);
+  --reference-spinner-size: 28px;
+  --reference-spinner-border-width: 2px;
   --reference-generate-border: rgba(37, 169, 191, 0.62);
   --reference-generate-start: rgba(52, 200, 255, 0.92);
   --reference-generate-end: rgba(37, 169, 191, 0.95);
@@ -119,13 +121,6 @@
   box-shadow: none;
 }
 
-.reference-canvas-panel.is-dense-visual-mode .reference-spinner {
-  width: 24px;
-  height: 24px;
-  border-width: 2px;
-  box-shadow: none;
-}
-
 .reference-canvas-panel.is-css-containment-mode .reference-card {
   content-visibility: auto;
   contain: layout paint size style;
@@ -162,13 +157,6 @@
 
 .reference-canvas-panel.is-grid-pressure-mode .reference-card.is-dragging {
   filter: none;
-}
-
-.reference-canvas-panel.is-grid-pressure-mode .reference-spinner {
-  width: 24px;
-  height: 24px;
-  border-width: 2px;
-  box-shadow: none;
 }
 
 .reference-archive-inline {
@@ -241,6 +229,7 @@
   min-height: 0;
   max-height: none;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
   scrollbar-color: rgba(201, 205, 214, 0.2) transparent;
 }
@@ -754,10 +743,10 @@
 }
 
 .reference-spinner {
-  width: 28px;
-  height: 28px;
+  width: var(--reference-spinner-size);
+  height: var(--reference-spinner-size);
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: var(--reference-spinner-border-width) solid rgba(255, 255, 255, 0.2);
   border-top-color: rgba(52, 200, 255, 0.88);
   animation: reference-spin 1.05s linear infinite;
 }

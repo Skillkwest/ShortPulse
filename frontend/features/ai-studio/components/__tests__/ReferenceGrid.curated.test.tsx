@@ -199,13 +199,13 @@ describe("ReferenceGrid curated split", () => {
     const importedCard = container.querySelector(".reference-card");
     expect(importedCard?.classList.contains("is-loading")).toBe(true);
     expect(importedCard?.getAttribute("aria-busy")).toBe("true");
-    expect(container.querySelector(".reference-spinner")).toBeNull();
-    expect(container.querySelector(".reference-hydration-indicator")).toBeTruthy();
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+    expect(container.querySelector(".reference-hydration-indicator")).toBeNull();
     expect(queryByRole("button", { name: "Describe" })).toBeNull();
     expect(container.querySelector(".reference-loading-placeholder")).toBeNull();
   });
 
-  it("keeps hydration indicator visible through deferred video load commit and then clears after RAF flush", () => {
+  it("keeps spinner visible through deferred video load commit and then clears after RAF flush", () => {
     const { flushNextFrame, flushAllFrames } = installRafQueue();
     const importedOutput: StudioOutput = {
       id: "imported-raf-video-1",
@@ -229,26 +229,26 @@ describe("ReferenceGrid curated split", () => {
 
     const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
     expect(videoNode).toBeTruthy();
-    expect(container.querySelector(".reference-spinner")).toBeNull();
-    expect(container.querySelector(".reference-hydration-indicator")).toBeTruthy();
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+    expect(container.querySelector(".reference-hydration-indicator")).toBeNull();
 
     act(() => {
       fireEvent.loadedData(videoNode as HTMLVideoElement);
     });
 
-    expect(container.querySelector(".reference-hydration-indicator")).toBeTruthy();
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
 
     act(() => {
       flushNextFrame();
     });
 
-    expect(container.querySelector(".reference-hydration-indicator")).toBeTruthy();
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
 
     act(() => {
       flushAllFrames();
     });
 
-    expect(container.querySelector(".reference-hydration-indicator")).toBeNull();
+    expect(container.querySelector(".reference-spinner")).toBeNull();
   });
 
   it("keeps overflow loading spinners animated", () => {

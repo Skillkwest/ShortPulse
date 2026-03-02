@@ -25,9 +25,22 @@ const findVideoFile = (files?: FileList) => {
 };
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
-const DRAG_GHOST_SCALE = 0.6;
-const DRAG_GHOST_MIN_SIZE_PX = 96;
-const DRAG_GHOST_MAX_SIZE_PX = 220;
+const DRAG_GHOST_SCALE = 0.68;
+const DRAG_GHOST_MIN_SIZE_PX = 108;
+const DRAG_GHOST_MAX_SIZE_PX = 244;
+const DRAG_GHOST_ASPECT_RATIO = 4 / 5;
+const DRAG_GHOST_SNAPSHOT_WIDTH = 200;
+const DRAG_GHOST_SNAPSHOT_HEIGHT = 250;
+const DRAG_GHOST_SNAPSHOT_QUALITY = 0.35;
+
+type ReferenceDragPreviewKind = "image" | "video" | "text";
+
+type ReferenceDragPreviewDataset = {
+  previewUrl: string | null;
+  imageSrc: string | null;
+  snapshotSrc: string | null;
+  previewKind: ReferenceDragPreviewKind | null;
+};
 
 export type DragDropPayload = {
   imageUrl: string | null;
@@ -70,28 +83,146 @@ const safeSetDragImage = (
   }
 };
 
+const resolveOutputPreviewKind = (output: StudioOutput): ReferenceDragPreviewKind => {
+  if (output.mode === "image") return "image";
+  if (output.mode === "video") return "video";
+  return "text";
+};
+
+const resolveDragGhostDimensions = ({
+  width,
+  height,
+}: {
+  width: number;
+  height: number;
+}): { ghostWidth: number; ghostHeight: number } => {
+  const scaledHeight =
+    height > 0
+      ? height * DRAG_GHOST_SCALE
+      : width > 0
+        ? (width / DRAG_GHOST_ASPECT_RATIO) * DRAG_GHOST_SCALE
+        : DRAG_GHOST_MAX_SIZE_PX;
+  const ghostHeight = clampDragGhostSize(scaledHeight);
+  const ghostWidth = Math.round(ghostHeight * DRAG_GHOST_ASPECT_RATIO);
+  return { ghostWidth, ghostHeight };
+};
+
+const createDragGhostSnapshotSrc = (imageNode: HTMLImageElement | null): string | null => {
+  if (!imageNode) return null;
+  if (!imageNode.complete || imageNode.naturalWidth <= 0 || imageNode.naturalHeight <= 0)
+    return null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = DRAG_GHOST_SNAPSHOT_WIDTH;
+    canvas.height = DRAG_GHOST_SNAPSHOT_HEIGHT;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+
+    const sourceWidth = imageNode.naturalWidth;
+    const sourceHeight = imageNode.naturalHeight;
+    const sourceAspect = sourceWidth / sourceHeight;
+    const targetAspect = DRAG_GHOST_SNAPSHOT_WIDTH / DRAG_GHOST_SNAPSHOT_HEIGHT;
+    let sx = 0;
+    let sy = 0;
+    let sw = sourceWidth;
+    let sh = sourceHeight;
+    if (sourceAspect > targetAspect) {
+      sw = Math.max(1, Math.round(sourceHeight * targetAspect));
+      sx = Math.round((sourceWidth - sw) / 2);
+    } else if (sourceAspect < targetAspect) {
+      sh = Math.max(1, Math.round(sourceWidth / targetAspect));
+      sy = Math.round((sourceHeight - sh) / 2);
+    }
+
+    context.drawImage(
+      imageNode,
+      sx,
+      sy,
+      sw,
+      sh,
+      0,
+      0,
+      DRAG_GHOST_SNAPSHOT_WIDTH,
+      DRAG_GHOST_SNAPSHOT_HEIGHT
+    );
+    return canvas.toDataURL("image/jpeg", DRAG_GHOST_SNAPSHOT_QUALITY);
+  } catch {
+    return null;
+  }
+};
+
+const readReferenceDragPreviewDataset = (
+  node?: HTMLElement | null
+): ReferenceDragPreviewDataset => {
+  const previewKindRaw = node?.dataset.dragPreviewKind?.trim().toLowerCase() ?? "";
+  const previewKind: ReferenceDragPreviewKind | null =
+    previewKindRaw === "image" || previewKindRaw === "video" || previewKindRaw === "text"
+      ? previewKindRaw
+      : null;
+  const renderedImageNode = node?.querySelector("img.reference-card-image");
+  const renderedImageElement =
+    renderedImageNode instanceof HTMLImageElement ? renderedImageNode : null;
+  const renderedImageSrc = renderedImageElement
+    ? renderedImageElement.currentSrc ||
+      renderedImageElement.getAttribute("src") ||
+      renderedImageElement.dataset.src ||
+      null
+    : null;
+  return {
+    previewUrl: normalizeReferenceTransferUrlCandidate(node?.dataset.dragPreviewUrl ?? null),
+    imageSrc: normalizeReferenceTransferUrlCandidate(
+      renderedImageSrc ?? node?.dataset.dragImageSrc ?? null
+    ),
+    snapshotSrc: createDragGhostSnapshotSrc(renderedImageElement),
+    previewKind,
+  };
+};
+
+const resolveGhostImageUrl = ({
+  output,
+  previewDataset,
+}: {
+  output: StudioOutput;
+  previewDataset: ReferenceDragPreviewDataset;
+}): string | null => {
+  const candidates = [
+    previewDataset.snapshotSrc,
+    previewDataset.imageSrc,
+    previewDataset.previewUrl,
+    resolveReferenceTransferUrl(output, "image"),
+  ];
+  for (const candidate of candidates) {
+    const normalized = normalizeReferenceTransferUrlCandidate(candidate);
+    if (!normalized) continue;
+    if (isLikelyImageTransferUrl(normalized)) return normalized;
+  }
+  return null;
+};
+
 const buildReferenceDragGhost = ({
   output,
+  previewDataset,
   width,
   height,
 }: {
   output: StudioOutput;
+  previewDataset: ReferenceDragPreviewDataset;
   width: number;
   height: number;
 }): HTMLElement => {
-  const ghostWidth = clampDragGhostSize(width * DRAG_GHOST_SCALE);
-  const ghostHeight = clampDragGhostSize(height * DRAG_GHOST_SCALE);
+  const { ghostWidth, ghostHeight } = resolveDragGhostDimensions({ width, height });
   const ghost = document.createElement("div");
   ghost.className = "reference-drag-ghost";
   ghost.style.width = `${ghostWidth}px`;
   ghost.style.height = `${ghostHeight}px`;
+  ghost.style.aspectRatio = "4 / 5";
   ghost.style.boxSizing = "border-box";
   ghost.style.position = "absolute";
   ghost.style.top = "-9999px";
   ghost.style.left = "-9999px";
   ghost.style.overflow = "hidden";
-  ghost.style.borderRadius = "12px";
-  ghost.style.border = "1px solid rgba(255,255,255,0.2)";
+  ghost.style.borderRadius = "6px";
+  ghost.style.border = "none";
   ghost.style.background = "rgba(13, 18, 28, 0.92)";
   ghost.style.pointerEvents = "none";
   ghost.style.display = "flex";
@@ -99,8 +230,12 @@ const buildReferenceDragGhost = ({
   ghost.style.justifyContent = "space-between";
   ghost.style.boxShadow = "0 12px 30px rgba(0,0,0,0.45)";
 
-  const imageUrl = resolveReferenceTransferUrl(output, "image");
+  const imageUrl = resolveGhostImageUrl({
+    output,
+    previewDataset,
+  });
   const videoUrl = resolveReferenceTransferUrl(output, "video");
+  const previewKind = previewDataset.previewKind ?? resolveOutputPreviewKind(output);
   const promptText = trimDragGhostText(dedupeText(output.prompt ?? output.previewText) || null);
   const isMediaGhost = Boolean(imageUrl || videoUrl);
 
@@ -113,7 +248,7 @@ const buildReferenceDragGhost = ({
     image.style.objectFit = "cover";
     image.style.display = "block";
     ghost.appendChild(image);
-  } else if (videoUrl) {
+  } else if (videoUrl || previewKind === "video") {
     const videoPlaceholder = document.createElement("div");
     videoPlaceholder.style.flex = "1";
     videoPlaceholder.style.width = "100%";
@@ -206,7 +341,9 @@ const resolveDraggedUrl = (
 
 export const looksLikeImageUrl = (value?: string) => {
   if (!value) return false;
-  return imageUrlPattern.test(value.trim());
+  const normalized = normalizeReferenceTransferUrlCandidate(value) ?? value.trim();
+  if (isVideoUrl(normalized)) return false;
+  return imageUrlPattern.test(normalized) || RELATIVE_MEDIA_PATH_HINT_PATTERN.test(normalized);
 };
 
 export const looksLikeVideoUrl = (value?: string) => {
@@ -491,11 +628,14 @@ export const prepareReferenceDrag = (
 
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
   if (dragNode) {
+    dragNode.classList.add("is-dragging");
     // Use a dedicated drag ghost so selected-card controls never leak into drag previews.
     try {
       const rect = dragNode.getBoundingClientRect();
+      const previewDataset = readReferenceDragPreviewDataset(dragNode);
       const ghost = buildReferenceDragGhost({
         output,
+        previewDataset,
         width: rect.width || dragNode.offsetWidth || DRAG_GHOST_MAX_SIZE_PX,
         height: rect.height || dragNode.offsetHeight || DRAG_GHOST_MAX_SIZE_PX,
       });
@@ -508,14 +648,8 @@ export const prepareReferenceDrag = (
         Math.round((rect.height || dragNode.offsetHeight) / 2)
       );
     } catch {
-      safeSetDragImage(
-        transfer,
-        dragNode,
-        Math.round(dragNode.offsetWidth / 2),
-        Math.round(dragNode.offsetHeight / 2)
-      );
+      // Keep drag payload semantics even if ghost construction fails.
     }
-    dragNode.classList.add("is-dragging");
   }
 };
 

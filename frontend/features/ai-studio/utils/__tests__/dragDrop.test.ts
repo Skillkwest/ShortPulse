@@ -8,6 +8,7 @@ import {
   extractDragDropPayload,
   extractVideoDragDropPayload,
   isVideoDragTransfer,
+  looksLikeImageUrl,
   prepareReferenceDrag,
   resolveReferenceTransferUrl,
 } from "../dragDrop";
@@ -139,6 +140,11 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
   });
 
+  it("accepts relative image-like paths", () => {
+    expect(looksLikeImageUrl("/storage/v1/object/public/media/image.webp?token=1")).toBe(true);
+    expect(looksLikeImageUrl("/storage/v1/object/public/media/clip.mp4")).toBe(false);
+  });
+
   it("renders image drag ghosts as media-only without prompt/footer text", () => {
     const { event, setDragImage } = makeDragEvent();
 
@@ -157,6 +163,85 @@ describe("dragDrop payload extraction", () => {
     expect(ghost).toBeInstanceOf(HTMLElement);
     expect(ghost?.querySelector("img")).toBeTruthy();
     expect(ghost?.textContent?.trim()).toBe("");
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("prefers rendered image sources from card dataset for drag ghosts", () => {
+    const { event, dragNode, setDragImage } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragImageSrc = `${window.location.origin}/rendered-image.png`;
+    dragNode.dataset.dragPreviewUrl = `${window.location.origin}/rendered-preview.png`;
+
+    prepareReferenceDrag(event, {
+      id: "ref-image-rendered-priority",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: `${window.location.origin}/canonical-image.png`,
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    const renderedImageNode = ghost?.querySelector("img") as HTMLImageElement | null;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(renderedImageNode).toBeTruthy();
+    expect(renderedImageNode?.getAttribute("src")).toBe(
+      `${window.location.origin}/rendered-image.png`
+    );
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("keeps drag ghosts at a 4:5 aspect ratio", () => {
+    const { event, setDragImage } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-image-ratio-check",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-image-ratio-check.png",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    const ghostWidth = Number.parseFloat(ghost?.style.width ?? "0");
+    const ghostHeight = Number.parseFloat(ghost?.style.height ?? "0");
+    expect(ghostWidth).toBeGreaterThan(0);
+    expect(ghostHeight).toBeGreaterThan(0);
+    expect(Math.round((ghostWidth / ghostHeight) * 100)).toBe(80);
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("uses prompt text when no image source is available for image drags", () => {
+    const { event, dragNode, setDragImage } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+
+    prepareReferenceDrag(event, {
+      id: "ref-image-text-fallback",
+      prompt: "Fallback prompt text",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: undefined,
+      previewStoragePath: undefined,
+      fullStoragePath: undefined,
+      resultUrls: [],
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(ghost?.querySelector("img")).toBeNull();
+    expect(ghost?.textContent).toContain("Fallback prompt text");
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
@@ -305,7 +390,38 @@ describe("dragDrop payload extraction", () => {
       "text/reference-url",
       "https://example.com/ref-fallback-1.png"
     );
+    expect(setDragImage).toHaveBeenCalledTimes(1);
     expect(dragNode.classList.contains("is-dragging")).toBe(true);
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("applies dragging class before setDragImage snapshot is taken", () => {
+    const dragNode = document.createElement("div");
+    let hadDraggingClassAtSnapshot = false;
+    const event = {
+      dataTransfer: {
+        effectAllowed: "all",
+        setData: vi.fn(),
+        setDragImage: vi.fn(() => {
+          hadDraggingClassAtSnapshot = dragNode.classList.contains("is-dragging");
+        }),
+      },
+      currentTarget: dragNode,
+    } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+
+    prepareReferenceDrag(event, {
+      id: "ref-snapshot-order",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-snapshot-order.png",
+    });
+
+    expect(hadDraggingClassAtSnapshot).toBe(true);
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });

@@ -128,7 +128,7 @@ describe("createFalSubmitHandler", () => {
     expect(firstHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
     expect(secondHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ request_id: "req-fallback" });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ request_id: "req-fallback" }));
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(charge.markSubmitted).toHaveBeenCalledWith(
       "req-fallback",
@@ -252,7 +252,9 @@ describe("createFalSubmitHandler", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ request_id: "req-retried-primary" });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: "req-retried-primary" })
+    );
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(charge.refund).not.toHaveBeenCalled();
   });
@@ -295,7 +297,9 @@ describe("createFalSubmitHandler", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ request_id: "req-fallback-no-retry" });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: "req-fallback-no-retry" })
+    );
   });
 
   it("accepts provider request-id aliases beyond request_id", async () => {
@@ -324,7 +328,7 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ task_id: "task-alias-1" });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ task_id: "task-alias-1" }));
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(charge.markSubmitted).toHaveBeenCalledWith(
       "task-alias-1",
@@ -504,6 +508,38 @@ describe("createFalSubmitHandler", () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ request_id: "req-shadow-allowed" });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: "req-shadow-allowed" })
+    );
+  });
+
+  it("blocks explicit generation prompts before provider submit", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal/flux-2-pro",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/flux-2-pro" }],
+      routeLabel: "Fal Flux 2 Pro",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "graphic sexual intercourse with explicit anatomy" },
+      headers: {},
+      url: "/api/fal/flux2pro-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "GENERATION_SAFETY_BLOCKED",
+      })
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
   });
 });

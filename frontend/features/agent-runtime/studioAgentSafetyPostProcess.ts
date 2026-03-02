@@ -1,6 +1,11 @@
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 import { resolveSafetyModality } from "./safetyPolicy/decisionEngine";
-import type { SafetyEnvironment, SafetyModality } from "./safetyPolicy/types";
+import type {
+  SafetyEnvironment,
+  SafetyModality,
+  SafetyPolicyDocumentV2,
+  SafetyPostprocessMode,
+} from "./safetyPolicy/types";
 import {
   evaluateStudioAgentSafetyText,
   normalizeStudioAgentSafetyText,
@@ -17,6 +22,7 @@ export type StudioAgentSafetyPostProcessResult = {
   outcome: StudioAgentSafetyPostProcessOutcome;
   text: string;
   fallbackUsed: boolean;
+  shadowWouldBlock?: boolean;
   debugReason?: string;
   decision?: StudioAgentSafetyDecisionMeta;
 };
@@ -80,7 +86,7 @@ export const postProcessStudioAgentSafetyText = async ({
   route,
   flow = "unknown",
   source,
-  enabled,
+  mode,
   debug = false,
   traceId,
   rewrite,
@@ -89,12 +95,13 @@ export const postProcessStudioAgentSafetyText = async ({
   environment,
   devAbsoluteZeroEnabled = false,
   modality,
+  policyDocument,
 }: {
   text: string | null | undefined;
   route: "studio-agent" | "describe-image";
   flow?: string;
   source: StudioAgentSafetyPostProcessSource;
-  enabled: boolean;
+  mode: SafetyPostprocessMode;
   debug?: boolean;
   traceId?: string;
   rewrite?: (args: {
@@ -109,9 +116,10 @@ export const postProcessStudioAgentSafetyText = async ({
   environment?: SafetyEnvironment;
   devAbsoluteZeroEnabled?: boolean;
   modality?: SafetyModality;
+  policyDocument?: SafetyPolicyDocumentV2 | null;
 }): Promise<StudioAgentSafetyPostProcessResult> => {
   const normalized = normalizeStudioAgentSafetyText(typeof text === "string" ? text : "");
-  if (!enabled || !normalized.length) {
+  if (mode === "off" || !normalized.length) {
     return { outcome: "pass", text: normalized, fallbackUsed: false };
   }
   const resolvedEnvironment: SafetyEnvironment =
@@ -125,6 +133,7 @@ export const postProcessStudioAgentSafetyText = async ({
     environment: resolvedEnvironment,
     devAbsoluteZeroEnabled,
     refusalMessage: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+    policyDocument,
   });
   const initialDecisionMeta = initialEvaluation.decision;
   if (initialDecisionMeta.action === "allow") {
@@ -136,6 +145,16 @@ export const postProcessStudioAgentSafetyText = async ({
     };
   }
   if (initialDecisionMeta.action === "refuse") {
+    if (mode === "shadow") {
+      return {
+        outcome: "pass",
+        text: normalized,
+        fallbackUsed: false,
+        shadowWouldBlock: true,
+        debugReason: debug ? "shadow_classification_refusal" : undefined,
+        decision: initialDecisionMeta,
+      };
+    }
     return {
       outcome: "refusal",
       text: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
@@ -168,9 +187,20 @@ export const postProcessStudioAgentSafetyText = async ({
     environment: resolvedEnvironment,
     devAbsoluteZeroEnabled,
     refusalMessage: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+    policyDocument,
   });
   const rewrittenDecisionMeta = rewrittenEvaluation.decision;
   if (rewrittenDecisionMeta.action === "allow") {
+    if (mode === "shadow") {
+      return {
+        outcome: "pass",
+        text: normalized,
+        fallbackUsed,
+        shadowWouldBlock: true,
+        debugReason: debug ? "shadow_rewritten_safe" : undefined,
+        decision: rewrittenDecisionMeta,
+      };
+    }
     return {
       outcome: "rewritten",
       text: rewritten,
@@ -190,14 +220,35 @@ export const postProcessStudioAgentSafetyText = async ({
       environment: resolvedEnvironment,
       devAbsoluteZeroEnabled,
       refusalMessage: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+      policyDocument,
     });
     const secondDecisionMeta = secondEvaluation.decision;
     if (secondDecisionMeta.action === "allow") {
+      if (mode === "shadow") {
+        return {
+          outcome: "pass",
+          text: normalized,
+          fallbackUsed,
+          shadowWouldBlock: true,
+          debugReason: debug ? "shadow_rewritten_safe_second_pass" : undefined,
+          decision: secondDecisionMeta,
+        };
+      }
       return {
         outcome: "rewritten",
         text: secondPass,
         fallbackUsed,
         debugReason: debug ? "rewritten_safe_second_pass" : undefined,
+        decision: secondDecisionMeta,
+      };
+    }
+    if (mode === "shadow") {
+      return {
+        outcome: "pass",
+        text: normalized,
+        fallbackUsed: true,
+        shadowWouldBlock: true,
+        debugReason: debug ? "shadow_rewrite_refusal_fallback" : undefined,
         decision: secondDecisionMeta,
       };
     }
@@ -210,6 +261,16 @@ export const postProcessStudioAgentSafetyText = async ({
     };
   }
 
+  if (mode === "shadow") {
+    return {
+      outcome: "pass",
+      text: normalized,
+      fallbackUsed: true,
+      shadowWouldBlock: true,
+      debugReason: debug ? "shadow_rewrite_refusal_fallback" : undefined,
+      decision: rewrittenDecisionMeta,
+    };
+  }
   return {
     outcome: "refusal",
     text: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,

@@ -21,6 +21,7 @@ export type ActiveAgentSafetyPolicy = {
 };
 
 export type AgentSafetyPolicyMutationStatus =
+  | "created"
   | "activated"
   | "already_active"
   | "cooldown_blocked"
@@ -44,6 +45,7 @@ export type RuntimeSafetyProfileSource = "control_plane" | "env" | "fallback";
 export type RuntimeSafetyProfileResolution = {
   profileId: SafetyProfileId;
   policyVersion: number | null;
+  activePolicy: Record<string, unknown> | null;
   source: RuntimeSafetyProfileSource;
 };
 
@@ -54,6 +56,7 @@ const VALID_PROFILE_IDS = new Set<SafetyProfileId>([
 ]);
 
 const VALID_MUTATION_STATUSES = new Set<AgentSafetyPolicyMutationStatus>([
+  "created",
   "activated",
   "already_active",
   "cooldown_blocked",
@@ -178,6 +181,7 @@ export const resolveRuntimeSafetyProfile = async ({
     return {
       profileId: fallbackProfileId,
       policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+      activePolicy: null,
       source: normalizedEnvProfileId ? "env" : "fallback",
     };
   }
@@ -191,6 +195,7 @@ export const resolveRuntimeSafetyProfile = async ({
     return {
       profileId: fallbackProfileId,
       policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+      activePolicy: null,
       source: normalizedEnvProfileId ? "env" : "fallback",
     };
   }
@@ -204,12 +209,14 @@ export const resolveRuntimeSafetyProfile = async ({
         policyVersion:
           runtimeActivePolicyCache.value?.activePolicyVersion ??
           resolveProfileVersionFromId(cachedProfileId),
+        activePolicy: runtimeActivePolicyCache.value?.activePolicy ?? null,
         source: "control_plane",
       };
     }
     return {
       profileId: fallbackProfileId,
       policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+      activePolicy: null,
       source: normalizedEnvProfileId ? "env" : "fallback",
     };
   }
@@ -226,6 +233,7 @@ export const resolveRuntimeSafetyProfile = async ({
         profileId: activeProfileId,
         policyVersion:
           activePolicy?.activePolicyVersion ?? resolveProfileVersionFromId(activeProfileId),
+        activePolicy: activePolicy?.activePolicy ?? null,
         source: "control_plane",
       };
     }
@@ -239,6 +247,7 @@ export const resolveRuntimeSafetyProfile = async ({
   return {
     profileId: fallbackProfileId,
     policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+    activePolicy: null,
     source: normalizedEnvProfileId ? "env" : "fallback",
   };
 };
@@ -355,6 +364,55 @@ export const rollbackAgentSafetyPolicy = async ({
     throw new Error("Invalid rollback agent safety policy payload.");
   }
 
+  return {
+    status,
+    activeProfileId: asProfileId(row?.active_profile_id),
+    activePolicyVersion: asNullableNumber(row?.active_policy_version),
+    cooldownUntil: asNullableString(row?.cooldown_until, 80),
+    message: asNullableString(row?.message, 400),
+  };
+};
+
+export const createAgentSafetyPolicyVersion = async ({
+  supabaseAdmin,
+  profileId,
+  policy,
+  note,
+  reason,
+  actorUserId,
+  actorEmail,
+  singleReviewerAck,
+  source = "admin_api",
+}: {
+  supabaseAdmin: SupabaseClient;
+  profileId: SafetyProfileId;
+  policy: Record<string, unknown>;
+  note: string | null;
+  reason: string | null;
+  actorUserId: string;
+  actorEmail: string | null;
+  singleReviewerAck: boolean;
+  source?: string;
+}): Promise<AgentSafetyPolicyMutationResult> => {
+  const { data, error } = await supabaseAdmin.rpc("create_agent_safety_policy_version", {
+    p_profile_id: profileId,
+    p_policy: policy,
+    p_note: note,
+    p_reason: reason,
+    p_actor_user_id: actorUserId,
+    p_actor_email: actorEmail,
+    p_single_reviewer_ack: singleReviewerAck,
+    p_source: source,
+  });
+  if (error) {
+    throw error;
+  }
+
+  const row = normalizeRpcRow(data);
+  const status = asMutationStatus(row?.status);
+  if (!status) {
+    throw new Error("Invalid create agent safety policy payload.");
+  }
   return {
     status,
     activeProfileId: asProfileId(row?.active_profile_id),

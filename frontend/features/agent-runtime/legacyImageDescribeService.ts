@@ -13,7 +13,12 @@ import {
 import { probeImageUrlForDescribe } from "../../lib/server/api/imageDescribeUrlGuard";
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
+import {
+  resolveImagePreflightFailMode,
+  runImageSafetyPreflight,
+} from "./safetyPolicy/imagePreflightClassifier";
 import { maybeTriggerSafetyIncidentAutoRollback } from "./safetyPolicy/incidentAutoRollback";
+import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
 import {
   resolveProviderErrorHandling,
   resolveProviderErrorNormalizationMode,
@@ -23,6 +28,7 @@ import {
   isStudioAgentSafetyRefusalUpstreamError,
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "./studioAgentRouteOutcomes";
+import type { SafetyCategoryId } from "./safetyPolicy/types";
 
 const IMAGE_DESCRIBER_ID: AgentPromptId = "OPENAI_PROMPT_IMAGE_DESCRIBE";
 const DEFAULT_VISION_MODEL = "gpt-5-nano";
@@ -50,7 +56,7 @@ const emitDescribeSafetyTelemetry = ({
   debugEnabled: boolean;
   policyVersion: number | null;
   profileId: "prod_safe_v1" | "staging_lenient" | "dev_absolute_zero" | null;
-  category: "safe" | "sexual_suggestive" | "sexual_explicit" | null;
+  category: SafetyCategoryId | null;
   decisionAction: "allow" | "rewrite" | "refuse" | null;
   decisionSource: "profile" | "hard_floor" | "absolute_zero" | null;
   providerBlocked: boolean;
@@ -134,15 +140,34 @@ export const executeLegacyImageDescribe = async ({
 }): Promise<LegacyImageDescribeResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
   const systemPrompt = loadAgentPrompt(IMAGE_DESCRIBER_ID, process.env[IMAGE_DESCRIBER_ID]);
-  const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
   const safetyProfile = await resolveRuntimeSafetyProfile({
     envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
   });
   const safetyProfileId = safetyProfile.profileId;
+  const safetyPolicyDocument = resolveSafetyPolicyDocument({
+    activePolicy: safetyProfile.activePolicy,
+    profileId: safetyProfileId,
+  });
+  const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
+    .trim()
+    .toLowerCase();
+  const safetyPostProcessMode =
+    envPostprocessMode === "enforce" ||
+    envPostprocessMode === "shadow" ||
+    envPostprocessMode === "off"
+      ? envPostprocessMode
+      : process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED === "false"
+        ? "off"
+        : safetyPolicyDocument.postprocess.mode;
   const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
   const safetyDevAbsoluteZeroEnabled =
     process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
+  const safetyImagePreflightEnabled =
+    process.env.STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED !== "false";
+  const safetyImagePreflightFailMode = resolveImagePreflightFailMode(
+    process.env.STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE
+  );
   const safetyProviderErrorMode = resolveProviderErrorNormalizationMode(
     process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
   );
@@ -216,6 +241,48 @@ export const executeLegacyImageDescribe = async ({
         payload: { error: imageProbe.message, detail: imageProbe.detail },
       };
     }
+    const preflightResult = await runImageSafetyPreflight({
+      enabled: safetyImagePreflightEnabled && safetyPolicyDocument.input.image_preflight.enabled,
+      imageUrl: normalizedImageUrl,
+      policyDocument: safetyPolicyDocument,
+      environment: safetyEnvironment,
+      failMode: safetyImagePreflightFailMode,
+    });
+    if (preflightResult.outcome === "refusal") {
+      emitDescribeSafetyTelemetry({
+        routeLabel,
+        outcome: "refusal",
+        fallbackUsed: false,
+        debugReason: preflightResult.classifierUnavailable
+          ? "image_preflight_classifier_unavailable"
+          : `image_preflight_block_${preflightResult.matchedFamily ?? "unknown"}`,
+        debugEnabled: safetyDebugEnabled,
+        policyVersion: safetyPolicyVersion,
+        profileId: safetyTelemetryProfileId,
+        category:
+          preflightResult.matchedFamily === "sexual"
+            ? "sexual_explicit"
+            : preflightResult.matchedFamily === "violence"
+              ? "violence_explicit"
+              : preflightResult.matchedFamily === "self_harm"
+                ? "self_harm_explicit"
+                : preflightResult.matchedFamily === "hate"
+                  ? "hate_explicit"
+                  : null,
+        decisionAction: preflightResult.matchedAction,
+        decisionSource: "profile",
+        providerBlocked: true,
+        hardFloorViolation: false,
+        rollbackTriggered: false,
+      });
+      return {
+        ok: true,
+        payload: {
+          description: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+          usage: {},
+        },
+      };
+    }
 
     const primaryVisionModel = (process.env.OPENAI_VISION_MODEL || DEFAULT_VISION_MODEL).trim();
     const fallbackVisionModel = (
@@ -252,7 +319,7 @@ export const executeLegacyImageDescribe = async ({
       const detail = describeAttempt.detail;
       const modelUsed = describeAttempt.model;
       const safetyRefusal =
-        safetyPostProcessEnabled &&
+        safetyPostProcessMode !== "off" &&
         isStudioAgentSafetyRefusalUpstreamError({
           status: describeAttempt.status,
           detail,
@@ -374,11 +441,13 @@ export const executeLegacyImageDescribe = async ({
       route: "describe-image",
       flow: "describe_image",
       source: "describe_output",
-      enabled: safetyPostProcessEnabled,
+      mode: safetyPostProcessMode,
       debug: safetyDebugEnabled,
       profileId: safetyProfileId,
       environment: safetyEnvironment,
       devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+      modality: "image",
+      policyDocument: safetyPolicyDocument,
     });
     let rollbackTriggered = false;
     if (safetyPostProcessResult.decision?.hardFloorViolation) {

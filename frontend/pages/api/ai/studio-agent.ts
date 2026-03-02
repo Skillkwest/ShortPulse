@@ -18,6 +18,7 @@ import {
   resolveSafetyEnvironment,
   resolveSafetyModality,
 } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
+import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
 import { resolveProviderErrorNormalizationMode } from "../../../features/agent-runtime/safetyPolicy/providerErrorPolicy";
 import {
   buildStudioAgentSafetyRefusalPayload,
@@ -111,7 +112,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
   const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
-  const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
   const safetyInputPrecheckEnabled =
     process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
@@ -119,6 +119,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
   });
   const safetyProfileId = safetyProfile.profileId;
+  const safetyPolicyDocument = resolveSafetyPolicyDocument({
+    activePolicy: safetyProfile.activePolicy,
+    profileId: safetyProfileId,
+  });
+  const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
+    .trim()
+    .toLowerCase();
+  const safetyPostProcessMode =
+    envPostprocessMode === "enforce" ||
+    envPostprocessMode === "shadow" ||
+    envPostprocessMode === "off"
+      ? envPostprocessMode
+      : process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED === "false"
+        ? "off"
+        : safetyPolicyDocument.postprocess.mode;
   const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
   const safetyDevAbsoluteZeroEnabled =
     process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
@@ -175,6 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     profileId: safetyProfileId,
     environment: safetyEnvironment,
     devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+    policyDocument: safetyPolicyDocument,
   });
   const safetyTelemetryProfileId =
     safetyProfileId === "prod_safe_v1" ||
@@ -293,9 +309,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     userId: user.id,
     userEmail: user.email ?? null,
     canonicalDbEnabled,
-    safetyPostProcessEnabled,
+    safetyPostProcessMode,
     safetyDebugEnabled,
     safetyProfileId,
+    safetyPolicyDocument,
     safetyPolicyVersion: safetyProfile.policyVersion,
     safetyEnvironment,
     safetyDevAbsoluteZeroEnabled,

@@ -27,6 +27,7 @@ describe("resolveRuntimeSafetyProfile", () => {
     expect(resolved).toEqual({
       profileId: "staging_lenient",
       policyVersion: null,
+      activePolicy: null,
       source: "env",
     });
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
@@ -61,11 +62,13 @@ describe("resolveRuntimeSafetyProfile", () => {
     expect(first).toEqual({
       profileId: "staging_lenient",
       policyVersion: 7,
+      activePolicy: {},
       source: "control_plane",
     });
     expect(second).toEqual({
       profileId: "staging_lenient",
       policyVersion: 7,
+      activePolicy: {},
       source: "control_plane",
     });
     expect(rpcMock).toHaveBeenCalledTimes(1);
@@ -87,6 +90,7 @@ describe("resolveRuntimeSafetyProfile", () => {
     expect(resolved).toEqual({
       profileId: "prod_safe_v1",
       policyVersion: 1,
+      activePolicy: null,
       source: "env",
     });
   });

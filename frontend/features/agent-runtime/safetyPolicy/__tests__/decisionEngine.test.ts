@@ -8,7 +8,7 @@ import {
 describe("safetyPolicy decisionEngine", () => {
   it("enforces hard-floor refusal for explicit category in production", () => {
     const result = resolveSafetyDecision({
-      classification: "refuse",
+      classification: "sexual_explicit",
       modality: "text",
       environment: "production",
       profileId: "prod_safe_v1",
@@ -20,7 +20,7 @@ describe("safetyPolicy decisionEngine", () => {
 
   it("allows lenient rewrite outcome in staging profile for explicit category", () => {
     const result = resolveSafetyDecision({
-      classification: "refuse",
+      classification: "sexual_explicit",
       modality: "image",
       environment: "development",
       profileId: "staging_lenient",
@@ -32,7 +32,7 @@ describe("safetyPolicy decisionEngine", () => {
 
   it("supports development absolute-zero override outside production", () => {
     const result = resolveSafetyDecision({
-      classification: "refuse",
+      classification: "sexual_explicit",
       modality: "video",
       environment: "development",
       profileId: "prod_safe_v1",

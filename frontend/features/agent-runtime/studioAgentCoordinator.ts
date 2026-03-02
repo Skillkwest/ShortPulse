@@ -23,7 +23,11 @@ import {
 } from "./studioAgentSafetyPostProcess";
 import { maybeTriggerSafetyIncidentAutoRollback } from "./safetyPolicy/incidentAutoRollback";
 import { resolveSafetyModality } from "./safetyPolicy/decisionEngine";
-import type { SafetyEnvironment } from "./safetyPolicy/types";
+import type {
+  SafetyEnvironment,
+  SafetyPolicyDocumentV2,
+  SafetyPostprocessMode,
+} from "./safetyPolicy/types";
 import {
   buildStudioAgentInfraFallbackPayload,
   resolvePolicyVersionFromProfileId,
@@ -130,9 +134,10 @@ export const executeStudioAgentCoordinator = async ({
   userId,
   userEmail,
   canonicalDbEnabled,
-  safetyPostProcessEnabled,
+  safetyPostProcessMode,
   safetyDebugEnabled,
   safetyProfileId,
+  safetyPolicyDocument,
   safetyPolicyVersion,
   safetyEnvironment,
   safetyDevAbsoluteZeroEnabled,
@@ -169,9 +174,10 @@ export const executeStudioAgentCoordinator = async ({
   userId: string;
   userEmail: string | null;
   canonicalDbEnabled: boolean;
-  safetyPostProcessEnabled: boolean;
+  safetyPostProcessMode: SafetyPostprocessMode;
   safetyDebugEnabled: boolean;
   safetyProfileId?: string | null;
+  safetyPolicyDocument: SafetyPolicyDocumentV2;
   safetyPolicyVersion?: number | null;
   safetyEnvironment: SafetyEnvironment;
   safetyDevAbsoluteZeroEnabled: boolean;
@@ -455,7 +461,7 @@ export const executeStudioAgentCoordinator = async ({
       }
     };
 
-    if (!finalRefusal && safetyPostProcessEnabled) {
+    if (!finalRefusal && safetyPostProcessMode !== "off") {
       const applyPromptValue =
         typeof finalParsed.actions?.applyPrompt === "string" ? finalParsed.actions.applyPrompt : "";
       if (applyPromptValue) {
@@ -464,13 +470,14 @@ export const executeStudioAgentCoordinator = async ({
           route: "studio-agent",
           flow: orchestration.flow,
           source: "model_output",
-          enabled: safetyPostProcessEnabled,
+          mode: safetyPostProcessMode,
           debug: safetyDebugEnabled,
           traceId,
           profileId: safetyProfileId,
           environment: safetyEnvironment,
           devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
           modality: safetyModality,
+          policyDocument: safetyPolicyDocument,
         });
         registerSafetyResult(applyPromptSafety);
         if (applyPromptSafety.outcome === "refusal") {
@@ -495,13 +502,14 @@ export const executeStudioAgentCoordinator = async ({
           route: "studio-agent",
           flow: orchestration.flow,
           source: "model_output",
-          enabled: safetyPostProcessEnabled,
+          mode: safetyPostProcessMode,
           debug: safetyDebugEnabled,
           traceId,
           profileId: safetyProfileId,
           environment: safetyEnvironment,
           devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
           modality: safetyModality,
+          policyDocument: safetyPolicyDocument,
         });
         registerSafetyResult(messageSafety);
         if (messageSafety.outcome === "refusal") {

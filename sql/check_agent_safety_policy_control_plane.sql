@@ -26,7 +26,8 @@ expected_functions as (
         values
             ('public.get_active_agent_safety_policy()'),
             ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
-            ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
+            ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)'),
+            ('public.create_agent_safety_policy_version(text,jsonb,text,text,uuid,text,boolean,text)')
     ) as f(signature)
 ),
 resolved_functions as (
@@ -124,10 +125,11 @@ with checks as (
                 else true
             end as pass
         from (
-            values
-                ('public.get_active_agent_safety_policy()'),
-                ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
-                ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
+        values
+            ('public.get_active_agent_safety_policy()'),
+            ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
+            ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)'),
+            ('public.create_agent_safety_policy_version(text,jsonb,text,text,uuid,text,boolean,text)')
         ) as f(signature)
 
         union all

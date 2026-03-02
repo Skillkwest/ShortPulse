@@ -1,14 +1,17 @@
 /**
  * Safety policy decision engine with modality + environment-aware resolution.
  */
-import { mapClassificationToSafetyCategory } from "./categoryCatalog";
+import { mapClassificationToSafetyCategory, SAFETY_CATEGORY_CATALOG } from "./categoryCatalog";
 import { applyHardFloorOverride } from "./hardFloors";
+import { resolvePolicyTextLevel } from "./policyDocument";
 import { resolveSafetyProfile } from "./profileCatalog";
 import type {
   SafetyClassification,
   SafetyDecision,
   SafetyEnvironment,
   SafetyModality,
+  SafetyPolicyDocumentV2,
+  SafetyPolicyAction,
 } from "./types";
 
 export const resolveSafetyEnvironment = (nodeEnv?: string | null): SafetyEnvironment =>
@@ -33,12 +36,14 @@ export const resolveSafetyDecision = ({
   environment,
   profileId,
   devAbsoluteZeroEnabled = false,
+  policyDocument,
 }: {
   classification: SafetyClassification;
   modality: SafetyModality;
   environment: SafetyEnvironment;
   profileId?: string | null;
   devAbsoluteZeroEnabled?: boolean;
+  policyDocument?: SafetyPolicyDocumentV2 | null;
 }): SafetyDecision => {
   const category = mapClassificationToSafetyCategory(classification);
   const resolvedProfile = resolveSafetyProfile(profileId);
@@ -52,7 +57,22 @@ export const resolveSafetyDecision = ({
     };
   }
 
-  const profileAction = resolvedProfile.profile[modality][category];
+  let profileAction: SafetyPolicyAction = resolvedProfile.profile[modality][category];
+  const categoryMeta = SAFETY_CATEGORY_CATALOG[category];
+  if (policyDocument && categoryMeta.family && categoryMeta.severity) {
+    const level = resolvePolicyTextLevel({
+      policy: policyDocument,
+      modality,
+      family: categoryMeta.family,
+    });
+    if (level === "allow") {
+      profileAction = "allow";
+    } else if (level === "rewrite") {
+      profileAction = "rewrite";
+    } else {
+      profileAction = categoryMeta.severity === "explicit" ? "refuse" : "rewrite";
+    }
+  }
   const withHardFloor = applyHardFloorOverride({
     action: profileAction,
     category,

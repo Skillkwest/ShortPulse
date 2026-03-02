@@ -2,9 +2,14 @@ import type { NextApiRequest } from "next";
 import { loadAgentPrompt } from "../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../lib/agentPromptsConfig";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
+import { resolveRuntimeSafetyProfile } from "../../lib/server/api/agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
 import { fetchOpenAiCompatibleChatCompletion } from "../../lib/server/api/openAiCompat";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
+import { runStudioAgentSafetyInputPrecheck } from "./studioAgentSafetyInputPrecheck";
+import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
+import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
+import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 
 const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";
 
@@ -49,6 +54,18 @@ export const executeLegacyPromptGeneration = async ({
 }): Promise<LegacyPromptGenerationResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
   const systemPrompt = loadAgentPrompt(TEXT_ENHANCER_ID, process.env.OPENAI_PROMPT_SYSTEM);
+  const inputPrecheckEnabled =
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED !== "false";
+  const safetyProfile = await resolveRuntimeSafetyProfile({
+    envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
+  });
+  const safetyPolicyDocument = resolveSafetyPolicyDocument({
+    activePolicy: safetyProfile.activePolicy,
+    profileId: safetyProfile.profileId,
+  });
+  const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
+  const safetyDevAbsoluteZeroEnabled =
+    process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
   if (!apiKey) {
     await logGenerationFailure({
       req,
@@ -87,6 +104,61 @@ export const executeLegacyPromptGeneration = async ({
     });
     return { ok: false, status: 400, payload: { error: "Prompt is required" } };
   }
+  let providerPrompt = prompt;
+  const precheckResult = runStudioAgentSafetyInputPrecheck({
+    enabled: inputPrecheckEnabled,
+    messages: [{ role: "user", content: providerPrompt }],
+    context: {},
+    canonicalPrompt: null,
+    modality: "text",
+    profileId: safetyProfile.profileId,
+    environment: safetyEnvironment,
+    devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+    policyDocument: safetyPolicyDocument,
+  });
+  if (precheckResult.outcome === "refusal") {
+    console.info(
+      "[generate-prompt][safety-input-precheck]",
+      JSON.stringify({
+        safety_stage: "input_precheck",
+        route: routeLabel,
+        safety_outcome: "refusal",
+        provider_call_skipped: true,
+        profile_id: safetyProfile.profileId,
+        policy_version: safetyProfile.policyVersion,
+        modality: precheckResult.decision?.modality ?? "text",
+        category: precheckResult.decision?.category ?? null,
+        decision_action: precheckResult.decision?.action ?? "refuse",
+        decision_source: precheckResult.decision?.source ?? null,
+      })
+    );
+    return {
+      ok: true,
+      payload: {
+        prompt: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+        usage: {},
+      },
+    };
+  }
+  if (precheckResult.outcome === "rewritten") {
+    providerPrompt = precheckResult.messages[0]?.content ?? providerPrompt;
+    console.info(
+      "[generate-prompt][safety-input-precheck]",
+      JSON.stringify({
+        safety_stage: "input_precheck",
+        route: routeLabel,
+        safety_outcome: "rewritten",
+        provider_call_skipped: false,
+        rewritten_field_count: precheckResult.rewrittenFieldCount,
+        profile_id: safetyProfile.profileId,
+        policy_version: safetyProfile.policyVersion,
+        modality: precheckResult.decision?.modality ?? "text",
+        category: precheckResult.decision?.category ?? null,
+        decision_action: precheckResult.decision?.action ?? "rewrite",
+        decision_source: precheckResult.decision?.source ?? null,
+      })
+    );
+  }
 
   try {
     const response = await fetchOpenAiCompatibleChatCompletion({
@@ -96,7 +168,7 @@ export const executeLegacyPromptGeneration = async ({
       timeoutMs: 20000,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
+        { role: "user", content: providerPrompt },
       ],
     });
 

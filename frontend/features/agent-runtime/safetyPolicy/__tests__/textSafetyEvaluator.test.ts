@@ -53,6 +53,26 @@ describe("textSafetyEvaluator", () => {
     );
   });
 
+  it("classifies violent language into violence categories", () => {
+    const explicit = evaluateStudioAgentSafetyText({
+      text: "Graphic gore and dismemberment in a bloodbath.",
+      modality: "image",
+      environment: "production",
+      profileId: "prod_safe_v1",
+    });
+    const suggestive = evaluateStudioAgentSafetyText({
+      text: "A person holding a gun in a violent fight scene.",
+      modality: "image",
+      environment: "production",
+      profileId: "staging_lenient",
+    });
+
+    expect(explicit.decision.category).toBe("violence_explicit");
+    expect(explicit.decision.action).toBe("refuse");
+    expect(suggestive.decision.category).toBe("violence_suggestive");
+    expect(suggestive.decision.action).toBe("rewrite");
+  });
+
   it("allows explicit text in development with absolute-zero", () => {
     const result = evaluateStudioAgentSafetyText({
       text: "Graphic sexual intercourse with explicit anatomy details.",

@@ -40,6 +40,8 @@ describe("POST /api/ai/describe-image", () => {
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
     process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
     process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";
+    process.env.STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED = "true";
+    process.env.STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE = "prod_closed_nonprod_open";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     vi.stubGlobal("fetch", vi.fn());
@@ -289,6 +291,66 @@ describe("POST /api/ai/describe-image", () => {
     expect(payload?.description?.toLowerCase()).not.toContain("sexy");
     expect(payload?.description?.toLowerCase()).not.toContain("topless");
     expect(payload?.description?.toLowerCase()).not.toContain("lingerie");
+  });
+
+  it("blocks describe-image before OpenAI vision when local preflight flags explicit URL signals", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "image/png" }),
+    });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/nsfw-nude-scene.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "I cannot describe this.",
+      })
+    );
+  });
+
+  it("fails open in non-production when image preflight classifier is unavailable", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "A person standing in a bright room." } }],
+          usage: { prompt_tokens: 9, completion_tokens: 8 },
+        }),
+      });
+    const req = {
+      method: "POST",
+      body: {
+        imageUrl: "https://example.com/simulate_preflight_unavailable-image.png",
+      },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "A person standing in a bright room.",
+      })
+    );
   });
 
   it("rejects blocked private hosts before probing network", async () => {

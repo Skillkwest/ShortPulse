@@ -257,4 +257,21 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       })
     );
   });
+
+  it("short-circuits explicit prompts before OpenAI call and returns refusal text payload", async () => {
+    const req = {
+      method: "POST",
+      body: { prompt: "graphic sexual intercourse with explicit anatomy" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      prompt: "I cannot describe this.",
+      usage: {},
+    });
+  });
 });

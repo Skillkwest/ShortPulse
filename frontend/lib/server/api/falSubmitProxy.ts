@@ -3,6 +3,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { chargeGenerationRequest } from "./generationBilling";
+import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
 import { ensureSubmittedGenerationRecord } from "./generationSubmitPersistence";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
@@ -22,11 +23,18 @@ import {
 } from "./generationQueue/metadata";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
 import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
+import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { resolveGenerationAdmissionTier } from "../../model-runtime/generationAdmissionTiers";
+import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
+import { runStudioAgentSafetyInputPrecheck } from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
+import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
+import { enforceServerGenerationSafetyPayload } from "../../../features/agent-runtime/safetyPolicy/generationSafetyPolicy";
+import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type FalSubmitConfig = {
   modelId: string;
+  provider?: string;
   submitUrl?: string;
   submitTargets?: SubmitTarget[];
   routeLabel: string;
@@ -107,12 +115,31 @@ const readProviderActiveReservationModelIds = async (userId: string): Promise<st
   return modelIds;
 };
 
+const applyRewrittenPromptToPayload = ({
+  payload,
+  rewrittenPrompt,
+}: {
+  payload: Record<string, unknown>;
+  rewrittenPrompt: string;
+}): void => {
+  if (typeof payload.prompt === "string") {
+    payload.prompt = rewrittenPrompt;
+  } else if (typeof payload.input === "string") {
+    payload.input = rewrittenPrompt;
+  } else if (typeof payload.description === "string") {
+    payload.description = rewrittenPrompt;
+  } else {
+    payload.prompt = rewrittenPrompt;
+  }
+};
+
 /**
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
 export const createFalSubmitHandler =
   ({
     modelId,
+    provider = "fal",
     submitUrl,
     submitTargets,
     routeLabel,
@@ -124,17 +151,20 @@ export const createFalSubmitHandler =
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const apiKey = process.env.FAL_KEY;
-    if (!apiKey) {
+    const providerKey = provider.trim().toLowerCase();
+    let apiKey: string;
+    try {
+      apiKey = readProviderApiKey(providerKey);
+    } catch (error) {
       await logGenerationFailure({
         req,
         routeLabel,
         source: "api.fal_submit.config_missing",
-        message: "FAL_KEY is not set on the server",
+        message: String(error),
         statusCode: 500,
-        metadata: { model_id: modelId },
+        metadata: { model_id: modelId, provider: providerKey },
       });
-      return res.status(500).json({ error: "FAL_KEY is not set on the server" });
+      return res.status(500).json({ error: String(error) });
     }
 
     const payload =
@@ -156,6 +186,79 @@ export const createFalSubmitHandler =
         error: payloadValidation.error,
         detail: payloadValidation.detail ?? null,
       });
+    }
+    const generationPrecheckEnabled =
+      process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED !== "false";
+    const safetyProfile = await resolveRuntimeSafetyProfile({
+      envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
+    });
+    const safetyPolicyDocument = resolveSafetyPolicyDocument({
+      activePolicy: safetyProfile.activePolicy,
+      profileId: safetyProfile.profileId,
+    });
+    const generationMode = resolveGenerationModeFromPayload(modelId, payload);
+    const promptForPolicy = resolveGenerationPromptFromPayload(routeLabel, payload);
+    const promptPrecheck = runStudioAgentSafetyInputPrecheck({
+      enabled: generationPrecheckEnabled,
+      messages: [{ role: "user", content: promptForPolicy }],
+      context: {},
+      canonicalPrompt: null,
+      modality: generationMode,
+      profileId: safetyProfile.profileId,
+      environment: resolveSafetyEnvironment(process.env.NODE_ENV),
+      devAbsoluteZeroEnabled: process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true",
+      policyDocument: safetyPolicyDocument,
+    });
+    if (promptPrecheck.outcome === "refusal") {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.safety_blocked",
+        message: "Generation submit blocked by pre-provider safety policy.",
+        statusCode: 422,
+        metadata: {
+          model_id: modelId,
+          policy_version: safetyProfile.policyVersion,
+          profile_id: safetyProfile.profileId,
+          category: promptPrecheck.decision?.category ?? null,
+          decision_action: promptPrecheck.decision?.action ?? "refuse",
+        },
+      });
+      return res.status(422).json({
+        error: "Generation blocked by safety policy.",
+        code: "GENERATION_SAFETY_BLOCKED",
+      });
+    }
+    if (promptPrecheck.outcome === "rewritten") {
+      const rewrittenPrompt = promptPrecheck.messages[0]?.content ?? promptForPolicy;
+      applyRewrittenPromptToPayload({
+        payload,
+        rewrittenPrompt,
+      });
+    }
+    const generationSpec = getModelPayloadValidationSpec(modelId);
+    const safetyEnforcement = enforceServerGenerationSafetyPayload({
+      payload,
+      modelId,
+      modality: generationMode === "video" ? "video" : "image",
+      spec: generationSpec,
+      policyDocument: safetyPolicyDocument,
+    });
+    if (safetyEnforcement.enforced) {
+      console.info(
+        "[fal-submit][safety-input-precheck]",
+        JSON.stringify({
+          route: routeLabel,
+          model_id: modelId,
+          safety_stage: "input_precheck",
+          safety_outcome: promptPrecheck.outcome,
+          policy_version: safetyProfile.policyVersion,
+          profile_id: safetyProfile.profileId,
+          category: promptPrecheck.decision?.category ?? null,
+          decision_action: promptPrecheck.decision?.action ?? null,
+          generation_safety_level: safetyEnforcement.enforcedLevel,
+        })
+      );
     }
     const charge = await chargeGenerationRequest({
       req,
@@ -269,6 +372,7 @@ export const createFalSubmitHandler =
         const enqueueResult = await enqueueGenerationSubmit({
           userId: charge.userId,
           sourceRef: charge.sourceRef,
+          provider: providerKey,
           modelId,
           promptText: resolveGenerationPromptFromPayload(routeLabel, payload),
           mode: resolveGenerationModeFromPayload(modelId, payload),
@@ -412,7 +516,7 @@ export const createFalSubmitHandler =
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const upstreamResult = await dispatchProviderSubmit({
-        provider: "fal",
+        provider: providerKey,
         modelId,
         targets: resolvedTargetsWithWebhook,
         payload,
@@ -508,13 +612,15 @@ export const createFalSubmitHandler =
           persistedGenerationId = persistenceResult.generationId ?? null;
         }
       }
-      const responsePayload =
-        persistedGenerationId != null
-          ? {
-              ...data,
-              generationId: persistedGenerationId,
-            }
-          : data;
+      const responsePayload = {
+        ...data,
+        ...(upstreamResult.providerRequestId &&
+        typeof data.request_id !== "string" &&
+        typeof data.requestId !== "string"
+          ? { request_id: upstreamResult.providerRequestId }
+          : {}),
+        ...(persistedGenerationId != null ? { generationId: persistedGenerationId } : {}),
+      };
       return res.status(upstream.status).json(responsePayload);
     } catch (error) {
       await charge.refund("Auto-refund: Fal submit transport failure.", {

@@ -8,7 +8,7 @@ describe("studioAgentSafetyPostProcess", () => {
       route: "studio-agent",
       flow: "TEXT_ONLY",
       source: "model_output",
-      enabled: true,
+      mode: "enforce",
     });
 
     expect(result).toEqual(
@@ -27,7 +27,7 @@ describe("studioAgentSafetyPostProcess", () => {
       route: "describe-image",
       flow: "describe_image",
       source: "describe_output",
-      enabled: true,
+      mode: "enforce",
     });
 
     expect(result.outcome).toBe("rewritten");
@@ -43,7 +43,7 @@ describe("studioAgentSafetyPostProcess", () => {
       route: "studio-agent",
       flow: "MIXED",
       source: "model_output",
-      enabled: true,
+      mode: "enforce",
     });
 
     expect(result.outcome).toBe("refusal");
@@ -57,7 +57,7 @@ describe("studioAgentSafetyPostProcess", () => {
       route: "studio-agent",
       flow: "MIXED",
       source: "model_output",
-      enabled: true,
+      mode: "enforce",
       rewriteTimeoutMs: 1,
       rewrite: async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -77,7 +77,7 @@ describe("studioAgentSafetyPostProcess", () => {
       route: "studio-agent",
       flow: "MIXED",
       source: "model_output",
-      enabled: false,
+      mode: "off",
     });
 
     expect(result).toEqual(
@@ -96,7 +96,7 @@ describe("studioAgentSafetyPostProcess", () => {
       route: "studio-agent",
       flow: "TEXT_ONLY",
       source: "model_output",
-      enabled: true,
+      mode: "enforce",
       environment: "development",
       devAbsoluteZeroEnabled: true,
     });
@@ -117,7 +117,7 @@ describe("studioAgentSafetyPostProcess", () => {
       route: "studio-agent",
       flow: "TEXT_ONLY",
       source: "model_output",
-      enabled: true,
+      mode: "enforce",
       environment: "production",
       profileId: "staging_lenient",
     });
@@ -130,5 +130,19 @@ describe("studioAgentSafetyPostProcess", () => {
         hardFloorViolation: true,
       })
     );
+  });
+
+  it("records shadow-mode blocks without mutating output", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "A sexy portrait of a topless model in lingerie.",
+      route: "studio-agent",
+      flow: "TEXT_ONLY",
+      source: "model_output",
+      mode: "shadow",
+    });
+
+    expect(result.outcome).toBe("pass");
+    expect(result.text).toContain("topless");
+    expect(result.shadowWouldBlock).toBe(true);
   });
 });

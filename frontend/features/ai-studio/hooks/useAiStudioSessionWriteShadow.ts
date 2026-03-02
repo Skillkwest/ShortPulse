@@ -8,7 +8,8 @@ import { saveAiStudioSessionShadow } from "../logic/sessionSnapshotStorage";
 
 type PersistSnapshotFn = (
   sessionId: string,
-  snapshot: AiStudioSessionSnapshotV1
+  snapshot: AiStudioSessionSnapshotV1,
+  options?: { keepalive?: boolean }
 ) => Promise<void> | void;
 
 type UseAiStudioSessionWriteShadowArgs = {
@@ -58,24 +59,31 @@ export const useAiStudioSessionWriteShadow = ({
     }
   }, []);
 
-  const flushPending = useCallback(() => {
-    const flush = async (): Promise<void> => {
-      const pending = pendingRef.current;
-      if (!pending) return;
-      pendingRef.current = null;
-      clearTimers();
-      try {
-        await Promise.resolve(persistSnapshot(pending.sessionId, pending.snapshot));
-        lastSavedHashRef.current = pending.hash;
-      } catch {
-        pendingRef.current = pending;
-        debounceTimerRef.current = globalThis.setTimeout(() => {
-          void flush();
-        }, debounceMs);
-      }
-    };
-    return flush();
-  }, [clearTimers, debounceMs, persistSnapshot]);
+  const flushPending = useCallback(
+    (options?: { keepalive?: boolean }) => {
+      const flush = async (): Promise<void> => {
+        const pending = pendingRef.current;
+        if (!pending) return;
+        pendingRef.current = null;
+        clearTimers();
+        try {
+          await Promise.resolve(
+            persistSnapshot(pending.sessionId, pending.snapshot, {
+              keepalive: options?.keepalive === true,
+            })
+          );
+          lastSavedHashRef.current = pending.hash;
+        } catch {
+          pendingRef.current = pending;
+          debounceTimerRef.current = globalThis.setTimeout(() => {
+            void flush();
+          }, debounceMs);
+        }
+      };
+      return flush();
+    },
+    [clearTimers, debounceMs, persistSnapshot]
+  );
 
   const snapshotHash = useMemo(() => {
     if (!snapshot) return null;
@@ -110,11 +118,11 @@ export const useAiStudioSessionWriteShadow = ({
     if (!enabled) return;
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        void flushPending();
+        void flushPending({ keepalive: true });
       }
     };
     const handlePageHide = () => {
-      void flushPending();
+      void flushPending({ keepalive: true });
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);

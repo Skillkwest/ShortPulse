@@ -40,6 +40,7 @@ import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOr
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { buildAiStudioSessionSnapshot } from "../features/ai-studio/logic/sessionSnapshot";
 import { useAiStudioSessionWriteShadow } from "../features/ai-studio/hooks/useAiStudioSessionWriteShadow";
+import { persistAiStudioSessionShadow } from "../features/ai-studio/logic/sessionShadowPersistence";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -1158,6 +1159,7 @@ export default function AiStudioPage() {
   useAiStudioSessionWriteShadow({
     sessionId,
     snapshot: sessionSnapshot,
+    persistSnapshot: persistAiStudioSessionShadow,
   });
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);

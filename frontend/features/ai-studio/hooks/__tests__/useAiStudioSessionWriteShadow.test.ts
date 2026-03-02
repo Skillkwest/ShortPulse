@@ -77,6 +77,9 @@ describe("useAiStudioSessionWriteShadow", () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenCalledWith(snapshot.sessionId, snapshot, {
+      keepalive: false,
+    });
   });
 
   it("flushes immediately when visibility becomes hidden", async () => {
@@ -100,6 +103,9 @@ describe("useAiStudioSessionWriteShadow", () => {
     });
 
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenCalledWith(snapshot.sessionId, snapshot, {
+      keepalive: true,
+    });
   });
 
   it("flushes on pagehide event", async () => {
@@ -119,6 +125,9 @@ describe("useAiStudioSessionWriteShadow", () => {
     });
 
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenCalledWith(snapshot.sessionId, snapshot, {
+      keepalive: true,
+    });
   });
 
   it("flushes by max dirty timeout even when debounce keeps being reset", async () => {

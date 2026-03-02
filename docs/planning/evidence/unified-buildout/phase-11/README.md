@@ -39,6 +39,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 34. `2026-03-01-phase-11-slice-b-kie-envelope-normalizer-canonicalization.md` - adds a shared Kie envelope normalizer so status/recovery parsing consumes canonical lifecycle/response/result shape before validation and policy decisions.
 35. `2026-03-01-phase-11-slice-b-kie-recovery-probe-envelope-consumption-lock.md` - adds recovery-probe integration coverage that verifies nested Kie record-info envelopes are normalized and converged to completed/media outcomes.
 36. `2026-03-01-phase-11-slice-b-kie-submit-transport-logical-status-normalization.md` - adds Kie submit transport normalization so HTTP `200` responses with non-success body `code` values are treated as logical upstream failures/retry candidates for deterministic fallback behavior.
+37. `2026-03-01-phase-11-engineering-freeze-and-complete-status.md` - records explicit engineering freeze decision and marks implementation scope complete while scheduled decision windows remain pending.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

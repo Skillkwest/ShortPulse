@@ -1822,3 +1822,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added focused regression coverage for logical-status mapping and retry/fallback behavior:
   - `frontend/lib/server/providerIntegration/__tests__/kieSubmitTransportContracts.test.ts`
   - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`.
+
+## 2026-03-01 (Phase 11 engineering freeze and complete-state mark)
+- Marked Phase 11 as engineering-complete and frozen for additional anti-drift coding unless a concrete defect appears.
+- Updated stage/tracker/evidence docs to reflect decision-window-pending state and explicit freeze policy.

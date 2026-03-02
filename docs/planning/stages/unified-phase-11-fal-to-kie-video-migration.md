@@ -1,6 +1,6 @@
 # Unified Phase 11: Fal to Kie Video Migration
 
-Status: In Progress
+Status: In Progress (Engineering Complete; Decision Windows Pending)
 Owner: Engineering
 
 ## Objective
@@ -251,6 +251,15 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - Ensures HTTP `200` Kie submit responses with non-success body `code` values are treated as logical upstream failures/retry candidates for deterministic fallback and non-ambiguous billing/refund behavior.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
+
+## Engineering Freeze Decision (2026-03-01 UTC)
+1. Phase 11 implementation work is now frozen at engineering-complete state.
+2. Additional Phase 11 anti-drift coding is paused unless a concrete defect is discovered.
+3. Remaining Phase 11 work is decision-window execution only:
+- checkpoint SQL capture in valid windows,
+- canary pass/hold decision packet,
+- promote/hold/rollback signoff.
+4. Fal route/API compatibility remains locked by canonical regression gates.
 
 ## Deferred Kie Enablement Targets (Dark-Path Implemented, Runtime Off)
 1. Google VEO 3.1 Fast Image-to-Video and Kling 3.0 are implemented as dark-path contracts and integration seams, but remain non-user-visible and cutover-disabled.

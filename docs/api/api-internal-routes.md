@@ -80,6 +80,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - AI Studio sessions API flag:
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (`true` by default; disables `/api/ai/sessions/*` when `false`).
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (`false` by default; when `true`, client write-shadow also mirrors snapshots to `/api/ai/sessions/save` in fail-soft shadow mode).
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (`false` by default; when `true`, client loads restore candidates by `sid` from local shadow + optional remote read without applying hydration automatically).
 - Media preview trust policy:
   - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)

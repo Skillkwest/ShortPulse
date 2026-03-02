@@ -241,6 +241,15 @@ Checklist:
   ```
 - If autosave OFF still persists in recovery, confirm server runtime is on latest recovery executor code (`frontend/lib/server/falIntegration/recoveryExecution.ts`) and no stale deployment is serving older behavior.
 
+## AI Studio session restore candidate does not appear
+Checklist:
+- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=true` in the frontend environment.
+- Ensure `sid` is present and valid in URL (`/ai-studio?sid=<uuid>`).
+- If remote restore candidate is expected, ensure `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` is not `false`.
+- Verify authenticated `GET /api/ai/sessions/:sid` returns `200` (or `404` when not found).
+- Inspect client breadcrumbs for `ai_studio_session_restore_candidate_loaded` to confirm source (`local` or `remote`).
+- Note: this phase loads candidates only; hydration apply remains rollout-gated and is not auto-applied yet.
+
 ## Admin credit adjustments fail with missing ledger columns
 Symptoms:
 - Errors like `Could not find the 'created_by' column of 'ai_credit_ledger' in the schema cache`.

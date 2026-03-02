@@ -131,3 +131,8 @@ Last updated: 2026-03-02
 - Topic: Client remote-shadow transport behavior.
 - Decision: Wave E remote session shadow writes are local-first and fail-soft: local IndexedDB persistence remains authoritative, while server mirroring to `/api/ai/sessions/save` is optional (`NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED`) and must not block user flow or trigger hard failure loops.
 - Effective phase: 13.
+
+## Decision 027
+- Topic: Session restore-candidate staged rollout boundary.
+- Decision: Wave E restore sequencing introduces read-only candidate loading behind `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (default OFF), selecting freshest snapshot across local shadow and optional remote read by `updatedAt`; workspace hydration apply remains disabled until a later gated pass.
+- Effective phase: 13.

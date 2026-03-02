@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveAiStudioSessionSnapshotViaApi } from "../sessionApiClient";
+import {
+  getAiStudioSessionSnapshotViaApi,
+  saveAiStudioSessionSnapshotViaApi,
+} from "../sessionApiClient";
 
 const fetchWithAuthMock = vi.fn();
 
@@ -98,5 +101,62 @@ describe("sessionApiClient", () => {
         snapshot: createSnapshot(),
       })
     ).rejects.toThrow("bad request");
+  });
+
+  it("loads one session snapshot by sid", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        userId: "user-1",
+        sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+        title: null,
+        schemaVersion: 1,
+        saveSeq: 4,
+        snapshot: createSnapshot(),
+        updatedAt: "2026-03-02T01:00:00.000Z",
+        expiresAt: "2026-08-29T01:00:00.000Z",
+      }),
+    });
+
+    const result = await getAiStudioSessionSnapshotViaApi({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+    });
+
+    expect(result?.saveSeq).toBe(4);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/ai/sessions/f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      expect.objectContaining({
+        method: "GET",
+      })
+    );
+  });
+
+  it("returns null when session is not found", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: "Session not found" }),
+    });
+
+    await expect(
+      getAiStudioSessionSnapshotViaApi({
+        sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      })
+    ).resolves.toBeNull();
+  });
+
+  it("throws mapped error message on get failure", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "server exploded" }),
+    });
+
+    await expect(
+      getAiStudioSessionSnapshotViaApi({
+        sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      })
+    ).rejects.toThrow("server exploded");
   });
 });

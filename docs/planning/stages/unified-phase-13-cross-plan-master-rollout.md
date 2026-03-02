@@ -117,11 +117,16 @@ Completed:
    - executed `sql/check_runtime_sql_security_audit.sql` post-rollout remediation,
    - confirmed audit summary `total_checks=102`, `passing_checks=102`, `failing_checks=0`,
    - recorded operational execution evidence in phase-13 packet.
+17. Wave E Pass 10 restore-candidate readiness (no hydration cutover):
+   - added authenticated client read helper for `/api/ai/sessions/:sid`,
+   - added local+remote restore-candidate resolver seam with freshest-snapshot selection by `updatedAt`,
+   - added default-off restore-candidate hook (`NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED`),
+   - added telemetry-only page wiring for candidate-load observability without mutating workspace state.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (restore hydration by `sid` and staged restore rollout gating).
+3. Wave E remaining passes (hydration-apply by `sid` and staged restore rollout gating).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

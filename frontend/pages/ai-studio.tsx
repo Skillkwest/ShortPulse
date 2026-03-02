@@ -41,6 +41,7 @@ import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStu
 import { buildAiStudioSessionSnapshot } from "../features/ai-studio/logic/sessionSnapshot";
 import { useAiStudioSessionWriteShadow } from "../features/ai-studio/hooks/useAiStudioSessionWriteShadow";
 import { persistAiStudioSessionShadow } from "../features/ai-studio/logic/sessionShadowPersistence";
+import { useAiStudioSessionRestoreCandidate } from "../features/ai-studio/hooks/useAiStudioSessionRestoreCandidate";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -196,6 +197,8 @@ type AiStudioPerfWindow = Window & {
 
 export default function AiStudioPage() {
   const { sessionId } = useAiStudioSessionIdentity();
+  const sessionRestoreCandidate = useAiStudioSessionRestoreCandidate({ sessionId });
+  const sessionRestoreCandidateLogKeyRef = useRef<string | null>(null);
 
   const {
     mediaAutosaveEnabled,
@@ -1080,6 +1083,38 @@ export default function AiStudioPage() {
     setUiNotice,
     trackAgentUiEvent: trackUiEvent,
   });
+
+  useEffect(() => {
+    if (sessionRestoreCandidate.status !== "ready") return;
+
+    const snapshot = sessionRestoreCandidate.snapshot;
+    const source = sessionRestoreCandidate.source;
+    const logKey = [
+      sessionId ?? "none",
+      source,
+      snapshot?.updatedAt ?? "none",
+      snapshot ? "present" : "empty",
+    ].join("|");
+    if (sessionRestoreCandidateLogKeyRef.current === logKey) return;
+    sessionRestoreCandidateLogKeyRef.current = logKey;
+
+    addBreadcrumb({
+      type: "ui",
+      level: "info",
+      message: "ai_studio_session_restore_candidate_loaded",
+      data: {
+        session_id: sessionId,
+        source,
+        has_snapshot: Boolean(snapshot),
+        snapshot_updated_at: snapshot?.updatedAt ?? null,
+      },
+    });
+  }, [
+    sessionId,
+    sessionRestoreCandidate.snapshot,
+    sessionRestoreCandidate.source,
+    sessionRestoreCandidate.status,
+  ]);
 
   const sessionSnapshot = useMemo(() => {
     if (!sessionId) return null;

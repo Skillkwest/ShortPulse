@@ -42,6 +42,7 @@ Example:
 13. `2026-03-02-phase-13-wave-e-pass-8-session-sql-api-foundation.md`
 14. `2026-03-02-phase-13-wave-e-pass-9-session-remote-shadow-write-through.md`
 15. `2026-03-02-phase-13-wave-e-pass-8-runtime-sql-audit-green.md`
+16. `2026-03-02-phase-13-wave-e-pass-10-session-restore-candidate-readiness.md`
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`

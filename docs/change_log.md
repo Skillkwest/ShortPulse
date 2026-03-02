@@ -2113,3 +2113,21 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `failing_checks = 0`.
 - Recorded execution evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-8-runtime-sql-audit-green.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 10 session restore-candidate readiness)
+- Added AI Studio session read client support for `GET /api/ai/sessions/:sid`:
+  - `frontend/features/ai-studio/logic/sessionApiClient.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionApiClient.test.ts`.
+- Added restore-candidate resolver seam (local shadow + optional remote read with freshest-by-`updatedAt` selection):
+  - `frontend/features/ai-studio/logic/sessionRestoreCandidate.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionRestoreCandidate.test.ts`.
+- Added default-off restore-candidate hook + telemetry-only page wiring (no hydration apply):
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreCandidate.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreCandidate.test.ts`
+  - `frontend/pages/ai-studio.tsx`.
+- Updated docs for restore-candidate flag and troubleshooting:
+  - `README.md`
+  - `docs/api/api-internal-routes.md`
+  - `docs/troubleshooting.md`.
+- Recorded Wave E Pass 10 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-10-session-restore-candidate-readiness.md`.

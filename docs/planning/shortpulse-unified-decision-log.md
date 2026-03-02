@@ -111,3 +111,8 @@ Last updated: 2026-03-02
 - Topic: AI Studio session identity URL contract.
 - Decision: `/ai-studio` must carry a valid `sid` UUID query contract; when absent/invalid, client performs shallow URL replacement to inject a new `sid` while preserving in-page state. Plain `/ai-studio` therefore starts a new session identity by default.
 - Effective phase: 13.
+
+## Decision 023
+- Topic: Session persistence rollout ordering and local write-shadow boundary.
+- Decision: Wave E enables local write-shadow durability before restore/server APIs; persistence writes are currently local-only (schema-versioned snapshot + IndexedDB shadow storage + lifecycle flush triggers) and restore hydration remains disabled until later Wave E passes.
+- Effective phase: 13.

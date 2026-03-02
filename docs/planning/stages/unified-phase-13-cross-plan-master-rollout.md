@@ -95,11 +95,17 @@ Completed:
    - added `useAiStudioSessionIdentity` hook to enforce valid `?sid=<uuid>` on `/ai-studio` via shallow replace when query is missing/invalid,
    - wired hook at page entry with no generation-runtime behavior changes,
    - added focused utility/hook tests for valid/invalid/missing query behavior.
+13. Wave E Pass 7 session write-shadow local-durability foundation:
+   - added schema-versioned snapshot serializer seam (`sessionSnapshot.ts`) covering workspace/output/agent state payloads for persistence,
+   - added local shadow storage seam (`sessionSnapshotStorage.ts`) using IndexedDB-first persistence with in-memory fallback,
+   - added write-shadow orchestrator hook (`useAiStudioSessionWriteShadow`) with debounce + max-dirty timers and lifecycle flush triggers (`visibilitychange(hidden)`, `pagehide`),
+   - wired `/ai-studio` page orchestration to persist local write-shadow snapshots keyed by `sid`,
+   - added focused serializer and hook integration tests.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (session persistence write-shadow/restore).
+3. Wave E remaining passes (session restore hydration and server persistence APIs).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

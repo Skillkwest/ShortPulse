@@ -14,6 +14,7 @@ Reduce runtime configuration drift risk by normalizing Kie model allowlist entri
    - normalize allowlist entries to lowercase,
    - allow exact canonical Kie model ids,
    - allow `*` wildcard,
+   - allow wildcard prefixes only when they match at least one canonical Kie model id,
    - reject invalid and non-Kie entries (fail-closed).
 3. Added focused runtime-config coverage:
    - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`

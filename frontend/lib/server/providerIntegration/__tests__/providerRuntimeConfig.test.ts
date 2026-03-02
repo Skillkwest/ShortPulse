@@ -45,9 +45,9 @@ describe("providerRuntimeConfig", () => {
 
   it("normalizes and filters invalid kie allowlist entries", () => {
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST =
-      " KIE-AI/VEO-3.1-FAST-I2V , fal-ai/veo3.1, *, bad-prefix/*, kie-ai/* ";
+      " KIE-AI/VEO-3.1-FAST-I2V , fal-ai/veo3.1, *, bad-prefix/*, kie-ai/*, kie-ai/not-real*, kie-ai/veo* ";
     const flags = readKieRuntimeFlags();
-    expect([...flags.modelAllowlist]).toEqual(["kie-ai/veo-3.1-fast-i2v", "*"]);
+    expect([...flags.modelAllowlist]).toEqual(["kie-ai/veo-3.1-fast-i2v", "*", "kie-ai/veo*"]);
   });
 
   it("fails closed when kie enable flag is on without an explicit model allowlist", () => {

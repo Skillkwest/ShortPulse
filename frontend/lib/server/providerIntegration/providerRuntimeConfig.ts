@@ -4,7 +4,7 @@
  */
 
 import { getModelConfig } from "../../model-runtime/pricing";
-import { isKnownKieModelId } from "../../model-runtime/providerModelIds";
+import { KIE_SUPPORTED_MODEL_IDS, isKnownKieModelId } from "../../model-runtime/providerModelIds";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./providerKey";
 
@@ -35,7 +35,10 @@ const isValidKieAllowlistEntry = (entry: string): boolean => {
   if (entry === "*") return true;
   if (entry.endsWith("*")) {
     const prefix = entry.slice(0, -1);
-    return prefix.startsWith("kie-ai/") && prefix.length > "kie-ai/".length;
+    if (!(prefix.startsWith("kie-ai/") && prefix.length > "kie-ai/".length)) {
+      return false;
+    }
+    return KIE_SUPPORTED_MODEL_IDS.some((modelId) => modelId.startsWith(prefix));
   }
   return isKnownKieModelId(entry);
 };

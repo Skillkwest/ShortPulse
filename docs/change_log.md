@@ -1747,6 +1747,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Hardened `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts` allowlist parsing to:
   - normalize entries to lowercase,
   - allow canonical Kie model ids and `*`,
+  - allow wildcard prefixes only when they match canonical Kie model-id prefixes,
   - reject invalid/non-Kie allowlist entries (fail-closed).
 - Added focused tests for normalized + invalid-entry filtering and fail-closed behavior:
   - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`.

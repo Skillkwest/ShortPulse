@@ -1809,3 +1809,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added a shared Kie envelope normalizer to canonicalize nested `record-info` payloads before lifecycle/media/content-policy decisions.
 - Updated provider payload parsing to normalize Kie envelopes first, then validate/parse, preventing false fail-closed outcomes when malformed top-level aliases coexist with valid nested values.
 - Added targeted tests for malformed-top-level + valid-nested envelope cases and re-ran full Phase 11 Fal regression + docs parity checks.
+
+## 2026-03-01 (Phase 11 Kie recovery-probe integration lock)
+- Added recovery-probe integration coverage to verify nested Kie `recordInfo` envelope payloads are normalized and converged to `completed` + media URLs even when top-level alias fields are malformed.
+- Confirmed end-to-end runtime probe path uses canonicalized provider payload parsing under Kie dark-path gating.

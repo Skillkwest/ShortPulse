@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { probeProviderResult } from "../recoveryProviderProbe";
 
 describe("recoveryProviderProbe trusted base policy", () => {
+  const ORIGINAL_ENV = { ...process.env };
+
   afterEach(() => {
-    delete process.env.SHORTPULSE_FAL_TRUSTED_HOSTS;
+    process.env = { ...ORIGINAL_ENV };
+    vi.unstubAllGlobals();
   });
 
   it("fails closed when model status bases are outside trusted host policy", async () => {
@@ -16,5 +19,49 @@ describe("recoveryProviderProbe trusted base policy", () => {
         apiKey: "test-key",
       })
     ).rejects.toThrow("No trusted fal status base URL configured");
+  });
+
+  it("consumes normalized nested Kie record-info envelopes in recovery probing", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    delete process.env.SHORTPULSE_KIE_STATUS_BASE_URLS;
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: { malformed: true },
+          data: {
+            result: {
+              status: "success",
+              responseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_123",
+              resultJson: {
+                resultUrls: ["https://cdn.shortpulse.test/kie-recovery-probe.mp4"],
+              },
+            },
+          },
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const observation = await probeProviderResult({
+      provider: "kie",
+      requestId: "task_123",
+      modelId: "kie-ai/kling-3.0",
+      apiKey: "test-kie-key",
+    });
+
+    expect(observation.state).toBe("completed");
+    expect(observation.mediaUrls).toEqual(["https://cdn.shortpulse.test/kie-recovery-probe.mp4"]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_123",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer test-kie-key",
+        }),
+      })
+    );
   });
 });

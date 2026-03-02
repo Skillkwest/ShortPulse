@@ -240,6 +240,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/__tests__/kieEnvelopeNormalizer.test.ts`
   - `frontend/lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts`
   - Normalizes/sanitizes malformed top-level `status`/`response_url` fields using nested envelope values so status/recovery pipelines consume one canonical payload shape before validation/policy/media checks.
+- Added recovery-probe integration lock for normalized Kie envelopes:
+  - `frontend/lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts`
+  - Validates end-to-end convergence to `completed` + media URL extraction when nested Kie `recordInfo` envelope fields are valid but top-level alias fields are malformed.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

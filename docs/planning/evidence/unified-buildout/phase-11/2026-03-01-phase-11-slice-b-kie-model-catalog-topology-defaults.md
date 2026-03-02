@@ -27,6 +27,7 @@ Remove env-only drift risk in Kie topology by making submit/status endpoint defa
    - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`
    - `frontend/lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts`
    - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
+   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts`
 
 ## Why This Is Safe
 1. Fal dispatch/routing paths remain unchanged.
@@ -34,7 +35,7 @@ Remove env-only drift risk in Kie topology by making submit/status endpoint defa
 3. Env override controls still work for operational pinning; this only adds deterministic per-model defaults.
 
 ## Validation
-1. `npm -C frontend run test -- lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts` -> pass
+1. `npm -C frontend run test -- lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts` -> pass
 2. `npm -C frontend run test:phase11:fal-regression` -> pass
 3. `npm -C frontend run docs:check` -> pass
 

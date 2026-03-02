@@ -382,4 +382,45 @@ describe("generationQueue/dispatch transition integrity", () => {
     delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
     delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
   });
+
+  it("dispatches queued kie generation using model-catalog submit defaults when env submit urls are unset", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
+    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+      {
+        ...queueItem,
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        submitted: 1,
+        exhausted: 0,
+      })
+    );
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        targets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
+      })
+    );
+
+    delete process.env.KIE_API_KEY;
+    delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
+    delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
+  });
 });

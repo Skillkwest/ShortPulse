@@ -818,13 +818,18 @@ const catalog: Record<string, ModelCatalogEntry> = {
     allowedAspects: ["16:9", "9:16", "1:1"],
     defaultDurationSeconds: 10,
     allowedDurations: [5, 10],
+    defaultResolution: "1080p",
+    allowedResolutions: ["1080p"],
     kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
     kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
     kieTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
+      requiredAnyOfStringFields: ["image_url"],
+      requiredAnyOfStringArrayFields: ["image_urls"],
       enumFields: {
         aspect_ratio: ["16:9", "9:16", "1:1"],
+        resolution: ["1080p"],
       },
       optionalBooleanFields: ["generate_audio"],
       optionalNumberFields: ["duration", "cfg_scale"],

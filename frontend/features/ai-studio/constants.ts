@@ -4,6 +4,10 @@
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
 import { getModelAllowedAspects } from "./logic/modelApiContracts";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../lib/model-runtime/providerModelIds";
 
 export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi" | "keyframes";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
@@ -40,6 +44,8 @@ export const modelLogos: Record<string, string> = {
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": SEEDREAM_LOGO_SRC,
   "fal-ai/veo3.1": GOOGLE_LOGO_SRC,
   "fal-ai/sora-2/text-to-video/pro": SORA2_LOGO_SRC,
+  [KIE_VEO_31_FAST_I2V_MODEL_ID]: GOOGLE_LOGO_SRC,
+  [KIE_KLING_30_MODEL_ID]: KLING_LOGO_SRC,
 };
 
 export const aspectOptions: AspectOption[] = [
@@ -76,6 +82,16 @@ export const modelOptions: ModelOption[] = [
   {
     value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
     label: "Seedance 1.5 Pro",
+    mediaType: "image-to-video",
+  },
+  {
+    value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+    label: "Veo 3.1 Fast I2V (Kie)",
+    mediaType: "image-to-video",
+  },
+  {
+    value: KIE_KLING_30_MODEL_ID,
+    label: "Kling 3.0 (Kie)",
     mediaType: "image-to-video",
   },
   {

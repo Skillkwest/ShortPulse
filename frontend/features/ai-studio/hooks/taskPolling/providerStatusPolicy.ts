@@ -28,6 +28,8 @@ export const longRunningVideoProviders = new Set<Provider>([
   "fal-sora",
   "fal-veo",
   "fal-veo-i2v",
+  "kie-veo",
+  "kie-kling",
 ]);
 
 export const imageGenerationProviders = new Set<Provider>([

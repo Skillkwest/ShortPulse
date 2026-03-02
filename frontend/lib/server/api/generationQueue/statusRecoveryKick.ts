@@ -14,7 +14,7 @@ type QueueStatusRecoveryClaimReason =
   | "missing_lookup_key"
   | "disabled"
   | "not_found"
-  | "provider_not_fal"
+  | "provider_not_supported"
   | "missing_request_id"
   | "state_not_eligible"
   | "status_not_eligible"
@@ -45,6 +45,16 @@ type RecoveryCandidate = {
 
 const RECOVERY_STATES = new Set(["queued", "recovering"]);
 const GENERATION_STATUSES = new Set(["pending", "submitted", "running", "fail"]);
+const SUPPORTED_PROVIDER_PREFIXES = ["fal", "kie"] as const;
+
+const resolveSupportedProviderFamily = (provider: string): "fal" | "kie" | null => {
+  const normalized = provider.trim().toLowerCase();
+  if (!normalized.length) return null;
+  if (SUPPORTED_PROVIDER_PREFIXES.some((prefix) => normalized.startsWith(prefix))) {
+    return normalized.startsWith("kie") ? "kie" : "fal";
+  }
+  return null;
+};
 
 const asObject = (value: unknown): JsonObject | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -171,12 +181,13 @@ export const claimDueQueueStatusRecovery = async ({
     };
   }
 
-  if (!candidate.provider.toLowerCase().startsWith("fal")) {
+  const providerFamily = resolveSupportedProviderFamily(candidate.provider);
+  if (!providerFamily) {
     return {
       claimed: false,
       generationId: candidate.id,
       requestId: candidate.requestId,
-      reason: "provider_not_fal",
+      reason: "provider_not_supported",
       errorMessage: null,
     };
   }
@@ -260,7 +271,7 @@ export const claimDueQueueStatusRecovery = async ({
     .eq("user_id", userId)
     .eq("status", candidate.status)
     .eq("recovery_state", candidate.recoveryState)
-    .ilike("provider", "fal%")
+    .ilike("provider", `${providerFamily}%`)
     .lt("recovery_attempts", flags.reconcilerMaxAttempts)
     .lte("created_at", oldestAllowedIso)
     .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`);

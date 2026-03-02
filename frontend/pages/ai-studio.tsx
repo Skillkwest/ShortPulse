@@ -1221,6 +1221,7 @@ export default function AiStudioPage() {
   const {
     currentCostCredits,
     promptReferenceGenerateCostCredits,
+    resolveModelPickerCredits,
     hasSufficientCreditsForPromptReferenceGenerate,
     isCreditGuardrail,
     generationGuardrail,
@@ -1638,6 +1639,7 @@ export default function AiStudioPage() {
           isOpen: isModelModalOpen,
           position: modelModalPosition,
           options: filteredModelOptions,
+          resolveCreditsForModel: resolveModelPickerCredits,
           anchorId: modelModalAnchor,
           context: modelModalContext,
           onClose: closeModelModal,

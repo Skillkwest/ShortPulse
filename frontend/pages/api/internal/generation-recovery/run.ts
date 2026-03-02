@@ -12,6 +12,7 @@ type ClaimedGeneration = {
   id: string;
   user_id: string;
   request_id: string | null;
+  provider: string | null;
   model_id: string;
   status: string;
   recovery_state: string | null;
@@ -72,6 +73,7 @@ const parseClaimedGeneration = (value: unknown): ClaimedGeneration | null => {
     id,
     user_id: userId,
     request_id: asString(row.request_id),
+    provider: asString(row.provider),
     model_id: modelId,
     status,
     recovery_state: asString(row.recovery_state),
@@ -113,6 +115,12 @@ const isAllowedModel = (modelId: string, allowlist: Set<string>): boolean => {
   return false;
 };
 
+const isSupportedRecoveryProvider = (provider: string | null): boolean => {
+  if (!provider) return false;
+  const normalized = provider.trim().toLowerCase();
+  return normalized.startsWith("fal") || normalized.startsWith("kie");
+};
+
 const claimFallback = async ({
   batchSize,
   maxAttempts,
@@ -130,8 +138,9 @@ const claimFallback = async ({
   const leaseUntilIso = new Date(Date.now() + leaseSeconds * 1000).toISOString();
   const { data, error } = await supabaseAdmin
     .from("ai_generations")
-    .select("id, user_id, request_id, model_id, status, recovery_state, recovery_attempts")
-    .ilike("provider", "fal%")
+    .select(
+      "id, user_id, request_id, provider, model_id, status, recovery_state, recovery_attempts"
+    )
     .in("recovery_state", ["queued", "recovering"])
     .lte("created_at", oldestCreatedAtIso)
     .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`)
@@ -145,6 +154,7 @@ const claimFallback = async ({
   for (const raw of data) {
     const row = parseClaimedGeneration(raw);
     if (!row) continue;
+    if (!isSupportedRecoveryProvider(row.provider)) continue;
     const nextAttempts = (row.recovery_attempts ?? 0) + 1;
     let updateQuery = supabaseAdmin
       .from("ai_generations")

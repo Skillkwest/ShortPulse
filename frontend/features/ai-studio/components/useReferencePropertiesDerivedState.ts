@@ -5,6 +5,10 @@ import { useMemo } from "react";
 import type { AspectOption } from "../types";
 import { getModelConfig } from "../logic/modelRegistry";
 import { clampImageResolutionForModel, getImageResolutionOptions } from "../logic/imageResolution";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 
 type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
 
@@ -72,12 +76,17 @@ export const useReferencePropertiesDerivedState = ({
   const isMotionMode = isVideoVariant && activeVideoMode === "motion";
   const isStandardMode = !isVideoVariant || activeVideoMode === "standard";
 
-  const isVeoImageToVideoModel = modelId === "fal-ai/veo3.1/image-to-video";
+  const isVeoImageToVideoModel =
+    modelId === "fal-ai/veo3.1/image-to-video" || modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
   const isVeoFirstLastModel = modelId === "fal-ai/veo3.1/first-last-frame-to-video";
   const isSeedanceI2VModel = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
-  const isVeoModel = modelId?.includes("veo3.1") ?? false;
-  const isKling3Model = modelId?.includes("kling-video/v3/pro") ?? false;
+  const isVeoModel =
+    modelId?.includes("veo3.1") === true ||
+    modelId?.includes("veo-3.1") === true ||
+    modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
+  const isKling3Model =
+    modelId?.includes("kling-video/v3/pro") === true || modelId === KIE_KLING_30_MODEL_ID;
 
   const referenceStepTitle = isVideoVariant
     ? isKling3Mode

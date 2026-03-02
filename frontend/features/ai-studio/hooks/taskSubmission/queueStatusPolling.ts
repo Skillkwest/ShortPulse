@@ -9,7 +9,7 @@ import {
   type FalQueueStatusResponse,
 } from "../../../../lib/falClient";
 import type { SubmissionPatch } from "./types";
-import type { Provider } from "../../logic/stateParsers";
+import { normalizeProviderForPolling, type Provider } from "../../logic/stateParsers";
 import { applyQueuedSubmissionPatch } from "./outputLifecyclePatches";
 import type { StudioOutput, ToolId } from "../../types";
 
@@ -33,7 +33,7 @@ type StartQueuedStatusPollingParams = {
   clearQueueStatusPolling: (outputId: string) => void;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
-  onDispatched: (requestId: string, generationId: string) => void;
+  onDispatched: (requestId: string, generationId: string, provider: Provider) => void;
 };
 
 const queueStatusRetryDelayMs = (
@@ -107,7 +107,8 @@ export const startQueuedStatusPolling = ({
         clearQueueStatusPolling(outputId);
         onDispatched(
           queueStatus.requestId,
-          queueStatus.generationId || queuedResponse.generationId
+          queueStatus.generationId || queuedResponse.generationId,
+          normalizeProviderForPolling(queueStatus.provider, provider)
         );
         return;
       }

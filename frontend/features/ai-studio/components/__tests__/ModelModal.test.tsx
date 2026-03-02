@@ -3,6 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ModelModal } from "../ModelModal";
 import type { ModelOption } from "../../constants";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
@@ -139,6 +143,16 @@ describe("ModelModal", () => {
         label: "Google Veo 3.1",
         mediaType: "image-to-video",
       },
+      {
+        value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        label: "Veo 3.1 Fast I2V (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_KLING_30_MODEL_ID,
+        label: "Kling 3.0 (Kie)",
+        mediaType: "image-to-video",
+      },
     ];
     const { container } = render(
       <ModelModal
@@ -151,7 +165,37 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Google Veo 3.1", "Seedance 1.5 Pro", "Kling 3.0"]);
+    expect(readChipTitles(container)).toEqual([
+      "Google Veo 3.1",
+      "Veo 3.1 Fast I2V (Kie)",
+      "Kling 3.0 (Kie)",
+      "Seedance 1.5 Pro",
+      "Kling 3.0",
+    ]);
+  });
+
+  it("uses settings-aware credit resolver when provided", () => {
+    render(
+      <ModelModal
+        isOpen
+        position={null}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={[
+          {
+            value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+            label: "Veo 3.1 Fast I2V (Kie)",
+            mediaType: "image-to-video",
+          },
+        ]}
+        context="reference-video"
+        resolveCreditsForModel={(modelId) =>
+          modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ? 555 : null
+        }
+      />
+    );
+
+    expect(screen.getByText("555")).toBeInTheDocument();
   });
 
   it("keeps FLUX.2 and Nano Banana chips visible outside text-image context", () => {

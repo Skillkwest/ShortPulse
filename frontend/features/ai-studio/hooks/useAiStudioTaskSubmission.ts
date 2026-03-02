@@ -20,6 +20,10 @@ import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import { prepareImageUrlForSubmission } from "../utils/imageUpload";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
+import {
   handleDefaultModelSubmission,
   handleImageModelSubmission,
   handleVideoModelSubmission,
@@ -223,9 +227,13 @@ export const useAiStudioTaskSubmission = ({
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
         const modelLabel = resolveModelLabel(finalModel);
 
-        const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
+        const isKling3ImageModel =
+          finalModel === "fal-ai/kling-video/v3/pro/image-to-video" ||
+          finalModel === KIE_KLING_30_MODEL_ID;
         const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
-        const isVeoImageToVideoModel = finalModel === "fal-ai/veo3.1/image-to-video";
+        const isVeoImageToVideoModel =
+          finalModel === "fal-ai/veo3.1/image-to-video" ||
+          finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
         const modelConfig = finalModelConfig;
         const requestedAspect = options?.aspectOverride ?? aspect;
         const effectiveAspect = resolveEffectiveAspectForModel(
@@ -480,10 +488,10 @@ export const useAiStudioTaskSubmission = ({
                 clearQueueStatusPolling,
                 updateOutputById,
                 notifyGenerationFailure,
-                onDispatched: (requestId, generationId) => {
+                onDispatched: (requestId, generationId, dispatchedProvider) => {
                   startPollingWithGeneration(
                     requestId,
-                    provider,
+                    dispatchedProvider,
                     {
                       ...patch,
                       generationId,

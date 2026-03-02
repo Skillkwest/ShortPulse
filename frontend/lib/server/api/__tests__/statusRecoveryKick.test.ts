@@ -177,4 +177,34 @@ describe("claimDueQueueStatusRecovery", () => {
     );
     expect(from).toHaveBeenCalledTimes(1);
   });
+
+  it("skips providers outside the Fal/Kie recovery family", async () => {
+    const selectBuilder = createSelectBuilder({
+      id: "gen-1",
+      request_id: "req-1",
+      provider: "other-provider",
+      status: "running",
+      recovery_state: "queued",
+      recovery_attempts: 1,
+      next_recovery_at: new Date(Date.now() - 1_000).toISOString(),
+      created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+    const from = vi.fn().mockImplementationOnce(() => ({
+      select: vi.fn(() => selectBuilder),
+    }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    await expect(
+      claimDueQueueStatusRecovery({
+        userId: "user-1",
+        generationId: "gen-1",
+        sourceRef: null,
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        claimed: false,
+        reason: "provider_not_supported",
+      })
+    );
+  });
 });

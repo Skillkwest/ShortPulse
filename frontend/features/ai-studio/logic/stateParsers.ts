@@ -28,7 +28,57 @@ export type Provider =
   | "fal-seedance-i2v"
   | "fal-seedream"
   | "fal-veo"
-  | "fal-veo-i2v";
+  | "fal-veo-i2v"
+  | "kie-veo"
+  | "kie-kling";
+
+export const normalizeProviderForPolling = (
+  value: string | null | undefined,
+  fallback: Provider = "fal"
+): Provider => {
+  if (!value) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.length) return fallback;
+  if (normalized.startsWith("fal")) {
+    if (
+      normalized.includes("kling-3") ||
+      normalized.includes("kling_v3") ||
+      normalized.includes("kling-video/v3")
+    ) {
+      return "fal-kling-3";
+    }
+    if (normalized.includes("kling")) return "fal-kling";
+    if (normalized.includes("seedance") && normalized.includes("i2v")) return "fal-seedance-i2v";
+    if (normalized.includes("seedance")) return "fal-seedance";
+    if (normalized.includes("sora")) return "fal-sora";
+    if (normalized.includes("seedream")) return "fal-seedream";
+    if (normalized.includes("veo") && normalized.includes("i2v")) return "fal-veo-i2v";
+    if (normalized.includes("veo")) return "fal-veo";
+    if (normalized.includes("nano-banana-pro") && normalized.includes("edit")) {
+      return "fal-nano-banana-pro-edit";
+    }
+    if (normalized.includes("nano-banana-pro")) return "fal-nano-banana-pro";
+    if (normalized.includes("nano-banana-2") && normalized.includes("edit")) {
+      return "fal-nano-banana-2-edit";
+    }
+    if (normalized.includes("nano-banana-2")) return "fal-nano-banana-2";
+    if (normalized.includes("nano-banana") && normalized.includes("edit")) {
+      return "fal-nano-banana-edit";
+    }
+    if (normalized.includes("nano-banana")) return "fal-nano-banana";
+    if (normalized.includes("flux-2-pro") && normalized.includes("edit"))
+      return "fal-flux2-pro-edit";
+    if (normalized.includes("flux-2-pro")) return "fal-flux2-pro";
+    if (normalized.includes("flux-2") && normalized.includes("klein")) return "fal-flux2-klein";
+    if (normalized.includes("flux-2") && normalized.includes("edit")) return "fal-flux2-edit";
+    if (normalized.includes("flux-2")) return "fal-flux2";
+    return "fal";
+  }
+  if (normalized.startsWith("kie")) {
+    return normalized.includes("kling") ? "kie-kling" : "kie-veo";
+  }
+  return fallback;
+};
 
 export const resolveModelLabel = (value?: string) =>
   value

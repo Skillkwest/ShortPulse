@@ -2,7 +2,7 @@
  * View-model helper for AI Studio page.
  * Computes pricing, guardrails, and derived flags to keep the page lean.
  */
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { computeCostForModel, getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
@@ -168,6 +168,36 @@ export const useAiStudioViewModel = ({
     videoResolution,
   ]);
 
+  const resolveModelPickerCredits = useCallback(
+    (modelIdForChip: string): number | null => {
+      if (!modelIdForChip) return null;
+      const breakdown = computeCostForModel(
+        modelIdForChip,
+        costParamsForModel(
+          isVideoTool
+            ? {
+                durationSeconds: videoDurationSeconds,
+                resolution: videoResolution,
+                audio: videoGenerateAudio,
+              }
+            : isImageTool && pricingImageResolution
+              ? { resolution: pricingImageResolution }
+              : {}
+        )
+      );
+      return breakdown?.credits ?? null;
+    },
+    [
+      costParamsForModel,
+      isImageTool,
+      isVideoTool,
+      pricingImageResolution,
+      videoDurationSeconds,
+      videoGenerateAudio,
+      videoResolution,
+    ]
+  );
+
   const promptGenerateCostCredits = useMemo(() => {
     if (!model || !isImageTool) return null;
     const breakdown = computeCostForModel(
@@ -304,6 +334,7 @@ export const useAiStudioViewModel = ({
     currentCost,
     currentCostCredits,
     modelPickerCostCredits,
+    resolveModelPickerCredits,
     promptGenerateCostCredits,
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForCost,

@@ -4,6 +4,8 @@
  */
 import { startTransition, useCallback, useEffect, useRef } from "react";
 import {
+  fetchKieKlingImageToVideoStatus,
+  fetchKieVeoImageToVideoStatus,
   fetchFalFlux2ProStatus,
   fetchFalFlux2Status,
   fetchFalFlux2KleinStatus,
@@ -31,7 +33,7 @@ import {
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import { extractFalMediaUrls, Provider } from "../logic/stateParsers";
+import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 import {
   BACKGROUND_RECOVERY_INTERVAL_MS,
@@ -167,12 +169,22 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalNanoBananaProStatus(taskId);
     case "fal-nano-banana-pro-edit":
       return fetchFalNanoBananaProEditStatus(taskId);
+    case "kie-veo":
+      return fetchKieVeoImageToVideoStatus(taskId);
+    case "kie-kling":
+      return fetchKieKlingImageToVideoStatus(taskId);
     default:
       return fetchFalStatus(taskId);
   }
 };
 
-const extractMediaByProvider = (status: PollStatus) => extractFalMediaUrls(status);
+const extractMediaByProvider = (provider: Provider, status: PollStatus) => {
+  if (provider === "kie-veo" || provider === "kie-kling") {
+    const providerUrls = extractResultUrls(status?.resultJson ?? status, status);
+    if (providerUrls.length) return providerUrls;
+  }
+  return extractFalMediaUrls(status);
+};
 
 export function useAiStudioTasks({
   updateOutputById,
@@ -326,7 +338,7 @@ export function useAiStudioTasks({
 
           try {
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
-            const recoveredUrls = extractMediaByProvider(status).filter(Boolean);
+            const recoveredUrls = extractMediaByProvider(provider, status).filter(Boolean);
 
             if (recoveredUrls.length > 0) {
               addBreadcrumb({
@@ -657,7 +669,7 @@ export function useAiStudioTasks({
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
             const { state, hasExplicitState } = resolveProviderStatusState(status);
 
-            const allUrls = extractMediaByProvider(status);
+            const allUrls = extractMediaByProvider(provider, status);
             const hasMedia = allUrls.length > 0;
             const { shouldForceImageMediaSuccess, shouldTreatAsSuccess } = classifyProviderSuccess({
               provider,

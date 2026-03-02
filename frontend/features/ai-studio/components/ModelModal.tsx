@@ -31,6 +31,7 @@ type ModelModalProps = {
   onClose: () => void;
   onSelect: (value: string) => void;
   options?: ModelOption[];
+  resolveCreditsForModel?: (modelId: string) => number | null;
   anchorId?: string | null;
   context?: ModelModalContext | null;
 };
@@ -126,6 +127,16 @@ const modelMeta: Record<string, ModelMeta> = {
     description:
       "Seedance 1.5 Pro text-to-video supports 4 to 12 second outputs at 480p, 720p, or 1080p with audio.",
     tags: ["Video", "Text-to-Video", "4-12s", "480p-1080p", "Audio"],
+  },
+  "kie-ai/veo-3.1-fast-i2v": {
+    provider: "Kie AI",
+    description: "Kie Veo 3.1 Fast image-to-video supports 5 or 8 second clips at 720p or 1080p.",
+    tags: ["Video", "Image-to-Video", "5-8s", "720p/1080p", "Audio"],
+  },
+  "kie-ai/kling-3.0": {
+    provider: "Kie AI",
+    description: "Kie Kling 3.0 image-to-video supports 5 or 10 second clips with native audio.",
+    tags: ["Video", "Image-to-Video", "5-10s", "Audio"],
   },
   "fal-ai/veo3.1": {
     provider: "Google DeepMind",
@@ -297,7 +308,7 @@ const contextTooltipTagMap: Record<ModelModalContext, string> = {
 const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   "text-image": ["ByteDance", "Google", "Black Forest Labs"],
   "reference-image": ["ByteDance", "Google", "Black Forest Labs"],
-  "reference-video": ["Google DeepMind", "ByteDance", "Kling AI"],
+  "reference-video": ["Google DeepMind", "Kie AI", "ByteDance", "Kling AI"],
   "reference-keyframes": ["Google DeepMind"],
 };
 
@@ -320,7 +331,9 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   ],
   "reference-video": [
     "fal-ai/veo3.1/image-to-video",
+    "kie-ai/veo-3.1-fast-i2v",
     "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    "kie-ai/kling-3.0",
   ],
   "reference-keyframes": ["fal-ai/veo3.1/first-last-frame-to-video"],
 };
@@ -337,6 +350,7 @@ export function ModelModal({
   onClose,
   onSelect,
   options = modelOptions,
+  resolveCreditsForModel,
   context,
 }: ModelModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -561,6 +575,10 @@ export function ModelModal({
   };
 
   const formatCredits = (modelId: string) => {
+    const resolvedCredits = resolveCreditsForModel?.(modelId);
+    if (typeof resolvedCredits === "number" && Number.isFinite(resolvedCredits)) {
+      return `${resolvedCredits}`;
+    }
     const cost = computeCostForModel(modelId, buildDefaultPricingParams(modelId));
     if (!cost?.credits) return "—";
     return `${cost.credits}`;

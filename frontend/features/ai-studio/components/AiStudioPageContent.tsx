@@ -436,6 +436,7 @@ export type AiStudioPageContentProps = {
     isOpen: boolean;
     position: { top: number; left: number } | null;
     options: ModelOption[];
+    resolveCreditsForModel?: (modelId: string) => number | null;
     onClose: () => void;
     onSelect: (value: string) => void;
     anchorId?: string | null;
@@ -796,6 +797,7 @@ export function AiStudioPageContent({
         onClose={modelModalState.onClose}
         onSelect={modelModalState.onSelect}
         options={modelModalState.options}
+        resolveCreditsForModel={modelModalState.resolveCreditsForModel}
         anchorId={modelModalState.anchorId}
         context={modelModalState.context}
       />

@@ -18,6 +18,19 @@ export type FalSubmitRequest = {
   acceleration?: "none" | "regular" | "high";
 };
 
+export type KieSubmitRequest = {
+  prompt: string;
+  image_url?: string;
+  image_urls?: string[];
+  aspect_ratio?: string;
+  duration?: string | number;
+  resolution?: string;
+  generate_audio?: boolean;
+  cfg_scale?: number;
+  negative_prompt?: string;
+  [key: string]: unknown;
+};
+
 export type FalImmediateSubmitResponse = {
   request_id: string;
   generationId?: string;
@@ -496,6 +509,14 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/kling-v3-image-to-video-submit`,
     missingRequestIdMessage: "Fal Kling 3.0 image-to-video did not return a request_id",
   },
+  kieVeoImageToVideo: {
+    route: `${FAL_API_BASE}/kie-veo-submit`,
+    missingRequestIdMessage: "Kie Veo 3.1 Fast I2V did not return a request_id",
+  },
+  kieKlingImageToVideo: {
+    route: `${FAL_API_BASE}/kie-kling-submit`,
+    missingRequestIdMessage: "Kie Kling 3.0 did not return a request_id",
+  },
 } as const;
 
 type StatusEndpointConfig = {
@@ -572,6 +593,14 @@ const statusEndpointRegistry = {
   },
   klingV3ImageToVideo: {
     route: `${FAL_API_BASE}/kling-v3-image-to-video-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  kieVeoImageToVideo: {
+    route: `${FAL_API_BASE}/kie-veo-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  kieKlingImageToVideo: {
+    route: `${FAL_API_BASE}/kie-kling-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
 } as const satisfies Record<string, StatusEndpointConfig>;
@@ -791,3 +820,13 @@ export const submitFalKlingV3ImageToVideo = (payload: FalKlingV3ImageToVideoSubm
   submitFalEndpoint("klingV3ImageToVideo", payload);
 export const fetchFalKlingV3ImageToVideoStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("klingV3ImageToVideo", requestId);
+
+export const submitKieVeoImageToVideo = (payload: KieSubmitRequest) =>
+  submitFalEndpoint("kieVeoImageToVideo", payload);
+export const fetchKieVeoImageToVideoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("kieVeoImageToVideo", requestId);
+
+export const submitKieKlingImageToVideo = (payload: KieSubmitRequest) =>
+  submitFalEndpoint("kieKlingImageToVideo", payload);
+export const fetchKieKlingImageToVideoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("kieKlingImageToVideo", requestId);

@@ -3,6 +3,8 @@
  */
 import {
   type FalSubmitResponse,
+  submitKieKlingImageToVideo,
+  submitKieVeoImageToVideo,
   submitFalKlingV3ImageToVideo,
   submitFalKlingV3Text,
   submitFalSeedance,
@@ -12,6 +14,10 @@ import {
   submitFalVeoFirstLast,
   submitFalVeoImageToVideo,
 } from "../../../../lib/falClient";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import {
   resolveKlingAspectRatio,
   resolveKlingV3Duration,
@@ -52,7 +58,9 @@ const handoffSubmitResponse = ({
     | "fal-seedance-i2v"
     | "fal-sora"
     | "fal-veo"
-    | "fal-veo-i2v";
+    | "fal-veo-i2v"
+    | "kie-veo"
+    | "kie-kling";
   patch?: Parameters<VideoSubmissionArgs["startPollingWithGeneration"]>[2];
   startPollingWithGeneration: VideoSubmissionArgs["startPollingWithGeneration"];
 }) => {
@@ -95,6 +103,55 @@ export const handleVideoModelSubmission = async ({
   klingMultiPrompts,
   klingElements,
 }: VideoSubmissionArgs): Promise<boolean> => {
+  if (finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID) {
+    if (!preparedImageInputs.length) {
+      notifyGenerationFailure(id, "Kie Veo 3.1 Fast I2V requires at least one reference image.");
+      return true;
+    }
+    const aspectRatio = aspect === "9:16" ? "9:16" : "16:9";
+    const duration = requestedDurationSeconds <= 5 ? 5 : 8;
+    const resolution = requestedResolution?.toLowerCase().includes("1080") ? "1080p" : "720p";
+    const response = await submitKieVeoImageToVideo({
+      prompt: cleanedPrompt,
+      image_url: preparedImageInputs[0],
+      image_urls: [preparedImageInputs[0]],
+      aspect_ratio: aspectRatio,
+      duration,
+      resolution,
+      generate_audio: requestedAudio,
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "kie-veo",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
+  if (finalModel === KIE_KLING_30_MODEL_ID) {
+    if (!preparedImageInputs.length) {
+      notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
+      return true;
+    }
+    const aspectRatio = ["16:9", "9:16", "1:1"].includes(aspect) ? aspect : "16:9";
+    const duration = requestedDurationSeconds <= 5 ? 5 : 10;
+    const response = await submitKieKlingImageToVideo({
+      prompt: cleanedPrompt,
+      image_url: preparedImageInputs[0],
+      image_urls: [preparedImageInputs[0]],
+      aspect_ratio: aspectRatio,
+      duration,
+      cfg_scale: klingCfgScale,
+      generate_audio: requestedAudio,
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "kie-kling",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
   if (finalModel === "fal-ai/kling-video/v3/pro/image-to-video") {
     if (videoReferenceMode === "motion") {
       if (!videoReferenceImageUrl) {

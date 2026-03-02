@@ -37,8 +37,9 @@ const isOptionProviderSelectable = ({
   option: ModelOption;
   getModelConfig: (id: string) => ModelConfigLike | null;
 }): boolean => {
-  const provider = getModelConfig(option.value)?.provider?.trim().toLowerCase();
-  return provider !== "kie";
+  // Provider runtime/allowlist guards are enforced server-side; selector policy remains provider-neutral.
+  void getModelConfig(option.value)?.provider;
+  return true;
 };
 
 /**

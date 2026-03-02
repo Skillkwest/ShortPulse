@@ -219,6 +219,7 @@ const parseClaimedQueueItem = (value: unknown): ClaimedGenerationQueueItem | nul
 export const enqueueGenerationSubmit = async ({
   userId,
   sourceRef,
+  provider,
   modelId,
   promptText,
   mode,
@@ -232,6 +233,7 @@ export const enqueueGenerationSubmit = async ({
 }: {
   userId: string;
   sourceRef: string;
+  provider: string;
   modelId: string;
   promptText: string;
   mode: "image" | "video";
@@ -246,6 +248,7 @@ export const enqueueGenerationSubmit = async ({
   const { data, error } = await getSupabaseAdmin().rpc("enqueue_generation_submit", {
     p_user_id: userId,
     p_source_ref: sourceRef,
+    p_provider: provider,
     p_model_id: modelId,
     p_prompt_text: promptText,
     p_mode: mode,

@@ -2,7 +2,10 @@
  * Regression coverage for shared AI Studio model-selection policy behavior.
  */
 import { describe, expect, it } from "vitest";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import type { ModelOption } from "../../constants";
 import {
   CREATE_DEFAULT_MODEL_ID,
@@ -61,6 +64,16 @@ const videoReferenceOptions: ModelOption[] = [
     label: "Kling 3.0",
     mediaType: "image-to-video",
   },
+  {
+    value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+    label: "Veo 3.1 Fast I2V (Kie)",
+    mediaType: "image-to-video",
+  },
+  {
+    value: KIE_KLING_30_MODEL_ID,
+    label: "Kling 3.0 (Kie)",
+    mediaType: "image-to-video",
+  },
 ];
 
 const getModelConfig = (id: string) => {
@@ -90,7 +103,7 @@ const getModelConfig = (id: string) => {
       supportsImageToImage: true,
     };
   }
-  if (id === KIE_VEO_31_FAST_I2V_MODEL_ID) {
+  if (id === KIE_VEO_31_FAST_I2V_MODEL_ID || id === KIE_KLING_30_MODEL_ID) {
     return {
       provider: "kie",
       supportsTextToImage: false,
@@ -146,7 +159,7 @@ describe("modelSelectionPolicy", () => {
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
   });
 
-  it("fails closed for kie provider options in create/image model selection", () => {
+  it("excludes image-to-video Kie options from create/image model selection", () => {
     const values = new Set(
       resolveAiStudioAllowedModelOptions({
         selectedTool: "create",
@@ -170,7 +183,7 @@ describe("modelSelectionPolicy", () => {
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
   });
 
-  it("excludes first/last-frame and Kling models from standard video reference mode", () => {
+  it("excludes first/last-frame + Fal Kling and keeps Fal/Kie i2v models in standard video reference mode", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -182,6 +195,8 @@ describe("modelSelectionPolicy", () => {
     expect(values).toEqual([
       "fal-ai/veo3.1/image-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
     ]);
   });
 

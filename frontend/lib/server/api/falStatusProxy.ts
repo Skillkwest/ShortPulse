@@ -23,6 +23,7 @@ import {
   resolveProviderStatusBaseUrls,
 } from "../providerIntegration/statusProviderDispatcher";
 import { asProviderString } from "../providerIntegration/canonicalProviderPayload";
+import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import {
   selectBestProviderResultCandidate,
   selectBestProviderStatusCandidate,
@@ -41,6 +42,7 @@ import {
 } from "../providerIntegration/statusProviderPayload";
 
 type FalStatusConfig = {
+  provider?: string;
   queueBaseUrl: string | string[];
   routeLabel: string;
   timeoutMs?: number;
@@ -120,6 +122,7 @@ const respondError = ({
  * Builds a Fal status route that normalizes failures and settles refunds.
  */
 export const createFalStatusHandler = ({
+  provider = "fal",
   queueBaseUrl,
   routeLabel,
   timeoutMs = 60000,
@@ -133,16 +136,19 @@ export const createFalStatusHandler = ({
     const user = await requireApiUser(req, res);
     if (!user) return;
 
-    const apiKey = process.env.FAL_KEY;
-    if (!apiKey) {
+    const providerKey = provider.trim().toLowerCase();
+    let apiKey: string;
+    try {
+      apiKey = readProviderApiKey(providerKey);
+    } catch (error) {
       await logGenerationFailure({
         req,
         routeLabel,
         source: "api.fal_status.config_missing",
-        message: "FAL_KEY is not set on the server",
+        message: String(error),
         statusCode: 500,
       });
-      return res.status(500).json({ error: "FAL_KEY is not set on the server" });
+      return res.status(500).json({ error: String(error) });
     }
 
     const requestId = asProviderString(req.body?.requestId);
@@ -220,7 +226,6 @@ export const createFalStatusHandler = ({
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    const providerKey = "fal";
     const queueBaseUrls = resolveProviderStatusBaseUrls({
       provider: providerKey,
       configuredBaseUrls: Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl],

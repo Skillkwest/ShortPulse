@@ -30,7 +30,9 @@ Current runtime-binding note:
 - Runtime enforcement currently reads `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` from environment in:
   - `frontend/pages/api/ai/studio-agent.ts`
   - `frontend/features/agent-runtime/legacyImageDescribeService.ts`
-- Admin control-plane state (active policy in SQL) is currently an operational/audit surface and rollback state store. It is not yet the direct runtime source-of-truth for profile selection.
+- Runtime can sync profile selection from control-plane active state when
+  `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED=true` (default).
+- Admin control-plane state remains the operational/audit store for activation, rollback, and cooldown events.
 
 ## Safety Profiles
 Supported profiles:
@@ -56,6 +58,8 @@ Primary knobs:
 | `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` | `production_normalized` | Controls provider error detail normalization (`production_normalized` or `development_verbatim`). | Keep normalized in production; verbatim only in development debugging windows. |
 | `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` | `false` | Enables policy-only rollback on hard-floor incidents. | Enable only when rollback playbook and monitoring are ready. |
 | `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` | `24` (bounded `1..168`) | Cooldown lock applied after rollback to prevent rapid policy thrash. | Keep at least `24` in production unless incident command directs otherwise. |
+| `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` | `true` | When true, runtime profile selection prefers control-plane active state; when false, runtime uses env-only profile selection. | Keep `true` in production after validation; set to `false` for emergency env-only rollback behavior. |
+| `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` | `5000` (bounded `1000..60000`) | Cache TTL for runtime reads of active control-plane policy. | Keep low (5-10s) for responsiveness without adding per-request RPC load. |
 
 Supporting knobs:
 

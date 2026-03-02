@@ -58,6 +58,11 @@ export default async function handler(
       error: "profileId must be one of prod_safe_v1, staging_lenient, dev_absolute_zero.",
     });
   }
+  if (process.env.NODE_ENV === "production" && profileId === "dev_absolute_zero") {
+    return res.status(400).json({
+      error: "dev_absolute_zero cannot be activated in production.",
+    });
+  }
 
   const singleReviewerAck = body.singleReviewerAck === true;
   const reason = normalizeReason(body.reason);

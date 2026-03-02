@@ -86,6 +86,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` (`production_normalized` default; optional `development_verbatim`).
   - `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` (`false` default; enables production hard-floor incident policy rollback path).
   - `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` (`24` default; bounded `1..168` for rollback cooldown lock).
+  - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (`true` default; when `true`, runtime profile selection prefers control-plane active profile and falls back to env/default).
+  - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (`5000` default; bounded `1000..60000` for runtime active-policy cache TTL).
 - AI Studio sessions API flag:
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (`true` by default; disables `/api/ai/sessions/*` when `false`).
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (`false` by default; when `true`, client write-shadow also mirrors snapshots to `/api/ai/sessions/save` in fail-soft shadow mode).

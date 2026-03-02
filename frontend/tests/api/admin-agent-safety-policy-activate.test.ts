@@ -87,6 +87,28 @@ describe("POST /api/admin/agent-safety-policy/activate", () => {
     });
   });
 
+  it("rejects dev_absolute_zero activation in production", async () => {
+    try {
+      vi.stubEnv("NODE_ENV", "production");
+      normalizeRequestedSafetyProfileIdMock.mockReturnValue("dev_absolute_zero");
+
+      const req = {
+        method: "POST",
+        body: { profileId: "dev_absolute_zero", singleReviewerAck: true },
+      };
+      const res = createMockResponse();
+      await handler(req as never, res as never);
+
+      expect(activateAgentSafetyPolicyMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "dev_absolute_zero cannot be activated in production.",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("maps cooldown-blocked status to 409", async () => {
     activateAgentSafetyPolicyMock.mockResolvedValue({
       status: "cooldown_blocked",

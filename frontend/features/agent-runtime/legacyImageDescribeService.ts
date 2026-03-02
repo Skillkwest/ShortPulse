@@ -2,6 +2,7 @@ import type { NextApiRequest } from "next";
 import { loadAgentPrompt } from "../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../lib/agentPromptsConfig";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
+import { resolveRuntimeSafetyProfile } from "../../lib/server/api/agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
 import {
   extractImageDescriptionText,
@@ -20,7 +21,6 @@ import {
 import { postProcessStudioAgentSafetyText } from "./studioAgentSafetyPostProcess";
 import {
   isStudioAgentSafetyRefusalUpstreamError,
-  resolvePolicyVersionFromProfileId,
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "./studioAgentRouteOutcomes";
 
@@ -136,7 +136,10 @@ export const executeLegacyImageDescribe = async ({
   const systemPrompt = loadAgentPrompt(IMAGE_DESCRIBER_ID, process.env[IMAGE_DESCRIBER_ID]);
   const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
-  const safetyProfileId = process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null;
+  const safetyProfile = await resolveRuntimeSafetyProfile({
+    envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
+  });
+  const safetyProfileId = safetyProfile.profileId;
   const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
   const safetyDevAbsoluteZeroEnabled =
     process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
@@ -144,7 +147,7 @@ export const executeLegacyImageDescribe = async ({
     process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
   );
   const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
-  const safetyPolicyVersion = resolvePolicyVersionFromProfileId(safetyProfileId);
+  const safetyPolicyVersion = safetyProfile.policyVersion;
   const safetyTelemetryProfileId =
     safetyProfileId === "prod_safe_v1" ||
     safetyProfileId === "staging_lenient" ||

@@ -269,6 +269,8 @@ Checklist:
 Checklist:
 - Verify runtime safety profile mode:
   - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (default `prod_safe_v1`).
+  - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED=true` means runtime prefers control-plane active profile; set `false` for env-only fallback.
+  - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` controls active-profile cache refresh cadence (bounded `1000..60000`, default `5000`).
 - Verify development-only override:
   - `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` should remain `false` outside controlled development tests.
 - Verify provider-error normalization mode:

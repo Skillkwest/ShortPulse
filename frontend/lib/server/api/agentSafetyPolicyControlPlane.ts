@@ -2,6 +2,7 @@
  * Server-side helper seam for AI Studio safety control-plane RPC access.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type SafetyProfileId = "prod_safe_v1" | "staging_lenient" | "dev_absolute_zero";
 
@@ -38,6 +39,14 @@ export type AgentSafetyPolicyMutationResult = {
   message: string | null;
 };
 
+export type RuntimeSafetyProfileSource = "control_plane" | "env" | "fallback";
+
+export type RuntimeSafetyProfileResolution = {
+  profileId: SafetyProfileId;
+  policyVersion: number | null;
+  source: RuntimeSafetyProfileSource;
+};
+
 const VALID_PROFILE_IDS = new Set<SafetyProfileId>([
   "prod_safe_v1",
   "staging_lenient",
@@ -55,6 +64,16 @@ const VALID_MUTATION_STATUSES = new Set<AgentSafetyPolicyMutationStatus>([
   "already_safe",
   "no_safe_target",
 ]);
+
+const DEFAULT_RUNTIME_PROFILE_ID: SafetyProfileId = "prod_safe_v1";
+const DEFAULT_CONTROL_PLANE_CACHE_TTL_MS = 5000;
+const MIN_CONTROL_PLANE_CACHE_TTL_MS = 1000;
+const MAX_CONTROL_PLANE_CACHE_TTL_MS = 60000;
+
+let runtimeActivePolicyCache: {
+  expiresAtMs: number;
+  value: ActiveAgentSafetyPolicy | null;
+} | null = null;
 
 const asObjectRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -100,6 +119,31 @@ const asMutationStatus = (value: unknown): AgentSafetyPolicyMutationStatus | nul
     : null;
 };
 
+const resolveProfileVersionFromId = (profileId: string | null | undefined): number | null => {
+  if (typeof profileId !== "string") return null;
+  const match = profileId
+    .trim()
+    .toLowerCase()
+    .match(/_v(\d+)$/);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const resolveControlPlaneCacheTtlMs = (rawValue?: string | null): number => {
+  const parsed = Number(rawValue ?? String(DEFAULT_CONTROL_PLANE_CACHE_TTL_MS));
+  if (!Number.isFinite(parsed)) return DEFAULT_CONTROL_PLANE_CACHE_TTL_MS;
+  return Math.max(
+    MIN_CONTROL_PLANE_CACHE_TTL_MS,
+    Math.min(MAX_CONTROL_PLANE_CACHE_TTL_MS, Math.floor(parsed))
+  );
+};
+
+const isRuntimeControlPlaneSyncEnabled = (rawValue?: string | null): boolean =>
+  String(rawValue ?? "true")
+    .trim()
+    .toLowerCase() !== "false";
+
 const normalizeActivePolicy = (value: unknown): Record<string, unknown> => {
   const record = asObjectRecord(value);
   return record ?? {};
@@ -112,6 +156,91 @@ export const resolveAgentSafetyRollbackCooldownHours = (rawValue?: string | null
   const parsed = Number(rawValue ?? "24");
   if (!Number.isFinite(parsed)) return 24;
   return Math.max(1, Math.min(168, Math.floor(parsed)));
+};
+
+export const clearRuntimeSafetyProfileCacheForTests = (): void => {
+  runtimeActivePolicyCache = null;
+};
+
+export const resolveRuntimeSafetyProfile = async ({
+  envProfileId,
+  runtimeControlPlaneSyncEnabled = process.env
+    .STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED,
+  controlPlaneCacheTtlMs = process.env.STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS,
+}: {
+  envProfileId?: string | null;
+  runtimeControlPlaneSyncEnabled?: string | null;
+  controlPlaneCacheTtlMs?: string | null;
+}): Promise<RuntimeSafetyProfileResolution> => {
+  const normalizedEnvProfileId = asProfileId(envProfileId);
+  const fallbackProfileId = normalizedEnvProfileId ?? DEFAULT_RUNTIME_PROFILE_ID;
+  if (!isRuntimeControlPlaneSyncEnabled(runtimeControlPlaneSyncEnabled)) {
+    return {
+      profileId: fallbackProfileId,
+      policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+      source: normalizedEnvProfileId ? "env" : "fallback",
+    };
+  }
+
+  const hasAdminConfig =
+    typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL.trim().length > 0 &&
+    typeof process.env.SUPABASE_SERVICE_ROLE_KEY === "string" &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY.trim().length > 0;
+  if (!hasAdminConfig) {
+    return {
+      profileId: fallbackProfileId,
+      policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+      source: normalizedEnvProfileId ? "env" : "fallback",
+    };
+  }
+
+  const nowMs = Date.now();
+  if (runtimeActivePolicyCache && runtimeActivePolicyCache.expiresAtMs > nowMs) {
+    const cachedProfileId = runtimeActivePolicyCache.value?.activeProfileId ?? null;
+    if (cachedProfileId) {
+      return {
+        profileId: cachedProfileId,
+        policyVersion:
+          runtimeActivePolicyCache.value?.activePolicyVersion ??
+          resolveProfileVersionFromId(cachedProfileId),
+        source: "control_plane",
+      };
+    }
+    return {
+      profileId: fallbackProfileId,
+      policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+      source: normalizedEnvProfileId ? "env" : "fallback",
+    };
+  }
+
+  try {
+    const activePolicy = await fetchActiveAgentSafetyPolicy({ supabaseAdmin: getSupabaseAdmin() });
+    runtimeActivePolicyCache = {
+      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
+      value: activePolicy,
+    };
+    const activeProfileId = activePolicy?.activeProfileId ?? null;
+    if (activeProfileId) {
+      return {
+        profileId: activeProfileId,
+        policyVersion:
+          activePolicy?.activePolicyVersion ?? resolveProfileVersionFromId(activeProfileId),
+        source: "control_plane",
+      };
+    }
+  } catch {
+    runtimeActivePolicyCache = {
+      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
+      value: null,
+    };
+  }
+
+  return {
+    profileId: fallbackProfileId,
+    policyVersion: resolveProfileVersionFromId(fallbackProfileId),
+    source: normalizedEnvProfileId ? "env" : "fallback",
+  };
 };
 
 export const fetchActiveAgentSafetyPolicy = async ({

@@ -30,6 +30,7 @@ import {
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
+import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const requestStartedAt = Date.now();
@@ -104,7 +105,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
   const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
-  const safetyProfileId = process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null;
+  const safetyProfile = await resolveRuntimeSafetyProfile({
+    envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
+  });
+  const safetyProfileId = safetyProfile.profileId;
   const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
   const safetyDevAbsoluteZeroEnabled =
     process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";

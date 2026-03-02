@@ -2362,3 +2362,17 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/sops/sop_ai_studio_index.md`
   - `docs/sops/sop_ai_studio_agent.md`
   - `docs/README.md`
+
+## 2026-03-02 (agent safety runtime control-plane sync hardening)
+- Runtime safety profile resolution now prefers control-plane active state with env/default fallback:
+  - `frontend/lib/server/api/agentSafetyPolicyControlPlane.ts` adds `resolveRuntimeSafetyProfile` with bounded in-process cache (`STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS`).
+  - `frontend/pages/api/ai/studio-agent.ts` and `frontend/features/agent-runtime/legacyImageDescribeService.ts` now resolve profile from the shared runtime resolver.
+- Added production activation guard for high-risk debug profile:
+  - `frontend/pages/api/admin/agent-safety-policy/activate.ts` now rejects `dev_absolute_zero` when `NODE_ENV=production`.
+- Added targeted regression coverage:
+  - `frontend/lib/server/api/__tests__/agentSafetyPolicyControlPlane.runtimeProfile.test.ts`
+  - updated `frontend/tests/api/admin-agent-safety-policy-activate.test.ts` with production guard coverage.
+- Added and documented runtime sync control knobs:
+  - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (default true)
+  - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (default 5000, bounded `1000..60000`)
+  - docs updated in `README.md`, `docs/api/api-internal-routes.md`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_safety_control_plane.md`, and `docs/troubleshooting.md`.

@@ -106,3 +106,8 @@ Last updated: 2026-03-02
 - Topic: Chat Mode naming/default and raw-submit behavior.
 - Decision: AI Studio toggle label is `Chat Mode` with default ON; ON preserves existing agent send/respond behavior, OFF disables chat-send affordances and routes primary Create/Text submit through direct raw prompt generation (`agentInput` fallback to shared prompt) without agent rewrite.
 - Effective phase: 13.
+
+## Decision 022
+- Topic: AI Studio session identity URL contract.
+- Decision: `/ai-studio` must carry a valid `sid` UUID query contract; when absent/invalid, client performs shallow URL replacement to inject a new `sid` while preserving in-page state. Plain `/ai-studio` therefore starts a new session identity by default.
+- Effective phase: 13.

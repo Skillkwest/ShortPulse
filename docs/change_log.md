@@ -2020,3 +2020,24 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts`.
 - Recorded Wave E Pass 5 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-5-chat-mode-toggle-and-raw-submit.md`.
+
+## 2026-03-02 (Phase 13 RCP-1 browser lifecycle save-strategy lock)
+- Completed research checkpoint RCP-1 before session persistence implementation:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`.
+- Locked implementation posture:
+  - `visibilitychange` + `pagehide` as primary flush triggers,
+  - `keepalive` fetch as default exit transport with `sendBeacon` fallback,
+  - no critical dependence on `unload`/`beforeunload`,
+  - IndexedDB-first local shadow storage for larger snapshots.
+
+## 2026-03-02 (Phase 13 Wave E Pass 6 session identity URL contract foundation)
+- Added modular AI Studio session identity helpers:
+  - `frontend/features/ai-studio/logic/sessionIdentity.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionIdentity.test.ts`.
+- Added dedicated URL-contract hook:
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionIdentity.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionIdentity.test.ts`.
+- Wired `/ai-studio` page entry to enforce `sid` UUID query contract via shallow replace when missing/invalid:
+  - `frontend/pages/ai-studio.tsx`.
+- Recorded Wave E Pass 6 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-6-session-identity-url-contract.md`.

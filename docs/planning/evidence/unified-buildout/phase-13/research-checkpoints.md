@@ -5,6 +5,8 @@ Owner: Engineering
 
 ## RCP-1: Browser Lifecycle And Exit-Path Reliability
 Trigger: before Session Persistence implementation.
+Status: Complete (2026-03-02)
+Evidence: `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`
 
 Required focus:
 1. `visibilitychange` (`hidden`) and `pagehide` save triggers.

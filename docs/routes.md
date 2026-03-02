@@ -11,7 +11,7 @@ Reference for pages, auth expectations, and ownership.
 | `/performance-soon` | Yes | Temporary placeholder for the analytics workspace | Explains that the Performance surface is still under construction. |
 | `/saved-creators` | Yes | Saved creators list | Post‑MVP (Coming Soon). |
 | `/media-library` | Yes | Private bucket file manager | Uses `media_library` bucket + `media_files` table (RLS), including Private tab uploads under `<auth.uid()>/private/images/...`. |
-| `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. |
+| `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. Session identity contract uses `?sid=<uuid>`; plain `/ai-studio` starts a new session id via shallow replace. |
 | `/character` | Yes | Character Manager (reference intake + character management) | Upload and persist up to 10 reference images per character, then arrange and persist character-sheet slot assignments for downstream generation wiring. |
 | `/character-soon` | Yes | Legacy placeholder route for Character | Kept as fallback while Character Manager rollout stabilizes. |
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges. |

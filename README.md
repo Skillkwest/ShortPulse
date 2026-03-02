@@ -58,7 +58,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
 - **Media Library (`/media-library`)**: Upload/download/delete/rename/move files across media tabs in a private Supabase bucket, including a Private image tab (`<auth.uid()>/private/images/...`).
 - **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, and credit purchase entry points.
-- **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs.
+- **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs. Session identity uses `?sid=<uuid>`; plain `/ai-studio` creates a new session id.
 - **Character Manager (`/character`)**: Beginner-first character creation and management workspace with persisted reference intake and persisted character-sheet assignments.
 - **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.
 - **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls, per-user recent credit transaction audit (including billed-vs-raw pricing metadata), and a live app-error incident feed.

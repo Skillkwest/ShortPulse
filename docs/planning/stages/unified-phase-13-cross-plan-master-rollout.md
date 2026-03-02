@@ -90,6 +90,11 @@ Completed:
    - threaded `chatModeEnabled` through bridge/panel/prompt contracts so chat-mode state remains decoupled from page orchestration,
    - added right-of-composer `Chat Mode` toggle using the same toggle classes/visual behavior as Character Mode controls,
    - enforced behavior split: Chat Mode ON keeps agent send/respond flow; Chat Mode OFF disables chat-send affordances and routes primary Create/Text submit through direct raw prompt generation (`agentInput` fallback to shared prompt).
+12. Wave E Pass 6 session identity URL-contract foundation:
+   - added strict session identity helpers (`sessionIdentity.ts`) for `sid` UUID parse/validation/generation,
+   - added `useAiStudioSessionIdentity` hook to enforce valid `?sid=<uuid>` on `/ai-studio` via shallow replace when query is missing/invalid,
+   - wired hook at page entry with no generation-runtime behavior changes,
+   - added focused utility/hook tests for valid/invalid/missing query behavior.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
@@ -98,7 +103,7 @@ Pending:
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)
-1. RCP-1: browser lifecycle/autosave transport reliability.
+1. RCP-1: browser lifecycle/autosave transport reliability. Status: complete (`2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`).
 2. RCP-2: Supabase RLS + `SECURITY DEFINER` + upsert/prune semantics.
 3. RCP-3: provider safety/error normalization contracts.
 4. RCP-4: Fal/Kie canary threshold and webhook/status contract tuning.

@@ -23,6 +23,7 @@ import type {
   AgentActions,
   AgentAttachment,
   AgentMessage,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { StudioOutput, ToolId } from "../types";
@@ -249,6 +250,7 @@ type AgentChatProps = {
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
   agentPrimarySource?: "agent" | "manual" | "reference";
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments: AgentAttachment[];
   agentDropActive: boolean;
   onInputChange: (value: string) => void;

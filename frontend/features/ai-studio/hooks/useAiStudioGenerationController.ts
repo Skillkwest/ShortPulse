@@ -37,6 +37,11 @@ type GenerateOptions = {
   costOverrideCredits?: number | null;
 };
 
+type GenerateResult = {
+  accepted: boolean;
+  optimisticOutputId: string | null;
+};
+
 const CHARACTER_MODE_MISSING_REFERENCES_ERROR =
   "Character Mode requires at least one character image before generating.";
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
@@ -255,8 +260,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   );
 
   const handleGenerate = useCallback(
-    async (promptOverride?: string | null, options?: GenerateOptions) => {
-      if (!tryAcquireGenerateClickLock()) return;
+    async (promptOverride?: string | null, options?: GenerateOptions): Promise<GenerateResult> => {
+      if (!tryAcquireGenerateClickLock()) {
+        return { accepted: false, optimisticOutputId: null };
+      }
 
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.toolOverride ?? selectedTool;
@@ -276,7 +283,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       let checkedFreshCredits = false;
 
       if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
-        return;
+        return { accepted: false, optimisticOutputId: null };
       }
 
       if (
@@ -288,7 +295,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         checkedFreshCredits = true;
         if (!hasFreshCredits) {
           setUiError("You do not have enough credits for this run.");
-          return;
+          return { accepted: false, optimisticOutputId: null };
         }
       }
 
@@ -299,11 +306,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             : await ensureFreshCreditsForRun(requiredCredits);
           if (!hasFreshCredits) {
             handleBlockedGeneration();
-            return;
+            return { accepted: false, optimisticOutputId: null };
           }
         } else {
           handleBlockedGeneration();
-          return;
+          return { accepted: false, optimisticOutputId: null };
         }
       }
 
@@ -354,7 +361,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
               ? error.message
               : "Unable to start generation."
         );
-        return;
+        return { accepted: false, optimisticOutputId: null };
       }
       const hasCharacterModeReferences =
         (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
@@ -370,7 +377,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
         }
         setUiError(CHARACTER_MODE_MISSING_REFERENCES_ERROR);
-        return;
+        return { accepted: false, optimisticOutputId: null };
       }
       trackCharacterModeFallback(characterModeOverrides, effectiveTool);
       enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
@@ -389,6 +396,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       if (characterModeOverrides?.notice) {
         setUiNotice(characterModeOverrides.notice);
       }
+      return {
+        accepted: true,
+        optimisticOutputId: optimisticOutputId ?? null,
+      };
     },
     [
       currentCostCredits,

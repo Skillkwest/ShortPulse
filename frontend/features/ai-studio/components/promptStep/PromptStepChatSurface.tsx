@@ -15,6 +15,7 @@ import type {
   AgentActions,
   AgentAttachment,
   AgentMessage,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 
@@ -36,6 +37,7 @@ type PromptStepChatSurfaceProps = {
   agentMessages: AgentMessage[];
   introMessage: AgentMessage;
   stagedPrompt: string | null;
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments: AgentAttachment[];
   dropToInputComposer: boolean;
   agentDropActive: boolean;
@@ -107,6 +109,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   agentMessages,
   introMessage,
   stagedPrompt,
+  assistantBubbleMedia,
   stagedAttachments,
   dropToInputComposer,
   agentDropActive,
@@ -230,6 +233,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
             showThinkingIndicator
             thinkingIndicatorPlacement="history"
             stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
+            assistantBubbleMedia={assistantBubbleMedia}
             stagedAttachments={dropToInputComposer ? [] : stagedAttachments}
             isDropActive={!dropToInputComposer && agentDropActive}
             showInput={false}

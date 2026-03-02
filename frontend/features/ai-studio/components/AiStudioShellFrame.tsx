@@ -8,6 +8,7 @@ import type {
   AgentActions,
   AgentAttachment,
   AgentMessage,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { ToolId } from "../types";
@@ -27,6 +28,7 @@ type AgentChatProps = {
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
   agentPrimarySource?: "agent" | "manual" | "reference";
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments: AgentAttachment[];
   agentDropActive: boolean;
   onInputChange: (value: string) => void;
@@ -169,6 +171,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
                 agentActions={agentChat.agentActions}
                 primaryPrompt={agentChat.latestAgentPrompt}
                 primarySource={agentChat.agentPrimarySource}
+                assistantBubbleMedia={agentChat.assistantBubbleMedia}
                 stagedAttachments={agentChat.stagedAttachments}
                 isDropActive={agentChat.agentDropActive}
                 onDrop={agentChat.onAttachmentDrop}

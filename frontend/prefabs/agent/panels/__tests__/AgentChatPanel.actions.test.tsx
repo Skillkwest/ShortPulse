@@ -148,6 +148,45 @@ describe("AgentChatPanel prompt actions", () => {
     expect(generateButtons.every((button) => button.hasAttribute("disabled"))).toBe(true);
   });
 
+  it("renders linked bubble thumbnails and status states without breaking generate controls", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          { id: "a-ready", role: "assistant", content: "Ready output." },
+          { id: "a-pending", role: "assistant", content: "Pending output." },
+          { id: "a-failed", role: "assistant", content: "Failed output." },
+        ]}
+        input=""
+        assistantBubbleMedia={{
+          "a-ready": {
+            outputId: "out-ready",
+            thumbnailUrl: "https://example.com/ready.png",
+            state: "ready",
+          },
+          "a-pending": {
+            outputId: "out-pending",
+            thumbnailUrl: null,
+            state: "pending",
+          },
+          "a-failed": {
+            outputId: "out-failed",
+            thumbnailUrl: null,
+            state: "failed",
+          },
+        }}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByAltText("Generated output preview")).toBeInTheDocument();
+    expect(screen.getByText("Generating preview…")).toBeInTheDocument();
+    expect(screen.getByText("Generation failed")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Generate from this agent output" })).toHaveLength(
+      3
+    );
+  });
+
   it("exposes prompt text on drag start for assistant and user bubbles", () => {
     render(
       <AgentChatPanel

@@ -25,6 +25,7 @@ export function PromptStep({
   agentPrimaryPrompt = null,
   agentPrimarySource = "manual",
   stagedPrompt = null,
+  assistantBubbleMedia,
   stagedAttachments = [],
   agentDropActive = false,
   agentChatOpen = false,
@@ -237,6 +238,7 @@ export function PromptStep({
                 agentMessages={agentMessages}
                 introMessage={introMessage}
                 stagedPrompt={stagedPrompt}
+                assistantBubbleMedia={assistantBubbleMedia}
                 stagedAttachments={stagedAttachments}
                 dropToInputComposer={dropToInputComposer}
                 agentDropActive={agentDropActive}

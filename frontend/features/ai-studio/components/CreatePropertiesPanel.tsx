@@ -13,6 +13,7 @@ import type {
   AgentActions,
   AgentAttachment,
   AgentMessage,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
@@ -41,6 +42,7 @@ export type CreatePropertiesPanelProps = {
   agentError?: string;
   agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
   useReferenceImageIndicator: boolean;
@@ -235,6 +237,7 @@ export function CreatePropertiesPanel({
   agentError,
   agentPrimarySource = "manual",
   stagedPrompt = null,
+  assistantBubbleMedia,
   stagedAttachments = [],
   agentDropActive = false,
   onExpandChat,
@@ -389,6 +392,7 @@ export function CreatePropertiesPanel({
     agentPrimaryPrompt: prompt,
     agentPrimarySource,
     stagedPrompt,
+    assistantBubbleMedia,
     stagedAttachments,
     agentDropActive,
     agentChatOpen,

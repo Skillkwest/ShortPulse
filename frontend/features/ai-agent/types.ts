@@ -14,6 +14,7 @@ export type {
   AgentMediaPreview,
   AgentMessage,
   AgentMessageRole,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
   AgentOutputGenerateRequest,
   AgentOutputPromptSource,

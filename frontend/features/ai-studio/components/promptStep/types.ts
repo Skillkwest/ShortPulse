@@ -6,6 +6,7 @@ import type {
   AgentActions,
   AgentAttachment,
   AgentMessage,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 
@@ -25,6 +26,7 @@ export type PromptStepProps = {
   agentPrimaryPrompt?: string | null;
   agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
   agentChatOpen?: boolean;

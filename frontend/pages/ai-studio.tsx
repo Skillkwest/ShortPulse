@@ -36,6 +36,7 @@ import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
+import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -1224,6 +1225,7 @@ export default function AiStudioPage() {
     regenerateOutput,
     activeOutputId,
   });
+  const { assistantBubbleMedia, registerOutputLink } = useAgentOutputBubbleLinking({ outputs });
   const resolveAgentOutputGenerateRequest = useCallback(
     (input: AgentOutputGenerateInput): AgentOutputGenerateRequest | null => {
       if (typeof input === "string") {
@@ -1272,12 +1274,23 @@ export default function AiStudioPage() {
         modeOverride: workflowMode,
         toolOverride: workflowTool,
         costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-      });
+      })
+        .then((result) => {
+          if (!result.accepted || !result.optimisticOutputId) return;
+          registerOutputLink({
+            messageId: request.messageId,
+            optimisticOutputId: result.optimisticOutputId,
+          });
+        })
+        .catch(() => {
+          // The generation controller surfaces user-facing errors.
+        });
     },
     [
       currentCostCredits,
       handleGenerate,
       promptReferenceGenerateCostCredits,
+      registerOutputLink,
       resolveAgentOutputGenerateRequest,
       selectedTool,
       setEditReferenceText,
@@ -1348,6 +1361,7 @@ export default function AiStudioPage() {
     handleAgentSelectVariation,
     handleAgentDescribeTargets,
     handleGenerateFromAgentOutputPrompt,
+    assistantBubbleMedia,
     useReferenceImageIndicator,
     activeOutput,
     isModelModalOpen,
@@ -1559,6 +1573,7 @@ export default function AiStudioPage() {
           onAgentSelectVariation: handleAgentSelectVariation,
           onAgentDescribeTargets: handleAgentDescribeTargets,
           onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
+          assistantBubbleMedia,
           outputGenerateCostCredits: promptReferenceGenerateCostCredits,
           disableOutputGenerate: disableAgentOutputGenerate,
         }}

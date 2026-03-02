@@ -13,6 +13,7 @@ import type {
   AgentActions,
   AgentAttachment,
   AgentMessage,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput } from "../types";
@@ -38,6 +39,7 @@ export type UseAiStudioPanelPropsParams = {
   agentError?: string | null;
   agentPrimarySource?: "agent" | "manual" | "reference";
   stagedAgentPrompt?: string | null;
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   agentAttachments: AgentAttachment[];
   isAgentDropActive: boolean;
   handleAgentInputChange: (value: string) => void;
@@ -166,6 +168,7 @@ export const useAiStudioPanelProps = ({
   agentError,
   agentPrimarySource,
   stagedAgentPrompt,
+  assistantBubbleMedia,
   agentAttachments,
   isAgentDropActive,
   handleAgentInputChange,
@@ -302,6 +305,7 @@ export const useAiStudioPanelProps = ({
     agentError,
     agentPrimarySource,
     stagedAgentPrompt,
+    assistantBubbleMedia,
     agentAttachments,
     isAgentDropActive,
     handleAgentInputChange,

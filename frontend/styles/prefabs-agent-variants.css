@@ -357,14 +357,68 @@
   padding-bottom: 44px;
 }
 
+.agent-message.agent-assistant.agent-message--with-output-thumbnail {
+  padding-bottom: 126px;
+}
+
 .agent-message.agent-assistant.agent-intro {
   padding-bottom: 12px;
 }
 
-.agent-message .agent-output-generate-pill.agent-generate-prefab {
+.agent-message .agent-output-bubble-controls {
   position: absolute;
   right: 10px;
   bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+}
+
+.agent-message .agent-output-bubble-media {
+  width: 120px;
+  height: 78px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(53, 178, 214, 0.35);
+  background: rgba(8, 17, 28, 0.65);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.agent-message .agent-output-bubble-media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.agent-message .agent-output-bubble-media--status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+}
+
+.agent-message .agent-output-bubble-media--status[data-state="pending"] {
+  border-color: rgba(88, 198, 228, 0.42);
+}
+
+.agent-message .agent-output-bubble-media--status[data-state="failed"] {
+  border-color: rgba(204, 88, 88, 0.48);
+  background: rgba(39, 12, 14, 0.66);
+}
+
+.agent-message .agent-output-bubble-media--status .tiny {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.2;
+  color: rgba(226, 239, 252, 0.9) !important;
+}
+
+.agent-message .agent-output-generate-pill.agent-generate-prefab {
+  position: static;
   width: auto;
   max-width: calc(100% - 20px);
   justify-content: center;

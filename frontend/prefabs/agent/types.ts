@@ -17,6 +17,12 @@ export type AgentOutputGenerateRequest = {
 
 export type AgentOutputGenerateInput = AgentOutputGenerateRequest | string;
 
+export type AgentOutputBubbleMediaState = {
+  outputId?: string;
+  thumbnailUrl?: string | null;
+  state: "idle" | "pending" | "ready" | "failed";
+};
+
 export type AgentMessage = {
   id?: string;
   role: AgentMessageRole;

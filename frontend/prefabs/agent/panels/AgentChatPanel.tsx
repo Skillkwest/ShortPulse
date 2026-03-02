@@ -10,6 +10,7 @@ import type {
   AgentActions,
   AgentAttachment,
   AgentMessage,
+  AgentOutputBubbleMediaState,
   AgentOutputGenerateRequest,
 } from "../types";
 
@@ -71,6 +72,7 @@ type AgentChatPanelProps = {
   dropHintText?: string;
   emptyStateText?: string;
   stagedAttachments?: AgentAttachment[];
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   isDropActive?: boolean;
   showClearAttachmentsButton?: boolean;
   agentActions?: AgentActions;
@@ -112,6 +114,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   dropHintText = "Drag & drop reference cards here to attach context.",
   emptyStateText = "Drop references and send your next instruction.",
   stagedAttachments = [],
+  assistantBubbleMedia,
   isDropActive = false,
   showClearAttachmentsButton = false,
   agentActions,
@@ -247,6 +250,48 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     [disableOutputGenerate, onGenerateOutputPrompt]
   );
 
+  const resolveBubbleMediaState = useCallback(
+    (messageId: string): AgentOutputBubbleMediaState | null => {
+      const normalizedMessageId = messageId.trim();
+      if (!normalizedMessageId) return null;
+      return assistantBubbleMedia?.[normalizedMessageId] ?? null;
+    },
+    [assistantBubbleMedia]
+  );
+
+  const renderOutputBubbleMedia = useCallback((mediaState: AgentOutputBubbleMediaState | null) => {
+    if (!mediaState || mediaState.state === "idle") return null;
+    if (mediaState.thumbnailUrl) {
+      return (
+        <div className="agent-output-bubble-media" data-state={mediaState.state}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={mediaState.thumbnailUrl} alt="Generated output preview" loading="lazy" />
+        </div>
+      );
+    }
+    if (mediaState.state === "pending") {
+      return (
+        <div
+          className="agent-output-bubble-media agent-output-bubble-media--status"
+          data-state="pending"
+        >
+          <span className="tiny">Generating preview…</span>
+        </div>
+      );
+    }
+    if (mediaState.state === "failed") {
+      return (
+        <div
+          className="agent-output-bubble-media agent-output-bubble-media--status"
+          data-state="failed"
+        >
+          <span className="tiny">Generation failed</span>
+        </div>
+      );
+    }
+    return null;
+  }, []);
+
   return (
     <div
       className={`agent-chat-panel${highlightLatestAssistantOnly ? " agent-chat-panel--latest-assistant-only" : ""}`}
@@ -285,44 +330,58 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   <p className="tiny">{introMessage.content}</p>
                 </div>
               ) : null}
-              {stagedPrompt ? (
-                <div
-                  className={`agent-message agent-assistant ${
-                    highlightLatestAssistantOnly && latestAssistantMessageIndex < 0
-                      ? "is-latest-assistant"
-                      : ""
-                  } is-draggable agent-message--with-output-generate`.trim()}
-                  draggable
-                  onDragStart={(event) => handlePromptDragStart(event, stagedPrompt)}
-                  onDragEnd={handlePromptDragEnd}
-                >
-                  <p className="tiny">{stagedPrompt}</p>
-                  <button
-                    type="button"
-                    className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                    onClick={(event) =>
-                      handleOutputGenerateClick(event, {
-                        messageId: STAGED_AGENT_OUTPUT_MESSAGE_ID,
-                        prompt: stagedPrompt,
-                        source: "staged",
-                      })
-                    }
-                    onDoubleClick={(event) => {
-                      event.stopPropagation();
-                    }}
-                    aria-label="Generate from this agent output"
-                    disabled={disableOutputGenerate}
-                  >
-                    <span className="agent-generate-label">Generate</span>
-                    <span className="model-chip-pill generate-pill">
-                      <span aria-hidden="true" className="model-chip-icon">
-                        ✦
-                      </span>
-                      <span className="model-chip-credits">{outputGenerateCostLabel}</span>
-                    </span>
-                  </button>
-                </div>
-              ) : null}
+              {stagedPrompt
+                ? (() => {
+                    const stagedBubbleMedia = resolveBubbleMediaState(
+                      STAGED_AGENT_OUTPUT_MESSAGE_ID
+                    );
+                    return (
+                      <div
+                        className={`agent-message agent-assistant ${
+                          highlightLatestAssistantOnly && latestAssistantMessageIndex < 0
+                            ? "is-latest-assistant"
+                            : ""
+                        } is-draggable agent-message--with-output-generate ${
+                          stagedBubbleMedia && stagedBubbleMedia.state !== "idle"
+                            ? "agent-message--with-output-thumbnail"
+                            : ""
+                        }`.trim()}
+                        draggable
+                        onDragStart={(event) => handlePromptDragStart(event, stagedPrompt)}
+                        onDragEnd={handlePromptDragEnd}
+                      >
+                        <p className="tiny">{stagedPrompt}</p>
+                        <div className="agent-output-bubble-controls">
+                          {renderOutputBubbleMedia(stagedBubbleMedia)}
+                          <button
+                            type="button"
+                            className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
+                            onClick={(event) =>
+                              handleOutputGenerateClick(event, {
+                                messageId: STAGED_AGENT_OUTPUT_MESSAGE_ID,
+                                prompt: stagedPrompt,
+                                source: "staged",
+                              })
+                            }
+                            onDoubleClick={(event) => {
+                              event.stopPropagation();
+                            }}
+                            aria-label="Generate from this agent output"
+                            disabled={disableOutputGenerate}
+                          >
+                            <span className="agent-generate-label">Generate</span>
+                            <span className="model-chip-pill generate-pill">
+                              <span aria-hidden="true" className="model-chip-icon">
+                                ✦
+                              </span>
+                              <span className="model-chip-credits">{outputGenerateCostLabel}</span>
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()
+                : null}
               {messages.map((message, index) => {
                 const isClickable = Boolean(onMessageClick);
                 const isDraggable =
@@ -337,12 +396,17 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   highlightLatestAssistantOnly &&
                   message.role === "assistant" &&
                   index !== latestAssistantMessageIndex;
+                const resolvedMessageId = message.id?.trim() || `history-agent-output-${index}`;
+                const bubbleMedia = resolveBubbleMediaState(resolvedMessageId);
+                const hasOutputThumbnail = Boolean(
+                  bubbleMedia && bubbleMedia.state !== "idle" && showOutputGenerateButton
+                );
                 const key =
                   message.id || `${message.role}-${index}-${message.content.slice(0, 12)}`;
                 return (
                   <div
                     key={key}
-                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}`}
+                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}`}
                     onClick={isClickable ? () => handleMessageClick(message) : undefined}
                     onKeyDown={
                       isClickable ? (event) => handleMessageKeyDown(event, message) : undefined
@@ -359,30 +423,33 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   >
                     <p className="tiny">{message.content}</p>
                     {showOutputGenerateButton ? (
-                      <button
-                        type="button"
-                        className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                        onClick={(event) =>
-                          handleOutputGenerateClick(event, {
-                            messageId: message.id?.trim() || `history-agent-output-${index}`,
-                            prompt: message.content,
-                            source: "history",
-                          })
-                        }
-                        onDoubleClick={(event) => {
-                          event.stopPropagation();
-                        }}
-                        aria-label="Generate from this agent output"
-                        disabled={disableOutputGenerate}
-                      >
-                        <span className="agent-generate-label">Generate</span>
-                        <span className="model-chip-pill generate-pill">
-                          <span aria-hidden="true" className="model-chip-icon">
-                            ✦
+                      <div className="agent-output-bubble-controls">
+                        {renderOutputBubbleMedia(bubbleMedia)}
+                        <button
+                          type="button"
+                          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
+                          onClick={(event) =>
+                            handleOutputGenerateClick(event, {
+                              messageId: resolvedMessageId,
+                              prompt: message.content,
+                              source: "history",
+                            })
+                          }
+                          onDoubleClick={(event) => {
+                            event.stopPropagation();
+                          }}
+                          aria-label="Generate from this agent output"
+                          disabled={disableOutputGenerate}
+                        >
+                          <span className="agent-generate-label">Generate</span>
+                          <span className="model-chip-pill generate-pill">
+                            <span aria-hidden="true" className="model-chip-icon">
+                              ✦
+                            </span>
+                            <span className="model-chip-credits">{outputGenerateCostLabel}</span>
                           </span>
-                          <span className="model-chip-credits">{outputGenerateCostLabel}</span>
-                        </span>
-                      </button>
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 );

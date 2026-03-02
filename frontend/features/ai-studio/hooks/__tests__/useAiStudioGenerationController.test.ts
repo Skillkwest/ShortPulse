@@ -103,11 +103,13 @@ describe("useAiStudioGenerationController", () => {
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
     await act(async () => {
-      await result.current.handleGenerate("prompt");
+      generateResult = await result.current.handleGenerate("prompt");
     });
 
     expect(generateOutput).toHaveBeenCalledTimes(1);
+    expect(generateResult).toEqual({ accepted: true, optimisticOutputId: null });
   });
 
   it("inserts an optimistic placeholder before async submission prep and forwards its output id", async () => {
@@ -129,9 +131,10 @@ describe("useAiStudioGenerationController", () => {
       refreshCharacterModeInjectionBundleForSubmission,
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
 
     await act(async () => {
-      await result.current.handleGenerate("prompt");
+      generateResult = await result.current.handleGenerate("prompt");
     });
 
     expect(callOrder).toEqual(["placeholder", "refresh", "submit"]);
@@ -144,6 +147,7 @@ describe("useAiStudioGenerationController", () => {
       "prompt",
       expect.objectContaining({ outputIdOverride: "out-optimistic" })
     );
+    expect(generateResult).toEqual({ accepted: true, optimisticOutputId: "out-optimistic" });
   });
 
   it("cleans up optimistic placeholder when pre-submit character prep fails", async () => {
@@ -448,13 +452,17 @@ describe("useAiStudioGenerationController", () => {
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
     await act(async () => {
-      await result.current.handleGenerate("prompt override", { costOverrideCredits: 2 });
+      generateResult = await result.current.handleGenerate("prompt override", {
+        costOverrideCredits: 2,
+      });
     });
 
     expect(setUiError).toHaveBeenCalledWith("Guardrail blocked this run.");
     expect(generateOutput).not.toHaveBeenCalled();
     expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
   });
 
   it("does not enqueue debits or submit when create/text tool remains in text mode", async () => {

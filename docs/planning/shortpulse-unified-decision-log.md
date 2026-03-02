@@ -181,3 +181,8 @@ Last updated: 2026-03-02
 - Topic: Wave F staging parity deferment and Wave G continuation.
 - Decision: Wave F staging admin-API observation gate is deferred until staging alias deployment parity includes the Wave F admin route bundle; Wave G local/code-gated implementation is allowed to proceed in parallel under canonical Phase 13 tracking.
 - Effective phase: 13.
+
+## Decision 037
+- Topic: Wave G prompt-adjacency normalization seam authority.
+- Decision: Chat-off create prompt resolution and agent-output generate request parsing must route through shared `promptAdjacency` logic seams (`resolveChatOffCreatePrompt`, `normalizeAgentOutputGenerateRequest`) with legacy string payload compatibility retained and no route/API envelope expansion.
+- Effective phase: 13.

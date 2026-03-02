@@ -13,12 +13,12 @@ import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibrary
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
-import { normalizePromptText } from "../features/ai-studio/logic/agentPromptOwnership";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
   shouldDisableAgentOutputGenerate,
   shouldDisableGenerateWhileCharacterLoading,
 } from "../features/ai-studio/logic/createGenerationGuards";
+import { normalizeAgentOutputGenerateRequest } from "../features/ai-studio/logic/promptAdjacency";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
@@ -52,7 +52,6 @@ import {
 import type {
   AgentAssistantMessageEditRequest,
   AgentOutputGenerateInput,
-  AgentOutputGenerateRequest,
 } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import {
@@ -1332,31 +1331,9 @@ export default function AiStudioPage() {
     activeOutputId,
   });
   const { assistantBubbleMedia, registerOutputLink } = useAgentOutputBubbleLinking({ outputs });
-  const resolveAgentOutputGenerateRequest = useCallback(
-    (input: AgentOutputGenerateInput): AgentOutputGenerateRequest | null => {
-      if (typeof input === "string") {
-        const legacyPrompt = normalizePromptText(input);
-        if (!legacyPrompt) return null;
-        return {
-          messageId: "legacy-agent-output",
-          prompt: legacyPrompt,
-          source: "history",
-        };
-      }
-      const normalizedPrompt = normalizePromptText(input.prompt);
-      const messageId = input.messageId?.trim();
-      if (!normalizedPrompt || !messageId) return null;
-      return {
-        messageId,
-        prompt: normalizedPrompt,
-        source: input.source,
-      };
-    },
-    []
-  );
   const handleGenerateFromAgentOutputPrompt = useCallback(
     (input: AgentOutputGenerateInput) => {
-      const request = resolveAgentOutputGenerateRequest(input);
+      const request = normalizeAgentOutputGenerateRequest(input);
       if (!request) return;
       const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
       const isEditWorkflow = selectedTool === "edit" || selectedTool === "image";
@@ -1397,7 +1374,6 @@ export default function AiStudioPage() {
       handleGenerate,
       promptReferenceGenerateCostCredits,
       registerOutputLink,
-      resolveAgentOutputGenerateRequest,
       selectedTool,
       setEditReferenceText,
       setMode,

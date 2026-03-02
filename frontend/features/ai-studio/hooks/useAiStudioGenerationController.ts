@@ -11,6 +11,7 @@ import {
   type SetStateAction,
 } from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
+import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
@@ -442,11 +443,18 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           }
         });
       } else {
-        const rawPrompt = agentInput.trim() || prompt.trim() || undefined;
+        const rawPrompt = resolveChatOffCreatePrompt({
+          agentInput,
+          sharedPrompt: prompt,
+          allowSharedPromptFallback: true,
+        });
         if (rawPrompt) {
           setPromptOrigin("manual");
         }
-        void handleGenerate(rawPrompt, { modeOverride: "image", toolOverride: "create" });
+        void handleGenerate(rawPrompt ?? undefined, {
+          modeOverride: "image",
+          toolOverride: "create",
+        });
       }
       return;
     }
@@ -464,11 +472,15 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   ]);
 
   const handleChatOffInlineGenerate = useCallback(() => {
-    const rawPrompt = agentInput.trim();
+    const rawPrompt = resolveChatOffCreatePrompt({
+      agentInput,
+      sharedPrompt: prompt,
+      allowSharedPromptFallback: false,
+    });
     if (!rawPrompt) return;
     setPromptOrigin("manual");
     void handleGenerate(rawPrompt, { modeOverride: "image", toolOverride: "create" });
-  }, [agentInput, handleGenerate, setPromptOrigin]);
+  }, [agentInput, handleGenerate, prompt, setPromptOrigin]);
 
   const runRegenerateWithDebit = useCallback(async () => {
     if (!tryAcquireGenerateClickLock()) return;

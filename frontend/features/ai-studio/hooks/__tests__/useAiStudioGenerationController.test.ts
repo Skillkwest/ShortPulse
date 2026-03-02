@@ -113,6 +113,40 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
+  it("falls back to shared prompt for chat-off primary submit when composer input is empty", async () => {
+    const handleAgentSend = vi.fn(async () => ({
+      prompt: "agent prompt should not be used",
+      referenceTitle: "unused",
+    }));
+    const generateOutput = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "  shared fallback prompt  ",
+      agentInput: "   ",
+      chatModeEnabled: false,
+      handleAgentSend,
+      generateOutput,
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handlePrimarySubmit();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(handleAgentSend).not.toHaveBeenCalled();
+    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+    expect(generateOutput).toHaveBeenCalledWith(
+      "shared fallback prompt",
+      expect.objectContaining({ modeOverride: "image", selectedToolOverride: "create" })
+    );
+  });
+
   it("uses chat-off inline generate to submit trimmed raw input only", async () => {
     const handleAgentSend = vi.fn(async () => ({
       prompt: "agent prompt should not be used",

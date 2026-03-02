@@ -2407,3 +2407,44 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (default true)
   - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (default 5000, bounded `1000..60000`)
   - docs updated in `README.md`, `docs/api/api-internal-routes.md`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_safety_control_plane.md`, and `docs/troubleshooting.md`.
+
+## 2026-03-02 (Wave G pass 1 prompt-adjacency contract normalization)
+- Added shared prompt-adjacency seam:
+  - `frontend/features/ai-studio/logic/promptAdjacency.ts`
+  - centralizes chat-off create prompt resolution and agent-output generate request normalization.
+- Wired the shared seam into:
+  - `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`
+  - `frontend/pages/ai-studio.tsx`
+- Added focused regression coverage:
+  - `frontend/features/ai-studio/logic/__tests__/promptAdjacency.test.ts`
+  - extended `frontend/features/ai-studio/hooks/__tests__/useAiStudioGenerationController.test.ts`
+  - revalidated `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
+- Updated Wave G/Phase 13 planning evidence and trackers:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-g-pass-1-prompt-adjacency-contract-normalization.md`
+  - `docs/planning/ai-studio-ux-prompt-adjacency-rollout-tracker.md`
+  - `docs/planning/evidence/unified-buildout/phase-13/README.md`
+  - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`
+- Validation evidence:
+  - `cd frontend && npm run test -- features/ai-studio/logic/__tests__/promptAdjacency.test.ts features/ai-studio/hooks/__tests__/useAiStudioGenerationController.test.ts` passed.
+  - `cd frontend && npm run test -- features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts` passed.
+  - `cd frontend && npm run type-check` passed.
+  - `cd frontend && npm run lint` passed.
+
+## 2026-03-02 (Wave G pass 2 local validation window 1)
+- Completed Wave G local UX consistency validation packet for prompt-adjacent surfaces:
+  - `features/ai-studio/components/__tests__/PromptStep.actions.test.tsx`
+  - `features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts`
+  - `features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
+  - `prefabs/agent/panels/__tests__/AgentChatPanel.actions.test.tsx`
+  - `features/ai-studio/logic/__tests__/promptAdjacency.test.ts`
+  - `features/ai-studio/hooks/__tests__/useAiStudioGenerationController.test.ts`
+- Validation result:
+  - targeted packet passed (`67` tests),
+  - `cd frontend && npm run lint` passed,
+  - `cd frontend && npm run type-check` passed,
+  - `cd frontend && npm run build` passed,
+  - `cd frontend && npm run docs:check` passed.
+- Added evidence and tracker updates:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-g-pass-2-local-validation-window-1.md`
+  - updated Wave G tracker/status and Phase 13 evidence index + stage/buildout tracker notes.

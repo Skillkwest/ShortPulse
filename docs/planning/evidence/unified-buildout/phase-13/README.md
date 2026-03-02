@@ -56,6 +56,8 @@ Example:
 27. `2026-03-02-phase-13-wave-f-pass-5-local-validation-window-1.md`
 28. `2026-03-02-phase-13-wave-f-pass-6-control-plane-sql-observation-window-1.md`
 29. `2026-03-02-phase-13-wave-g-pass-0-governance-lock.md`
+30. `2026-03-02-phase-13-wave-g-pass-1-prompt-adjacency-contract-normalization.md`
+31. `2026-03-02-phase-13-wave-g-pass-2-local-validation-window-1.md`
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`

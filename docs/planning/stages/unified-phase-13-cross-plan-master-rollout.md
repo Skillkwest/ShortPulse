@@ -188,6 +188,14 @@ Completed:
 34. Wave G Pass 0 governance lock:
    - added Wave G rollout plan/tracker for consolidated UX + prompt-adjacency execution under Phase 13,
    - recorded explicit deferment policy: Wave F staging admin-API observation remains pending deployment parity while Wave G local/code-gated slices proceed.
+35. Wave G Pass 1 prompt-adjacency contract normalization:
+   - centralized chat-off create prompt resolution and agent-output generate request parsing in shared `promptAdjacency` logic seams,
+   - removed page-local agent-output normalization branching in favor of shared parsing with legacy compatibility retained,
+   - added focused regression locks for chat-off submit adjacency and restore-hydration gating behavior.
+36. Wave G Pass 2 local validation window 1:
+   - executed targeted UX consistency packet for inline/expanded chat surfaces + restore-hydration adjacency seams (`67/67` passing),
+   - local rollout gates passed (`lint`, `type-check`, `build`, `docs:check`),
+   - staging-dependent closeout remains pending deployment parity.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.

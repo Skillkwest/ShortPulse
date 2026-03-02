@@ -71,6 +71,17 @@
 
 .create-expert-panel
   .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail:hover
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail:hover
+  .tiny {
+  border-color: transparent;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls {
   position: static;

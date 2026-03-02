@@ -2,7 +2,7 @@
  * AgentChatPanel action parity tests.
  * Ensures expanded chat can expose prompt ownership status and action chips.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AgentChatPanel } from "../AgentChatPanel";
 
@@ -261,6 +261,49 @@ describe("AgentChatPanel prompt actions", () => {
     fireEvent.dragEnd(draggableMessage);
     expect(document.querySelectorAll(".agent-message-drag-ghost")).toHaveLength(0);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
+  });
+
+  it("omits inline output preview controls from drag ghosts", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        assistantBubbleMedia={{
+          "a-1": {
+            outputId: "out-pending",
+            thumbnailUrl: null,
+            state: "pending",
+          },
+        }}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const draggableMessage = screen
+      .getByText("Assistant output one.")
+      .closest(".agent-message") as HTMLElement;
+    expect(draggableMessage).toBeTruthy();
+
+    const setData = vi.fn();
+    const setDragImage = vi.fn();
+    const dataTransfer = {
+      setData,
+      setDragImage,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(draggableMessage, { dataTransfer });
+
+    const ghost = document.querySelector(".agent-message-drag-ghost") as HTMLElement | null;
+    expect(ghost).toBeTruthy();
+    expect(ghost?.querySelector(".agent-output-bubble-controls")).toBeNull();
+    if (ghost) {
+      expect(within(ghost).queryByText("Generating preview…")).toBeNull();
+    }
+
+    fireEvent.dragEnd(draggableMessage);
+    expect(document.querySelector(".agent-message-drag-ghost")).toBeNull();
   });
 
   it("renders thinking inside message history when placement is history", () => {

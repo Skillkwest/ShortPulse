@@ -41,6 +41,13 @@ const createPromptDragGhost = (source: HTMLElement) => {
   const ghost = source.cloneNode(true) as HTMLElement;
   ghost.classList.add("agent-message-drag-ghost");
   ghost.classList.remove("is-clickable", "is-draggable", "is-dragging");
+  ghost.classList.remove(
+    "agent-message--with-output-generate",
+    "agent-message--with-output-thumbnail"
+  );
+  ghost.querySelectorAll(".agent-output-bubble-controls").forEach((node) => {
+    node.remove();
+  });
   ghost.style.width = `${width}px`;
   ghost.style.maxHeight = `${PROMPT_DRAG_GHOST_MAX_HEIGHT_PX}px`;
   ghost.style.position = "fixed";

@@ -21,7 +21,9 @@ Program Doc: `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 3. Wave F Pass 2 modality wiring is completed and evidenced.
 4. Wave F Pass 3 implementation slice (migrations + admin APIs) is landed and validated in code/test/doc gates.
 5. Wave F Pass 4 implementation slice is landed: structured telemetry fields + hard-floor incident auto-rollback gating are wired in `studio-agent` and `describe-image` runtime paths.
-6. Operational SQL apply evidence (`supabase db lint --local`, post-apply runtime SQL audit) remains pending in target environments.
+6. Operational SQL apply evidence is now green in target environment:
+   - `check_agent_safety_policy_control_plane.sql` => `7/7/0`
+   - `check_runtime_sql_security_audit.sql` => `120/120/0`
 7. RCP-4 remains pending and is tracked under Wave H canary promotion gates.
 
 ## Execution Checklist

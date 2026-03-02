@@ -172,7 +172,7 @@ Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
 3. Wave E remaining passes (promote/hold evidence windows and gate closeout).
-4. Wave F operational SQL apply evidence (`047/048` apply, local SQL lint where available, post-apply runtime/security checks), Wave F integrated validation window closeout, and Waves G-H (`RCP-4 pending`).
+4. Wave F integrated validation window closeout and Waves G-H (`RCP-4 pending`).
 
 ## Surgical Research Checkpoints (Required)
 1. RCP-1: browser lifecycle/autosave transport reliability. Status: complete (`2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`).

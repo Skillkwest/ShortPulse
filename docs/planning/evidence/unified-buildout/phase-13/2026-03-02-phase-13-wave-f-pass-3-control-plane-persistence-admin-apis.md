@@ -1,7 +1,7 @@
 # Phase 13 Wave F Pass 3: Control-Plane Persistence + Admin APIs
 
 Date: 2026-03-02  
-Status: Pass (implementation) / Hold (operator SQL apply evidence pending)
+Status: Pass
 
 ## Scope
 1. Added safety control-plane persistence migrations under new collision-free slots:
@@ -31,10 +31,14 @@ Status: Pass (implementation) / Hold (operator SQL apply evidence pending)
 - Result: pass.
 6. `supabase db lint --local --schema public --fail-on warning`
 - Result: **hold** (local Postgres at `127.0.0.1:54322` unavailable in this environment).
+7. `sql/check_agent_safety_policy_control_plane.sql` (target environment)
+- Result: pass (`total_checks=7`, `passing_checks=7`, `failing_checks=0`).
+8. `sql/check_runtime_sql_security_audit.sql` (target environment)
+- Result: pass (`total_checks=120`, `passing_checks=120`, `failing_checks=0`).
 
 ## Gate Result
-1. Implementation pass is complete with route/security/type/test/doc gates green.
-2. Operational SQL apply/lint evidence is pending target-environment execution.
+1. Implementation + target-environment operational SQL evidence are complete.
+2. Safety control-plane SQL checks and runtime SQL security audit checks are green post-apply.
 
 ## Rollback Readiness
 1. API rollback: revert new admin route files and helper seam.
@@ -42,5 +46,4 @@ Status: Pass (implementation) / Hold (operator SQL apply evidence pending)
 3. Runtime behavior rollback: do not call new admin safety endpoints; `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` env fallback remains authoritative.
 
 ## Residual Risk
-1. Until migrations are applied in target environments, new admin endpoints will surface backend RPC errors.
-2. Runtime SQL security audit counts will include the new expected functions; environments without `047/048` applied will fail the audit by design.
+1. Environments that have not yet applied migrations `047/048` will still fail the expanded runtime SQL audit by design.

@@ -8,7 +8,11 @@ import {
   isSupportedKieResultMediaModel,
 } from "../kieResultMediaContracts";
 import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "../kieModelIds";
-import { kieKlingCallbackSuccessFixture } from "./fixtures/kieContractFixtures";
+import {
+  kieKlingCallbackSuccessFixture,
+  kieKlingRecordInfoSuccessFixture,
+  kieVeoRecordInfoSuccessFixture,
+} from "./fixtures/kieContractFixtures";
 
 describe("kieResultMediaContracts", () => {
   it("tracks supported Kie media models", () => {
@@ -61,6 +65,35 @@ describe("kieResultMediaContracts", () => {
       payload: kieKlingCallbackSuccessFixture,
     });
     expect(urls).toEqual(["https://example.com/generated-video.mp4"]);
+  });
+
+  it("extracts media URLs from record-info style envelopes", () => {
+    const veoUrls = extractKieResultMediaUrls({
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      payload: kieVeoRecordInfoSuccessFixture,
+    });
+    const klingUrls = extractKieResultMediaUrls({
+      modelId: KIE_KLING_30_MODEL_ID,
+      payload: kieKlingRecordInfoSuccessFixture,
+    });
+    expect(veoUrls).toEqual(["https://example.com/veo-generated-video.mp4"]);
+    expect(klingUrls).toEqual(["https://example.com/generated-video-from-record-info.mp4"]);
+  });
+
+  it("extracts media URLs when resultJson is already a parsed object", () => {
+    const urls = extractKieResultMediaUrls({
+      modelId: KIE_KLING_30_MODEL_ID,
+      payload: {
+        data: {
+          result: {
+            resultJson: {
+              resultUrls: ["https://cdn.shortpulse.test/kling-result-object.mp4"],
+            },
+          },
+        },
+      },
+    });
+    expect(urls).toEqual(["https://cdn.shortpulse.test/kling-result-object.mp4"]);
   });
 
   it("fails closed to empty list for unsupported models", () => {

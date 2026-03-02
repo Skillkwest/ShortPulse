@@ -227,6 +227,13 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts`
   - `scripts/check_model_catalog_parity.js`
   - Kie submit/status endpoints now default from canonical model contracts per model id (`veo` + `kling`) when env URL overrides are unset, with parity checks enforcing presence.
+- Added nested record-info envelope regression locks for Kie status/result parsing:
+  - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
+  - `frontend/lib/server/providerIntegration/kieResultMediaContracts.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieStatusContracts.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieResultMediaContracts.test.ts`
+  - Extends fixture-backed coverage to nested `data.result`/`result.data` envelope fields and parsed-object `resultJson` shapes for lifecycle, response URL, retry classification, and media extraction.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

@@ -34,6 +34,9 @@ const dedupeUrls = (urls: string[]): string[] =>
   Array.from(new Set(urls.map((url) => url.trim()).filter((url) => Boolean(url))));
 
 const parseResultJsonPayload = (value: unknown): Record<string, unknown> => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return asProviderRecord(value);
+  }
   const text = asProviderString(value);
   if (!text) return {};
   try {
@@ -47,10 +50,16 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
   const data = asProviderRecord(payload.data);
   const result = asProviderRecord(payload.result);
   const output = asProviderRecord(payload.output);
+  const dataResult = asProviderRecord(data.result);
+  const resultData = asProviderRecord(result.data);
+  const outputResult = asProviderRecord(output.result);
   const resultJsonRoot = parseResultJsonPayload(payload.resultJson);
   const resultJsonData = parseResultJsonPayload(data.resultJson);
   const resultJsonResult = parseResultJsonPayload(result.resultJson);
   const resultJsonOutput = parseResultJsonPayload(output.resultJson);
+  const resultJsonDataResult = parseResultJsonPayload(dataResult.resultJson);
+  const resultJsonResultData = parseResultJsonPayload(resultData.resultJson);
+  const resultJsonOutputResult = parseResultJsonPayload(outputResult.resultJson);
 
   if (modelId === KIE_VEO_31_FAST_I2V_MODEL_ID) {
     return [
@@ -58,21 +67,42 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
       output.videos,
       data.videos,
       result.videos,
+      dataResult.videos,
+      resultData.videos,
+      outputResult.videos,
       payload.video_urls,
       output.video_urls,
       data.video_urls,
       result.video_urls,
+      dataResult.video_urls,
+      resultData.video_urls,
+      outputResult.video_urls,
       payload.result_urls,
       data.result_urls,
       result.result_urls,
+      dataResult.result_urls,
+      resultData.result_urls,
+      outputResult.result_urls,
+      payload.resultUrls,
+      data.resultUrls,
+      result.resultUrls,
+      dataResult.resultUrls,
+      resultData.resultUrls,
+      outputResult.resultUrls,
       payload.video_url,
       output.video_url,
       data.video_url,
       result.video_url,
+      dataResult.video_url,
+      resultData.video_url,
+      outputResult.video_url,
       payload.file_url,
       output.file_url,
       data.file_url,
       result.file_url,
+      dataResult.file_url,
+      resultData.file_url,
+      outputResult.file_url,
       resultJsonRoot.resultUrls,
       resultJsonRoot.result_urls,
       resultJsonData.resultUrls,
@@ -81,6 +111,12 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
       resultJsonResult.result_urls,
       resultJsonOutput.resultUrls,
       resultJsonOutput.result_urls,
+      resultJsonDataResult.resultUrls,
+      resultJsonDataResult.result_urls,
+      resultJsonResultData.resultUrls,
+      resultJsonResultData.result_urls,
+      resultJsonOutputResult.resultUrls,
+      resultJsonOutputResult.result_urls,
     ];
   }
 
@@ -90,26 +126,51 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
       result.videos,
       output.videos,
       data.videos,
+      dataResult.videos,
+      resultData.videos,
+      outputResult.videos,
       payload.outputs,
       result.outputs,
       output.outputs,
       data.outputs,
+      dataResult.outputs,
+      resultData.outputs,
+      outputResult.outputs,
       payload.video_urls,
       result.video_urls,
       output.video_urls,
       data.video_urls,
+      dataResult.video_urls,
+      resultData.video_urls,
+      outputResult.video_urls,
       payload.result_urls,
       result.result_urls,
       output.result_urls,
       data.result_urls,
+      dataResult.result_urls,
+      resultData.result_urls,
+      outputResult.result_urls,
+      payload.resultUrls,
+      result.resultUrls,
+      output.resultUrls,
+      data.resultUrls,
+      dataResult.resultUrls,
+      resultData.resultUrls,
+      outputResult.resultUrls,
       payload.video_url,
       result.video_url,
       output.video_url,
       data.video_url,
+      dataResult.video_url,
+      resultData.video_url,
+      outputResult.video_url,
       payload.file_url,
       result.file_url,
       output.file_url,
       data.file_url,
+      dataResult.file_url,
+      resultData.file_url,
+      outputResult.file_url,
       resultJsonRoot.resultUrls,
       resultJsonRoot.result_urls,
       resultJsonData.resultUrls,
@@ -118,6 +179,12 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
       resultJsonResult.result_urls,
       resultJsonOutput.resultUrls,
       resultJsonOutput.result_urls,
+      resultJsonDataResult.resultUrls,
+      resultJsonDataResult.result_urls,
+      resultJsonResultData.resultUrls,
+      resultJsonResultData.result_urls,
+      resultJsonOutputResult.resultUrls,
+      resultJsonOutputResult.result_urls,
     ];
   }
 
@@ -129,8 +196,45 @@ const collectFallbackCandidates = (payload: Record<string, unknown>) => {
   const result = asProviderRecord(payload.result);
   const output = asProviderRecord(payload.output);
   const response = asProviderRecord(payload.response);
+  const dataResult = asProviderRecord(data.result);
+  const dataOutput = asProviderRecord(data.output);
+  const resultData = asProviderRecord(result.data);
+  const resultOutput = asProviderRecord(result.output);
+  const responseResult = asProviderRecord(response.result);
+  const responseData = asProviderRecord(response.data);
+  const outputResult = asProviderRecord(output.result);
+  const rootPayload = asProviderRecord(payload.payload);
+  const rootPayloadResult = asProviderRecord(rootPayload.result);
+  const rootResultJson = parseResultJsonPayload(payload.resultJson);
+  const dataResultJson = parseResultJsonPayload(data.resultJson);
+  const resultResultJson = parseResultJsonPayload(result.resultJson);
+  const outputResultJson = parseResultJsonPayload(output.resultJson);
+  const dataResultResultJson = parseResultJsonPayload(dataResult.resultJson);
+  const resultDataResultJson = parseResultJsonPayload(resultData.resultJson);
+  const outputResultResultJson = parseResultJsonPayload(outputResult.resultJson);
 
   return [
+    payload,
+    rootPayload,
+    data,
+    result,
+    output,
+    response,
+    dataResult,
+    dataOutput,
+    resultData,
+    resultOutput,
+    responseResult,
+    responseData,
+    outputResult,
+    rootPayloadResult,
+    rootResultJson,
+    dataResultJson,
+    resultResultJson,
+    outputResultJson,
+    dataResultResultJson,
+    resultDataResultJson,
+    outputResultResultJson,
     payload.images,
     payload.videos,
     payload.outputs,

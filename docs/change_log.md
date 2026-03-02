@@ -1799,3 +1799,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added model-catalog-owned Kie submit/status topology metadata (`kieSubmitUrl`, `kieStatusBaseUrls`, `kieTimeoutMs`) for Veo 3.1 Fast I2V and Kling 3.0.
 - Updated provider runtime resolution to use env overrides when present and model-catalog defaults when unset, keeping Kie dark-path guards and Fal behavior unchanged.
 - Extended model-catalog parity checks to require Kie topology fields and added regression coverage for catalog fallback behavior in submit/status dispatch paths.
+
+## 2026-03-01 (Phase 11 Kie record-info envelope hardening)
+- Expanded Kie status/result contract parsing to include nested envelope candidates (`data.result`, `result.data`, `response.result`, etc.) for lifecycle and retry classification.
+- Expanded Kie media extraction to support nested record-info result envelopes and parsed-object `resultJson` payloads in addition to JSON-string `resultJson`.
+- Added primary-source-style Veo/Kling record-info fixtures and regression tests to lock lifecycle, response URL, retry-code, and media extraction behavior.

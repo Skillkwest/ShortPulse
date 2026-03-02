@@ -24,6 +24,28 @@ export const kieVeoGenerateAcceptedResponseFixture = {
   },
 } as const;
 
+export const kieVeoRecordInfoRunningFixture = {
+  code: 200,
+  msg: "success",
+  data: {
+    taskId: "veo_task_abcdef123456",
+    state: "processing",
+    response_url: "https://api.kie.ai/api/v1/veo/record-info?taskId=veo_task_abcdef123456",
+  },
+} as const;
+
+export const kieVeoRecordInfoSuccessFixture = {
+  code: 200,
+  msg: "success",
+  data: {
+    taskId: "veo_task_abcdef123456",
+    state: "success",
+    result: {
+      resultUrls: ["https://example.com/veo-generated-video.mp4"],
+    },
+  },
+} as const;
+
 export const kieKlingCreateTaskRequestFixture = {
   model: "kling-3.0/video",
   callBackUrl: "https://example.com/callback/kling",
@@ -58,4 +80,17 @@ export const kieKlingCallbackFailureFixture = {
     resultJson: null,
   },
   msg: "Playground task failed.",
+} as const;
+
+export const kieKlingRecordInfoSuccessFixture = {
+  code: 200,
+  msg: "success",
+  data: {
+    taskId: "task_12345678",
+    status: "completed",
+    responseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_12345678",
+    result: {
+      resultUrls: ["https://example.com/generated-video-from-record-info.mp4"],
+    },
+  },
 } as const;

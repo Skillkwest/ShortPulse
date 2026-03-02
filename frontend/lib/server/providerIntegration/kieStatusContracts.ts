@@ -48,13 +48,29 @@ const normalizeKieStatusAlias = (status: string): string => {
 
 const collectKiePayloadCandidates = (payload: unknown): Record<string, unknown>[] => {
   const root = asProviderRecord(payload);
+  const rootPayload = asProviderRecord(root.payload);
   const data = asProviderRecord(root.data);
   const result = asProviderRecord(root.result);
   const response = asProviderRecord(root.response);
   const output = asProviderRecord(root.output);
-  return [root, data, result, response, output].filter(
-    (candidate) => Object.keys(candidate).length > 0
-  );
+  const meta = asProviderRecord(root.meta);
+  return [
+    root,
+    rootPayload,
+    data,
+    result,
+    response,
+    output,
+    meta,
+    asProviderRecord(data.result),
+    asProviderRecord(data.output),
+    asProviderRecord(result.data),
+    asProviderRecord(result.output),
+    asProviderRecord(response.result),
+    asProviderRecord(response.data),
+    asProviderRecord(output.result),
+    asProviderRecord(rootPayload.result),
+  ].filter((candidate) => Object.keys(candidate).length > 0);
 };
 
 const readNumericCode = (value: unknown): number | null => {

@@ -18,6 +18,8 @@ import {
 import {
   kieKlingCallbackFailureFixture,
   kieKlingCallbackSuccessFixture,
+  kieKlingRecordInfoSuccessFixture,
+  kieVeoRecordInfoRunningFixture,
 } from "./fixtures/kieContractFixtures";
 
 describe("kieStatusContracts", () => {
@@ -33,11 +35,19 @@ describe("kieStatusContracts", () => {
   it("maps callback fixtures to terminal lifecycle statuses", () => {
     expect(readKieLifecycleStatus(kieKlingCallbackSuccessFixture)).toBe("completed");
     expect(readKieLifecycleStatus(kieKlingCallbackFailureFixture)).toBe("failed");
+    expect(readKieLifecycleStatus(kieVeoRecordInfoRunningFixture)).toBe("running");
+    expect(readKieLifecycleStatus(kieKlingRecordInfoSuccessFixture)).toBe("completed");
   });
 
   it("reads response urls and media payload presence", () => {
     expect(readKieResponseUrl({ response_url: "https://queue.kie.ai/v1/requests/1" })).toBe(
       "https://queue.kie.ai/v1/requests/1"
+    );
+    expect(readKieResponseUrl(kieVeoRecordInfoRunningFixture)).toBe(
+      "https://api.kie.ai/api/v1/veo/record-info?taskId=veo_task_abcdef123456"
+    );
+    expect(readKieResponseUrl(kieKlingRecordInfoSuccessFixture)).toBe(
+      "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_12345678"
     );
     expect(
       kiePayloadHasMedia({
@@ -86,6 +96,11 @@ describe("kieStatusContracts", () => {
     );
     expect(isKieRetryableUpstreamPayload({ detail: { error_code: "timed_out" } })).toBe(true);
     expect(isKieRetryableUpstreamPayload({ code: "validation_error" })).toBe(false);
+    expect(
+      isKieRetryableUpstreamPayload({
+        data: { result: { code: "temporarily_unavailable" } },
+      })
+    ).toBe(true);
   });
 
   it("fails closed for unsupported model ids when model-aware validation is requested", () => {

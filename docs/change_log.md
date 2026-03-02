@@ -2586,3 +2586,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
 - Updated AI Studio agent chat ops SOP to reflect the new drag-source guard and prompt-first drop precedence:
   - `docs/sops/sop_ai_studio_agent_chat_ops.md`
+
+## 2026-03-02 (Fal reliability drain + settlement integrity closeout)
+- Completed focused Fal recovery drain execution using `/api/internal/generation-recovery/run` until convergence, including authenticated handling for Vercel deployment protection.
+- Cleared stale queue/recovery blocker candidates (`sql/check_generation_queue_blockers.sql` stale-candidate query returned no rows after targeted replay/single-record cleanup).
+- Verified settlement integrity post-drain (`sql/check_generation_settlement_integrity.sql`):
+  - `missing_charge_count = 0`
+  - `duplicate_charge_key_count = 0`
+- Normalized final legacy state hygiene (`status='success'` + `recovery_state='recovering'`) to `recovered`; post-check summary no longer reports that bucket.

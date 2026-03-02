@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST`, `SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST`, `SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -249,6 +249,29 @@ Mitigation guidance:
    - Recovery success rate for no-media terminal states stays above 99%.
    - Unresolved `terminal_success_no_media` older than 30 minutes remains below 0.1%.
    - Billing reservation/capture/refund invariants remain unchanged.
+
+## Methodical all-user drain cycle
+Use this after production reliability patches are enabled and scheduler health is green.
+
+1. Execute drain loop:
+   - `node scripts/run_generation_drain_cycle.mjs --base-url https://<deployment-domain> --secret <SHORTPULSE_FAL_RECONCILER_CRON_SECRET> --interval-ms 60000 --max-runs 120 --converged-runs 3 --max-consecutive-errors 3`
+   - If the deployment is Vercel-protected, authenticate first (`vercel curl` or protection-bypass token flow) so recovery-route `401` responses are not misclassified as runtime failures.
+2. Confirm convergence from script output:
+   - no sustained `claimed`/`requeued`/`queueClaimed` work,
+   - `queueDispatchErrors=0`,
+   - `errors=0` across convergence window.
+3. Run SQL diagnostics:
+   - `sql/check_generation_queue_blockers.sql`
+   - `sql/check_generation_settlement_integrity.sql`
+4. Replay only residual outliers:
+   - `POST /api/admin/generation-recovery/replay` with explicit `generationId` or `requestId`.
+
+Transient-status telemetry note:
+- When `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED=true`, monitor:
+  - `telemetry.fal.status.transient.transport`
+  - `telemetry.fal.status.transient.non_json_status`
+  - `telemetry.fal.status.transient.non_json_result`
+  - `telemetry.fal.status.transient.no_media`
 
 ## Post-incident requirements
 1. Record incident summary and fix in `docs/change_log.md`.

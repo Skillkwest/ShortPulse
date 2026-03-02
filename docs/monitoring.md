@@ -7,6 +7,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Client route-transition failures (`client.route_change`, excluding cancelled navigations) are captured for incident triage.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
+- Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
 
 ## Telemetry pipeline topology
 1. Ingestion entrypoints:
@@ -34,6 +35,13 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 3. Reproduce using request ID, route, and metadata.
 4. Mitigate (rollback, hotfix, or config toggle).
 5. Record outcome in `docs/change_log.md` and, if unresolved, `docs/known-issues.md`.
+
+### Fal drain cycle monitoring
+- Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
+- Treat these fields as hard health signals during drain:
+  - `claimed`, `requeued`, `queueClaimed` (workload still active)
+  - `errors`, `queueDispatchErrors` (execution faults)
+- Convergence target: zero execution faults and no sustained active workload for the configured consecutive-run window.
 
 ## Admin triage controls
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.

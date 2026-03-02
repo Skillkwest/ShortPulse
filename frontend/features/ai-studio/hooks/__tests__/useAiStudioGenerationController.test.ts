@@ -113,6 +113,71 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
+  it("uses chat-off inline generate to submit trimmed raw input only", async () => {
+    const handleAgentSend = vi.fn(async () => ({
+      prompt: "agent prompt should not be used",
+      referenceTitle: "unused",
+    }));
+    const generateOutput = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "shared fallback should not be used",
+      agentInput: "  raw inline prompt  ",
+      chatModeEnabled: false,
+      handleAgentSend,
+      generateOutput,
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handleChatOffInlineGenerate();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(handleAgentSend).not.toHaveBeenCalled();
+    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+    expect(generateOutput).toHaveBeenCalledWith(
+      "raw inline prompt",
+      expect.objectContaining({ modeOverride: "image", selectedToolOverride: "create" })
+    );
+  });
+
+  it("does not submit chat-off inline generate when input is empty", async () => {
+    const handleAgentSend = vi.fn(async () => ({
+      prompt: "agent prompt should not be used",
+      referenceTitle: "unused",
+    }));
+    const generateOutput = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "shared fallback should not be used",
+      agentInput: "   ",
+      chatModeEnabled: false,
+      handleAgentSend,
+      generateOutput,
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handleChatOffInlineGenerate();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(handleAgentSend).not.toHaveBeenCalled();
+    expect(setPromptOrigin).not.toHaveBeenCalled();
+    expect(generateOutput).not.toHaveBeenCalled();
+  });
+
   it("prevents rapid double-generate submissions via click lock", async () => {
     const generateOutput = vi.fn();
     const params = createParams({

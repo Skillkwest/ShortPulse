@@ -1293,6 +1293,7 @@ export default function AiStudioPage() {
     isGenerateClickLocked,
     handleGenerate,
     handlePrimarySubmit,
+    handleChatOffInlineGenerate,
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
   } = useAiStudioGenerationController({
@@ -1497,6 +1498,7 @@ export default function AiStudioPage() {
     handleClearAgentChat,
     isAgentChatOpen,
     handlePrimarySubmit,
+    handleChatOffInlineGenerate,
     savePromptReference,
     characterOptions,
     selectedCharacterId,

@@ -76,6 +76,7 @@ const createParams = (
     handleClearAgentChat: vi.fn(),
     isAgentChatOpen: false,
     handlePrimarySubmit: vi.fn(),
+    handleChatOffInlineGenerate: vi.fn(),
     savePromptReference: vi.fn(),
     characterOptions: [],
     selectedCharacterId: "",
@@ -156,6 +157,22 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesCreate.outputGenerateCostCredits).toBe(25);
     expect(result.current.propertiesCreate.hasSufficientCreditsForOutputGenerate).toBe(true);
     expect(typeof result.current.propertiesCreate.onGenerateFromAgentOutputPrompt).toBe("function");
+    expect(typeof result.current.propertiesCreate.onChatOffInlineGenerate).toBe("function");
+  });
+
+  it("forwards chat-off inline generate handler into create properties", () => {
+    const handleChatOffInlineGenerate = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          handleChatOffInlineGenerate,
+        })
+      )
+    );
+
+    expect(result.current.propertiesCreate.onChatOffInlineGenerate).toBe(
+      handleChatOffInlineGenerate
+    );
   });
 
   it("does not disable generate controls when only agent send is busy", () => {

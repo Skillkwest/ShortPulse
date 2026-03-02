@@ -86,6 +86,7 @@ export type CreatePropertiesPanelProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromAgentOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
+  onChatOffInlineGenerate: () => void;
   onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
@@ -285,6 +286,7 @@ export function CreatePropertiesPanel({
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
   onGenerate,
+  onChatOffInlineGenerate,
 }: CreatePropertiesPanelProps) {
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
   const promptStepNumber = beginnerMode ? "2" : "1";
@@ -426,7 +428,7 @@ export function CreatePropertiesPanel({
     onAssistantMessageEdit,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     chatModeInlineGenerate: {
-      onGenerate,
+      onGenerate: onChatOffInlineGenerate,
       disabled: isGenerateDisabled || isPromptGenerating,
       ariaLabel: "Generate with current prompt",
     },

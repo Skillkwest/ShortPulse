@@ -89,6 +89,7 @@ export type UseAiStudioPanelPropsParams = {
   handleClearAgentChat: () => void;
   isAgentChatOpen: boolean;
   handlePrimarySubmit: () => void;
+  handleChatOffInlineGenerate: () => void;
   savePromptReference: (customPrompt?: string) => void;
   characterOptions: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
   selectedCharacterId: string;
@@ -211,6 +212,7 @@ export const useAiStudioPanelProps = ({
   handleClearAgentChat,
   isAgentChatOpen,
   handlePrimarySubmit,
+  handleChatOffInlineGenerate,
   savePromptReference,
   characterOptions,
   selectedCharacterId,
@@ -351,6 +353,7 @@ export const useAiStudioPanelProps = ({
     handleClearAgentChat,
     isAgentChatOpen,
     handlePrimarySubmit,
+    handleChatOffInlineGenerate,
     savePromptReference,
     characterOptions,
     selectedCharacterId,

@@ -463,6 +463,13 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     setPromptOrigin,
   ]);
 
+  const handleChatOffInlineGenerate = useCallback(() => {
+    const rawPrompt = agentInput.trim();
+    if (!rawPrompt) return;
+    setPromptOrigin("manual");
+    void handleGenerate(rawPrompt, { modeOverride: "image", toolOverride: "create" });
+  }, [agentInput, handleGenerate, setPromptOrigin]);
+
   const runRegenerateWithDebit = useCallback(async () => {
     if (!tryAcquireGenerateClickLock()) return;
 
@@ -591,6 +598,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     isGenerateClickLocked,
     handleGenerate,
     handlePrimarySubmit,
+    handleChatOffInlineGenerate,
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
   };

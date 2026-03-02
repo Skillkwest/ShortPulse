@@ -33,6 +33,7 @@ describe("CreatePropertiesPanel", () => {
     onPromptChange: vi.fn(),
     onToggleReferenceIndicator: vi.fn(),
     onGenerate: vi.fn(),
+    onChatOffInlineGenerate: vi.fn(),
     onSavePrompt: vi.fn(),
   };
 
@@ -279,20 +280,20 @@ describe("CreatePropertiesPanel", () => {
     expect(onGenerate).toHaveBeenCalledTimes(1);
   });
 
-  it("shows chat-off inline generate in expert mode and keeps it wired to onGenerate", () => {
-    const onGenerate = vi.fn();
+  it("shows chat-off inline generate in expert mode and keeps it wired to onChatOffInlineGenerate", () => {
+    const onChatOffInlineGenerate = vi.fn();
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       agentEnabled: true,
       chatModeEnabled: false,
       agentInput: "Refine this prompt for cinematic lighting.",
-      onGenerate,
+      onChatOffInlineGenerate,
       characterModeEnabled: false,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Generate with current prompt" }));
-    expect(onGenerate).toHaveBeenCalledTimes(1);
+    expect(onChatOffInlineGenerate).toHaveBeenCalledTimes(1);
   });
 
   it("disables chat-off inline generate when create generate is disabled", () => {
@@ -303,6 +304,7 @@ describe("CreatePropertiesPanel", () => {
       chatModeEnabled: false,
       agentInput: "A valid prompt should still be blocked when create is disabled.",
       onGenerate: vi.fn(),
+      onChatOffInlineGenerate: vi.fn(),
       characterModeEnabled: false,
       isGenerateDisabled: true,
     });
@@ -318,6 +320,7 @@ describe("CreatePropertiesPanel", () => {
       chatModeEnabled: false,
       agentInput: "",
       onGenerate: vi.fn(),
+      onChatOffInlineGenerate: vi.fn(),
       characterModeEnabled: false,
       isGenerateDisabled: false,
     });
@@ -332,6 +335,7 @@ describe("CreatePropertiesPanel", () => {
       agentEnabled: true,
       chatModeEnabled: false,
       onGenerate: vi.fn(),
+      onChatOffInlineGenerate: vi.fn(),
       characterModeEnabled: false,
       outputGenerateCostCredits: 1234,
     });

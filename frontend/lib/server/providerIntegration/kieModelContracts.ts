@@ -50,21 +50,71 @@ const asFiniteNumber = (value: unknown): number | null => {
   return null;
 };
 
-const readFirstImageUrl = (payload: Record<string, unknown>): string | null => {
-  const direct =
-    asNonEmptyString(payload.image_url) ??
-    asNonEmptyString(payload.imageUrl) ??
-    asNonEmptyString(payload.input_image_url) ??
-    asNonEmptyString(payload.inputImageUrl);
-  if (direct) return direct;
-
-  const imageUrls = payload.image_urls;
-  if (!Array.isArray(imageUrls)) return null;
-  for (const candidate of imageUrls) {
+const readImageUrlList = (payload: Record<string, unknown>): string[] => {
+  const urls: string[] = [];
+  const directCandidates = [
+    payload.image_url,
+    payload.imageUrl,
+    payload.input_image_url,
+    payload.inputImageUrl,
+  ];
+  for (const candidate of directCandidates) {
     const normalized = asNonEmptyString(candidate);
-    if (normalized) return normalized;
+    if (normalized) urls.push(normalized);
+  }
+
+  const listCandidates = [payload.image_urls, payload.imageUrls];
+  for (const candidateList of listCandidates) {
+    if (!Array.isArray(candidateList)) continue;
+    for (const candidate of candidateList) {
+      const normalized = asNonEmptyString(candidate);
+      if (normalized) urls.push(normalized);
+    }
+  }
+  return Array.from(new Set(urls));
+};
+
+const normalizeOptionalStringField = ({
+  payload,
+  fields,
+}: {
+  payload: Record<string, unknown>;
+  fields: string[];
+}): string | null => {
+  for (const field of fields) {
+    const value = asNonEmptyString(payload[field]);
+    if (value) return value;
   }
   return null;
+};
+
+const asHttpUrlString = (value: unknown): string | null => {
+  const text = asNonEmptyString(value);
+  if (!text) return null;
+  try {
+    const parsed = new URL(text);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
+const normalizeOptionalSeed = ({
+  payload,
+  modelLabel,
+}: {
+  payload: Record<string, unknown>;
+  modelLabel: string;
+}): number | null => {
+  if (payload.seeds === undefined && payload.seed === undefined) return null;
+  const resolved = asPositiveInteger(payload.seeds ?? payload.seed);
+  if (resolved === null || resolved < 10000 || resolved > 99999) {
+    throw new Error(
+      `${modelLabel} submit field "seeds" must be an integer between 10000 and 99999.`
+    );
+  }
+  return resolved;
 };
 
 const normalizeAspectRatio = ({
@@ -205,7 +255,7 @@ const normalizeCommonKieVideoFields = ({
   defaultAspect: string;
   allowedDurations: readonly number[];
 }): Record<string, unknown> => {
-  const normalized: Record<string, unknown> = { ...payload };
+  const normalized: Record<string, unknown> = {};
   const aspectRatio = normalizeAspectRatio({
     payload,
     allowedValues: allowedAspects,
@@ -224,7 +274,6 @@ const normalizeCommonKieVideoFields = ({
   });
 
   normalized.aspect_ratio = aspectRatio;
-  delete normalized.aspect;
   if (durationSeconds !== null) {
     normalized.duration_seconds = durationSeconds;
     normalized.duration = durationSeconds;
@@ -255,47 +304,194 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
     defaultAspect: contract.defaultAspect,
     allowedDurations: contract.allowedDurations,
   });
-  const imageUrl = readFirstImageUrl(payload);
-  if (!imageUrl) {
+  const imageUrls = readImageUrlList(payload);
+  if (!imageUrls.length) {
     throw new Error("Kie VEO 3.1 Fast I2V submit requires an image URL.");
+  }
+  const generationType =
+    normalizeOptionalStringField({
+      payload,
+      fields: ["generationType", "generation_type"],
+    }) ?? "FIRST_AND_LAST_FRAMES_2_VIDEO";
+  if (
+    generationType !== "FIRST_AND_LAST_FRAMES_2_VIDEO" &&
+    generationType !== "REFERENCE_2_VIDEO"
+  ) {
+    throw new Error(
+      `Kie VEO 3.1 Fast I2V submit uses unsupported generationType: ${generationType}. Allowed: FIRST_AND_LAST_FRAMES_2_VIDEO, REFERENCE_2_VIDEO`
+    );
+  }
+  if (generationType === "FIRST_AND_LAST_FRAMES_2_VIDEO" && imageUrls.length > 2) {
+    throw new Error("Kie VEO 3.1 Fast I2V FIRST_AND_LAST_FRAMES_2_VIDEO supports 1-2 image URLs.");
+  }
+  if (generationType === "REFERENCE_2_VIDEO") {
+    if (imageUrls.length < 1 || imageUrls.length > 3) {
+      throw new Error("Kie VEO 3.1 Fast I2V REFERENCE_2_VIDEO supports 1-3 image URLs.");
+    }
+    if (normalized.aspect_ratio !== "16:9") {
+      throw new Error("Kie VEO 3.1 Fast I2V REFERENCE_2_VIDEO requires aspect_ratio=16:9.");
+    }
   }
   const resolution = normalizeOptionalResolution({
     payload,
     allowedValues: contract.allowedResolutions,
     modelLabel: "Kie VEO 3.1 Fast I2V",
   });
+  const modelVariant =
+    normalizeOptionalStringField({
+      payload,
+      fields: ["model", "model_variant", "modelVariant"],
+    }) ?? "veo3_fast";
+  if (modelVariant !== "veo3" && modelVariant !== "veo3_fast") {
+    throw new Error(
+      `Kie VEO 3.1 Fast I2V submit uses unsupported model value: ${modelVariant}. Allowed: veo3, veo3_fast`
+    );
+  }
+  const callbackUrl = asHttpUrlString(
+    normalizeOptionalStringField({
+      payload,
+      fields: ["callBackUrl", "callbackUrl", "callback_url"],
+    })
+  );
+  if (
+    normalizeOptionalStringField({
+      payload,
+      fields: ["callBackUrl", "callbackUrl", "callback_url"],
+    }) &&
+    !callbackUrl
+  ) {
+    throw new Error("Kie VEO 3.1 Fast I2V submit field callBackUrl must be a valid http(s) URL.");
+  }
+  const watermark = normalizeOptionalStringField({
+    payload,
+    fields: ["watermark"],
+  });
+  const enableTranslation = normalizeOptionalBooleanField({
+    payload,
+    field: "enableTranslation",
+    modelLabel: "Kie VEO 3.1 Fast I2V",
+  });
+  const enableFallback = normalizeOptionalBooleanField({
+    payload,
+    field: "enableFallback",
+    modelLabel: "Kie VEO 3.1 Fast I2V",
+  });
+  const seeds = normalizeOptionalSeed({
+    payload,
+    modelLabel: "Kie VEO 3.1 Fast I2V",
+  });
   normalized.prompt = prompt;
-  normalized.image_url = imageUrl;
+  normalized.model = modelVariant;
+  normalized.imageUrls = imageUrls;
+  normalized.image_url = imageUrls[0];
+  normalized.generationType = generationType;
   if (resolution) normalized.resolution = resolution;
+  if (callbackUrl) normalized.callBackUrl = callbackUrl;
+  if (watermark) normalized.watermark = watermark;
+  if (enableTranslation !== null) normalized.enableTranslation = enableTranslation;
+  if (enableFallback !== null) normalized.enableFallback = enableFallback;
+  if (seeds !== null) normalized.seeds = seeds;
   return normalized;
 };
 
 const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<string, unknown> => {
+  const inputPayload = asRecord(payload.input);
+  const source = Object.keys(inputPayload).length ? inputPayload : payload;
   const contract = readRequiredKieCatalogContract({
     modelId: KIE_KLING_30_MODEL_ID,
     modelLabel: "Kie Kling 3.0",
   });
   const normalized = normalizeCommonKieVideoFields({
-    payload,
+    payload: source,
     modelLabel: "Kie Kling 3.0",
     allowedAspects: contract.allowedAspects,
     defaultAspect: contract.defaultAspect,
     allowedDurations: contract.allowedDurations,
   });
-  const prompt = asNonEmptyString(payload.prompt);
+  const prompt = asNonEmptyString(source.prompt);
   if (!prompt) {
     throw new Error("Kie Kling 3.0 submit requires a prompt.");
   }
+  const imageUrls = readImageUrlList(source);
+  if (!imageUrls.length) {
+    throw new Error("Kie Kling 3.0 submit requires at least one image URL.");
+  }
   const cfgScale = normalizeOptionalNumberField({
-    payload,
+    payload: source,
     field: "cfg_scale",
     modelLabel: "Kie Kling 3.0",
   });
-  normalized.prompt = prompt;
-  if (cfgScale !== null) {
-    normalized.cfg_scale = cfgScale;
+  const mode =
+    normalizeOptionalStringField({
+      payload: source,
+      fields: ["mode"],
+    }) ?? "std";
+  if (mode !== "std" && mode !== "pro") {
+    throw new Error(`Kie Kling 3.0 submit uses unsupported mode: ${mode}. Allowed: std, pro`);
   }
-  return normalized;
+  const multiShotsRaw = source.multi_shots;
+  const multiShots =
+    multiShotsRaw === undefined
+      ? false
+      : normalizeOptionalBooleanField({
+          payload: source,
+          field: "multi_shots",
+          modelLabel: "Kie Kling 3.0",
+        });
+  const sound = (() => {
+    if (source.sound !== undefined) {
+      return normalizeOptionalBooleanField({
+        payload: source,
+        field: "sound",
+        modelLabel: "Kie Kling 3.0",
+      });
+    }
+    if (source.generate_audio !== undefined) {
+      return normalizeOptionalBooleanField({
+        payload: source,
+        field: "generate_audio",
+        modelLabel: "Kie Kling 3.0",
+      });
+    }
+    return true;
+  })();
+  if (multiShots === true && sound !== true) {
+    throw new Error("Kie Kling 3.0 multi_shots=true requires sound=true.");
+  }
+  const callbackValue = normalizeOptionalStringField({
+    payload,
+    fields: ["callBackUrl", "callbackUrl", "callback_url"],
+  });
+  const callbackUrl = callbackValue ? asHttpUrlString(callbackValue) : null;
+  if (callbackValue && !callbackUrl) {
+    throw new Error("Kie Kling 3.0 submit field callBackUrl must be a valid http(s) URL.");
+  }
+  const durationValue =
+    asPositiveInteger(source.duration) ??
+    asPositiveInteger(source.duration_seconds) ??
+    contract.allowedDurations[0];
+  if (!durationValue || !contract.allowedDurations.includes(durationValue)) {
+    throw new Error(
+      `Kie Kling 3.0 submit uses unsupported duration: ${durationValue}. Allowed: ${contract.allowedDurations.join(", ")}`
+    );
+  }
+  const input: Record<string, unknown> = {
+    mode,
+    image_urls: imageUrls,
+    prompt,
+    duration: String(durationValue),
+    aspect_ratio: normalized.aspect_ratio,
+    multi_shots: Boolean(multiShots),
+    sound: sound ?? true,
+  };
+  if (cfgScale !== null) {
+    input.cfg_scale = cfgScale;
+  }
+  return {
+    model: "kling-3.0/video",
+    ...(callbackUrl ? { callBackUrl: callbackUrl } : {}),
+    input,
+  };
 };
 
 /**

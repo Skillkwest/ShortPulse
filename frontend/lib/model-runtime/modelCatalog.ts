@@ -441,7 +441,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
     verifiedAt: VERIFIED_AT,
     submitAspectField: "aspect_ratio",
     defaultAspect: "16:9",
-    allowedAspects: ["16:9", "9:16"],
+    allowedAspects: ["16:9", "9:16", "Auto"],
     defaultDurationSeconds: 8,
     allowedDurations: [4, 6, 8],
     defaultResolution: "1080p",
@@ -546,7 +546,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
     payloadValidation: {
       requiredStringFields: ["prompt"],
       enumFields: {
-        aspect_ratio: ["16:9", "9:16"],
+        aspect_ratio: ["16:9", "9:16", "Auto"],
         resolution: ["720p", "1080p"],
       },
       optionalBooleanFields: ["delete_video"],

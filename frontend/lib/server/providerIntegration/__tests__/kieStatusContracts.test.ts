@@ -46,6 +46,7 @@ describe("kieStatusContracts", () => {
   it("evaluates terminal lifecycle statuses and successful-candidate resolution", () => {
     expect(isKieCompletedStatus("finished")).toBe(true);
     expect(isKieCompletedStatus("running")).toBe(false);
+    expect(isKieFailedStatus("fail")).toBe(true);
     expect(isKieFailedStatus("rejected")).toBe(true);
     expect(isKieFailedStatus("running")).toBe(false);
     expect(resolveKieSuccessfulPayloadStatus([null, "processing", "finished"])).toBe("finished");

@@ -193,6 +193,13 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/falIntegration/recoveryExecution.ts`
   - `frontend/pages/api/fal/webhook.ts`
   - Consolidates provider/model-aware media URL extraction and removes duplicate parsing logic from recovery/webhook paths.
+- Captured Kie Veo/Kling primary-source contract details and aligned dark-path adapter normalization:
+  - `frontend/lib/server/providerIntegration/kieModelContracts.ts`
+  - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
+  - `frontend/lib/server/providerIntegration/kieResultMediaContracts.ts`
+  - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
+  - `docs/api/api-kie-kling-3-0.md`
+  - Added Veo alias + generation-type normalization (`imageUrls`, `callBackUrl`, `generationType`, `seeds` range), Kling create-task payload normalization (`model` + `input`), callback `state=fail` terminal mapping, and callback `resultJson.resultUrls` media extraction support.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

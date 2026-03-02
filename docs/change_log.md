@@ -1760,3 +1760,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - default duration consistency when allowed durations are configured,
   - required Kie contract fields (`payloadValidation`, `allowedDurations`).
 - Added Phase 11 evidence/stage/tracker updates for this anti-drift governance slice.
+
+## 2026-03-01 (phase-11 kie primary-source contract alignment slice)
+- Captured Kie Veo/Kling primary-source contract details and updated API docs:
+  - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
+  - `docs/api/api-kie-kling-3-0.md`
+- Aligned Kie submit contracts with documented request conventions:
+  - Veo alias normalization (`imageUrls`, `callBackUrl`, `generationType`), `seeds` range validation, and generation-type image-count/aspect constraints.
+  - Kling submit normalization to `createTask` request shape (`model` + `input`) with validated mode/sound/multi-shot/image requirements.
+- Aligned callback parsing contracts for documented callback shapes:
+  - terminal `state=fail` handling in Kie status contracts,
+  - `resultJson.resultUrls` media extraction in Kie result-media contracts.
+- Added Phase 11 evidence/stage/tracker updates for this primary-source alignment slice.

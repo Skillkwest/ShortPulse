@@ -30,6 +30,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 25. `2026-03-01-phase-11-slice-b-provider-source-provenance-parity-guard.md` - enforces provider source-url host provenance parity (`fal`/`kie`/`openai`) in model-catalog governance checks.
 26. `2026-03-01-phase-11-slice-b-kie-allowlist-normalization-and-validation.md` - enforces normalized + validated Kie allowlist entry parsing in runtime config to fail closed on invalid/non-Kie patterns.
 27. `2026-03-01-phase-11-slice-b-model-contract-completeness-parity-guard.md` - enforces model-contract completeness checks (aspect/duration defaults + required Kie contract fields) in model-catalog governance.
+28. `2026-03-01-phase-11-slice-b-kie-primary-source-contract-capture-and-alignment.md` - captures Veo/Kling primary-source contract details and aligns Kie dark-path submit/status/media adapters with documented request/callback shapes.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

@@ -33,10 +33,24 @@ const asUrlList = (value: unknown): string[] => {
 const dedupeUrls = (urls: string[]): string[] =>
   Array.from(new Set(urls.map((url) => url.trim()).filter((url) => Boolean(url))));
 
+const parseResultJsonPayload = (value: unknown): Record<string, unknown> => {
+  const text = asProviderString(value);
+  if (!text) return {};
+  try {
+    return asProviderRecord(JSON.parse(text));
+  } catch {
+    return {};
+  }
+};
+
 const collectModelSpecificCandidates = (modelId: string, payload: Record<string, unknown>) => {
   const data = asProviderRecord(payload.data);
   const result = asProviderRecord(payload.result);
   const output = asProviderRecord(payload.output);
+  const resultJsonRoot = parseResultJsonPayload(payload.resultJson);
+  const resultJsonData = parseResultJsonPayload(data.resultJson);
+  const resultJsonResult = parseResultJsonPayload(result.resultJson);
+  const resultJsonOutput = parseResultJsonPayload(output.resultJson);
 
   if (modelId === KIE_VEO_31_FAST_I2V_MODEL_ID) {
     return [
@@ -59,6 +73,14 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
       output.file_url,
       data.file_url,
       result.file_url,
+      resultJsonRoot.resultUrls,
+      resultJsonRoot.result_urls,
+      resultJsonData.resultUrls,
+      resultJsonData.result_urls,
+      resultJsonResult.resultUrls,
+      resultJsonResult.result_urls,
+      resultJsonOutput.resultUrls,
+      resultJsonOutput.result_urls,
     ];
   }
 
@@ -88,6 +110,14 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
       result.file_url,
       output.file_url,
       data.file_url,
+      resultJsonRoot.resultUrls,
+      resultJsonRoot.result_urls,
+      resultJsonData.resultUrls,
+      resultJsonData.result_urls,
+      resultJsonResult.resultUrls,
+      resultJsonResult.result_urls,
+      resultJsonOutput.resultUrls,
+      resultJsonOutput.result_urls,
     ];
   }
 

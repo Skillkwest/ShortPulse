@@ -29,7 +29,7 @@ describe("kieModelContracts", () => {
         modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
           prompt: "make a short clip",
-          image_urls: ["https://example.com/ref.png"],
+          imageUrls: ["https://example.com/ref.png"],
           aspect: "16:9",
           duration: "5",
         },
@@ -38,9 +38,12 @@ describe("kieModelContracts", () => {
       expect.objectContaining({
         prompt: "make a short clip",
         image_url: "https://example.com/ref.png",
+        imageUrls: ["https://example.com/ref.png"],
         aspect_ratio: "16:9",
         duration: 5,
         duration_seconds: 5,
+        generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+        model: "veo3_fast",
       })
     );
 
@@ -74,6 +77,24 @@ describe("kieModelContracts", () => {
       })
     );
 
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        payload: {
+          prompt: "clip",
+          imageUrls: ["https://example.com/ref.png", "https://example.com/ref-2.png"],
+          generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+          seeds: 12345,
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        imageUrls: ["https://example.com/ref.png", "https://example.com/ref-2.png"],
+        generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+        seeds: 12345,
+      })
+    );
+
     expect(() =>
       normalizeKieSubmitPayloadForModel({
         modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -91,10 +112,25 @@ describe("kieModelContracts", () => {
         payload: {
           prompt: "clip",
           image_url: "https://example.com/ref.png",
-          duration: 10,
+          seeds: 999,
         },
       })
-    ).toThrow("Kie VEO 3.1 Fast I2V submit uses unsupported duration");
+    ).toThrow('Kie VEO 3.1 Fast I2V submit field "seeds" must be an integer');
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        payload: {
+          prompt: "clip",
+          imageUrls: [
+            "https://example.com/ref-1.png",
+            "https://example.com/ref-2.png",
+            "https://example.com/ref-3.png",
+          ],
+          generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+        },
+      })
+    ).toThrow("FIRST_AND_LAST_FRAMES_2_VIDEO supports 1-2 image URLs");
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
@@ -125,25 +161,27 @@ describe("kieModelContracts", () => {
         modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "a cinematic pan shot",
+          image_url: "https://example.com/ref.png",
           aspect: "9:16",
           duration: 10,
-          resolution: "1080p",
         },
       })
     ).toEqual(
       expect.objectContaining({
-        prompt: "a cinematic pan shot",
-        aspect_ratio: "9:16",
-        duration: 10,
-        duration_seconds: 10,
-        resolution: "1080p",
+        model: "kling-3.0/video",
+        input: expect.objectContaining({
+          prompt: "a cinematic pan shot",
+          image_urls: ["https://example.com/ref.png"],
+          aspect_ratio: "9:16",
+          duration: "10",
+        }),
       })
     );
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
         modelId: KIE_KLING_30_MODEL_ID,
-        payload: { duration: 10 },
+        payload: { duration: 10, image_url: "https://example.com/ref.png" },
       })
     ).toThrow("Kie Kling 3.0 submit requires a prompt.");
   });
@@ -154,16 +192,18 @@ describe("kieModelContracts", () => {
         modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
+          image_url: "https://example.com/ref.png",
           duration: "10",
           cfg_scale: "0.6",
         },
       })
     ).toEqual(
       expect.objectContaining({
-        aspect_ratio: "16:9",
-        duration: 10,
-        duration_seconds: 10,
-        cfg_scale: 0.6,
+        input: expect.objectContaining({
+          aspect_ratio: "16:9",
+          duration: "10",
+          cfg_scale: 0.6,
+        }),
       })
     );
 
@@ -172,6 +212,7 @@ describe("kieModelContracts", () => {
         modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
+          image_url: "https://example.com/ref.png",
           aspect_ratio: "4:3",
         },
       })
@@ -182,6 +223,7 @@ describe("kieModelContracts", () => {
         modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
+          image_url: "https://example.com/ref.png",
           duration: 8,
         },
       })
@@ -192,6 +234,7 @@ describe("kieModelContracts", () => {
         modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
+          image_url: "https://example.com/ref.png",
           cfg_scale: "high",
         },
       })
@@ -202,6 +245,7 @@ describe("kieModelContracts", () => {
         modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
+          image_url: "https://example.com/ref.png",
           generate_audio: "yes",
         } as unknown as Record<string, unknown>,
       })

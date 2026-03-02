@@ -40,6 +40,20 @@ describe("kieResultMediaContracts", () => {
     expect(urls).toEqual(["https://cdn.shortpulse.test/kling.mp4"]);
   });
 
+  it("extracts media URLs from callback-style resultJson payloads", () => {
+    const urls = extractKieResultMediaUrls({
+      modelId: KIE_KLING_30_MODEL_ID,
+      payload: {
+        data: {
+          resultJson: JSON.stringify({
+            resultUrls: ["https://cdn.shortpulse.test/kling-callback.mp4"],
+          }),
+        },
+      },
+    });
+    expect(urls).toEqual(["https://cdn.shortpulse.test/kling-callback.mp4"]);
+  });
+
   it("fails closed to empty list for unsupported models", () => {
     const urls = extractKieResultMediaUrls({
       modelId: "kie-ai/unknown",

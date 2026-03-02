@@ -1742,3 +1742,13 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `openai` -> `platform.openai.com` / `openai.com`.
 - Added URL host parsing + allowlist checks to fail fast on source provenance drift in the canonical model catalog.
 - Added Phase 11 evidence/stage/tracker updates for this anti-drift governance slice.
+
+## 2026-03-01 (phase-11 kie allowlist normalization and validation hardening)
+- Hardened `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts` allowlist parsing to:
+  - normalize entries to lowercase,
+  - allow canonical Kie model ids and `*`,
+  - reject invalid/non-Kie allowlist entries (fail-closed).
+- Added focused tests for normalized + invalid-entry filtering and fail-closed behavior:
+  - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`.
+- Clarified Kie allowlist env contract in `frontend/.env.example`.
+- Added Phase 11 evidence/stage/tracker updates for this anti-drift runtime-config slice.

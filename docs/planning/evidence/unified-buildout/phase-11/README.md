@@ -28,6 +28,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 23. `2026-03-01-phase-11-slice-b-kie-registry-canonical-id-parity-guard.md` - extends canonical Kie model-id parity checks to model registry entries so runtime catalog/registry/docs stay in lockstep.
 24. `2026-03-01-phase-11-slice-b-runtime-model-surface-parity-guard.md` - enforces full runtime model surface parity between catalog and registry (model presence + provider classification) for all providers.
 25. `2026-03-01-phase-11-slice-b-provider-source-provenance-parity-guard.md` - enforces provider source-url host provenance parity (`fal`/`kie`/`openai`) in model-catalog governance checks.
+26. `2026-03-01-phase-11-slice-b-kie-allowlist-normalization-and-validation.md` - enforces normalized + validated Kie allowlist entry parsing in runtime config to fail closed on invalid/non-Kie patterns.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

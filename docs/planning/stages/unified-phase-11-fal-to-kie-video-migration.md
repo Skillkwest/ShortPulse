@@ -113,6 +113,7 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts`
   - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`
   - `frontend/.env.example`
+  - Kie allowlist parsing now normalizes entries and rejects invalid/non-Kie patterns to keep runtime enablement fail-closed.
 - Extended provider integration boundaries to support `provider="kie"` while preserving Fal behavior:
   - `frontend/lib/server/providerIntegration/providerKey.ts`
   - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`

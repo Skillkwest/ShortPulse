@@ -4,6 +4,7 @@
  */
 
 import { getModelConfig } from "../../model-runtime/pricing";
+import { isKnownKieModelId } from "../../model-runtime/providerModelIds";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./providerKey";
 
@@ -28,13 +29,25 @@ const parseInteger = (value: string | undefined, fallback: number, min: number):
 const normalizeHostname = (hostname: string): string =>
   hostname.trim().toLowerCase().replace(/\.$/, "");
 
+const normalizeAllowlistEntry = (entry: string): string => entry.trim().toLowerCase();
+
+const isValidKieAllowlistEntry = (entry: string): boolean => {
+  if (entry === "*") return true;
+  if (entry.endsWith("*")) {
+    const prefix = entry.slice(0, -1);
+    return prefix.startsWith("kie-ai/") && prefix.length > "kie-ai/".length;
+  }
+  return isKnownKieModelId(entry);
+};
+
 const parseAllowlist = (value: string | undefined): Set<string> => {
   if (!value?.trim()) return new Set<string>();
   return new Set(
     value
       .split(",")
-      .map((entry) => entry.trim())
+      .map((entry) => normalizeAllowlistEntry(entry))
       .filter((entry) => entry.length > 0)
+      .filter((entry) => isValidKieAllowlistEntry(entry))
   );
 };
 

@@ -38,6 +38,8 @@ import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
+import { buildAiStudioSessionSnapshot } from "../features/ai-studio/logic/sessionSnapshot";
+import { useAiStudioSessionWriteShadow } from "../features/ai-studio/hooks/useAiStudioSessionWriteShadow";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -192,7 +194,7 @@ type AiStudioPerfWindow = Window & {
 };
 
 export default function AiStudioPage() {
-  useAiStudioSessionIdentity();
+  const { sessionId } = useAiStudioSessionIdentity();
 
   const {
     mediaAutosaveEnabled,
@@ -1032,6 +1034,7 @@ export default function AiStudioPage() {
     agentActions,
     isAgentChatOpen,
     latestAgentPrompt,
+    promptOrigin,
     setPromptOrigin,
     agentPrimarySource,
     stagedAgentPrompt,
@@ -1075,6 +1078,86 @@ export default function AiStudioPage() {
     setActiveOutputId,
     setUiNotice,
     trackAgentUiEvent: trackUiEvent,
+  });
+
+  const sessionSnapshot = useMemo(() => {
+    if (!sessionId) return null;
+    return buildAiStudioSessionSnapshot({
+      sessionId,
+      mode,
+      selectedTool,
+      prompt,
+      model,
+      aspect,
+      referenceImageUrl,
+      extraImageUrls,
+      editReferenceText,
+      videoReferenceText,
+      videoReferenceMode,
+      videoDurationSeconds,
+      videoResolution,
+      imageResolution,
+      videoGenerateAudio,
+      videoCameraFixed,
+      videoAutoFix,
+      klingNegativePrompt,
+      klingCfgScale,
+      klingShotType,
+      klingVoiceIds,
+      klingMultiPrompts,
+      klingElements,
+      motionReferenceVideoUrl,
+      outputs,
+      archivedOutputs,
+      activeOutputId,
+      curatedReferenceIds,
+      removedFromAllRefsIds,
+      agentMessages,
+      agentInput,
+      latestAgentPrompt,
+      promptOrigin,
+      chatModeEnabled,
+    });
+  }, [
+    activeOutputId,
+    agentInput,
+    agentMessages,
+    archivedOutputs,
+    aspect,
+    chatModeEnabled,
+    curatedReferenceIds,
+    editReferenceText,
+    extraImageUrls,
+    imageResolution,
+    klingCfgScale,
+    klingElements,
+    klingMultiPrompts,
+    klingNegativePrompt,
+    klingShotType,
+    klingVoiceIds,
+    latestAgentPrompt,
+    mode,
+    model,
+    motionReferenceVideoUrl,
+    outputs,
+    prompt,
+    promptOrigin,
+    referenceImageUrl,
+    removedFromAllRefsIds,
+    selectedTool,
+    sessionId,
+    videoAutoFix,
+    videoCameraFixed,
+    videoDurationSeconds,
+    videoGenerateAudio,
+    videoReferenceMode,
+    videoReferenceText,
+    videoResolution,
+  ]);
+
+  useAiStudioSessionWriteShadow({
+    sessionId,
+    snapshot: sessionSnapshot,
   });
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);

@@ -196,18 +196,36 @@ Completed:
    - executed targeted UX consistency packet for inline/expanded chat surfaces + restore-hydration adjacency seams (`67/67` passing),
    - local rollout gates passed (`lint`, `type-check`, `build`, `docs:check`),
    - staging-dependent closeout remains pending deployment parity.
+37. RCP-4 runtime canary threshold tuning checkpoint completed:
+   - locked threshold packet and counter-metric mapping from canonical windowed SQL + evaluator scripts,
+   - locked promote/hold/rollback decision rules and zero-sample handling policy for recovery-rate windows.
+38. Wave H Pass 0 governance lock:
+   - added Wave H plan/tracker for controlled webhook canary closeout execution,
+   - activated Wave H H1 operator packet readiness while retaining deferred Wave F staging admin-API closeout dependency.
+39. Wave H Pass 1 operator packet readiness:
+   - froze deterministic UTC canary windows (`canary-1`, `canary-2`) with exact start/end boundaries,
+   - published reproducible command packet and evaluator/SQL runbook evidence note,
+   - published window-specific evidence templates for H2 execution packet capture (`2026-03-02-phase-13-wave-h-pass-1-operator-packet-readiness.md`, `2026-03-02-phase-13-wave-h-canary-window-1-template.md`, `2026-03-02-phase-13-wave-h-canary-window-2-template.md`).
+40. Wave H Pass 2 pre-window local gate:
+   - executed canonical local checkpoint gate (`bash scripts/phase11_shadow_checkpoint_gate.sh --quick`),
+   - local no-regression packet passed (`98/98` tests),
+   - recorded execution evidence in `2026-03-02-phase-13-wave-h-pass-2-pre-window-local-gate.md`.
+41. Temporary deferment lock for consolidated closeout sweep:
+   - applied rollout deferment lock on `2026-03-02` to pause remaining window/closeout execution work,
+   - planned restart target set to `2026-03-06` (UTC) for full repo-wide testing-window/planning-window/closeout sweep.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
 3. Wave E remaining passes (promote/hold evidence windows and gate closeout).
-4. Wave F staging/target-environment integrated validation window closeout and Waves G-H (`RCP-4 pending`).
+4. Wave F staging/target-environment integrated validation window closeout and Wave H window SQL/evaluator execution plus H3 decision windows.
+5. Phase-13 deferred-sweep resume and execution packet capture in the scheduled full closeout window (`2026-03-06` UTC target).
 
 ## Surgical Research Checkpoints (Required)
 1. RCP-1: browser lifecycle/autosave transport reliability. Status: complete (`2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`).
 2. RCP-2: Supabase RLS + `SECURITY DEFINER` + upsert/prune semantics. Status: complete (`2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`).
 3. RCP-3: provider safety/error normalization contracts. Status: complete (`2026-03-02-phase-13-rcp-3-provider-safety-error-normalization.md`).
-4. RCP-4: Fal/Kie canary threshold and webhook/status contract tuning.
+4. RCP-4: Fal/Kie canary threshold and webhook/status contract tuning. Status: complete (`2026-03-02-phase-13-rcp-4-runtime-canary-threshold-tuning.md`).
 
 ## Required Deliverables
 1. Updates in canonical docs only:

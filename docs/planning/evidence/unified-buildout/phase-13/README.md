@@ -58,8 +58,15 @@ Example:
 29. `2026-03-02-phase-13-wave-g-pass-0-governance-lock.md`
 30. `2026-03-02-phase-13-wave-g-pass-1-prompt-adjacency-contract-normalization.md`
 31. `2026-03-02-phase-13-wave-g-pass-2-local-validation-window-1.md`
+32. `2026-03-02-phase-13-wave-h-pass-1-operator-packet-readiness.md`
+33. `2026-03-02-phase-13-wave-h-pass-2-pre-window-local-gate.md`
+
+## Wave H Execution Templates
+1. `2026-03-02-phase-13-wave-h-canary-window-1-template.md`
+2. `2026-03-02-phase-13-wave-h-canary-window-2-template.md`
 
 ## Current Research Notes
 1. `2026-03-02-phase-13-rcp-1-browser-lifecycle-save-strategy.md`
 2. `2026-03-02-phase-13-rcp-2-supabase-rls-security-definer-upsert-pruning.md`
 3. `2026-03-02-phase-13-rcp-3-provider-safety-error-normalization.md`
+4. `2026-03-02-phase-13-rcp-4-runtime-canary-threshold-tuning.md`

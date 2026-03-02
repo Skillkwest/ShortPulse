@@ -39,6 +39,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-agent-safety-control-plane-tracker.md`: Wave F execution tracker for safety control-plane phases, validation gates, and evidence.
 - `ai-studio-ux-prompt-adjacency-rollout-plan.md`: Wave G consolidated UX + prompt-adjacency rollout plan (scope, gates, rollback posture).
 - `ai-studio-ux-prompt-adjacency-rollout-tracker.md`: Wave G execution tracker for prompt-adjacent contract consolidation and UX rollout gates.
+- `ai-studio-webhook-canary-closeout-plan.md`: Wave H controlled webhook canary closeout plan (windowed thresholds, promote/hold/rollback decisioning).
+- `ai-studio-webhook-canary-closeout-tracker.md`: Wave H execution tracker for canary window readiness, decision gates, and phase closeout dependencies.
 - `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
 - `ai-studio-reference-grid-modularization-program.md`: documentation-first foundation program for no-regression reference-grid modularization (domain contracts, strangler phases, rollback policy, guardrails).
 - `ai-studio-reference-grid-modularization-tracker.md`: phase tracker for reference-grid modularization status, gates, blockers, and evidence links.

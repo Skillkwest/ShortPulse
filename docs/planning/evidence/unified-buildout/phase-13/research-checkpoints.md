@@ -50,6 +50,8 @@ Evidence output:
 
 ## RCP-4: Runtime Canary Threshold Tuning
 Trigger: before webhook canary promotion.
+Status: Complete (2026-03-02)
+Evidence: `2026-03-02-phase-13-rcp-4-runtime-canary-threshold-tuning.md`
 
 Required focus:
 1. Fal/Kie webhook/status contract deltas.

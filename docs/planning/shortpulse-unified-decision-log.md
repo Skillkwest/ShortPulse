@@ -186,3 +186,18 @@ Last updated: 2026-03-02
 - Topic: Wave G prompt-adjacency normalization seam authority.
 - Decision: Chat-off create prompt resolution and agent-output generate request parsing must route through shared `promptAdjacency` logic seams (`resolveChatOffCreatePrompt`, `normalizeAgentOutputGenerateRequest`) with legacy string payload compatibility retained and no route/API envelope expansion.
 - Effective phase: 13.
+
+## Decision 038
+- Topic: Wave H canary threshold and decision authority.
+- Decision: Wave H promote/hold/rollback outcomes must use explicit UTC-window SQL gate summaries and evaluator output with locked thresholds (`duplicate_settlement_count=0`, `duplicate_media_persistence_count=0`, `unresolved_no_media_percent<0.1`, `recovery_success_percent>=99` when sample > 0), and promotion requires two consecutive `PASS` windows.
+- Effective phase: 13.
+
+## Decision 039
+- Topic: Wave H operator window packet freeze authority.
+- Decision: Wave H H2 execution must use only the frozen window packet (`canary-1: 2026-03-01 18:46:07+00 -> 2026-03-02 18:46:07+00`, `canary-2: 2026-03-02 18:46:07+00 -> 2026-03-03 18:46:07+00`) and the canonical command chain (`phase11_shadow_checkpoint_gate.sh`, `check_phase11_shadow_canary_gate_summary_windowed.sql`, `phase11_evaluate_gate_summary.mjs`); ad hoc window boundary edits are not allowed during the active decision cycle.
+- Effective phase: 13.
+
+## Decision 040
+- Topic: Temporary Wave-H/Phase-13 closeout deferment lock.
+- Decision: Remaining Phase 13 operational windows and closeout execution steps (Wave H H2/H3 and linked evidence windows) are paused as of `2026-03-02` and deferred into a consolidated full repo-wide sweep window targeted for `2026-03-06` (UTC), with no threshold-contract edits allowed during the hold.
+- Effective phase: 13.

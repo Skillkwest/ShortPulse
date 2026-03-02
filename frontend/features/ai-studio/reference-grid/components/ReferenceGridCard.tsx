@@ -14,7 +14,7 @@ export type ReferenceGridCardProps = {
   videoNodeKey: string;
   activeOutputId: string | null;
   isLoading: boolean;
-  loadingVisual: "none" | "spinner";
+  loadingVisual: "none" | "spinner" | "hydrating";
   cardPreviewUrl: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
@@ -228,8 +228,16 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         </div>
       ) : null}
       {loadingVisual !== "none" ? (
-        <div className="reference-loading">
-          <div className="reference-spinner" />
+        <div
+          className={`reference-loading${
+            loadingVisual === "hydrating" ? " reference-loading--hydrating" : ""
+          }`}
+        >
+          {loadingVisual === "spinner" ? (
+            <div className="reference-spinner" />
+          ) : (
+            <div className="reference-hydration-indicator" aria-hidden="true" />
+          )}
         </div>
       ) : null}
       {isLoading && canRetryStatus && isSelected ? (

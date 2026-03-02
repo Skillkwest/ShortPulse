@@ -13,7 +13,7 @@ import type { Provider } from "../../logic/stateParsers";
 import { applyQueuedSubmissionPatch } from "./outputLifecyclePatches";
 import type { StudioOutput, ToolId } from "../../types";
 
-export const QUEUE_STATUS_MAX_WAIT_MS = 20 * 60 * 1000;
+export const QUEUE_STATUS_MAX_WAIT_MS = 30 * 60 * 1000;
 export const clampQueuePollMs = (value: number) =>
   Math.max(500, Math.min(10000, Math.trunc(value)));
 

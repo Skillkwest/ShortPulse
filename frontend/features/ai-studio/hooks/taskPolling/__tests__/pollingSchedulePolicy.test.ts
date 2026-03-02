@@ -12,8 +12,8 @@ import {
 
 describe("pollingSchedulePolicy", () => {
   it("uses provider-specific max wait budget", () => {
-    expect(getPollMaxWaitMs("fal")).toBe(12 * 60 * 1000);
-    expect(getPollMaxWaitMs("fal-kling")).toBe(20 * 60 * 1000);
+    expect(getPollMaxWaitMs("fal")).toBe(18 * 60 * 1000);
+    expect(getPollMaxWaitMs("fal-kling")).toBe(30 * 60 * 1000);
   });
 
   it("backs off poll delay with max cap", () => {

@@ -749,6 +749,10 @@
   border-radius: inherit;
 }
 
+.reference-loading--hydrating {
+  background: linear-gradient(180deg, rgba(12, 15, 22, 0.22), rgba(12, 15, 22, 0.34));
+}
+
 .reference-spinner {
   width: 28px;
   height: 28px;
@@ -756,6 +760,19 @@
   border: 2px solid rgba(255, 255, 255, 0.2);
   border-top-color: rgba(52, 200, 255, 0.88);
   animation: reference-spin 1.05s linear infinite;
+}
+
+.reference-hydration-indicator {
+  width: 24px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(112, 208, 255, 0.15),
+    rgba(112, 208, 255, 0.68),
+    rgba(112, 208, 255, 0.15)
+  );
+  box-shadow: 0 0 0 1px rgba(112, 208, 255, 0.2);
 }
 
 @media (prefers-reduced-motion: reduce) {

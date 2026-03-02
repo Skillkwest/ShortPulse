@@ -53,6 +53,9 @@ type DispatchOptions = {
 };
 
 const retryableSubmitStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const RETRY_BACKOFF_JITTER_FACTOR = 0.2;
+const RETRY_BACKOFF_MAX_SECONDS = 300;
+const QUEUE_LEASE_TIMEOUT_WARN_RATIO = 0.8;
 
 const isRetryableTransportError = (error: unknown): boolean => {
   if (error instanceof DOMException && error.name === "AbortError") return true;
@@ -134,11 +137,38 @@ const resolveBackoffSeconds = ({
   attempts: number;
 }) => {
   const exponent = Math.max(0, Math.min(8, attempts));
-  return Math.max(1, Math.min(300, baseSeconds * 2 ** exponent));
+  return Math.max(1, Math.min(RETRY_BACKOFF_MAX_SECONDS, baseSeconds * 2 ** exponent));
+};
+
+const resolveJitteredBackoffSeconds = ({
+  baseSeconds,
+  attempts,
+}: {
+  baseSeconds: number;
+  attempts: number;
+}) => {
+  const baseDelay = resolveBackoffSeconds({ baseSeconds, attempts });
+  const jitterWindow = Math.max(1, Math.round(baseDelay * RETRY_BACKOFF_JITTER_FACTOR));
+  const jitterOffset = Math.round((Math.random() * 2 - 1) * jitterWindow);
+  return Math.max(1, Math.min(RETRY_BACKOFF_MAX_SECONDS, baseDelay + jitterOffset));
 };
 
 const toIsoAfterSeconds = (seconds: number): string =>
   new Date(Date.now() + seconds * 1000).toISOString();
+
+const toRetryNextAttemptAtIso = ({
+  baseSeconds,
+  attempts,
+}: {
+  baseSeconds: number;
+  attempts: number;
+}) =>
+  toIsoAfterSeconds(
+    resolveJitteredBackoffSeconds({
+      baseSeconds,
+      attempts,
+    })
+  );
 
 const parseIsoTimestamp = (value: string | null): number | null => {
   if (!value) return null;
@@ -279,6 +309,30 @@ const processClaimedQueueItem = async ({
     modelId: item.modelId,
     fallback: "fal",
   });
+  const runtimeFlags = readFalRuntimeFlags();
+
+  if (
+    attemptNumber === 1 &&
+    item.timeoutMs > 0 &&
+    runtimeFlags.queueLeaseSeconds * 1000 >= item.timeoutMs * QUEUE_LEASE_TIMEOUT_WARN_RATIO
+  ) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "telemetry.queue.dispatch.lease_timeout_ratio_warn",
+      statusCode: 200,
+      message: "Queue lease duration is close to submit timeout budget.",
+      userId: item.userId,
+      metadata: {
+        queue_id: item.queueId,
+        generation_id: item.generationId,
+        source_ref: item.sourceRef,
+        queue_lease_seconds: runtimeFlags.queueLeaseSeconds,
+        submit_timeout_ms: item.timeoutMs,
+        warn_ratio: QUEUE_LEASE_TIMEOUT_WARN_RATIO,
+      },
+    });
+  }
 
   const existingRequestId = asString(generationRow.request_id);
   if (existingRequestId) {
@@ -312,9 +366,10 @@ const processClaimedQueueItem = async ({
         const retryResult = await updateQueueItemForRetry({
           queueId: item.queueId,
           attempts: attemptNumber,
-          nextAttemptAt: toIsoAfterSeconds(
-            resolveBackoffSeconds({ baseSeconds: baseBackoffSeconds, attempts: attemptNumber })
-          ),
+          nextAttemptAt: toRetryNextAttemptAtIso({
+            baseSeconds: baseBackoffSeconds,
+            attempts: attemptNumber,
+          }),
           lastError: message,
           lastErrorCode: errorCode,
         });
@@ -334,8 +389,6 @@ const processClaimedQueueItem = async ({
     }
     return metrics;
   }
-
-  const runtimeFlags = readFalRuntimeFlags();
 
   if (await isAtProviderConcurrencyCap({ userId: item.userId, modelId: item.modelId })) {
     const queueAgeSeconds = readQueueAgeSeconds(item.createdAt);
@@ -518,9 +571,10 @@ const processClaimedQueueItem = async ({
         const retryResult = await updateQueueItemForRetry({
           queueId: item.queueId,
           attempts: attemptNumber,
-          nextAttemptAt: toIsoAfterSeconds(
-            resolveBackoffSeconds({ baseSeconds: baseBackoffSeconds, attempts: attemptNumber })
-          ),
+          nextAttemptAt: toRetryNextAttemptAtIso({
+            baseSeconds: baseBackoffSeconds,
+            attempts: attemptNumber,
+          }),
           lastError: message,
           lastErrorCode: asString(upstreamData.code),
         });
@@ -592,9 +646,10 @@ const processClaimedQueueItem = async ({
         const retryResult = await updateQueueItemForRetry({
           queueId: item.queueId,
           attempts: attemptNumber,
-          nextAttemptAt: toIsoAfterSeconds(
-            resolveBackoffSeconds({ baseSeconds: baseBackoffSeconds, attempts: attemptNumber })
-          ),
+          nextAttemptAt: toRetryNextAttemptAtIso({
+            baseSeconds: baseBackoffSeconds,
+            attempts: attemptNumber,
+          }),
           lastError: message,
           lastErrorCode: "MISSING_REQUEST_ID",
         });
@@ -707,9 +762,10 @@ const processClaimedQueueItem = async ({
       const retryResult = await updateQueueItemForRetry({
         queueId: item.queueId,
         attempts: attemptNumber,
-        nextAttemptAt: toIsoAfterSeconds(
-          resolveBackoffSeconds({ baseSeconds: baseBackoffSeconds, attempts: attemptNumber })
-        ),
+        nextAttemptAt: toRetryNextAttemptAtIso({
+          baseSeconds: baseBackoffSeconds,
+          attempts: attemptNumber,
+        }),
         lastError: message,
         lastErrorCode: "TRANSPORT_RETRYABLE",
       });
@@ -729,9 +785,10 @@ const processClaimedQueueItem = async ({
       const retryResult = await updateQueueItemForRetry({
         queueId: item.queueId,
         attempts: attemptNumber,
-        nextAttemptAt: toIsoAfterSeconds(
-          resolveBackoffSeconds({ baseSeconds: baseBackoffSeconds, attempts: attemptNumber })
-        ),
+        nextAttemptAt: toRetryNextAttemptAtIso({
+          baseSeconds: baseBackoffSeconds,
+          attempts: attemptNumber,
+        }),
         lastError: message,
         lastErrorCode: errorCode,
       });

@@ -5,6 +5,7 @@ import type { StudioOutput } from "../../types";
 import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "../useAiStudioTasks";
+import { fetchFalQueueStatus } from "../../../../lib/falClient";
 
 vi.mock("../useAiStudioTaskSubmission", () => ({
   useAiStudioTaskSubmission: vi.fn(),
@@ -12,6 +13,10 @@ vi.mock("../useAiStudioTaskSubmission", () => ({
 
 vi.mock("../useAiStudioTasks", () => ({
   useAiStudioTasks: vi.fn(),
+}));
+
+vi.mock("../../../../lib/falClient", () => ({
+  fetchFalQueueStatus: vi.fn(),
 }));
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
@@ -36,6 +41,7 @@ type TasksCallbacks = Parameters<typeof useAiStudioTasks>[0];
 describe("useAiStudioTaskOrchestration", () => {
   const useAiStudioTaskSubmissionMock = vi.mocked(useAiStudioTaskSubmission);
   const useAiStudioTasksMock = vi.mocked(useAiStudioTasks);
+  const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
 
   let capturedTaskCallbacks: TasksCallbacks | null;
   let startPollingTask: ReturnType<typeof vi.fn>;
@@ -50,6 +56,12 @@ describe("useAiStudioTaskOrchestration", () => {
     pollTimersRef = { current: {} };
 
     useAiStudioTaskSubmissionMock.mockReturnValue(vi.fn());
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "queued",
+      generationId: "gen-1",
+      sourceRef: null,
+      retryAfterMs: 2000,
+    });
     useAiStudioTasksMock.mockImplementation(((callbacks: TasksCallbacks) => {
       capturedTaskCallbacks = callbacks;
       return {
@@ -457,5 +469,154 @@ describe("useAiStudioTaskOrchestration", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("resumes queued output polling when queue-status reports dispatched", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-queued",
+        generationId: "gen-1",
+        queueState: "queued",
+        taskState: "pending",
+        provider: "fal",
+      }),
+    ];
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "dispatched",
+      generationId: "gen-1",
+      sourceRef: "source-1",
+      requestId: "req-queued-1",
+      provider: "fal",
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure,
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchFalQueueStatusMock).toHaveBeenCalledWith({
+      generationId: "gen-1",
+    });
+    expect(clearPollTimer).toHaveBeenCalledWith("out-queued");
+    expect(startPollingTask).toHaveBeenCalledWith("req-queued-1", "out-queued", 0, "fal");
+    expect(outputs[0]?.taskId).toBe("req-queued-1");
+    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.taskState).toBe("running");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
+
+  it("marks queued output failed when queue-status reports failure", async () => {
+    const notifyGenerationFailure = vi.fn();
+    let outputs = [
+      createOutput({
+        id: "out-queued",
+        generationId: "gen-1",
+        queueState: "queued",
+        taskState: "pending",
+        provider: "fal",
+      }),
+    ];
+    const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "failed",
+      generationId: "gen-1",
+      sourceRef: "source-1",
+      message: "Queue exhausted",
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure,
+          updateOutputById: vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+            outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+          }),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-queued",
+      "Queue exhausted",
+      "Queue exhausted"
+    );
   });
 });

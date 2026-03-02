@@ -432,7 +432,7 @@ describe("useAiStudioTasks", () => {
     const updateOutputById = vi.fn();
     const notifyGenerationFailure = vi.fn();
     const onGenerationFailure = vi.fn();
-    const startedAt = Date.now() - (13 * 60 * 1000 + 2_000);
+    const startedAt = Date.now() - (19 * 60 * 1000 + 2_000);
 
     const { result } = renderHook(() =>
       useAiStudioTasks({
@@ -454,7 +454,7 @@ describe("useAiStudioTasks", () => {
         reasonCode: "poll_timeout",
         pollAttempt: 4,
         noMediaAttempt: 2,
-        maxWaitMs: 12 * 60 * 1000,
+        maxWaitMs: 18 * 60 * 1000,
       })
     );
     expect(onGenerationFailure).toHaveBeenCalledWith(

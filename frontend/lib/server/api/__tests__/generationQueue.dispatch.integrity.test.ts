@@ -423,4 +423,89 @@ describe("generationQueue/dispatch transition integrity", () => {
     delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
     delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
   });
+
+  it("applies deterministic jittered retry backoff within bounded delay", async () => {
+    vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, "random");
+    try {
+      vi.setSystemTime(new Date("2026-03-01T00:00:00.000Z"));
+      dispatchProviderSubmitMock.mockResolvedValue({
+        response: { ok: false, status: 429 },
+        data: { code: "rate_limit", message: "Slow down" },
+        providerRequestId: null,
+        targetUrl: "https://fal.test",
+        targetIndex: 0,
+      });
+
+      randomSpy.mockReturnValue(0);
+      await dispatchGenerationSubmitQueueBatch({
+        req: { method: "GET", headers: {} } as never,
+        routeLabel: "test/dispatch-integrity",
+        limit: 1,
+        userId: "user-1",
+      });
+      expect(updateQueueItemForRetryMock).toHaveBeenCalledTimes(1);
+      const lowJitterCall = updateQueueItemForRetryMock.mock.calls[0]?.[0];
+      const lowDelayMs = Date.parse(String(lowJitterCall?.nextAttemptAt)) - Date.now();
+      expect(lowDelayMs).toBeGreaterThanOrEqual(8_000);
+      expect(lowDelayMs).toBeLessThanOrEqual(12_000);
+      expect(lowDelayMs).toBe(8_000);
+
+      updateQueueItemForRetryMock.mockClear();
+      randomSpy.mockReturnValue(1);
+      await dispatchGenerationSubmitQueueBatch({
+        req: { method: "GET", headers: {} } as never,
+        routeLabel: "test/dispatch-integrity",
+        limit: 1,
+        userId: "user-1",
+      });
+      expect(updateQueueItemForRetryMock).toHaveBeenCalledTimes(1);
+      const highJitterCall = updateQueueItemForRetryMock.mock.calls[0]?.[0];
+      const highDelayMs = Date.parse(String(highJitterCall?.nextAttemptAt)) - Date.now();
+      expect(highDelayMs).toBeGreaterThanOrEqual(8_000);
+      expect(highDelayMs).toBeLessThanOrEqual(12_000);
+      expect(highDelayMs).toBe(12_000);
+    } finally {
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("emits lease-timeout warning telemetry when lease budget is near submit timeout", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      queueEnabled: true,
+      queueLeaseSeconds: 18,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      admission: {
+        globalMax: 8,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+
+    await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.queue.dispatch.lease_timeout_ratio_warn",
+        message: "Queue lease duration is close to submit timeout budget.",
+        metadata: expect.objectContaining({
+          queue_lease_seconds: 18,
+          submit_timeout_ms: 20_000,
+          warn_ratio: 0.8,
+        }),
+      })
+    );
+  });
 });

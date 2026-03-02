@@ -6,10 +6,7 @@ import React, { useCallback } from "react";
 import { ReferenceGridCard } from "../components/ReferenceGridCard";
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
-import {
-  isReferenceOutputFailing,
-  isReferenceOutputLoadingTaskState,
-} from "../logic/referenceGridLoadingState";
+import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
 
 export type ReferenceGridVisibleCard = {
   item: StudioOutput;
@@ -25,6 +22,8 @@ type UseReferenceGridCardRenderControllerArgs = {
   autoplayEnabledIdSet: Set<string>;
   linkedPromptReferenceIdSet: Set<string>;
   loadingCardIdSet: Set<string>;
+  generationLoadingCardIdSet: Set<string>;
+  hydrationLoadingCardIdSet: Set<string>;
   perfDegradeLevel: 0 | 1 | 2;
   visibleCardItems: ReferenceGridVisibleCard[];
   curatedVisibleCardItems: ReferenceGridVisibleCard[];
@@ -66,6 +65,8 @@ export const useReferenceGridCardRenderController = ({
   autoplayEnabledIdSet,
   linkedPromptReferenceIdSet,
   loadingCardIdSet,
+  generationLoadingCardIdSet,
+  hydrationLoadingCardIdSet,
   perfDegradeLevel,
   visibleCardItems,
   curatedVisibleCardItems,
@@ -98,21 +99,20 @@ export const useReferenceGridCardRenderController = ({
       }
     ) => {
       const isFailing = isReferenceOutputFailing(card.item);
-      const isLoading =
-        !isFailing &&
-        isReferenceOutputLoadingTaskState({
-          taskState: card.item.taskState,
-          previewText: card.item.previewText,
-          cardPreviewUrl: card.cardPreviewUrl,
-        });
-      // Keep placeholder loading class deterministic even before ancillary loading derivations settle.
-      const isCardLoading = loadingCardIdSet.has(card.item.id) || isLoading;
-      const loadingVisual: "none" | "spinner" = isCardLoading ? "spinner" : "none";
+      const isGenerationLoading = generationLoadingCardIdSet.has(card.item.id);
+      const isHydrationLoading = hydrationLoadingCardIdSet.has(card.item.id);
+      const isCardLoading = loadingCardIdSet.has(card.item.id);
+      const loadingVisual: "none" | "spinner" | "hydrating" = isGenerationLoading
+        ? "spinner"
+        : isHydrationLoading
+          ? "hydrating"
+          : "none";
       const canAutoplayVideo =
         card.isVideoPreview && autoplayEnabledIdSet.has(card.item.id) && perfDegradeLevel < 2;
       const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
       const isLinkedPromptReference = isPromptOnly && linkedPromptReferenceIdSet.has(card.item.id);
-      const canRetryStatus = Boolean(onRetryStatus && card.item.taskId) && (isFailing || isLoading);
+      const canRetryStatus =
+        Boolean(onRetryStatus && card.item.taskId) && (isFailing || isGenerationLoading);
       const videoNodeKey = `${options.surface}:${card.item.id}`;
       return (
         <ReferenceGridCard
@@ -182,6 +182,8 @@ export const useReferenceGridCardRenderController = ({
       autoplayEnabledIdSet,
       linkedPromptReferenceIdSet,
       markLoaded,
+      generationLoadingCardIdSet,
+      hydrationLoadingCardIdSet,
       onAutoplayStarted,
       onAutoplayStopped,
       onCardDragEnd,

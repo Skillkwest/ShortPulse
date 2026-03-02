@@ -4,10 +4,7 @@
  */
 import React from "react";
 import type { StudioOutput } from "../../types";
-import {
-  isReferenceOutputFailing,
-  isReferenceOutputLoadingTaskState,
-} from "../logic/referenceGridLoadingState";
+import { classifyReferenceGridCardVisualState } from "../logic/referenceGridCardVisualState";
 
 type LoadingVisualCard = {
   item: StudioOutput;
@@ -25,6 +22,10 @@ type UseReferenceGridLoadingVisualControllerArgs = {
 
 type UseReferenceGridLoadingVisualControllerResult = {
   loadingCardIdSet: Set<string>;
+  generationLoadingCardIdSet: Set<string>;
+  hydrationLoadingCardIdSet: Set<string>;
+  generationLoadingIdsLength: number;
+  hydrationLoadingIdsLength: number;
   loadingIdsLength: number;
 };
 
@@ -36,37 +37,53 @@ export const useReferenceGridLoadingVisualController = ({
   loadedMap,
   decodeBudgetEnabled,
 }: UseReferenceGridLoadingVisualControllerArgs): UseReferenceGridLoadingVisualControllerResult => {
-  const loadingIds = React.useMemo(() => {
+  const loadingState = React.useMemo(() => {
     const nextLoadingIds: string[] = [];
+    const nextGenerationLoadingIds: string[] = [];
+    const nextHydrationLoadingIds: string[] = [];
     allVisibleCardItems.forEach((card) => {
-      const isFailing = isReferenceOutputFailing(card.item);
-      const isLoadingTaskState =
-        !isFailing &&
-        isReferenceOutputLoadingTaskState({
-          taskState: card.item.taskState,
-          previewText: card.item.previewText,
-          cardPreviewUrl: card.cardPreviewUrl,
-        });
-      const isLoaded = loadedMap[card.item.id];
-      const shouldShowLoading =
-        !isFailing &&
-        (isLoadingTaskState ||
-          (!isLoaded && !card.item.previewText) ||
-          (card.isImagePreview &&
-            decodeBudgetEnabled &&
-            !card.imageSrc &&
-            card.isPriorityHydration));
-      if (shouldShowLoading) {
+      const visualState = classifyReferenceGridCardVisualState({
+        item: card.item,
+        cardPreviewUrl: card.cardPreviewUrl,
+        isLoaded: Boolean(loadedMap[card.item.id]),
+        decodeBudgetEnabled,
+        isImagePreview: card.isImagePreview,
+        isPriorityHydration: card.isPriorityHydration,
+        imageSrc: card.imageSrc,
+      });
+      if (visualState.isLoading) {
         nextLoadingIds.push(card.item.id);
       }
+      if (visualState.isGenerationLoading) {
+        nextGenerationLoadingIds.push(card.item.id);
+      }
+      if (visualState.isMediaHydrating) {
+        nextHydrationLoadingIds.push(card.item.id);
+      }
     });
-    return nextLoadingIds;
+    return {
+      loadingIds: nextLoadingIds,
+      generationLoadingIds: nextGenerationLoadingIds,
+      hydrationLoadingIds: nextHydrationLoadingIds,
+    };
   }, [allVisibleCardItems, decodeBudgetEnabled, loadedMap]);
 
-  const loadingCardIdSet = React.useMemo(() => new Set(loadingIds), [loadingIds]);
+  const loadingCardIdSet = React.useMemo(() => new Set(loadingState.loadingIds), [loadingState]);
+  const generationLoadingCardIdSet = React.useMemo(
+    () => new Set(loadingState.generationLoadingIds),
+    [loadingState]
+  );
+  const hydrationLoadingCardIdSet = React.useMemo(
+    () => new Set(loadingState.hydrationLoadingIds),
+    [loadingState]
+  );
 
   return {
     loadingCardIdSet,
-    loadingIdsLength: loadingIds.length,
+    generationLoadingCardIdSet,
+    hydrationLoadingCardIdSet,
+    generationLoadingIdsLength: loadingState.generationLoadingIds.length,
+    hydrationLoadingIdsLength: loadingState.hydrationLoadingIds.length,
+    loadingIdsLength: loadingState.loadingIds.length,
   };
 };

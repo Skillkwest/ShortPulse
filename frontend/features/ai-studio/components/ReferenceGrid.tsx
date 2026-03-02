@@ -576,7 +576,12 @@ export function ReferenceGrid({
     previewSwapTelemetryRef,
     setPreviewSwapMetrics,
   });
-  const { loadingCardIdSet, loadingIdsLength } = useReferenceGridLoadingVisualController({
+  const {
+    loadingCardIdSet,
+    generationLoadingCardIdSet,
+    hydrationLoadingCardIdSet,
+    loadingIdsLength,
+  } = useReferenceGridLoadingVisualController({
     allVisibleCardItems,
     loadedMap,
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
@@ -727,6 +732,8 @@ export function ReferenceGrid({
     autoplayEnabledIdSet,
     linkedPromptReferenceIdSet,
     loadingCardIdSet,
+    generationLoadingCardIdSet,
+    hydrationLoadingCardIdSet,
     perfDegradeLevel: perfWatchdog.degradeLevel,
     visibleCardItems,
     curatedVisibleCardItems,

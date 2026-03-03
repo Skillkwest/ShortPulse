@@ -42,6 +42,7 @@ import {
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
+import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
 import {
@@ -796,11 +797,12 @@ export function CharacterManagerShell({
       try {
         const resolved = await resolveCharacterDropReference(payload);
         const mediaId = resolved?.mediaId?.trim() ?? "";
-        if (!mediaId) {
+        const previewUrl = resolved?.previewUrl?.trim() || payload.referenceUrl?.trim() || null;
+        if (!mediaId && !previewUrl) {
           logCharacterDropBreadcrumb("character_drop_rejected", {
             target,
             zone_key: zoneKey ?? null,
-            reason: "missing_media_id",
+            reason: "missing_media_id_and_preview_url",
             origin: payload.origin,
             output_id: payload.outputId ?? null,
             image_index: payload.imageIndex,
@@ -814,11 +816,13 @@ export function CharacterManagerShell({
           source_surface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
           output_id: resolved?.outputId ?? payload.outputId ?? null,
           image_index: resolved?.imageIndex ?? payload.imageIndex,
-          media_id: mediaId,
+          media_id: mediaId || null,
+          resolved_via: mediaId ? "media_id" : "preview_url",
         });
         return {
           ...resolved,
           mediaId,
+          previewUrl,
           outputId: resolved?.outputId ?? payload.outputId,
           imageIndex: resolved?.imageIndex ?? payload.imageIndex,
           sourceSurface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
@@ -1299,8 +1303,13 @@ export function CharacterManagerShell({
   const addDroppedReferenceToQuickSwap = useCallback(
     async (reference: DroppedImageReference, options?: { suppressErrorTelemetry?: boolean }) => {
       try {
+        if (pageBusy || quickSwapMutating) return false;
         const file = await toDroppedReferenceFile(reference);
-        await uploadSimpleFiles([file]);
+        clearAllMessages();
+        const appended = await appendQuickSwapFilesFromHook([file]);
+        if (!appended) {
+          throw new Error("Failed to append dropped media to QuickSwap deck.");
+        }
         return true;
       } catch (error) {
         const errorMessage =
@@ -1323,7 +1332,7 @@ export function CharacterManagerShell({
         return false;
       }
     },
-    [uploadSimpleFiles]
+    [appendQuickSwapFilesFromHook, clearAllMessages, pageBusy, quickSwapMutating]
   );
 
   const openReferencePreview = useCallback((index: number, aspectRatio: number | null) => {
@@ -1561,6 +1570,38 @@ export function CharacterManagerShell({
             if (!resolvedReference) {
               return;
             }
+            const resolvedMediaId = resolvedReference.mediaId.trim();
+            if (!resolvedMediaId) {
+              const previewUrl = resolvedReference.previewUrl?.trim();
+              if (!previewUrl) {
+                void reportAppError({
+                  source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+                  scope: "app",
+                  severity: "low",
+                  message: "character_sheet_drop_reference_missing_preview_url",
+                  metadata: {
+                    target: "character_sheet",
+                    drop_zone_key: characterSheetSlotKey,
+                    output_id: resolvedReference.outputId ?? null,
+                    image_index: resolvedReference.imageIndex ?? null,
+                  },
+                });
+                logCharacterDropBreadcrumb("character_drop_rejected", {
+                  target: "character_sheet",
+                  zone_key: characterSheetSlotKey,
+                  reason: "missing_preview_url",
+                  output_id: resolvedReference.outputId ?? null,
+                  image_index: resolvedReference.imageIndex ?? null,
+                });
+                return;
+              }
+              await setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, {
+                url: previewUrl,
+                mimeType: null,
+                mediaFileId: null,
+              });
+              return;
+            }
             const assigned = await assignResolvedReferenceToCharacterSheetSlot(
               characterSheetSlotKey,
               resolvedReference
@@ -1769,7 +1810,7 @@ export function CharacterManagerShell({
               </button>
             </div>
           ) : null}
-          {activeTab === "create" && effectiveBeginnerMode && !isEmbeddedSurface ? (
+          {activeTab === "create" && !isEmbeddedSurface ? (
             <p className="character-mode-guidance" role="note">
               <span className="character-mode-guidance-label">Tip:</span>
               Swap out your character&apos;s style on the fly by dragging and dropping references
@@ -1826,11 +1867,9 @@ export function CharacterManagerShell({
                     ) : null}
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">Identity</h3>
-                      {effectiveBeginnerMode ? (
-                        <p className="character-section-helper tiny subdued">
-                          Set the photo, name, and description that define this character.
-                        </p>
-                      ) : null}
+                      <p className="character-section-helper tiny subdued">
+                        Set the photo, name, and description that define this character.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2005,42 +2044,6 @@ export function CharacterManagerShell({
                       </label>
                     </div>
                   </div>
-
-                  <div className="character-profile-description-block character-profile-fields character-profile-fields--label-serif">
-                    <label
-                      className="control-row character-simple-field"
-                      htmlFor="character-manager-description"
-                    >
-                      <div className="character-description-label-row">
-                        <span className="input-label">Description:</span>
-                        {effectiveBeginnerMode ? (
-                          <p className="character-description-helper character-description-helper--inline tiny subdued">
-                            {CHARACTER_DESCRIPTION_HELPER_TEXT}
-                          </p>
-                        ) : null}
-                      </div>
-                      <textarea
-                        id="character-manager-description"
-                        className="character-description-input"
-                        rows={isEmbeddedSurface ? 3 : 4}
-                        value={characterDescription}
-                        maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
-                        onChange={(event) => setCharacterDescription(event.target.value)}
-                        placeholder="A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim, toned waist, a curvy lower body, and thick thighs."
-                        disabled={loading}
-                      />
-                      <div className="character-description-footer-row">
-                        {!effectiveBeginnerMode ? (
-                          <p className="character-description-helper tiny subdued">
-                            {CHARACTER_DESCRIPTION_HELPER_TEXT}
-                          </p>
-                        ) : null}
-                        <p className="character-description-count tiny subdued">
-                          {characterDescription.length}/{CHARACTER_DESCRIPTION_MAX_LENGTH}
-                        </p>
-                      </div>
-                    </label>
-                  </div>
                 </div>
               </section>
             }
@@ -2131,12 +2134,66 @@ export function CharacterManagerShell({
                         });
                         if (!resolvedReference) return;
                         const mediaId = resolvedReference.mediaId.trim();
-                        if (!mediaId) return;
+                        if (!mediaId) {
+                          const previewUrl = resolvedReference.previewUrl?.trim();
+                          if (!previewUrl) {
+                            void reportAppError({
+                              source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+                              scope: "app",
+                              severity: "low",
+                              message: "quickswap_drop_reference_missing_preview_url",
+                              metadata: {
+                                target: "quickswap",
+                                output_id: resolvedReference.outputId ?? null,
+                                image_index: resolvedReference.imageIndex ?? null,
+                              },
+                            });
+                            logCharacterDropBreadcrumb("character_drop_rejected", {
+                              target: "quickswap",
+                              reason: "missing_preview_url",
+                              output_id: resolvedReference.outputId ?? null,
+                              image_index: resolvedReference.imageIndex ?? null,
+                            });
+                            return;
+                          }
+                          const uploaded = await addDroppedReferenceToQuickSwap(
+                            {
+                              url: previewUrl,
+                              mimeType: null,
+                              mediaFileId: null,
+                            },
+                            {
+                              suppressErrorTelemetry: true,
+                            }
+                          );
+                          if (uploaded) return;
+                          void reportAppError({
+                            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+                            scope: "app",
+                            severity: "low",
+                            message: "quickswap_drop_reference_failed_after_internal_resolve",
+                            metadata: {
+                              target: "quickswap",
+                              output_id: resolvedReference.outputId ?? null,
+                              image_index: resolvedReference.imageIndex ?? null,
+                              reason: "quickswap_upload_failed_without_media_id",
+                            },
+                          });
+                          logCharacterDropBreadcrumb("character_drop_rejected", {
+                            target: "quickswap",
+                            reason: "quickswap_upload_failed_without_media_id",
+                            output_id: resolvedReference.outputId ?? null,
+                            image_index: resolvedReference.imageIndex ?? null,
+                          });
+                          return;
+                        }
                         if (quickSwapItemByMediaFileId.has(mediaId)) return;
                         if (pendingQuickSwapMediaIdsRef.current.has(mediaId)) return;
                         pendingMediaId = mediaId;
                         pendingQuickSwapMediaIdsRef.current.add(mediaId);
-                        const attached = await appendExistingQuickSwapMediaFromHook(mediaId);
+                        const attached = await appendExistingQuickSwapMediaFromHook(mediaId, {
+                          suppressError: true,
+                        });
                         if (attached) return;
                         const previewUrl = resolvedReference.previewUrl?.trim();
                         let nextDroppedReference: DroppedImageReference | null = previewUrl
@@ -2242,12 +2299,10 @@ export function CharacterManagerShell({
                     ) : null}
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">Character Sheet</h3>
-                      {effectiveBeginnerMode ? (
-                        <p className="character-section-helper tiny subdued">
-                          Drag or upload references into each slot. These images are used to train
-                          your character generations.
-                        </p>
-                      ) : null}
+                      <p className="character-section-helper tiny subdued">
+                        Drag or upload references into each slot. These images are used to train
+                        your character generations.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2281,6 +2336,15 @@ export function CharacterManagerShell({
                   id={characterSheetPresetPanelId}
                   aria-labelledby={activeCharacterSheetPresetTabId}
                 >
+                  <CharacterDescriptionEditorCard
+                    description={characterDescription}
+                    helperText={CHARACTER_DESCRIPTION_HELPER_TEXT}
+                    maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
+                    rows={isEmbeddedSurface ? 3 : 4}
+                    disabled={loading}
+                    showInlineHelper={effectiveBeginnerMode}
+                    onChangeDescription={setCharacterDescription}
+                  />
                   <div className="character-reference-empty-grid">
                     {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
                       const assignedReference =
@@ -2375,7 +2439,7 @@ export function CharacterManagerShell({
               </section>
             }
             embeddedGuidance={
-              isEmbeddedSurface && effectiveBeginnerMode ? (
+              isEmbeddedSurface ? (
                 <p className="character-mode-guidance character-mode-guidance--sheet" role="note">
                   <span className="character-mode-guidance-label">Tip:</span>
                   Swap out your character&apos;s style on the fly by dragging and dropping

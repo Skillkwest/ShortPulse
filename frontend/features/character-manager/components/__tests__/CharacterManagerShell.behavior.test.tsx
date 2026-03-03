@@ -1100,6 +1100,51 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
+  it("accepts an internal reference-grid drop without media id into a Character Sheet zone", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["internal-no-media"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "",
+      previewUrl: "https://example.com/internal-no-media-character-sheet.png",
+      outputId: "output-internal-no-media-portrait-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
+
+      const portraitZone = getCharacterSheetZone("Portrait");
+      const internalDrag = createDataTransfer();
+      addInternalReferenceDragPayload(internalDrag, {
+        outputId: "output-internal-no-media-portrait-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/internal-no-media-character-sheet.png",
+      });
+
+      fireEvent.dragOver(portraitZone, { dataTransfer: internalDrag });
+      fireEvent.drop(portraitZone, { dataTransfer: internalDrag });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://example.com/internal-no-media-character-sheet.png"
+        );
+        expect(getZoneImageSrc("Portrait")).toBe("https://example.com/preset-1-portrait-1.png");
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("accepts a dragged reference-grid image into the QuickSwap deck", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -1184,6 +1229,110 @@ describe("CharacterManagerShell behavior", () => {
     }
   });
 
+  it("falls back to URL upload when internal QuickSwap media attach fails", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["internal-fallback"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(async () => false);
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "media-internal-fallback-1",
+      previewUrl: "https://example.com/internal-fallback-quickswap.png",
+      outputId: "output-internal-fallback-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+      const internalDrag = createDataTransfer();
+      addInternalReferenceDragPayload(internalDrag, {
+        outputId: "output-internal-fallback-1",
+        mediaId: "media-internal-fallback-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/internal-fallback-quickswap.png",
+      });
+      internalDrag.setData(
+        "text/reference-url",
+        "https://example.com/internal-fallback-quickswap.png"
+      );
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.drop(quickSwapSection, { dataTransfer: internalDrag });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://example.com/internal-fallback-quickswap.png"
+        );
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("accepts an internal reference-grid drop into QuickSwap without media id", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["internal-no-media"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "",
+      previewUrl: "https://example.com/internal-no-media-quickswap.png",
+      outputId: "output-internal-no-media-quickswap-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+      const internalDrag = createDataTransfer();
+      addInternalReferenceDragPayload(internalDrag, {
+        outputId: "output-internal-no-media-quickswap-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/internal-no-media-quickswap.png",
+      });
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.drop(quickSwapSection, { dataTransfer: internalDrag });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://example.com/internal-no-media-quickswap.png"
+        );
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("shows a pending QuickSwap overlay state while internal drop attachment is in flight", async () => {
     let resolveAppend: ((value: boolean) => void) | null = null;
     quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(
@@ -1226,7 +1375,7 @@ describe("CharacterManagerShell behavior", () => {
     await waitFor(() => {
       expect(screen.getByText("Adding image to QuickSwap Deck...")).toBeInTheDocument();
       expect(
-        screen.getByText("Saving reference and syncing your QuickSwap Deck.")
+        screen.getByText("Processing drop and syncing your QuickSwap Deck.")
       ).toBeInTheDocument();
     });
 
@@ -1495,7 +1644,7 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("toggles beginner mode guidance visibility", async () => {
+  it("keeps helper text and tips visible in expert mode while hiding numbered badges", async () => {
     render(<CharacterManagerShell />);
 
     expect(document.querySelectorAll(".character-step-badge")).toHaveLength(3);
@@ -1525,19 +1674,19 @@ describe("CharacterManagerShell behavior", () => {
     await waitFor(() => {
       expect(document.querySelectorAll(".character-step-badge")).toHaveLength(0);
       expect(
-        screen.queryByText("Set the photo, name, and description that define this character.")
-      ).not.toBeInTheDocument();
+        screen.getByText("Set the photo, name, and description that define this character.")
+      ).toBeInTheDocument();
       expect(
-        screen.queryByText(
+        screen.getByText(
           "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
         )
-      ).not.toBeInTheDocument();
+      ).toBeInTheDocument();
       expect(
-        screen.queryByText(
+        screen.getByText(
           "Drag or upload references into each slot. These images are used to train your character generations."
         )
-      ).not.toBeInTheDocument();
-      expect(document.querySelector(".character-mode-guidance")).not.toBeInTheDocument();
+      ).toBeInTheDocument();
+      expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
       expect(
         screen.getByText(
           "Tip: Character description will be used as part of consistency generation."

@@ -126,15 +126,11 @@ export const useAiStudioWorkspaceActions = ({
     (event: ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
       if (files && files.length > 0) {
-        if (isPrimaryCharacterTool(selectedTool)) {
-          addCharacterReferences(files);
-        } else {
-          addOutputsFromFiles(files, "filePicker");
-        }
+        addOutputsFromFiles(files, "filePicker");
       }
       event.target.value = "";
     },
-    [addCharacterReferences, addOutputsFromFiles, selectedTool]
+    [addOutputsFromFiles]
   );
 
   const handleReferenceGridFiles = useCallback(

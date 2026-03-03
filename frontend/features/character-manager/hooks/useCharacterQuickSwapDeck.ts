@@ -30,7 +30,10 @@ type UseCharacterQuickSwapDeckResult = {
   error: string | null;
   hasMoreArchived: boolean;
   appendFiles: (files: File[]) => Promise<boolean>;
-  appendExistingMediaReference: (mediaFileId: string) => Promise<boolean>;
+  appendExistingMediaReference: (
+    mediaFileId: string,
+    options?: { suppressError?: boolean }
+  ) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   restoreItem: (itemId: string) => Promise<boolean>;
   loadMoreArchived: () => Promise<void>;
@@ -120,7 +123,7 @@ export const useCharacterQuickSwapDeck = ({
   );
 
   const appendExistingMediaReference = useCallback(
-    async (mediaFileId: string) => {
+    async (mediaFileId: string, options?: { suppressError?: boolean }) => {
       const trimmedCharacterId = characterId?.trim() ?? "";
       const trimmedMediaFileId = mediaFileId.trim();
       if (disabled || !trimmedCharacterId || !trimmedMediaFileId) return false;
@@ -133,7 +136,9 @@ export const useCharacterQuickSwapDeck = ({
         await refresh();
         return true;
       } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to add dropped media to QuickSwap deck."));
+        if (!options?.suppressError) {
+          setError(toErrorMessage(nextError, "Failed to add dropped media to QuickSwap deck."));
+        }
         return false;
       } finally {
         setMutating(false);

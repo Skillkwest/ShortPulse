@@ -114,6 +114,14 @@ describe("CharacterManagerShell layout", () => {
     expect(screen.getByRole("heading", { name: "Identity" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
+
+    const descriptionInput = container.querySelector("#character-manager-description");
+    const sheetRegion = container.querySelector("[data-layout-region='sheet']");
+    const identityRegion = container.querySelector("[data-layout-region='identity']");
+
+    expect(descriptionInput).toBeInTheDocument();
+    expect(descriptionInput?.closest("[data-layout-region]")).toBe(sheetRegion);
+    expect(identityRegion?.querySelector("#character-manager-description")).toBeNull();
   });
 
   it("renders create layout regions in stable order on panel surface", () => {

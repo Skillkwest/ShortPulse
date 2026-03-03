@@ -202,7 +202,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
   });
 
-  it("keeps add/delete controls outside tablist semantics and dispatches delete for the matching preset", () => {
+  it("keeps tab semantics intact and dispatches delete for the matching preset", () => {
     const onDeletePreset = vi.fn();
     render(
       <CharacterSheetPresetTabs
@@ -229,9 +229,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
 
     const tablist = screen.getByRole("tablist", { name: "Character sheet style presets" });
     expect(within(tablist).getAllByRole("tab")).toHaveLength(3);
-    expect(
-      within(tablist).queryByRole("button", { name: "Delete preset 2" })
-    ).not.toBeInTheDocument();
+    expect(within(tablist).getByRole("button", { name: "Delete preset 2" })).toBeInTheDocument();
     expect(
       within(tablist).queryByRole("button", { name: "Add character sheet preset tab" })
     ).not.toBeInTheDocument();

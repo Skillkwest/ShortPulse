@@ -107,7 +107,7 @@ describe("useAiStudioWorkspaceActions", () => {
     expect(setMode).not.toHaveBeenCalled();
   });
 
-  it("routes file browser selection by primary Character tool and clears input value", () => {
+  it("always routes reference-grid file picker uploads to outputs and clears input value", () => {
     const addCharacterReferences = vi.fn();
     const addOutputsFromFiles = vi.fn();
     const { result, rerender } = renderHook(
@@ -128,8 +128,9 @@ describe("useAiStudioWorkspaceActions", () => {
         target: targetA,
       } as unknown as Parameters<typeof result.current.handleFileBrowserSelection>[0]);
     });
-    expect(addCharacterReferences).toHaveBeenCalledTimes(1);
-    expect(addOutputsFromFiles).not.toHaveBeenCalled();
+    expect(addCharacterReferences).not.toHaveBeenCalled();
+    expect(addOutputsFromFiles).toHaveBeenCalledTimes(1);
+    expect(addOutputsFromFiles).toHaveBeenLastCalledWith(targetA.files, "filePicker");
     expect(targetA.value).toBe("");
 
     rerender({ selectedTool: "create" });
@@ -139,22 +140,32 @@ describe("useAiStudioWorkspaceActions", () => {
         target: targetB,
       } as unknown as Parameters<typeof result.current.handleFileBrowserSelection>[0]);
     });
-    expect(addOutputsFromFiles).toHaveBeenCalledTimes(1);
+    expect(addOutputsFromFiles).toHaveBeenCalledTimes(2);
     expect(addOutputsFromFiles).toHaveBeenLastCalledWith(targetB.files, "filePicker");
     expect(targetB.value).toBe("");
 
     rerender({ selectedTool: "character" });
+    const targetC = { files: createFileList(), value: "filled" } as unknown as HTMLInputElement;
+    act(() => {
+      result.current.handleFileBrowserSelection({
+        target: targetC,
+      } as unknown as Parameters<typeof result.current.handleFileBrowserSelection>[0]);
+    });
+    expect(addOutputsFromFiles).toHaveBeenCalledTimes(3);
+    expect(addOutputsFromFiles).toHaveBeenLastCalledWith(targetC.files, "filePicker");
+    expect(targetC.value).toBe("");
+
     act(() => {
       result.current.handleReferenceGridFiles(createFileList());
     });
-    expect(addCharacterReferences).toHaveBeenCalledTimes(2);
+    expect(addCharacterReferences).toHaveBeenCalledTimes(1);
 
     rerender({ selectedTool: "create" });
     const droppedFiles = createFileList();
     act(() => {
       result.current.handleReferenceGridFiles(droppedFiles);
     });
-    expect(addOutputsFromFiles).toHaveBeenCalledTimes(2);
+    expect(addOutputsFromFiles).toHaveBeenCalledTimes(4);
     expect(addOutputsFromFiles).toHaveBeenLastCalledWith(droppedFiles, "drop");
   });
 });

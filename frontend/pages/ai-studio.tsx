@@ -321,9 +321,6 @@ export default function AiStudioPage() {
   } = useAiStudioState({
     isCharacterModeEnabled,
   });
-  const inFlightCharacterDropResolvesRef = useRef(
-    new Map<string, Promise<{ mediaId: string; previewUrl: string | null } | null>>()
-  );
   const resolveSavedMediaIdFromOutput = useCallback(
     (output: StudioOutput | null, imageIndex: number) => {
       if (!output?.savedMediaIds?.length) return null;
@@ -333,38 +330,6 @@ export default function AiStudioPage() {
       return normalized.length ? normalized : null;
     },
     []
-  );
-  const waitForOutputMediaId = useCallback(
-    async (outputId: string, imageIndex: number) => {
-      const safeIndex = Math.max(0, Math.floor(imageIndex));
-      const dedupeKey = `${outputId}:${safeIndex}`;
-      const inFlight = inFlightCharacterDropResolvesRef.current.get(dedupeKey);
-      if (inFlight) return inFlight;
-      const pending = (async () => {
-        const timeoutAt = Date.now() + 12_000;
-        saveReferenceToLibrary(outputId);
-        while (Date.now() < timeoutAt) {
-          const latestOutput = getOutputById(outputId);
-          const mediaId = resolveSavedMediaIdFromOutput(latestOutput, safeIndex);
-          if (mediaId) {
-            return {
-              mediaId,
-              previewUrl: latestOutput?.previewUrl ?? null,
-            };
-          }
-          if (latestOutput?.saveState === "failed") {
-            return null;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 120));
-        }
-        return null;
-      })().finally(() => {
-        inFlightCharacterDropResolvesRef.current.delete(dedupeKey);
-      });
-      inFlightCharacterDropResolvesRef.current.set(dedupeKey, pending);
-      return pending;
-    },
-    [getOutputById, resolveSavedMediaIdFromOutput, saveReferenceToLibrary]
   );
   const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
     async (payload: InternalReferenceDragPayload) => {
@@ -383,18 +348,15 @@ export default function AiStudioPage() {
           sourceSurface: payload.sourceSurface ?? null,
         };
       }
-      if (!outputId) return null;
-      const persisted = await waitForOutputMediaId(outputId, imageIndex);
-      if (!persisted?.mediaId) return null;
       return {
-        mediaId: persisted.mediaId,
-        previewUrl: persisted.previewUrl ?? payload.referenceUrl ?? null,
-        outputId,
+        mediaId: "",
+        previewUrl: output?.previewUrl ?? payload.referenceUrl ?? null,
+        outputId: outputId || null,
         imageIndex,
         sourceSurface: payload.sourceSurface ?? null,
       };
     },
-    [getOutputById, resolveSavedMediaIdFromOutput, waitForOutputMediaId]
+    [getOutputById, resolveSavedMediaIdFromOutput]
   );
   useAiStudioMediaAutosaveOrchestrator({
     outputs,

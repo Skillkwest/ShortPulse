@@ -182,12 +182,11 @@ body.character-manager-body {
 .character-manager-page--embedded .character-name-input,
 .character-manager-page--embedded .character-description-input,
 .character-manager-page--embedded .character-simple-dropzone,
+.character-manager-page--embedded .character-sheet-description-card,
 .character-manager-page--embedded .character-reference-upload-placeholder,
 .character-manager-page--embedded .character-reference-empty-hint,
 .character-manager-page--embedded .character-reference-upload-card,
-.character-manager-page--embedded .character-reference-upload-image-wrap,
-.character-manager-page--embedded .character-character-sheet-card,
-.character-manager-page--embedded .character-character-sheet-media {
+.character-manager-page--embedded .character-reference-upload-image-wrap {
   background: var(--color-bg);
 }
 
@@ -424,9 +423,7 @@ body.character-manager-body {
   letter-spacing: 0.01em;
 }
 
-.character-manager-page[data-beginner-mode="off"] .character-step-badge,
-.character-manager-page[data-beginner-mode="off"] .character-section-helper,
-.character-manager-page[data-beginner-mode="off"] .character-mode-guidance {
+.character-manager-page[data-beginner-mode="off"] .character-step-badge {
   display: none;
 }
 
@@ -545,37 +542,26 @@ body.character-manager-body {
 }
 
 .character-sheet-preset-tab-rail {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
   width: 100%;
 }
 
 .character-sheet-preset-tab-row {
-  --character-preset-rail-bg: linear-gradient(
-    180deg,
-    rgba(16, 24, 35, 0.82) 0%,
-    rgba(10, 17, 26, 0.72) 100%
-  );
-  --character-preset-rail-border: rgba(87, 103, 125, 0.42);
-  --character-preset-inactive-bg: linear-gradient(
-    180deg,
-    rgba(31, 45, 63, 0.82) 0%,
-    rgba(18, 29, 42, 0.72) 100%
-  );
+  --character-preset-rail-bg:
+    radial-gradient(120% 85% at 50% -10%, rgba(75, 148, 212, 0.16) 0%, rgba(12, 21, 32, 0) 70%),
+    linear-gradient(180deg, rgba(8, 15, 24, 0.98) 0%, rgba(6, 11, 18, 0.98) 100%);
+  --character-preset-inactive-bg: var(--character-card-bg);
   --character-preset-active-border: rgba(93, 223, 255, 0.78);
-  --character-preset-tab-max-width: 25%;
-  display: grid;
-  grid-template-rows: 12px auto;
+  --character-preset-tab-width: clamp(108px, 12vw, 152px);
+  display: flex;
+  align-items: flex-end;
   flex: 1 1 auto;
-  gap: 0;
+  gap: 8px;
   width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 2px 4px 0;
+  padding: 8px 8px 0;
   border-radius: 14px 14px 0 0;
-  border: 1px solid var(--character-preset-rail-border);
-  border-bottom: 0;
+  border: 0;
   background: var(--character-preset-rail-bg);
   overflow-x: auto;
   overflow-y: visible;
@@ -588,34 +574,32 @@ body.character-manager-body {
 }
 
 .character-sheet-preset-tablist {
-  grid-row: 2;
   display: flex;
   align-items: flex-end;
-  gap: 0;
+  gap: 8px;
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 0;
 }
 
-.character-sheet-preset-delete-row {
-  grid-row: 1;
+.character-sheet-preset-tab-track {
+  position: relative;
   display: flex;
   align-items: flex-end;
-  gap: 0;
+  gap: 6px;
+  width: max-content;
+  min-width: 100%;
+  padding-top: 2px;
 }
 
 .character-sheet-preset-tab-shell {
   position: relative;
-  flex: 0 0 var(--character-preset-tab-max-width);
-  max-width: var(--character-preset-tab-max-width);
-  min-width: 0;
-}
-
-.character-sheet-preset-delete-slot {
-  position: relative;
-  flex: 0 0 var(--character-preset-tab-max-width);
-  max-width: var(--character-preset-tab-max-width);
-  min-width: 0;
-  display: flex;
-  justify-content: flex-end;
-  padding-right: 4px;
+  isolation: isolate;
+  flex: 0 0 var(--character-preset-tab-width);
+  width: var(--character-preset-tab-width);
+  min-width: var(--character-preset-tab-width);
+  max-width: var(--character-preset-tab-width);
+  padding-top: 8px;
 }
 
 .character-sheet-preset-tab {
@@ -625,23 +609,28 @@ body.character-manager-body {
   isolation: isolate;
   width: 100%;
   min-width: 0;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 42px;
+  padding: 0 12px;
   border: 1px solid rgba(154, 171, 194, 0.24);
   border-bottom-color: rgba(124, 142, 168, 0.36);
-  border-radius: 13px 13px 0 0;
+  border-radius: 12px 12px 0 0;
   background: var(--character-preset-inactive-bg);
   color: rgba(180, 198, 219, 0.86);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
+  letter-spacing: 0.01em;
   transform: none;
   transition:
     box-shadow 0.18s ease,
     border-color 0.18s ease,
     background-color 0.18s ease,
     color 0.18s ease;
+}
+
+.character-sheet-preset-tab.is-deletable {
+  padding-right: 28px;
 }
 
 .character-sheet-preset-tab-label {
@@ -671,32 +660,46 @@ body.character-manager-body {
 }
 
 .character-sheet-preset-delete-btn {
-  position: relative;
-  transform: translate(44%, 26%);
-  width: 16px;
-  height: 16px;
+  position: absolute;
+  top: 0;
+  right: 8px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 126, 126, 0.74);
-  background: linear-gradient(180deg, rgba(49, 16, 24, 0.96) 0%, rgba(33, 11, 16, 0.96) 100%);
-  color: rgba(255, 211, 211, 0.96);
+  border: 1px solid rgba(255, 164, 164, 0.72);
+  background: linear-gradient(180deg, rgba(84, 26, 33, 0.94) 0%, rgba(44, 15, 22, 0.96) 100%);
+  color: rgba(255, 226, 226, 0.95);
   display: grid;
   place-items: center;
-  z-index: 5;
-  opacity: 0.94;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.26);
+  z-index: 4;
+  opacity: 0;
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(0, 0, 0, 0.16);
   transition:
+    opacity 0.16s ease,
     border-color 0.16s ease,
     background-color 0.16s ease,
     color 0.16s ease,
     transform 0.16s ease,
-    opacity 0.16s ease;
+    box-shadow 0.16s ease;
+  transform: translateY(-2px) scale(0.9);
+}
+
+.character-sheet-preset-tab-shell.is-deletable:hover .character-sheet-preset-delete-btn,
+.character-sheet-preset-tab-shell.is-deletable:focus-within .character-sheet-preset-delete-btn,
+.character-sheet-preset-tab-shell.is-active .character-sheet-preset-delete-btn {
+  opacity: 0.96;
+  transform: translateY(-2px) scale(1);
 }
 
 .character-sheet-preset-delete-btn:hover:not(:disabled) {
-  border-color: rgba(255, 166, 166, 0.92);
-  background: linear-gradient(180deg, rgba(66, 20, 29, 0.98) 0%, rgba(43, 14, 20, 0.98) 100%);
+  border-color: rgba(255, 198, 198, 0.95);
+  background: linear-gradient(180deg, rgba(108, 31, 41, 0.98) 0%, rgba(65, 20, 30, 0.98) 100%);
   color: #ffe7e7;
-  transform: translate(44%, 18%);
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 151, 151, 0.28);
 }
 
 .character-sheet-preset-delete-btn:focus-visible {
@@ -714,47 +717,24 @@ body.character-manager-body {
 .character-sheet-preset-tab:hover:not(:disabled) {
   border-color: rgba(132, 212, 255, 0.62);
   color: rgba(227, 242, 255, 0.96);
-  box-shadow: inset 0 1px 0 rgba(180, 231, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(180, 231, 255, 0.12),
+    0 8px 18px rgba(3, 18, 30, 0.3);
   cursor: pointer;
 }
 
 .character-sheet-preset-tab.is-active {
   border-color: var(--character-preset-active-border);
   border-bottom-color: var(--character-card-bg);
-  background: linear-gradient(
-    180deg,
-    rgba(6, 26, 40, 0.96) 0%,
-    rgba(8, 21, 32, 0.94) 58%,
-    var(--character-card-bg) 100%
-  );
+  background: linear-gradient(135deg, #106d50 0%, #4cc768 100%);
   color: #ecfbff;
   box-shadow:
     0 0 0 1px rgba(72, 212, 255, 0.38),
     0 6px 14px rgba(6, 21, 34, 0.34),
     inset 0 1px 0 rgba(182, 236, 255, 0.18);
-  transform: none;
+  transform: translateY(-1px);
   z-index: 2;
   margin-bottom: -1px;
-}
-
-.character-sheet-preset-tab.is-active::before,
-.character-sheet-preset-tab.is-active::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  pointer-events: none;
-  background: radial-gradient(circle at 100% 0, transparent 67%, var(--character-card-bg) 68%);
-}
-
-.character-sheet-preset-tab.is-active::before {
-  left: 0;
-  transform: scaleX(-1);
-}
-
-.character-sheet-preset-tab.is-active::after {
-  right: 0;
 }
 
 .character-sheet-preset-tab:focus-visible {
@@ -772,28 +752,35 @@ body.character-manager-body {
 }
 
 .character-sheet-preset-add-btn {
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid rgba(132, 212, 255, 0.56);
-  background: linear-gradient(180deg, rgba(14, 30, 46, 0.9) 0%, rgba(8, 20, 31, 0.9) 100%);
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(118, 193, 232, 0.58);
+  background: linear-gradient(180deg, rgba(15, 35, 53, 0.94) 0%, rgba(10, 23, 35, 0.94) 100%);
   color: rgba(224, 242, 255, 0.92);
   display: grid;
   place-items: center;
-  margin-bottom: 2px;
-  box-shadow: 0 8px 16px rgba(2, 14, 24, 0.34);
+  margin-bottom: 3px;
+  box-shadow:
+    0 8px 18px rgba(2, 14, 24, 0.32),
+    inset 0 1px 0 rgba(180, 229, 255, 0.2);
   transition:
     border-color 0.16s ease,
     background-color 0.16s ease,
     color 0.16s ease,
-    transform 0.16s ease;
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .character-sheet-preset-add-btn:hover:not(:disabled) {
-  border-color: rgba(164, 224, 255, 0.86);
-  background: linear-gradient(180deg, rgba(23, 45, 67, 0.94) 0%, rgba(12, 28, 43, 0.92) 100%);
+  border-color: rgba(178, 227, 255, 0.9);
+  background: linear-gradient(180deg, rgba(24, 52, 77, 0.96) 0%, rgba(14, 32, 49, 0.94) 100%);
   color: #f0fbff;
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 22px rgba(2, 14, 24, 0.4),
+    inset 0 1px 0 rgba(194, 237, 255, 0.28);
 }
 
 .character-sheet-preset-add-btn:focus-visible {
@@ -806,6 +793,13 @@ body.character-manager-body {
 .character-sheet-preset-add-btn:disabled {
   opacity: 0.62;
   cursor: wait;
+}
+
+@media (hover: none) {
+  .character-sheet-preset-tab-shell.is-deletable .character-sheet-preset-delete-btn {
+    opacity: 0.96;
+    transform: translateY(-2px) scale(1);
+  }
 }
 
 .character-sheet-preset-panel {
@@ -1107,6 +1101,16 @@ body.character-manager-body {
   width: 100%;
 }
 
+.character-sheet-description-card {
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--character-card-border);
+  border-radius: 12px;
+  background: var(--character-card-bg);
+  box-shadow: var(--character-shadow-md);
+}
+
 .character-profile-fields .input-label {
   display: block;
   margin: 0;
@@ -1386,16 +1390,12 @@ body.character-manager-body {
   max-width: none;
 }
 
-.character-manager-page[data-beginner-mode="on"]
-  .character-section--reference-drop:not(.is-collapsed)
-  .character-section-head {
+.character-section--reference-drop:not(.is-collapsed) .character-section-head {
   position: relative;
   padding-right: 58px;
 }
 
-.character-manager-page[data-beginner-mode="on"]
-  .character-section--reference-drop:not(.is-collapsed)
-  .character-section-head-actions {
+.character-section--reference-drop:not(.is-collapsed) .character-section-head-actions {
   position: absolute;
   top: 0;
   right: 2px;
@@ -2605,14 +2605,27 @@ body.character-manager-body {
 
 @media (max-width: 860px) {
   .character-sheet-preset-tab-row {
-    gap: 2px;
-    padding-left: 2px;
-    padding-right: 2px;
+    --character-preset-tab-width: 96px;
+    gap: 6px;
+    padding-left: 6px;
+    padding-right: 6px;
   }
 
   .character-sheet-preset-tab {
-    flex: 0 0 88px;
-    min-width: 88px;
+    min-width: var(--character-preset-tab-width);
+    min-height: 40px;
+    font-size: 12px;
+    padding-inline: 10px;
+  }
+
+  .character-sheet-preset-tab.is-deletable {
+    padding-right: 24px;
+  }
+
+  .character-sheet-preset-delete-btn {
+    right: 6px;
+    width: 17px;
+    height: 17px;
   }
 
   .character-section--references .character-reference-empty-grid,

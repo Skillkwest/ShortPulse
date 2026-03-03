@@ -201,3 +201,8 @@ Last updated: 2026-03-02
 - Topic: Temporary Wave-H/Phase-13 closeout deferment lock.
 - Decision: Remaining Phase 13 operational windows and closeout execution steps (Wave H H2/H3 and linked evidence windows) are paused as of `2026-03-02` and deferred into a consolidated full repo-wide sweep window targeted for `2026-03-06` (UTC), with no threshold-contract edits allowed during the hold.
 - Effective phase: 13.
+
+## Decision 041
+- Topic: Wave F staging safety-control operational deferment.
+- Decision: As of `2026-03-03`, remaining Wave F staging execution items are explicitly deferred to a later operator window: staging alias parity rerun, staging manual no-sim route matrix, and staging promote/hold/rollback decision packet. Local implementation and contract gates remain accepted as complete for this job.
+- Effective phase: 13.

@@ -41,6 +41,10 @@ Program Doc: `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
    - current staging alias (`shortpulse-git-staging-preview-kirk-artmans-projects.vercel.app`) resolves to deployment commit `d8020d6bad40884aebab20a2f9096cad73be1ead` (`2026-02-27T00:23:54.852Z`),
    - SQL control-plane functions are present in target DB, but route-level probe of `/api/admin/agent-safety-policy/active` on that deployment returns app-lane `404` after bearer auth (endpoint not present in deployed bundle).
 12. RCP-4 remains pending and is tracked under Wave H canary promotion gates.
+13. Deferment lock (2026-03-03):
+   - Remaining Wave F staging-route checks and promote/hold windows are intentionally deferred to a later operator window.
+   - Deferred scope is limited to: staging alias parity probe rerun, staging manual route matrix, and staging promotion/rollback decision packet.
+   - Implementation/code gates are complete for this slice; deferment is operational scheduling, not a code-readiness blocker.
 
 ## Execution Checklist
 ### F0: Docs + Contract Lock
@@ -73,9 +77,9 @@ Program Doc: `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 
 ### F5: Validation + Rollout
 - [x] Run local integrated validation window 1.
-- [ ] Run staging shadow validation.
-- [ ] Collect promotion/hold evidence windows.
-- [ ] Execute rollback drill and archive evidence.
+- [ ] Run staging shadow validation. (Deferred 2026-03-03: await staging deployment parity window)
+- [ ] Collect promotion/hold evidence windows. (Deferred 2026-03-03: coupled to staging shadow validation)
+- [ ] Execute rollback drill and archive evidence. (Deferred 2026-03-03: execute in same operator window as staging checks)
 
 ## Required Validation Commands (per implementation slice)
 1. `npm -C frontend run lint`

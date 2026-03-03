@@ -89,7 +89,7 @@ export function CharacterQuickSwapDeckSection({
           ) : null}
           <div className="character-section-title-copy">
             <h3 className="character-section-title">QuickSwap Deck</h3>
-            {beginnerMode && !isCollapsed ? (
+            {!isCollapsed ? (
               <p className="character-section-helper tiny subdued">
                 The quick swap deck is a small library of images you can quickly access to swap out
                 your character&apos;s style on the fly.
@@ -141,7 +141,7 @@ export function CharacterQuickSwapDeckSection({
               </p>
               <p className="tiny subdued">
                 {isDropPending
-                  ? "Saving reference and syncing your QuickSwap Deck."
+                  ? "Processing drop and syncing your QuickSwap Deck."
                   : remainingCapacityHint > 0
                     ? `${remainingCapacityHint} active slot(s) remaining before archive overflow.`
                     : "New uploads will auto-archive oldest active references beyond 500."}

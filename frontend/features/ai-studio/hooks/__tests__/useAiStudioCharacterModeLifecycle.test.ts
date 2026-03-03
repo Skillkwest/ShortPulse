@@ -31,14 +31,18 @@ const createParams = (
   ...overrides,
 });
 
-const createSnapshotWithPresetReferences = () =>
+const createSnapshotWithPresetReferences = (
+  input: { description?: string; legacyDescription?: string } = {}
+) =>
   (() => {
     const defaultPresetState = createDefaultCharacterSheetPresetState();
+    const activeDescription = input.description ?? "Hero description";
     return {
       characterId: "char-1",
       characterSheetId: "sheet-1",
       characterName: "Hero",
-      characterDescription: "Hero description",
+      legacyCharacterDescription: input.legacyDescription ?? "Legacy hero description",
+      characterDescription: activeDescription,
       characterSheetAssignments: {
         portrait: "portrait_close",
         close_up: "front_full",
@@ -65,6 +69,10 @@ const createSnapshotWithPresetReferences = () =>
       },
       visibleCharacterSheetPresetIds: ["1"],
       characterSheetPresetLabels: defaultPresetState.tabLabels,
+      characterSheetPresetDescriptions: {
+        ...defaultPresetState.tabDescriptions,
+        "1": activeDescription,
+      },
       characterSheetPresetAssignments: {
         portrait: {
           mediaFileId: "media-portrait",
@@ -240,6 +248,39 @@ describe("useAiStudioCharacterModeLifecycle", () => {
 
     await waitFor(() => {
       expect(result.current.selectedCharacterId).toBe("char-2");
+    });
+  });
+
+  it("falls back to legacy description when active preset description is empty", async () => {
+    const setCharacterModeInjectionBundle = vi.fn();
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithPresetReferences({
+        description: "",
+        legacyDescription: "Legacy fallback description",
+      })
+    );
+    const params = createParams({
+      setCharacterModeInjectionBundle: asDispatch(setCharacterModeInjectionBundle),
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(params));
+
+    act(() => {
+      result.current.setSelectedCharacterId("char-1");
+    });
+
+    await waitFor(() => {
+      expect(setCharacterModeInjectionBundle).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          characterDescription: "Legacy fallback description",
+        })
+      );
     });
   });
 });

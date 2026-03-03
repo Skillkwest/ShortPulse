@@ -3,10 +3,15 @@
  * Centralizes tab-capacity, label normalization, and legacy tab-order fallback behavior.
  */
 import { CHARACTER_SHEET_PRESET_IDS } from "../constants";
-import type { CharacterSheetPresetId, CharacterSheetPresetLabelMap } from "../types";
+import type {
+  CharacterSheetPresetDescriptionMap,
+  CharacterSheetPresetId,
+  CharacterSheetPresetLabelMap,
+} from "../types";
 
 export const MAX_CHARACTER_SHEET_PRESET_TAB_COUNT = 10;
 export const CHARACTER_SHEET_PRESET_TAB_LABEL_MAX_LENGTH = 24;
+export const CHARACTER_SHEET_PRESET_DESCRIPTION_MAX_LENGTH = 150;
 
 const PRESET_ID_ORDER = new Map(
   CHARACTER_SHEET_PRESET_IDS.map((presetId, index) => [presetId, index] as const)
@@ -37,6 +42,9 @@ export const sanitizeCharacterSheetPresetTabLabel = ({
   );
   return normalized.length > 0 ? normalized : presetId;
 };
+
+export const sanitizeCharacterSheetPresetDescription = (description: string | null | undefined) =>
+  (description ?? "").slice(0, CHARACTER_SHEET_PRESET_DESCRIPTION_MAX_LENGTH);
 
 export const normalizeCharacterSheetPresetTabOrder = ({
   tabOrder,
@@ -100,3 +108,13 @@ export const createNormalizedCharacterSheetPresetTabLabels = ({
     });
     return acc;
   }, {} as CharacterSheetPresetLabelMap);
+
+export const createNormalizedCharacterSheetPresetTabDescriptions = ({
+  descriptions,
+}: {
+  descriptions: Partial<Record<CharacterSheetPresetId, string>> | null | undefined;
+}): CharacterSheetPresetDescriptionMap =>
+  CHARACTER_SHEET_PRESET_IDS.reduce((acc, presetId) => {
+    acc[presetId] = sanitizeCharacterSheetPresetDescription(descriptions?.[presetId]);
+    return acc;
+  }, {} as CharacterSheetPresetDescriptionMap);

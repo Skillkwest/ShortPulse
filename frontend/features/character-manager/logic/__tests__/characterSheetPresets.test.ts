@@ -71,6 +71,11 @@ describe("characterSheetPresets metadata helpers", () => {
           "2": "Alt",
           "3": "Look B",
         },
+        tab_descriptions: {
+          "1": "Legacy look",
+          "2": "Alt look",
+          "3": "Primary cinematic look",
+        },
         presets: {
           "1": {
             portrait: null,
@@ -97,6 +102,8 @@ describe("characterSheetPresets metadata helpers", () => {
     expect(parsed?.tabOrder).toEqual(["1", "2", "3"]);
     expect(parsed?.tabLabels["1"]).toBe("Primary");
     expect(parsed?.tabLabels["4"]).toBe("4");
+    expect(parsed?.tabDescriptions["2"]).toBe("Alt look");
+    expect(parsed?.tabDescriptions["10"]).toBe("");
 
     const serialized = serializeCharacterSheetPresetState(parsed!);
     expect(serialized).toEqual(
@@ -109,9 +116,61 @@ describe("characterSheetPresets metadata helpers", () => {
           "3": "Look B",
           "10": "10",
         }),
+        tab_descriptions: expect.objectContaining({
+          "1": "Legacy look",
+          "2": "Alt look",
+          "3": "Primary cinematic look",
+          "10": "",
+        }),
       })
     );
     expect(Object.keys(serialized.presets as Record<string, unknown>).length).toBe(10);
+  });
+
+  it("seeds tab 1 description from legacy character description when tab_descriptions is missing", () => {
+    const parsed = getCharacterSheetPresetState(
+      {
+        character_sheet_presets_v1: {
+          active_preset_id: "1",
+          tab_order: ["1", "2"],
+          tab_labels: {
+            "1": "1",
+            "2": "2",
+          },
+          presets: {
+            "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+            "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          },
+        },
+      },
+      {
+        legacyCharacterDescription: "  Legacy description for tab one  ",
+      }
+    );
+
+    expect(parsed?.tabDescriptions["1"]).toBe("  Legacy description for tab one  ");
+    expect(parsed?.tabDescriptions["2"]).toBe("");
+  });
+
+  it("clamps malformed tab descriptions to 150 characters", () => {
+    const overLimit = "a".repeat(200);
+    const parsed = getCharacterSheetPresetState({
+      character_sheet_presets_v1: {
+        active_preset_id: "1",
+        tab_order: ["1"],
+        tab_labels: {
+          "1": "1",
+        },
+        tab_descriptions: {
+          "1": overLimit,
+        },
+        presets: {
+          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+        },
+      },
+    });
+
+    expect(parsed?.tabDescriptions["1"].length).toBe(150);
   });
 
   it("derives legacy visible tabs from preset keys when tab_order is absent", () => {

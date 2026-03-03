@@ -26,6 +26,8 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Each tab stores independent zone media references for `portrait`, `close_up`, `front_shot`, and `back_shot`.
    - Visible tab ids persist to `character_sheet_presets_v1.tab_order`.
    - Tab display names persist to `character_sheet_presets_v1.tab_labels`.
+   - Character description is preset-scoped and persists to `character_sheet_presets_v1.tab_descriptions`.
+   - Editing description in Character Profile updates only the active preset tab description.
    - Preset tabs use `tablist/tab/tabpanel` semantics with roving tab focus (`tabindex=0` on active tab, `-1` otherwise).
    - Keyboard support is required: `ArrowLeft/ArrowRight` wrap navigation, `Home/End` jump to first/last tab, and `Enter/Space` activate focused tab.
    - Dragging a reference onto a drop zone assigns that reference to the zone.
@@ -47,7 +49,8 @@ Define the operational contract for the `/character` Character Manager surface, 
    - The persisted selection is used as the preferred default on reload for both `/character` and the AI Studio embedded Character panel.
    - If the persisted character no longer exists, Character Manager falls back to the latest available draft.
 7. AI Studio Create Character Mode consumes Character Manager data at generation time:
-   - Selected character description is injected as hidden prompt context when available.
+   - Selected character description is injected from active preset `tab_descriptions[active_preset_id]`.
+   - If active preset description is empty, injection falls back to legacy `characters.description`.
    - Character Mode resolves ordered references from the active preset first (`portrait`, `close_up`, `front_shot`, `back_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
    - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
    - Missing description/references are non-blocking; AI Studio falls back to best-effort injection.
@@ -154,6 +157,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Archived references can be restored back into active deck.
 - New users start with one visible preset tab (`1`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.
 - Double-click tab rename autosaves on `Enter`/blur and cancels on `Escape`.
+- Editing Character Profile description on one preset tab does not mutate descriptions on other preset tabs.
 - Deleting a tab (`X`) shows confirmation; selecting `Yes` removes the tab and its saved preset references.
 - Deleting an active preset tab deterministically selects nearest-left remaining tab (or nearest-right when no left tab exists).
 - Deleting a preset tab does not auto-delete shared media used by other tabs/surfaces.

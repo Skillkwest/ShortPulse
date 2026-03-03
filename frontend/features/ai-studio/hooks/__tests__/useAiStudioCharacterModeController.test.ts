@@ -47,6 +47,7 @@ const createParams = (
 const createSnapshotWithPresetReference = (
   input: {
     description?: string;
+    legacyDescription?: string;
     storagePath?: string;
     previewUrl?: string;
   } = {}
@@ -57,6 +58,7 @@ const createSnapshotWithPresetReference = (
       characterId: "char-1",
       characterSheetId: "sheet-1",
       characterName: "Hero",
+      legacyCharacterDescription: input.legacyDescription ?? "Legacy hero description",
       characterDescription: input.description ?? "Hero description",
       characterSheetAssignments: {
         portrait: null,
@@ -80,6 +82,10 @@ const createSnapshotWithPresetReference = (
       },
       visibleCharacterSheetPresetIds: ["1"],
       characterSheetPresetLabels: defaultPresetState.tabLabels,
+      characterSheetPresetDescriptions: {
+        ...defaultPresetState.tabDescriptions,
+        "1": input.description ?? "Hero description",
+      },
       characterSheetPresetAssignments: {
         portrait: {
           mediaFileId: "media-portrait",
@@ -192,6 +198,25 @@ describe("useAiStudioCharacterModeController", () => {
     });
     expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1");
     expect(setCharacterModeInjectionBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses legacy description fallback when active preset description is empty", async () => {
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithPresetReference({
+        description: "",
+        legacyDescription: "Legacy fallback description",
+        storagePath: "user/chars/ref.png",
+      })
+    );
+    const params = createParams({
+      selectedCharacterId: "char-1",
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const refreshed =
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+
+    expect(refreshed?.characterDescription).toBe("Legacy fallback description");
   });
 
   it("refreshes a stale bundle and updates injection state", async () => {

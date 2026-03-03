@@ -5,7 +5,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CHARACTER_MANAGER_MAX_IMAGE_BYTES,
+  CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
+  createDefaultCharacterSheetPresetDescriptions,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSheetPresetAssignments,
   createEmptyCharacterSlotMap,
@@ -24,11 +26,11 @@ import {
   deleteCharacterManagerCharacterSheetPreset,
   saveCharacterManagerCharacterSheetPresetTabLabel,
   saveCharacterManagerCharacterSheetPresetTabOrder,
+  saveCharacterManagerCharacterSheetPresetTabDescription,
   saveCharacterManagerCharacterSheetAssignments,
   saveCharacterManagerProfileImageAdjustments,
   saveCharacterManagerProfileImage,
   saveCharacterManagerSlot,
-  updateCharacterManagerDescription,
   updateCharacterManagerName,
 } from "../logic/characterManagerPersistence";
 import {
@@ -46,6 +48,7 @@ import type {
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
+  CharacterSheetPresetDescriptionMap,
   CharacterSheetPresetId,
   CharacterSheetPresetState,
   CharacterSlotFileMap,
@@ -110,6 +113,14 @@ const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
 const CHARACTER_MANAGER_MAX_IMAGE_MB = Math.round(
   CHARACTER_MANAGER_MAX_IMAGE_BYTES / (1024 * 1024)
 );
+const createPresetRequestCounterMap = (): Record<CharacterSheetPresetId, number> =>
+  CHARACTER_SHEET_PRESET_IDS.reduce(
+    (acc, presetId) => {
+      acc[presetId] = 0;
+      return acc;
+    },
+    {} as Record<CharacterSheetPresetId, number>
+  );
 
 /**
  * Manages persisted character draft state and reference uploads.
@@ -133,6 +144,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [characterSheetPresetLabels, setCharacterSheetPresetLabels] = useState<
     CharacterSheetPresetState["tabLabels"]
   >(() => createDefaultCharacterSheetPresetState().tabLabels);
+  const [characterSheetPresetDescriptions, setCharacterSheetPresetDescriptions] =
+    useState<CharacterSheetPresetDescriptionMap>(() =>
+      createDefaultCharacterSheetPresetDescriptions()
+    );
   const [characterSheetPresetAssignments, setCharacterSheetPresetAssignments] =
     useState<CharacterSheetPresetAssignments>(
       () => createDefaultCharacterSheetPresetState().presets["1"]
@@ -152,13 +167,28 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [slotBusyKeys, setSlotBusyKeys] = useState<Set<CharacterReferenceSlotKey>>(() => new Set());
 
   const suppressNextNamePersistRef = useRef(false);
-  const suppressNextDescriptionPersistRef = useRef(false);
+  const characterIdRef = useRef<string | null>(null);
   const namePersistTimerRef = useRef<number | null>(null);
-  const descriptionPersistTimerRef = useRef<number | null>(null);
+  const descriptionPersistTimerRefs = useRef<Record<CharacterSheetPresetId, number | null>>({
+    "1": null,
+    "2": null,
+    "3": null,
+    "4": null,
+    "5": null,
+    "6": null,
+    "7": null,
+    "8": null,
+    "9": null,
+    "10": null,
+  });
   const lastPersistedNameRef = useRef("New Character");
-  const lastPersistedDescriptionRef = useRef("");
+  const lastPersistedDescriptionMapRef = useRef<CharacterSheetPresetDescriptionMap>(
+    createDefaultCharacterSheetPresetDescriptions()
+  );
   const namePersistRequestRef = useRef(0);
-  const descriptionPersistRequestRef = useRef(0);
+  const descriptionPersistRequestRef = useRef<Record<CharacterSheetPresetId, number>>(
+    createPresetRequestCounterMap()
+  );
   const slotsRef = useRef<CharacterSlotFileMap>(createEmptyCharacterSlotMap());
   const characterSheetAssignmentsRef = useRef<CharacterSheetAssignments>(
     createEmptyCharacterSheetAssignments()
@@ -175,6 +205,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const characterSheetPresetLabelsRef = useRef<CharacterSheetPresetState["tabLabels"]>(
     createDefaultCharacterSheetPresetState().tabLabels
   );
+  const characterSheetPresetDescriptionsRef = useRef<CharacterSheetPresetDescriptionMap>(
+    createDefaultCharacterSheetPresetDescriptions()
+  );
   const characterSheetPresetAssignmentsRequestRef = useRef(0);
   const characterSheetPresetTabOrderRequestRef = useRef(0);
   const characterSheetPresetTabLabelRequestRef = useRef(0);
@@ -182,6 +215,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const clearMessages = useCallback(() => {
     setError(null);
   }, []);
+
+  useEffect(() => {
+    characterIdRef.current = characterId;
+  }, [characterId]);
 
   useEffect(() => {
     slotsRef.current = slots;
@@ -206,6 +243,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   useEffect(() => {
     characterSheetPresetLabelsRef.current = characterSheetPresetLabels;
   }, [characterSheetPresetLabels]);
+
+  useEffect(() => {
+    characterSheetPresetDescriptionsRef.current = characterSheetPresetDescriptions;
+  }, [characterSheetPresetDescriptions]);
 
   const markSlotBusy = useCallback((slotKey: CharacterReferenceSlotKey, busy: boolean) => {
     setSlotBusyKeys((prev) => {
@@ -253,6 +294,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextCharacterSheetPresets,
       nextVisibleCharacterSheetPresetIds,
       nextCharacterSheetPresetLabels,
+      nextCharacterSheetPresetDescriptions,
       nextCharacterSheetPresetAssignments,
       nextProfileImageUrl,
       nextProfileImageTransform,
@@ -267,6 +309,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextCharacterSheetPresets: CharacterSheetPresetState["presets"];
       nextVisibleCharacterSheetPresetIds: CharacterSheetPresetState["tabOrder"];
       nextCharacterSheetPresetLabels: CharacterSheetPresetState["tabLabels"];
+      nextCharacterSheetPresetDescriptions: CharacterSheetPresetDescriptionMap;
       nextCharacterSheetPresetAssignments: CharacterSheetPresetAssignments;
       nextProfileImageUrl: string | null;
       nextProfileImageTransform: CharacterProfileImageTransform;
@@ -276,7 +319,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       persistSelectedCharacterId(nextCharacterId);
       setCharacterSheetId(nextCharacterSheetId);
       suppressNextNamePersistRef.current = true;
-      suppressNextDescriptionPersistRef.current = true;
       setCharacterNameState(nextCharacterName);
       setCharacterDescriptionState(nextCharacterDescription);
       setCharacterSheetAssignments(nextCharacterSheetAssignments);
@@ -290,6 +332,8 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       visibleCharacterSheetPresetIdsRef.current = nextVisibleCharacterSheetPresetIds;
       setCharacterSheetPresetLabels(nextCharacterSheetPresetLabels);
       characterSheetPresetLabelsRef.current = nextCharacterSheetPresetLabels;
+      setCharacterSheetPresetDescriptions(nextCharacterSheetPresetDescriptions);
+      characterSheetPresetDescriptionsRef.current = nextCharacterSheetPresetDescriptions;
       setCharacterSheetPresetAssignments(nextCharacterSheetPresetAssignments);
       characterSheetPresetAssignmentsRequestRef.current = 0;
       setProfileImageUrl(nextProfileImageUrl);
@@ -297,7 +341,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       setSlots(nextSlots);
       slotsRef.current = nextSlots;
       lastPersistedNameRef.current = nextCharacterName.trim();
-      lastPersistedDescriptionRef.current = nextCharacterDescription;
+      lastPersistedDescriptionMapRef.current = nextCharacterSheetPresetDescriptions;
+      descriptionPersistRequestRef.current = createPresetRequestCounterMap();
+      for (const presetId of CHARACTER_SHEET_PRESET_IDS) {
+        const timerId = descriptionPersistTimerRefs.current[presetId];
+        if (timerId) {
+          window.clearTimeout(timerId);
+          descriptionPersistTimerRefs.current[presetId] = null;
+        }
+      }
       setSlotBusyKeys(new Set());
     },
     []
@@ -323,6 +375,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextCharacterSheetPresets: snapshot.characterSheetPresets,
           nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
           nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
+          nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
           nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
           nextProfileImageUrl: snapshot.profileImageUrl,
           nextProfileImageTransform: snapshot.profileImageTransform,
@@ -394,52 +447,84 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     };
   }, [characterId, characterName]);
 
-  useEffect(() => {
-    if (!characterId) return;
-    if (suppressNextDescriptionPersistRef.current) {
-      suppressNextDescriptionPersistRef.current = false;
-      return;
-    }
+  const scheduleCharacterSheetPresetDescriptionPersist = useCallback(
+    (presetId: CharacterSheetPresetId, description: string) => {
+      const targetCharacterId = characterIdRef.current;
+      if (!targetCharacterId) return;
 
-    const nextDescription = characterDescription.slice(0, 150);
-    if (nextDescription === lastPersistedDescriptionRef.current) {
-      return;
-    }
-
-    if (descriptionPersistTimerRef.current) {
-      window.clearTimeout(descriptionPersistTimerRef.current);
-    }
-    descriptionPersistTimerRef.current = window.setTimeout(() => {
-      const requestId = descriptionPersistRequestRef.current + 1;
-      descriptionPersistRequestRef.current = requestId;
-      void updateCharacterManagerDescription({
-        characterId,
-        description: nextDescription,
-      })
-        .then(() => {
-          if (descriptionPersistRequestRef.current !== requestId) return;
-          lastPersistedDescriptionRef.current = nextDescription;
-        })
-        .catch((nextError) => {
-          if (descriptionPersistRequestRef.current !== requestId) return;
-          setError(toErrorMessage(nextError, "Failed to save character description."));
-        });
-    }, 500);
-
-    return () => {
-      if (descriptionPersistTimerRef.current) {
-        window.clearTimeout(descriptionPersistTimerRef.current);
+      const nextDescription = description.slice(0, 150);
+      if (nextDescription === (lastPersistedDescriptionMapRef.current[presetId] ?? "")) {
+        return;
       }
-    };
-  }, [characterDescription, characterId]);
+
+      const timerId = descriptionPersistTimerRefs.current[presetId];
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
+      descriptionPersistTimerRefs.current[presetId] = window.setTimeout(() => {
+        descriptionPersistTimerRefs.current[presetId] = null;
+        const requestId = (descriptionPersistRequestRef.current[presetId] ?? 0) + 1;
+        descriptionPersistRequestRef.current[presetId] = requestId;
+        const rollbackDescription = lastPersistedDescriptionMapRef.current[presetId] ?? "";
+        void saveCharacterManagerCharacterSheetPresetTabDescription({
+          characterId: targetCharacterId,
+          presetId,
+          description: nextDescription,
+        })
+          .then((persistedState) => {
+            if (descriptionPersistRequestRef.current[presetId] !== requestId) {
+              return;
+            }
+            lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
+            setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
+            characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+            setVisibleCharacterSheetPresetIds(persistedState.tabOrder);
+            visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
+            setCharacterSheetPresetLabels(persistedState.tabLabels);
+            characterSheetPresetLabelsRef.current = persistedState.tabLabels;
+            if (!persistedState.tabOrder.includes(activeCharacterSheetPresetIdRef.current)) {
+              activeCharacterSheetPresetIdRef.current = persistedState.activePresetId;
+              setActiveCharacterSheetPresetIdState(persistedState.activePresetId);
+              setCharacterSheetPresetAssignments(
+                characterSheetPresetsRef.current[persistedState.activePresetId] ??
+                  createEmptyCharacterSheetPresetAssignments()
+              );
+            }
+            setCharacterDescriptionState(
+              persistedState.tabDescriptions[activeCharacterSheetPresetIdRef.current] ?? ""
+            );
+          })
+          .catch((nextError) => {
+            if (descriptionPersistRequestRef.current[presetId] !== requestId) {
+              return;
+            }
+            const revertedDescriptions = {
+              ...characterSheetPresetDescriptionsRef.current,
+              [presetId]: rollbackDescription,
+            };
+            setCharacterSheetPresetDescriptions(revertedDescriptions);
+            characterSheetPresetDescriptionsRef.current = revertedDescriptions;
+            if (activeCharacterSheetPresetIdRef.current === presetId) {
+              setCharacterDescriptionState(rollbackDescription);
+            }
+            setError(toErrorMessage(nextError, "Failed to save character description."));
+          });
+      }, 500);
+    },
+    []
+  );
 
   useEffect(
     () => () => {
       if (namePersistTimerRef.current) {
         window.clearTimeout(namePersistTimerRef.current);
       }
-      if (descriptionPersistTimerRef.current) {
-        window.clearTimeout(descriptionPersistTimerRef.current);
+      for (const presetId of CHARACTER_SHEET_PRESET_IDS) {
+        const timerId = descriptionPersistTimerRefs.current[presetId];
+        if (timerId) {
+          window.clearTimeout(timerId);
+          descriptionPersistTimerRefs.current[presetId] = null;
+        }
       }
     },
     []
@@ -449,9 +534,24 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setCharacterNameState(value.slice(0, 80));
   }, []);
 
-  const setCharacterDescription = useCallback((value: string) => {
-    setCharacterDescriptionState(value.slice(0, 150));
-  }, []);
+  const setCharacterDescription = useCallback(
+    (value: string) => {
+      const activePresetId = activeCharacterSheetPresetIdRef.current;
+      const nextDescription = value.slice(0, 150);
+      setCharacterDescriptionState(nextDescription);
+      setCharacterSheetPresetDescriptions((prev) => {
+        if (prev[activePresetId] === nextDescription) return prev;
+        const nextDescriptions = {
+          ...prev,
+          [activePresetId]: nextDescription,
+        };
+        characterSheetPresetDescriptionsRef.current = nextDescriptions;
+        scheduleCharacterSheetPresetDescriptionPersist(activePresetId, nextDescription);
+        return nextDescriptions;
+      });
+    },
+    [scheduleCharacterSheetPresetDescriptionPersist]
+  );
 
   const setProfileImageFile = useCallback(
     async (file: File) => {
@@ -595,11 +695,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       const previousAssignments =
         characterSheetPresetsRef.current[previousPresetId] ??
         createEmptyCharacterSheetPresetAssignments();
+      const previousDescription =
+        characterSheetPresetDescriptionsRef.current[previousPresetId] ?? "";
+      const nextDescription = characterSheetPresetDescriptionsRef.current[presetId] ?? "";
       setActiveCharacterSheetPresetIdState(presetId);
       activeCharacterSheetPresetIdRef.current = presetId;
       setCharacterSheetPresetAssignments(
         characterSheetPresetsRef.current[presetId] ?? createEmptyCharacterSheetPresetAssignments()
       );
+      setCharacterDescriptionState(nextDescription);
       const requestId = activeCharacterSheetPresetRequestRef.current + 1;
       activeCharacterSheetPresetRequestRef.current = requestId;
       setIsSavingCharacterSheetPreset(true);
@@ -617,6 +721,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
+        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
+        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         // Keep local preset references stable on tab switches to avoid unnecessary preview URL churn.
         const resolvedPresets = characterSheetPresetsRef.current;
         const resolvedActiveAssignments =
@@ -624,6 +731,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           persistedState.presets[persistedState.activePresetId] ??
           createEmptyCharacterSheetPresetAssignments();
         setCharacterSheetPresetAssignments(resolvedActiveAssignments);
+        setCharacterDescriptionState(
+          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
+        );
         return true;
       } catch (nextError) {
         if (activeCharacterSheetPresetRequestRef.current !== requestId) {
@@ -632,6 +742,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         setActiveCharacterSheetPresetIdState(previousPresetId);
         activeCharacterSheetPresetIdRef.current = previousPresetId;
         setCharacterSheetPresetAssignments(previousAssignments);
+        setCharacterDescriptionState(previousDescription);
         setError(toErrorMessage(nextError, "Failed to switch character sheet preset."));
         return false;
       } finally {
@@ -684,9 +795,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
+        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
+        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         setCharacterSheetPresetAssignments(
           persistedState.presets[persistedState.activePresetId] ??
             createEmptyCharacterSheetPresetAssignments()
+        );
+        setCharacterDescriptionState(
+          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
         );
         return true;
       } catch (nextError) {
@@ -721,6 +838,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     const previousPresetId = activeCharacterSheetPresetIdRef.current;
     const previousVisiblePresetIds = [...visibleCharacterSheetPresetIdsRef.current];
     const previousPresetLabels = { ...characterSheetPresetLabelsRef.current };
+    const previousPresetDescriptions = { ...characterSheetPresetDescriptionsRef.current };
     const previousAssignments =
       characterSheetPresetsRef.current[previousPresetId] ??
       createEmptyCharacterSheetPresetAssignments();
@@ -735,15 +853,22 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       ...previousPresetLabels,
       [nextPresetId]: previousPresetLabels[nextPresetId] ?? nextPresetId,
     };
+    const optimisticDescriptions = {
+      ...previousPresetDescriptions,
+      [nextPresetId]: previousPresetDescriptions[nextPresetId] ?? "",
+    };
     setVisibleCharacterSheetPresetIds(optimisticVisiblePresetIds);
     visibleCharacterSheetPresetIdsRef.current = optimisticVisiblePresetIds;
     setCharacterSheetPresetLabels(optimisticLabels);
     characterSheetPresetLabelsRef.current = optimisticLabels;
+    setCharacterSheetPresetDescriptions(optimisticDescriptions);
+    characterSheetPresetDescriptionsRef.current = optimisticDescriptions;
     setActiveCharacterSheetPresetIdState(nextPresetId);
     activeCharacterSheetPresetIdRef.current = nextPresetId;
     setCharacterSheetPresetAssignments(
       characterSheetPresetsRef.current[nextPresetId] ?? createEmptyCharacterSheetPresetAssignments()
     );
+    setCharacterDescriptionState(optimisticDescriptions[nextPresetId] ?? "");
 
     const requestId = characterSheetPresetTabOrderRequestRef.current + 1;
     characterSheetPresetTabOrderRequestRef.current = requestId;
@@ -765,9 +890,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
       setCharacterSheetPresetLabels(persistedState.tabLabels);
       characterSheetPresetLabelsRef.current = persistedState.tabLabels;
+      setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
+      characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+      lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
       setCharacterSheetPresetAssignments(
         persistedState.presets[persistedState.activePresetId] ??
           createEmptyCharacterSheetPresetAssignments()
+      );
+      setCharacterDescriptionState(
+        persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
       );
       return true;
     } catch (nextError) {
@@ -778,9 +909,12 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       visibleCharacterSheetPresetIdsRef.current = previousVisiblePresetIds;
       setCharacterSheetPresetLabels(previousPresetLabels);
       characterSheetPresetLabelsRef.current = previousPresetLabels;
+      setCharacterSheetPresetDescriptions(previousPresetDescriptions);
+      characterSheetPresetDescriptionsRef.current = previousPresetDescriptions;
       setActiveCharacterSheetPresetIdState(previousPresetId);
       activeCharacterSheetPresetIdRef.current = previousPresetId;
       setCharacterSheetPresetAssignments(previousAssignments);
+      setCharacterDescriptionState(previousPresetDescriptions[previousPresetId] ?? "");
       setError(toErrorMessage(nextError, "Failed to add character sheet preset tab."));
       return false;
     } finally {
@@ -831,11 +965,17 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
+        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
+        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         setActiveCharacterSheetPresetIdState(persistedState.activePresetId);
         activeCharacterSheetPresetIdRef.current = persistedState.activePresetId;
         setCharacterSheetPresetAssignments(
           persistedState.presets[persistedState.activePresetId] ??
             createEmptyCharacterSheetPresetAssignments()
+        );
+        setCharacterDescriptionState(
+          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
         );
         return true;
       } catch (nextError) {
@@ -871,6 +1011,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       const previousPresets = characterSheetPresetsRef.current;
       const previousVisiblePresetIds = [...visibleCharacterSheetPresetIdsRef.current];
       const previousPresetLabels = { ...characterSheetPresetLabelsRef.current };
+      const previousPresetDescriptions = { ...characterSheetPresetDescriptionsRef.current };
       if (!previousVisiblePresetIds.includes(presetId)) {
         return false;
       }
@@ -900,6 +1041,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         ...previousPresetLabels,
         [presetId]: presetId,
       };
+      const optimisticDescriptions = {
+        ...previousPresetDescriptions,
+        [presetId]: "",
+      };
       const previousActiveAssignments =
         previousPresets[previousPresetId] ?? createEmptyCharacterSheetPresetAssignments();
       const nextActiveAssignments =
@@ -911,9 +1056,12 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       visibleCharacterSheetPresetIdsRef.current = optimisticVisiblePresetIds;
       setCharacterSheetPresetLabels(optimisticLabels);
       characterSheetPresetLabelsRef.current = optimisticLabels;
+      setCharacterSheetPresetDescriptions(optimisticDescriptions);
+      characterSheetPresetDescriptionsRef.current = optimisticDescriptions;
       setActiveCharacterSheetPresetIdState(nextActivePresetId);
       activeCharacterSheetPresetIdRef.current = nextActivePresetId;
       setCharacterSheetPresetAssignments(nextActiveAssignments);
+      setCharacterDescriptionState(optimisticDescriptions[nextActivePresetId] ?? "");
 
       const requestId = characterSheetPresetTabOrderRequestRef.current + 1;
       characterSheetPresetTabOrderRequestRef.current = requestId;
@@ -936,9 +1084,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
+        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
+        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         setCharacterSheetPresetAssignments(
           persistedState.presets[persistedState.activePresetId] ??
             createEmptyCharacterSheetPresetAssignments()
+        );
+        setCharacterDescriptionState(
+          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
         );
         return true;
       } catch (nextError) {
@@ -951,9 +1105,12 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = previousVisiblePresetIds;
         setCharacterSheetPresetLabels(previousPresetLabels);
         characterSheetPresetLabelsRef.current = previousPresetLabels;
+        setCharacterSheetPresetDescriptions(previousPresetDescriptions);
+        characterSheetPresetDescriptionsRef.current = previousPresetDescriptions;
         setActiveCharacterSheetPresetIdState(previousPresetId);
         activeCharacterSheetPresetIdRef.current = previousPresetId;
         setCharacterSheetPresetAssignments(previousActiveAssignments);
+        setCharacterDescriptionState(previousPresetDescriptions[previousPresetId] ?? "");
         setError(toErrorMessage(nextError, "Failed to delete character sheet preset tab."));
         return false;
       } finally {
@@ -1108,6 +1265,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextCharacterSheetPresets: snapshot.characterSheetPresets,
         nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
         nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
+        nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
         nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
         nextProfileImageUrl: snapshot.profileImageUrl,
         nextProfileImageTransform: snapshot.profileImageTransform,
@@ -1149,6 +1307,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextCharacterSheetPresets: snapshot.characterSheetPresets,
             nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
             nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
+            nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
             nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
             nextProfileImageUrl: snapshot.profileImageUrl,
             nextProfileImageTransform: snapshot.profileImageTransform,
@@ -1167,6 +1326,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextCharacterSheetPresets: snapshot.characterSheetPresets,
             nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
             nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
+            nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
             nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
             nextProfileImageUrl: snapshot.profileImageUrl,
             nextProfileImageTransform: snapshot.profileImageTransform,
@@ -1203,6 +1363,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextCharacterSheetPresets: snapshot.characterSheetPresets,
           nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
           nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
+          nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
           nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
           nextProfileImageUrl: snapshot.profileImageUrl,
           nextProfileImageTransform: snapshot.profileImageTransform,

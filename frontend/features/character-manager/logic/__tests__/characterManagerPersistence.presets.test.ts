@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   deleteCharacterManagerCharacterSheetPreset,
   saveCharacterManagerActiveCharacterSheetPreset,
+  saveCharacterManagerCharacterSheetPresetTabDescription,
   saveCharacterManagerCharacterSheetPresetTabLabel,
   saveCharacterManagerCharacterSheetPresetTabOrder,
 } from "../characterManagerPersistence";
@@ -359,5 +360,111 @@ describe("characterManagerPersistence preset preview hydration", () => {
     expect(result.presets["2"].portrait).toBeNull();
     expect(fromMock).toHaveBeenCalledWith("characters");
     expect(fromMock.mock.calls).toHaveLength(2);
+  });
+
+  it("persists preset-scoped tab descriptions without touching legacy character description", async () => {
+    const metadata = {
+      character_sheet_presets_v1: {
+        active_preset_id: "2",
+        tab_order: ["1", "2"],
+        tab_labels: { "1": "1", "2": "Look 2" },
+        tab_descriptions: { "1": "Legacy", "2": "Old tab description" },
+        presets: {
+          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+        },
+      },
+    };
+
+    const selectQuery = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn(async () => ({
+        data: { metadata, description: "Legacy description" },
+        error: null,
+      })),
+    };
+    selectQuery.eq.mockImplementation(() => selectQuery);
+
+    const updateSecondEq = vi.fn(async () => ({ error: null }));
+    const updateFirstEq = { eq: updateSecondEq };
+    const updateQuery = {
+      eq: vi.fn(() => updateFirstEq),
+    };
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        })),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => selectQuery),
+        update: vi.fn(() => updateQuery),
+      })),
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+
+    const result = await saveCharacterManagerCharacterSheetPresetTabDescription({
+      characterId: "char-1",
+      presetId: "2",
+      description: "  New tab-specific look  ",
+    });
+
+    expect(result.tabDescriptions["2"]).toBe("  New tab-specific look  ");
+    expect(result.tabDescriptions["1"]).toBe("Legacy");
+    expect(updateSecondEq).toHaveBeenCalledWith("id", "char-1");
+  });
+
+  it("clears deleted preset description while preserving others", async () => {
+    const metadata = {
+      character_sheet_presets_v1: {
+        active_preset_id: "2",
+        tab_order: ["1", "2"],
+        tab_labels: { "1": "1", "2": "Look 2" },
+        tab_descriptions: { "1": "Keep me", "2": "Delete me" },
+        presets: {
+          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+        },
+      },
+    };
+
+    const selectQuery = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn(async () => ({
+        data: { metadata, description: "Legacy description" },
+        error: null,
+      })),
+    };
+    selectQuery.eq.mockImplementation(() => selectQuery);
+
+    const updateSecondEq = vi.fn(async () => ({ error: null }));
+    const updateFirstEq = { eq: updateSecondEq };
+    const updateQuery = {
+      eq: vi.fn(() => updateFirstEq),
+    };
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        })),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => selectQuery),
+        update: vi.fn(() => updateQuery),
+      })),
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+
+    const result = await deleteCharacterManagerCharacterSheetPreset({
+      characterId: "char-1",
+      presetId: "2",
+      nextTabOrder: ["1"],
+      nextActivePresetId: "1",
+    });
+
+    expect(result.tabDescriptions["1"]).toBe("Keep me");
+    expect(result.tabDescriptions["2"]).toBe("");
   });
 });

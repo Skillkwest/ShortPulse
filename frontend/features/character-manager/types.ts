@@ -48,12 +48,14 @@ export type CharacterSheetPresetMap = Record<
 >;
 
 export type CharacterSheetPresetLabelMap = Record<CharacterSheetPresetId, string>;
+export type CharacterSheetPresetDescriptionMap = Record<CharacterSheetPresetId, string>;
 
 export type CharacterSheetPresetState = {
   activePresetId: CharacterSheetPresetId;
   presets: CharacterSheetPresetMap;
   tabOrder: CharacterSheetPresetId[];
   tabLabels: CharacterSheetPresetLabelMap;
+  tabDescriptions: CharacterSheetPresetDescriptionMap;
 };
 
 export type CharacterSlotValidationStatus = "pending" | "pass" | "warn" | "fail";

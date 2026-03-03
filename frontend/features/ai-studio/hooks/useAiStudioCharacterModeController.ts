@@ -123,9 +123,13 @@ export const useAiStudioCharacterModeController = ({
         snapshot.characterSheetAssignments,
         snapshot.slots
       );
+      const effectiveCharacterDescription =
+        snapshot.characterDescription.trim().length > 0
+          ? snapshot.characterDescription
+          : snapshot.legacyCharacterDescription;
       return {
         characterId: snapshot.characterId,
-        characterDescription: snapshot.characterDescription,
+        characterDescription: effectiveCharacterDescription,
         sheetReferenceStoragePaths:
           presetReferenceStoragePaths.length > 0
             ? presetReferenceStoragePaths

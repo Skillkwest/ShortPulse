@@ -63,9 +63,11 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
       - `presets`: record keyed by preset id (`1..10`)
       - `tab_order`: visible preset-tab id list (`1..10` ids, default `["1"]` for new users)
       - `tab_labels`: display label map keyed by preset id (`1..10`)
+      - `tab_descriptions`: per-preset character-description map keyed by preset id (`1..10`, max 150 chars each)
       - Each preset stores `portrait | close_up | front_shot | back_shot`
       - Each zone is `null` or `{ media_file_id, storage_path }`
       - Preset references are user-scoped and used by AI Studio Character Mode injection.
+      - Character Mode description injection uses active preset `tab_descriptions[active_preset_id]`; falls back to legacy `characters.description` when active preset description is empty.
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 

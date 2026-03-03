@@ -18,9 +18,11 @@ import {
   createEmptyCharacterSlotMap,
 } from "../constants";
 import {
+  createNormalizedCharacterSheetPresetTabDescriptions,
   createNormalizedCharacterSheetPresetTabLabels,
   deriveLegacyCharacterSheetPresetTabOrder,
   normalizeCharacterSheetPresetTabOrder,
+  sanitizeCharacterSheetPresetDescription,
 } from "./characterSheetPresetTabs";
 import { createDefaultCharacterValidationNotes } from "./referenceValidation";
 import type {
@@ -239,6 +241,7 @@ export const normalizeCharacterSheetPresetState = (
     presets: Partial<Record<CharacterSheetPresetId, CharacterSheetPresetAssignments | null>>;
     tabOrder: CharacterSheetPresetId[];
     tabLabels: Partial<Record<CharacterSheetPresetId, string>>;
+    tabDescriptions: Partial<Record<CharacterSheetPresetId, string>>;
   }>
 ): CharacterSheetPresetState => {
   const normalized = createDefaultCharacterSheetPresetState();
@@ -257,6 +260,9 @@ export const normalizeCharacterSheetPresetState = (
   });
   normalized.tabLabels = createNormalizedCharacterSheetPresetTabLabels({
     labels: state.tabLabels ?? normalized.tabLabels,
+  });
+  normalized.tabDescriptions = createNormalizedCharacterSheetPresetTabDescriptions({
+    descriptions: state.tabDescriptions ?? normalized.tabDescriptions,
   });
   return normalized;
 };
@@ -356,7 +362,10 @@ export const getCharacterSheetAssignments = (metadata: unknown): CharacterSheetA
  * Parse persisted character-sheet preset state from character metadata.
  */
 export const getCharacterSheetPresetState = (
-  metadata: unknown
+  metadata: unknown,
+  options?: {
+    legacyCharacterDescription?: string | null;
+  }
 ): CharacterSheetPresetState | null => {
   const record = toObjectRecord(metadata);
   const rawPresetState = toObjectRecord(record[CHARACTER_SHEET_PRESETS_KEY]);
@@ -378,10 +387,25 @@ export const getCharacterSheetPresetState = (
       )
     : [];
   const rawTabLabels = toObjectRecord(rawPresetState.tab_labels ?? rawPresetState.tabLabels);
+  const hasRawTabDescriptions =
+    rawPresetState.tab_descriptions !== undefined || rawPresetState.tabDescriptions !== undefined;
+  const rawTabDescriptions = toObjectRecord(
+    rawPresetState.tab_descriptions ?? rawPresetState.tabDescriptions
+  );
   const parsedTabLabels: Partial<Record<CharacterSheetPresetId, string>> = {};
+  const parsedTabDescriptions: Partial<Record<CharacterSheetPresetId, string>> = {};
   for (const [rawPresetId, rawLabel] of Object.entries(rawTabLabels)) {
     if (!isCharacterSheetPresetId(rawPresetId) || typeof rawLabel !== "string") continue;
     parsedTabLabels[rawPresetId] = rawLabel;
+  }
+  for (const [rawPresetId, rawDescription] of Object.entries(rawTabDescriptions)) {
+    if (!isCharacterSheetPresetId(rawPresetId) || typeof rawDescription !== "string") continue;
+    parsedTabDescriptions[rawPresetId] = sanitizeCharacterSheetPresetDescription(rawDescription);
+  }
+  if (!hasRawTabDescriptions) {
+    parsedTabDescriptions["1"] = sanitizeCharacterSheetPresetDescription(
+      options?.legacyCharacterDescription
+    );
   }
   const parsedPresets: Partial<
     Record<CharacterSheetPresetId, CharacterSheetPresetAssignments | null>
@@ -406,6 +430,7 @@ export const getCharacterSheetPresetState = (
     presets: parsedPresets,
     tabOrder: parsedTabOrder.length ? parsedTabOrder : fallbackLegacyTabOrder,
     tabLabels: parsedTabLabels,
+    tabDescriptions: parsedTabDescriptions,
   });
 };
 
@@ -420,6 +445,12 @@ export const serializeCharacterSheetPresetState = (
   tab_labels: Object.fromEntries(
     CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, state.tabLabels[presetId] ?? presetId])
   ) as CharacterSheetPresetLabelMap,
+  tab_descriptions: Object.fromEntries(
+    CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+      presetId,
+      sanitizeCharacterSheetPresetDescription(state.tabDescriptions[presetId]),
+    ])
+  ),
   presets: Object.fromEntries(
     CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
       presetId,

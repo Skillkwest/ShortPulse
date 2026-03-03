@@ -9,6 +9,7 @@ import {
 } from "../constants";
 import type {
   CharacterSheetAssignments,
+  CharacterSheetPresetDescriptionMap,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
   CharacterSheetPresetLabelMap,
@@ -55,8 +56,10 @@ import {
   resolveSupabaseContext,
 } from "./characterManagerPersistenceCore";
 import {
+  createNormalizedCharacterSheetPresetTabDescriptions,
   createNormalizedCharacterSheetPresetTabLabels,
   normalizeCharacterSheetPresetTabOrder,
+  sanitizeCharacterSheetPresetDescription,
   sanitizeCharacterSheetPresetTabLabel,
 } from "./characterSheetPresetTabs";
 
@@ -68,12 +71,14 @@ export type CharacterManagerDraftSnapshot = {
   characterId: string;
   characterSheetId: string;
   characterName: string;
+  legacyCharacterDescription: string;
   characterDescription: string;
   characterSheetAssignments: CharacterSheetAssignments;
   activeCharacterSheetPresetId: CharacterSheetPresetId;
   characterSheetPresets: CharacterSheetPresetState["presets"];
   visibleCharacterSheetPresetIds: CharacterSheetPresetState["tabOrder"];
   characterSheetPresetLabels: CharacterSheetPresetLabelMap;
+  characterSheetPresetDescriptions: CharacterSheetPresetDescriptionMap;
   characterSheetPresetAssignments: CharacterSheetPresetAssignments;
   profileImageUrl: string | null;
   profileImageTransform: CharacterProfileImageTransform;
@@ -207,8 +212,14 @@ const hydratePresetStatePreviewUrls = async (
         ),
       ])
     ) as Partial<Record<CharacterSheetPresetId, CharacterSheetPresetAssignments>>,
+    tabOrder: state.tabOrder,
+    tabLabels: state.tabLabels,
+    tabDescriptions: state.tabDescriptions,
   });
 };
+
+const toLegacyCharacterDescription = (description: string | null | undefined): string =>
+  sanitizeCharacterSheetPresetDescription(description);
 
 const toCharacterSnapshot = async (input: {
   characterId: string;
@@ -222,8 +233,11 @@ const toCharacterSnapshot = async (input: {
   const profileImageTransform = normalizeProfileImageTransform(
     getCharacterProfileImageTransform(input.characterMetadata)
   );
+  const legacyCharacterDescription = toLegacyCharacterDescription(input.characterDescription);
   const characterSheetAssignments = getCharacterSheetAssignments(input.characterMetadata);
-  const persistedPresetState = getCharacterSheetPresetState(input.characterMetadata);
+  const persistedPresetState = getCharacterSheetPresetState(input.characterMetadata, {
+    legacyCharacterDescription,
+  });
   const resolvedPresetState = persistedPresetState
     ? await hydratePresetStatePreviewUrls(persistedPresetState, slots)
     : await hydratePresetStatePreviewUrls(
@@ -234,6 +248,7 @@ const toCharacterSnapshot = async (input: {
   const characterSheetPresets = resolvedPresetState.presets;
   const visibleCharacterSheetPresetIds = resolvedPresetState.tabOrder;
   const characterSheetPresetLabels = resolvedPresetState.tabLabels;
+  const characterSheetPresetDescriptions = resolvedPresetState.tabDescriptions;
   const characterSheetPresetAssignments =
     characterSheetPresets[activeCharacterSheetPresetId] ??
     createEmptyCharacterSheetPresetAssignments();
@@ -247,12 +262,14 @@ const toCharacterSnapshot = async (input: {
     characterId: input.characterId,
     characterSheetId: characterSheet.id,
     characterName: input.characterName.trim() || DEFAULT_CHARACTER_NAME,
-    characterDescription: (input.characterDescription ?? "").slice(0, 150),
+    legacyCharacterDescription,
+    characterDescription: characterSheetPresetDescriptions[activeCharacterSheetPresetId] ?? "",
     characterSheetAssignments,
     activeCharacterSheetPresetId,
     characterSheetPresets,
     visibleCharacterSheetPresetIds,
     characterSheetPresetLabels,
+    characterSheetPresetDescriptions,
     characterSheetPresetAssignments,
     profileImageUrl,
     profileImageTransform,
@@ -341,16 +358,19 @@ export const createCharacterManagerDraft = async (
 ): Promise<CharacterManagerDraftSnapshot> => {
   const { character, characterSheet } = await createDraftCharacter(name);
   const presetState = createDefaultCharacterSheetPresetState();
+  const legacyCharacterDescription = toLegacyCharacterDescription(character.description);
   return {
     characterId: character.id,
     characterSheetId: characterSheet.id,
     characterName: character.name?.trim() || DEFAULT_CHARACTER_NAME,
-    characterDescription: character.description?.slice(0, 150) ?? "",
+    legacyCharacterDescription,
+    characterDescription: presetState.tabDescriptions[presetState.activePresetId] ?? "",
     characterSheetAssignments: getCharacterSheetAssignments(character.metadata),
     activeCharacterSheetPresetId: presetState.activePresetId,
     characterSheetPresets: presetState.presets,
     visibleCharacterSheetPresetIds: presetState.tabOrder,
     characterSheetPresetLabels: presetState.tabLabels,
+    characterSheetPresetDescriptions: presetState.tabDescriptions,
     characterSheetPresetAssignments: presetState.presets[presetState.activePresetId],
     profileImageUrl: null,
     profileImageTransform: { ...DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM },
@@ -403,7 +423,7 @@ export const saveCharacterManagerProfileImage = async (
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
-    .select("metadata")
+    .select("metadata, description")
     .eq("user_id", userId)
     .eq("id", input.characterId)
     .maybeSingle();
@@ -506,7 +526,7 @@ export const clearCharacterManagerProfileImage = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
-    .select("metadata")
+    .select("metadata, description")
     .eq("user_id", userId)
     .eq("id", characterId)
     .maybeSingle();
@@ -662,7 +682,7 @@ export const saveCharacterManagerCharacterSheetAssignments = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
-    .select("metadata")
+    .select("metadata, description")
     .eq("user_id", userId)
     .eq("id", characterId)
     .maybeSingle();
@@ -750,6 +770,9 @@ const hydratePresetStateWithPreviewUrls = async (
         ),
       ])
     ) as Partial<Record<CharacterSheetPresetId, CharacterSheetPresetAssignments>>,
+    tabOrder: state.tabOrder,
+    tabLabels: state.tabLabels,
+    tabDescriptions: state.tabDescriptions,
   });
 };
 
@@ -778,12 +801,17 @@ export const saveCharacterManagerActiveCharacterSheetPreset = async ({
   }
 
   const existingState =
-    getCharacterSheetPresetState(characterRow.metadata) ?? createDefaultCharacterSheetPresetState();
+    getCharacterSheetPresetState(characterRow.metadata, {
+      legacyCharacterDescription: toLegacyCharacterDescription(
+        (characterRow as { description?: string | null }).description
+      ),
+    }) ?? createDefaultCharacterSheetPresetState();
   const nextState = normalizeCharacterSheetPresetState({
     activePresetId: presetId,
     presets: existingState.presets,
     tabOrder: existingState.tabOrder,
     tabLabels: existingState.tabLabels,
+    tabDescriptions: existingState.tabDescriptions,
   });
   const nextMetadata = toMetadataRecord(characterRow.metadata);
   nextMetadata[CHARACTER_SHEET_PRESETS_KEY] = serializeCharacterSheetPresetState(nextState);
@@ -817,7 +845,7 @@ export const saveCharacterManagerCharacterSheetPresetAssignments = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
-    .select("metadata")
+    .select("metadata, description")
     .eq("user_id", userId)
     .eq("id", characterId)
     .maybeSingle();
@@ -829,7 +857,11 @@ export const saveCharacterManagerCharacterSheetPresetAssignments = async ({
   }
 
   const existingState =
-    getCharacterSheetPresetState(characterRow.metadata) ?? createDefaultCharacterSheetPresetState();
+    getCharacterSheetPresetState(characterRow.metadata, {
+      legacyCharacterDescription: toLegacyCharacterDescription(
+        (characterRow as { description?: string | null }).description
+      ),
+    }) ?? createDefaultCharacterSheetPresetState();
   const previousState = normalizeCharacterSheetPresetState(existingState);
   const normalizedAssignments = normalizeCharacterSheetPresetAssignments(assignments);
   const nextState = normalizeCharacterSheetPresetState({
@@ -840,6 +872,7 @@ export const saveCharacterManagerCharacterSheetPresetAssignments = async ({
     },
     tabOrder: previousState.tabOrder,
     tabLabels: previousState.tabLabels,
+    tabDescriptions: previousState.tabDescriptions,
   });
   const nextMetadata = toMetadataRecord(characterRow.metadata);
   nextMetadata[CHARACTER_SHEET_PRESETS_KEY] = serializeCharacterSheetPresetState(nextState);
@@ -891,7 +924,7 @@ export const saveCharacterManagerCharacterSheetPresetTabOrder = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
-    .select("metadata")
+    .select("metadata, description")
     .eq("user_id", userId)
     .eq("id", characterId)
     .maybeSingle();
@@ -903,7 +936,11 @@ export const saveCharacterManagerCharacterSheetPresetTabOrder = async ({
   }
 
   const existingState =
-    getCharacterSheetPresetState(characterRow.metadata) ?? createDefaultCharacterSheetPresetState();
+    getCharacterSheetPresetState(characterRow.metadata, {
+      legacyCharacterDescription: toLegacyCharacterDescription(
+        (characterRow as { description?: string | null }).description
+      ),
+    }) ?? createDefaultCharacterSheetPresetState();
   const nextState = normalizeCharacterSheetPresetState({
     activePresetId,
     presets: existingState.presets,
@@ -912,6 +949,7 @@ export const saveCharacterManagerCharacterSheetPresetTabOrder = async ({
       activePresetId,
     }),
     tabLabels: existingState.tabLabels,
+    tabDescriptions: existingState.tabDescriptions,
   });
   const nextMetadata = toMetadataRecord(characterRow.metadata);
   nextMetadata[CHARACTER_SHEET_PRESETS_KEY] = serializeCharacterSheetPresetState(nextState);
@@ -945,7 +983,7 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
-    .select("metadata")
+    .select("metadata, description")
     .eq("user_id", userId)
     .eq("id", characterId)
     .maybeSingle();
@@ -957,7 +995,11 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
   }
 
   const existingState =
-    getCharacterSheetPresetState(characterRow.metadata) ?? createDefaultCharacterSheetPresetState();
+    getCharacterSheetPresetState(characterRow.metadata, {
+      legacyCharacterDescription: toLegacyCharacterDescription(
+        (characterRow as { description?: string | null }).description
+      ),
+    }) ?? createDefaultCharacterSheetPresetState();
   const nextTabLabels = createNormalizedCharacterSheetPresetTabLabels({
     labels: {
       ...existingState.tabLabels,
@@ -972,6 +1014,7 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
     presets: existingState.presets,
     tabOrder: existingState.tabOrder,
     tabLabels: nextTabLabels,
+    tabDescriptions: existingState.tabDescriptions,
   });
   const nextMetadata = toMetadataRecord(characterRow.metadata);
   nextMetadata[CHARACTER_SHEET_PRESETS_KEY] = serializeCharacterSheetPresetState(nextState);
@@ -985,6 +1028,68 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
     .eq("id", characterId);
   if (updateError) {
     throw new Error(asErrorMessage(updateError, "Failed to save character preset label."));
+  }
+
+  return nextState;
+};
+
+/**
+ * Persist a description for a single preset tab.
+ */
+export const saveCharacterManagerCharacterSheetPresetTabDescription = async ({
+  characterId,
+  presetId,
+  description,
+}: {
+  characterId: string;
+  presetId: CharacterSheetPresetId;
+  description: string;
+}): Promise<CharacterSheetPresetState> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: characterRow, error: characterError } = await supabase
+    .from("characters")
+    .select("metadata, description")
+    .eq("user_id", userId)
+    .eq("id", characterId)
+    .maybeSingle();
+  if (characterError) {
+    throw new Error(asErrorMessage(characterError, "Failed to load character metadata."));
+  }
+  if (!characterRow) {
+    throw new Error("Character is no longer available.");
+  }
+
+  const existingState =
+    getCharacterSheetPresetState(characterRow.metadata, {
+      legacyCharacterDescription: toLegacyCharacterDescription(
+        (characterRow as { description?: string | null }).description
+      ),
+    }) ?? createDefaultCharacterSheetPresetState();
+  const nextTabDescriptions = createNormalizedCharacterSheetPresetTabDescriptions({
+    descriptions: {
+      ...existingState.tabDescriptions,
+      [presetId]: sanitizeCharacterSheetPresetDescription(description),
+    },
+  });
+  const nextState = normalizeCharacterSheetPresetState({
+    activePresetId: existingState.activePresetId,
+    presets: existingState.presets,
+    tabOrder: existingState.tabOrder,
+    tabLabels: existingState.tabLabels,
+    tabDescriptions: nextTabDescriptions,
+  });
+  const nextMetadata = toMetadataRecord(characterRow.metadata);
+  nextMetadata[CHARACTER_SHEET_PRESETS_KEY] = serializeCharacterSheetPresetState(nextState);
+
+  const { error: updateError } = await supabase
+    .from("characters")
+    .update({
+      metadata: nextMetadata,
+    })
+    .eq("user_id", userId)
+    .eq("id", characterId);
+  if (updateError) {
+    throw new Error(asErrorMessage(updateError, "Failed to save character preset description."));
   }
 
   return nextState;
@@ -1047,7 +1152,7 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
-    .select("metadata")
+    .select("metadata, description")
     .eq("user_id", userId)
     .eq("id", characterId)
     .maybeSingle();
@@ -1059,7 +1164,11 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
   }
 
   const existingState =
-    getCharacterSheetPresetState(characterRow.metadata) ?? createDefaultCharacterSheetPresetState();
+    getCharacterSheetPresetState(characterRow.metadata, {
+      legacyCharacterDescription: toLegacyCharacterDescription(
+        (characterRow as { description?: string | null }).description
+      ),
+    }) ?? createDefaultCharacterSheetPresetState();
   const previousState = normalizeCharacterSheetPresetState(existingState);
   if (!previousState.tabOrder.includes(presetId)) {
     return previousState;
@@ -1098,6 +1207,10 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
     tabLabels: {
       ...previousState.tabLabels,
       [presetId]: presetId,
+    },
+    tabDescriptions: {
+      ...previousState.tabDescriptions,
+      [presetId]: "",
     },
   });
   const nextMetadata = toMetadataRecord(characterRow.metadata);

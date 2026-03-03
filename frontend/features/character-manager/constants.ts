@@ -3,6 +3,7 @@
  * Provides canonical reference-slot definitions and lightweight client-side constraints.
  */
 import type {
+  CharacterSheetPresetDescriptionMap,
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetLabelMap,
@@ -147,9 +148,17 @@ export const createDefaultCharacterSheetPresetLabels = (): CharacterSheetPresetL
     return acc;
   }, {} as CharacterSheetPresetLabelMap);
 
+export const createDefaultCharacterSheetPresetDescriptions =
+  (): CharacterSheetPresetDescriptionMap =>
+    CHARACTER_SHEET_PRESET_IDS.reduce((acc, presetId) => {
+      acc[presetId] = "";
+      return acc;
+    }, {} as CharacterSheetPresetDescriptionMap);
+
 export const createDefaultCharacterSheetPresetState = (): CharacterSheetPresetState => ({
   activePresetId: DEFAULT_CHARACTER_SHEET_PRESET_ID,
   presets: createEmptyCharacterSheetPresetMap(),
   tabOrder: [...DEFAULT_CHARACTER_SHEET_PRESET_TAB_ORDER],
   tabLabels: createDefaultCharacterSheetPresetLabels(),
+  tabDescriptions: createDefaultCharacterSheetPresetDescriptions(),
 });

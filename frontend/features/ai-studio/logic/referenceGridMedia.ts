@@ -159,8 +159,10 @@ const applyAdaptivePreviewTransform = ({
 
 const resolvePreviewQualityTarget = ({
   pressureLevel,
+  surface,
 }: {
   pressureLevel: number;
+  surface: AdaptiveSurface;
   cardLongEdgePx: number | null;
   devicePixelRatio: number;
 }) => {
@@ -168,10 +170,17 @@ const resolvePreviewQualityTarget = ({
     pressureLevel >= 2 ? "compact" : pressureLevel >= 1 ? "balanced" : "high";
   const targetLongEdgePxBase =
     qualityBand === "compact" ? 448 : qualityBand === "balanced" ? 512 : 640;
-  const targetLongEdgePx =
-    REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION && pressureLevel >= 2
-      ? Math.round(Math.max(320, Math.min(1280, targetLongEdgePxBase * 0.86)))
-      : targetLongEdgePxBase;
+  const targetLongEdgePx = (() => {
+    if (!REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION) return targetLongEdgePxBase;
+    if (pressureLevel !== 2) return targetLongEdgePxBase;
+    if (surface === "reference-grid") {
+      return Math.round(Math.max(320, Math.min(1280, targetLongEdgePxBase * 0.86)));
+    }
+    if (surface === "quick-slot") {
+      return Math.round(Math.max(240, Math.min(640, targetLongEdgePxBase * 0.9)));
+    }
+    return targetLongEdgePxBase;
+  })();
   return {
     qualityBand,
     targetLongEdgePx,
@@ -189,6 +198,7 @@ const resolveReferenceCardUrlsLegacy = (
     cardLongEdgePx?: number | null;
     devicePixelRatio?: number;
     adaptivePreviewQuality?: boolean;
+    surface?: AdaptiveSurface;
   }
 ) => {
   const strictPreviewLadder = options?.strictPreviewLadder === true;
@@ -198,6 +208,7 @@ const resolveReferenceCardUrlsLegacy = (
     output.mode === "video" ? "video" : output.mode === "image" ? "image" : null;
   const { qualityBand, targetLongEdgePx } = resolvePreviewQualityTarget({
     pressureLevel,
+    surface: options?.surface ?? "reference-grid",
     cardLongEdgePx: options?.cardLongEdgePx ?? null,
     devicePixelRatio: options?.devicePixelRatio ?? 1,
   });

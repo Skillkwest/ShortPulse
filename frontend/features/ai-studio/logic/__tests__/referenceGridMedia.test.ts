@@ -331,4 +331,29 @@ describe("referenceGridMedia", () => {
     expect(resolved.previewUrl).toContain("width=385");
     expect(resolved.previewUrl).toContain("quality=34");
   });
+
+  it("uses quick-slot compaction policy in legacy path at pressure level 2 when flag is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "true");
+    const resolver = await importResolver();
+
+    const sourceUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+    const resolved = resolver.resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+        surface: "quick-slot",
+      }
+    );
+
+    expect(resolved.targetLongEdgePx).toBe(403);
+    expect(resolved.previewUrl).toContain("width=403");
+    expect(resolved.previewUrl).toContain("quality=34");
+  });
 });

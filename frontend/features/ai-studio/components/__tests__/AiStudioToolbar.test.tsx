@@ -32,6 +32,7 @@ describe("AiStudioToolbar", () => {
         onSelectTool={vi.fn()}
         onToggleCreateTools={vi.fn()}
         onToggleBeginnerMode={vi.fn()}
+        onOpenSessions={vi.fn()}
       />
     );
 
@@ -53,11 +54,30 @@ describe("AiStudioToolbar", () => {
         onSelectTool={vi.fn()}
         onToggleCreateTools={vi.fn()}
         onToggleBeginnerMode={onToggleBeginnerMode}
+        onOpenSessions={vi.fn()}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Disable beginner mode/i }));
     expect(onToggleBeginnerMode).toHaveBeenCalledWith(false);
+  });
+
+  it("opens sessions modal from footer sessions button", () => {
+    const onOpenSessions = vi.fn();
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        beginnerMode={false}
+        onSelectTool={vi.fn()}
+        onToggleCreateTools={vi.fn()}
+        onToggleBeginnerMode={vi.fn()}
+        onOpenSessions={onOpenSessions}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sessions" }));
+    expect(onOpenSessions).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -77,6 +97,7 @@ describe("AiStudioToolbar", () => {
         onSelectTool={onSelectTool}
         onToggleCreateTools={onToggleCreateTools}
         onToggleBeginnerMode={vi.fn()}
+        onOpenSessions={vi.fn()}
       />
     );
 
@@ -95,6 +116,7 @@ describe("AiStudioToolbar", () => {
         onSelectTool={vi.fn()}
         onToggleCreateTools={vi.fn()}
         onToggleBeginnerMode={vi.fn()}
+        onOpenSessions={vi.fn()}
       />
     );
 
@@ -113,6 +135,7 @@ describe("AiStudioToolbar", () => {
         onSelectTool={onSelectTool}
         onToggleCreateTools={onToggleCreateTools}
         onToggleBeginnerMode={vi.fn()}
+        onOpenSessions={vi.fn()}
       />
     );
 
@@ -134,6 +157,7 @@ describe("AiStudioToolbar", () => {
         onSelectTool={onSelectTool}
         onToggleCreateTools={onToggleCreateTools}
         onToggleBeginnerMode={vi.fn()}
+        onOpenSessions={vi.fn()}
       />
     );
 
@@ -164,6 +188,7 @@ describe("AiStudioToolbar", () => {
         onSelectTool={onSelectTool}
         onToggleCreateTools={onToggleCreateTools}
         onToggleBeginnerMode={vi.fn()}
+        onOpenSessions={vi.fn()}
       />
     );
 

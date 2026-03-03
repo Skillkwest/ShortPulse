@@ -11,6 +11,7 @@ import {
   asCanonicalStoragePath,
   logAdaptivePolicyApplied,
   logAdaptiveResolveMismatch,
+  REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION,
   type AdaptiveSurface,
 } from "../../../lib/adaptive-media";
 import { canUseNextImageOptimizerForUrl } from "../../../lib/mediaPreviewTrustPolicy";
@@ -165,7 +166,12 @@ const resolvePreviewQualityTarget = ({
 }) => {
   const qualityBand: ReferenceGridPreviewQualityBand =
     pressureLevel >= 2 ? "compact" : pressureLevel >= 1 ? "balanced" : "high";
-  const targetLongEdgePx = qualityBand === "compact" ? 448 : qualityBand === "balanced" ? 512 : 640;
+  const targetLongEdgePxBase =
+    qualityBand === "compact" ? 448 : qualityBand === "balanced" ? 512 : 640;
+  const targetLongEdgePx =
+    REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION && pressureLevel >= 2
+      ? Math.round(Math.max(320, Math.min(1280, targetLongEdgePxBase * 0.86)))
+      : targetLongEdgePxBase;
   return {
     qualityBand,
     targetLongEdgePx,

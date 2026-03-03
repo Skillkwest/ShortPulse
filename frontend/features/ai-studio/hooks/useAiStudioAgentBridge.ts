@@ -25,6 +25,7 @@ import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatMo
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 
 type UseAiStudioAgentBridgeParams = {
+  sessionId: string | null;
   mode: StudioMode;
   selectedTool: ToolId | null;
   prompt: string;
@@ -53,6 +54,7 @@ type UseAiStudioAgentBridgeParams = {
  * Returns agent state and handlers used by the AI Studio page.
  */
 export const useAiStudioAgentBridge = ({
+  sessionId,
   mode,
   selectedTool,
   prompt,
@@ -100,7 +102,7 @@ export const useAiStudioAgentBridge = ({
     reset: resetAgentChat,
   } = useAiAgent({
     enabled: agentEnabled,
-    sessionNamespace: `ai-studio:${selectedTool ?? "none"}:${mode}`,
+    sessionNamespace: `ai-studio:${sessionId ?? "none"}:${selectedTool ?? "none"}:${mode}`,
   });
 
   const [agentUiBusy, setAgentUiBusy] = useState(false);

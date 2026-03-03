@@ -412,6 +412,7 @@ export type AiStudioPageContentProps = {
   showCreateTools: boolean;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
+  onOpenSessions: () => void;
   propertiesCreate: CreateSectionProps;
   /**
    * @deprecated Use `propertiesCreate`.
@@ -474,6 +475,7 @@ export function AiStudioPageContent({
   showCreateTools,
   onSelectTool,
   onToggleCreateTools,
+  onOpenSessions,
   propertiesCreate,
   propertiesText,
   propertiesImage,
@@ -660,6 +662,7 @@ export function AiStudioPageContent({
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onBeginnerModeChange={onBeginnerModeChange}
+      onOpenSessions={onOpenSessions}
     />
   ) : (
     <AiStudioToolbar
@@ -670,6 +673,7 @@ export function AiStudioPageContent({
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onToggleBeginnerMode={onBeginnerModeChange}
+      onOpenSessions={onOpenSessions}
     />
   );
 

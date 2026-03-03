@@ -53,6 +53,11 @@ export const ADAPTIVE_MEDIA_V2_FORCE_FULL_QUALITY = asBool(
   false
 );
 
+export const REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION = asBool(
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION,
+  false
+);
+
 export const isAdaptiveSurfaceEnabled = (surface: AdaptiveSurface): boolean => {
   if (!ADAPTIVE_MEDIA_V2_ENABLED) return false;
   return enabledSurfaces.has(surface);

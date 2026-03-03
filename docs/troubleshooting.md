@@ -180,8 +180,11 @@ Checklist:
   - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED=true`
 - If Reference Grid interactions degrade in long sessions, verify:
   - soft archive is active (`NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE` not set to `false`),
-  - adaptive preview routing is active (`NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`),
+  - adaptive preview routing is active:
+    - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`
+    - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY` not set to `false`
   - active grid count stays near the configured cap (`NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT`, default `500`),
+  - optional heavy-load long-edge compaction is only enabled when intentionally set (`NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION=true`),
   - archived restore actions are available and returning cards without freezing the main grid.
 - Run the automated gate harness when regressions are suspected:
   - on `/ai-studio` DevTools Console, run:

@@ -218,4 +218,30 @@ describe("useAiStudioSessionRestoreHydration", () => {
       })
     );
   });
+
+  it("skips apply when sid is marked for manual hydration", async () => {
+    const hydrateFromSessionSnapshot = vi.fn().mockReturnValue(createHydrationPayload());
+    const hydrateFromSessionAgentSnapshot = vi.fn();
+
+    renderHook(() =>
+      useAiStudioSessionRestoreHydration({
+        sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+        sessionRestoreCandidate: createCandidate(createSnapshot("2026-03-02T05:00:00.000Z")),
+        hydrateFromSessionSnapshot,
+        hydrateFromSessionAgentSnapshot,
+        applyEnabled: true,
+        skipApplyForSessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      })
+    );
+
+    await waitFor(() => {
+      expect(addBreadcrumbMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "ai_studio_session_restore_candidate_loaded",
+        })
+      );
+    });
+    expect(hydrateFromSessionSnapshot).not.toHaveBeenCalled();
+    expect(hydrateFromSessionAgentSnapshot).not.toHaveBeenCalled();
+  });
 });

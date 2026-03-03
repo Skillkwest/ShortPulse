@@ -16,7 +16,7 @@ const REMOTE_SHADOW_ENABLED =
 export const persistAiStudioSessionShadow = async (
   sessionId: string,
   snapshot: AiStudioSessionSnapshotV1,
-  options?: { keepalive?: boolean }
+  options?: { keepalive?: boolean; title?: string | null }
 ): Promise<void> => {
   await saveAiStudioSessionShadow(sessionId, snapshot);
   if (!REMOTE_SHADOW_ENABLED) return;
@@ -25,6 +25,7 @@ export const persistAiStudioSessionShadow = async (
       sessionId,
       snapshot,
       keepalive: options?.keepalive === true,
+      title: options?.title,
     });
   } catch {
     // Shadow mode is intentionally non-blocking until restore cutover.

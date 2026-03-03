@@ -138,7 +138,22 @@ describe("ReferenceGrid curated split", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("reflects effective adaptive preview routing state on telemetry attribute", async () => {
+    vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW", "false");
+    vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY", "true");
+    vi.resetModules();
+    const { ReferenceGrid: ReloadedReferenceGrid } = await import("../ReferenceGrid");
+
+    const { container } = render(<ReloadedReferenceGrid {...createProps()} />);
+    const telemetryRoot = container.querySelector(
+      "[data-grid-surface='reference-grid']"
+    ) as HTMLElement | null;
+    expect(telemetryRoot).toBeTruthy();
+    expect(telemetryRoot?.getAttribute("data-grid-adaptive-preview-enabled")).toBe("false");
   });
 
   it("keeps the primary pending output on spinner visuals after timeout fallback kicks in", () => {

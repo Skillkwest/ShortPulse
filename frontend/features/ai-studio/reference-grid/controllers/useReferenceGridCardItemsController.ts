@@ -32,8 +32,7 @@ type UseReferenceGridCardItemsControllerArgs = {
   activeOutputId: string | null;
   previewQualityPressureLevel: 0 | 1 | 2;
   strictPreviewLadder: boolean;
-  adaptivePreviewEnabled: boolean;
-  adaptivePreviewQualityEnabled: boolean;
+  adaptivePreviewRoutingEnabled: boolean;
   decodeBudgetEnabled: boolean;
   visibleOutputs: StudioOutput[];
   visibleCuratedOutputs: StudioOutput[];
@@ -65,8 +64,7 @@ export const useReferenceGridCardItemsController = ({
   activeOutputId,
   previewQualityPressureLevel,
   strictPreviewLadder,
-  adaptivePreviewEnabled,
-  adaptivePreviewQualityEnabled,
+  adaptivePreviewRoutingEnabled,
   decodeBudgetEnabled,
   visibleOutputs,
   visibleCuratedOutputs,
@@ -86,7 +84,7 @@ export const useReferenceGridCardItemsController = ({
       rows.map((item, visibleIndex) => {
         const resolvedCardUrls = resolveReferenceCardUrls(item, {
           strictPreviewLadder,
-          adaptivePreviewQuality: adaptivePreviewQualityEnabled || adaptivePreviewEnabled,
+          adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
           pressureLevel: previewQualityPressureLevel,
           surface: options.surface,
           cardLongEdgePx: options.cardLongEdgePx,
@@ -144,8 +142,7 @@ export const useReferenceGridCardItemsController = ({
       }),
     [
       activeOutputId,
-      adaptivePreviewEnabled,
-      adaptivePreviewQualityEnabled,
+      adaptivePreviewRoutingEnabled,
       decodeBudgetEnabled,
       hydratedById,
       previewQualityPressureLevel,

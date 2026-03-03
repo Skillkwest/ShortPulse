@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveReferenceCardUrls } from "../referenceGridMedia";
 
+const importResolver = async () => {
+  vi.resetModules();
+  return import("../referenceGridMedia");
+};
+
 describe("referenceGridMedia", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -277,5 +282,53 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.previewUrl).toBe(sourceUrl);
+  });
+
+  it("does not compact legacy long-edge target when heavy-load compaction flag is off", async () => {
+    vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "false");
+    const resolver = await importResolver();
+
+    const sourceUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+    const resolved = resolver.resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+      }
+    );
+
+    expect(resolved.targetLongEdgePx).toBe(448);
+    expect(resolved.previewUrl).toContain("width=448");
+    expect(resolved.previewUrl).toContain("quality=34");
+  });
+
+  it("compacts legacy long-edge target at pressure level 2 when flag is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "true");
+    const resolver = await importResolver();
+
+    const sourceUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+    const resolved = resolver.resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+      }
+    );
+
+    expect(resolved.targetLongEdgePx).toBe(385);
+    expect(resolved.previewUrl).toContain("width=385");
+    expect(resolved.previewUrl).toContain("quality=34");
   });
 });

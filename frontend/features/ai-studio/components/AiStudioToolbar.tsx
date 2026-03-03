@@ -5,6 +5,7 @@
 import Image from "next/image";
 import React from "react";
 import {
+  ClockCounterClockwise,
   Globe,
   FlowArrow,
   ImageSquare,
@@ -42,6 +43,7 @@ type AiStudioToolbarProps = {
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (show: boolean) => void;
   onToggleBeginnerMode: (enabled: boolean) => void;
+  onOpenSessions: () => void;
 };
 
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
@@ -71,6 +73,7 @@ function AiStudioToolbarComponent({
   onSelectTool,
   onToggleCreateTools,
   onToggleBeginnerMode,
+  onOpenSessions,
 }: AiStudioToolbarProps) {
   const isCreateSelected = isCreateWorkflow(selectedTool);
   const isEditSelected = isEditWorkflow(selectedTool);
@@ -101,6 +104,10 @@ function AiStudioToolbarComponent({
         />
       </div>
       <DashboardNavPrefab className="toolbar-back-link" />
+      <button type="button" className="toolbar-sessions-btn" onClick={onOpenSessions}>
+        <ClockCounterClockwise size={16} weight="regular" />
+        <span className="toolbar-label">Sessions</span>
+      </button>
       <div className="toolbar-divider" aria-hidden="true" />
       <div className="toolbar-list">
         {primaryToolList.map((tool) => {

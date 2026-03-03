@@ -22,6 +22,7 @@ type UseAiStudioSessionRestoreHydrationParams = {
   hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
   applyEnabled?: boolean;
   agentApplyEnabled?: boolean;
+  skipApplyForSessionId?: string | null;
 };
 
 /**
@@ -34,6 +35,7 @@ export const useAiStudioSessionRestoreHydration = ({
   hydrateFromSessionAgentSnapshot,
   applyEnabled = RESTORE_APPLY_ENABLED,
   agentApplyEnabled = RESTORE_APPLY_AGENT_ENABLED,
+  skipApplyForSessionId = null,
 }: UseAiStudioSessionRestoreHydrationParams) => {
   const sessionRestoreCandidateLogKeyRef = useRef<string | null>(null);
   const sessionHydrationAppliedRef = useRef<string | null>(null);
@@ -74,6 +76,10 @@ export const useAiStudioSessionRestoreHydration = ({
     if (!applyEnabled) return;
     if (!sessionId || sessionRestoreCandidate.status !== "ready") return;
     if (sessionHydrationAppliedRef.current === sessionId) return;
+    if (skipApplyForSessionId && skipApplyForSessionId === sessionId) {
+      sessionHydrationAppliedRef.current = sessionId;
+      return;
+    }
     if (!sessionRestoreCandidate.snapshot) return;
 
     const snapshot = sessionRestoreCandidate.snapshot;
@@ -100,6 +106,7 @@ export const useAiStudioSessionRestoreHydration = ({
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     sessionId,
+    skipApplyForSessionId,
     sessionRestoreCandidate.snapshot,
     sessionRestoreCandidate.source,
     sessionRestoreCandidate.status,

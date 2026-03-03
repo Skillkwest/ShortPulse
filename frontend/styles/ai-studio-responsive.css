@@ -102,4 +102,13 @@
   .preview-surface {
     height: 300px;
   }
+
+  .ai-sessions-modal {
+    width: min(96vw, 640px);
+    max-height: min(92vh, 700px);
+  }
+
+  .ai-sessions-modal-body {
+    padding: 14px 12px 14px;
+  }
 }

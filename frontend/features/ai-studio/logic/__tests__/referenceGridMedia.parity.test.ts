@@ -100,4 +100,31 @@ describe("referenceGridMedia parity", () => {
 
     expect(v2Results).toEqual(legacyResults);
   });
+
+  it("matches legacy output with heavy-load compaction enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED", "false");
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES", "reference-grid");
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY", "false");
+    vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "true");
+    const legacyModule = await importResolver();
+
+    const legacyResults = FIXTURES.map((fixture) =>
+      legacyModule.resolveReferenceCardUrls(fixture.output, fixture.options)
+    );
+
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES", "reference-grid");
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY", "false");
+    vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "true");
+    const v2Module = await importResolver();
+
+    const v2Results = FIXTURES.map((fixture) =>
+      v2Module.resolveReferenceCardUrls(fixture.output, {
+        ...fixture.options,
+        surface: "reference-grid",
+      })
+    );
+
+    expect(v2Results).toEqual(legacyResults);
+  });
 });

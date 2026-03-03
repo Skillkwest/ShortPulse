@@ -10,6 +10,7 @@ import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWo
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
+import { AiStudioSessionsModal } from "../features/ai-studio/components/AiStudioSessionsModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
@@ -43,6 +44,7 @@ import { useAiStudioSessionWriteShadow } from "../features/ai-studio/hooks/useAi
 import { persistAiStudioSessionShadow } from "../features/ai-studio/logic/sessionShadowPersistence";
 import { useAiStudioSessionRestoreCandidate } from "../features/ai-studio/hooks/useAiStudioSessionRestoreCandidate";
 import { useAiStudioSessionRestoreHydration } from "../features/ai-studio/hooks/useAiStudioSessionRestoreHydration";
+import { useAiStudioSessionSwitcher } from "../features/ai-studio/hooks/useAiStudioSessionSwitcher";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -191,6 +193,9 @@ type AiStudioPerfWindow = Window & {
 export default function AiStudioPage() {
   const { sessionId } = useAiStudioSessionIdentity();
   const sessionRestoreCandidate = useAiStudioSessionRestoreCandidate({ sessionId });
+  const [skipRestoreApplyForSessionId, setSkipRestoreApplyForSessionId] = useState<string | null>(
+    null
+  );
 
   const {
     mediaAutosaveEnabled,
@@ -1096,6 +1101,7 @@ export default function AiStudioPage() {
     handleClearAgentChat,
     handleCloseAgentChat,
   } = useAiStudioAgentBridge({
+    sessionId,
     mode,
     selectedTool,
     prompt,
@@ -1121,6 +1127,7 @@ export default function AiStudioPage() {
     sessionRestoreCandidate,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
+    skipApplyForSessionId: skipRestoreApplyForSessionId,
   });
 
   const sessionSnapshot = useMemo(() => {
@@ -1202,6 +1209,30 @@ export default function AiStudioPage() {
     sessionId,
     snapshot: sessionSnapshot,
     persistSnapshot: persistAiStudioSessionShadow,
+  });
+  const {
+    isSessionsModalOpen,
+    sessions,
+    nextCursor,
+    isLoadingSessions,
+    isLoadingMoreSessions,
+    sessionsLoadError,
+    pendingSessionSwitch,
+    switchError,
+    isSwitchingSession,
+    handleOpenSessionsModal,
+    handleCloseSessionsModal,
+    handleReloadSessions,
+    handleLoadMoreSessions,
+    handleRequestSessionSwitch,
+    handleCancelSessionSwitch,
+    handleConfirmSessionSwitch,
+  } = useAiStudioSessionSwitcher({
+    sessionId,
+    sessionSnapshot,
+    hydrateFromSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
+    setSkipRestoreApplyForSessionId,
   });
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
@@ -1650,6 +1681,7 @@ export default function AiStudioPage() {
         showCreateTools={showCreateTools}
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
+        onOpenSessions={handleOpenSessionsModal}
         propertiesCreate={propertiesCreate}
         propertiesImage={propertiesImage}
         propertiesVideo={propertiesVideo}
@@ -1705,6 +1737,24 @@ export default function AiStudioPage() {
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}
+      />
+      <AiStudioSessionsModal
+        isOpen={isSessionsModalOpen}
+        currentSessionId={sessionId}
+        sessions={sessions}
+        nextCursor={nextCursor}
+        isLoadingSessions={isLoadingSessions}
+        isLoadingMoreSessions={isLoadingMoreSessions}
+        sessionsLoadError={sessionsLoadError}
+        pendingSessionSwitch={pendingSessionSwitch}
+        switchError={switchError}
+        isSwitchingSession={isSwitchingSession}
+        onClose={handleCloseSessionsModal}
+        onReloadSessions={handleReloadSessions}
+        onLoadMoreSessions={handleLoadMoreSessions}
+        onRequestSessionSwitch={handleRequestSessionSwitch}
+        onCancelSessionSwitch={handleCancelSessionSwitch}
+        onConfirmSessionSwitch={handleConfirmSessionSwitch}
       />
       <MediaLibraryModal
         isOpen={isMediaLibraryOpen}

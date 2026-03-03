@@ -58,6 +58,7 @@ import { useReferenceGridImageHydrationController } from "../reference-grid/cont
 import { useReferenceGridViewportProjectionController } from "../reference-grid/controllers/useReferenceGridViewportProjectionController";
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
 import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
+import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -427,11 +428,15 @@ export function ReferenceGrid({
     desiredImageDecodeInflight: hydrationBudget.maxInflightHydrations,
     desiredVideoAttachSlots: desiredVideoAttachBudget,
   });
+  const adaptivePreviewRoutingEnabled = isReferenceGridAdaptivePreviewRoutingEnabled({
+    adaptivePreviewEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW,
+    adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+  });
 
   const { imageHydrationState, enqueueImageHydration, pruneHydrationQueueToCandidateIds } =
     useReferenceGridImageHydrationController({
       decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
-      adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+      adaptivePreviewRoutingEnabled,
       imageDecodeBudget: mediaWorkBudget.imageDecodeBudget,
       activeOutputId,
       outputs,
@@ -556,8 +561,7 @@ export function ReferenceGrid({
     activeOutputId,
     previewQualityPressureLevel,
     strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-    adaptivePreviewEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW,
-    adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+    adaptivePreviewRoutingEnabled,
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     visibleOutputs,
     visibleCuratedOutputs,
@@ -597,7 +601,7 @@ export function ReferenceGrid({
     nearViewportCuratedOutputs,
     previewQualityPressureLevel,
     strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-    adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+    adaptivePreviewRoutingEnabled,
     virtualRowHeight: virtualMetrics.rowHeight,
     curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
     quickSlotAdaptiveSurfaceEnabled,
@@ -772,7 +776,7 @@ export function ReferenceGrid({
       data-grid-video-attach-budget={mediaWorkBudget.videoAttachBudget}
       data-grid-watchdog-longtask-p95={perfWatchdog.longTaskP95Ms ?? ""}
       data-grid-watchdog-input-stall-ms={perfWatchdog.maxInputStallMs}
-      data-grid-adaptive-preview-enabled={REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY}
+      data-grid-adaptive-preview-enabled={adaptivePreviewRoutingEnabled}
       data-grid-adaptive-preview-transformed-count={transformedAdaptivePreviewCount}
       data-grid-optimizer-failover-bypass-count={imageHydrationState.optimizerFailoverBypassCount}
       data-grid-optimizer-failover-error-count={imageHydrationState.optimizerFailoverErrorCount}

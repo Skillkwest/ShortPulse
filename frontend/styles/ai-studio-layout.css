@@ -1461,29 +1461,38 @@ body.ai-shell-resizing * {
   padding-top: 10px;
 }
 
-.toolbar-settings-btn {
-  width: 100%;
-  justify-content: flex-start;
+.toolbar-sessions-btn {
+  width: 120px;
+  margin: 0 auto 6px;
+  justify-content: center;
   gap: 8px;
   text-transform: none;
-  color: #f5f9ff;
-  border-radius: 8px;
-  border: 1px solid var(--ai-border-strong, rgba(201, 205, 214, 0.25));
-  background: rgba(16, 19, 28, 0.8);
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
-  padding: 8px 10px;
-  min-height: 34px;
+  color: var(--color-ash);
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  background: rgba(201, 205, 214, 0.06);
+  transition: all 0.15s ease;
+  padding: 8px 12px;
+  min-height: 38px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
 }
 
-.toolbar-settings-btn svg {
+.toolbar-sessions-btn svg {
   color: var(--color-teal);
 }
 
-.toolbar-settings-btn:hover {
-  border-color: var(--ai-accent-medium, rgba(37, 169, 191, 0.6));
-  background: rgba(16, 19, 28, 0.95);
+.toolbar-sessions-btn:hover {
+  border-color: rgba(201, 205, 214, 0.4);
+}
+
+.toolbar-sessions-btn:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
 }
 
 .toolbar-item.toolbar-item-child svg {

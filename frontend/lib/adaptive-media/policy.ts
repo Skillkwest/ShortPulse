@@ -1,4 +1,8 @@
-import { ADAPTIVE_MEDIA_V2_FORCE_FULL_QUALITY, ADAPTIVE_MEDIA_V2_TUNED_POLICY } from "./flags";
+import {
+  ADAPTIVE_MEDIA_V2_FORCE_FULL_QUALITY,
+  ADAPTIVE_MEDIA_V2_TUNED_POLICY,
+  REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION,
+} from "./flags";
 import type {
   AdaptiveDecision,
   AdaptiveInput,
@@ -95,6 +99,27 @@ const resolveTunedTargetLongEdgePx = ({
   return Math.round(clamp(safeCardEdge * safeDpr * factorByBand[qualityBand], min, max));
 };
 
+const applyHeavyLoadLongEdgeCompaction = ({
+  targetLongEdgePx,
+  surface,
+  pressureLevel,
+}: {
+  targetLongEdgePx: number;
+  surface: AdaptiveSurface;
+  pressureLevel: AdaptivePressureLevel;
+}): number => {
+  if (!REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION) return targetLongEdgePx;
+  if (pressureLevel !== 2) return targetLongEdgePx;
+
+  if (surface === "reference-grid") {
+    return Math.round(clamp(targetLongEdgePx * 0.86, 320, 1280));
+  }
+  if (surface === "quick-slot") {
+    return Math.round(clamp(targetLongEdgePx * 0.9, 240, 640));
+  }
+  return targetLongEdgePx;
+};
+
 export const resolveAdaptivePolicyDecision = (input: AdaptiveInput): AdaptiveDecision => {
   const pressureLevel = asPressureLevel(input.pressureLevel);
   const qualityBand = resolveQualityBand(pressureLevel);
@@ -111,7 +136,7 @@ export const resolveAdaptivePolicyDecision = (input: AdaptiveInput): AdaptiveDec
     tuned ? TUNED_LOCAL_TRANSCODE_QUALITY : PARITY_LOCAL_TRANSCODE_QUALITY
   )[qualityBand];
 
-  const targetLongEdgePx = tuned
+  const targetLongEdgePxBase = tuned
     ? resolveTunedTargetLongEdgePx({
         surface: input.surface,
         qualityBand,
@@ -122,6 +147,11 @@ export const resolveAdaptivePolicyDecision = (input: AdaptiveInput): AdaptiveDec
         surface: input.surface,
         qualityBand,
       });
+  const targetLongEdgePx = applyHeavyLoadLongEdgeCompaction({
+    targetLongEdgePx: targetLongEdgePxBase,
+    surface: input.surface,
+    pressureLevel,
+  });
 
   const localSource = input.source === "local-blob" || input.source === "data-url";
   const localAllowedSurface = input.surface === "reference-grid" || input.surface === "quick-slot";

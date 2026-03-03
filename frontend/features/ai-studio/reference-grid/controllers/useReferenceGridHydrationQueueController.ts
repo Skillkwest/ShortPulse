@@ -24,7 +24,7 @@ type UseReferenceGridHydrationQueueControllerArgs = {
   nearViewportCuratedOutputs: StudioOutput[];
   previewQualityPressureLevel: 0 | 1 | 2;
   strictPreviewLadder: boolean;
-  adaptivePreviewQualityEnabled: boolean;
+  adaptivePreviewRoutingEnabled: boolean;
   virtualRowHeight: number;
   curatedVirtualRowHeight: number;
   quickSlotAdaptiveSurfaceEnabled: boolean;
@@ -54,7 +54,7 @@ export const useReferenceGridHydrationQueueController = ({
   nearViewportCuratedOutputs,
   previewQualityPressureLevel,
   strictPreviewLadder,
-  adaptivePreviewQualityEnabled,
+  adaptivePreviewRoutingEnabled,
   virtualRowHeight,
   curatedVirtualRowHeight,
   quickSlotAdaptiveSurfaceEnabled,
@@ -69,7 +69,7 @@ export const useReferenceGridHydrationQueueController = ({
       if (activeOutput) {
         const resolved = resolveReferenceCardUrls(activeOutput, {
           strictPreviewLadder,
-          adaptivePreviewQuality: adaptivePreviewQualityEnabled,
+          adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
           pressureLevel: previewQualityPressureLevel,
           surface: "reference-grid",
           cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
@@ -134,7 +134,7 @@ export const useReferenceGridHydrationQueueController = ({
       if (candidateIdSet.has(item.id)) return;
       const resolved = resolveReferenceCardUrls(item, {
         strictPreviewLadder,
-        adaptivePreviewQuality: adaptivePreviewQualityEnabled,
+        adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
         pressureLevel: previewQualityPressureLevel,
         surface: "reference-grid",
         cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
@@ -162,7 +162,7 @@ export const useReferenceGridHydrationQueueController = ({
       if (candidateIdSet.has(item.id)) return;
       const resolved = resolveReferenceCardUrls(item, {
         strictPreviewLadder,
-        adaptivePreviewQuality: adaptivePreviewQualityEnabled,
+        adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
         pressureLevel: previewQualityPressureLevel,
         surface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
         cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualRowHeight - 3))),
@@ -189,7 +189,7 @@ export const useReferenceGridHydrationQueueController = ({
     pruneHydrationQueueToCandidateIds(candidateIdSet);
   }, [
     activeOutputId,
-    adaptivePreviewQualityEnabled,
+    adaptivePreviewRoutingEnabled,
     curatedVirtualRowHeight,
     curatedVisibleCardItems,
     decodeBudgetEnabled,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAiStudioSessionSnapshotViaApi,
+  listAiStudioSessionsViaApi,
   saveAiStudioSessionSnapshotViaApi,
 } from "../sessionApiClient";
 
@@ -88,6 +89,8 @@ describe("sessionApiClient", () => {
         keepalive: true,
       })
     );
+    const requestBody = JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body ?? "{}"));
+    expect(requestBody.title).toBe("prompt");
   });
 
   it("throws mapped error message on non-ok response", async () => {
@@ -158,5 +161,42 @@ describe("sessionApiClient", () => {
         sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       })
     ).rejects.toThrow("server exploded");
+  });
+
+  it("lists sessions with limit and cursor", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        sessions: [
+          {
+            sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+            title: "Session A",
+            schemaVersion: 1,
+            saveSeq: 2,
+            updatedAt: "2026-03-02T01:00:00.000Z",
+            expiresAt: "2026-08-29T01:00:00.000Z",
+          },
+        ],
+        nextCursor: "next-cursor",
+      }),
+    });
+
+    const result = await listAiStudioSessionsViaApi({ limit: 20, cursor: "cursor-1" });
+    expect(result.sessions).toHaveLength(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/ai/sessions?limit=20&cursor=cursor-1",
+      expect.objectContaining({ method: "GET" })
+    );
+  });
+
+  it("throws mapped error message on list failure", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "list failed" }),
+    });
+
+    await expect(listAiStudioSessionsViaApi()).rejects.toThrow("list failed");
   });
 });

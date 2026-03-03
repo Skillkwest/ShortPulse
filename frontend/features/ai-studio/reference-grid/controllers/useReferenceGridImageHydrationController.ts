@@ -41,7 +41,7 @@ type EnqueueImageHydrationOptions = {
 
 type UseReferenceGridImageHydrationControllerArgs = {
   decodeBudgetEnabled: boolean;
-  adaptivePreviewQualityEnabled: boolean;
+  adaptivePreviewRoutingEnabled: boolean;
   imageDecodeBudget: number;
   activeOutputId: string | null;
   outputs: StudioOutput[];
@@ -59,7 +59,7 @@ const MAX_FAILED_OPTIMIZER_SOURCE_CACHE_SIZE = 256;
 
 export const useReferenceGridImageHydrationController = ({
   decodeBudgetEnabled,
-  adaptivePreviewQualityEnabled,
+  adaptivePreviewRoutingEnabled,
   imageDecodeBudget,
   activeOutputId,
   outputs,
@@ -137,7 +137,7 @@ export const useReferenceGridImageHydrationController = ({
 
   const maybeCreateLocalAdaptivePreviewUrl = useCallback(
     async (id: string, sourceUrl: string, image: HTMLImageElement): Promise<string> => {
-      if (!adaptivePreviewQualityEnabled) return sourceUrl;
+      if (!adaptivePreviewRoutingEnabled) return sourceUrl;
       if (hasAdaptiveQueryParams(sourceUrl) || isNextOptimizerUrl(sourceUrl)) return sourceUrl;
       if (isVideoUrl(sourceUrl)) return sourceUrl;
       const previewMeta = hydrationPreviewMetaByIdRef.current[id];
@@ -186,7 +186,7 @@ export const useReferenceGridImageHydrationController = ({
       });
       return objectUrl;
     },
-    [adaptivePreviewQualityEnabled, liveWatchdogDegradeLevelRef]
+    [adaptivePreviewRoutingEnabled, liveWatchdogDegradeLevelRef]
   );
 
   const syncImageHydrationState = useCallback(() => {

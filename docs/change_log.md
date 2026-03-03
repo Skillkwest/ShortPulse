@@ -2594,3 +2594,26 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `missing_charge_count = 0`
   - `duplicate_charge_key_count = 0`
 - Normalized final legacy state hygiene (`status='success'` + `recovery_state='recovering'`) to `recovered`; post-check summary no longer reports that bucket.
+
+## 2026-03-03 (Reference Grid heavy-load adaptive compaction + routing semantics hardening)
+- Added a new runtime guardrail flag for optional heavy-load image long-edge compaction (default off):
+  - `NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION`
+  - wired in `frontend/lib/adaptive-media/flags.ts` and `frontend/.env.example`.
+- Added pressure-level-2 long-edge compaction (dimensions only, no quality-param changes) for:
+  - Adaptive Media V2 policy path (`frontend/lib/adaptive-media/policy.ts`)
+  - Legacy reference-grid resolver path (`frontend/features/ai-studio/logic/referenceGridMedia.ts`)
+  - parity behavior preserved between legacy and V2.
+- Fixed reference-grid adaptive-preview routing semantics to require both flags (`ADAPTIVE_PREVIEW` and `ADAPTIVE_PREVIEW_QUALITY`) via shared helper:
+  - `frontend/features/ai-studio/reference-grid/logic/referenceGridAdaptivePreview.ts`
+  - wired into `ReferenceGrid` plus card-items/hydration/image-transcode controllers.
+- Updated reference-grid telemetry/debug surface to report effective adaptive routing state:
+  - `data-grid-adaptive-preview-enabled` now maps to the effective combined routing gate.
+- Added/updated targeted coverage:
+  - `frontend/lib/adaptive-media/__tests__/policy.test.ts`
+  - `frontend/features/ai-studio/logic/__tests__/referenceGridMedia.test.ts`
+  - `frontend/features/ai-studio/logic/__tests__/referenceGridMedia.parity.test.ts`
+  - `frontend/features/ai-studio/reference-grid/logic/__tests__/referenceGridAdaptivePreview.test.ts`
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
+- Updated operations docs for effective adaptive-routing semantics and optional heavy-load compaction control:
+  - `docs/sops/sop_media_performance_operations.md`
+  - `docs/troubleshooting.md`

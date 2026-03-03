@@ -299,4 +299,16 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     expect(onDeletePreset).toHaveBeenCalledWith("2");
     expect(onDeletePreset).toHaveBeenCalledTimes(1);
   });
+
+  it("preserves tab selection clicks when pointer moves stay below drag activation threshold", () => {
+    render(<PresetTabsHarness initialPresetIds={["1", "2", "3"]} />);
+    const tabTwo = screen.getByRole("tab", { name: "2" });
+
+    fireEvent.pointerDown(tabTwo, { button: 0, pointerId: 11, clientX: 200 });
+    fireEvent.pointerMove(tabTwo, { pointerId: 11, clientX: 196 });
+    fireEvent.pointerUp(tabTwo, { pointerId: 11, clientX: 196 });
+    fireEvent.click(tabTwo);
+
+    expect(tabTwo).toHaveAttribute("aria-selected", "true");
+  });
 });

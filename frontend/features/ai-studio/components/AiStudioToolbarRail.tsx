@@ -15,7 +15,6 @@ type AiStudioToolbarRailProps = {
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
   onBeginnerModeChange: (value: boolean) => void;
-  onOpenSessions: () => void;
 };
 
 export const AiStudioToolbarRail = React.memo(function AiStudioToolbarRail({
@@ -26,7 +25,6 @@ export const AiStudioToolbarRail = React.memo(function AiStudioToolbarRail({
   onSelectTool,
   onToggleCreateTools,
   onBeginnerModeChange,
-  onOpenSessions,
 }: AiStudioToolbarRailProps) {
   recordAiStudioShellSectionRender("toolbar");
   return (
@@ -38,7 +36,6 @@ export const AiStudioToolbarRail = React.memo(function AiStudioToolbarRail({
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onToggleBeginnerMode={onBeginnerModeChange}
-      onOpenSessions={onOpenSessions}
     />
   );
 });

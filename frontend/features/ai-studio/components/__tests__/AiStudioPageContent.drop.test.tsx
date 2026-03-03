@@ -106,7 +106,6 @@ const createProps = (
   showCreateTools: false,
   onSelectTool: vi.fn(),
   onToggleCreateTools: vi.fn(),
-  onOpenSessions: vi.fn(),
   propertiesCreate: {} as AiStudioPageContentProps["propertiesCreate"],
   propertiesImage: {} as AiStudioPageContentProps["propertiesImage"],
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],

@@ -10,7 +10,6 @@ import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWo
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
-import { AiStudioSessionsModal } from "../features/ai-studio/components/AiStudioSessionsModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
@@ -38,13 +37,6 @@ import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAi
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking";
-import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
-import { buildAiStudioSessionSnapshot } from "../features/ai-studio/logic/sessionSnapshot";
-import { useAiStudioSessionWriteShadow } from "../features/ai-studio/hooks/useAiStudioSessionWriteShadow";
-import { persistAiStudioSessionShadow } from "../features/ai-studio/logic/sessionShadowPersistence";
-import { useAiStudioSessionRestoreCandidate } from "../features/ai-studio/hooks/useAiStudioSessionRestoreCandidate";
-import { useAiStudioSessionRestoreHydration } from "../features/ai-studio/hooks/useAiStudioSessionRestoreHydration";
-import { useAiStudioSessionSwitcher } from "../features/ai-studio/hooks/useAiStudioSessionSwitcher";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -191,11 +183,7 @@ type AiStudioPerfWindow = Window & {
 };
 
 export default function AiStudioPage() {
-  const { sessionId } = useAiStudioSessionIdentity();
-  const sessionRestoreCandidate = useAiStudioSessionRestoreCandidate({ sessionId });
-  const [skipRestoreApplyForSessionId, setSkipRestoreApplyForSessionId] = useState<string | null>(
-    null
-  );
+  const sessionId: string | null = null;
 
   const {
     mediaAutosaveEnabled,
@@ -303,7 +291,6 @@ export default function AiStudioPage() {
     addLibraryMediaReference,
     addLibraryPromptReference,
     toggleReferenceIndicator,
-    hydrateFromSessionSnapshot,
     openModelModal,
     closeModelModal,
     updateOutputPrompt,
@@ -1074,7 +1061,6 @@ export default function AiStudioPage() {
     agentActions,
     isAgentChatOpen,
     latestAgentPrompt,
-    promptOrigin,
     setPromptOrigin,
     agentPrimarySource,
     stagedAgentPrompt,
@@ -1086,7 +1072,6 @@ export default function AiStudioPage() {
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleAgentDescribeTargets,
-    hydrateFromSessionAgentSnapshot,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave,
@@ -1122,118 +1107,6 @@ export default function AiStudioPage() {
     trackAgentUiEvent: trackUiEvent,
   });
 
-  useAiStudioSessionRestoreHydration({
-    sessionId,
-    sessionRestoreCandidate,
-    hydrateFromSessionSnapshot,
-    hydrateFromSessionAgentSnapshot,
-    skipApplyForSessionId: skipRestoreApplyForSessionId,
-  });
-
-  const sessionSnapshot = useMemo(() => {
-    if (!sessionId) return null;
-    return buildAiStudioSessionSnapshot({
-      sessionId,
-      mode,
-      selectedTool,
-      prompt,
-      model,
-      aspect,
-      referenceImageUrl,
-      extraImageUrls,
-      editReferenceText,
-      videoReferenceText,
-      videoReferenceMode,
-      videoDurationSeconds,
-      videoResolution,
-      imageResolution,
-      videoGenerateAudio,
-      videoCameraFixed,
-      videoAutoFix,
-      klingNegativePrompt,
-      klingCfgScale,
-      klingShotType,
-      klingVoiceIds,
-      klingMultiPrompts,
-      klingElements,
-      motionReferenceVideoUrl,
-      outputs,
-      archivedOutputs,
-      activeOutputId,
-      curatedReferenceIds,
-      removedFromAllRefsIds,
-      agentMessages,
-      agentInput,
-      latestAgentPrompt,
-      promptOrigin,
-      chatModeEnabled,
-    });
-  }, [
-    activeOutputId,
-    agentInput,
-    agentMessages,
-    archivedOutputs,
-    aspect,
-    chatModeEnabled,
-    curatedReferenceIds,
-    editReferenceText,
-    extraImageUrls,
-    imageResolution,
-    klingCfgScale,
-    klingElements,
-    klingMultiPrompts,
-    klingNegativePrompt,
-    klingShotType,
-    klingVoiceIds,
-    latestAgentPrompt,
-    mode,
-    model,
-    motionReferenceVideoUrl,
-    outputs,
-    prompt,
-    promptOrigin,
-    referenceImageUrl,
-    removedFromAllRefsIds,
-    selectedTool,
-    sessionId,
-    videoAutoFix,
-    videoCameraFixed,
-    videoDurationSeconds,
-    videoGenerateAudio,
-    videoReferenceMode,
-    videoReferenceText,
-    videoResolution,
-  ]);
-
-  useAiStudioSessionWriteShadow({
-    sessionId,
-    snapshot: sessionSnapshot,
-    persistSnapshot: persistAiStudioSessionShadow,
-  });
-  const {
-    isSessionsModalOpen,
-    sessions,
-    nextCursor,
-    isLoadingSessions,
-    isLoadingMoreSessions,
-    sessionsLoadError,
-    pendingSessionSwitch,
-    switchError,
-    isSwitchingSession,
-    handleOpenSessionsModal,
-    handleCloseSessionsModal,
-    handleReloadSessions,
-    handleLoadMoreSessions,
-    handleRequestSessionSwitch,
-    handleCancelSessionSwitch,
-    handleConfirmSessionSwitch,
-  } = useAiStudioSessionSwitcher({
-    sessionId,
-    sessionSnapshot,
-    hydrateFromSessionSnapshot,
-    hydrateFromSessionAgentSnapshot,
-    setSkipRestoreApplyForSessionId,
-  });
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
@@ -1681,7 +1554,6 @@ export default function AiStudioPage() {
         showCreateTools={showCreateTools}
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
-        onOpenSessions={handleOpenSessionsModal}
         propertiesCreate={propertiesCreate}
         propertiesImage={propertiesImage}
         propertiesVideo={propertiesVideo}
@@ -1737,24 +1609,6 @@ export default function AiStudioPage() {
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}
-      />
-      <AiStudioSessionsModal
-        isOpen={isSessionsModalOpen}
-        currentSessionId={sessionId}
-        sessions={sessions}
-        nextCursor={nextCursor}
-        isLoadingSessions={isLoadingSessions}
-        isLoadingMoreSessions={isLoadingMoreSessions}
-        sessionsLoadError={sessionsLoadError}
-        pendingSessionSwitch={pendingSessionSwitch}
-        switchError={switchError}
-        isSwitchingSession={isSwitchingSession}
-        onClose={handleCloseSessionsModal}
-        onReloadSessions={handleReloadSessions}
-        onLoadMoreSessions={handleLoadMoreSessions}
-        onRequestSessionSwitch={handleRequestSessionSwitch}
-        onCancelSessionSwitch={handleCancelSessionSwitch}
-        onConfirmSessionSwitch={handleConfirmSessionSwitch}
       />
       <MediaLibraryModal
         isOpen={isMediaLibraryOpen}

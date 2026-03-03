@@ -7,6 +7,8 @@ import { Plus, X } from "phosphor-react";
 import type { CharacterSheetPresetId } from "../types";
 import { MAX_CHARACTER_SHEET_PRESET_TAB_COUNT } from "../logic/characterSheetPresetTabs";
 
+const TAB_DRAG_SCROLL_ACTIVATION_PX = 6;
+
 type CharacterSheetPresetTabsProps = {
   presetIds: readonly CharacterSheetPresetId[];
   activePresetId: CharacterSheetPresetId;
@@ -181,9 +183,6 @@ export function CharacterSheetPresetTabs({
         startScrollLeft: track.scrollLeft,
         moved: false,
       };
-      if (track.setPointerCapture) {
-        track.setPointerCapture(event.pointerId);
-      }
     },
     [isEditing]
   );
@@ -198,9 +197,15 @@ export function CharacterSheetPresetTabs({
       return;
     }
     const deltaX = event.clientX - dragState.startX;
-    if (!dragState.moved && Math.abs(deltaX) > 3) {
+    if (!dragState.moved && Math.abs(deltaX) > TAB_DRAG_SCROLL_ACTIVATION_PX) {
       dragState.moved = true;
       setIsDragScrollingTabs(true);
+      if (track.setPointerCapture) {
+        track.setPointerCapture(event.pointerId);
+      }
+    }
+    if (!dragState.moved) {
+      return;
     }
     track.scrollLeft = dragState.startScrollLeft - deltaX;
   }, []);

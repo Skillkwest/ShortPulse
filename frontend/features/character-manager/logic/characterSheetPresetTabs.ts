@@ -118,3 +118,31 @@ export const createNormalizedCharacterSheetPresetTabDescriptions = ({
     acc[presetId] = sanitizeCharacterSheetPresetDescription(descriptions?.[presetId]);
     return acc;
   }, {} as CharacterSheetPresetDescriptionMap);
+
+/**
+ * Merge persisted preset descriptions with local in-memory edits.
+ * Local values are preserved when they differ from the last persisted baseline or have queued persists.
+ */
+export const mergeCharacterSheetPresetTabDescriptions = ({
+  persistedDescriptions,
+  localDescriptions,
+  lastPersistedDescriptions,
+  hasPendingPersist,
+}: {
+  persistedDescriptions: CharacterSheetPresetDescriptionMap;
+  localDescriptions: CharacterSheetPresetDescriptionMap;
+  lastPersistedDescriptions: CharacterSheetPresetDescriptionMap;
+  hasPendingPersist: Record<CharacterSheetPresetId, boolean>;
+}): CharacterSheetPresetDescriptionMap =>
+  CHARACTER_SHEET_PRESET_IDS.reduce((acc, presetId) => {
+    const persistedValue = sanitizeCharacterSheetPresetDescription(persistedDescriptions[presetId]);
+    const localValue = sanitizeCharacterSheetPresetDescription(localDescriptions[presetId]);
+    const lastPersistedValue = sanitizeCharacterSheetPresetDescription(
+      lastPersistedDescriptions[presetId]
+    );
+    acc[presetId] =
+      hasPendingPersist[presetId] || localValue !== lastPersistedValue
+        ? localValue
+        : persistedValue;
+    return acc;
+  }, {} as CharacterSheetPresetDescriptionMap);

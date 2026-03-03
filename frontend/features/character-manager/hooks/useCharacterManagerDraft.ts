@@ -35,6 +35,7 @@ import {
 } from "../logic/characterManagerPersistence";
 import {
   getNextCharacterSheetPresetId,
+  mergeCharacterSheetPresetTabDescriptions,
   sanitizeCharacterSheetPresetTabLabel,
 } from "../logic/characterSheetPresetTabs";
 import { validateCharacterReferenceFile } from "../logic/referenceValidation";
@@ -447,6 +448,30 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     };
   }, [characterId, characterName]);
 
+  const mergePersistedTabDescriptions = useCallback(
+    (
+      persistedDescriptions: CharacterSheetPresetDescriptionMap
+    ): CharacterSheetPresetDescriptionMap => {
+      const pendingPersistByPreset = CHARACTER_SHEET_PRESET_IDS.reduce(
+        (acc, presetId) => {
+          acc[presetId] = Boolean(descriptionPersistTimerRefs.current[presetId]);
+          return acc;
+        },
+        {} as Record<CharacterSheetPresetId, boolean>
+      );
+      const mergedDescriptions = mergeCharacterSheetPresetTabDescriptions({
+        persistedDescriptions,
+        localDescriptions: characterSheetPresetDescriptionsRef.current,
+        lastPersistedDescriptions: lastPersistedDescriptionMapRef.current,
+        hasPendingPersist: pendingPersistByPreset,
+      });
+      setCharacterSheetPresetDescriptions(mergedDescriptions);
+      characterSheetPresetDescriptionsRef.current = mergedDescriptions;
+      return mergedDescriptions;
+    },
+    []
+  );
+
   const scheduleCharacterSheetPresetDescriptionPersist = useCallback(
     (presetId: CharacterSheetPresetId, description: string) => {
       const targetCharacterId = characterIdRef.current;
@@ -475,9 +500,13 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             if (descriptionPersistRequestRef.current[presetId] !== requestId) {
               return;
             }
-            lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
-            setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
-            characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+            lastPersistedDescriptionMapRef.current = {
+              ...lastPersistedDescriptionMapRef.current,
+              [presetId]: persistedState.tabDescriptions[presetId] ?? "",
+            };
+            const mergedDescriptions = mergePersistedTabDescriptions(
+              persistedState.tabDescriptions
+            );
             setVisibleCharacterSheetPresetIds(persistedState.tabOrder);
             visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
             setCharacterSheetPresetLabels(persistedState.tabLabels);
@@ -491,7 +520,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
               );
             }
             setCharacterDescriptionState(
-              persistedState.tabDescriptions[activeCharacterSheetPresetIdRef.current] ?? ""
+              mergedDescriptions[activeCharacterSheetPresetIdRef.current] ?? ""
             );
           })
           .catch((nextError) => {
@@ -511,7 +540,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           });
       }, 500);
     },
-    []
+    [mergePersistedTabDescriptions]
   );
 
   useEffect(
@@ -721,8 +750,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
-        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
-        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        const mergedDescriptions = mergePersistedTabDescriptions(persistedState.tabDescriptions);
         lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         // Keep local preset references stable on tab switches to avoid unnecessary preview URL churn.
         const resolvedPresets = characterSheetPresetsRef.current;
@@ -731,9 +759,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           persistedState.presets[persistedState.activePresetId] ??
           createEmptyCharacterSheetPresetAssignments();
         setCharacterSheetPresetAssignments(resolvedActiveAssignments);
-        setCharacterDescriptionState(
-          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
-        );
+        setCharacterDescriptionState(mergedDescriptions[persistedState.activePresetId] ?? "");
         return true;
       } catch (nextError) {
         if (activeCharacterSheetPresetRequestRef.current !== requestId) {
@@ -751,7 +777,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         }
       }
     },
-    [characterId, clearMessages]
+    [characterId, clearMessages, mergePersistedTabDescriptions]
   );
 
   const saveCharacterSheetPresetAssignments = useCallback(
@@ -795,16 +821,13 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
-        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
-        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        const mergedDescriptions = mergePersistedTabDescriptions(persistedState.tabDescriptions);
         lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         setCharacterSheetPresetAssignments(
           persistedState.presets[persistedState.activePresetId] ??
             createEmptyCharacterSheetPresetAssignments()
         );
-        setCharacterDescriptionState(
-          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
-        );
+        setCharacterDescriptionState(mergedDescriptions[persistedState.activePresetId] ?? "");
         return true;
       } catch (nextError) {
         if (characterSheetPresetAssignmentsRequestRef.current !== requestId) {
@@ -825,7 +848,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         }
       }
     },
-    [characterId, clearMessages]
+    [characterId, clearMessages, mergePersistedTabDescriptions]
   );
 
   const addCharacterSheetPreset = useCallback(async () => {
@@ -890,16 +913,13 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
       setCharacterSheetPresetLabels(persistedState.tabLabels);
       characterSheetPresetLabelsRef.current = persistedState.tabLabels;
-      setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
-      characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+      const mergedDescriptions = mergePersistedTabDescriptions(persistedState.tabDescriptions);
       lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
       setCharacterSheetPresetAssignments(
         persistedState.presets[persistedState.activePresetId] ??
           createEmptyCharacterSheetPresetAssignments()
       );
-      setCharacterDescriptionState(
-        persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
-      );
+      setCharacterDescriptionState(mergedDescriptions[persistedState.activePresetId] ?? "");
       return true;
     } catch (nextError) {
       if (characterSheetPresetTabOrderRequestRef.current !== requestId) {
@@ -922,7 +942,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         setIsSavingCharacterSheetPreset(false);
       }
     }
-  }, [characterId, clearMessages]);
+  }, [characterId, clearMessages, mergePersistedTabDescriptions]);
 
   const renameCharacterSheetPreset = useCallback(
     async (presetId: CharacterSheetPresetId, nextLabel: string) => {
@@ -965,8 +985,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
-        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
-        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        const mergedDescriptions = mergePersistedTabDescriptions(persistedState.tabDescriptions);
         lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         setActiveCharacterSheetPresetIdState(persistedState.activePresetId);
         activeCharacterSheetPresetIdRef.current = persistedState.activePresetId;
@@ -974,9 +993,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           persistedState.presets[persistedState.activePresetId] ??
             createEmptyCharacterSheetPresetAssignments()
         );
-        setCharacterDescriptionState(
-          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
-        );
+        setCharacterDescriptionState(mergedDescriptions[persistedState.activePresetId] ?? "");
         return true;
       } catch (nextError) {
         if (characterSheetPresetTabLabelRequestRef.current !== requestId) {
@@ -992,7 +1009,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         }
       }
     },
-    [characterId, clearMessages]
+    [characterId, clearMessages, mergePersistedTabDescriptions]
   );
 
   const deleteCharacterSheetPreset = useCallback(
@@ -1084,16 +1101,13 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         visibleCharacterSheetPresetIdsRef.current = persistedState.tabOrder;
         setCharacterSheetPresetLabels(persistedState.tabLabels);
         characterSheetPresetLabelsRef.current = persistedState.tabLabels;
-        setCharacterSheetPresetDescriptions(persistedState.tabDescriptions);
-        characterSheetPresetDescriptionsRef.current = persistedState.tabDescriptions;
+        const mergedDescriptions = mergePersistedTabDescriptions(persistedState.tabDescriptions);
         lastPersistedDescriptionMapRef.current = persistedState.tabDescriptions;
         setCharacterSheetPresetAssignments(
           persistedState.presets[persistedState.activePresetId] ??
             createEmptyCharacterSheetPresetAssignments()
         );
-        setCharacterDescriptionState(
-          persistedState.tabDescriptions[persistedState.activePresetId] ?? ""
-        );
+        setCharacterDescriptionState(mergedDescriptions[persistedState.activePresetId] ?? "");
         return true;
       } catch (nextError) {
         if (characterSheetPresetTabOrderRequestRef.current !== requestId) {
@@ -1119,7 +1133,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         }
       }
     },
-    [characterId, clearMessages]
+    [characterId, clearMessages, mergePersistedTabDescriptions]
   );
 
   const setCharacterSheetPresetFile = useCallback(

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   CHARACTER_SHEET_PRESET_TAB_LABEL_MAX_LENGTH,
+  createNormalizedCharacterSheetPresetTabDescriptions,
   createNormalizedCharacterSheetPresetTabLabels,
   deriveLegacyCharacterSheetPresetTabOrder,
   getNextCharacterSheetPresetId,
+  mergeCharacterSheetPresetTabDescriptions,
   normalizeCharacterSheetPresetTabOrder,
   sanitizeCharacterSheetPresetTabLabel,
 } from "../characterSheetPresetTabs";
@@ -77,5 +79,46 @@ describe("characterSheetPresetTabs helpers", () => {
     expect(labels["1"]).toBe("Hero");
     expect(labels["2"]).toBe("2");
     expect(labels["10"]).toBe("10");
+  });
+
+  it("preserves local description edits when persisted payloads are stale", () => {
+    const persistedDescriptions = createNormalizedCharacterSheetPresetTabDescriptions({
+      descriptions: {
+        "1": "server-1",
+        "2": "server-2",
+      },
+    });
+    const localDescriptions = createNormalizedCharacterSheetPresetTabDescriptions({
+      descriptions: {
+        "1": "local-draft-1",
+        "2": "local-draft-2",
+      },
+    });
+    const lastPersistedDescriptions = createNormalizedCharacterSheetPresetTabDescriptions({
+      descriptions: {
+        "1": "server-1",
+        "2": "server-2",
+      },
+    });
+    const merged = mergeCharacterSheetPresetTabDescriptions({
+      persistedDescriptions,
+      localDescriptions,
+      lastPersistedDescriptions,
+      hasPendingPersist: {
+        "1": false,
+        "2": true,
+        "3": false,
+        "4": false,
+        "5": false,
+        "6": false,
+        "7": false,
+        "8": false,
+        "9": false,
+        "10": false,
+      },
+    });
+
+    expect(merged["1"]).toBe("local-draft-1");
+    expect(merged["2"]).toBe("local-draft-2");
   });
 });

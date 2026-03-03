@@ -1560,6 +1560,26 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
+  it("hides the QuickSwap collapse control in panel expert mode", () => {
+    render(<CharacterManagerShell surface="panel" beginnerModeOverride={false} />);
+
+    expect(
+      screen.queryByRole("button", {
+        name: /Collapse QuickSwap Deck/i,
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: /Expand QuickSwap Deck/i,
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("list", {
+        name: /Uploaded references/i,
+      })
+    ).toBeInTheDocument();
+  });
+
   it("loads full-quality signed media for the reference preview overlay", async () => {
     render(<CharacterManagerShell />);
 
@@ -1647,10 +1667,7 @@ describe("CharacterManagerShell behavior", () => {
   it("keeps helper text and tips visible in expert mode while hiding numbered badges", async () => {
     render(<CharacterManagerShell />);
 
-    expect(document.querySelectorAll(".character-step-badge")).toHaveLength(3);
-    expect(
-      screen.getByText("Set the photo, name, and description that define this character.")
-    ).toBeInTheDocument();
+    expect(document.querySelectorAll(".character-step-badge")).toHaveLength(2);
     expect(
       screen.getByText(
         "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
@@ -1674,9 +1691,6 @@ describe("CharacterManagerShell behavior", () => {
     await waitFor(() => {
       expect(document.querySelectorAll(".character-step-badge")).toHaveLength(0);
       expect(
-        screen.getByText("Set the photo, name, and description that define this character.")
-      ).toBeInTheDocument();
-      expect(
         screen.getByText(
           "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
         )
@@ -1697,10 +1711,7 @@ describe("CharacterManagerShell behavior", () => {
     fireEvent.click(screen.getByRole("button", { name: /Enable beginner mode/i }));
 
     await waitFor(() => {
-      expect(document.querySelectorAll(".character-step-badge")).toHaveLength(3);
-      expect(
-        screen.getByText("Set the photo, name, and description that define this character.")
-      ).toBeInTheDocument();
+      expect(document.querySelectorAll(".character-step-badge")).toHaveLength(2);
       expect(
         screen.getByText(
           "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."

@@ -10,7 +10,6 @@ type CharacterDescriptionEditorCardProps = {
   maxLength: number;
   rows: number;
   disabled: boolean;
-  showInlineHelper: boolean;
   onChangeDescription: (value: string) => void;
 };
 
@@ -23,20 +22,16 @@ export function CharacterDescriptionEditorCard({
   maxLength,
   rows,
   disabled,
-  showInlineHelper,
   onChangeDescription,
 }: CharacterDescriptionEditorCardProps) {
   return (
     <div className="character-sheet-description-card character-profile-fields character-profile-fields--label-serif">
-      <label className="control-row character-simple-field" htmlFor="character-manager-description">
-        <div className="character-description-label-row">
-          <span className="input-label">Description:</span>
-          {showInlineHelper ? (
-            <p className="character-description-helper character-description-helper--inline tiny subdued">
-              {helperText}
-            </p>
-          ) : null}
-        </div>
+      <div className="character-description-label-row">
+        <label className="input-label" htmlFor="character-manager-description">
+          Description:
+        </label>
+      </div>
+      <div className="character-description-text-container">
         <textarea
           id="character-manager-description"
           className="character-description-input"
@@ -47,15 +42,13 @@ export function CharacterDescriptionEditorCard({
           placeholder="A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim, toned waist, a curvy lower body, and thick thighs."
           disabled={disabled}
         />
-        <div className="character-description-footer-row">
-          {!showInlineHelper ? (
-            <p className="character-description-helper tiny subdued">{helperText}</p>
-          ) : null}
-          <p className="character-description-count tiny subdued">
-            {description.length}/{maxLength}
-          </p>
-        </div>
-      </label>
+      </div>
+      <div className="character-description-footer-row">
+        <p className="character-description-helper tiny subdued">{helperText}</p>
+        <p className="character-description-count tiny subdued">
+          {description.length}/{maxLength}
+        </p>
+      </div>
     </div>
   );
 }

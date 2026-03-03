@@ -590,7 +590,7 @@ body:has(.ai-studio-page) {
 
 .ai-shell.ai-shell-resizable.ai-shell-character-open {
   grid-template-columns:
-    var(--ai-shell-left-width, minmax(1080px, 1.28fr))
+    var(--ai-shell-left-width, minmax(1060px, 1.28fr))
     var(--ai-shell-divider-track-width)
     minmax(320px, 1fr);
   transition: none;

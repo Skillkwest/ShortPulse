@@ -62,9 +62,12 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Submit-time character bundle refresh must fail closed when selected character is no longer available.
    - Cached bundle reuse is allowed only for transient refresh failures.
 10. Create-workspace layout order contract:
-   - Desktop (`>1100px`): Identity renders on the left, QuickSwap Deck renders on the right, and Character Sheet renders below Identity.
-   - Tablet/mobile (`<=1100px`): sections stack in order `Identity -> QuickSwap Deck -> Character Sheet`.
+   - Desktop (`>1100px`): Character Sheet renders on the left and QuickSwap Deck renders on the right.
+   - Tablet/mobile (`<=1100px`): sections stack in order `QuickSwap Deck -> Character Sheet`.
    - DOM order must match visual order to preserve accessibility and deterministic layout-test assertions.
+   - The legacy Identity section is removed from create mode.
+   - The profile photo and character name editor card render inside the Character Sheet section above the preset tab row.
+   - In AI Studio embedded Character Properties (`surface='panel'`), expert mode hides the QuickSwap collapse toggle and keeps the deck expanded.
 11. Internal drag observability contract:
    - Emit `character_drop_attempt` for every internal drop parsed at target boundary.
    - Emit `character_drop_resolved` when resolver yields a usable internal reference (`mediaId` or trusted preview URL fallback) and assignment succeeds.

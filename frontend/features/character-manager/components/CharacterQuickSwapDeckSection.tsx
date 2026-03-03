@@ -9,6 +9,7 @@ import type { CharacterQuickSwapItem } from "../types";
 
 type CharacterQuickSwapDeckSectionProps = {
   beginnerMode: boolean;
+  showCollapseToggle?: boolean;
   isCollapsed: boolean;
   contentId: string;
   pageBusy: boolean;
@@ -45,6 +46,7 @@ type CharacterQuickSwapDeckSectionProps = {
  */
 export function CharacterQuickSwapDeckSection({
   beginnerMode,
+  showCollapseToggle = true,
   isCollapsed,
   contentId,
   pageBusy,
@@ -74,7 +76,7 @@ export function CharacterQuickSwapDeckSection({
 
   return (
     <section
-      className={`character-section character-section--reference-drop ${isCollapsed ? "is-collapsed" : ""}`}
+      className={`character-section character-section--reference-drop ${isCollapsed ? "is-collapsed" : ""} ${showCollapseToggle ? "" : "no-collapse-toggle"}`.trim()}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -84,7 +86,7 @@ export function CharacterQuickSwapDeckSection({
         <div className="character-section-title-row">
           {beginnerMode ? (
             <span className="character-step-badge" aria-hidden="true">
-              2
+              1
             </span>
           ) : null}
           <div className="character-section-title-copy">
@@ -97,26 +99,28 @@ export function CharacterQuickSwapDeckSection({
             ) : null}
           </div>
         </div>
-        <div className="character-section-head-actions">
-          <button
-            type="button"
-            className="ghost-btn mini character-section-collapse-btn"
-            aria-label={`${isCollapsed ? "Expand" : "Collapse"} QuickSwap Deck`}
-            aria-expanded={!isCollapsed}
-            aria-controls={contentId}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleCollapsed();
-            }}
-          >
-            <CaretDown
-              size={16}
-              weight="bold"
-              className="character-section-collapse-icon"
-              aria-hidden="true"
-            />
-          </button>
-        </div>
+        {showCollapseToggle ? (
+          <div className="character-section-head-actions">
+            <button
+              type="button"
+              className="ghost-btn mini character-section-collapse-btn"
+              aria-label={`${isCollapsed ? "Expand" : "Collapse"} QuickSwap Deck`}
+              aria-expanded={!isCollapsed}
+              aria-controls={contentId}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleCollapsed();
+              }}
+            >
+              <CaretDown
+                size={16}
+                weight="bold"
+                className="character-section-collapse-icon"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div id={contentId} className="character-reference-drop-content" hidden={isCollapsed}>

@@ -82,7 +82,7 @@ const PROFILE_ZOOM_MAX = 2.4;
 const PROFILE_OFFSET_MIN = -40;
 const PROFILE_OFFSET_MAX = 40;
 const PROFILE_PREVIEW_IMAGE_SIZE = 172;
-const PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE = 84;
+const PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE = 92;
 const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const CHARACTER_DESCRIPTION_HELPER_TEXT =
@@ -697,6 +697,7 @@ export function CharacterManagerShell({
     : PROFILE_PREVIEW_IMAGE_SIZE;
   const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
   const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
+  const showQuickSwapCollapseToggle = surface !== "panel" || effectiveBeginnerMode;
   const quickSwapContentId = useId();
   const characterSheetPresetTabsIdBase = `character-sheet-preset-${useId()}`;
   const characterSheetPresetPanelId = `${characterSheetPresetTabsIdBase}-panel`;
@@ -715,6 +716,12 @@ export function CharacterManagerShell({
     clearMessages();
     clearQuickSwapError();
   }, [clearMessages, clearQuickSwapError]);
+  useEffect(() => {
+    if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
+    fileDragDepthRef.current = 0;
+    setIsDropActive(false);
+    setIsQuickSwapCollapsed(false);
+  }, [showQuickSwapCollapseToggle, isQuickSwapCollapsed]);
   const resolveMediaReferenceById = useCallback(async (mediaId: string) => {
     const normalizedMediaId = mediaId.trim();
     if (!normalizedMediaId) return null;
@@ -1856,200 +1863,10 @@ export function CharacterManagerShell({
         <section className="character-simple-panel">
           <CharacterCreateWorkspaceLayout
             surface={surface}
-            identity={
-              <section className="character-section character-section--profile">
-                <div className="character-section-head">
-                  <div className="character-section-title-row">
-                    {effectiveBeginnerMode ? (
-                      <span className="character-step-badge" aria-hidden="true">
-                        1
-                      </span>
-                    ) : null}
-                    <div className="character-section-title-copy">
-                      <h3 className="character-section-title">Identity</h3>
-                      <p className="character-section-helper tiny subdued">
-                        Set the photo, name, and description that define this character.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="character-profile-card">
-                  <div className="character-profile-card-top-row">
-                    <div className="character-profile-photo-stack">
-                      <button
-                        type="button"
-                        className={`character-profile-photo-btn ${profileImageUrl ? "has-image" : ""}`}
-                        onClick={openProfilePicker}
-                        disabled={pageBusy}
-                        aria-label={
-                          profileImageUrl && !isProfileAdjusterVisible
-                            ? "Edit profile photo adjustments"
-                            : "Upload profile photo"
-                        }
-                      >
-                        {profileImageUrl ? (
-                          <Image
-                            src={profileImageUrl}
-                            alt="Character profile"
-                            className="character-profile-photo"
-                            style={buildProfileImageTransformStyle(
-                              activeProfileImageTransform,
-                              profileImageRenderSize
-                            )}
-                            width={profileImageRenderSize}
-                            height={profileImageRenderSize}
-                            unoptimized
-                          />
-                        ) : (
-                          <span className="character-profile-initials" aria-hidden>
-                            {profileInitials}
-                          </span>
-                        )}
-                      </button>
-                      {profileImageUrl ? (
-                        <span className="character-profile-edit-indicator" aria-hidden="true">
-                          <PencilSimpleLine size={14} weight="bold" />
-                          <span>Edit photo</span>
-                        </span>
-                      ) : null}
-                      {profileImageUrl && isProfileAdjusterVisible ? (
-                        <div
-                          className="character-profile-adjuster"
-                          role="group"
-                          aria-label="Profile crop controls"
-                        >
-                          <div className="character-profile-adjuster-row">
-                            <label
-                              className="character-profile-adjuster-label"
-                              htmlFor="profile-adjust-zoom"
-                            >
-                              <span>Zoom</span>
-                              <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
-                            </label>
-                            <input
-                              id="profile-adjust-zoom"
-                              className="character-profile-adjuster-range"
-                              type="range"
-                              min={PROFILE_ZOOM_MIN}
-                              max={PROFILE_ZOOM_MAX}
-                              step={0.01}
-                              value={activeProfileImageTransform.zoom}
-                              onChange={(event) => {
-                                const nextZoom = Number(event.target.value);
-                                setProfileAdjustDraft((previous) => ({
-                                  ...(previous ?? profileImageTransform),
-                                  zoom: nextZoom,
-                                }));
-                              }}
-                            />
-                          </div>
-                          <div className="character-profile-adjuster-row">
-                            <label
-                              className="character-profile-adjuster-label"
-                              htmlFor="profile-adjust-x"
-                            >
-                              <span>Horizontal</span>
-                              <span>
-                                {activeProfileImageTransform.offsetX > 0
-                                  ? `+${activeProfileImageTransform.offsetX}`
-                                  : activeProfileImageTransform.offsetX}
-                              </span>
-                            </label>
-                            <input
-                              id="profile-adjust-x"
-                              className="character-profile-adjuster-range"
-                              type="range"
-                              min={PROFILE_OFFSET_MIN}
-                              max={PROFILE_OFFSET_MAX}
-                              step={1}
-                              value={activeProfileImageTransform.offsetX}
-                              onChange={(event) => {
-                                const nextOffsetX = Number(event.target.value);
-                                setProfileAdjustDraft((previous) => ({
-                                  ...(previous ?? profileImageTransform),
-                                  offsetX: nextOffsetX,
-                                }));
-                              }}
-                            />
-                          </div>
-                          <div className="character-profile-adjuster-row">
-                            <label
-                              className="character-profile-adjuster-label"
-                              htmlFor="profile-adjust-y"
-                            >
-                              <span>Vertical</span>
-                              <span>
-                                {activeProfileImageTransform.offsetY > 0
-                                  ? `+${activeProfileImageTransform.offsetY}`
-                                  : activeProfileImageTransform.offsetY}
-                              </span>
-                            </label>
-                            <input
-                              id="profile-adjust-y"
-                              className="character-profile-adjuster-range"
-                              type="range"
-                              min={PROFILE_OFFSET_MIN}
-                              max={PROFILE_OFFSET_MAX}
-                              step={1}
-                              value={activeProfileImageTransform.offsetY}
-                              onChange={(event) => {
-                                const nextOffsetY = Number(event.target.value);
-                                setProfileAdjustDraft((previous) => ({
-                                  ...(previous ?? profileImageTransform),
-                                  offsetY: nextOffsetY,
-                                }));
-                              }}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            className="ghost-btn small character-profile-adjuster-reset"
-                            onClick={() => {
-                              void saveProfileAdjustments();
-                            }}
-                            disabled={pageBusy}
-                          >
-                            {isSavingProfileImage ? "Saving..." : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
-                            onClick={clearProfilePreview}
-                            disabled={pageBusy}
-                          >
-                            Remove photo
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="character-profile-fields character-profile-fields--label-serif">
-                      <label
-                        className="control-row character-simple-field"
-                        htmlFor="character-manager-name"
-                      >
-                        <span className="input-label">Name:</span>
-                        <input
-                          ref={characterNameInputRef}
-                          id="character-manager-name"
-                          className="character-name-input"
-                          type="text"
-                          value={characterName}
-                          maxLength={80}
-                          onChange={(event) => setCharacterName(event.target.value)}
-                          placeholder="Enter character name"
-                          disabled={loading}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            }
             quickSwap={
               <CharacterQuickSwapDeckSection
                 beginnerMode={effectiveBeginnerMode}
+                showCollapseToggle={showQuickSwapCollapseToggle}
                 isCollapsed={isQuickSwapCollapsed}
                 contentId={quickSwapContentId}
                 pageBusy={
@@ -2294,7 +2111,7 @@ export function CharacterManagerShell({
                   <div className="character-section-title-row">
                     {effectiveBeginnerMode ? (
                       <span className="character-step-badge" aria-hidden="true">
-                        3
+                        2
                       </span>
                     ) : null}
                     <div className="character-section-title-copy">
@@ -2303,6 +2120,178 @@ export function CharacterManagerShell({
                         Drag or upload references into each slot. These images are used to train
                         your character generations.
                       </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="character-profile-card">
+                  <div className="character-profile-card-top-row">
+                    <div className="character-profile-photo-stack">
+                      <button
+                        type="button"
+                        className={`character-profile-photo-btn ${profileImageUrl ? "has-image" : ""}`}
+                        onClick={openProfilePicker}
+                        disabled={pageBusy}
+                        aria-label={
+                          profileImageUrl && !isProfileAdjusterVisible
+                            ? "Edit profile photo adjustments"
+                            : "Upload profile photo"
+                        }
+                      >
+                        {profileImageUrl ? (
+                          <Image
+                            src={profileImageUrl}
+                            alt="Character profile"
+                            className="character-profile-photo"
+                            style={buildProfileImageTransformStyle(
+                              activeProfileImageTransform,
+                              profileImageRenderSize
+                            )}
+                            width={profileImageRenderSize}
+                            height={profileImageRenderSize}
+                            unoptimized
+                          />
+                        ) : (
+                          <span className="character-profile-initials" aria-hidden>
+                            {profileInitials}
+                          </span>
+                        )}
+                      </button>
+                      {profileImageUrl ? (
+                        <span className="character-profile-edit-indicator" aria-hidden="true">
+                          <PencilSimpleLine size={14} weight="bold" />
+                          <span>Edit photo</span>
+                        </span>
+                      ) : null}
+                      {profileImageUrl && isProfileAdjusterVisible ? (
+                        <div
+                          className="character-profile-adjuster"
+                          role="group"
+                          aria-label="Profile crop controls"
+                        >
+                          <div className="character-profile-adjuster-row">
+                            <label
+                              className="character-profile-adjuster-label"
+                              htmlFor="profile-adjust-zoom"
+                            >
+                              <span>Zoom</span>
+                              <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
+                            </label>
+                            <input
+                              id="profile-adjust-zoom"
+                              className="character-profile-adjuster-range"
+                              type="range"
+                              min={PROFILE_ZOOM_MIN}
+                              max={PROFILE_ZOOM_MAX}
+                              step={0.01}
+                              value={activeProfileImageTransform.zoom}
+                              onChange={(event) => {
+                                const nextZoom = Number(event.target.value);
+                                setProfileAdjustDraft((previous) => ({
+                                  ...(previous ?? profileImageTransform),
+                                  zoom: nextZoom,
+                                }));
+                              }}
+                            />
+                          </div>
+                          <div className="character-profile-adjuster-row">
+                            <label
+                              className="character-profile-adjuster-label"
+                              htmlFor="profile-adjust-x"
+                            >
+                              <span>Horizontal</span>
+                              <span>
+                                {activeProfileImageTransform.offsetX > 0
+                                  ? `+${activeProfileImageTransform.offsetX}`
+                                  : activeProfileImageTransform.offsetX}
+                              </span>
+                            </label>
+                            <input
+                              id="profile-adjust-x"
+                              className="character-profile-adjuster-range"
+                              type="range"
+                              min={PROFILE_OFFSET_MIN}
+                              max={PROFILE_OFFSET_MAX}
+                              step={1}
+                              value={activeProfileImageTransform.offsetX}
+                              onChange={(event) => {
+                                const nextOffsetX = Number(event.target.value);
+                                setProfileAdjustDraft((previous) => ({
+                                  ...(previous ?? profileImageTransform),
+                                  offsetX: nextOffsetX,
+                                }));
+                              }}
+                            />
+                          </div>
+                          <div className="character-profile-adjuster-row">
+                            <label
+                              className="character-profile-adjuster-label"
+                              htmlFor="profile-adjust-y"
+                            >
+                              <span>Vertical</span>
+                              <span>
+                                {activeProfileImageTransform.offsetY > 0
+                                  ? `+${activeProfileImageTransform.offsetY}`
+                                  : activeProfileImageTransform.offsetY}
+                              </span>
+                            </label>
+                            <input
+                              id="profile-adjust-y"
+                              className="character-profile-adjuster-range"
+                              type="range"
+                              min={PROFILE_OFFSET_MIN}
+                              max={PROFILE_OFFSET_MAX}
+                              step={1}
+                              value={activeProfileImageTransform.offsetY}
+                              onChange={(event) => {
+                                const nextOffsetY = Number(event.target.value);
+                                setProfileAdjustDraft((previous) => ({
+                                  ...(previous ?? profileImageTransform),
+                                  offsetY: nextOffsetY,
+                                }));
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="ghost-btn small character-profile-adjuster-reset"
+                            onClick={() => {
+                              void saveProfileAdjustments();
+                            }}
+                            disabled={pageBusy}
+                          >
+                            {isSavingProfileImage ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
+                            onClick={clearProfilePreview}
+                            disabled={pageBusy}
+                          >
+                            Remove photo
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="character-profile-fields character-profile-fields--label-serif">
+                      <label
+                        className="control-row character-simple-field"
+                        htmlFor="character-manager-name"
+                      >
+                        <span className="input-label">Name:</span>
+                        <input
+                          ref={characterNameInputRef}
+                          id="character-manager-name"
+                          className="character-name-input"
+                          type="text"
+                          value={characterName}
+                          maxLength={80}
+                          onChange={(event) => setCharacterName(event.target.value)}
+                          placeholder="Enter character name"
+                          disabled={loading}
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -2342,7 +2331,6 @@ export function CharacterManagerShell({
                     maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
                     rows={isEmbeddedSurface ? 3 : 4}
                     disabled={loading}
-                    showInlineHelper={effectiveBeginnerMode}
                     onChangeDescription={setCharacterDescription}
                   />
                   <div className="character-reference-empty-grid">

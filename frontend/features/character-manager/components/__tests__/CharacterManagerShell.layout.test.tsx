@@ -110,25 +110,34 @@ const resolveLayoutOrder = (container: HTMLElement): string[] =>
 describe("CharacterManagerShell layout", () => {
   it("renders create layout regions in stable order on page surface", () => {
     const { container } = render(<CharacterManagerShell />);
-    expect(resolveLayoutOrder(container)).toEqual(["identity", "quickswap", "sheet"]);
-    expect(screen.getByRole("heading", { name: "Identity" })).toBeInTheDocument();
+    expect(resolveLayoutOrder(container)).toEqual(["quickswap", "sheet"]);
     expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Identity" })).not.toBeInTheDocument();
 
     const descriptionInput = container.querySelector("#character-manager-description");
+    const nameInput = container.querySelector("#character-manager-name");
     const sheetRegion = container.querySelector("[data-layout-region='sheet']");
-    const identityRegion = container.querySelector("[data-layout-region='identity']");
 
     expect(descriptionInput).toBeInTheDocument();
+    expect(nameInput).toBeInTheDocument();
     expect(descriptionInput?.closest("[data-layout-region]")).toBe(sheetRegion);
-    expect(identityRegion?.querySelector("#character-manager-description")).toBeNull();
+    expect(nameInput?.closest("[data-layout-region]")).toBe(sheetRegion);
   });
 
   it("renders create layout regions in stable order on panel surface", () => {
     const { container } = render(<CharacterManagerShell surface="panel" beginnerModeOverride />);
-    expect(resolveLayoutOrder(container)).toEqual(["identity", "quickswap", "sheet"]);
-    expect(screen.getByRole("heading", { name: "Identity" })).toBeInTheDocument();
+    expect(resolveLayoutOrder(container)).toEqual(["quickswap", "sheet"]);
     expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Identity" })).not.toBeInTheDocument();
+
+    const guidance = container.querySelector(".character-mode-guidance");
+    const quickSwapRegion = container.querySelector("[data-layout-region='quickswap']");
+    const sheetRegion = container.querySelector("[data-layout-region='sheet']");
+
+    expect(guidance).toBeInTheDocument();
+    expect(guidance?.closest("[data-layout-region]")).toBe(quickSwapRegion);
+    expect(sheetRegion?.querySelector(".character-mode-guidance")).toBeNull();
   });
 });

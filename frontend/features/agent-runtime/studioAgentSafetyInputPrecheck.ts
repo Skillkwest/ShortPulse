@@ -8,6 +8,11 @@ import type {
   SafetyPolicyDocumentV2,
 } from "./safetyPolicy/types";
 import {
+  DEFAULT_SAFETY_REWRITE_RECHECK_MODE,
+  shouldBlockAfterRewrite,
+  type SafetyRewriteRecheckMode,
+} from "./safetyPolicy/rewriteRecheckPolicy";
+import {
   evaluateStudioAgentSafetyText,
   rewriteStudioAgentSafetyTextDeterministic,
   type StudioAgentSafetyDecisionMeta,
@@ -66,6 +71,7 @@ const evaluateInputField = ({
   environment,
   devAbsoluteZeroEnabled,
   policyDocument,
+  rewriteRecheckMode,
   state,
 }: {
   value: string;
@@ -74,6 +80,7 @@ const evaluateInputField = ({
   environment: SafetyEnvironment;
   devAbsoluteZeroEnabled: boolean;
   policyDocument?: SafetyPolicyDocumentV2 | null;
+  rewriteRecheckMode: SafetyRewriteRecheckMode;
   state: MutablePrecheckState;
 }): { ok: true; value: string } | { ok: false } => {
   const initial = evaluateStudioAgentSafetyText({
@@ -106,7 +113,13 @@ const evaluateInputField = ({
     state.dominantDecision,
     rewrittenEvaluation.decision
   );
-  if (rewrittenEvaluation.decision.action !== "allow") {
+  if (
+    shouldBlockAfterRewrite({
+      mode: rewriteRecheckMode,
+      action: rewrittenEvaluation.decision.action,
+      category: rewrittenEvaluation.decision.category,
+    })
+  ) {
     state.outcome = "refusal";
     return { ok: false };
   }
@@ -127,6 +140,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
   environment,
   devAbsoluteZeroEnabled = false,
   policyDocument,
+  rewriteRecheckMode = DEFAULT_SAFETY_REWRITE_RECHECK_MODE,
 }: {
   enabled: boolean;
   messages: AgentMessage[];
@@ -137,6 +151,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
   environment: SafetyEnvironment;
   devAbsoluteZeroEnabled?: boolean;
   policyDocument?: SafetyPolicyDocumentV2 | null;
+  rewriteRecheckMode?: SafetyRewriteRecheckMode;
 }): StudioAgentSafetyInputPrecheckResult<TContext> => {
   if (!enabled) {
     return {
@@ -167,6 +182,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
       environment,
       devAbsoluteZeroEnabled,
       policyDocument,
+      rewriteRecheckMode,
       state,
     });
     if (!checked.ok) {
@@ -191,6 +207,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
       environment,
       devAbsoluteZeroEnabled,
       policyDocument,
+      rewriteRecheckMode,
       state,
     });
     if (!checked.ok) {
@@ -218,6 +235,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
       environment,
       devAbsoluteZeroEnabled,
       policyDocument,
+      rewriteRecheckMode,
       state,
     });
     if (!checked.ok) {
@@ -244,6 +262,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
           environment,
           devAbsoluteZeroEnabled,
           policyDocument,
+          rewriteRecheckMode,
           state,
         });
         if (!checked.ok) {
@@ -267,6 +286,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
           environment,
           devAbsoluteZeroEnabled,
           policyDocument,
+          rewriteRecheckMode,
           state,
         });
         if (!checked.ok) {
@@ -293,6 +313,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
       environment,
       devAbsoluteZeroEnabled,
       policyDocument,
+      rewriteRecheckMode,
       state,
     });
     if (!checked.ok) {

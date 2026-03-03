@@ -115,6 +115,7 @@ export const executeLegacyPromptGeneration = async ({
     environment: safetyEnvironment,
     devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
     policyDocument: safetyPolicyDocument,
+    rewriteRecheckMode: "allow_or_rewrite",
   });
   if (precheckResult.outcome === "refusal") {
     console.info(

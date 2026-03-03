@@ -2,12 +2,14 @@
  * Normalizes control-plane safety policy documents and provides policy-level lookups.
  */
 import type {
+  SafetyPolicyAction,
   SafetyFamily,
   SafetyGenerationLevel,
   SafetyModality,
   SafetyPolicyDocumentV2,
   SafetyPostprocessMode,
   SafetyProfileId,
+  SafetySeverity,
   SafetyTextLevel,
 } from "./types";
 
@@ -34,6 +36,9 @@ const asTextLevel = (value: unknown): SafetyTextLevel | null =>
   typeof value === "string" && TEXT_LEVELS.includes(value as SafetyTextLevel)
     ? (value as SafetyTextLevel)
     : null;
+
+const asPolicyAction = (value: unknown): SafetyPolicyAction | null =>
+  value === "allow" || value === "rewrite" || value === "refuse" ? value : null;
 
 const asGenerationLevel = (value: unknown): SafetyGenerationLevel | null =>
   typeof value === "string" && GENERATION_LEVELS.includes(value as SafetyGenerationLevel)
@@ -168,6 +173,14 @@ const normalizePolicyDocumentV2 = ({
       if (level) {
         next.input.text[modality][family].level = level;
       }
+      const suggestiveAction = asPolicyAction(familyBlock?.suggestiveAction);
+      if (suggestiveAction) {
+        next.input.text[modality][family].suggestiveAction = suggestiveAction;
+      }
+      const explicitAction = asPolicyAction(familyBlock?.explicitAction);
+      if (explicitAction) {
+        next.input.text[modality][family].explicitAction = explicitAction;
+      }
     }
   }
 
@@ -271,6 +284,42 @@ export const resolvePolicyTextLevel = ({
   modality: SafetyModality;
   family: SafetyFamily;
 }): SafetyTextLevel => policy.input.text[modality][family].level;
+
+const mapLevelToAction = ({
+  level,
+  severity,
+}: {
+  level: SafetyTextLevel;
+  severity: SafetySeverity;
+}): SafetyPolicyAction => {
+  if (level === "allow") return "allow";
+  if (level === "rewrite") return "rewrite";
+  return severity === "explicit" ? "refuse" : "rewrite";
+};
+
+export const resolvePolicyTextAction = ({
+  policy,
+  modality,
+  family,
+  severity,
+}: {
+  policy: SafetyPolicyDocumentV2;
+  modality: SafetyModality;
+  family: SafetyFamily;
+  severity: SafetySeverity;
+}): SafetyPolicyAction => {
+  const familyPolicy = policy.input.text[modality][family];
+  if (severity === "explicit" && familyPolicy.explicitAction) {
+    return familyPolicy.explicitAction;
+  }
+  if (severity === "suggestive" && familyPolicy.suggestiveAction) {
+    return familyPolicy.suggestiveAction;
+  }
+  return mapLevelToAction({
+    level: familyPolicy.level,
+    severity,
+  });
+};
 
 export const resolvePolicyImagePreflightThresholds = (
   policy: SafetyPolicyDocumentV2

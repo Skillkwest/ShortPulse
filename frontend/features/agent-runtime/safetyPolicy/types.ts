@@ -55,6 +55,8 @@ export type SafetyPolicyDocumentV2 = {
         SafetyFamily,
         {
           level: SafetyTextLevel;
+          suggestiveAction?: SafetyPolicyAction;
+          explicitAction?: SafetyPolicyAction;
         }
       >
     >;

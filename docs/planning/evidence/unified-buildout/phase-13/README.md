@@ -60,6 +60,7 @@ Example:
 31. `2026-03-02-phase-13-wave-g-pass-2-local-validation-window-1.md`
 32. `2026-03-02-phase-13-wave-h-pass-1-operator-packet-readiness.md`
 33. `2026-03-02-phase-13-wave-h-pass-2-pre-window-local-gate.md`
+34. `2026-03-02-phase-13-wave-f-pass-7-no-sim-promotion-readiness.md`
 
 ## Wave H Execution Templates
 1. `2026-03-02-phase-13-wave-h-canary-window-1-template.md`

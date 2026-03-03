@@ -274,4 +274,54 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       usage: {},
     });
   });
+
+  it("allows rewrite-lane prompts that stay suggestive after deterministic rewrite", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "A cinematic detective in a rainy alley at night.",
+            },
+          },
+        ],
+        usage: { prompt_tokens: 18, completion_tokens: 10 },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "an armed detective in a rainy alley" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const precheckCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[generate-prompt][safety-input-precheck]"
+    );
+    const precheckPayload = precheckCall
+      ? (JSON.parse(String(precheckCall[1])) as Record<string, unknown>)
+      : null;
+    expect(precheckPayload).toEqual(
+      expect.objectContaining({
+        safety_stage: "input_precheck",
+        safety_outcome: "rewritten",
+        provider_call_skipped: false,
+        category: "violence_suggestive",
+        decision_action: "rewrite",
+        decision_source: "profile",
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "A cinematic detective in a rainy alley at night.",
+      })
+    );
+    infoSpy.mockRestore();
+  });
 });

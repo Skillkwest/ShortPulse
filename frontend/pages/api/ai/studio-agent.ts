@@ -191,6 +191,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     environment: safetyEnvironment,
     devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
     policyDocument: safetyPolicyDocument,
+    rewriteRecheckMode: "allow_or_rewrite",
   });
   const safetyTelemetryProfileId =
     safetyProfileId === "prod_safe_v1" ||

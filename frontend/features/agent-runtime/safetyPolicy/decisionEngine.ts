@@ -3,7 +3,7 @@
  */
 import { mapClassificationToSafetyCategory, SAFETY_CATEGORY_CATALOG } from "./categoryCatalog";
 import { applyHardFloorOverride } from "./hardFloors";
-import { resolvePolicyTextLevel } from "./policyDocument";
+import { resolvePolicyTextAction } from "./policyDocument";
 import { resolveSafetyProfile } from "./profileCatalog";
 import type {
   SafetyClassification,
@@ -60,18 +60,12 @@ export const resolveSafetyDecision = ({
   let profileAction: SafetyPolicyAction = resolvedProfile.profile[modality][category];
   const categoryMeta = SAFETY_CATEGORY_CATALOG[category];
   if (policyDocument && categoryMeta.family && categoryMeta.severity) {
-    const level = resolvePolicyTextLevel({
+    profileAction = resolvePolicyTextAction({
       policy: policyDocument,
       modality,
       family: categoryMeta.family,
+      severity: categoryMeta.severity,
     });
-    if (level === "allow") {
-      profileAction = "allow";
-    } else if (level === "rewrite") {
-      profileAction = "rewrite";
-    } else {
-      profileAction = categoryMeta.severity === "explicit" ? "refuse" : "rewrite";
-    }
   }
   const withHardFloor = applyHardFloorOverride({
     action: profileAction,

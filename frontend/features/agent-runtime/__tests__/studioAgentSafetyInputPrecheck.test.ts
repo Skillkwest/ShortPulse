@@ -85,4 +85,39 @@ describe("studioAgentSafetyInputPrecheck", () => {
     expect(result.rewrittenFieldCount).toBe(0);
     expect(result.messages[0]?.content).toBe(messages[0]?.content);
   });
+
+  it("keeps strict allow_only behavior when rewritten content stays suggestive", () => {
+    const result = runStudioAgentSafetyInputPrecheck({
+      enabled: true,
+      messages: [{ role: "user", content: "a person sharing suicidal thoughts" }],
+      context: {},
+      canonicalPrompt: null,
+      modality: "text",
+      environment: "production",
+      profileId: "prod_safe_v1",
+      rewriteRecheckMode: "allow_only",
+    });
+
+    expect(result.outcome).toBe("refusal");
+    expect(result.providerCallSkipped).toBe(true);
+    expect(result.decision?.action).toBe("rewrite");
+  });
+
+  it("keeps sanitized violence suggestive prompts in rewritten continuation mode", () => {
+    const result = runStudioAgentSafetyInputPrecheck({
+      enabled: true,
+      messages: [{ role: "user", content: "an armed detective in a rainy alley" }],
+      context: {},
+      canonicalPrompt: null,
+      modality: "text",
+      environment: "production",
+      profileId: "prod_safe_v1",
+      rewriteRecheckMode: "allow_or_rewrite",
+    });
+
+    expect(result.outcome).toBe("rewritten");
+    expect(result.providerCallSkipped).toBe(false);
+    expect(result.decision?.action).toBe("rewrite");
+    expect(result.messages[0]?.content.toLowerCase()).not.toContain("armed");
+  });
 });

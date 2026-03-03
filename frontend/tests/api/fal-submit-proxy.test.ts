@@ -542,4 +542,34 @@ describe("createFalSubmitHandler", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
   });
+
+  it("keeps allow_only behavior for fal-submit rewrite-lane prompts that remain suggestive", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal/flux-2-pro",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/flux-2-pro" }],
+      routeLabel: "Fal Flux 2 Pro",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "a monologue about suicidal thoughts" },
+      headers: {},
+      url: "/api/fal/flux2pro-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "GENERATION_SAFETY_BLOCKED",
+      })
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+  });
 });

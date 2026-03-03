@@ -73,6 +73,30 @@ describe("textSafetyEvaluator", () => {
     expect(suggestive.decision.action).toBe("rewrite");
   });
 
+  it("classifies non-graphic weapon language as violence suggestive", () => {
+    const result = evaluateStudioAgentSafetyText({
+      text: "An armed detective holding a pistol in a rainy alley.",
+      modality: "image",
+      environment: "production",
+      profileId: "prod_safe_v1",
+    });
+
+    expect(result.decision.category).toBe("violence_suggestive");
+    expect(result.decision.action).toBe("rewrite");
+  });
+
+  it("classifies pronoun variants for self-harm suggestive intent", () => {
+    const result = evaluateStudioAgentSafetyText({
+      text: "She said she wants to hurt herself and end her life.",
+      modality: "text",
+      environment: "production",
+      profileId: "prod_safe_v1",
+    });
+
+    expect(result.decision.category).toBe("self_harm_suggestive");
+    expect(result.decision.action).toBe("rewrite");
+  });
+
   it("allows explicit text in development with absolute-zero", () => {
     const result = evaluateStudioAgentSafetyText({
       text: "Graphic sexual intercourse with explicit anatomy details.",
@@ -116,5 +140,18 @@ describe("textSafetyEvaluator", () => {
     expect(lowered).not.toContain("sexy");
     expect(lowered).not.toContain("topless");
     expect(lowered).not.toContain("revealing outfit");
+  });
+
+  it("rewrites common non-graphic violence terms to neutral wording", () => {
+    const rewritten = rewriteStudioAgentSafetyTextDeterministic(
+      "An armed detective with a pistol in a street fight."
+    );
+    const lowered = rewritten.toLowerCase();
+
+    expect(lowered).not.toContain("armed");
+    expect(lowered).not.toContain("pistol");
+    expect(lowered).not.toContain("fight");
+    expect(lowered).toContain("prepared");
+    expect(lowered).toContain("dramatic tension");
   });
 });

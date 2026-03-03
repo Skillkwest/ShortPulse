@@ -104,6 +104,45 @@ Supporting knobs:
 | `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` | `enforce` | Postprocess behavior mode (`enforce`, `shadow`, `off`). |
 | `STUDIO_AGENT_SAFETY_DEBUG` | `false` | Emits debug reasons with telemetry paths. |
 
+## Consistency Rollout Defaults (Current Pass)
+Use this baseline while tuning rewrite consistency without additional stress traffic.
+
+1. Runtime mode defaults:
+- `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE=shadow`
+- Keep pre-provider gates enabled for all covered routes.
+
+2. Rewrite recheck scope:
+- `/api/ai/studio-agent` uses `allow_or_rewrite` for rewrite-lane precheck continuation.
+- `/api/ai/generate-prompt` uses `allow_or_rewrite` for rewrite-lane precheck continuation.
+- Fal submit routes remain on default `allow_only` behavior during this phase.
+
+3. Safety boundary reminder:
+- `allow_or_rewrite` is constrained to suggestive sexual/violence rewrite lanes.
+- Refusal paths for explicit, self-harm, and hate categories remain enforced.
+
+## Manual Staging Promotion Checklist (No Simulation Required)
+Use this checklist when promotion decisions are based on test evidence + telemetry review only.
+
+1. Verify active control-plane state:
+- `GET /api/admin/agent-safety-policy/active`
+- Confirm profile/version and no unexpected cooldown lock.
+
+2. Confirm local regression gate:
+- Run targeted safety unit/API test suite.
+- Confirm no contract changes in refusal/fallback payloads.
+
+3. Stage policy activation:
+- `POST /api/admin/agent-safety-policy/activate`
+- Use explicit reason text and `singleReviewerAck=true`.
+
+4. Validate staging behavior manually:
+- Exercise one safe prompt, one suggestive rewrite-lane prompt, one explicit refusal prompt per route.
+- Confirm telemetry fields: `safety_stage`, `category`, `decision_action`, `decision_source`, `provider_call_skipped`.
+
+5. Roll back immediately on mismatch:
+- `POST /api/admin/agent-safety-policy/rollback`
+- Record reason and confirm `cooldownUntil` is set.
+
 ## Operator Workflows
 ### 1) Inspect active state
 1. Call `GET /api/admin/agent-safety-policy/active` as admin.

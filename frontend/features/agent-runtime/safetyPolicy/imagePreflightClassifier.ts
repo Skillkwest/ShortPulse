@@ -1,7 +1,7 @@
 /**
  * Local image preflight classifier (URL-signal heuristic) used before vision-provider calls.
  */
-import { resolvePolicyImagePreflightThresholds, resolvePolicyTextLevel } from "./policyDocument";
+import { resolvePolicyImagePreflightThresholds, resolvePolicyTextAction } from "./policyDocument";
 import type { SafetyEnvironment, SafetyPolicyDocumentV2 } from "./types";
 
 const DEFAULT_TIMEOUT_MS = 1200;
@@ -21,6 +21,9 @@ export type ImagePreflightResult = {
   matchedAction: "allow" | "rewrite" | "refuse" | null;
   scores: ImageFamilyScore;
 };
+
+const resolveScoreSeverity = (score: number): "suggestive" | "explicit" =>
+  score >= 0.9 ? "explicit" : "suggestive";
 
 const zeroScores = (): ImageFamilyScore => ({
   sexual: 0,
@@ -147,12 +150,12 @@ export const runImageSafetyPreflight = async ({
   for (const family of ["sexual", "violence", "self_harm", "hate"] as const) {
     const score = scores[family];
     if (score < thresholds[family]) continue;
-    const level = resolvePolicyTextLevel({
+    const matchedAction = resolvePolicyTextAction({
       policy: policyDocument,
       modality: "image",
       family,
+      severity: resolveScoreSeverity(score),
     });
-    const matchedAction = level === "allow" ? "allow" : level === "rewrite" ? "rewrite" : "refuse";
     if (matchedAction === "allow") continue;
     // Images cannot be text-rewritten before provider call; rewrite behaves as preflight refusal.
     return {

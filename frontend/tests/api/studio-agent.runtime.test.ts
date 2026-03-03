@@ -267,6 +267,58 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     infoSpy.mockRestore();
   });
 
+  it("allows rewrite-lane prompts even when deterministic rewrite keeps suggestive terms", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "provider path reached",
+                  actions: { apply_prompt: "provider path reached" },
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-precheck-allow-or-rewrite",
+        messages: [{ role: "user", content: "an armed detective in a rainy alley" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const precheckTelemetry = extractInputPrecheckTelemetryPayloads(infoSpy)[0];
+    expect(precheckTelemetry).toEqual(
+      expect.objectContaining({
+        safety_stage: "input_precheck",
+        safety_outcome: "rewritten",
+        provider_call_skipped: false,
+        category: "violence_suggestive",
+        decision_action: "rewrite",
+        decision_source: "profile",
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        message: "I cannot describe this.",
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
   it("bypasses input precheck when disabled and proceeds to OpenAI call", async () => {
     process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED = "false";
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(

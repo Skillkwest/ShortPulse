@@ -56,6 +56,7 @@ export type PromptStepProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
+  useAgentResponseInlineGeneratePrefab?: boolean;
   // Actions
   onSavePrompt: (customPrompt?: string) => void;
   // State / UI

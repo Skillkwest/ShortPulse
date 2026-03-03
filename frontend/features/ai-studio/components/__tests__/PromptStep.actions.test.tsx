@@ -83,6 +83,25 @@ describe("PromptStep agent actions", () => {
     );
 
     const generateButton = screen.getByRole("button", { name: "Generate with current prompt" });
+    expect(generateButton).not.toHaveClass("agent-response-inline-generate-prefab");
+    fireEvent.click(generateButton);
+    expect(onInlineGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders prefab-backed inline generate when variant flag is enabled", () => {
+    const onInlineGenerate = vi.fn();
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled={false}
+        agentInput="a clear product prompt"
+        chatModeInlineGenerate={{ onGenerate: onInlineGenerate }}
+        useAgentResponseInlineGeneratePrefab
+      />
+    );
+
+    const generateButton = screen.getByRole("button", { name: "Generate with current prompt" });
+    expect(generateButton).toHaveClass("agent-response-inline-generate-prefab");
     fireEvent.click(generateButton);
     expect(onInlineGenerate).toHaveBeenCalledTimes(1);
   });

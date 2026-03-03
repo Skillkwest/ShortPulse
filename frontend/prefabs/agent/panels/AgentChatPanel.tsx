@@ -4,6 +4,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentSendButton } from "../buttons/AgentSendButton";
+import { AgentResponseInlineGenerateButton } from "../buttons/AgentResponseInlineGenerateButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
 import { AgentPromptActions } from "../components/AgentPromptActions";
 import {
@@ -174,8 +175,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     }
     return -1;
   })();
-  const outputGenerateCostLabel =
-    outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
   const shouldShowThinkingIndicator = showThinkingIndicator && isSending;
   const shouldRenderThinkingInHistory =
     shouldShowThinkingIndicator && thinkingIndicatorPlacement === "history";
@@ -282,8 +281,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   }, []);
 
   const handleOutputGenerateClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, request: AgentOutputGenerateRequest) => {
-      event.stopPropagation();
+    (request: AgentOutputGenerateRequest) => {
       if (disableOutputGenerate) return;
       const normalizedPrompt = request.prompt.trim();
       if (!normalizedPrompt) return;
@@ -476,30 +474,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         <p className="tiny">{stagedPrompt}</p>
                         <div className="agent-output-bubble-controls">
                           {renderOutputBubbleMedia(stagedBubbleMedia)}
-                          <button
-                            type="button"
-                            className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                            onClick={(event) =>
-                              handleOutputGenerateClick(event, {
+                          <AgentResponseInlineGenerateButton
+                            onClick={() =>
+                              handleOutputGenerateClick({
                                 messageId: STAGED_AGENT_OUTPUT_MESSAGE_ID,
                                 prompt: stagedPrompt,
                                 source: "staged",
                               })
                             }
-                            onDoubleClick={(event) => {
-                              event.stopPropagation();
-                            }}
-                            aria-label="Generate from this agent output"
+                            costCredits={outputGenerateCostCredits}
+                            ariaLabel="Generate from this agent output"
                             disabled={disableOutputGenerate}
-                          >
-                            <span className="agent-generate-label">Generate</span>
-                            <span className="model-chip-pill generate-pill">
-                              <span aria-hidden="true" className="model-chip-icon">
-                                ✦
-                              </span>
-                              <span className="model-chip-credits">{outputGenerateCostLabel}</span>
-                            </span>
-                          </button>
+                            stopPropagation
+                          />
                         </div>
                       </div>
                     );
@@ -605,30 +592,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                     {showOutputGenerateButton && !isEditingMessage ? (
                       <div className="agent-output-bubble-controls">
                         {renderOutputBubbleMedia(bubbleMedia)}
-                        <button
-                          type="button"
-                          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                          onClick={(event) =>
-                            handleOutputGenerateClick(event, {
+                        <AgentResponseInlineGenerateButton
+                          onClick={() =>
+                            handleOutputGenerateClick({
                               messageId: resolvedMessageId,
                               prompt: message.content,
                               source: "history",
                             })
                           }
-                          onDoubleClick={(event) => {
-                            event.stopPropagation();
-                          }}
-                          aria-label="Generate from this agent output"
+                          costCredits={outputGenerateCostCredits}
+                          ariaLabel="Generate from this agent output"
                           disabled={disableOutputGenerate}
-                        >
-                          <span className="agent-generate-label">Generate</span>
-                          <span className="model-chip-pill generate-pill">
-                            <span aria-hidden="true" className="model-chip-icon">
-                              ✦
-                            </span>
-                            <span className="model-chip-credits">{outputGenerateCostLabel}</span>
-                          </span>
-                        </button>
+                          stopPropagation
+                        />
                       </div>
                     ) : null}
                   </div>

@@ -113,6 +113,11 @@ describe("AgentChatPanel prompt actions", () => {
       name: "Generate from this agent output",
     });
     expect(generateButtons).toHaveLength(2);
+    expect(
+      generateButtons.every((button) =>
+        button.classList.contains("agent-response-inline-generate-prefab")
+      )
+    ).toBe(true);
     expect(screen.getAllByText("35")).toHaveLength(2);
     fireEvent.click(generateButtons[0]);
     fireEvent.click(generateButtons[1]);

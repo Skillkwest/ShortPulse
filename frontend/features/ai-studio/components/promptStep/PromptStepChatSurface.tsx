@@ -8,6 +8,7 @@ import {
   AgentChatPanel,
   AgentInputBar,
   AgentPromptActions,
+  AgentResponseInlineGenerateButton,
   AgentSaveButton,
   AgentSendButton,
 } from "../../../../prefabs/agent";
@@ -64,6 +65,7 @@ type PromptStepChatSurfaceProps = {
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
+  useAgentResponseInlineGeneratePrefab?: boolean;
   highlightLatestAssistantOnly: boolean;
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
@@ -131,6 +133,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onAgentSend,
   onGenerateOutputPrompt,
   chatModeInlineGenerate,
+  useAgentResponseInlineGeneratePrefab = false,
   highlightLatestAssistantOnly,
   disableOutputGenerate,
   outputGenerateCostCredits,
@@ -359,21 +362,31 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         </div>
         <div className="agent-inline-actions">
           {!chatModeEnabled && chatModeInlineGenerate?.onGenerate ? (
-            <button
-              type="button"
-              className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
-              onClick={chatModeInlineGenerate.onGenerate}
-              disabled={inlineGenerateDisabled}
-              aria-label={chatModeInlineGenerate.ariaLabel ?? "Generate with current prompt"}
-            >
-              <span className="agent-generate-label">Generate</span>
-              <span className="model-chip-pill generate-pill">
-                <span aria-hidden="true" className="model-chip-icon">
-                  ✦
+            useAgentResponseInlineGeneratePrefab ? (
+              <AgentResponseInlineGenerateButton
+                className="agent-chat-inline-generate-btn"
+                onClick={chatModeInlineGenerate.onGenerate}
+                costCredits={outputGenerateCostCredits}
+                disabled={inlineGenerateDisabled}
+                ariaLabel={chatModeInlineGenerate.ariaLabel ?? "Generate with current prompt"}
+              />
+            ) : (
+              <button
+                type="button"
+                className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
+                onClick={chatModeInlineGenerate.onGenerate}
+                disabled={inlineGenerateDisabled}
+                aria-label={chatModeInlineGenerate.ariaLabel ?? "Generate with current prompt"}
+              >
+                <span className="agent-generate-label">Generate</span>
+                <span className="model-chip-pill generate-pill">
+                  <span aria-hidden="true" className="model-chip-icon">
+                    ✦
+                  </span>
+                  <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
                 </span>
-                <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
-              </span>
-            </button>
+              </button>
+            )
           ) : null}
           <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
             <div className="agent-chat-mode-toggle-copy">

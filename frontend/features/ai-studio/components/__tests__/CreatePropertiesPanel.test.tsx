@@ -292,8 +292,23 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Generate with current prompt" }));
+    const button = screen.getByRole("button", { name: "Generate with current prompt" });
+    expect(button).toHaveClass("agent-response-inline-generate-prefab");
+    fireEvent.click(button);
     expect(onChatOffInlineGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps beginner chat-off inline generate on legacy markup", () => {
+    renderPanel({
+      beginnerMode: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      agentInput: "Legacy beginner prompt",
+      onChatOffInlineGenerate: vi.fn(),
+    });
+
+    const button = screen.getByRole("button", { name: "Generate with current prompt" });
+    expect(button).not.toHaveClass("agent-response-inline-generate-prefab");
   });
 
   it("disables chat-off inline generate when create generate is disabled", () => {

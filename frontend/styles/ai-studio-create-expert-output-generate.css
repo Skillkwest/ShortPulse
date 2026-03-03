@@ -153,35 +153,62 @@
   font-size: 9px;
 }
 
+/* Shared response-generate CTA style for bubble controls and expert chat-off inline generate. */
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab {
+  .agent-response-inline-generate-prefab,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab {
   position: static;
   right: auto;
   bottom: auto;
   width: var(--create-expert-output-column-width, 94px);
   min-width: var(--create-expert-output-column-width, 94px);
   max-width: var(--create-expert-output-column-width, 94px);
-  min-height: 54px;
+  min-height: 62px;
   height: auto;
   max-height: none;
   align-self: center;
   justify-self: end;
   justify-content: center;
-  padding: 8px 6px;
+  padding: 12px 6px;
   border-radius: 10px;
   flex-direction: column;
   gap: 4px;
+  border: 1px solid rgba(37, 169, 191, 0.62);
+  background: linear-gradient(135deg, rgba(52, 200, 255, 0.92), rgba(37, 169, 191, 0.95));
   box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
+  color: #0b1820;
+  transform: none;
 }
 
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab
+  .agent-response-inline-generate-prefab:hover:not(:disabled),
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab:hover:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(4, 234, 255, 0.1);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-bubble-controls
+  .agent-response-inline-generate-prefab
+  .agent-generate-label,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab
   .agent-generate-label {
   font-size: 13px;
   line-height: 1.1;
@@ -192,8 +219,14 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab
+  .agent-response-inline-generate-prefab
+  .generate-pill,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab
   .generate-pill {
+  margin-left: 0;
   gap: 4px;
 }
 
@@ -201,7 +234,13 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab
+  .agent-response-inline-generate-prefab
+  .generate-pill
+  .model-chip-icon,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab
   .generate-pill
   .model-chip-icon {
   font-size: 16px;
@@ -211,7 +250,13 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab
+  .agent-response-inline-generate-prefab
+  .generate-pill
+  .model-chip-credits,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab
   .generate-pill
   .model-chip-credits {
   font-size: 14px;
@@ -222,7 +267,11 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab:disabled {
+  .agent-response-inline-generate-prefab:disabled,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab:disabled {
   border-color: rgba(132, 143, 156, 0.3);
   background: linear-gradient(135deg, rgba(104, 115, 128, 0.3), rgba(82, 91, 102, 0.3));
   box-shadow: none;
@@ -233,7 +282,12 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .agent-response-inline-generate-prefab:disabled
+  .agent-generate-label,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab:disabled
   .agent-generate-label {
   color: rgba(174, 184, 196, 0.8);
 }
@@ -242,27 +296,50 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .agent-response-inline-generate-prefab:disabled
+  .generate-pill,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab:disabled
   .generate-pill,
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .agent-response-inline-generate-prefab:disabled
+  .generate-pill
+  .model-chip-icon,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-icon,
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .agent-response-inline-generate-prefab:disabled
+  .generate-pill
+  .model-chip-credits,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-credits,
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .agent-response-inline-generate-prefab:disabled
+  .generate-pill
+  .model-chip-credits-label,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-row
+  .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-credits-label {
   color: rgba(174, 184, 196, 0.8);

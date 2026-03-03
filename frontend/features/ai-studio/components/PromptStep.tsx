@@ -48,6 +48,7 @@ export function PromptStep({
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
   chatModeInlineGenerate,
+  useAgentResponseInlineGeneratePrefab = false,
   onSavePrompt,
   isCollapsed,
   onToggleCollapse,
@@ -259,6 +260,7 @@ export function PromptStep({
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
                 chatModeInlineGenerate={chatModeInlineGenerate}
+                useAgentResponseInlineGeneratePrefab={useAgentResponseInlineGeneratePrefab}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}

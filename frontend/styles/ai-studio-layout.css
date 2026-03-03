@@ -779,6 +779,16 @@ body.ai-shell-resizing * {
   height: 100%;
 }
 
+/* Hide helper/tip copy in AI Studio properties panels (Create/Edit/Video) without removing markup. */
+.ai-studio-page .text-properties-panel .helper-text,
+.ai-studio-page .edit-properties-panel .helper-text,
+.ai-studio-page .video-properties-panel .helper-text,
+.ai-studio-page .text-properties-panel .step-subtitle,
+.ai-studio-page .edit-properties-panel .step-subtitle,
+.ai-studio-page .video-properties-panel .step-subtitle {
+  display: none !important;
+}
+
 .ai-toolbar {
   display: flex;
   flex-direction: column;

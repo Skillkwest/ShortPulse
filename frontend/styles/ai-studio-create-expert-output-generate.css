@@ -199,6 +199,15 @@
   box-shadow: 0 6px 14px rgba(4, 234, 255, 0.1);
 }
 
+/* Response-bubble small generate buttons should not render a border ring. */
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-bubble-controls
+  .agent-response-inline-generate-prefab {
+  border: none;
+}
+
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate

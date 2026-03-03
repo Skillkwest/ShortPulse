@@ -370,22 +370,31 @@
 }
 
 .agent-message .agent-message-edit-input {
+  display: block;
   width: 100%;
-  min-height: 72px;
-  resize: vertical;
+  min-height: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  overflow: auto;
   margin: 0;
-  border: 1px solid rgba(52, 200, 255, 0.32);
+  border: 0;
   border-radius: 12px;
-  background: rgba(8, 18, 30, 0.75);
-  color: #dff6ff !important;
-  padding: 10px 12px;
-  line-height: 1.35;
+  background: transparent;
+  color: inherit !important;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  padding: 0;
+  caret-color: currentColor;
 }
 
 .agent-message .agent-message-edit-input:focus-visible {
-  outline: none;
-  border-color: rgba(66, 216, 255, 0.74);
-  box-shadow: 0 0 0 1px rgba(66, 216, 255, 0.22);
+  outline: 1px solid rgba(66, 216, 255, 0.28);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .agent-message .agent-output-bubble-controls {

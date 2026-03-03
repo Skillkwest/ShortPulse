@@ -49,10 +49,7 @@ import {
   type ReferenceGridScenario,
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
-import type {
-  AgentAssistantMessageEditRequest,
-  AgentOutputGenerateInput,
-} from "../features/ai-agent/types";
+import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../features/character-manager/components/CharacterManagerShell";
@@ -77,8 +74,6 @@ const FLAG_PAGE_OUTPUT_DECOUPLE =
   !AI_STUDIO_EMERGENCY_DISABLE_SELECTOR_STORE && PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
-const FLAG_AGENT_BUBBLE_INLINE_EDIT =
-  process.env.NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT === "true";
 
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
@@ -1461,13 +1456,7 @@ export default function AiStudioPage() {
       setVideoReferenceText,
     ]
   );
-  const handleAssistantBubbleMessageEdit = useCallback(
-    (request: AgentAssistantMessageEditRequest) => {
-      if (!FLAG_AGENT_BUBBLE_INLINE_EDIT) return false;
-      return handleAssistantMessageEdit(request);
-    },
-    [handleAssistantMessageEdit]
-  );
+  const handleAssistantBubbleMessageEdit = handleAssistantMessageEdit;
   const disableAgentOutputGenerate = useMemo(
     () =>
       shouldDisableAgentOutputGenerate({

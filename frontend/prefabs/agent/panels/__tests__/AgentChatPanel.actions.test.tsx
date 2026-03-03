@@ -225,6 +225,105 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.queryByLabelText("Edit assistant message")).not.toBeInTheDocument();
   });
 
+  it("keeps inline edit open when commit callback returns false", () => {
+    const onAssistantMessageEdit = vi.fn(() => false);
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onAssistantMessageEdit={onAssistantMessageEdit}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByText("Assistant output one."));
+    const editor = screen.getByLabelText("Edit assistant message");
+    fireEvent.change(editor, { target: { value: "Edited assistant output." } });
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(onAssistantMessageEdit).toHaveBeenCalledWith({
+      messageId: "a-1",
+      content: "Edited assistant output.",
+    });
+    expect(screen.getByLabelText("Edit assistant message")).toBeInTheDocument();
+  });
+
+  it("does not enter edit mode when assistant edit callback is not provided", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByText("Assistant output one."));
+    expect(screen.queryByLabelText("Edit assistant message")).not.toBeInTheDocument();
+  });
+
+  it("mirrors rendered assistant text styling and fixed dimensions in edit mode", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onAssistantMessageEdit={vi.fn(() => true)}
+      />
+    );
+
+    const assistantText = screen.getByText("Assistant output one.");
+    const getRect = vi.spyOn(assistantText, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 318,
+      height: 146,
+      top: 0,
+      right: 318,
+      bottom: 146,
+      left: 0,
+      toJSON: () => ({}),
+    });
+    const nativeGetComputedStyle = window.getComputedStyle;
+    const getComputedStyleSpy = vi
+      .spyOn(window, "getComputedStyle")
+      .mockImplementation((element: Element, pseudoElt?: string | null) => {
+        if (element === assistantText) {
+          return {
+            fontFamily: '"Sora", sans-serif',
+            fontSize: "14px",
+            fontWeight: "600",
+            lineHeight: "1.6",
+            letterSpacing: "0.02em",
+            color: "rgb(37, 169, 191)",
+          } as CSSStyleDeclaration;
+        }
+        return nativeGetComputedStyle(element, pseudoElt);
+      });
+
+    fireEvent.doubleClick(assistantText);
+    const editor = screen.getByLabelText("Edit assistant message") as HTMLTextAreaElement;
+    expect(editor.style.width).toBe("318px");
+    expect(editor.style.height).toBe("146px");
+    expect(editor.style.minHeight).toBe("146px");
+    expect(editor.style.maxHeight).toBe("146px");
+    expect(editor.style.fontFamily).toBe('"Sora", sans-serif');
+    expect(editor.style.fontSize).toBe("14px");
+    expect(editor.style.fontWeight).toBe("600");
+    expect(editor.style.lineHeight).toBe("1.6");
+    expect(editor.style.letterSpacing).toBe("0.02em");
+    expect(editor.style.color).toBe("rgb(37, 169, 191)");
+    expect(editor.style.resize).toBe("none");
+
+    getRect.mockRestore();
+    getComputedStyleSpy.mockRestore();
+  });
+
   it("exposes prompt text on drag start for assistant and user bubbles", () => {
     render(
       <AgentChatPanel

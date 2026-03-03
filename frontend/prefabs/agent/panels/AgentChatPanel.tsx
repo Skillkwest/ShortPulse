@@ -2,10 +2,15 @@
  * Lightweight chat panel to replace prompt textareas.
  * UI stays minimal so existing panel styles remain dominant.
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
 import { AgentPromptActions } from "../components/AgentPromptActions";
+import {
+  captureAssistantInlineEditPresentation,
+  resolveAssistantInlineEditStyle,
+  type AssistantInlineEditPresentation,
+} from "./assistantInlineEditPresentation";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -150,10 +155,17 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const assistantMessageTextNodesRef = useRef<Map<string, HTMLParagraphElement>>(new Map());
   const skipBlurCommitRef = useRef(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
   const [editingOriginalValue, setEditingOriginalValue] = useState("");
+  const [editingPresentation, setEditingPresentation] =
+    useState<AssistantInlineEditPresentation | null>(null);
+  const editingInlineStyle = useMemo(
+    () => resolveAssistantInlineEditStyle(editingPresentation),
+    [editingPresentation]
+  );
   const latestAssistantMessageIndex = (() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       if (messages[index]?.role === "assistant") {
@@ -283,15 +295,30 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     [disableOutputGenerate, onGenerateOutputPrompt]
   );
 
+  const setAssistantMessageTextRef = useCallback(
+    (messageId: string, node: HTMLParagraphElement | null) => {
+      const normalizedMessageId = messageId.trim();
+      if (!normalizedMessageId) return;
+      if (node) {
+        assistantMessageTextNodesRef.current.set(normalizedMessageId, node);
+        return;
+      }
+      assistantMessageTextNodesRef.current.delete(normalizedMessageId);
+    },
+    []
+  );
+
   const startAssistantMessageEdit = useCallback(
     (message: AgentMessage) => {
       if (!onAssistantMessageEdit) return;
       if (message.role !== "assistant") return;
       const messageId = message.id?.trim();
       if (!messageId) return;
+      const sourceTextNode = assistantMessageTextNodesRef.current.get(messageId) ?? null;
       setEditingMessageId(messageId);
       setEditingValue(message.content);
       setEditingOriginalValue(message.content);
+      setEditingPresentation(captureAssistantInlineEditPresentation(sourceTextNode));
       skipBlurCommitRef.current = false;
     },
     [onAssistantMessageEdit]
@@ -301,6 +328,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     setEditingMessageId(null);
     setEditingValue("");
     setEditingOriginalValue("");
+    setEditingPresentation(null);
     skipBlurCommitRef.current = false;
   }, []);
 
@@ -315,11 +343,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       cancelAssistantMessageEdit();
       return;
     }
-    onAssistantMessageEdit({
+    const didCommit = onAssistantMessageEdit({
       messageId: editingMessageId,
       content: normalizedNext,
     });
-    cancelAssistantMessageEdit();
+    if (didCommit) {
+      cancelAssistantMessageEdit();
+    }
   }, [
     cancelAssistantMessageEdit,
     editingMessageId,
@@ -531,6 +561,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         ref={editInputRef}
                         value={editingValue}
                         className="agent-message-edit-input tiny"
+                        style={editingInlineStyle}
                         aria-label="Edit assistant message"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -560,7 +591,16 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         }}
                       />
                     ) : (
-                      <p className="tiny">{message.content}</p>
+                      <p
+                        className="tiny"
+                        ref={
+                          message.role === "assistant"
+                            ? (node) => setAssistantMessageTextRef(resolvedMessageId, node)
+                            : undefined
+                        }
+                      >
+                        {message.content}
+                      </p>
                     )}
                     {showOutputGenerateButton && !isEditingMessage ? (
                       <div className="agent-output-bubble-controls">

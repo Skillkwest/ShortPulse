@@ -19,7 +19,11 @@
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
-  .tiny {
+  .tiny,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-message-edit-input {
   margin: 0;
   min-width: 0;
   grid-column: 1;
@@ -65,7 +69,15 @@
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate:focus-within
-  p {
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate:hover
+  .agent-message-edit-input,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate:focus-within
+  .agent-message-edit-input {
   border-color: rgba(94, 216, 252, 0.18);
 }
 
@@ -76,7 +88,11 @@
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail:hover
-  .tiny {
+  .tiny,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail:hover
+  .agent-message-edit-input {
   border-color: transparent;
 }
 

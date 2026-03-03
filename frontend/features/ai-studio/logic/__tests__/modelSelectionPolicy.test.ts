@@ -9,8 +9,10 @@ import {
 import type { ModelOption } from "../../constants";
 import {
   CREATE_DEFAULT_MODEL_ID,
+  EDIT_DEFAULT_MODEL_ID,
   resolveAiStudioAllowedModelOptions,
   resolveCreateWorkflowStartupModel,
+  resolveEditWorkflowStartupModel,
 } from "../modelSelectionPolicy";
 
 const createImageOptions: ModelOption[] = [
@@ -210,5 +212,23 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual(["fal-ai/veo3.1/first-last-frame-to-video"]);
+  });
+
+  it("keeps edit startup fallback model precedence unchanged", () => {
+    const model = resolveEditWorkflowStartupModel({
+      savedModelId: "non-existent-edit-model",
+      getModelConfig,
+    });
+
+    expect(model).toBe(EDIT_DEFAULT_MODEL_ID);
+  });
+
+  it("preserves valid edit saved model on startup", () => {
+    const model = resolveEditWorkflowStartupModel({
+      savedModelId: "fal-ai/bytedance/seedream/v5/lite/edit",
+      getModelConfig,
+    });
+
+    expect(model).toBe("fal-ai/bytedance/seedream/v5/lite/edit");
   });
 });

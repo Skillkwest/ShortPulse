@@ -11,14 +11,14 @@ type ImageUploadResponse = {
   size: number;
 };
 
-type ImageUrlCacheEntry = {
-  url: string;
+type ImageUploadCacheEntry = {
+  asset: ImageUploadResponse;
   expiresAt: number;
 };
 
 const SIGNED_URL_BUFFER_MS = 55 * 60 * 1000;
 const SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS = 5 * 60;
-const localImageUrlCache = new Map<string, ImageUrlCacheEntry>();
+const localImageUrlCache = new Map<string, ImageUploadCacheEntry>();
 
 const isBlobUrl = (url: string): boolean => url.startsWith("blob:");
 const isDataImageUrl = (url: string): boolean => /^data:image\//i.test(url);
@@ -141,13 +141,13 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
 };
 
 /**
- * Uploads a local image URL to storage and returns a signed HTTPS URL.
+ * Uploads a local image URL to storage and returns signed delivery metadata.
  */
-export const uploadImageToStorage = async (localUrl: string): Promise<string> => {
+export const uploadImageAssetToStorage = async (localUrl: string): Promise<ImageUploadResponse> => {
   const cacheable = isBlobUrl(localUrl);
   if (cacheable) {
     const cached = localImageUrlCache.get(localUrl);
-    if (cached && cached.expiresAt > Date.now()) return cached.url;
+    if (cached && cached.expiresAt > Date.now()) return cached.asset;
     if (cached) {
       localImageUrlCache.delete(localUrl);
     }
@@ -186,14 +186,25 @@ export const uploadImageToStorage = async (localUrl: string): Promise<string> =>
   if (!data?.url) {
     throw new Error("Image upload failed: missing signed URL.");
   }
+  if (!data?.path) {
+    throw new Error("Image upload failed: missing storage path.");
+  }
 
   if (cacheable) {
     localImageUrlCache.set(localUrl, {
-      url: data.url,
+      asset: data,
       expiresAt: Date.now() + SIGNED_URL_BUFFER_MS,
     });
   }
-  return data.url;
+  return data;
+};
+
+/**
+ * Uploads a local image URL to storage and returns a signed HTTPS URL.
+ */
+export const uploadImageToStorage = async (localUrl: string): Promise<string> => {
+  const uploaded = await uploadImageAssetToStorage(localUrl);
+  return uploaded.url;
 };
 
 /**

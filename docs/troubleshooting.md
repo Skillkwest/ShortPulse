@@ -248,11 +248,15 @@ Checklist:
 ## AI Studio session shadow persistence not syncing to server
 Checklist:
 - Ensure migration `sql/migrations/044_add_ai_studio_sessions_persistence.sql` is applied.
+- Ensure ambiguity hotfix migration `sql/migrations/053_fix_ai_studio_session_upsert_ambiguity.sql` is applied.
 - Ensure server route flag is enabled (or unset):
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` must not be `false`.
 - Ensure client remote-shadow flag is enabled for write-through shadow mode:
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=true`.
 - Verify authenticated `POST /api/ai/sessions/save` responses are `200` for active users.
+- If `POST /api/ai/sessions/save` returns `500`, inspect API/server logs for SQLSTATE `42702` with
+  `column reference "user_id" is ambiguous` from `upsert_ai_studio_session_snapshot`.
+  This indicates the database function body is running pre-hotfix SQL and will fail every remote save.
 - Note: local IndexedDB shadow remains active even when remote shadow is disabled/unavailable.
 - Expected behavior:
   - `media_autosave_enabled = true`: eligible generated/uploaded/pasted media can auto-persist.
@@ -290,6 +294,27 @@ Checklist:
 - If candidate breadcrumb exists but hydration breadcrumb does not, confirm current session `sid` has not already been hydrated in this page lifecycle and that snapshot payload includes expected workspace/output fields.
 - When hydration apply is enabled, restored state includes agent transcript + composer input; attachment tray state is intentionally not restored.
 - If hydration breadcrumb is present with `agent_hydration_applied=false`, workspace/output restore ran but transcript/input restore is intentionally staged off.
+
+## AI Studio restored session shows placeholder reference cards
+Checklist:
+- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=true`.
+- Verify restored outputs include canonical storage paths (`previewStoragePath`/`fullStoragePath`) in session snapshot payload.
+- Verify signed URL batch succeeds for restore-time rehydration:
+  - authenticated media sign route (`POST /api/media/sign-batch`) returns `200`,
+  - returned `urls` map contains keys for restored storage paths.
+- If placeholders persist, inspect client breadcrumbs for:
+  - `ai_studio_session_restore_sign_batch_failed` (signed URL rehydration failed),
+  - `ai_studio_session_restore_candidate_loaded` + `ai_studio_session_hydration_applied` (restore path executed).
+- Confirm storage objects still exist for those paths in `media_library`; missing objects cannot be restored.
+
+## AI Studio unsaved local references are missing after refresh/switch
+Checklist:
+- Unsaved local references (blob/data previews) now auto-upload to private user-scoped storage for session durability.
+- This durability flow does **not** create `media_files` rows and does not auto-add items to Media Library tabs.
+- If a local reference is still missing after refresh:
+  - inspect client breadcrumbs for `ai_studio_session_reference_durability_upload_failed`,
+  - verify `POST /api/upload-image` / `POST /api/upload-video` returned `200`,
+  - confirm the local preview URL was still present (not removed/replaced) before upload completed.
 
 ## AI Studio Sessions modal cannot load recent sessions
 Checklist:

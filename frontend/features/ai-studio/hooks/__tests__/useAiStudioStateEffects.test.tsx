@@ -112,4 +112,43 @@ describe("useAiStudioStateEffects", () => {
       expect(setVideoReferenceMode).not.toHaveBeenCalled();
     });
   });
+
+  it("defaults create workflow to Seedream text-to-image when model is null", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          model: null,
+          selectedTool: "create",
+          mode: "image",
+          isCharacterModeEnabled: false,
+          allowedModelValues: ["fal-ai/bytedance/seedream/v4.5/text-to-image"],
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith("fal-ai/bytedance/seedream/v4.5/text-to-image");
+    });
+  });
+
+  it("defaults edit workflow to Seedream edit when model is null", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          model: null,
+          selectedTool: "edit",
+          mode: "image",
+          allowedModelValues: ["fal-ai/bytedance/seedream/v4.5/edit"],
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith("fal-ai/bytedance/seedream/v4.5/edit");
+    });
+  });
 });

@@ -5,10 +5,15 @@ import { useCallback, useEffect, type MutableRefObject } from "react";
 import { aspectOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
-import { CREATE_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
+import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
 import { computeModalPosition } from "../logic/stateParsers";
-import { isCreateWorkflow, isVideoWorkflow, resolveWorkflowId } from "../logic/workflowIdentity";
+import {
+  isCreateWorkflow,
+  isEditWorkflow,
+  isVideoWorkflow,
+  resolveWorkflowId,
+} from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
 
 const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
@@ -334,8 +339,23 @@ export const useAiStudioStateEffects = ({
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
-    if (!model) return;
     const allowedValues = new Set(allowedModelValues);
+    if (!model) {
+      if (isCreateWorkflow(selectedTool) && mode === "image") {
+        if (isCharacterModeEnabled && allowedValues.has(EDIT_DEFAULT_MODEL_ID)) {
+          setModelIfChanged(EDIT_DEFAULT_MODEL_ID);
+          return;
+        }
+        if (!isCharacterModeEnabled && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
+          setModelIfChanged(CREATE_DEFAULT_MODEL_ID);
+          return;
+        }
+      }
+      if (isEditWorkflow(selectedTool) && allowedValues.has(EDIT_DEFAULT_MODEL_ID)) {
+        setModelIfChanged(EDIT_DEFAULT_MODEL_ID);
+      }
+      return;
+    }
     if (!allowedValues.has(model)) {
       if (isCreateWorkflow(selectedTool) && mode === "image") {
         const mappedCreateModel = mapCreateModelOnCharacterModeToggle({
@@ -350,6 +370,10 @@ export const useAiStudioStateEffects = ({
           setModelIfChanged(CREATE_DEFAULT_MODEL_ID);
           return;
         }
+      }
+      if (isEditWorkflow(selectedTool) && allowedValues.has(EDIT_DEFAULT_MODEL_ID)) {
+        setModelIfChanged(EDIT_DEFAULT_MODEL_ID);
+        return;
       }
       setModelIfChanged(null);
     }

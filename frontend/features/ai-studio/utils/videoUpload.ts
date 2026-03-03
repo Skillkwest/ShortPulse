@@ -104,27 +104,23 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
 };
 
 /**
- * Uploads a video blob to storage and returns the public URL
- * @param videoBlobUrl - The blob URL from createObjectURL or file input
- * @returns Promise with the public URL
+ * Uploads a local video URL to storage and returns signed delivery metadata.
  */
-export const uploadVideoToStorage = async (videoBlobUrl: string): Promise<string> => {
+export const uploadVideoAssetToStorage = async (
+  localVideoUrl: string
+): Promise<VideoUploadResult> => {
   try {
-    // Convert blob URL to actual File object
-    const response = await fetch(videoBlobUrl);
+    const response = await fetch(localVideoUrl);
     const blob = await response.blob();
 
-    // Generate a unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
     const extension = blob.type.split("/")[1] || "mp4";
     const filename = `motion-reference-${timestamp}-${randomString}.${extension}`;
 
-    // Create FormData
     const formData = new FormData();
     formData.append("file", blob, filename);
 
-    // Upload to your API endpoint
     const uploadResponse = await fetchWithAuth("/api/upload-video", {
       method: "POST",
       body: formData,
@@ -136,7 +132,10 @@ export const uploadVideoToStorage = async (videoBlobUrl: string): Promise<string
     }
 
     const result: VideoUploadResult = await uploadResponse.json();
-    return result.url;
+    if (!result?.url || !result?.path) {
+      throw new Error("Video upload failed: missing signed delivery metadata.");
+    }
+    return result;
   } catch (error) {
     console.error("Video upload error:", error);
     throw new Error(
@@ -146,10 +145,18 @@ export const uploadVideoToStorage = async (videoBlobUrl: string): Promise<string
 };
 
 /**
+ * Uploads a local video URL to storage and returns the signed URL.
+ */
+export const uploadVideoToStorage = async (localVideoUrl: string): Promise<string> => {
+  const uploaded = await uploadVideoAssetToStorage(localVideoUrl);
+  return uploaded.url;
+};
+
+/**
  * Checks if a URL is a blob URL that needs uploading
  */
 export const needsVideoUpload = (url: string | null): boolean => {
-  return Boolean(url && url.startsWith("blob:"));
+  return Boolean(url && (url.startsWith("blob:") || /^data:video\//i.test(url)));
 };
 
 /**

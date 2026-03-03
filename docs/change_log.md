@@ -2646,3 +2646,41 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated operations docs for effective adaptive-routing semantics and optional heavy-load compaction control:
   - `docs/sops/sop_media_performance_operations.md`
   - `docs/troubleshooting.md`
+
+## 2026-03-03 (AI Studio sessions save outage hotfix)
+- Added SQL hotfix migration to resolve `upsert_ai_studio_session_snapshot` ambiguity failures (`SQLSTATE 42702`, `column reference "user_id" is ambiguous`) without changing function signature or retention semantics:
+  - `sql/migrations/053_fix_ai_studio_session_upsert_ambiguity.sql`
+- Added rollback pair restoring the original 044 function body:
+  - `sql/migrations/rollback/053_fix_ai_studio_session_upsert_ambiguity_rollback.sql`
+- Added focused API route tests for `/api/ai/sessions/save` validation and error-mapping behavior:
+  - `frontend/tests/api/ai-sessions-save.test.ts`
+- Updated troubleshooting docs with explicit error signature and remediation runbook:
+  - `docs/troubleshooting.md`
+- Operational containment during patch window:
+  - set local `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=false` to suppress repeated remote-save 500 noise until migration is applied.
+
+## 2026-03-03 (AI Studio session restore reference durability + model fallback hardening)
+- Added restore-time signed URL rehydration for storage-path-backed session outputs so restored reference-grid cards resolve real media URLs instead of placeholder-only rows:
+  - `frontend/features/ai-studio/logic/sessionRestoreMediaSigning.ts`
+  - integrated into `frontend/features/ai-studio/hooks/useAiStudioState.ts` restore apply flow with stale-apply revision guarding.
+- Added local-reference durability hook to convert blob/data reference previews into private storage-backed delivery without inserting `media_files` rows:
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionReferenceDurability.ts`
+  - integrated into `frontend/features/ai-studio/hooks/useAiStudioState.ts`.
+- Added non-breaking upload helper expansions that return `{ url, path }` metadata while preserving existing string-returning APIs:
+  - `frontend/features/ai-studio/utils/imageUpload.ts`
+  - `frontend/features/ai-studio/utils/videoUpload.ts`
+- Added deterministic Edit startup model fallback policy (`Seedream 4.5 edit`) and applied null/invalid-model default handling symmetry between Create and Edit workflows:
+  - `frontend/features/ai-studio/logic/modelSelectionPolicy.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioStateEffects.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioWorkflowSettings.ts`
+- Added focused regression coverage:
+  - `frontend/features/ai-studio/logic/__tests__/sessionRestoreMediaSigning.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionReferenceDurability.test.ts`
+  - updated:
+    - `frontend/features/ai-studio/logic/__tests__/modelSelectionPolicy.test.ts`
+    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioStateEffects.test.tsx`
+    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioWorkflowSettings.test.ts`
+- Validation:
+  - targeted session/model test suite (`42` tests) passes,
+  - `npm -C frontend run lint` passes (one pre-existing unrelated warning in media-library hook),
+  - `npm -C frontend run build` passes.

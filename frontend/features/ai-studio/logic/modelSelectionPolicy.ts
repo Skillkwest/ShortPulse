@@ -7,10 +7,12 @@ import { modelOptions } from "../constants";
 import type { StudioMode, ToolId } from "../types";
 import {
   CREATE_DEFAULT_MODEL_ID,
+  CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
   getCreateCharacterModeAllowedModels,
 } from "./createCharacterModeModelMapping";
 
 export { CREATE_DEFAULT_MODEL_ID };
+export const EDIT_DEFAULT_MODEL_ID = CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID;
 
 export type ModelSelectionVideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
 
@@ -149,6 +151,36 @@ export const resolveCreateWorkflowStartupModel = ({
 
   if (mode === "image" && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
     return CREATE_DEFAULT_MODEL_ID;
+  }
+
+  return null;
+};
+
+/**
+ * Resolves Edit workflow startup model using saved-value precedence and policy defaults.
+ */
+export const resolveEditWorkflowStartupModel = ({
+  savedModelId,
+  getModelConfig,
+}: {
+  savedModelId: string | null;
+  getModelConfig: (id: string) => ModelConfigLike | null;
+}): string | null => {
+  const allowedValues = new Set(
+    resolveAiStudioAllowedModelOptions({
+      selectedTool: "edit",
+      mode: "image",
+      videoReferenceMode: "standard",
+      getModelConfig,
+    }).map((option) => option.value)
+  );
+
+  if (savedModelId && allowedValues.has(savedModelId)) {
+    return savedModelId;
+  }
+
+  if (allowedValues.has(EDIT_DEFAULT_MODEL_ID)) {
+    return EDIT_DEFAULT_MODEL_ID;
   }
 
   return null;

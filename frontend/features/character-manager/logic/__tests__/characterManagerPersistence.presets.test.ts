@@ -25,6 +25,7 @@ const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
 describe("characterManagerPersistence preset preview hydration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
   });
 
   it("persists active preset selection without rehydrating preview urls", async () => {
@@ -147,6 +148,69 @@ describe("characterManagerPersistence preset preview hydration", () => {
     expect(result.tabLabels["3"]).toBe("3");
   });
 
+  it("hydrates preset previews when persisting visible tab order", async () => {
+    const metadata = {
+      character_sheet_presets_v1: {
+        active_preset_id: "1",
+        tab_order: ["1", "2"],
+        tab_labels: { "1": "Main", "2": "Alt" },
+        presets: {
+          "1": {
+            portrait: {
+              media_file_id: "media-portrait",
+              storage_path: "user/chars/presets/portrait.png",
+            },
+            close_up: null,
+            front_shot: null,
+            back_shot: null,
+          },
+          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+        },
+      },
+    };
+
+    const selectQuery = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn(async () => ({ data: { metadata }, error: null })),
+    };
+    selectQuery.eq.mockImplementation(() => selectQuery);
+
+    const updateSecondEq = vi.fn(async () => ({ error: null }));
+    const updateFirstEq = { eq: updateSecondEq };
+    const updateQuery = {
+      eq: vi.fn(() => updateFirstEq),
+    };
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        })),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => selectQuery),
+        update: vi.fn(() => updateQuery),
+      })),
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/chars/presets/portrait.png", "https://signed.example/portrait.png"]])
+    );
+
+    const result = await saveCharacterManagerCharacterSheetPresetTabOrder({
+      characterId: "char-1",
+      tabOrder: ["1", "2"],
+      activePresetId: "1",
+    });
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: ["user/chars/presets/portrait.png"],
+    });
+    expect(result.presets["1"].portrait?.previewUrl).toBe("https://signed.example/portrait.png");
+  });
+
   it("persists sanitized preset tab labels", async () => {
     const metadata = {
       character_sheet_presets_v1: {
@@ -192,6 +256,69 @@ describe("characterManagerPersistence preset preview hydration", () => {
     });
 
     expect(result.tabLabels["2"]).toBe("Hero Closeups");
+  });
+
+  it("hydrates preset previews when persisting tab labels", async () => {
+    const metadata = {
+      character_sheet_presets_v1: {
+        active_preset_id: "1",
+        tab_order: ["1", "2"],
+        tab_labels: { "1": "1", "2": "2" },
+        presets: {
+          "1": {
+            portrait: {
+              media_file_id: "media-portrait",
+              storage_path: "user/chars/presets/portrait.png",
+            },
+            close_up: null,
+            front_shot: null,
+            back_shot: null,
+          },
+          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+        },
+      },
+    };
+
+    const selectQuery = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn(async () => ({ data: { metadata }, error: null })),
+    };
+    selectQuery.eq.mockImplementation(() => selectQuery);
+
+    const updateSecondEq = vi.fn(async () => ({ error: null }));
+    const updateFirstEq = { eq: updateSecondEq };
+    const updateQuery = {
+      eq: vi.fn(() => updateFirstEq),
+    };
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        })),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => selectQuery),
+        update: vi.fn(() => updateQuery),
+      })),
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/chars/presets/portrait.png", "https://signed.example/portrait.png"]])
+    );
+
+    const result = await saveCharacterManagerCharacterSheetPresetTabLabel({
+      characterId: "char-1",
+      presetId: "2",
+      label: "Main",
+    });
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: ["user/chars/presets/portrait.png"],
+    });
+    expect(result.presets["1"].portrait?.previewUrl).toBe("https://signed.example/portrait.png");
   });
 
   it("deletes a non-primary preset tab and resets its assignments", async () => {

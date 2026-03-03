@@ -24,11 +24,17 @@ import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionState";
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
 import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
+import { useAiStudioSessionReferenceDurability } from "./useAiStudioSessionReferenceDurability";
 import type { AiStudioSessionSnapshotV1 } from "../logic/sessionSnapshot";
 import {
   buildAiStudioSessionHydrationPayload,
   type AiStudioSessionHydrationPayload,
 } from "../logic/sessionSnapshotHydrator";
+import {
+  applySessionRestoreSignedUrls,
+  buildSessionOutputSigningFingerprintById,
+  resolveSessionRestoreSignedUrls,
+} from "../logic/sessionRestoreMediaSigning";
 import {
   createEmptyReferenceProjectionState,
   markReferenceRemovedFromAllRefs,
@@ -87,6 +93,7 @@ export const useAiStudioState = ({
   const [saved, setSaved] = useState(false);
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
+  const sessionHydrationSigningRevisionRef = useRef(0);
   const activeOutput = useMemo(
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
@@ -358,6 +365,12 @@ export const useAiStudioState = ({
     outputs,
     archivedOutputs,
   });
+  useAiStudioSessionReferenceDurability({
+    outputs,
+    archivedOutputs,
+    setOutputsState,
+    setArchivedOutputs,
+  });
 
   // --- Output + prompt actions -------------------------------------------
   const {
@@ -594,6 +607,41 @@ export const useAiStudioState = ({
       });
       setActiveOutputId(outputPayload.activeOutputId);
       setSaved(false);
+
+      const signingRevision = sessionHydrationSigningRevisionRef.current + 1;
+      sessionHydrationSigningRevisionRef.current = signingRevision;
+      const activeBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.active);
+      const archivedBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.archived);
+      const hydrationOutputs = [...outputPayload.active, ...outputPayload.archived];
+      void resolveSessionRestoreSignedUrls(hydrationOutputs)
+        .then((signedByPath) => {
+          if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
+          if (signedByPath.size === 0) return;
+
+          setOutputsState((rows) => {
+            const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
+              baselineById: activeBaselineById,
+            });
+            return patched.changed ? patched.outputs : rows;
+          });
+          setArchivedOutputs((rows) => {
+            const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
+              baselineById: archivedBaselineById,
+            });
+            return patched.changed ? patched.outputs : rows;
+          });
+        })
+        .catch((error) => {
+          addBreadcrumb({
+            type: "ui",
+            level: "warn",
+            message: "ai_studio_session_restore_sign_batch_failed",
+            data: {
+              error: error instanceof Error ? error.message : "unknown_error",
+            },
+          });
+        });
+
       return payload;
     },
     [

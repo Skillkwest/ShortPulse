@@ -562,6 +562,9 @@ body.character-manager-body {
 
 .character-sheet-preset-tab-rail {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .character-sheet-preset-tab-row {
@@ -573,20 +576,14 @@ body.character-manager-body {
   flex: 1 1 auto;
   gap: 8px;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   margin: 0;
   padding: 8px 8px 0;
   border-radius: 14px 14px 0 0;
   border: 0;
-  background: #0f1115;
-  overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.character-sheet-preset-tab-row::-webkit-scrollbar {
-  display: none;
+  background: #0e0f13b8;
+  overflow: hidden;
 }
 
 .character-sheet-preset-tablist {
@@ -595,7 +592,7 @@ body.character-manager-body {
   gap: 8px;
   flex: 0 0 auto;
   width: max-content;
-  min-width: 0;
+  min-width: max-content;
 }
 
 .character-sheet-preset-tab-track {
@@ -603,9 +600,32 @@ body.character-manager-body {
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
   padding-top: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.character-sheet-preset-tab-track::-webkit-scrollbar {
+  display: none;
+}
+
+.character-sheet-preset-tab-track.is-drag-scrolling {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.character-sheet-preset-tab-track.is-drag-scrolling .character-sheet-preset-tab,
+.character-sheet-preset-tab-track.is-drag-scrolling .character-sheet-preset-add-btn,
+.character-sheet-preset-tab-track.is-drag-scrolling .character-sheet-preset-delete-btn {
+  cursor: grabbing;
 }
 
 .character-sheet-preset-tab-shell {
@@ -627,11 +647,11 @@ body.character-manager-body {
   min-width: 0;
   min-height: 42px;
   padding: 0 12px;
-  border: 1px solid rgba(201, 205, 214, 0.03);
-  border-bottom-color: rgba(201, 205, 214, 0.03);
+  border: 1px solid rgba(201, 205, 214, 0);
+  border-bottom-color: rgba(201, 205, 214, 0);
   border-radius: 12px 12px 0 0;
-  background: #292a2d2c;
-  color: rgba(180, 198, 219, 0.86);
+  background: #27282b2c;
+  color: rgba(87, 93, 101, 0.86);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
   font-size: 13px;
   font-weight: 700;
@@ -660,69 +680,73 @@ body.character-manager-body {
 .character-sheet-preset-tab-input {
   width: 100%;
   min-width: 0;
-  border: 1px solid rgba(120, 190, 230, 0.72);
-  border-radius: 8px;
-  background: rgba(7, 17, 28, 0.92);
-  color: #e6f6ff;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 6px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
   outline: none;
+  text-align: center;
+  caret-color: currentColor;
 }
 
 .character-sheet-preset-tab-input:focus-visible {
-  box-shadow: 0 0 0 2px rgba(103, 204, 255, 0.34);
+  outline: none;
+  box-shadow: none;
 }
 
 .character-sheet-preset-delete-btn {
   position: absolute;
-  top: 0;
-  right: 8px;
-  width: 18px;
-  height: 18px;
+  top: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 164, 164, 0.72);
-  background: linear-gradient(180deg, rgba(84, 26, 33, 0.94) 0%, rgba(44, 15, 22, 0.96) 100%);
-  color: rgba(255, 226, 226, 0.95);
+  border: 1px solid rgba(201, 205, 214, 0.34);
+  background: rgba(12, 17, 26, 0.78);
+  color: rgba(203, 216, 233, 0.78);
   display: grid;
   place-items: center;
+  padding: 0;
+  line-height: 0;
   z-index: 4;
   opacity: 0;
-  box-shadow:
-    0 6px 12px rgba(0, 0, 0, 0.38),
-    0 0 0 1px rgba(0, 0, 0, 0.16);
-  transition:
-    opacity 0.16s ease,
-    border-color 0.16s ease,
-    background-color 0.16s ease,
-    color 0.16s ease,
-    transform 0.16s ease,
-    box-shadow 0.16s ease;
-  transform: translateY(-2px) scale(0.9);
+}
+
+.character-sheet-preset-delete-btn svg {
+  display: block;
+  width: 10px;
+  height: 10px;
+  flex: none;
 }
 
 .character-sheet-preset-tab-shell.is-deletable:hover .character-sheet-preset-delete-btn,
-.character-sheet-preset-tab-shell.is-deletable:focus-within .character-sheet-preset-delete-btn,
+.character-sheet-preset-tab-shell.is-deletable:focus-within .character-sheet-preset-delete-btn {
+  opacity: 0.92;
+}
+
 .character-sheet-preset-tab-shell.is-active .character-sheet-preset-delete-btn {
-  opacity: 0.96;
-  transform: translateY(-2px) scale(1);
+  opacity: 0.58;
+  transform: scale(0.96);
 }
 
 .character-sheet-preset-delete-btn:hover:not(:disabled) {
-  border-color: rgba(255, 198, 198, 0.95);
-  background: linear-gradient(180deg, rgba(108, 31, 41, 0.98) 0%, rgba(65, 20, 30, 0.98) 100%);
-  color: #ffe7e7;
+  border-color: rgba(244, 144, 154, 0.72);
+  background: rgba(68, 20, 30, 0.88);
+  color: rgba(255, 227, 230, 0.96);
   box-shadow:
-    0 6px 12px rgba(0, 0, 0, 0.36),
-    0 0 0 1px rgba(255, 151, 151, 0.28);
+    0 4px 10px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(244, 144, 154, 0.22);
 }
 
 .character-sheet-preset-delete-btn:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px rgba(255, 152, 152, 0.78),
-    0 0 0 4px rgba(255, 106, 106, 0.28);
+    0 0 0 2px rgba(242, 160, 168, 0.72),
+    0 0 0 4px rgba(240, 127, 139, 0.24);
 }
 
 .character-sheet-preset-delete-btn:disabled {
@@ -732,7 +756,7 @@ body.character-manager-body {
 
 .character-sheet-preset-tab:hover:not(:disabled) {
   color: rgba(227, 242, 255, 0.96);
-  background: #1e1f25a2;
+  background: #1f2127a2;
   cursor: pointer;
 }
 
@@ -1586,6 +1610,14 @@ body.character-manager-body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   justify-items: center;
+}
+
+.character-sheet-references-title-row {
+  margin: 8px 0 12px;
+}
+
+.character-sheet-references-title-row .input-label {
+  margin-bottom: 0;
 }
 
 .character-character-sheet-card {

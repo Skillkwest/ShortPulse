@@ -7,7 +7,10 @@ import { randomId } from "../logic/ids";
 import type { StudioMode, ToolId } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
 import { getModelConfig } from "../logic/pricing";
-import { resolveCreateWorkflowStartupModel } from "../logic/modelSelectionPolicy";
+import {
+  resolveCreateWorkflowStartupModel,
+  resolveEditWorkflowStartupModel,
+} from "../logic/modelSelectionPolicy";
 
 export const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
 
@@ -294,6 +297,19 @@ export const useAiStudioWorkflowSettings = ({
         workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
       }
       setMode(snapshot.mode);
+    }
+    if (activeWorkflowSettingsKey === "edit") {
+      const resolvedEditModel = resolveEditWorkflowStartupModel({
+        savedModelId: snapshot.model,
+        getModelConfig,
+      });
+      if (resolvedEditModel !== snapshot.model) {
+        snapshot = {
+          ...snapshot,
+          model: resolvedEditModel,
+        };
+        workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
+      }
     }
     setModelState(snapshot.model);
     setAspect(snapshot.aspect);

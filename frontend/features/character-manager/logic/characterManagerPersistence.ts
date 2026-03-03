@@ -965,7 +965,11 @@ export const saveCharacterManagerCharacterSheetPresetTabOrder = async ({
     throw new Error(asErrorMessage(updateError, "Failed to save character preset tabs."));
   }
 
-  return nextState;
+  try {
+    return await hydratePresetStateWithPreviewUrls(nextState);
+  } catch {
+    return nextState;
+  }
 };
 
 /**
@@ -1030,7 +1034,11 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
     throw new Error(asErrorMessage(updateError, "Failed to save character preset label."));
   }
 
-  return nextState;
+  try {
+    return await hydratePresetStateWithPreviewUrls(nextState);
+  } catch {
+    return nextState;
+  }
 };
 
 /**

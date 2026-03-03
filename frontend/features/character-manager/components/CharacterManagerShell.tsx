@@ -96,6 +96,8 @@ const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)
 const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
   /\/storage\/v1\/object\/(?:sign|public|authenticated)\/([^/]+)\/(.+)$/i;
 const DRAG_GHOST_SCALE = 0.74;
+const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
+  ".character-reference-upload-image-wrap, .character-character-sheet-media";
 const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 const MEDIA_BUCKET = "media_library";
 const DROPPED_REFERENCE_TELEMETRY_SOURCE = "client.character_manager.drop_reference";
@@ -1172,11 +1174,22 @@ export function CharacterManagerShell({
     const dragNode = event.currentTarget as HTMLElement;
     const transfer = event.dataTransfer;
     try {
-      const rect = dragNode.getBoundingClientRect();
-      const ghost = dragNode.cloneNode(true) as HTMLElement;
-      const scaledWidth = Math.max(56, rect.width * DRAG_GHOST_SCALE);
-      const scaledHeight = Math.max(72, rect.height * DRAG_GHOST_SCALE);
+      const blobNode = dragNode.querySelector<HTMLElement>(DRAG_GHOST_IMAGE_BLOB_SELECTOR);
+      const ghostSourceNode = blobNode ?? dragNode;
+      const sourceRect = ghostSourceNode.getBoundingClientRect();
+      const fallbackRect = dragNode.getBoundingClientRect();
+      const sourceWidth = sourceRect.width > 0 ? sourceRect.width : fallbackRect.width;
+      const sourceHeight = sourceRect.height > 0 ? sourceRect.height : fallbackRect.height;
+      const ghost = ghostSourceNode.cloneNode(true) as HTMLElement;
+      const scaledWidth = Math.max(56, sourceWidth * DRAG_GHOST_SCALE);
+      const scaledHeight = Math.max(72, sourceHeight * DRAG_GHOST_SCALE);
       ghost.classList.add("character-drag-ghost");
+      if (blobNode) {
+        ghost.classList.add("character-drag-ghost--image-only");
+      }
+      if (ghostSourceNode.classList.contains("character-character-sheet-media")) {
+        ghost.classList.add("character-drag-ghost--character-sheet-media");
+      }
       ghost.style.boxSizing = "border-box";
       ghost.style.width = `${scaledWidth}px`;
       ghost.style.height = `${scaledHeight}px`;
@@ -2333,6 +2346,9 @@ export function CharacterManagerShell({
                     disabled={loading}
                     onChangeDescription={setCharacterDescription}
                   />
+                  <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
+                    <p className="input-label">Character References:</p>
+                  </div>
                   <div className="character-reference-empty-grid">
                     {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
                       const assignedReference =

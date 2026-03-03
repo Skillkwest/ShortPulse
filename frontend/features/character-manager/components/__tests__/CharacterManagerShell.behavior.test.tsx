@@ -648,6 +648,45 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
+  it("uses image-only drag ghosts for quickswap cards and character sheet slots", async () => {
+    render(<CharacterManagerShell />);
+
+    const portraitZone = getCharacterSheetZone("Portrait");
+    const firstReferenceCard = getReferenceCard(1);
+
+    const assignDrag = createDataTransfer();
+    fireEvent.dragStart(firstReferenceCard, { dataTransfer: assignDrag });
+
+    const quickSwapGhost = document.body.querySelector(
+      ".character-drag-ghost"
+    ) as HTMLElement | null;
+    expect(quickSwapGhost).toBeInTheDocument();
+    expect(quickSwapGhost?.classList.contains("character-drag-ghost--image-only")).toBe(true);
+    expect(quickSwapGhost?.querySelector(".character-reference-delete-btn")).toBeNull();
+
+    fireEvent.dragOver(portraitZone, { dataTransfer: assignDrag });
+    fireEvent.drop(portraitZone, { dataTransfer: assignDrag });
+    fireEvent.dragEnd(firstReferenceCard, { dataTransfer: assignDrag });
+
+    await waitFor(() => {
+      expect(getZoneImageSrc("Portrait")).toBe("https://example.com/front-full-initial.png");
+    });
+
+    const zoneDrag = createDataTransfer();
+    fireEvent.dragStart(portraitZone, { dataTransfer: zoneDrag });
+
+    const characterSheetGhost = document.body.querySelector(
+      ".character-drag-ghost"
+    ) as HTMLElement | null;
+    expect(characterSheetGhost).toBeInTheDocument();
+    expect(characterSheetGhost?.classList.contains("character-drag-ghost--image-only")).toBe(true);
+    expect(characterSheetGhost?.querySelector(".character-character-sheet-delete-btn")).toBeNull();
+    expect(characterSheetGhost?.textContent ?? "").not.toMatch(/Portrait/i);
+
+    fireEvent.dragEnd(portraitZone, { dataTransfer: zoneDrag });
+    expect(document.body.querySelector(".character-drag-ghost")).toBeNull();
+  });
+
   it("swaps zone assignments when dragging from one Character Sheet zone to another", async () => {
     render(<CharacterManagerShell />);
 

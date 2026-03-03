@@ -238,4 +238,65 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     expect(onDeletePreset).toHaveBeenCalledWith("3");
     expect(onDeletePreset).toHaveBeenCalledTimes(1);
   });
+
+  it("supports click-and-drag horizontal scrolling on the tab rail", () => {
+    const { container } = render(
+      <PresetTabsHarness initialPresetIds={["1", "2", "3", "4", "5", "6"]} />
+    );
+    const tabTrack = container.querySelector(
+      ".character-sheet-preset-tab-track"
+    ) as HTMLDivElement | null;
+    expect(tabTrack).not.toBeNull();
+    if (!tabTrack) return;
+
+    let currentScrollLeft = 0;
+    Object.defineProperty(tabTrack, "scrollLeft", {
+      configurable: true,
+      get: () => currentScrollLeft,
+      set: (value: number) => {
+        currentScrollLeft = value;
+      },
+    });
+
+    fireEvent.pointerDown(tabTrack, { button: 0, pointerId: 1, clientX: 220 });
+    fireEvent.pointerMove(tabTrack, { pointerId: 1, clientX: 150 });
+    fireEvent.pointerUp(tabTrack, { pointerId: 1, clientX: 150 });
+
+    expect(currentScrollLeft).toBe(70);
+  });
+
+  it("preserves delete-button click behavior when pointer interactions occur on the delete target", () => {
+    const onDeletePreset = vi.fn();
+    render(
+      <CharacterSheetPresetTabs
+        presetIds={["1", "2", "3"]}
+        activePresetId="1"
+        presetLabels={{
+          "1": "1",
+          "2": "2",
+          "3": "3",
+          "4": "4",
+          "5": "5",
+          "6": "6",
+          "7": "7",
+          "8": "8",
+          "9": "9",
+          "10": "10",
+        }}
+        onSelectPreset={() => undefined}
+        onAddPreset={() => undefined}
+        onDeletePreset={onDeletePreset}
+        panelId="panel-id"
+      />
+    );
+
+    const deletePresetTwo = screen.getByRole("button", { name: "Delete preset 2" });
+    fireEvent.pointerDown(deletePresetTwo, { button: 0, pointerId: 9, clientX: 220 });
+    fireEvent.pointerMove(deletePresetTwo, { pointerId: 9, clientX: 212 });
+    fireEvent.pointerUp(deletePresetTwo, { pointerId: 9, clientX: 212 });
+    fireEvent.click(deletePresetTwo);
+
+    expect(onDeletePreset).toHaveBeenCalledWith("2");
+    expect(onDeletePreset).toHaveBeenCalledTimes(1);
+  });
 });

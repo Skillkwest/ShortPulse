@@ -45,8 +45,18 @@ export function CharacterSheetPresetTabs({
 }: CharacterSheetPresetTabsProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const editInputRef = useRef<HTMLInputElement | null>(null);
+  const tabTrackRef = useRef<HTMLDivElement | null>(null);
+  const dragScrollStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startScrollLeft: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressPointerActivationRef = useRef(false);
+  const suppressPointerActivationTimerRef = useRef<number | null>(null);
   const [editingPresetId, setEditingPresetId] = useState<CharacterSheetPresetId | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
+  const [isDragScrollingTabs, setIsDragScrollingTabs] = useState(false);
   const activeEditingPresetId =
     editingPresetId && editingPresetId === activePresetId ? editingPresetId : null;
 
@@ -59,6 +69,15 @@ export function CharacterSheetPresetTabs({
     editInputRef.current?.focus();
     editInputRef.current?.select();
   }, [activeEditingPresetId]);
+
+  useEffect(
+    () => () => {
+      if (suppressPointerActivationTimerRef.current !== null) {
+        window.clearTimeout(suppressPointerActivationTimerRef.current);
+      }
+    },
+    []
+  );
 
   const focusByIndex = useCallback((index: number) => {
     const target = tabRefs.current[index];
@@ -101,10 +120,116 @@ export function CharacterSheetPresetTabs({
     setEditingLabel("");
   }, []);
 
+  const consumeSuppressedPointerActivation = useCallback(() => {
+    if (!suppressPointerActivationRef.current) {
+      return false;
+    }
+    suppressPointerActivationRef.current = false;
+    return true;
+  }, []);
+
+  const finalizeDragScroll = useCallback((pointerId: number) => {
+    const dragState = dragScrollStateRef.current;
+    if (!dragState || dragState.pointerId !== pointerId) {
+      return;
+    }
+    const track = tabTrackRef.current;
+    if (track && track.hasPointerCapture?.(pointerId)) {
+      track.releasePointerCapture(pointerId);
+    }
+    dragScrollStateRef.current = null;
+    setIsDragScrollingTabs(false);
+    if (!dragState.moved) {
+      return;
+    }
+    suppressPointerActivationRef.current = true;
+    if (suppressPointerActivationTimerRef.current !== null) {
+      window.clearTimeout(suppressPointerActivationTimerRef.current);
+    }
+    suppressPointerActivationTimerRef.current = window.setTimeout(() => {
+      suppressPointerActivationRef.current = false;
+      suppressPointerActivationTimerRef.current = null;
+    }, 120);
+  }, []);
+
+  const handleTabTrackPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || isEditing) {
+        return;
+      }
+      const eventTarget =
+        event.target instanceof Element ? event.target : (event.target as Element | null);
+      if (
+        eventTarget?.closest(".character-sheet-preset-tab-input") ||
+        eventTarget?.closest(".character-sheet-preset-delete-btn") ||
+        eventTarget?.closest(".character-sheet-preset-add-btn")
+      ) {
+        return;
+      }
+      const track = tabTrackRef.current;
+      if (!track) {
+        return;
+      }
+      suppressPointerActivationRef.current = false;
+      if (suppressPointerActivationTimerRef.current !== null) {
+        window.clearTimeout(suppressPointerActivationTimerRef.current);
+        suppressPointerActivationTimerRef.current = null;
+      }
+      dragScrollStateRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startScrollLeft: track.scrollLeft,
+        moved: false,
+      };
+      if (track.setPointerCapture) {
+        track.setPointerCapture(event.pointerId);
+      }
+    },
+    [isEditing]
+  );
+
+  const handleTabTrackPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = dragScrollStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+    const track = tabTrackRef.current;
+    if (!track) {
+      return;
+    }
+    const deltaX = event.clientX - dragState.startX;
+    if (!dragState.moved && Math.abs(deltaX) > 3) {
+      dragState.moved = true;
+      setIsDragScrollingTabs(true);
+    }
+    track.scrollLeft = dragState.startScrollLeft - deltaX;
+  }, []);
+
+  const handleTabTrackPointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      finalizeDragScroll(event.pointerId);
+    },
+    [finalizeDragScroll]
+  );
+
+  const handleTabTrackPointerCancel = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      finalizeDragScroll(event.pointerId);
+    },
+    [finalizeDragScroll]
+  );
+
   return (
     <div className="character-sheet-preset-tab-rail">
       <div className="character-sheet-preset-tab-row">
-        <div className="character-sheet-preset-tab-track">
+        <div
+          ref={tabTrackRef}
+          className={`character-sheet-preset-tab-track${isDragScrollingTabs ? " is-drag-scrolling" : ""}`}
+          onPointerDown={handleTabTrackPointerDown}
+          onPointerMove={handleTabTrackPointerMove}
+          onPointerUp={handleTabTrackPointerUp}
+          onPointerCancel={handleTabTrackPointerCancel}
+        >
           <div
             className="character-sheet-preset-tablist"
             role="tablist"
@@ -137,10 +262,12 @@ export function CharacterSheetPresetTabs({
                       canDeletePreset ? "is-deletable" : ""
                     }`}
                     onClick={() => {
+                      if (consumeSuppressedPointerActivation()) return;
                       if (isEditingCurrentTab) return;
                       void onSelectPreset(presetId);
                     }}
                     onDoubleClick={() => {
+                      if (consumeSuppressedPointerActivation()) return;
                       if (disabled || !onRenamePreset) return;
                       setEditingPresetId(presetId);
                       setEditingLabel(label);
@@ -218,6 +345,7 @@ export function CharacterSheetPresetTabs({
                       aria-label={`Delete preset ${presetId}`}
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (consumeSuppressedPointerActivation()) return;
                         void onDeletePreset?.(presetId);
                       }}
                       disabled={disabled || isEditing || isEditingCurrentTab}
@@ -235,6 +363,7 @@ export function CharacterSheetPresetTabs({
               className="character-sheet-preset-add-btn"
               aria-label="Add character sheet preset tab"
               onClick={() => {
+                if (consumeSuppressedPointerActivation()) return;
                 void onAddPreset?.();
               }}
               disabled={disabled || isEditing}

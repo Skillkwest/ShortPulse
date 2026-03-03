@@ -2203,6 +2203,35 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - development diagnostics remain configurable independently,
   - auth/invalid-request failures remain explicit hard errors.
 - Updated canonical rollout governance docs:
+
+## 2026-03-03 (AI Studio sessions selector + deterministic switch flow)
+- Added AI Studio toolbar `Sessions` entry in the left rail footer and threaded open-handler props through toolbar boundary/page-content wiring:
+  - `frontend/features/ai-studio/components/AiStudioToolbar.tsx`
+  - `frontend/features/ai-studio/components/AiStudioToolbarRail.tsx`
+  - `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
+  - `frontend/pages/ai-studio.tsx`.
+- Added recent-sessions modal UI with pagination, empty/error states, and confirm-before-switch controls:
+  - `frontend/features/ai-studio/components/AiStudioSessionsModal.tsx`
+  - `frontend/styles/ai-studio-history.css`
+  - `frontend/styles/ai-studio-layout.css`
+  - `frontend/styles/ai-studio-responsive.css`.
+- Added client session list API helper and snapshot-title resolution for save payloads:
+  - `frontend/features/ai-studio/logic/sessionApiClient.ts`
+  - `frontend/features/ai-studio/logic/sessionSnapshotTitle.ts`
+  - `frontend/features/ai-studio/logic/sessionShadowPersistence.ts`.
+- Added session-switch orchestration hook for deterministic save -> hydrate -> `sid` URL switch:
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionSwitcher.ts`.
+- Added restore apply coexistence guard and per-session agent namespace isolation:
+  - `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`.
+- Added/updated focused test coverage:
+  - `frontend/features/ai-studio/logic/__tests__/sessionApiClient.test.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionSnapshotTitle.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionSwitcher.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
+  - `frontend/features/ai-studio/components/__tests__/AiStudioSessionsModal.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/AiStudioToolbar.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`.
   - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
   - `docs/planning/shortpulse-unified-buildout-tracker.md`
   - `docs/planning/shortpulse-unified-decision-log.md`

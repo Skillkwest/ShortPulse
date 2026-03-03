@@ -330,6 +330,27 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioSessionIdentity", () => ({
   useAiStudioSessionIdentity: () => ({ sessionId: "test-session-id" }),
 }));
 
+vi.mock("../../features/ai-studio/hooks/useAiStudioSessionSwitcher", () => ({
+  useAiStudioSessionSwitcher: () => ({
+    isSessionsModalOpen: false,
+    sessions: [],
+    nextCursor: null,
+    isLoadingSessions: false,
+    isLoadingMoreSessions: false,
+    sessionsLoadError: null,
+    pendingSessionSwitch: null,
+    switchError: null,
+    isSwitchingSession: false,
+    handleOpenSessionsModal: vi.fn(),
+    handleCloseSessionsModal: vi.fn(),
+    handleReloadSessions: vi.fn(),
+    handleLoadMoreSessions: vi.fn(),
+    handleRequestSessionSwitch: vi.fn(),
+    handleCancelSessionSwitch: vi.fn(),
+    handleConfirmSessionSwitch: vi.fn(),
+  }),
+}));
+
 vi.mock("../../features/ai-studio/hooks/aiStudioOutputStore", () => ({
   useOutputSelector: (
     selector: (snapshot: {

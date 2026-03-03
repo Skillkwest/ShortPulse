@@ -172,7 +172,27 @@ body.character-manager-body {
 
 @media (min-width: 1101px) {
   .character-manager-page--embedded .character-create-workspace-layout {
-    grid-template-columns: minmax(0, 1fr) fit-content(var(--character-embedded-sheet-width));
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--character-embedded-sheet-width));
+  }
+
+  .character-manager-page--embedded .character-layout-region--sheet {
+    min-width: 0;
+  }
+
+  .character-manager-page--embedded .character-layout-region--quickswap {
+    min-width: 0;
+    width: 100%;
+    max-width: var(--character-embedded-sheet-width);
+    justify-self: end;
+    overflow-x: hidden;
+  }
+
+  .character-manager-page--embedded
+    .character-layout-region--quickswap
+    .character-section--reference-drop {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .character-manager-page--embedded .character-mode-guidance--sheet {
@@ -532,6 +552,7 @@ body.character-manager-body {
   justify-self: start;
   width: 100%;
   max-width: 520px;
+  background: #17191d;
 }
 
 .character-section--references .character-reference-empty-grid,
@@ -718,8 +739,8 @@ body.character-manager-body {
 .character-sheet-preset-tab.is-active {
   border-color: #004c5c6a;
 
-  background: #1e1f25a2;
-  border-bottom-color: var(--character-sheet-preset-tab-is-active-background, #191b1ff9);
+  background: #17191d;
+  border-bottom-color: var(--character-sheet-preset-tab-is-active-background, #17191d);
   color: #ecfbff;
   box-shadow: 0 0 0 1px rgba(72, 212, 255, 0.133);
   transform: translateY(-1px);

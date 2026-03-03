@@ -291,6 +291,32 @@ Checklist:
 - When hydration apply is enabled, restored state includes agent transcript + composer input; attachment tray state is intentionally not restored.
 - If hydration breadcrumb is present with `agent_hydration_applied=false`, workspace/output restore ran but transcript/input restore is intentionally staged off.
 
+## AI Studio Sessions modal cannot load recent sessions
+Checklist:
+- Ensure `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` is not `false`.
+- Verify authenticated `GET /api/ai/sessions?limit=20` returns `200` with `{ sessions, nextCursor }`.
+- Confirm the browser request includes a valid bearer token (same auth lane as `/api/ai/*` routes).
+- If API returns `400`, validate query params:
+  - `limit` must be between `1` and `50`.
+  - `cursor` must be a valid base64url session cursor from a prior response.
+
+## AI Studio session switch fails during save-and-switch
+Checklist:
+- Verify authenticated `POST /api/ai/sessions/save` returns `200` for the current `sid`.
+- Confirm `snapshot` payload size is below route/RPC limit (current guard rejects oversized payloads).
+- Ensure session save route is enabled:
+  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` must not be `false`.
+- If using remote shadow write-through expectations, ensure:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=true`.
+  - (Local IndexedDB write-shadow still persists even when remote mirror is off.)
+
+## AI Studio selected session shows unavailable/expired on switch
+Checklist:
+- Verify target session still exists via authenticated `GET /api/ai/sessions/:sid`.
+- If `404`, the session was likely pruned by TTL/cap policy or never mirrored remotely for this user.
+- Confirm target `sid` belongs to the authenticated user (user-scoped session ownership is enforced server-side).
+- Re-open Sessions modal and refresh list; if missing from list, create a new session and continue from current workspace state.
+
 ## AI Studio safety behavior differs from expected mode
 Checklist:
 - Verify runtime safety profile mode:

@@ -188,8 +188,11 @@ export const useAiStudioCharacterModeController = ({
 
   const refreshCharacterModeInjectionBundleForSubmission = useCallback(
     async (tool: ToolId | null): Promise<CharacterModeInjectionBundle | null> => {
-      const isCreateWorkflowTool = tool === "create" || tool === "text";
-      if (!isCharacterModeEnabled || !isCreateWorkflowTool) return characterModeInjectionBundle;
+      const isCharacterModeEligibleTool =
+        tool === "create" || tool === "text" || tool === "edit" || tool === "image";
+      if (!isCharacterModeEnabled || !isCharacterModeEligibleTool) {
+        return characterModeInjectionBundle;
+      }
       if (!selectedCharacterId) return null;
 
       const currentBundle = characterModeInjectionBundle;
@@ -250,10 +253,12 @@ export const useAiStudioCharacterModeController = ({
     (
       userPrompt: string,
       tool: ToolId | null,
-      bundleOverride?: CharacterModeInjectionBundle | null
+      bundleOverride?: CharacterModeInjectionBundle | null,
+      userReferenceInputs: string[] = []
     ): CharacterModeSubmissionOverrides => {
-      const isCreateWorkflowTool = tool === "create" || tool === "text";
-      if (!isCharacterModeEnabled || !isCreateWorkflowTool) return null;
+      const isCharacterModeEligibleTool =
+        tool === "create" || tool === "text" || tool === "edit" || tool === "image";
+      if (!isCharacterModeEnabled || !isCharacterModeEligibleTool) return null;
 
       const bundle = bundleOverride === undefined ? characterModeInjectionBundle : bundleOverride;
       const characterDescription = bundle?.characterDescription ?? "";
@@ -262,7 +267,10 @@ export const useAiStudioCharacterModeController = ({
         characterDescription,
         userPrompt,
       });
-      const referenceInputs = mergeCharacterAndUserReferences(characterReferences, []);
+      const referenceInputs = mergeCharacterAndUserReferences(
+        userReferenceInputs,
+        characterReferences
+      );
       const hasCharacterDescription = Boolean(characterDescription.trim());
       const selectedCharacterOption =
         characterOptions.find((option) => option.id === selectedCharacterId) ?? null;

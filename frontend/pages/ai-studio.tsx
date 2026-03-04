@@ -1261,6 +1261,7 @@ export default function AiStudioPage() {
     resolveDefaultPromptForTool,
     refreshCharacterModeInjectionBundleForSubmission,
     resolveCharacterModeSubmissionOverrides,
+    resolveReferenceInputsForTool,
     trackCharacterModeFallback,
     trackCharacterModeEvent: trackUiEvent,
     insertOptimisticGenerationPlaceholder,

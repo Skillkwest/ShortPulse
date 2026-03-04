@@ -17,6 +17,7 @@ import {
 } from "../logic/generationStartPolicy";
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
+import { buildImageReferenceInputs } from "../logic/referenceInputs";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
@@ -101,8 +102,13 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   resolveCharacterModeSubmissionOverrides: (
     userPrompt: string,
     tool: ToolId | null,
-    bundleOverride?: TBundle | null
+    bundleOverride?: TBundle | null,
+    userReferenceInputs?: string[]
   ) => CharacterModeSubmissionOverrides<TFallbackCode>;
+  resolveReferenceInputsForTool: (tool: ToolId | null) => {
+    referenceImageUrl: string | null;
+    extraImageUrls: [string | null, string | null, string | null];
+  };
   trackCharacterModeFallback: (
     overrides: CharacterModeFallbackSummary<TFallbackCode>,
     tool: ToolId | null
@@ -169,6 +175,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   resolveDefaultPromptForTool,
   refreshCharacterModeInjectionBundleForSubmission,
   resolveCharacterModeSubmissionOverrides,
+  resolveReferenceInputsForTool,
   trackCharacterModeFallback,
   trackCharacterModeEvent,
   insertOptimisticGenerationPlaceholder,
@@ -263,6 +270,16 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     },
     [isCharacterModeEnabled, model]
   );
+  const resolveUserReferenceInputsForTool = useCallback(
+    (tool: ToolId | null): string[] => {
+      if (tool !== "edit" && tool !== "image") {
+        return [];
+      }
+      const { referenceImageUrl, extraImageUrls } = resolveReferenceInputsForTool(tool);
+      return buildImageReferenceInputs(referenceImageUrl, extraImageUrls);
+    },
+    [resolveReferenceInputsForTool]
+  );
 
   const handleGenerate = useCallback(
     async (promptOverride?: string | null, options?: GenerateOptions): Promise<GenerateResult> => {
@@ -350,10 +367,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
           run: () => refreshCharacterModeInjectionBundleForSubmission(effectiveTool),
         });
+        const userReferenceInputs = resolveUserReferenceInputsForTool(effectiveTool);
         characterModeOverrides = resolveCharacterModeSubmissionOverrides(
           promptToUse,
           effectiveTool,
-          characterModeBundleForSubmit
+          characterModeBundleForSubmit,
+          userReferenceInputs
         );
       } catch (error) {
         if (error instanceof DeadlineExceededError) {
@@ -447,6 +466,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
+      resolveUserReferenceInputsForTool,
       selectedTool,
       setModel,
       setUiError,
@@ -549,10 +569,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
         run: () => refreshCharacterModeInjectionBundleForSubmission(selectedTool),
       });
+      const userReferenceInputs = resolveUserReferenceInputsForTool(selectedTool);
       characterModeOverrides = resolveCharacterModeSubmissionOverrides(
         promptToUse,
         selectedTool,
-        characterModeBundleForSubmit
+        characterModeBundleForSubmit,
+        userReferenceInputs
       );
     } catch (error) {
       if (error instanceof DeadlineExceededError) {
@@ -646,6 +668,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     resolveEffectiveSubmitModelId,
     resolveCharacterModeSubmissionOverrides,
     resolveDefaultPromptForTool,
+    resolveUserReferenceInputsForTool,
     selectedTool,
     setModel,
     setUiError,

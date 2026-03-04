@@ -106,14 +106,14 @@ export const composeCharacterModePrompt = ({
 };
 
 /**
- * Merges Character Sheet references ahead of any additional references.
+ * Merges user-selected references first, then Character Sheet references.
  */
 export const mergeCharacterAndUserReferences = (
-  characterReferenceUrls: string[],
   userReferenceUrls: string[],
+  characterReferenceUrls: string[],
   maxReferences = 10
 ): string[] => {
-  const merged = [...characterReferenceUrls, ...userReferenceUrls].filter(
+  const merged = [...userReferenceUrls, ...characterReferenceUrls].filter(
     (value): value is string => typeof value === "string" && value.trim().length > 0
   );
   return Array.from(new Set(merged)).slice(0, Math.max(0, maxReferences));

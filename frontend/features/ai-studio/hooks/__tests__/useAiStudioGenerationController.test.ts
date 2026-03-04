@@ -36,6 +36,10 @@ const createParams = (
   resolveDefaultPromptForTool: vi.fn(() => "default prompt"),
   refreshCharacterModeInjectionBundleForSubmission: vi.fn(async () => null),
   resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+  resolveReferenceInputsForTool: vi.fn(() => ({
+    referenceImageUrl: "https://example.com/reference.png",
+    extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+  })),
   trackCharacterModeFallback: vi.fn(),
   generateOutput: vi.fn(),
   regenerateOutput: vi.fn(),
@@ -795,6 +799,42 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledWith(
       "user prompt",
       expect.objectContaining({ modelIdOverride: "fal-ai/nano-banana-pro/edit" })
+    );
+  });
+
+  it("passes user-selected edit references into character mode override resolution", async () => {
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => null);
+    const resolveReferenceInputsForTool = vi.fn(() => ({
+      referenceImageUrl: "https://example.com/primary.png",
+      extraImageUrls: [
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+        null,
+      ] as [string | null, string | null, string | null],
+    }));
+    const params = createParams({
+      mode: "image",
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana/edit",
+      isCharacterModeEnabled: true,
+      resolveCharacterModeSubmissionOverrides,
+      resolveReferenceInputsForTool,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("user prompt");
+    });
+
+    expect(resolveCharacterModeSubmissionOverrides).toHaveBeenCalledWith(
+      "user prompt",
+      "edit",
+      null,
+      [
+        "https://example.com/primary.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ]
     );
   });
 });

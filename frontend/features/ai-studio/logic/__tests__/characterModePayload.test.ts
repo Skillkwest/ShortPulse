@@ -141,17 +141,17 @@ describe("characterModePayload", () => {
     ).toBe("Portrait, rim lighting, 85mm lens.");
   });
 
-  it("merges references with character URLs first, deduplicated and capped", () => {
+  it("merges references with user URLs first, deduplicated and capped", () => {
     const merged = mergeCharacterAndUserReferences(
-      ["https://cdn.test/one.png", "https://cdn.test/two.png"],
       ["https://cdn.test/two.png", "https://cdn.test/three.png", "https://cdn.test/four.png"],
+      ["https://cdn.test/one.png", "https://cdn.test/two.png"],
       3
     );
 
     expect(merged).toEqual([
-      "https://cdn.test/one.png",
       "https://cdn.test/two.png",
       "https://cdn.test/three.png",
+      "https://cdn.test/four.png",
     ]);
   });
 });

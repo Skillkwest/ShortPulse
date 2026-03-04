@@ -503,4 +503,53 @@ describe("useAiStudioCharacterModeController", () => {
       })
     );
   });
+
+  it("applies character injection for edit workflow and keeps user refs first", () => {
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: {
+        characterId: "char-1",
+        characterDescription: "Character base",
+        sheetReferenceStoragePaths: ["user/chars/char.png"],
+        sheetReferenceUrls: ["https://example.com/char.png"],
+        loadedAtMs: Date.now(),
+      },
+      characterOptions: [{ id: "char-1", name: "Hero", profileImageUrl: null }],
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "Add cinematic lighting",
+      "edit",
+      undefined,
+      ["https://example.com/user-primary.png", "https://example.com/char.png"]
+    );
+
+    expect(overrides?.referenceInputsOverride).toEqual([
+      "https://example.com/user-primary.png",
+      "https://example.com/char.png",
+    ]);
+    expect(overrides?.submissionPromptOverride).toContain("Character base");
+  });
+
+  it("does not apply character injection for non-supported workflow tools", () => {
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: {
+        characterId: "char-1",
+        characterDescription: "Character base",
+        sheetReferenceStoragePaths: ["user/chars/char.png"],
+        sheetReferenceUrls: ["https://example.com/char.png"],
+        loadedAtMs: Date.now(),
+      },
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "Animate this scene",
+      "video"
+    );
+
+    expect(overrides).toBeNull();
+  });
 });

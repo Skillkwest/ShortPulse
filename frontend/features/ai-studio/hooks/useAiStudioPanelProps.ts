@@ -22,6 +22,7 @@ import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolic
 import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 import { useAiStudioCreatePanelProps } from "./useAiStudioCreatePanelProps";
 import { useAiStudioEditPanelProps } from "./useAiStudioEditPanelProps";
+import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
 
 export type UseAiStudioPanelPropsParams = {
@@ -405,6 +406,37 @@ export const useAiStudioPanelProps = ({
     setImageResolution,
     beginnerMode: beginnerPolicy.edit.beginnerMode,
   });
+  const propertiesEditExpert = useAiStudioEditExpertPanelProps({
+    expertEditEligible: beginnerPolicy.edit.expertEditEligible,
+    aspect,
+    model,
+    currentModelLabel,
+    referenceImageUrl,
+    extraImageUrls,
+    editReferenceText,
+    isModelModalOpen,
+    modelModalAnchor,
+    setAspect,
+    handleOpenModelModal,
+    setReferenceImageUrl,
+    setExtraImageUrl,
+    handleEditPromptTextChange,
+    handleImageRegenerateWithDebit,
+    currentCostCredits,
+    isGenerateDisabled,
+    isGenerateClickLocked,
+    isPromptGenerating,
+    referenceImageWarning,
+    resolveOutputPreviewUrl,
+    imageResolution,
+    setImageResolution,
+    characterOptions,
+    selectedCharacterId,
+    setSelectedCharacterId,
+    isCharacterOptionsLoading,
+    isCharacterModeEnabled,
+    setIsCharacterModeEnabled,
+  });
 
   const propertiesVideo = useAiStudioVideoPanelProps({
     aspect,
@@ -466,9 +498,7 @@ export const useAiStudioPanelProps = ({
     // Temporary alias while downstream callsites are migrated.
     propertiesText: propertiesCreate,
     propertiesImage,
-    propertiesEditExpert: {
-      expertEditEligible: beginnerPolicy.edit.expertEditEligible,
-    },
+    propertiesEditExpert,
     propertiesVideo,
   };
 };

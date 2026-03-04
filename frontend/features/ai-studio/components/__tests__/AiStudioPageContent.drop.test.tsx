@@ -48,6 +48,9 @@ vi.mock("../ReferenceGrid", () => ({
 vi.mock("../EditPropertiesPanel", () => ({
   EditPropertiesPanel: () => <div data-testid="edit-properties" />,
 }));
+vi.mock("../edit/ExpertEditPanelView", () => ({
+  ExpertEditPanelView: () => <div data-testid="expert-edit-properties" />,
+}));
 
 vi.mock("../StudioPreview", () => ({
   StudioPreview: () => <div data-testid="studio-preview" />,
@@ -108,7 +111,9 @@ const createProps = (
   onToggleCreateTools: vi.fn(),
   propertiesCreate: {} as AiStudioPageContentProps["propertiesCreate"],
   propertiesImage: {} as AiStudioPageContentProps["propertiesImage"],
-  propertiesEditExpert: { expertEditEligible: false },
+  propertiesEditExpert: {
+    expertEditEligible: false,
+  } as AiStudioPageContentProps["propertiesEditExpert"],
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
   isTemplateView: false,
   referenceGridProps: {
@@ -221,6 +226,21 @@ describe("AiStudioPageContent right column drop router", () => {
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
     expect(screen.getByTestId("character-panel")).toBeInTheDocument();
+  });
+
+  it("routes edit workflow to expert edit panel when eligible", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "edit",
+          propertiesEditExpert: {
+            expertEditEligible: true,
+          } as AiStudioPageContentProps["propertiesEditExpert"],
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("expert-edit-properties")).toBeInTheDocument();
   });
 
   it("creates a text card when text is dropped on the right column shell", () => {

@@ -1,0 +1,16 @@
+/**
+ * Expert Edit design tokens.
+ * Scoped under `.edit-expert-panel` to avoid impacting legacy beginner edit UI.
+ */
+.edit-expert-panel {
+  --edit-expert-stage-max-width: clamp(360px, 58vw, 560px);
+  --edit-expert-primary-height: clamp(260px, 42vh, 430px);
+  --edit-expert-secondary-size: clamp(62px, 6.2vw, 86px);
+  --edit-expert-panel-gap: 16px;
+  --edit-expert-input-min-height: 98px;
+  --edit-expert-input-bg: rgba(12, 15, 22, 0.88);
+  --edit-expert-input-border: rgba(201, 205, 214, 0.16);
+  --edit-expert-drop-border: rgba(201, 205, 214, 0.18);
+  --edit-expert-drop-bg: rgba(7, 10, 16, 0.78);
+  --edit-expert-drop-hover: rgba(37, 169, 191, 0.16);
+}

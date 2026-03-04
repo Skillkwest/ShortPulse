@@ -1,0 +1,137 @@
+.edit-expert-panel {
+  gap: var(--edit-expert-panel-gap);
+  min-height: 0;
+}
+
+.edit-expert-panel .tool-header {
+  padding-bottom: 2px;
+}
+
+.edit-expert-main-stage {
+  width: min(100%, var(--edit-expert-stage-max-width));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-expert-primary-dropzone {
+  position: relative;
+  border: 1px dashed var(--edit-expert-drop-border);
+  border-radius: 18px;
+  background: var(--edit-expert-drop-bg);
+  min-height: var(--edit-expert-primary-height);
+  max-height: var(--edit-expert-primary-height);
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.2s ease,
+    background-color 0.15s ease;
+}
+
+.edit-expert-primary-dropzone:hover {
+  border-color: rgba(37, 169, 191, 0.55);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
+}
+
+.edit-expert-primary-dropzone.is-dragging {
+  border-color: rgba(37, 169, 191, 0.85);
+  background-color: var(--edit-expert-drop-hover);
+}
+
+.edit-expert-primary-dropzone .reference-drop-content {
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.edit-expert-primary-dropzone .reference-drop-title {
+  font-size: 19px;
+}
+
+.edit-expert-secondary-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, var(--edit-expert-secondary-size)));
+  justify-content: center;
+  gap: 10px;
+}
+
+.edit-expert-secondary-slot .reference-dropzone.extra {
+  width: var(--edit-expert-secondary-size);
+  height: var(--edit-expert-secondary-size);
+  min-height: var(--edit-expert-secondary-size);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.edit-expert-input-bar {
+  border: 1px solid var(--edit-expert-input-border);
+  background: var(--edit-expert-input-bg);
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-expert-prompt-input {
+  min-height: var(--edit-expert-input-min-height);
+  height: var(--edit-expert-input-min-height);
+  max-height: 180px;
+}
+
+.edit-expert-controls-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.edit-expert-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-expert-control.model-control,
+.edit-expert-control.aspect-control,
+.edit-expert-control.resolution-control {
+  flex: 0 0 auto;
+}
+
+.edit-expert-panel .edit-expert-control .model-picker-btn,
+.edit-expert-panel .edit-expert-control .aspect-trigger,
+.edit-expert-panel .edit-expert-control .create-expert-resolution-trigger {
+  height: 40px;
+  min-height: 40px;
+}
+
+.edit-expert-panel .edit-expert-control .model-picker-btn,
+.edit-expert-panel .edit-expert-control .aspect-trigger {
+  width: 170px;
+}
+
+.edit-expert-panel .edit-expert-control .create-expert-resolution-trigger {
+  width: 126px;
+}
+
+.edit-expert-inline-generate {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.edit-expert-inline-generate .agent-generate-prefab {
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.edit-expert-reference-warning {
+  color: rgba(252, 211, 77, 0.92);
+  margin: 0;
+}

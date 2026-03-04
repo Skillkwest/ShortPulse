@@ -28,6 +28,8 @@
 @import "./ai-studio-prompts.css";
 @import "./ai-studio-prompt-actions.css";
 @import "./ai-studio-edit-theme.css";
+@import "./ai-studio-edit-expert.tokens.css";
+@import "./ai-studio-edit-expert.css";
 @import "./ai-studio-video-theme.css";
 @import "./ai-studio-model-picker.css";
 @import "./ai-studio-history.css";

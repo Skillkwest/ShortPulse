@@ -5,6 +5,7 @@
 import type { ComponentProps } from "react";
 import type { CreatePropertiesPanelProps } from "../../components/CreatePropertiesPanel";
 import type { EditPropertiesPanelProps } from "../../components/EditPropertiesPanel";
+import type { ExpertEditPanelViewProps } from "../../components/edit/ExpertEditPanelView";
 import type { ReferenceGridProps } from "../../components/ReferenceGrid";
 import { StudioPreview } from "../../components/StudioPreview";
 import type { VideoPropertiesPanelProps } from "../../components/VideoPropertiesPanel";
@@ -12,9 +13,7 @@ import type { StudioOutput } from "../../types";
 
 export type AiStudioCreatePanelContract = CreatePropertiesPanelProps;
 export type AiStudioEditPanelContract = EditPropertiesPanelProps;
-export type AiStudioEditExpertPanelContract = {
-  expertEditEligible: boolean;
-};
+export type AiStudioEditExpertPanelContract = ExpertEditPanelViewProps;
 export type AiStudioVideoPanelContract = VideoPropertiesPanelProps;
 
 export type AiStudioPanelContracts = {

@@ -13,6 +13,7 @@ import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { EditPropertiesPanel } from "./EditPropertiesPanel";
+import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
@@ -236,6 +237,7 @@ const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropP
 
 type CreateSectionProps = React.ComponentProps<typeof CreatePropertiesPanel>;
 type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
+type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
 const FLAG_SHELL_DECOUPLE = PERF_FLAG_SHELL_DECOUPLE;
@@ -418,9 +420,7 @@ export type AiStudioPageContentProps = {
    */
   propertiesText?: CreateSectionProps;
   propertiesImage: EditSectionProps;
-  propertiesEditExpert: {
-    expertEditEligible: boolean;
-  };
+  propertiesEditExpert: EditExpertSectionProps;
   propertiesVideo: VideoSectionProps;
   isTemplateView: boolean;
   referenceGridProps: ReferenceGridProps;
@@ -517,11 +517,8 @@ export function AiStudioPageContent({
     resolvedCreateProperties.expertCreateUiEligible &&
     !resolvedCreateProperties.beginnerMode
   );
-  const showExpertEditPanel = Boolean(
-    propertiesPanelKind === "edit" &&
-    propertiesEditExpert.expertEditEligible &&
-    !propertiesImage.beginnerMode
-  );
+  const showExpertEditPanel =
+    propertiesPanelKind === "edit" && propertiesEditExpert.expertEditEligible;
   const { activeCount } = useOutputCounts();
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isPerformanceDenseSession =
@@ -630,7 +627,7 @@ export function AiStudioPageContent({
         </>
       ),
       edit: showExpertEditPanel ? (
-        <EditPropertiesPanel {...propertiesImage} />
+        <ExpertEditPanelView {...propertiesEditExpert} />
       ) : (
         <EditPropertiesPanel {...propertiesImage} />
       ),

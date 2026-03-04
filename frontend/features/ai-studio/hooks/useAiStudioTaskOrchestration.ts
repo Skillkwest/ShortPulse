@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useRef } from "react";
 import { fetchFalQueueStatus } from "../../../lib/falClient";
-import { type Provider } from "../logic/stateParsers";
+import { normalizeProviderForPolling, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
@@ -32,6 +32,26 @@ const STUCK_SPINNER_MAX_AUTO_RETRIES = 2;
 const QUEUE_RESUME_SCAN_INTERVAL_MS = 20_000;
 const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
+
+const resolveQueuedResumeProvider = ({
+  queueStatusProvider,
+  outputProvider,
+  modelId,
+}: {
+  queueStatusProvider: string;
+  outputProvider: Provider;
+  modelId?: string | null;
+}): Provider => {
+  const modelDerivedProvider =
+    typeof modelId === "string" && modelId.trim().length > 0
+      ? normalizeProviderForPolling(modelId, outputProvider)
+      : outputProvider;
+  const normalizedProvider = normalizeProviderForPolling(queueStatusProvider, modelDerivedProvider);
+  if (normalizedProvider === "fal" && modelDerivedProvider.startsWith("fal-")) {
+    return modelDerivedProvider;
+  }
+  return normalizedProvider;
+};
 
 const isAutoRetryEligible = (output: StudioOutput): boolean => {
   const hasTerminalNoMediaFailure =
@@ -154,9 +174,12 @@ export const useAiStudioTaskOrchestration = ({
           if (!findOutputById(output.id)) return;
           if (queueStatus.status === "dispatched") {
             const requestId = queueStatus.requestId.trim();
-            const provider = queueStatus.provider.toLowerCase().startsWith("fal")
-              ? (queueStatus.provider as Provider)
-              : ((output.provider as Provider | undefined) ?? "fal");
+            const outputProvider = (output.provider as Provider | undefined) ?? "fal";
+            const provider = resolveQueuedResumeProvider({
+              queueStatusProvider: queueStatus.provider,
+              outputProvider,
+              modelId: output.modelId ?? null,
+            });
             clearPollTimer(output.id);
             updateOutputById(output.id, (item) => {
               if (item.taskId) return item;

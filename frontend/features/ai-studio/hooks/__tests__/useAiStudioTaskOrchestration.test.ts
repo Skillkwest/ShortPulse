@@ -475,6 +475,7 @@ describe("useAiStudioTaskOrchestration", () => {
     let outputs = [
       createOutput({
         id: "out-queued",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
         generationId: "gen-1",
         queueState: "queued",
         taskState: "pending",
@@ -541,7 +542,7 @@ describe("useAiStudioTaskOrchestration", () => {
       generationId: "gen-1",
     });
     expect(clearPollTimer).toHaveBeenCalledWith("out-queued");
-    expect(startPollingTask).toHaveBeenCalledWith("req-queued-1", "out-queued", 0, "fal");
+    expect(startPollingTask).toHaveBeenCalledWith("req-queued-1", "out-queued", 0, "fal-seedream");
     expect(outputs[0]?.taskId).toBe("req-queued-1");
     expect(outputs[0]?.queueState).toBe("dispatched");
     expect(outputs[0]?.taskState).toBe("running");

@@ -619,7 +619,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByText("Thinking…")).toBeNull();
   });
 
-  it("disables expert output-generate pills while create is in prompt-only text mode", () => {
+  it("keeps expert output-generate pills enabled in prompt-only text mode when selectors are valid", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -636,7 +636,7 @@ describe("CreatePropertiesPanel", () => {
       ],
     });
 
-    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeEnabled();
   });
 
   it("shows estimated output-generate cost on expert agent responses", () => {

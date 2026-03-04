@@ -133,6 +133,23 @@ describe("modelSelectionPolicy", () => {
     expect(values.has("fal/flux-2-pro")).toBe(false);
   });
 
+  it("uses create/image filtering in create/text mode instead of returning the full catalog", () => {
+    const values = new Set(
+      resolveAiStudioAllowedModelOptions({
+        selectedTool: "create",
+        mode: "text",
+        videoReferenceMode: "standard",
+        options: createImageOptions,
+        getModelConfig,
+      }).map((option) => option.value)
+    );
+
+    expect(values.has("fal-ai/flux-2/klein/9b")).toBe(true);
+    expect(values.has(CREATE_DEFAULT_MODEL_ID)).toBe(true);
+    expect(values.has("fal-ai/nano-banana-2/edit")).toBe(false);
+    expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
+  });
+
   it("hides FLUX.2 Lite for create/image while character mode is enabled", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "create",
@@ -154,6 +171,16 @@ describe("modelSelectionPolicy", () => {
   it("keeps create startup fallback model precedence unchanged", () => {
     const model = resolveCreateWorkflowStartupModel({
       mode: "image",
+      savedModelId: "non-existent-model",
+      getModelConfig,
+    });
+
+    expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
+  });
+
+  it("defaults create startup to Seedream in text mode when saved model is missing", () => {
+    const model = resolveCreateWorkflowStartupModel({
+      mode: "text",
       savedModelId: "non-existent-model",
       getModelConfig,
     });

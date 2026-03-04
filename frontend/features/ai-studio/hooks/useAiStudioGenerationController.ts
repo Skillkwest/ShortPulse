@@ -48,6 +48,13 @@ const CHARACTER_MODE_MISSING_REFERENCES_ERROR =
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
+const shouldBlockCharacterModeSubmit = ({
+  tool,
+  hasCharacterModeReferences,
+}: {
+  tool: ToolId | null;
+  hasCharacterModeReferences: boolean;
+}): boolean => isCreateTool(tool) && !hasCharacterModeReferences;
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
@@ -368,7 +375,13 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
       const hasCharacterModeReferences =
         (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
-      if (isCreateTool(effectiveTool) && characterModeOverrides && !hasCharacterModeReferences) {
+      if (
+        characterModeOverrides &&
+        shouldBlockCharacterModeSubmit({
+          tool: effectiveTool,
+          hasCharacterModeReferences,
+        })
+      ) {
         trackCharacterModeFallback(characterModeOverrides, effectiveTool);
         trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
           tool: effectiveTool,
@@ -475,12 +488,15 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     const rawPrompt = resolveChatOffCreatePrompt({
       agentInput,
       sharedPrompt: prompt,
-      allowSharedPromptFallback: false,
+      allowSharedPromptFallback: true,
     });
-    if (!rawPrompt) return;
+    if (!rawPrompt) {
+      setUiError("Add a prompt to start a generation.");
+      return;
+    }
     setPromptOrigin("manual");
     void handleGenerate(rawPrompt, { modeOverride: "image", toolOverride: "create" });
-  }, [agentInput, handleGenerate, prompt, setPromptOrigin]);
+  }, [agentInput, handleGenerate, prompt, setPromptOrigin, setUiError]);
 
   const runRegenerateWithDebit = useCallback(async () => {
     if (!tryAcquireGenerateClickLock()) return;
@@ -537,7 +553,13 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     }
     const hasCharacterModeReferences =
       (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
-    if (isCreateTool(selectedTool) && characterModeOverrides && !hasCharacterModeReferences) {
+    if (
+      characterModeOverrides &&
+      shouldBlockCharacterModeSubmit({
+        tool: selectedTool,
+        hasCharacterModeReferences,
+      })
+    ) {
       trackCharacterModeFallback(characterModeOverrides, selectedTool);
       trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
         tool: selectedTool,

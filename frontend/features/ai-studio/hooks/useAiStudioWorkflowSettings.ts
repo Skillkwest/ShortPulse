@@ -13,6 +13,8 @@ import {
 } from "../logic/modelSelectionPolicy";
 
 export const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
+const WORKFLOW_SETTINGS_PERSIST_ENABLED =
+  process.env.NEXT_PUBLIC_AI_STUDIO_WORKFLOW_SETTINGS_PERSIST_ENABLED !== "false";
 
 type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
 
@@ -232,7 +234,9 @@ export const useAiStudioWorkflowSettings = ({
   setKlingMultiPrompts,
   setKlingElements,
 }: UseAiStudioWorkflowSettingsParams) => {
-  const [workflowSettingsHydrated, setWorkflowSettingsHydrated] = useState(false);
+  const [workflowSettingsHydrated, setWorkflowSettingsHydrated] = useState(
+    !WORKFLOW_SETTINGS_PERSIST_ENABLED
+  );
   const workflowSettingsRef = useRef<
     Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>>
   >({});
@@ -242,11 +246,13 @@ export const useAiStudioWorkflowSettings = ({
     [selectedTool]
   );
   const hasPendingWorkflowRestore =
+    WORKFLOW_SETTINGS_PERSIST_ENABLED &&
     workflowSettingsHydrated &&
     Boolean(activeWorkflowSettingsKey) &&
     previousWorkflowSettingsKeyRef.current !== activeWorkflowSettingsKey;
 
   useEffect(() => {
+    if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
     if (typeof window === "undefined") return;
     try {
       const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
@@ -267,6 +273,7 @@ export const useAiStudioWorkflowSettings = ({
   }, []);
 
   useEffect(() => {
+    if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) {
       previousWorkflowSettingsKeyRef.current = null;
@@ -348,6 +355,7 @@ export const useAiStudioWorkflowSettings = ({
   ]);
 
   useEffect(() => {
+    if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) return;
     if (hasPendingWorkflowRestore) return;

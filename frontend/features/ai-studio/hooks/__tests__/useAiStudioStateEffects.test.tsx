@@ -133,6 +133,26 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
+  it("defaults create workflow to Seedream text-to-image when mode is text and model is null", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          model: null,
+          selectedTool: "create",
+          mode: "text",
+          isCharacterModeEnabled: false,
+          allowedModelValues: ["fal-ai/bytedance/seedream/v4.5/text-to-image"],
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith("fal-ai/bytedance/seedream/v4.5/text-to-image");
+    });
+  });
+
   it("defaults edit workflow to Seedream edit when model is null", async () => {
     const setModel = vi.fn();
     renderHook(() =>

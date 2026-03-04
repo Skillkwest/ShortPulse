@@ -95,7 +95,7 @@
   justify-content: flex-start;
   width: 100%;
   gap: 8px;
-  padding-inline: clamp(12px, 5vw, 56px);
+  padding-inline: var(--create-expert-inline-gutter, clamp(12px, 5vw, 56px));
   box-sizing: border-box;
 }
 

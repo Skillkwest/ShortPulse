@@ -54,7 +54,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     expect(submitTask).toHaveBeenCalledWith(
       "submission prompt",
-      ["https://example.com/override.png"],
+      ["https://example.com/override.png", "https://example.com/ref.png"],
       {
         modeOverride: "video",
         selectedToolOverride: "video",
@@ -67,6 +67,28 @@ describe("useAiStudioGenerationPromptComposer", () => {
         },
         modelIdOverride: undefined,
       }
+    );
+  });
+
+  it("keeps base reference inputs when override list is empty", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("prompt override", {
+        referenceInputsOverride: [],
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "prompt override",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({ displayPromptOverride: "prompt override" })
     );
   });
 

@@ -2,11 +2,15 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .create-expert-controls-row {
   margin-top: 6px;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-inline: var(--create-expert-inline-gutter, clamp(12px, 5vw, 56px));
+  box-sizing: border-box;
 }
 
 .create-expert-generate-row {
@@ -16,13 +20,13 @@
 
 .create-expert-controls {
   display: flex;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: var(--create-expert-controls-gap);
   row-gap: var(--create-expert-controls-gap);
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  margin-inline: auto;
+  margin-inline: 0;
   overflow: visible;
 }
 

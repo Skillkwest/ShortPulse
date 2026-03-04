@@ -3,7 +3,7 @@
  * Renders card grid interactions and optional load-more affordance.
  */
 import { CheckCircle, DownloadSimple, Trash } from "phosphor-react";
-import type { Ref, SyntheticEvent } from "react";
+import { useCallback, useMemo, type Ref, type SyntheticEvent } from "react";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
 import {
   isAdaptiveSurfaceEnabled,
@@ -77,6 +77,11 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
   selectedIds,
   toggleSelect,
 }: MediaAssetGalleryProps<TRow>) {
+  const isVideoFileType = useCallback(
+    (fileType?: string | null) => isVideoFile(fileType ?? ""),
+    [isVideoFile]
+  );
+
   const {
     containerRef: virtualContainerRef,
     isVirtualized,
@@ -85,7 +90,8 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
   } = useMediaMasonryVirtualization({
     items: files,
     getItemId: (item) => item.id,
-    getAspectRatio: (item) => aspectMap[item.id] || (isVideoFile(item.file_type) ? 9 / 16 : 4 / 5),
+    getAspectRatio: (item) =>
+      aspectMap[item.id] || (isVideoFileType(item.file_type) ? 9 / 16 : 4 / 5),
     enabled: MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
     targetColumnWidth: 260,
     gap: 1,
@@ -93,12 +99,17 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
     minItemsToVirtualize: 28,
   });
 
+  const videoBudgetItems = useMemo(
+    () => files.map((file) => ({ id: file.id, fileType: file.file_type })),
+    [files]
+  );
+
   const { getVideoNodeRef, isVideoAutoplayEnabled, resolveVideoSource } =
     useMediaGridVideoBudgetController({
-      items: files.map((file) => ({ id: file.id, fileType: file.file_type })),
+      items: videoBudgetItems,
       enabled: MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
       surface: "media-library-route",
-      isVideoFile: (fileType) => isVideoFile(fileType ?? ""),
+      isVideoFile: isVideoFileType,
       detachDelayMs: 900,
       visibilityThreshold: 0.52,
     });
@@ -114,11 +125,12 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
       >
         {virtualRenderItems.map((renderItem) => {
           const file = renderItem.item;
-          const aspectRatio = aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
+          const aspectRatio =
+            aspectMap[file.id] || (isVideoFileType(file.file_type) ? 9 / 16 : 4 / 5);
           const adaptiveCardPreview = file.signedUrl
             ? resolveAdaptiveMedia({
                 surface: "media-library-grid",
-                mediaKind: isVideoFile(file.file_type) ? "video" : "image",
+                mediaKind: isVideoFileType(file.file_type) ? "video" : "image",
                 source: resolveAdaptiveSourceKind(file.signedUrl),
                 urls: {
                   previewUrl: file.signedUrl,
@@ -163,7 +175,7 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
                   <div className="loader-spin" />
                 </div>
               ) : file.signedUrl ? (
-                isVideoFile(file.file_type) ? (
+                isVideoFileType(file.file_type) ? (
                   <video
                     className="media-thumb"
                     ref={getVideoNodeRef(file.id)}

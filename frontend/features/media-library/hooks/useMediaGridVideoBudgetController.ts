@@ -57,6 +57,7 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
 }: UseMediaGridVideoBudgetControllerArgs<TItem>): UseMediaGridVideoBudgetControllerResult => {
   const nodeByIdRef = useRef<Map<string, HTMLVideoElement>>(new Map());
   const refCallbackByIdRef = useRef<Record<string, (node: HTMLVideoElement | null) => void>>({});
+  const videoIdsInOrderRef = useRef<string[]>([]);
   const visibleVideoIdsRef = useRef<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const detachTimeoutByIdRef = useRef<Map<string, number>>(new Map());
@@ -69,13 +70,19 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
     () => items.filter((item) => isVideoFile(item.fileType)).map((item) => item.id),
     [isVideoFile, items]
   );
+  const videoIdsInOrderSignature = useMemo(() => videoIdsInOrder.join("||"), [videoIdsInOrder]);
+
+  useEffect(() => {
+    videoIdsInOrderRef.current = videoIdsInOrder;
+  }, [videoIdsInOrderSignature, videoIdsInOrder]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined" || typeof navigator === "undefined") return;
     const nav = navigator as NavigatorWithConnection;
     const connection = nav.connection;
     const refreshBudget = () => {
-      const isSmallScreen = window.matchMedia(smallScreenQuery).matches;
+      const isSmallScreen =
+        typeof window.matchMedia === "function" && window.matchMedia(smallScreenQuery).matches;
       const saveData = nav.connection?.saveData === true;
       const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
       const isSlowNetwork = effectiveType.includes("2g");
@@ -105,7 +112,9 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
 
   const recomputeEnabledVideos = useCallback(() => {
     if (!enabled) return;
-    const visibleInOrder = videoIdsInOrder.filter((id) => visibleVideoIdsRef.current.has(id));
+    const visibleInOrder = videoIdsInOrderRef.current.filter((id) =>
+      visibleVideoIdsRef.current.has(id)
+    );
     const nextEnabled = visibleInOrder.slice(0, Math.max(0, videoAttachBudget));
     setEnabledVideoIds((prev) =>
       prev.length === nextEnabled.length &&
@@ -113,12 +122,12 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
         ? prev
         : nextEnabled
     );
-  }, [enabled, videoAttachBudget, videoIdsInOrder]);
+  }, [enabled, videoAttachBudget]);
 
   useEffect(() => {
     if (!enabled) return;
     recomputeEnabledVideos();
-  }, [enabled, recomputeEnabledVideos, videoIdsInOrder]);
+  }, [enabled, recomputeEnabledVideos, videoIdsInOrderSignature]);
 
   useEffect(() => {
     if (!enabled || typeof IntersectionObserver === "undefined") return;
@@ -193,11 +202,14 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
     previousEnabledIdsRef.current = nextEnabledSet;
 
     setAttachedVideoIds((prev) => {
+      let changed = false;
       const next = new Set(prev);
       for (const id of enabledVideoIds) {
+        if (next.has(id)) continue;
         next.add(id);
+        changed = true;
       }
-      return next;
+      return changed ? next : prev;
     });
 
     for (const id of enabledVideoIds) {
@@ -223,7 +235,7 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       }, detachDelayMs);
       detachTimeoutByIdRef.current.set(id, timeoutId);
     }
-  }, [detachDelayMs, enabled, enabledVideoIds, surface, videoIdsInOrder]);
+  }, [detachDelayMs, enabled, enabledVideoIds, surface, videoIdsInOrderSignature]);
 
   useEffect(
     () => () => {

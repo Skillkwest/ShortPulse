@@ -95,7 +95,9 @@ export const resolveAiStudioAllowedModelOptions = ({
     return selectableOptions.filter((option) => isVideoMediaOption(option));
   }
 
-  if (isCreateTool(selectedTool) && mode === "image") {
+  // Create defaults to "text" mode on initial load; keep model picker behavior aligned with
+  // Create/Image so we never fall through to an unfiltered full-catalog list.
+  if (isCreateTool(selectedTool) && (mode === "image" || mode === "text")) {
     if (isCharacterModeEnabled) {
       const allowedCharacterModeModelIds = new Set(getCreateCharacterModeAllowedModels());
       return selectableOptions.filter((option) => {
@@ -149,7 +151,7 @@ export const resolveCreateWorkflowStartupModel = ({
     return savedModelId;
   }
 
-  if (mode === "image" && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
+  if ((mode === "image" || mode === "text") && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
     return CREATE_DEFAULT_MODEL_ID;
   }
 

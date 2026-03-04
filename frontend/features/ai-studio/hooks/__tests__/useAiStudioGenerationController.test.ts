@@ -157,7 +157,7 @@ describe("useAiStudioGenerationController", () => {
     const params = createParams({
       mode: "text",
       selectedTool: "create",
-      prompt: "shared fallback should not be used",
+      prompt: "shared fallback prompt",
       agentInput: "  raw inline prompt  ",
       chatModeEnabled: false,
       handleAgentSend,
@@ -181,7 +181,7 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("does not submit chat-off inline generate when input is empty", async () => {
+  it("falls back to shared prompt for chat-off inline generate when input is empty", async () => {
     const handleAgentSend = vi.fn(async () => ({
       prompt: "agent prompt should not be used",
       referenceTitle: "unused",
@@ -191,7 +191,7 @@ describe("useAiStudioGenerationController", () => {
     const params = createParams({
       mode: "text",
       selectedTool: "create",
-      prompt: "shared fallback should not be used",
+      prompt: "shared fallback prompt",
       agentInput: "   ",
       chatModeEnabled: false,
       handleAgentSend,
@@ -208,7 +208,35 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).not.toHaveBeenCalled();
-    expect(setPromptOrigin).not.toHaveBeenCalled();
+    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+    expect(generateOutput).toHaveBeenCalledWith(
+      "shared fallback prompt",
+      expect.objectContaining({ modeOverride: "image", selectedToolOverride: "create" })
+    );
+  });
+
+  it("shows explicit error when chat-off inline generate has no prompt input", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "   ",
+      agentInput: "   ",
+      chatModeEnabled: false,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handleChatOffInlineGenerate();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setUiError).toHaveBeenCalledWith("Add a prompt to start a generation.");
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
@@ -686,6 +714,41 @@ describe("useAiStudioGenerationController", () => {
     expect(trackCharacterModeEvent).toHaveBeenCalledWith(
       "character_mode_submit_blocked_no_references",
       expect.objectContaining({ fallback_code: "no_references", tool: "create" })
+    );
+  });
+
+  it("blocks create character-mode generate when no character is selected", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const trackCharacterModeEvent = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
+      submissionPromptOverride: "character + prompt",
+      displayPromptOverride: "user prompt",
+      referenceInputsOverride: [],
+      notice: null,
+      fallbackCode: "no_character_selected",
+      characterReferenceCount: 0,
+      hasCharacterDescription: false,
+    }));
+    const params = createParams({
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+      trackCharacterModeEvent,
+      resolveCharacterModeSubmissionOverrides,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("user prompt");
+    });
+
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(
+      "Character Mode requires at least one character image before generating."
+    );
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_submit_blocked_no_references",
+      expect.objectContaining({ fallback_code: "no_character_selected", tool: "create" })
     );
   });
 

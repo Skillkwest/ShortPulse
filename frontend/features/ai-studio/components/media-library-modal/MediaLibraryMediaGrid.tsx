@@ -62,12 +62,21 @@ export function MediaLibraryMediaGrid({
     minItemsToVirtualize: 24,
   });
 
+  const videoBudgetItems = React.useMemo(
+    () => activeMedia.map((file) => ({ id: file.id, fileType: file.file_type })),
+    [activeMedia]
+  );
+  const isVideoFileType = React.useCallback(
+    (fileType?: string | null) => isVideoFile(fileType ?? ""),
+    []
+  );
+
   const { getVideoNodeRef, isVideoAutoplayEnabled, resolveVideoSource } =
     useMediaGridVideoBudgetController({
-      items: activeMedia.map((file) => ({ id: file.id, fileType: file.file_type })),
+      items: videoBudgetItems,
       enabled: MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
       surface: "media-library-modal",
-      isVideoFile: (fileType) => isVideoFile(fileType ?? ""),
+      isVideoFile: isVideoFileType,
       scrollContainerRef,
       detachDelayMs: 850,
       visibilityThreshold: 0.5,

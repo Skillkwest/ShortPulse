@@ -340,8 +340,9 @@ export const useAiStudioStateEffects = ({
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
     const allowedValues = new Set(allowedModelValues);
+    const isCreateImageLikeMode = mode === "image" || mode === "text";
     if (!model) {
-      if (isCreateWorkflow(selectedTool) && mode === "image") {
+      if (isCreateWorkflow(selectedTool) && isCreateImageLikeMode) {
         if (isCharacterModeEnabled && allowedValues.has(EDIT_DEFAULT_MODEL_ID)) {
           setModelIfChanged(EDIT_DEFAULT_MODEL_ID);
           return;
@@ -357,7 +358,7 @@ export const useAiStudioStateEffects = ({
       return;
     }
     if (!allowedValues.has(model)) {
-      if (isCreateWorkflow(selectedTool) && mode === "image") {
+      if (isCreateWorkflow(selectedTool) && isCreateImageLikeMode) {
         const mappedCreateModel = mapCreateModelOnCharacterModeToggle({
           currentModelId: model,
           isCharacterModeEnabled,

@@ -63,15 +63,18 @@ export const shouldDisableCreatePanelOutputGenerate = ({
   modelId,
   characterModeEnabled,
   selectedCharacterId,
-}: CreatePanelDisableParams): boolean =>
-  mode === "text" ||
-  isGenerateDisabled ||
-  hasMissingCreateGenerationTarget({
-    modelId,
-    characterModeEnabled,
-    selectedCharacterId,
-  }) ||
-  !hasSufficientCreditsForOutputGenerate;
+}: CreatePanelDisableParams): boolean => {
+  void mode;
+  return (
+    isGenerateDisabled ||
+    hasMissingCreateGenerationTarget({
+      modelId,
+      characterModeEnabled,
+      selectedCharacterId,
+    }) ||
+    !hasSufficientCreditsForOutputGenerate
+  );
+};
 
 /**
  * Page-level disable guard for agent-output generation shortcuts.
@@ -87,7 +90,6 @@ export const shouldDisableAgentOutputGenerate = ({
   selectedCharacterId,
 }: AgentOutputDisableParams): boolean => {
   const isCreateTool = isCreatePromptTool(selectedTool);
-  const isCreatePromptTextMode = isCreateTool && mode === "text";
   const missingGenerationTarget = isCreateTool
     ? hasMissingCreateGenerationTarget({
         modelId,
@@ -95,8 +97,8 @@ export const shouldDisableAgentOutputGenerate = ({
         selectedCharacterId,
       })
     : false;
+  void mode;
   return (
-    isCreatePromptTextMode ||
     isGenerateDisabled ||
     isGenerateClickLocked ||
     missingGenerationTarget ||

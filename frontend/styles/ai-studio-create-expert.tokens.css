@@ -23,6 +23,7 @@
   --create-expert-resolution-width: 120px;
   --create-expert-selector-gap: 6px;
   --create-expert-controls-gap: 6px;
+  --create-expert-inline-gutter: clamp(12px, 5vw, 56px);
   --create-expert-character-toggle-gap: 6px;
   --create-expert-selector-height: 40px;
   --create-expert-selector-bg: var(--color-bg);

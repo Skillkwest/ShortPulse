@@ -85,6 +85,19 @@ export const useAiStudioGenerationPromptComposer = ({
   submitTask,
   setUiError,
 }: UseAiStudioGenerationPromptComposerParams) => {
+  const resolveMergedReferenceInputs = useCallback(
+    (baseInputs: string[], overrideInputs?: string[]) => {
+      if (!Array.isArray(overrideInputs)) {
+        return baseInputs.slice(0, 8);
+      }
+      const merged = [...overrideInputs, ...baseInputs]
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+      return Array.from(new Set(merged)).slice(0, 8);
+    },
+    []
+  );
+
   const generateOutput = useCallback(
     (promptOverride?: string | null, options?: GenerateOutputOptions) => {
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
@@ -113,11 +126,10 @@ export const useAiStudioGenerationPromptComposer = ({
           : isVideoGenerationTool
             ? buildVideoReferenceInputs(referenceUrl, extraUrls, videoReferenceMode)
             : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
-      const imageInputs = (
-        Array.isArray(options?.referenceInputsOverride)
-          ? options.referenceInputsOverride
-          : baseInputs
-      ).slice(0, 8);
+      const imageInputs = resolveMergedReferenceInputs(
+        baseInputs,
+        options?.referenceInputsOverride
+      );
       submitTask(submissionPromptToSubmit, imageInputs, {
         modeOverride: options?.modeOverride,
         selectedToolOverride: options?.selectedToolOverride,
@@ -133,6 +145,7 @@ export const useAiStudioGenerationPromptComposer = ({
       editReferenceText,
       prompt,
       resolveReferenceInputsForTool,
+      resolveMergedReferenceInputs,
       selectedTool,
       submitTask,
       videoReferenceMode,
@@ -170,11 +183,10 @@ export const useAiStudioGenerationPromptComposer = ({
         extraUrls,
         videoReferenceMode,
       });
-      const imageInputs = (
-        Array.isArray(options?.referenceInputsOverride)
-          ? options.referenceInputsOverride
-          : referencePool
-      ).slice(0, 8);
+      const imageInputs = resolveMergedReferenceInputs(
+        referencePool,
+        options?.referenceInputsOverride
+      );
       submitTask(submissionPromptToUse, imageInputs, {
         displayPromptOverride: displayPromptToUse,
         characterContextOverride: options?.characterContextOverride,
@@ -186,6 +198,7 @@ export const useAiStudioGenerationPromptComposer = ({
       editReferenceText,
       prompt,
       resolveReferenceInputsForTool,
+      resolveMergedReferenceInputs,
       selectedTool,
       setUiError,
       submitTask,

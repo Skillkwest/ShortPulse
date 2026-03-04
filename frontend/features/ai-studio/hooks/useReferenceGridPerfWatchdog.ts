@@ -137,13 +137,23 @@ export const useReferenceGridPerfWatchdog = ({
         recoverStreakRef.current = transition.nextRecoverStreak;
 
         degradeLevelRef.current = nextLevel;
-        setState((prev) => ({
-          degradeLevel: nextLevel,
-          longTaskP95Ms,
-          maxInputStallMs,
-          heapUsageRatio,
-          sampleCount: prev.sampleCount + 1,
-        }));
+        setState((prev) => {
+          if (
+            prev.degradeLevel === nextLevel &&
+            prev.longTaskP95Ms === longTaskP95Ms &&
+            prev.maxInputStallMs === maxInputStallMs &&
+            prev.heapUsageRatio === heapUsageRatio
+          ) {
+            return prev;
+          }
+          return {
+            degradeLevel: nextLevel,
+            longTaskP95Ms,
+            maxInputStallMs,
+            heapUsageRatio,
+            sampleCount: prev.sampleCount + 1,
+          };
+        });
 
         longTaskDurationsRef.current = [];
         maxInputStallMsRef.current = 0;

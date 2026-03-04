@@ -73,6 +73,23 @@ describe("useAiStudioPageDerivations", () => {
     expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
   });
 
+  it("keeps create/text mode filtered to create-compatible image models", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageDerivations(
+        createParams({
+          mode: "text",
+          selectedTool: "create",
+          videoReferenceMode: "standard",
+        })
+      )
+    );
+
+    const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
+    expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
+    expect(values.has("fal-ai/veo3.1/image-to-video")).toBe(false);
+    expect(values.has("fal-ai/bytedance/seedream/v4.5/edit")).toBe(false);
+  });
+
   it("hides FLUX.2 Lite in create/image options when character mode is enabled", () => {
     const { result } = renderHook(() =>
       useAiStudioPageDerivations(

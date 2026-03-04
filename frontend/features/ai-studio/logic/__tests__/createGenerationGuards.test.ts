@@ -65,6 +65,16 @@ describe("createGenerationGuards", () => {
         selectedCharacterId: "char-1",
       })
     ).toBe(false);
+    expect(
+      shouldDisableCreatePanelOutputGenerate({
+        mode: "text",
+        isGenerateDisabled: false,
+        hasSufficientCreditsForOutputGenerate: true,
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        characterModeEnabled: false,
+        selectedCharacterId: "",
+      })
+    ).toBe(false);
   });
 
   it("disables agent-output generate only for create/text when create selectors are incomplete", () => {
@@ -88,6 +98,18 @@ describe("createGenerationGuards", () => {
         isGenerateClickLocked: false,
         hasSufficientCreditsForOutputGenerate: true,
         modelId: null,
+        characterModeEnabled: false,
+        selectedCharacterId: "",
+      })
+    ).toBe(false);
+    expect(
+      shouldDisableAgentOutputGenerate({
+        mode: "text",
+        selectedTool: "create",
+        isGenerateDisabled: false,
+        isGenerateClickLocked: false,
+        hasSufficientCreditsForOutputGenerate: true,
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
         characterModeEnabled: false,
         selectedCharacterId: "",
       })

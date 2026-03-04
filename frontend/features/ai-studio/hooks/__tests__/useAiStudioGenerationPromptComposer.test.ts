@@ -1,11 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput, ToolId } from "../../types";
 import { useAiStudioGenerationPromptComposer } from "../useAiStudioGenerationPromptComposer";
-
-const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
-  fn as unknown as Dispatch<SetStateAction<T>>;
 
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioGenerationPromptComposer>[0]> = {}
@@ -26,7 +22,6 @@ const createParams = (
     ] as [string | null, string | null, string | null],
   })),
   submitTask: vi.fn(),
-  setUiError: asDispatch<string | null>(vi.fn()),
   ...overrides,
 });
 
@@ -146,12 +141,10 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
-  it("sets a user-facing error when regenerate prompt is empty", () => {
+  it("allows regenerate submit when prompt is empty", () => {
     const submitTask = vi.fn();
-    const setUiError = vi.fn();
     const params = createParams({
       submitTask,
-      setUiError: asDispatch<string | null>(setUiError),
       prompt: "",
       editReferenceText: "",
       videoReferenceText: "",
@@ -163,8 +156,19 @@ describe("useAiStudioGenerationPromptComposer", () => {
       result.current.regenerateOutput();
     });
 
-    expect(setUiError).toHaveBeenCalledWith("Add a prompt to start a generation.");
-    expect(submitTask).not.toHaveBeenCalled();
+    expect(submitTask).toHaveBeenCalledWith(
+      "",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      {
+        displayPromptOverride: "",
+        characterContextOverride: undefined,
+        modelIdOverride: undefined,
+      }
+    );
   });
 
   it("builds regenerate reference pool using active preview for non-image/video tools", () => {

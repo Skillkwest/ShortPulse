@@ -15,6 +15,7 @@ import {
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
   resolveGenerationStartDecision,
 } from "../logic/generationStartPolicy";
+import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
@@ -322,6 +323,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         mode: effectiveMode,
         modelId: effectiveModelId,
         promptText: promptToUse,
+        checkPrompt: shouldCheckPromptAtGenerationStart({
+          tool: effectiveTool,
+          modelId: effectiveModelId,
+        }),
       });
       if (!startDecision.allow) {
         setUiError(startDecision.message);
@@ -522,6 +527,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       modelId: model,
       promptText: promptToUse,
       checkCreateTextMode: false,
+      checkPrompt: shouldCheckPromptAtGenerationStart({
+        tool: selectedTool,
+        modelId: model,
+      }),
     });
     if (!regenerateStartDecision.allow) {
       setUiError(regenerateStartDecision.message);

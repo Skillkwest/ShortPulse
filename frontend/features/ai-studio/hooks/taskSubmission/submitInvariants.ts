@@ -29,6 +29,7 @@ export const shouldSkipTextCreateSubmission = (
 
 type SubmissionStartUiErrorInput = {
   cleanedSubmissionPrompt: string;
+  requiresPrompt: boolean;
   isEditWorkflow: boolean;
   hasReferenceImages: boolean;
   finalModel: string | null;
@@ -40,12 +41,13 @@ type SubmissionStartUiErrorInput = {
  */
 export const resolveSubmissionStartUiError = ({
   cleanedSubmissionPrompt,
+  requiresPrompt,
   isEditWorkflow,
   hasReferenceImages,
   finalModel,
   requiresImageToImageReferences,
 }: SubmissionStartUiErrorInput): string | null => {
-  if (!cleanedSubmissionPrompt) {
+  if (requiresPrompt && !cleanedSubmissionPrompt) {
     return "Add a prompt to start a generation.";
   }
   if (isEditWorkflow && !hasReferenceImages) {

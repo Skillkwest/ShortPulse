@@ -15,6 +15,7 @@ import {
   isModelDefaultImageResolution,
 } from "../logic/imageResolution";
 import { buildGenerationReplayConfigV1 } from "../logic/generationReplay";
+import { shouldRequirePromptForEditModel } from "../logic/editPromptPolicy";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import { prepareImageUrlForSubmission } from "../utils/imageUpload";
@@ -208,8 +209,10 @@ export const useAiStudioTaskSubmission = ({
       const finalModel = options?.modelIdOverride ?? model;
       const finalModelConfig = finalModel ? getModelConfig(finalModel) : null;
       const requiresImageToImageReferences = Boolean(finalModelConfig?.supportsImageToImage);
+      const requiresPrompt = isEditWorkflow ? shouldRequirePromptForEditModel(finalModel) : true;
       const submissionStartUiError = resolveSubmissionStartUiError({
         cleanedSubmissionPrompt,
+        requiresPrompt,
         isEditWorkflow,
         hasReferenceImages,
         finalModel,

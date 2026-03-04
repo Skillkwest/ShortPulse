@@ -165,7 +165,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     );
   });
 
-  it("requires a prompt in edit workflow", () => {
+  it("does not gate edit workflow on prompt text", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...editInput,
@@ -174,10 +174,8 @@ describe("useAiStudioViewModel edit guardrails", () => {
       })
     );
 
-    expect(result.current.generationGuardrail).toBe(
-      'Add a prompt in "Write Your Prompt" before generating.'
-    );
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 
   it("enables generate when model, prompt, and primary image are all present", () => {

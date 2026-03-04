@@ -482,7 +482,6 @@ export const useAiStudioState = ({
     activeOutputPreviewUrl: activeOutput?.previewUrl ?? null,
     resolveReferenceInputsForTool,
     submitTask,
-    setUiError,
   });
   const rerollOutputFromReplay = useCallback(
     (outputId: string) => {

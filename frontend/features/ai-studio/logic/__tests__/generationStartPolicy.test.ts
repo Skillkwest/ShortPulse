@@ -49,6 +49,18 @@ describe("generationStartPolicy", () => {
     });
   });
 
+  it("allows missing prompt when prompt check is explicitly disabled", () => {
+    const decision = resolveGenerationStartDecision({
+      tool: "edit",
+      mode: "image",
+      modelId: "fal-ai/unknown/edit",
+      promptText: "   ",
+      checkPrompt: false,
+    });
+
+    expect(decision).toEqual({ allow: true });
+  });
+
   it("blocks missing model where model selection is required", () => {
     const decision = resolveGenerationStartDecision({
       tool: "video",

@@ -235,7 +235,6 @@ export const useAiStudioViewModel = ({
       return "Select a model before running a generation.";
     if (isEditWorkflowSelected) {
       if (!referenceImageUrl) return "Add a reference image before generating.";
-      if (!prompt.trim()) return 'Add a prompt in "Write Your Prompt" before generating.';
     }
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
     if (isVideoTool && videoReferenceMode === "standard" && !referenceImageUrl) {

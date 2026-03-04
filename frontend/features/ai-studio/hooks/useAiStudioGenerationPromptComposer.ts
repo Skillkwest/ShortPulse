@@ -2,7 +2,7 @@
  * AI Studio generation prompt/reference composition hook.
  * Owns prompt selection and ordered reference input composition for generate/regenerate submit paths.
  */
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback } from "react";
 import {
   buildImageReferenceInputs,
   buildRegenerateReferencePool,
@@ -48,7 +48,6 @@ type UseAiStudioGenerationPromptComposerParams = {
       modelIdOverride?: string | null;
     }
   ) => void;
-  setUiError: Dispatch<SetStateAction<string | null>>;
 };
 
 const resolvePromptForTool = ({
@@ -83,7 +82,6 @@ export const useAiStudioGenerationPromptComposer = ({
   activeOutputPreviewUrl,
   resolveReferenceInputsForTool,
   submitTask,
-  setUiError,
 }: UseAiStudioGenerationPromptComposerParams) => {
   const resolveMergedReferenceInputs = useCallback(
     (baseInputs: string[], overrideInputs?: string[]) => {
@@ -169,10 +167,6 @@ export const useAiStudioGenerationPromptComposer = ({
         typeof options?.submissionPromptOverride === "string"
           ? options.submissionPromptOverride.trim()
           : displayPromptToUse;
-      if (!submissionPromptToUse) {
-        setUiError("Add a prompt to start a generation.");
-        return;
-      }
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(selectedTool);
       const referencePool = buildRegenerateReferencePool({
@@ -200,7 +194,6 @@ export const useAiStudioGenerationPromptComposer = ({
       resolveReferenceInputsForTool,
       resolveMergedReferenceInputs,
       selectedTool,
-      setUiError,
       submitTask,
       useReferenceImageIndicator,
       videoReferenceMode,

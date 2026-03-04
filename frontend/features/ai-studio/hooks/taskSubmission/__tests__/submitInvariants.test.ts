@@ -27,6 +27,7 @@ describe("submitInvariants", () => {
     expect(
       resolveSubmissionStartUiError({
         cleanedSubmissionPrompt: "",
+        requiresPrompt: true,
         isEditWorkflow: false,
         hasReferenceImages: true,
         finalModel: "fal/flux-2",
@@ -37,6 +38,7 @@ describe("submitInvariants", () => {
     expect(
       resolveSubmissionStartUiError({
         cleanedSubmissionPrompt: "hello",
+        requiresPrompt: true,
         isEditWorkflow: true,
         hasReferenceImages: false,
         finalModel: null,
@@ -47,6 +49,7 @@ describe("submitInvariants", () => {
     expect(
       resolveSubmissionStartUiError({
         cleanedSubmissionPrompt: "hello",
+        requiresPrompt: true,
         isEditWorkflow: false,
         hasReferenceImages: true,
         finalModel: null,
@@ -57,6 +60,7 @@ describe("submitInvariants", () => {
     expect(
       resolveSubmissionStartUiError({
         cleanedSubmissionPrompt: "hello",
+        requiresPrompt: true,
         isEditWorkflow: false,
         hasReferenceImages: false,
         finalModel: "fal/flux-2/edit",
@@ -67,10 +71,22 @@ describe("submitInvariants", () => {
     expect(
       resolveSubmissionStartUiError({
         cleanedSubmissionPrompt: "hello",
+        requiresPrompt: true,
         isEditWorkflow: false,
         hasReferenceImages: true,
         finalModel: "fal/flux-2",
         requiresImageToImageReferences: false,
+      })
+    ).toBeNull();
+
+    expect(
+      resolveSubmissionStartUiError({
+        cleanedSubmissionPrompt: "",
+        requiresPrompt: false,
+        isEditWorkflow: true,
+        hasReferenceImages: true,
+        finalModel: "fal-ai/unknown/edit",
+        requiresImageToImageReferences: true,
       })
     ).toBeNull();
   });

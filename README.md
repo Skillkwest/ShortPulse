@@ -106,6 +106,11 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - Start at `docs/README.md`.
 - Character Manager operations runbook: `docs/sops/sop_character_manager_operations.md`.
 - SQL migration operations runbook: `docs/sops/sop_sql_migration_operations.md`.
+- AI Studio session persistence (reference-only) packet:
+  - SOP: `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
+  - Plan: `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
+  - Tracker: `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
+  - ADR: `docs/adr/0029-ai-studio-reference-only-session-persistence.md`
 
 ## Repo layout
 

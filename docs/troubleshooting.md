@@ -245,6 +245,23 @@ Checklist:
   where user_id = auth.uid();
   ```
 
+## AI Studio session persistence intentionally paused (hard-off baseline)
+Checklist:
+- Confirm these flags are set to `false` in the active frontend/server runtime when operating in rollback baseline:
+  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED`
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED`
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED`
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED`
+- Expected behavior in this baseline:
+  - no session restore/switch UX,
+  - no `/api/ai/sessions*` traffic during normal AI Studio usage,
+  - workspace state remains runtime-local only.
+- Reference-only rebuild runbook and plan:
+  - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
+  - `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
+  - `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
+
 ## AI Studio session shadow persistence not syncing to server
 Checklist:
 - Ensure migration `sql/migrations/044_add_ai_studio_sessions_persistence.sql` is applied.

@@ -88,6 +88,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
 - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
+- `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
@@ -134,6 +135,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
 - `docs/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
 - `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
+- `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
+- `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
 - `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
@@ -201,6 +204,7 @@ Start here for all repository documentation.
 - `docs/adr/0026-ai-studio-generation-admission-control.md`
 - `docs/adr/0027-ai-studio-reference-grid-reroll-replay-snapshot.md`
 - `docs/adr/0028-agent-safety-control-plane-and-modality-profiles.md`
+- `docs/adr/0029-ai-studio-reference-only-session-persistence.md`
 
 ## Archive
 - `docs/archive/README.md`

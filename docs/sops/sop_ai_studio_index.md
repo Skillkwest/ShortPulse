@@ -11,6 +11,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
 - Agent safety control plane: `docs/sops/sop_ai_studio_agent_safety_control_plane.md` — profile tuning knobs, admin control routes, rollback/cooldown workflow, and SQL validation gates.
 - Agent rollout ops: `docs/sops/sop_ai_studio_agent_rollout_operations.md` — progressive ring rollout, freeze/rollback triggers, and evidence capture workflow.
+- Session persistence (reference-only): `docs/sops/sop_ai_studio_session_persistence_reference_only.md` — staged restore/write enablement and rollback runbook for reference-only session continuity.
 
 ## Reference Grid Foundation Program Docs
 - Program plan: `docs/planning/ai-studio-reference-grid-modularization-program.md`

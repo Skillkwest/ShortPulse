@@ -2624,6 +2624,22 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `duplicate_charge_key_count = 0`
 - Normalized final legacy state hygiene (`status='success'` + `recovery_state='recovering'`) to `recovered`; post-check summary no longer reports that bucket.
 
+## 2026-03-04 (AI Studio reference-only session persistence documentation packet)
+- Added a decision-complete, docs-only rebuild plan for reference-only AI Studio session persistence:
+  - `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
+- Added execution tracker for staged rollout, validation gates, and rollback stop conditions:
+  - `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
+- Added ADR locking the reference-only persistence boundary decision:
+  - `docs/adr/0029-ai-studio-reference-only-session-persistence.md`
+- Added SOP runbook for staged enablement and immediate rollback operations:
+  - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
+- Updated docs indexes for discoverability:
+  - `docs/README.md`
+  - `docs/planning/README.md`
+  - `docs/adr/README.md`
+  - `docs/sops/README.md`
+- No product/runtime code behavior changed in this docs packet.
+
 ## 2026-03-03 (Reference Grid heavy-load adaptive compaction + routing semantics hardening)
 - Added a new runtime guardrail flag for optional heavy-load image long-edge compaction (default off):
   - `NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION`

@@ -514,6 +514,7 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("blocks explicit generation prompts before provider submit", async () => {
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED = "true";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -544,6 +545,7 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("keeps allow_only behavior for fal-submit rewrite-lane prompts that remain suggestive", async () => {
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED = "true";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 

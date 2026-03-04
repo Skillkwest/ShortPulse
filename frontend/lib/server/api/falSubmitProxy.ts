@@ -188,7 +188,7 @@ export const createFalSubmitHandler =
       });
     }
     const generationPrecheckEnabled =
-      process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED !== "false";
+      process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED === "true";
     const safetyProfile = await resolveRuntimeSafetyProfile({
       envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
     });

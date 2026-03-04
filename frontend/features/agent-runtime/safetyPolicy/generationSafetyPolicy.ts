@@ -2,24 +2,11 @@
  * Server-authoritative generation safety payload enforcement for provider submit routes.
  */
 import type { ModelPayloadValidationSpec } from "../../../lib/model-runtime/modelCatalog";
-import { resolvePolicyGenerationLevel, resolvePolicyGenerationOverride } from "./policyDocument";
 import type { SafetyPolicyDocumentV2 } from "./types";
 
 type GenerationSafetyConfig = {
   enableSafetyChecker?: boolean;
   safetyTolerance?: 1 | 2 | 3 | 4 | 5;
-};
-
-const resolveDefaultGenerationConfigForLevel = (
-  level: "off" | "moderate" | "strict"
-): GenerationSafetyConfig => {
-  if (level === "off") {
-    return { enableSafetyChecker: false, safetyTolerance: 5 };
-  }
-  if (level === "strict") {
-    return { enableSafetyChecker: true, safetyTolerance: 1 };
-  }
-  return { enableSafetyChecker: true, safetyTolerance: 3 };
 };
 
 const supportsSafetyChecker = (spec: ModelPayloadValidationSpec | null): boolean =>
@@ -49,19 +36,13 @@ export const enforceServerGenerationSafetyPayload = ({
   enforcedLevel: "off" | "moderate" | "strict";
   effectiveConfig: GenerationSafetyConfig;
 } => {
-  const level = resolvePolicyGenerationLevel({
-    policy: policyDocument,
-    modality,
-    modelId,
-  });
-  const defaultConfig = resolveDefaultGenerationConfigForLevel(level);
-  const perModelOverride = resolvePolicyGenerationOverride({
-    policy: policyDocument,
-    modelId,
-  });
+  // Safety payloads are pinned to minimum provider restrictions for generation APIs.
+  void modelId;
+  void modality;
+  void policyDocument;
   const effectiveConfig: GenerationSafetyConfig = {
-    ...defaultConfig,
-    ...(perModelOverride ?? {}),
+    enableSafetyChecker: false,
+    safetyTolerance: 5,
   };
 
   let enforced = false;
@@ -81,7 +62,7 @@ export const enforceServerGenerationSafetyPayload = ({
 
   return {
     enforced,
-    enforcedLevel: level,
+    enforcedLevel: "off",
     effectiveConfig,
   };
 };

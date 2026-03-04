@@ -85,6 +85,8 @@ const resolveDefaultTextLevelByProfile = (
 
 const buildDefaultPolicyDocument = (profileId: SafetyProfileId): SafetyPolicyDocumentV2 => {
   const levelByFamily = resolveDefaultTextLevelByProfile(profileId);
+  const defaultGenerationLevel: SafetyGenerationLevel =
+    profileId === "dev_absolute_zero" ? "off" : "moderate";
   return {
     schemaVersion: 2,
     input: {
@@ -115,8 +117,8 @@ const buildDefaultPolicyDocument = (profileId: SafetyProfileId): SafetyPolicyDoc
     },
     generation: {
       defaults: {
-        image: { level: "moderate" },
-        video: { level: "moderate" },
+        image: { level: defaultGenerationLevel },
+        video: { level: defaultGenerationLevel },
       },
       per_model: {},
     },

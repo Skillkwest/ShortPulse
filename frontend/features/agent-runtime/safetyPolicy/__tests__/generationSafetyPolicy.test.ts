@@ -4,7 +4,7 @@ import { enforceServerGenerationSafetyPayload } from "../generationSafetyPolicy"
 import { getModelPayloadValidationSpec } from "../../../../lib/model-runtime/modelCatalog";
 
 describe("generationSafetyPolicy", () => {
-  it("enforces moderate defaults for image models", () => {
+  it("enforces minimum defaults for image models", () => {
     const policy = resolveSafetyPolicyDocument({
       activePolicy: null,
       profileId: "prod_safe_v1",
@@ -19,11 +19,12 @@ describe("generationSafetyPolicy", () => {
     });
 
     expect(result.enforced).toBe(true);
-    expect(payload.enable_safety_checker).toBe(true);
-    expect(payload.safety_tolerance).toBe("3");
+    expect(result.enforcedLevel).toBe("off");
+    expect(payload.enable_safety_checker).toBe(false);
+    expect(payload.safety_tolerance).toBe("5");
   });
 
-  it("applies per-model strict override", () => {
+  it("keeps minimum defaults even when policy includes stricter per-model overrides", () => {
     const policy = resolveSafetyPolicyDocument({
       activePolicy: {
         schemaVersion: 2,
@@ -52,7 +53,27 @@ describe("generationSafetyPolicy", () => {
       policyDocument: policy,
     });
 
-    expect(payload.enable_safety_checker).toBe(true);
-    expect(payload.safety_tolerance).toBe(1);
+    expect(payload.enable_safety_checker).toBe(false);
+    expect(payload.safety_tolerance).toBe(5);
+  });
+
+  it("enforces off defaults for dev_absolute_zero generation profile", () => {
+    const policy = resolveSafetyPolicyDocument({
+      activePolicy: null,
+      profileId: "dev_absolute_zero",
+    });
+    const payload: Record<string, unknown> = { prompt: "portrait" };
+    const result = enforceServerGenerationSafetyPayload({
+      payload,
+      modelId: "fal/flux-2-pro",
+      modality: "image",
+      spec: getModelPayloadValidationSpec("fal/flux-2-pro"),
+      policyDocument: policy,
+    });
+
+    expect(result.enforced).toBe(true);
+    expect(result.enforcedLevel).toBe("off");
+    expect(payload.enable_safety_checker).toBe(false);
+    expect(payload.safety_tolerance).toBe("5");
   });
 });

@@ -70,7 +70,7 @@ type CaseConfig = {
   requestedResolution?: string;
   expectsAudioField?: boolean;
   expectedSafetyChecker?: boolean;
-  expectedSafetyTolerance?: "5";
+  expectedSafetyTolerance?: "5" | 5;
   expectedReferenceField?:
     | "image_urls"
     | "image_url"
@@ -192,7 +192,7 @@ const CASES: Record<string, CaseConfig> = {
     requestedResolution: "4k",
     expectsAudioField: true,
     expectedSafetyChecker: false,
-    expectedSafetyTolerance: "5",
+    expectedSafetyTolerance: 5,
     expectedReferenceField: "none",
   },
   "fal-ai/veo3.1/image-to-video": {
@@ -201,7 +201,7 @@ const CASES: Record<string, CaseConfig> = {
     requestedResolution: "4k",
     expectsAudioField: true,
     expectedSafetyChecker: false,
-    expectedSafetyTolerance: "5",
+    expectedSafetyTolerance: 5,
     expectedReferenceField: "image_urls",
   },
   "fal-ai/veo3.1/first-last-frame-to-video": {
@@ -209,8 +209,6 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalVeoFirstLast",
     requestedResolution: "4k",
     expectsAudioField: true,
-    expectedSafetyChecker: false,
-    expectedSafetyTolerance: "5",
     expectedReferenceField: "first_last_frame_urls",
   },
   "fal-ai/sora-2/text-to-video/pro": {

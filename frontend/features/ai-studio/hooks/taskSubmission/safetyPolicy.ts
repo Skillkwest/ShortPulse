@@ -1,79 +1,70 @@
 /**
  * Centralizes generation safety payload defaults so image/video model routes stay aligned.
- * Policy target: moderate restriction by default for models that expose safety controls.
+ * Policy target: minimal restriction defaults for models that expose safety controls.
  */
+import { getModelPayloadValidationSpec } from "../../../../lib/model-runtime/modelCatalog";
+
 export type SubmissionSafetyPayload = {
   enable_safety_checker?: boolean;
-  safety_tolerance?: "1" | "3" | "5";
+  safety_tolerance?: SafetyToleranceValue;
 };
 
-type SubmissionSafetyLevel = "off" | "moderate" | "strict";
+type SafetyToleranceValue = 1 | 2 | 3 | 4 | 5 | "1" | "2" | "3" | "4" | "5";
 
-const IMAGE_DISABLE_CHECKER_MODELS = new Set<string>([
-  "fal-ai/flux-2/klein/9b",
-  "fal/flux-2",
-  "fal/flux-2/edit",
-  "fal-ai/bytedance/seedream/v4.5/text-to-image",
-  "fal-ai/bytedance/seedream/v4.5/edit",
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-  "fal-ai/bytedance/seedream/v5/lite/edit",
-]);
-
-const IMAGE_TOLERANCE_MODELS = new Set<string>(["fal/flux-2-pro", "fal/flux-2-pro/edit"]);
-
-const VIDEO_DISABLE_CHECKER_MODELS = new Set<string>([
-  "fal-ai/veo3.1",
-  "fal-ai/veo3.1/image-to-video",
-  "fal-ai/veo3.1/first-last-frame-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-]);
-
-const VIDEO_TOLERANCE_MODELS = new Set<string>([
-  "fal-ai/veo3.1",
-  "fal-ai/veo3.1/image-to-video",
-  "fal-ai/veo3.1/first-last-frame-to-video",
-]);
-
-const resolveClientSubmissionSafetyLevel = (): SubmissionSafetyLevel => {
-  const normalized = String(process.env.NEXT_PUBLIC_AI_STUDIO_GENERATION_SAFETY_LEVEL ?? "moderate")
-    .trim()
-    .toLowerCase();
-  if (normalized === "off") return "off";
-  if (normalized === "strict") return "strict";
-  return "moderate";
-};
-
-const buildSafetyPayload = ({
-  checkerDisabled,
-  toleranceEnabled,
-  level = resolveClientSubmissionSafetyLevel(),
-}: {
-  checkerDisabled: boolean;
-  toleranceEnabled: boolean;
-  level?: SubmissionSafetyLevel;
-}): SubmissionSafetyPayload => {
-  if (!checkerDisabled) return {};
-  const checkerEnabled = level !== "off";
-  if (!toleranceEnabled) {
-    return { enable_safety_checker: checkerEnabled };
+const toSafetyToleranceNumber = (value: unknown): 1 | 2 | 3 | 4 | 5 | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const normalized = Math.trunc(value);
+    if (normalized >= 1 && normalized <= 5) {
+      return normalized as 1 | 2 | 3 | 4 | 5;
+    }
   }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const normalized = Number.parseInt(value.trim(), 10);
+    if (Number.isFinite(normalized) && normalized >= 1 && normalized <= 5) {
+      return normalized as 1 | 2 | 3 | 4 | 5;
+    }
+  }
+  return null;
+};
+
+const toSafetyToleranceString = (value: 1 | 2 | 3 | 4 | 5): "1" | "2" | "3" | "4" | "5" =>
+  String(value) as "1" | "2" | "3" | "4" | "5";
+
+const resolveMaximumTolerance = (modelId: string): SafetyToleranceValue | undefined => {
+  const spec = getModelPayloadValidationSpec(modelId);
+  const enumValues = spec?.enumFields?.safety_tolerance;
+  if (Array.isArray(enumValues) && enumValues.length > 0) {
+    const numericCandidates = enumValues
+      .map((value) => toSafetyToleranceNumber(value))
+      .filter((value): value is 1 | 2 | 3 | 4 | 5 => value !== null);
+    if (numericCandidates.length > 0) {
+      const maxTolerance = Math.max(...numericCandidates) as 1 | 2 | 3 | 4 | 5;
+      const expectsNumber = (spec?.optionalNumberFields ?? []).includes("safety_tolerance");
+      return expectsNumber ? maxTolerance : toSafetyToleranceString(maxTolerance);
+    }
+  }
+  if ((spec?.optionalNumberFields ?? []).includes("safety_tolerance")) {
+    return 5;
+  }
+  return undefined;
+};
+
+const buildSafetyPayload = (modelId: string): SubmissionSafetyPayload => {
+  const spec = getModelPayloadValidationSpec(modelId);
+  const supportsChecker = (spec?.optionalBooleanFields ?? []).includes("enable_safety_checker");
+  const safetyTolerance = resolveMaximumTolerance(modelId);
+  if (!supportsChecker && safetyTolerance === undefined) {
+    return {};
+  }
+
   return {
-    enable_safety_checker: checkerEnabled,
-    safety_tolerance: level === "strict" ? "1" : level === "off" ? "5" : "3",
+    ...(supportsChecker ? { enable_safety_checker: false } : {}),
+    ...(safetyTolerance !== undefined ? { safety_tolerance: safetyTolerance } : {}),
   };
 };
 
 export const resolveImageSubmissionSafetyPayload = (modelId: string): SubmissionSafetyPayload =>
-  buildSafetyPayload({
-    checkerDisabled:
-      IMAGE_DISABLE_CHECKER_MODELS.has(modelId) || IMAGE_TOLERANCE_MODELS.has(modelId),
-    toleranceEnabled: IMAGE_TOLERANCE_MODELS.has(modelId),
-  });
+  buildSafetyPayload(modelId);
 
 export const resolveVideoSubmissionSafetyPayload = (modelId: string): SubmissionSafetyPayload =>
-  buildSafetyPayload({
-    checkerDisabled:
-      VIDEO_DISABLE_CHECKER_MODELS.has(modelId) || VIDEO_TOLERANCE_MODELS.has(modelId),
-    toleranceEnabled: VIDEO_TOLERANCE_MODELS.has(modelId),
-  });
+  buildSafetyPayload(modelId);

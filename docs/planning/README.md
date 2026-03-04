@@ -31,6 +31,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-generation-queue-hardening-tracker-2026-03-04.md`: execution tracker for queue hardening status, tests, and exit criteria.
 - `ai-studio-session-persistence-reference-only-plan-2026-03-04.md`: decision-complete rebuild plan for reference-only AI Studio session persistence.
 - `ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`: execution tracker for reference-only session persistence slices and gates.
+- `ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`: implementation plan for Expert Edit properties panel rollout with legacy fallback and kill switch.
+- `ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`: execution tracker for Expert Edit phases, gates, and commit checkpoints.
 - `ai-studio-runtime-v2-recovery-execution-phase.md`: shared recovery execution phase tracker (webhook inbox, verify cutover, reconciler leases, guarded transitions).
 - `ai-studio-runtime-v2-staging-execution-checklist.md`: operator checklist with ordered staging migration/env/deploy/smoke-test commands and runtime gates.
 - `ai-studio-fal-reliability-rollout.md`: archived pointer to superseded planning doc (full archive under `docs/archive/planning/`).
@@ -74,6 +76,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/reference-grid-modularization/README.md`: canonical evidence index and phase evidence folder structure for the reference-grid foundation program.
 - `evidence/reference-grid-modularization/phase-report-template.md`: standardized phase closeout template for scope/tests/perf/regression/rollback evidence.
 - `evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`: standardized naming-canonicalization evidence template for every execution slice.
+- `evidence/ai-studio-expert-edit/README.md`: evidence index for Expert Edit rollout capability and validation artifacts.
 
 ## Maintenance
 - Keep plans actionable and current.

@@ -141,7 +141,19 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
   - Nano Banana 2 + Nano Banana 2 Edit: `0.5K`, `1K`, `2K`, `4K`.
   - Nano Banana Pro + Nano Banana Pro Edit: `1K`, `2K`, `4K`.
   - Seedream 4.5 + Seedream 4.5 Edit: `model_default`, `auto_2K`, `auto_4K`.
-  - Seedream 5 Lite + Seedream 5 Lite Edit: `auto_2K`, `auto_3K`.
+- Seedream 5 Lite + Seedream 5 Lite Edit: `auto_2K`, `auto_3K`.
+
+## Expert Edit properties panel behavior
+
+- Expert Edit is now the default Edit-workflow panel in expert mode.
+- Legacy Edit panel remains the beginner fallback path and is preserved unchanged.
+- Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` reverts Edit to legacy panel.
+- Expert Edit panel contracts:
+  1. One primary edit drop zone + exactly three secondary drop zones.
+  2. Inline prompt/composer row includes model/aspect/resolution selectors and inline Generate button.
+  3. Generate remains disabled until primary reference image exists.
+  4. Chat mode UI is hidden/off for Expert Edit.
+- Prompt guard policy for Edit submit is model-capability driven (`editPromptPolicy`); unknown capability defaults to prompt required.
 
 ## Supported image models (current)
 

@@ -137,6 +137,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
 - `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
+- `docs/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
+- `docs/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
 - `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
@@ -170,6 +172,7 @@ Start here for all repository documentation.
 - `docs/planning/evidence/reference-grid-modularization/README.md`
 - `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
 - `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
+- `docs/planning/evidence/ai-studio-expert-edit/README.md`
 - `docs/planning/evidence/unified-buildout/phase-13/README.md`
 - `docs/planning/evidence/unified-buildout/phase-13/research-checkpoints.md`
 - `docs/change_log.md`

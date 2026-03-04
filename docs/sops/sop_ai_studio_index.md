@@ -38,6 +38,12 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
   2. For Create + Image when saved model is missing/invalid, default to `fal-ai/bytedance/seedream/v4.5/text-to-image`.
   3. Return `null` when no valid/default candidate exists for the active mode.
 
+## Expert Edit rollout defaults
+- Expert Edit properties panel is enabled by default for Edit workflow in expert mode.
+- Beginner Edit remains legacy and intact as fallback behavior.
+- Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` forces legacy Edit panel.
+- Chat mode control is hidden/off in Expert Edit; inline Generate remains the primary action.
+
 ## Model modal ordering policy
 - Source of truth: `frontend/features/ai-studio/components/ModelModal.tsx`.
 - Model chips are ordered deterministically by context using provider-priority and model-priority maps.

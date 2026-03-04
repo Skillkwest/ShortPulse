@@ -46,10 +46,18 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   queueLeaseSeconds: 30,
   queueMaxAttempts: 5,
   queueBaseBackoffSeconds: 5,
-  queueMaxWaitSeconds: 1200,
-  recoveryProbeTimeoutMs: 15000,
-  runningExhaustMinAgeSeconds: 7200,
   ...overrides,
+  statusTransientFailuresEnabled: overrides.statusTransientFailuresEnabled ?? false,
+  providerAttachedReservationCleanupEnabled:
+    overrides.providerAttachedReservationCleanupEnabled ?? true,
+  providerAttachedReservationCleanupMinAgeSeconds:
+    overrides.providerAttachedReservationCleanupMinAgeSeconds ?? 7200,
+  providerAttachedReservationOrphanMinAgeSeconds:
+    overrides.providerAttachedReservationOrphanMinAgeSeconds ?? 86400,
+  queueMaxWaitSeconds: overrides.queueMaxWaitSeconds ?? 1200,
+  recoveryProbeTimeoutMs: overrides.recoveryProbeTimeoutMs ?? 15000,
+  noMediaExhaustMinAgeSeconds: overrides.noMediaExhaustMinAgeSeconds ?? 7200,
+  runningExhaustMinAgeSeconds: overrides.runningExhaustMinAgeSeconds ?? 7200,
 });
 
 describe("falSubmitTargeting webhook canary", () => {

@@ -372,6 +372,21 @@ export default function AiStudioPage() {
     (id: string | null | undefined) => getOutputById(id ?? "")?.previewUrl ?? null,
     [getOutputById]
   );
+  const resolveReferenceInputsForTool = useCallback(
+    (tool: ToolId | null) => {
+      if (tool === "edit" || tool === "image") {
+        return {
+          referenceImageUrl,
+          extraImageUrls,
+        };
+      }
+      return {
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+      };
+    },
+    [extraImageUrls, referenceImageUrl]
+  );
   const resolveLegacyPanelOutputPreviewUrl = useCallback(
     (id: string | null | undefined) => {
       if (!id) return null;
@@ -1505,6 +1520,7 @@ export default function AiStudioPage() {
   const {
     propertiesCreate,
     propertiesImage,
+    propertiesEditExpert,
     propertiesVideo,
     referenceGridProps,
     studioPreviewProps,
@@ -1557,6 +1573,7 @@ export default function AiStudioPage() {
         onToggleCreateTools={setShowCreateTools}
         propertiesCreate={propertiesCreate}
         propertiesImage={propertiesImage}
+        propertiesEditExpert={propertiesEditExpert}
         propertiesVideo={propertiesVideo}
         isTemplateView={isTemplateView}
         referenceGridProps={referenceGridProps}

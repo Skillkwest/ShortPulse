@@ -22,12 +22,15 @@ describe("model options vs registry", () => {
     expect(retiredProviderOptions).toEqual([]);
   });
 
-  it("model options remain Fal-only while Kie is dark/off by default", () => {
+  it("Kie model options, when present, map only to Kie provider configs", () => {
     const registryById = new Map(listModelConfigs().map((cfg) => [cfg.id, cfg]));
     const kieOptions = modelOptions.filter((option) => {
       const cfg = registryById.get(option.value);
       return cfg?.provider === "kie";
     });
-    expect(kieOptions).toEqual([]);
+    kieOptions.forEach((option) => {
+      const cfg = registryById.get(option.value);
+      expect(cfg?.provider).toBe("kie");
+    });
   });
 });

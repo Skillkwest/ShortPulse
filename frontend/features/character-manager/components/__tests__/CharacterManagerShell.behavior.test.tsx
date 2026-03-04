@@ -1373,11 +1373,11 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("shows a pending QuickSwap overlay state while internal drop attachment is in flight", async () => {
-    let resolveAppend: ((value: boolean) => void) | null = null;
+    const pendingAppend = { resolve: null as ((value: boolean) => void) | null };
     quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(
       () =>
         new Promise<boolean>((resolve) => {
-          resolveAppend = resolve;
+          pendingAppend.resolve = resolve;
         })
     );
     const resolveCharacterDropReference = vi.fn(async () => ({
@@ -1418,7 +1418,9 @@ describe("CharacterManagerShell behavior", () => {
       ).toBeInTheDocument();
     });
 
-    resolveAppend?.(true);
+    if (pendingAppend.resolve) {
+      pendingAppend.resolve(true);
+    }
     await waitFor(() => {
       expect(screen.queryByText("Adding image to QuickSwap Deck...")).not.toBeInTheDocument();
     });

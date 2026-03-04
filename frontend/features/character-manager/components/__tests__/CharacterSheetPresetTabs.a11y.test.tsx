@@ -179,7 +179,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
   it("hides add button when at max visible tabs", () => {
     render(
       <PresetTabsHarness
-        initialPresetIds={CHARACTER_SHEET_PRESET_IDS as CharacterSheetPresetId[]}
+        initialPresetIds={[...CHARACTER_SHEET_PRESET_IDS] as CharacterSheetPresetId[]}
       />
     );
 

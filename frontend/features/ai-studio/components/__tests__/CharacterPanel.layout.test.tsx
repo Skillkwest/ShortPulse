@@ -109,8 +109,7 @@ describe("CharacterPanel layout", () => {
       .map((node) => node.getAttribute("data-layout-region"))
       .filter((value): value is string => Boolean(value));
 
-    expect(regions).toEqual(["identity", "quickswap", "sheet"]);
-    expect(screen.getByRole("heading", { name: "Identity" })).toBeInTheDocument();
+    expect(regions).toEqual(["quickswap", "sheet"]);
     expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
   });

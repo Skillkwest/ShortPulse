@@ -7,6 +7,7 @@ vi.mock("next/image", () => ({
   default: (props: { alt?: string; [key: string]: unknown }) => {
     const forwarded = { ...props };
     delete forwarded.unoptimized;
+    // eslint-disable-next-line @next/next/no-img-element
     return <img alt={props.alt ?? ""} {...forwarded} />;
   },
 }));
@@ -22,8 +23,8 @@ describe("ExpertEditPanelView", () => {
     referenceText: "",
     imageResolution: "model_default",
     aspectOptions: [
-      { value: "1:1", label: "1:1" },
-      { value: "16:9", label: "16:9" },
+      { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
+      { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "horizontal" },
     ],
     isModelModalOpen: false,
     modelModalAnchor: null,

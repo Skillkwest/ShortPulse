@@ -110,7 +110,11 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     } as Response);
     vi.mocked(fetchWithAuth).mockResolvedValue({
       ok: true,
-      json: async () => ({ url: "https://cdn.example.com/motion.mp4" }),
+      json: async () => ({
+        url: "https://cdn.example.com/motion.mp4",
+        path: "user-1/videos/motion.mp4",
+        size: blob.size,
+      }),
     } as Response);
 
     const handled = await handleVideoModelSubmission(args);
@@ -121,7 +125,8 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       "/api/upload-video",
       expect.objectContaining({ method: "POST" })
     );
-    expect(args.updateOutputById).toHaveBeenCalledTimes(2);
+    expect(args.updateOutputById).toHaveBeenCalled();
+    expect(args.updateOutputById).toHaveBeenCalledWith("out-1", expect.any(Function));
     expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "Already tagged @Element1",

@@ -35,6 +35,7 @@ import {
 } from "./taskSubmission/outputLifecyclePatches";
 import { startQueuedStatusPolling } from "./taskSubmission/queueStatusPolling";
 import {
+  CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR,
   normalizeSubmissionTool,
   resolveSubmissionStartUiError,
   shouldSkipTextCreateSubmission,
@@ -198,6 +199,7 @@ export const useAiStudioTaskSubmission = ({
 
       if (shouldSkipTextCreateSubmission(effectiveTool, effectiveMode)) {
         removeOptimisticPlaceholder();
+        setUiError(CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR);
         setIsPromptGenerating(false);
         return;
       }
@@ -218,7 +220,11 @@ export const useAiStudioTaskSubmission = ({
         setUiError(submissionStartUiError);
         return;
       }
-      if (!finalModel) return;
+      if (!finalModel) {
+        removeOptimisticPlaceholder();
+        setUiError("Pick a model to generate.");
+        return;
+      }
 
       setIsPromptGenerating(true);
       try {

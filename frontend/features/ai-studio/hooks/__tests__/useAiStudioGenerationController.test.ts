@@ -627,13 +627,15 @@ describe("useAiStudioGenerationController", () => {
     expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
   });
 
-  it("does not enqueue debits or submit when create/text tool remains in text mode", async () => {
+  it("surfaces explicit error and does not submit when create/text tool remains in text mode", async () => {
     const generateOutput = vi.fn();
     const setOptimisticDebitEntries = vi.fn();
+    const setUiError = vi.fn();
     const params = createParams({
       mode: "text",
       selectedTool: "create",
       generateOutput,
+      setUiError: asDispatch<string | null>(setUiError),
       setOptimisticDebitEntries:
         asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
     });
@@ -645,6 +647,9 @@ describe("useAiStudioGenerationController", () => {
 
     expect(generateOutput).not.toHaveBeenCalled();
     expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(
+      "Switch to image generation before running this action."
+    );
   });
 
   it("blocks create character-mode generate when no character references are available", async () => {

@@ -59,13 +59,15 @@ export const useReferenceGridPerfWatchdog = ({
   memoryGuardEnabled = false,
   evaluationWindowMs = 2500,
 }: UseReferenceGridPerfWatchdogParams): ReferenceGridPerfWatchdogState => {
-  const [state, setState] = useState<ReferenceGridPerfWatchdogState>({
+  const initialState: ReferenceGridPerfWatchdogState = {
     degradeLevel: 0,
     longTaskP95Ms: null,
     maxInputStallMs: 0,
     heapUsageRatio: null,
     sampleCount: 0,
-  });
+  };
+  const [state, setState] = useState<ReferenceGridPerfWatchdogState>(initialState);
+  const stateRef = useRef<ReferenceGridPerfWatchdogState>(initialState);
   const longTaskDurationsRef = useRef<number[]>([]);
   const maxInputStallMsRef = useRef(0);
   const stallTickAtRef = useRef<number | null>(null);
@@ -137,23 +139,23 @@ export const useReferenceGridPerfWatchdog = ({
         recoverStreakRef.current = transition.nextRecoverStreak;
 
         degradeLevelRef.current = nextLevel;
-        setState((prev) => {
-          if (
-            prev.degradeLevel === nextLevel &&
-            prev.longTaskP95Ms === longTaskP95Ms &&
-            prev.maxInputStallMs === maxInputStallMs &&
-            prev.heapUsageRatio === heapUsageRatio
-          ) {
-            return prev;
-          }
-          return {
+        const previous = stateRef.current;
+        const hasChanged =
+          previous.degradeLevel !== nextLevel ||
+          previous.longTaskP95Ms !== longTaskP95Ms ||
+          previous.maxInputStallMs !== maxInputStallMs ||
+          previous.heapUsageRatio !== heapUsageRatio;
+        if (hasChanged) {
+          const nextState: ReferenceGridPerfWatchdogState = {
             degradeLevel: nextLevel,
             longTaskP95Ms,
             maxInputStallMs,
             heapUsageRatio,
-            sampleCount: prev.sampleCount + 1,
+            sampleCount: previous.sampleCount + 1,
           };
-        });
+          stateRef.current = nextState;
+          setState(nextState);
+        }
 
         longTaskDurationsRef.current = [];
         maxInputStallMsRef.current = 0;

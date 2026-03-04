@@ -47,12 +47,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const queueStatusDispatchKickEnabled = flags.queueStatusDispatchKickEnabled ?? true;
     if (queueStatusDispatchKickEnabled) {
       try {
-        await dispatchGenerationSubmitQueueBatch({
+        const kickMetrics = await dispatchGenerationSubmitQueueBatch({
           req,
           routeLabel: "api/fal/queue-status",
           limit: 1,
           userId: user.id,
         });
+        if (kickMetrics.errors > 0 || kickMetrics.exhausted > 0) {
+          await logGenerationFailure({
+            req,
+            routeLabel: "api/fal/queue-status",
+            source: "telemetry.queue.status.kick_partial_failure",
+            message: "Queue status dispatch kick completed with queue errors.",
+            statusCode: 200,
+            userId: user.id,
+            userEmail: user.email ?? null,
+            metadata: {
+              source_ref: sourceRef,
+              generation_id: generationId,
+              claimed: kickMetrics.claimed,
+              submitted: kickMetrics.submitted,
+              retried: kickMetrics.retried,
+              requeued_no_capacity: kickMetrics.requeuedNoCapacity,
+              exhausted: kickMetrics.exhausted,
+              skipped: kickMetrics.skipped,
+              errors: kickMetrics.errors,
+            },
+          });
+        }
       } catch (error) {
         await logGenerationFailure({
           req,
@@ -81,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         req,
         routeLabel: "api/fal/queue-status",
         source: "telemetry.queue.status.recovery_claim_failed",
-        message: "Queue status recovery claim failed; continuing with status read.",
+        message: "Queue status recovery claim failed at claim stage; continuing with status read.",
         statusCode: 500,
         userId: user.id,
         userEmail: user.email ?? null,

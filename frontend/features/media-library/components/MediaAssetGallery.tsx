@@ -78,7 +78,9 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
   toggleSelect,
 }: MediaAssetGalleryProps<TRow>) {
   const isVideoFileType = useCallback(
-    (fileType?: string | null) => isVideoFile(fileType ?? ""),
+    (fileType?: string | null) => {
+      return isVideoFile(fileType ?? "");
+    },
     [isVideoFile]
   );
 

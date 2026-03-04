@@ -11,6 +11,10 @@ import {
   type SetStateAction,
 } from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
+import {
+  GENERATION_GUARDRAIL_FALLBACK_ERROR,
+  resolveGenerationStartDecision,
+} from "../logic/generationStartPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
@@ -43,18 +47,9 @@ type GenerateResult = {
   optimisticOutputId: string | null;
 };
 
-const CHARACTER_MODE_MISSING_REFERENCES_ERROR =
-  "Character Mode requires at least one character image before generating.";
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
-const shouldBlockCharacterModeSubmit = ({
-  tool,
-  hasCharacterModeReferences,
-}: {
-  tool: ToolId | null;
-  hasCharacterModeReferences: boolean;
-}): boolean => isCreateTool(tool) && !hasCharacterModeReferences;
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
@@ -216,11 +211,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     };
   }, []);
 
-  const handleBlockedGeneration = useCallback(() => {
-    if (generationGuardrail) {
-      setUiError(generationGuardrail);
-    }
-  }, [generationGuardrail, setUiError]);
+  const resolveGuardrailBlockMessage = useCallback(
+    () => generationGuardrail ?? GENERATION_GUARDRAIL_FALLBACK_ERROR,
+    [generationGuardrail]
+  );
 
   const ensureFreshCreditsForRun = useCallback(
     async (requiredCredits: number | null | undefined): Promise<boolean> => {
@@ -292,10 +286,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
       let checkedFreshCredits = false;
 
-      if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
-        return { accepted: false, optimisticOutputId: null };
-      }
-
       if (
         options?.costOverrideCredits != null &&
         effectiveBalanceCredits != null &&
@@ -315,11 +305,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             ? true
             : await ensureFreshCreditsForRun(requiredCredits);
           if (!hasFreshCredits) {
-            handleBlockedGeneration();
+            setUiError(resolveGuardrailBlockMessage());
             return { accepted: false, optimisticOutputId: null };
           }
         } else {
-          handleBlockedGeneration();
+          setUiError(resolveGuardrailBlockMessage());
           return { accepted: false, optimisticOutputId: null };
         }
       }
@@ -327,6 +317,16 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       const defaultPromptForTool = resolveDefaultPromptForTool(effectiveTool);
       const promptToUse =
         typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
+      const startDecision = resolveGenerationStartDecision({
+        tool: effectiveTool,
+        mode: effectiveMode,
+        modelId: effectiveModelId,
+        promptText: promptToUse,
+      });
+      if (!startDecision.allow) {
+        setUiError(startDecision.message);
+        return { accepted: false, optimisticOutputId: null };
+      }
       const optimisticOutputId = insertOptimisticGenerationPlaceholder?.({
         prompt: promptToUse,
         modeOverride: effectiveMode,
@@ -375,13 +375,20 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
       const hasCharacterModeReferences =
         (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
-      if (
+      const characterModeDecision =
         characterModeOverrides &&
-        shouldBlockCharacterModeSubmit({
+        resolveGenerationStartDecision({
           tool: effectiveTool,
+          mode: effectiveMode,
+          modelId: effectiveModelId,
+          promptText: promptToUse,
+          checkCreateTextMode: false,
+          checkPrompt: false,
+          checkModel: false,
+          checkCharacterReferences: true,
           hasCharacterModeReferences,
-        })
-      ) {
+        });
+      if (characterModeOverrides && characterModeDecision && !characterModeDecision.allow) {
         trackCharacterModeFallback(characterModeOverrides, effectiveTool);
         trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
           tool: effectiveTool,
@@ -392,7 +399,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         if (optimisticOutputId) {
           removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
         }
-        setUiError(CHARACTER_MODE_MISSING_REFERENCES_ERROR);
+        setUiError(characterModeDecision.message);
         return { accepted: false, optimisticOutputId: null };
       }
       trackCharacterModeFallback(characterModeOverrides, effectiveTool);
@@ -423,7 +430,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       generateOutput,
-      handleBlockedGeneration,
       isCreditGuardrail,
       isCharacterModeEnabled,
       isGenerateDisabled,
@@ -432,6 +438,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       model,
       removeOptimisticGenerationPlaceholder,
       refreshCharacterModeInjectionBundleForSubmission,
+      resolveGuardrailBlockMessage,
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
@@ -464,7 +471,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         if (rawPrompt) {
           setPromptOrigin("manual");
         }
-        void handleGenerate(rawPrompt ?? undefined, {
+        void handleGenerate(rawPrompt ?? "", {
           modeOverride: "image",
           toolOverride: "create",
         });
@@ -490,29 +497,36 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       sharedPrompt: prompt,
       allowSharedPromptFallback: true,
     });
-    if (!rawPrompt) {
-      setUiError("Add a prompt to start a generation.");
-      return;
-    }
-    setPromptOrigin("manual");
-    void handleGenerate(rawPrompt, { modeOverride: "image", toolOverride: "create" });
-  }, [agentInput, handleGenerate, prompt, setPromptOrigin, setUiError]);
+    if (rawPrompt) setPromptOrigin("manual");
+    void handleGenerate(rawPrompt ?? "", { modeOverride: "image", toolOverride: "create" });
+  }, [agentInput, handleGenerate, prompt, setPromptOrigin]);
 
   const runRegenerateWithDebit = useCallback(async () => {
     if (!tryAcquireGenerateClickLock()) return;
 
     if (isGenerateDisabled && !isCreditGuardrail) {
-      handleBlockedGeneration();
+      setUiError(resolveGuardrailBlockMessage());
       return;
     }
     if (isCreditGuardrail) {
       const hasFreshCredits = await ensureFreshCreditsForRun(currentCostCredits);
       if (!hasFreshCredits) {
-        handleBlockedGeneration();
+        setUiError(resolveGuardrailBlockMessage());
         return;
       }
     }
     const promptToUse = resolveDefaultPromptForTool(selectedTool);
+    const regenerateStartDecision = resolveGenerationStartDecision({
+      tool: selectedTool,
+      mode,
+      modelId: model,
+      promptText: promptToUse,
+      checkCreateTextMode: false,
+    });
+    if (!regenerateStartDecision.allow) {
+      setUiError(regenerateStartDecision.message);
+      return;
+    }
     let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
     try {
       trackCharacterModeEvent?.("generation_preflight_started", {
@@ -553,12 +567,23 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     }
     const hasCharacterModeReferences =
       (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
+    const regenerateCharacterModeDecision =
+      characterModeOverrides &&
+      resolveGenerationStartDecision({
+        tool: selectedTool,
+        mode,
+        modelId: model,
+        promptText: promptToUse,
+        checkCreateTextMode: false,
+        checkPrompt: false,
+        checkModel: false,
+        checkCharacterReferences: true,
+        hasCharacterModeReferences,
+      });
     if (
       characterModeOverrides &&
-      shouldBlockCharacterModeSubmit({
-        tool: selectedTool,
-        hasCharacterModeReferences,
-      })
+      regenerateCharacterModeDecision &&
+      !regenerateCharacterModeDecision.allow
     ) {
       trackCharacterModeFallback(characterModeOverrides, selectedTool);
       trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
@@ -567,7 +592,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         has_character_description: characterModeOverrides.hasCharacterDescription,
         character_reference_count: characterModeOverrides.characterReferenceCount,
       });
-      setUiError(CHARACTER_MODE_MISSING_REFERENCES_ERROR);
+      setUiError(regenerateCharacterModeDecision.message);
       return;
     }
     trackCharacterModeFallback(characterModeOverrides, selectedTool);
@@ -601,13 +626,14 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     currentCostCredits,
     enqueueOptimisticDebit,
     ensureFreshCreditsForRun,
-    handleBlockedGeneration,
     isCreditGuardrail,
     isGenerateDisabled,
+    mode,
     model,
     isCharacterModeEnabled,
     refreshCharacterModeInjectionBundleForSubmission,
     regenerateOutput,
+    resolveGuardrailBlockMessage,
     resolveEffectiveSubmitModelId,
     resolveCharacterModeSubmissionOverrides,
     resolveDefaultPromptForTool,

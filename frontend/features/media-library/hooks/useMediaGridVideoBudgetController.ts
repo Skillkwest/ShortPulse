@@ -38,6 +38,22 @@ type NavigatorWithConnection = Navigator & {
   };
 };
 
+const areOrderedStringArraysEqual = (left: string[], right: string[]): boolean => {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+};
+
+const areStringSetsEqual = (left: Set<string>, right: Set<string>): boolean => {
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
+};
+
 /**
  * Shared route/modal video autoplay budget controller.
  * Bounds concurrent autoplay and detaches offscreen sources after a short idle delay.
@@ -65,6 +81,8 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
   const [videoAttachBudget, setVideoAttachBudget] = useState(autoplayMaxDesktop);
   const [enabledVideoIds, setEnabledVideoIds] = useState<string[]>([]);
   const [attachedVideoIds, setAttachedVideoIds] = useState<Set<string>>(() => new Set());
+  const enabledVideoIdsRef = useRef<string[]>([]);
+  const attachedVideoIdsRef = useRef<Set<string>>(new Set());
 
   const videoIdsInOrder = useMemo(
     () => items.filter((item) => isVideoFile(item.fileType)).map((item) => item.id),
@@ -75,6 +93,18 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
   useEffect(() => {
     videoIdsInOrderRef.current = videoIdsInOrder;
   }, [videoIdsInOrderSignature, videoIdsInOrder]);
+
+  useEffect(() => {
+    enabledVideoIdsRef.current = enabledVideoIds;
+  }, [enabledVideoIds]);
+
+  const commitAttachedVideoIds = useCallback((nextAttachedIds: Set<string>) => {
+    if (areStringSetsEqual(attachedVideoIdsRef.current, nextAttachedIds)) {
+      return;
+    }
+    attachedVideoIdsRef.current = nextAttachedIds;
+    setAttachedVideoIds(nextAttachedIds);
+  }, []);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined" || typeof navigator === "undefined") return;
@@ -116,12 +146,11 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       visibleVideoIdsRef.current.has(id)
     );
     const nextEnabled = visibleInOrder.slice(0, Math.max(0, videoAttachBudget));
-    setEnabledVideoIds((prev) =>
-      prev.length === nextEnabled.length &&
-      prev.every((value, index) => value === nextEnabled[index])
-        ? prev
-        : nextEnabled
-    );
+    if (areOrderedStringArraysEqual(enabledVideoIdsRef.current, nextEnabled)) {
+      return;
+    }
+    enabledVideoIdsRef.current = nextEnabled;
+    setEnabledVideoIds(nextEnabled);
   }, [enabled, videoAttachBudget]);
 
   useEffect(() => {
@@ -178,6 +207,13 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       }
       detachTimeoutByIdRef.current.clear();
       previousEnabledIdsRef.current = new Set();
+      if (enabledVideoIdsRef.current.length > 0) {
+        enabledVideoIdsRef.current = [];
+        setEnabledVideoIds([]);
+      }
+      if (attachedVideoIdsRef.current.size > 0) {
+        commitAttachedVideoIds(new Set());
+      }
       return;
     }
 
@@ -201,16 +237,18 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
     }
     previousEnabledIdsRef.current = nextEnabledSet;
 
-    setAttachedVideoIds((prev) => {
+    if (enabledVideoIds.length > 0) {
+      const nextAttachedIds = new Set(attachedVideoIdsRef.current);
       let changed = false;
-      const next = new Set(prev);
       for (const id of enabledVideoIds) {
-        if (next.has(id)) continue;
-        next.add(id);
+        if (nextAttachedIds.has(id)) continue;
+        nextAttachedIds.add(id);
         changed = true;
       }
-      return changed ? next : prev;
-    });
+      if (changed) {
+        commitAttachedVideoIds(nextAttachedIds);
+      }
+    }
 
     for (const id of enabledVideoIds) {
       const timeoutId = detachTimeoutByIdRef.current.get(id);
@@ -225,17 +263,26 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       node?.pause();
       if (detachTimeoutByIdRef.current.has(id)) continue;
       const timeoutId = window.setTimeout(() => {
-        setAttachedVideoIds((prev) => {
-          if (!prev.has(id)) return prev;
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
+        const nextAttachedIds = new Set(attachedVideoIdsRef.current);
+        if (!nextAttachedIds.has(id)) {
+          detachTimeoutByIdRef.current.delete(id);
+          return;
+        }
+        nextAttachedIds.delete(id);
+        commitAttachedVideoIds(nextAttachedIds);
         detachTimeoutByIdRef.current.delete(id);
       }, detachDelayMs);
       detachTimeoutByIdRef.current.set(id, timeoutId);
     }
-  }, [detachDelayMs, enabled, enabledVideoIds, surface, videoIdsInOrderSignature]);
+  }, [
+    commitAttachedVideoIds,
+    detachDelayMs,
+    enabled,
+    enabledVideoIds,
+    surface,
+    videoIdsInOrder,
+    videoIdsInOrderSignature,
+  ]);
 
   useEffect(
     () => () => {

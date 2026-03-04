@@ -5,6 +5,8 @@
 import type { StudioMode, ToolId } from "../../types";
 
 export type NormalizedSubmissionTool = ToolId | "image" | "video";
+export const CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR =
+  "Switch to image generation before running this action.";
 
 /**
  * Normalizes legacy tool aliases to shared workflow buckets.

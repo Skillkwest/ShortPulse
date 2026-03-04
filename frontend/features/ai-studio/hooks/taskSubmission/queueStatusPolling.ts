@@ -14,6 +14,7 @@ import { applyQueuedSubmissionPatch } from "./outputLifecyclePatches";
 import type { StudioOutput, ToolId } from "../../types";
 
 export const QUEUE_STATUS_MAX_WAIT_MS = 30 * 60 * 1000;
+export const QUEUE_STATUS_NOT_FOUND_MAX_RETRIES = 8;
 export const clampQueuePollMs = (value: number) =>
   Math.max(500, Math.min(10000, Math.trunc(value)));
 
@@ -82,6 +83,7 @@ export const startQueuedStatusPolling = ({
   queueStatusSessionRef.current[outputId] = pollSession;
   const initialDelayMs = clampQueuePollMs(queuedResponse.pollAfterMs);
   const queueEnqueuedAtMs = Date.now();
+  let notFoundRetries = 0;
 
   updateOutputById(outputId, (item) =>
     applyQueuedSubmissionPatch({
@@ -135,6 +137,21 @@ export const startQueuedStatusPolling = ({
         clearQueueStatusPolling(outputId);
         notifyGenerationFailure(outputId, queueStatus.message, queueStatus.message);
         return;
+      }
+
+      if (queueStatus.status === "not_found") {
+        notFoundRetries += 1;
+        if (notFoundRetries >= QUEUE_STATUS_NOT_FOUND_MAX_RETRIES) {
+          clearQueueStatusPolling(outputId);
+          notifyGenerationFailure(
+            outputId,
+            "Queued generation could not be found. Please retry.",
+            "Generation queue status remained unresolved while waiting for dispatch."
+          );
+          return;
+        }
+      } else {
+        notFoundRetries = 0;
       }
 
       if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {

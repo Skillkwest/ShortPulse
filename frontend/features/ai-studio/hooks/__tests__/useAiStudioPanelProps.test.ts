@@ -156,6 +156,7 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesCreate.isGenerateDisabled).toBe(true);
     expect(result.current.propertiesCreate.outputGenerateCostCredits).toBe(25);
     expect(result.current.propertiesCreate.hasSufficientCreditsForOutputGenerate).toBe(true);
+    expect(result.current.propertiesEditExpert.expertEditEligible).toBe(false);
     expect(typeof result.current.propertiesCreate.onGenerateFromAgentOutputPrompt).toBe("function");
     expect(typeof result.current.propertiesCreate.onChatOffInlineGenerate).toBe("function");
   });
@@ -312,5 +313,45 @@ describe("useAiStudioPanelProps", () => {
       )
     );
     expect(beginnerResult.current.propertiesCreate.expertCreateUiEligible).toBe(false);
+  });
+
+  it("enables expert edit UI by default when beginner mode is off", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: false,
+        })
+      )
+    );
+
+    expect(result.current.propertiesEditExpert.expertEditEligible).toBe(true);
+  });
+
+  it("allows env override to disable expert edit UI", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI", "false");
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: false,
+        })
+      )
+    );
+
+    expect(result.current.propertiesEditExpert.expertEditEligible).toBe(false);
+  });
+
+  it("disables expert edit UI when beginner mode is on", () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI", "true");
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: true,
+        })
+      )
+    );
+
+    expect(result.current.propertiesEditExpert.expertEditEligible).toBe(false);
   });
 });

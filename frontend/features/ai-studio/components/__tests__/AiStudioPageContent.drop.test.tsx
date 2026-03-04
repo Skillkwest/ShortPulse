@@ -108,6 +108,7 @@ const createProps = (
   onToggleCreateTools: vi.fn(),
   propertiesCreate: {} as AiStudioPageContentProps["propertiesCreate"],
   propertiesImage: {} as AiStudioPageContentProps["propertiesImage"],
+  propertiesEditExpert: { expertEditEligible: false },
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
   isTemplateView: false,
   referenceGridProps: {

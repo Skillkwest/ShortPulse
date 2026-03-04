@@ -274,9 +274,18 @@ export const useAiStudioPanelProps = ({
       : normalizedExpertCreateUiFlag === "false"
         ? false
         : isDevBuild;
+  const explicitExpertEditUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI;
+  const normalizedExpertEditUiFlag = explicitExpertEditUiFlag?.trim().toLowerCase();
+  const isExpertEditUiEnabledByEnv =
+    normalizedExpertEditUiFlag === "false"
+      ? false
+      : normalizedExpertEditUiFlag === "true"
+        ? true
+        : true;
   const beginnerPolicy = createWorkflowBeginnerModePolicy(
     beginnerMode,
-    isExpertCreateUiEnabledByEnv
+    isExpertCreateUiEnabledByEnv,
+    isExpertEditUiEnabledByEnv
   );
 
   const handleEditPromptSave = useCallback(
@@ -457,6 +466,9 @@ export const useAiStudioPanelProps = ({
     // Temporary alias while downstream callsites are migrated.
     propertiesText: propertiesCreate,
     propertiesImage,
+    propertiesEditExpert: {
+      expertEditEligible: beginnerPolicy.edit.expertEditEligible,
+    },
     propertiesVideo,
   };
 };

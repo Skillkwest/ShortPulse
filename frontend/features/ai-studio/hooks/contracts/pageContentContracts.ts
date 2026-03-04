@@ -12,11 +12,15 @@ import type { StudioOutput } from "../../types";
 
 export type AiStudioCreatePanelContract = CreatePropertiesPanelProps;
 export type AiStudioEditPanelContract = EditPropertiesPanelProps;
+export type AiStudioEditExpertPanelContract = {
+  expertEditEligible: boolean;
+};
 export type AiStudioVideoPanelContract = VideoPropertiesPanelProps;
 
 export type AiStudioPanelContracts = {
   propertiesCreate: AiStudioCreatePanelContract;
   propertiesImage: AiStudioEditPanelContract;
+  propertiesEditExpert: AiStudioEditExpertPanelContract;
   propertiesVideo: AiStudioVideoPanelContract;
   /**
    * @deprecated Use `propertiesCreate`.

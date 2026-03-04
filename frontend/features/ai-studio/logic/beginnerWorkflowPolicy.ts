@@ -10,6 +10,7 @@ export type WorkflowBeginnerModePolicy = {
   };
   edit: {
     beginnerMode: boolean;
+    expertEditEligible: boolean;
   };
   video: {
     beginnerMode: boolean;
@@ -24,7 +25,8 @@ export type WorkflowBeginnerModePolicy = {
  */
 export const createWorkflowBeginnerModePolicy = (
   beginnerMode: boolean,
-  isExpertCreateUiEnabledByEnv: boolean
+  isExpertCreateUiEnabledByEnv: boolean,
+  isExpertEditUiEnabledByEnv: boolean
 ): WorkflowBeginnerModePolicy => ({
   create: {
     beginnerMode,
@@ -32,6 +34,7 @@ export const createWorkflowBeginnerModePolicy = (
   },
   edit: {
     beginnerMode,
+    expertEditEligible: !beginnerMode && isExpertEditUiEnabledByEnv,
   },
   video: {
     beginnerMode,

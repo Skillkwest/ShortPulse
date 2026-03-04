@@ -418,6 +418,9 @@ export type AiStudioPageContentProps = {
    */
   propertiesText?: CreateSectionProps;
   propertiesImage: EditSectionProps;
+  propertiesEditExpert: {
+    expertEditEligible: boolean;
+  };
   propertiesVideo: VideoSectionProps;
   isTemplateView: boolean;
   referenceGridProps: ReferenceGridProps;
@@ -477,6 +480,7 @@ export function AiStudioPageContent({
   propertiesCreate,
   propertiesText,
   propertiesImage,
+  propertiesEditExpert,
   propertiesVideo,
   isTemplateView,
   referenceGridProps,
@@ -512,6 +516,11 @@ export function AiStudioPageContent({
     propertiesPanelKind === "create" &&
     resolvedCreateProperties.expertCreateUiEligible &&
     !resolvedCreateProperties.beginnerMode
+  );
+  const showExpertEditPanel = Boolean(
+    propertiesPanelKind === "edit" &&
+    propertiesEditExpert.expertEditEligible &&
+    !propertiesImage.beginnerMode
   );
   const { activeCount } = useOutputCounts();
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
@@ -620,7 +629,11 @@ export function AiStudioPageContent({
           ) : null}
         </>
       ),
-      edit: <EditPropertiesPanel {...propertiesImage} />,
+      edit: showExpertEditPanel ? (
+        <EditPropertiesPanel {...propertiesImage} />
+      ) : (
+        <EditPropertiesPanel {...propertiesImage} />
+      ),
       video: <VideoPropertiesPanel {...propertiesVideo} />,
       character: (
         <CharacterPanel
@@ -634,9 +647,11 @@ export function AiStudioPageContent({
       agentChat.isOpen,
       beginnerMode,
       propertiesImage,
+      propertiesEditExpert,
       resolvedCreateProperties,
       resolveCharacterDropReference,
       propertiesVideo,
+      showExpertEditPanel,
       showExpertCreatePanel,
     ]
   );

@@ -19,6 +19,7 @@ export type AiStudioPageContentAdapterOutput = Pick<
   | "propertiesCreate"
   | "propertiesText"
   | "propertiesImage"
+  | "propertiesEditExpert"
   | "propertiesVideo"
   | "referenceGridProps"
   | "studioPreviewProps"
@@ -42,6 +43,7 @@ export const mapHookContractsToPageContentProps = ({
   propertiesCreate: panelProps.propertiesCreate,
   propertiesText: panelProps.propertiesText,
   propertiesImage: panelProps.propertiesImage,
+  propertiesEditExpert: panelProps.propertiesEditExpert,
   propertiesVideo: panelProps.propertiesVideo,
   referenceGridProps,
   studioPreviewProps: previewDetailProps.studioPreviewProps,

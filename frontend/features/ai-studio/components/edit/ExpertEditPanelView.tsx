@@ -1,6 +1,6 @@
 import Image from "next/image";
 import React from "react";
-import { Plus, UploadSimple } from "phosphor-react";
+import { GearSix, PaintBrushBroad, Plus, Sliders, UploadSimple } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import type { AspectOption } from "../../types";
 import { modelLogos } from "../../constants";
@@ -160,6 +160,13 @@ const CharacterPickerModal = ({
 };
 
 const secondaries = [0, 1, 2] as const;
+const editPresetLabels = [
+  "Selfie",
+  "Side Profile",
+  "Over Shoulder",
+  "Low Angle",
+  "More presets",
+] as const;
 
 export function ExpertEditPanelView({
   aspect,
@@ -182,7 +189,6 @@ export function ExpertEditPanelView({
   costCredits,
   isGenerateDisabled = false,
   isGenerateBusy = false,
-  referenceImageWarning,
   onImageResolutionChange,
   characterOptions = [],
   selectedCharacterId = "",
@@ -268,15 +274,43 @@ export function ExpertEditPanelView({
 
   return (
     <div
-      className="tool-properties edit-expert-panel"
+      className="tool-properties edit-expert-panel create-expert-panel"
       role="group"
       aria-label="Expert edit composer"
     >
-      <div className="tool-header">
-        <p className="eyebrow">Edit</p>
-      </div>
-
       <div className="edit-expert-main-stage">
+        <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
+          <div className="edit-expert-preset-toolbar-title-card">
+            <p className="edit-expert-preset-toolbar-title">Presets</p>
+            <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">
+              <Sliders size={14} weight="regular" />
+            </span>
+          </div>
+          <div className="edit-expert-preset-toolbar-card">
+            <div className="edit-expert-preset-toolbar-list">
+              {editPresetLabels.map((label) => (
+                <React.Fragment key={label}>
+                  {label === "More presets" ? (
+                    <div className="edit-expert-preset-divider" aria-hidden="true" />
+                  ) : null}
+                  <button
+                    type="button"
+                    className="edit-expert-preset-btn"
+                    aria-label={`Apply ${label} preset`}
+                  >
+                    {label === "More presets" ? (
+                      <span className="edit-expert-preset-btn-icon" aria-hidden="true">
+                        <GearSix size={12} weight="regular" />
+                      </span>
+                    ) : null}
+                    {label}
+                  </button>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div
           className={`edit-expert-primary-dropzone ${referenceImageUrl ? "has-preview" : ""} ${
             primaryDragActive ? "is-dragging" : ""
@@ -309,56 +343,74 @@ export function ExpertEditPanelView({
         </div>
 
         <div className="edit-expert-secondary-row">
-          {secondaries.map((index) => {
-            const previewUrl = extraImageUrls[index];
-            const inputRef = inputRefs[index];
-            return (
-              <div className="edit-expert-secondary-slot" key={`expert-edit-secondary-${index}`}>
-                <div
-                  className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
-                    extraDragActive[index] ? "is-dragging" : ""
-                  }`}
-                  onDrop={handleExtraDrop(index)}
-                  onDragEnter={handleExtraDragEnter(index)}
-                  onDragOver={handleExtraDragOver(index)}
-                  onDragLeave={handleExtraDragLeave(index)}
-                  onClick={() => inputRef.current?.click()}
-                  style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
-                  aria-label={`Secondary edit image ${index + 1}`}
-                >
-                  {previewUrl ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onExtraImageChange(index, null);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : (
-                    <Plus size={18} weight="regular" />
-                  )}
+          <button type="button" className="edit-expert-inpaint-btn" aria-label="Open inpainting">
+            <PaintBrushBroad size={30} weight="regular" />
+          </button>
+          <div className="edit-expert-secondary-group">
+            {secondaries.map((index) => {
+              const previewUrl = extraImageUrls[index];
+              const inputRef = inputRefs[index];
+              return (
+                <div className="edit-expert-secondary-slot" key={`expert-edit-secondary-${index}`}>
+                  <div
+                    className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
+                      extraDragActive[index] ? "is-dragging" : ""
+                    }`}
+                    onDrop={handleExtraDrop(index)}
+                    onDragEnter={handleExtraDragEnter(index)}
+                    onDragOver={handleExtraDragOver(index)}
+                    onDragLeave={handleExtraDragLeave(index)}
+                    onClick={() => inputRef.current?.click()}
+                    style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                    aria-label={`Secondary edit image ${index + 1}`}
+                  >
+                    {previewUrl ? (
+                      <button
+                        type="button"
+                        className="dropzone-clear"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onExtraImageChange(index, null);
+                        }}
+                      >
+                        ×
+                      </button>
+                    ) : (
+                      <Plus size={18} weight="regular" />
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="edit-expert-input-bar">
-        <textarea
-          className="prompt-drop-input edit-expert-prompt-input"
-          value={referenceText ?? ""}
-          onChange={(event) => onPromptTextChange(event.target.value)}
-          onDrop={handlePromptDrop}
-          onDragOver={(event) => event.preventDefault()}
-          placeholder="Describe the edit you want."
-          aria-label="Edit prompt"
-        />
-
-        <div className="edit-expert-controls-row">
+      <div className="edit-expert-bottom-row">
+        <div className="edit-expert-prompt-shell">
+          <div className="edit-expert-prompt-row">
+            <textarea
+              className="prompt-drop-input edit-expert-prompt-input"
+              value={referenceText ?? ""}
+              onChange={(event) => onPromptTextChange(event.target.value)}
+              onDrop={handlePromptDrop}
+              onDragOver={(event) => event.preventDefault()}
+              placeholder="Write your prompt..."
+              aria-label="Edit prompt"
+            />
+          </div>
+        </div>
+        <div className="edit-expert-inline-generate edit-expert-inline-generate--outside">
+          <AgentGenerateButton
+            onClick={onRegenerate}
+            disabled={inlineGenerateDisabled}
+            isBusy={isGenerateBusy}
+            cost={costCredits != null ? costCredits : "—"}
+          />
+        </div>
+      </div>
+      <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
+        <div className="create-expert-controls">
           <div
             className={`create-expert-control create-expert-character-mode-control ${
               characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
@@ -413,8 +465,7 @@ export function ExpertEditPanelView({
             ) : null}
           </div>
 
-          <div className="edit-expert-control model-control">
-            <span className="create-expert-control-label">Model</span>
+          <div className="create-expert-control create-expert-model-control">
             <button
               type="button"
               className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
@@ -441,8 +492,7 @@ export function ExpertEditPanelView({
             </button>
           </div>
 
-          <div className="edit-expert-control aspect-control">
-            <span className="create-expert-control-label">Aspect</span>
+          <div className="create-expert-control create-expert-aspect-control">
             <AspectDropdown
               aspect={aspect}
               onSelect={onAspectChange}
@@ -451,8 +501,7 @@ export function ExpertEditPanelView({
           </div>
 
           {shouldShowResolutionControl ? (
-            <div className="edit-expert-control resolution-control">
-              <span className="create-expert-control-label">Resolution</span>
+            <div className="create-expert-control create-expert-resolution-control">
               <ResolutionDropdown
                 value={imageResolutionValue}
                 options={imageResolutionOptions}
@@ -460,20 +509,7 @@ export function ExpertEditPanelView({
               />
             </div>
           ) : null}
-
-          <div className="edit-expert-inline-generate">
-            <AgentGenerateButton
-              onClick={onRegenerate}
-              disabled={inlineGenerateDisabled}
-              isBusy={isGenerateBusy}
-              cost={costCredits != null ? costCredits : "—"}
-            />
-          </div>
         </div>
-
-        {referenceImageWarning ? (
-          <p className="tiny helper-text edit-expert-reference-warning">{referenceImageWarning}</p>
-        ) : null}
       </div>
 
       <input

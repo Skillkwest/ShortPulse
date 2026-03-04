@@ -767,7 +767,8 @@ body.ai-shell-resizing * {
 
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
   .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text"] .panel.ai-panel.ai-properties {
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties {
   background: #94a0a108;
   border: 0;
   box-shadow: none;

@@ -46,6 +46,7 @@ import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
+  AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
@@ -527,7 +528,9 @@ export function AiStudioPageContent({
     ? AI_SHELL_LEFT_CHARACTER_MIN_PX
     : showExpertCreatePanel
       ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
-      : undefined;
+      : showExpertEditPanel
+        ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
+        : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
   const {
     shellRef,

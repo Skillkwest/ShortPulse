@@ -3,14 +3,36 @@
  * Scoped under `.edit-expert-panel` to avoid impacting legacy beginner edit UI.
  */
 .edit-expert-panel {
+  --edit-expert-accent: var(--color-amber, #f5b942);
+  --edit-expert-accent-start: #f5b754;
+  --edit-expert-accent-end: #f4921f;
+  --edit-expert-accent-soft: rgba(245, 185, 66, 0.45);
+  --edit-expert-accent-medium: rgba(245, 185, 66, 0.62);
+  --edit-expert-accent-strong: rgba(245, 185, 66, 0.9);
+  --edit-expert-accent-shadow: rgba(245, 185, 66, 0.26);
+  --ai-accent: var(--edit-expert-accent);
+  --ai-accent-start: var(--edit-expert-accent-start);
+  --ai-accent-soft: var(--edit-expert-accent-soft);
+  --ai-accent-medium: var(--edit-expert-accent-medium);
+  --ai-accent-strong: var(--edit-expert-accent-strong);
+  --ai-accent-shadow: var(--edit-expert-accent-shadow);
   --edit-expert-stage-max-width: clamp(360px, 58vw, 560px);
-  --edit-expert-primary-height: clamp(260px, 42vh, 430px);
-  --edit-expert-secondary-size: clamp(62px, 6.2vw, 86px);
-  --edit-expert-panel-gap: 16px;
-  --edit-expert-input-min-height: 98px;
+  --edit-expert-primary-size: clamp(360px, 40vw, 590px);
+  --edit-expert-secondary-width: clamp(72px, calc(var(--app-fixed-width) * 0.09), 92px);
+  --edit-expert-secondary-aspect: 4 / 5;
+  --edit-expert-secondary-border: 1px dashed rgba(160, 170, 182, 0.45);
+  --edit-expert-secondary-border-hover: rgba(245, 185, 66, 0.58);
+  --edit-expert-secondary-border-active: rgba(245, 185, 66, 0.92);
+  --edit-expert-secondary-shadow-active: 0 0 0 2px rgba(245, 185, 66, 0.24);
+  --edit-expert-secondary-bg: #101215;
+  --edit-expert-secondary-bg-hover: #16181b;
+  --edit-expert-secondary-radius: 8px;
+  --edit-expert-secondary-rail-offset: clamp(18px, 2.2vw, 24px);
+  --edit-expert-panel-gap: 8px;
+  --edit-expert-input-min-height: 86px;
   --edit-expert-input-bg: rgba(12, 15, 22, 0.88);
   --edit-expert-input-border: rgba(201, 205, 214, 0.16);
   --edit-expert-drop-border: rgba(201, 205, 214, 0.18);
   --edit-expert-drop-bg: rgba(7, 10, 16, 0.78);
-  --edit-expert-drop-hover: rgba(37, 169, 191, 0.16);
+  --edit-expert-drop-hover: rgba(245, 185, 66, 0.14);
 }

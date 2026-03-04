@@ -6,7 +6,6 @@ import {
   markGenerationReservationSubmitted,
   releaseGenerationReservationBySourceRef,
 } from "../generationBilling/reservationRpcAdapter";
-import { resolveGenerationAdmissionTier } from "../../../model-runtime/generationAdmissionTiers";
 import { getFalModelProfileByModelId } from "../../falIntegration/modelProfiles";
 import type { SubmitTarget } from "../../falIntegration/contracts";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "../falSubmitTargeting";
@@ -32,6 +31,7 @@ import {
   assertReservationSubmissionAccepted,
   decideQueueTransitionCompensation,
 } from "./transitionGuard";
+import { readActiveProviderCapacitySnapshot } from "./activeProviderCapacity";
 
 type JsonObject = Record<string, unknown>;
 
@@ -97,36 +97,37 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
-const readProviderActiveReservationModelIds = async (userId: string): Promise<string[]> => {
-  const { data } = await getSupabaseAdmin()
-    .from("ai_credit_reservations")
-    .select("model_id")
-    .eq("user_id", userId)
-    .eq("status", "reserved")
-    .not("provider_request_id", "is", null);
-  if (!Array.isArray(data)) return [];
-  return data
-    .map((row) => asString((row as JsonObject).model_id))
-    .filter((modelId): modelId is string => Boolean(modelId));
-};
-
-const isAtProviderConcurrencyCap = async ({
+const readProviderCapacityState = async ({
   userId,
   modelId,
 }: {
   userId: string;
   modelId: string;
-}): Promise<boolean> => {
+}): Promise<{
+  atCap: boolean;
+  snapshot: {
+    tier: string;
+    globalActive: number;
+    tierActive: number;
+    staleIgnoredGlobal: number;
+    staleIgnoredTier: number;
+  };
+}> => {
   const flags = readFalRuntimeFlags();
-  const activeModelIds = await readProviderActiveReservationModelIds(userId);
-  const globalActive = activeModelIds.length;
-  const globalAtCap = globalActive >= flags.admission.globalMax;
-  const tier = resolveGenerationAdmissionTier(modelId);
-  const tierActive = activeModelIds.filter(
-    (activeModelId) => resolveGenerationAdmissionTier(activeModelId) === tier
-  ).length;
-  const tierAtCap = tierActive >= flags.admission.tierLimits[tier];
-  return globalAtCap || tierAtCap;
+  const snapshot = await readActiveProviderCapacitySnapshot({
+    userId,
+    modelId,
+    // Ignore stale holds once they are older than queue max-wait.
+    staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
+    // Keep very recent unmatched reservations fail-closed during persistence races.
+    orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
+  });
+  const globalAtCap = snapshot.globalActive >= flags.admission.globalMax;
+  const tierAtCap = snapshot.tierActive >= flags.admission.tierLimits[snapshot.tier];
+  return {
+    atCap: globalAtCap || tierAtCap,
+    snapshot,
+  };
 };
 
 const resolveBackoffSeconds = ({
@@ -247,7 +248,7 @@ const setGenerationFailed = async ({
   userId: string;
   message: string;
 }) => {
-  await getSupabaseAdmin()
+  const response = await getSupabaseAdmin()
     .from("ai_generations")
     .update({
       status: "fail",
@@ -259,6 +260,7 @@ const setGenerationFailed = async ({
     })
     .eq("id", generationId)
     .eq("user_id", userId);
+  if (response.error) throw response.error;
 };
 
 const mergeGenerationMetadata = (existing: unknown, patch: JsonObject): JsonObject => {
@@ -390,13 +392,36 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  if (await isAtProviderConcurrencyCap({ userId: item.userId, modelId: item.modelId })) {
+  const capacityState = await readProviderCapacityState({
+    userId: item.userId,
+    modelId: item.modelId,
+  });
+  if (capacityState.snapshot.staleIgnoredGlobal > 0 && attemptNumber === 1) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "telemetry.queue.dispatch.capacity_stale_ignored",
+      statusCode: 200,
+      message: "Ignored stale provider-attached reservations while evaluating queue capacity.",
+      userId: item.userId,
+      metadata: {
+        queue_id: item.queueId,
+        generation_id: item.generationId,
+        model_id: item.modelId,
+        tier: capacityState.snapshot.tier,
+        stale_ignored_global: capacityState.snapshot.staleIgnoredGlobal,
+        stale_ignored_tier: capacityState.snapshot.staleIgnoredTier,
+      },
+    });
+  }
+
+  if (capacityState.atCap) {
     const queueAgeSeconds = readQueueAgeSeconds(item.createdAt);
     if (queueAgeSeconds !== null && queueAgeSeconds >= runtimeFlags.queueMaxWaitSeconds) {
       const message = "Queued generation exceeded max wait time without available capacity.";
       const exhaustResult = await markQueueItemExhausted({
         queueId: item.queueId,
-        attempts: item.attempts,
+        attempts: attemptNumber,
         lastError: message,
         lastErrorCode: "QUEUE_WAIT_TIMEOUT",
       });
@@ -407,7 +432,7 @@ const processClaimedQueueItem = async ({
         reason: "Auto-release: queued submit exceeded max wait time without capacity.",
         metadata: {
           queue_id: item.queueId,
-          queue_attempts: item.attempts,
+          queue_attempts: attemptNumber,
           queue_age_seconds: queueAgeSeconds,
           queue_max_wait_seconds: runtimeFlags.queueMaxWaitSeconds,
         },
@@ -428,7 +453,7 @@ const processClaimedQueueItem = async ({
           queue_id: item.queueId,
           generation_id: item.generationId,
           source_ref: item.sourceRef,
-          attempts: item.attempts,
+          attempts: attemptNumber,
           model_id: item.modelId,
           error_code: "QUEUE_WAIT_TIMEOUT",
           queue_age_seconds: queueAgeSeconds,

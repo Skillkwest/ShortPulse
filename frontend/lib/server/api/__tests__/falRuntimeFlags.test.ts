@@ -17,6 +17,9 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED;
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE;
+    delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED;
+    delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS;
+    delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED;
@@ -47,6 +50,9 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.reservationCleanupEnabled).toBe(false);
     expect(flags.reservationCleanupMinAgeSeconds).toBe(900);
     expect(flags.reservationCleanupBatchSize).toBe(200);
+    expect(flags.providerAttachedReservationCleanupEnabled).toBe(false);
+    expect(flags.providerAttachedReservationCleanupMinAgeSeconds).toBe(7200);
+    expect(flags.providerAttachedReservationOrphanMinAgeSeconds).toBe(86400);
     expect(flags.admissionAtomicEnabled).toBe(false);
     expect(flags.queueEnabled).toBe(false);
     expect(flags.queueStatusDispatchKickEnabled).toBe(true);
@@ -73,6 +79,9 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED = "false";
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS = "1200";
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE = "350";
+    process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS = "5400";
+    process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS = "90000";
     process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED = "false";
@@ -103,6 +112,9 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.reservationCleanupEnabled).toBe(false);
     expect(flags.reservationCleanupMinAgeSeconds).toBe(1200);
     expect(flags.reservationCleanupBatchSize).toBe(350);
+    expect(flags.providerAttachedReservationCleanupEnabled).toBe(true);
+    expect(flags.providerAttachedReservationCleanupMinAgeSeconds).toBe(5400);
+    expect(flags.providerAttachedReservationOrphanMinAgeSeconds).toBe(90000);
     expect(flags.admissionAtomicEnabled).toBe(true);
     expect(flags.queueEnabled).toBe(true);
     expect(flags.queueStatusDispatchKickEnabled).toBe(false);
@@ -126,9 +138,11 @@ describe("readFalRuntimeFlags admission config", () => {
   it("enables reservation cleanup by default when reconciler is enabled", () => {
     process.env.SHORTPULSE_FAL_RECONCILER_ENABLED = "true";
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED;
+    delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED;
 
     const flags = readFalRuntimeFlags();
     expect(flags.reconcilerEnabled).toBe(true);
     expect(flags.reservationCleanupEnabled).toBe(true);
+    expect(flags.providerAttachedReservationCleanupEnabled).toBe(true);
   });
 });

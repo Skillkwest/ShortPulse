@@ -379,6 +379,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `release_generation_reservation_by_source_ref(...)`: releases reservation by source reference.
 - `release_generation_reservation_by_provider_request(...)`: releases reservation by provider request id.
 - `release_stale_generation_reservations(p_limit, p_min_age_seconds)`: conservative janitor that releases only pre-submit stale rows (`status='reserved'`, `provider_request_id is null`) and skips rows with active queue entries.
+- `release_stale_provider_attached_generation_reservations(p_limit, p_min_age_seconds, p_orphan_min_age_seconds)`: conservative janitor for provider-attached reserved rows that are clearly non-active (terminal/exhausted generation linkage or aged orphaned request id) and not actively queued.
 - Used by: `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`.
 
 ### ai_generation_submit_queue

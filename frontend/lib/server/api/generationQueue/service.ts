@@ -436,7 +436,7 @@ export const readGenerationQueueStatus = async ({
   if (generationId) {
     const { data } = await supabase
       .from(QUEUE_TABLE)
-      .select("id, status, source_ref, generation_id, next_attempt_at")
+      .select("id, status, source_ref, generation_id, next_attempt_at, last_error, last_error_code")
       .eq("user_id", userId)
       .eq("generation_id", generationId)
       .maybeSingle();
@@ -446,7 +446,7 @@ export const readGenerationQueueStatus = async ({
   if (!queueRow && sourceRef) {
     const { data } = await supabase
       .from(QUEUE_TABLE)
-      .select("id, status, source_ref, generation_id, next_attempt_at")
+      .select("id, status, source_ref, generation_id, next_attempt_at, last_error, last_error_code")
       .eq("user_id", userId)
       .eq("source_ref", sourceRef)
       .maybeSingle();
@@ -482,6 +482,7 @@ export const readGenerationQueueStatus = async ({
 
   const requestId = asString(generationRow?.request_id);
   const generationStatus = asString(generationRow?.status)?.toLowerCase();
+  const queueStatus = parseQueueStatus(queueRow?.status);
 
   if (requestId) {
     return {
@@ -502,7 +503,20 @@ export const readGenerationQueueStatus = async ({
     };
   }
 
-  if (queueRow) {
+  if (queueStatus === "exhausted") {
+    const queueError =
+      asString(queueRow?.last_error) ??
+      asString(generationRow?.error_message) ??
+      "Generation failed before dispatch.";
+    return {
+      status: "failed",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRef ?? null,
+      message: queueError,
+    };
+  }
+
+  if (queueStatus === "queued" || queueStatus === "dispatching") {
     return {
       status: "queued",
       generationId: resolvedGenerationId ?? generationId ?? "",

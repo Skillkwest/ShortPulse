@@ -27,6 +27,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`: full UX-0 baseline report for all priority routes plus first-pass keyboard baseline.
 - `ai-studio-generation-runtime-v2-locked-execution.md`: authoritative locked execution plan for server-authoritative runtime v2.
 - `ai-studio-generation-runtime-audit-2026-02-20.md`: repo audit findings and implementation deltas for runtime v2.
+- `ai-studio-generation-queue-hardening-2026-03-04.md`: low-drift implementation plan for generation-start recovery and queue hardening.
+- `ai-studio-generation-queue-hardening-tracker-2026-03-04.md`: execution tracker for queue hardening status, tests, and exit criteria.
 - `ai-studio-runtime-v2-recovery-execution-phase.md`: shared recovery execution phase tracker (webhook inbox, verify cutover, reconciler leases, guarded transitions).
 - `ai-studio-runtime-v2-staging-execution-checklist.md`: operator checklist with ordered staging migration/env/deploy/smoke-test commands and runtime gates.
 - `ai-studio-fal-reliability-rollout.md`: archived pointer to superseded planning doc (full archive under `docs/archive/planning/`).

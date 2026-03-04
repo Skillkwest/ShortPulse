@@ -21,16 +21,15 @@ import {
   resolveGenerationResolutionFromPayload,
   readGenerationDurationSeconds,
 } from "./generationQueue/metadata";
+import { readActiveProviderCapacitySnapshot } from "./generationQueue/activeProviderCapacity";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
 import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
-import { resolveGenerationAdmissionTier } from "../../model-runtime/generationAdmissionTiers";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import { runStudioAgentSafetyInputPrecheck } from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
 import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
 import { enforceServerGenerationSafetyPayload } from "../../../features/agent-runtime/safetyPolicy/generationSafetyPolicy";
 import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
-import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -91,29 +90,6 @@ const buildQueuedSubmitPayload = ({
   generationId,
   pollAfterMs: 2000,
 });
-
-const readProviderActiveReservationModelIds = async (userId: string): Promise<string[]> => {
-  const { data } = await getSupabaseAdmin()
-    .from("ai_credit_reservations")
-    .select("model_id")
-    .eq("user_id", userId)
-    .eq("status", "reserved")
-    .not("provider_request_id", "is", null);
-  if (!Array.isArray(data)) return [];
-  const modelIds: string[] = [];
-  for (const row of data) {
-    const record =
-      row && typeof row === "object" && !Array.isArray(row)
-        ? (row as Record<string, unknown>)
-        : null;
-    if (!record) continue;
-    const modelId = record.model_id;
-    if (typeof modelId !== "string") continue;
-    const trimmed = modelId.trim();
-    if (trimmed.length) modelIds.push(trimmed);
-  }
-  return modelIds;
-};
 
 const applyRewrittenPromptToPayload = ({
   payload,
@@ -293,21 +269,39 @@ export const createFalSubmitHandler =
 
     try {
       const evaluateQueueAdmissionDecision = async () => {
-        const tier = resolveGenerationAdmissionTier(modelId);
-        const activeModelIds = await readProviderActiveReservationModelIds(charge.userId);
-        const tierActive = activeModelIds.filter(
-          (activeModelId) => resolveGenerationAdmissionTier(activeModelId) === tier
-        ).length;
+        const capacitySnapshot = await readActiveProviderCapacitySnapshot({
+          userId: charge.userId,
+          modelId,
+          staleIgnoreMinAgeSeconds: runtimeFlags.queueMaxWaitSeconds,
+          orphanGraceSeconds: Math.max(60, runtimeFlags.queueBaseBackoffSeconds * 12),
+        });
+        if (capacitySnapshot.staleIgnoredGlobal > 0) {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "telemetry.api.fal_submit.capacity_stale_ignored",
+            message:
+              "Ignored stale provider-attached reservations while evaluating submit admission.",
+            statusCode: 200,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              tier: capacitySnapshot.tier,
+              stale_ignored_global: capacitySnapshot.staleIgnoredGlobal,
+              stale_ignored_tier: capacitySnapshot.staleIgnoredTier,
+            },
+          });
+        }
         return evaluateGenerationAdmissionDecision({
           mode: runtimeFlags.admission.mode,
           retryAfterSeconds: runtimeFlags.admission.retryAfterSeconds,
           snapshot: {
             // Admission snapshot is computed as post-submit state.
-            globalActive: activeModelIds.length + 1,
+            globalActive: capacitySnapshot.globalActive + 1,
             globalMax: runtimeFlags.admission.globalMax,
-            tier,
-            tierActive: tierActive + 1,
-            tierMax: runtimeFlags.admission.tierLimits[tier],
+            tier: capacitySnapshot.tier,
+            tierActive: capacitySnapshot.tierActive + 1,
+            tierMax: runtimeFlags.admission.tierLimits[capacitySnapshot.tier],
           },
         });
       };

@@ -249,6 +249,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    if (flags.providerAttachedReservationCleanupEnabled) {
+      const providerCleanupResponse = await supabaseAdmin.rpc(
+        "release_stale_provider_attached_generation_reservations",
+        {
+          p_limit: flags.reservationCleanupBatchSize,
+          p_min_age_seconds: flags.providerAttachedReservationCleanupMinAgeSeconds,
+          p_orphan_min_age_seconds: flags.providerAttachedReservationOrphanMinAgeSeconds,
+        }
+      );
+      if (providerCleanupResponse.error) {
+        reservationCleanupErrors += 1;
+        await logApiRouteException({
+          req,
+          error: providerCleanupResponse.error,
+          routeLabel: "internal/generation-recovery/run",
+          metadata: {
+            stage: "provider_attached_reservation_cleanup",
+          },
+        });
+      } else {
+        const metrics = parseCleanupMetrics(providerCleanupResponse.data);
+        reservationCleanupScanned += metrics.scanned;
+        reservationCleanupReleased += metrics.released;
+        reservationCleanupErrors += metrics.errors;
+      }
+    }
+
     if (flags.queueEnabled) {
       try {
         const queueMetrics = await dispatchGenerationSubmitQueueBatch({

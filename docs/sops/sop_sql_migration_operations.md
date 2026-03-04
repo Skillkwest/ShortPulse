@@ -87,6 +87,8 @@ Current set:
 - `050_add_media_list_search_cursor_indexes.sql`
 - `051_add_agent_safety_policy_version_rpc.sql`
 - `052_extend_queue_recovery_provider_scope_to_kie.sql`
+- `053_fix_ai_studio_session_upsert_ambiguity.sql`
+- `054_add_provider_attached_stale_reservation_cleanup.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

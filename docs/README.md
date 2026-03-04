@@ -132,6 +132,8 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
 - `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
 - `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
+- `docs/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
+- `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
 - `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)

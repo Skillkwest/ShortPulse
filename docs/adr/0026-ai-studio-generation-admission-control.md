@@ -62,6 +62,12 @@ The near-term goal is overload protection with minimal regression risk while pre
 2. Added queue max-wait policy (`SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, default 1200s) so no-capacity requeues cannot persist forever; timed-out queue entries are exhausted, reservation-released, and terminalized.
 3. Extended internal recovery route auth to accept bearer secret in addition to cron header, and standardized on external scheduler invocation (Supabase Cron primary) for minute-cadence queue dispatch + recovery processing.
 
+## Follow-Up Capacity/Queue Hardening (2026-03-04)
+1. Added a shared provider-attached active-capacity evaluator used by both submit admission (`falSubmitProxy`) and queue dispatch (`generationQueue/dispatch`) so both choke points apply the same stale/active classification semantics.
+2. Capacity evaluation now ignores clearly stale provider-attached reserved rows for concurrency decisions while keeping recent unmatched rows fail-closed during a short grace window.
+3. Queue status behavior was hardened so exhausted queue rows resolve as `failed` (instead of lingering as `queued`) without changing the public route contract.
+4. Added migration `054_add_provider_attached_stale_reservation_cleanup.sql` and recovery-route integration for service-role stale provider-attached reservation cleanup behind runtime flags.
+
 ## Alternatives considered
 - Server FIFO queue first:
   - Rejected for phase 1 due higher migration risk (queue persistence, workers, cancellation semantics, billing semantics for queued jobs).

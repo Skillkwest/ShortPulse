@@ -139,7 +139,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 50. `sql/migrations/049_enforce_expert_default_beginner_mode.sql`
 51. `sql/migrations/051_add_agent_safety_policy_version_rpc.sql`
 52. `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql`
-53. Rollback files:
+53. `sql/migrations/053_fix_ai_studio_session_upsert_ambiguity.sql`
+54. `sql/migrations/054_add_provider_attached_stale_reservation_cleanup.sql`
+55. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -199,6 +201,8 @@ Billing safety note:
 - Migration `049_enforce_expert_default_beginner_mode.sql` forces expert-first mode defaults by setting `user_preferences.beginner_mode` default to `false` and backfilling existing rows to `false`; rollback restores only the new-row default (`true`).
 - Migration `051_add_agent_safety_policy_version_rpc.sql` adds service-role-only policy version creation RPC support (`create_agent_safety_policy_version`) and audit event type expansion (`version_created`).
 - Migration `052_extend_queue_recovery_provider_scope_to_kie.sql` updates queued-submit persistence to store provider family from enqueue inputs and broadens recovery claims from Fal-only to Fal/Kie provider families.
+- Migration `053_fix_ai_studio_session_upsert_ambiguity.sql` resolves an ambiguity defect in AI Studio session snapshot upsert semantics to keep persistence writes deterministic.
+- Migration `054_add_provider_attached_stale_reservation_cleanup.sql` adds a service-role-only RPC to release clearly stale provider-attached reserved holds and supports automated cleanup from the generation-recovery route.
 
 ## Media storage scope verification (post-017)
 

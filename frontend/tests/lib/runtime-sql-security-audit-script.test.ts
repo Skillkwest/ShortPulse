@@ -25,6 +25,7 @@ const REQUIRED_SIGNATURES = [
   "public.claim_generation_recovery_batch(integer,integer,integer,integer)",
   "public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)",
   "public.release_stale_generation_reservations(integer,integer)",
+  "public.release_stale_provider_attached_generation_reservations(integer,integer,integer)",
   "public.upsert_ai_agent_conversation_state(uuid,text,text,interval,integer)",
   "public.prune_ai_agent_conversation_state_expired(integer)",
 ] as const;

@@ -37,6 +37,9 @@ export type FalRuntimeFlags = {
   reservationCleanupEnabled: boolean;
   reservationCleanupMinAgeSeconds: number;
   reservationCleanupBatchSize: number;
+  providerAttachedReservationCleanupEnabled: boolean;
+  providerAttachedReservationCleanupMinAgeSeconds: number;
+  providerAttachedReservationOrphanMinAgeSeconds: number;
   admissionAtomicEnabled: boolean;
   queueEnabled: boolean;
   queueStatusDispatchKickEnabled: boolean;
@@ -181,6 +184,20 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE,
     200,
     1
+  ),
+  providerAttachedReservationCleanupEnabled: parseBoolean(
+    process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED,
+    parseBoolean(process.env.SHORTPULSE_FAL_RECONCILER_ENABLED, false)
+  ),
+  providerAttachedReservationCleanupMinAgeSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS,
+    7200,
+    0
+  ),
+  providerAttachedReservationOrphanMinAgeSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS,
+    86400,
+    0
   ),
   admissionAtomicEnabled: parseBoolean(process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED, false),
   queueEnabled: parseBoolean(process.env.SHORTPULSE_FAL_QUEUE_ENABLED, false),

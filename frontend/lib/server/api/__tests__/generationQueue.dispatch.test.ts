@@ -6,7 +6,7 @@ const logGenerationFailureMock = vi.fn();
 const readFalRuntimeFlagsMock = vi.fn();
 const releaseGenerationReservationBySourceRefMock = vi.fn();
 const markGenerationReservationSubmittedMock = vi.fn();
-const resolveGenerationAdmissionTierMock = vi.fn();
+const readActiveProviderCapacitySnapshotMock = vi.fn();
 const getFalModelProfileByModelIdMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
 const resolveWebhookCallbackUrlMock = vi.fn();
@@ -45,9 +45,9 @@ vi.mock("../generationBilling/reservationRpcAdapter", () => ({
     releaseGenerationReservationBySourceRefMock(...args),
 }));
 
-vi.mock("../../../model-runtime/generationAdmissionTiers", () => ({
-  resolveGenerationAdmissionTier: (...args: unknown[]) =>
-    resolveGenerationAdmissionTierMock(...args),
+vi.mock("../generationQueue/activeProviderCapacity", () => ({
+  readActiveProviderCapacitySnapshot: (...args: unknown[]) =>
+    readActiveProviderCapacitySnapshotMock(...args),
 }));
 
 vi.mock("../../falIntegration/modelProfiles", () => ({
@@ -143,7 +143,13 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       },
       publicApiBaseUrl: null,
     });
-    resolveGenerationAdmissionTierMock.mockReturnValue("image_heavy");
+    readActiveProviderCapacitySnapshotMock.mockResolvedValue({
+      tier: "image_heavy",
+      globalActive: 1,
+      tierActive: 1,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
     getFalModelProfileByModelIdMock.mockReturnValue({ submitTargets: [] });
     resolveWebhookCallbackUrlMock.mockReturnValue(null);
     withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);

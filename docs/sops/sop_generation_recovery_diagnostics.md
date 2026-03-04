@@ -59,6 +59,8 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 | Reconciler min age | `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS` | `120s` |
 | Reconciler lease | `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS` | `120s` |
 | Reservation cleanup min age | `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS` | `900s` |
+| Provider-attached cleanup min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS` | `7200s` |
+| Provider-attached orphan min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS` | `86400s` |
 | Queue max wait before exhaust | `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS` | `1200s` |
 | Client queue polling max wait | `QUEUE_STATUS_MAX_WAIT_MS` | `1800000ms` (30m) |
 | Guarded manual stale threshold | `sql/check_generation_queue_blockers.sql` | `>= 2h` |
@@ -78,7 +80,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 2. Monitor response metrics per pass:
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
    - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
-   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
+   - cleanup (aggregated pre-submit + provider-attached): `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
 3. Re-run blocker diagnostics after each pass until counts stabilize and trend down.
 
 ### 3) Guarded manual remediation (only for confirmed stale blockers)
@@ -102,6 +104,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 | Signal / state | Primary interpretation | Required action |
 | --- | --- | --- |
 | queue status `exhausted` growth | queue dispatch retries/waits are hitting terminal limits | inspect queue error codes, verify provider health, confirm reservation release on exhausted rows |
+| queue-status remains `queued` with no `request_id` while queue row is exhausted | stale client perception caused by nondeterministic queue-status resolution | verify queue-status path returns `failed` for exhausted rows and inspect `last_error` / `last_error_code` |
 | `terminal_success_no_media` or `no_media` retry loops | provider terminal payload missing media URLs | continue bounded recovery retries; replay residual outliers; verify provider payload adapters |
 | provider `running` beyond age windows | long-running or stranded provider job | enforce age/attempt policy, then exhaust + release when thresholds are reached |
 | queue transition guard errors (`QUEUE_*`, `GENERATION_MARK_RUNNING_*`, `RESERVATION_SUBMIT_*`) | transition safety check prevented unsafe mutation | treat as high risk for duplicate/partial transitions; replay with evidence, do not manual bulk requeue |

@@ -1,6 +1,22 @@
 import Image from "next/image";
 import React from "react";
-import { GearSix, PaintBrushBroad, Plus, Sliders, UploadSimple } from "phosphor-react";
+import {
+  ArrowsOutCardinal,
+  CircleDashed,
+  CircleHalf,
+  Eraser,
+  GearSix,
+  PaintBrush,
+  PaintBrushBroad,
+  Plus,
+  PlusCircle,
+  Sliders,
+  Sparkle,
+  Stack,
+  StackSimple,
+  TrashSimple,
+  UploadSimple,
+} from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import type { AspectOption } from "../../types";
 import { modelLogos } from "../../constants";
@@ -164,9 +180,26 @@ const editPresetLabels = [
   "Selfie",
   "Side Profile",
   "Over Shoulder",
+  "From Behind",
   "Low Angle",
+  "Drone View",
+  "Zoom In",
+  "Zoom Out",
+  "Enhance Realism",
+  "Custom 1",
+  "Custom 2",
+  "Custom 3",
+  "Custom 4",
   "More presets",
 ] as const;
+type InpaintMode = "lasso" | "brush" | "auto";
+type InpaintSelectionTab = "select" | "unselect";
+const MAX_LAYERS = 12;
+const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
+const autoLayerNamePattern = /^layer\s*'?\d+'?$/i;
+const isAutoLayerName = (value: string) => autoLayerNamePattern.test(value.trim());
+const normalizeAutoLayerNames = (names: string[]) =>
+  names.map((name, index) => (isAutoLayerName(name) ? formatLayerName(index + 1) : name));
 
 export function ExpertEditPanelView({
   aspect,
@@ -197,6 +230,13 @@ export function ExpertEditPanelView({
   characterModeEnabled = false,
   onCharacterModeEnabledChange,
 }: ExpertEditPanelViewProps) {
+  const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
+  const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
+    React.useState<InpaintSelectionTab>("select");
+  const [layers, setLayers] = React.useState<string[]>([formatLayerName(1)]);
+  const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
+  const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
+  const [editingLayerValue, setEditingLayerValue] = React.useState("");
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const {
     primaryInputRef,
@@ -310,6 +350,134 @@ export function ExpertEditPanelView({
             </div>
           </div>
         </div>
+        <div className="edit-expert-layers-toolbar" aria-label="Edit layers toolbar">
+          <div className="edit-expert-layers-toolbar-title-card">
+            <p className="edit-expert-layers-toolbar-title">Layers</p>
+            <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
+              <StackSimple size={14} weight="regular" />
+            </span>
+          </div>
+          <div className="edit-expert-layers-toolbar-card">
+            <div className="edit-expert-layers-toolbar-list">
+              {layers.map((layerName, index) =>
+                editingLayerIndex === index ? (
+                  <input
+                    key={`${layerName}-${index}`}
+                    type="text"
+                    className="edit-expert-layer-input"
+                    value={editingLayerValue}
+                    autoFocus
+                    aria-label={`Rename ${layerName}`}
+                    onChange={(event) => setEditingLayerValue(event.target.value)}
+                    onBlur={() => {
+                      const nextName = editingLayerValue.trim();
+                      if (nextName.length > 0) {
+                        setLayers((previous) =>
+                          previous.map((value, valueIndex) =>
+                            valueIndex === index ? nextName : value
+                          )
+                        );
+                      }
+                      setEditingLayerIndex(null);
+                      setEditingLayerValue("");
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        (event.currentTarget as HTMLInputElement).blur();
+                        return;
+                      }
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        setEditingLayerIndex(null);
+                        setEditingLayerValue("");
+                      }
+                    }}
+                  />
+                ) : (
+                  <div key={`${layerName}-${index}`} className="edit-expert-layer-row">
+                    <button
+                      type="button"
+                      className={`edit-expert-preset-btn edit-expert-layer-btn ${
+                        selectedLayerIndex === index ? "is-selected" : ""
+                      }`}
+                      onClick={() => setSelectedLayerIndex(index)}
+                      onDoubleClick={() => {
+                        setEditingLayerIndex(index);
+                        setEditingLayerValue(layerName);
+                      }}
+                    >
+                      <span className="edit-expert-layer-label">{layerName}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="edit-expert-layer-delete-btn"
+                      aria-label={`Delete ${layerName}`}
+                      onClick={() => {
+                        setLayers((previous) =>
+                          normalizeAutoLayerNames(
+                            previous.filter((_, valueIndex) => valueIndex !== index)
+                          )
+                        );
+                        setEditingLayerIndex((previousIndex) => {
+                          if (previousIndex == null) {
+                            return previousIndex;
+                          }
+                          if (previousIndex === index) {
+                            setEditingLayerValue("");
+                            return null;
+                          }
+                          if (previousIndex > index) {
+                            return previousIndex - 1;
+                          }
+                          return previousIndex;
+                        });
+                        setSelectedLayerIndex((previousIndex) => {
+                          if (previousIndex == null) {
+                            return previousIndex;
+                          }
+                          if (previousIndex === index) {
+                            const nextCount = layers.length - 1;
+                            if (nextCount <= 0) {
+                              return null;
+                            }
+                            return Math.min(index, nextCount - 1);
+                          }
+                          if (previousIndex > index) {
+                            return previousIndex - 1;
+                          }
+                          return previousIndex;
+                        });
+                      }}
+                    >
+                      <TrashSimple size={12} weight="regular" />
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+          {layers.length < MAX_LAYERS ? (
+            <button
+              type="button"
+              className="edit-expert-layers-add-btn"
+              aria-label="Add layer"
+              onClick={() => {
+                setLayers((previous) => {
+                  if (previous.length >= MAX_LAYERS) {
+                    return previous;
+                  }
+                  return normalizeAutoLayerNames([
+                    ...previous,
+                    formatLayerName(previous.length + 1),
+                  ]);
+                });
+              }}
+            >
+              <Plus size={12} weight="bold" />
+            </button>
+          ) : null}
+        </div>
 
         <div
           className={`edit-expert-primary-dropzone ${referenceImageUrl ? "has-preview" : ""} ${
@@ -342,46 +510,178 @@ export function ExpertEditPanelView({
           )}
         </div>
 
-        <div className="edit-expert-secondary-row">
-          <button type="button" className="edit-expert-inpaint-btn" aria-label="Open inpainting">
-            <PaintBrushBroad size={30} weight="regular" />
-          </button>
-          <div className="edit-expert-secondary-group">
-            {secondaries.map((index) => {
-              const previewUrl = extraImageUrls[index];
-              const inputRef = inputRefs[index];
-              return (
-                <div className="edit-expert-secondary-slot" key={`expert-edit-secondary-${index}`}>
-                  <div
-                    className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
-                      extraDragActive[index] ? "is-dragging" : ""
+        <div className="edit-expert-inpaint-row">
+          <div
+            className="edit-expert-inpaint-wrapper"
+            role="group"
+            aria-label="Inpaint controls group"
+          >
+            <div className="edit-expert-inpaint-tool-rail" aria-label="Inpaint action tools">
+              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                <ArrowsOutCardinal size={14} weight="regular" />
+                <span>Move</span>
+              </button>
+              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                <PaintBrushBroad size={14} weight="regular" />
+                <span>In-paint</span>
+              </button>
+              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                <PlusCircle size={14} weight="regular" />
+                <span>Insert</span>
+              </button>
+              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                <Eraser size={14} weight="regular" />
+                <span>Erase</span>
+              </button>
+            </div>
+            <div className="edit-expert-inpaint-controls" role="group" aria-label="Inpaint tools">
+              <div className="edit-expert-inpaint-mode-row">
+                <button
+                  type="button"
+                  className={`edit-expert-inpaint-mode-btn ${
+                    selectedInpaintMode === "brush" ? "is-active" : ""
+                  }`}
+                  aria-pressed={selectedInpaintMode === "brush"}
+                  onClick={() => setSelectedInpaintMode("brush")}
+                >
+                  <PaintBrush size={16} weight="regular" />
+                  <span>Brush</span>
+                </button>
+                <button
+                  type="button"
+                  className={`edit-expert-inpaint-mode-btn ${
+                    selectedInpaintMode === "lasso" ? "is-active" : ""
+                  }`}
+                  aria-pressed={selectedInpaintMode === "lasso"}
+                  onClick={() => setSelectedInpaintMode("lasso")}
+                >
+                  <CircleDashed size={16} weight="regular" />
+                  <span>Lasso</span>
+                </button>
+                <button
+                  type="button"
+                  className={`edit-expert-inpaint-mode-btn ${
+                    selectedInpaintMode === "auto" ? "is-active" : ""
+                  }`}
+                  aria-pressed={selectedInpaintMode === "auto"}
+                  onClick={() => setSelectedInpaintMode("auto")}
+                >
+                  <Sparkle size={16} weight="regular" />
+                  <span>Auto</span>
+                </button>
+              </div>
+              <div className="edit-expert-inpaint-divider" aria-hidden="true" />
+              <div className="edit-expert-inpaint-selection-row">
+                <div
+                  className="edit-expert-inpaint-select-tabs"
+                  role="tablist"
+                  aria-label="Selection mode"
+                >
+                  <button
+                    type="button"
+                    className={`edit-expert-inpaint-select-tab ${
+                      selectedInpaintSelectionTab === "select" ? "is-active" : ""
                     }`}
-                    onDrop={handleExtraDrop(index)}
-                    onDragEnter={handleExtraDragEnter(index)}
-                    onDragOver={handleExtraDragOver(index)}
-                    onDragLeave={handleExtraDragLeave(index)}
-                    onClick={() => inputRef.current?.click()}
-                    style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
-                    aria-label={`Secondary edit image ${index + 1}`}
+                    role="tab"
+                    aria-selected={selectedInpaintSelectionTab === "select"}
+                    onClick={() => setSelectedInpaintSelectionTab("select")}
                   >
-                    {previewUrl ? (
-                      <button
-                        type="button"
-                        className="dropzone-clear"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onExtraImageChange(index, null);
-                        }}
-                      >
-                        ×
-                      </button>
-                    ) : (
-                      <Plus size={18} weight="regular" />
-                    )}
-                  </div>
+                    Select
+                  </button>
+                  <button
+                    type="button"
+                    className={`edit-expert-inpaint-select-tab ${
+                      selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
+                    }`}
+                    role="tab"
+                    aria-selected={selectedInpaintSelectionTab === "unselect"}
+                    onClick={() => setSelectedInpaintSelectionTab("unselect")}
+                  >
+                    Unselect
+                  </button>
                 </div>
-              );
-            })}
+                <button
+                  type="button"
+                  className="edit-expert-inpaint-action-btn"
+                  aria-label="Invert selection"
+                >
+                  <CircleHalf size={18} weight="regular" />
+                </button>
+                <button
+                  type="button"
+                  className="edit-expert-inpaint-action-btn"
+                  aria-label="Clear selection"
+                >
+                  <TrashSimple size={18} weight="regular" />
+                </button>
+              </div>
+              <div className="edit-expert-inpaint-stroke-row">
+                <label
+                  className="edit-expert-inpaint-stroke-label"
+                  htmlFor="edit-expert-inpaint-stroke-size"
+                >
+                  Stroke Size
+                </label>
+                <input
+                  id="edit-expert-inpaint-stroke-size"
+                  className="edit-expert-inpaint-stroke-slider"
+                  type="range"
+                  min={1}
+                  max={100}
+                  defaultValue={58}
+                  aria-label="Stroke size"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="edit-expert-secondary-control">
+            <p className="edit-expert-secondary-title">Reference Images</p>
+            <div className="edit-expert-secondary-row">
+              {secondaries.map((index) => {
+                const previewUrl = extraImageUrls[index];
+                const inputRef = inputRefs[index];
+                return (
+                  <div
+                    className="edit-expert-secondary-slot"
+                    key={`expert-edit-secondary-${index}`}
+                  >
+                    <div
+                      className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
+                        extraDragActive[index] ? "is-dragging" : ""
+                      }`}
+                      onDrop={handleExtraDrop(index)}
+                      onDragEnter={handleExtraDragEnter(index)}
+                      onDragOver={handleExtraDragOver(index)}
+                      onDragLeave={handleExtraDragLeave(index)}
+                      onClick={() => inputRef.current?.click()}
+                      style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                      aria-label={`Secondary edit image ${index + 1}`}
+                    >
+                      {previewUrl ? (
+                        <button
+                          type="button"
+                          className="dropzone-clear"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onExtraImageChange(index, null);
+                          }}
+                        >
+                          ×
+                        </button>
+                      ) : (
+                        <Plus size={18} weight="regular" />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="edit-expert-styles-control">
+            <p className="edit-expert-styles-title">Styles</p>
+            <button type="button" className="edit-expert-styles-btn" aria-label="Styles">
+              <Stack size={18} weight="regular" />
+            </button>
           </div>
         </div>
       </div>

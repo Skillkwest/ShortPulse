@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ExpertEditPanelView } from "../edit/ExpertEditPanelView";
 
@@ -54,6 +54,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 2")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
   });
 
   it("disables inline generate until a primary image exists", () => {
@@ -81,5 +82,112 @@ describe("ExpertEditPanelView", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
     expect(screen.queryByText("Chat Mode")).not.toBeInTheDocument();
+  });
+
+  it("switches selected inpaint mode button when clicked", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const lassoBtn = screen.getByRole("button", { name: /lasso/i });
+    const brushBtn = screen.getByRole("button", { name: /brush/i });
+    const autoBtn = screen.getByRole("button", { name: /auto/i });
+
+    expect(brushBtn).toHaveAttribute("aria-pressed", "true");
+    expect(lassoBtn).toHaveAttribute("aria-pressed", "false");
+    expect(autoBtn).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(lassoBtn);
+    expect(lassoBtn).toHaveAttribute("aria-pressed", "true");
+    expect(brushBtn).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(autoBtn);
+    expect(autoBtn).toHaveAttribute("aria-pressed", "true");
+    expect(lassoBtn).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("switches selection tabs between Select and Unselect", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const selectTab = screen.getByRole("tab", { name: /^select$/i });
+    const unselectTab = screen.getByRole("tab", { name: /^unselect$/i });
+
+    expect(selectTab).toHaveAttribute("aria-selected", "true");
+    expect(unselectTab).toHaveAttribute("aria-selected", "false");
+
+    fireEvent.click(unselectTab);
+    expect(unselectTab).toHaveAttribute("aria-selected", "true");
+    expect(selectTab).toHaveAttribute("aria-selected", "false");
+
+    fireEvent.click(selectTab);
+    expect(selectTab).toHaveAttribute("aria-selected", "true");
+    expect(unselectTab).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("adds new layers in sequential order when add layer is clicked", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
+    expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
+    expect(screen.getByRole("button", { name: "layer 3" })).toBeInTheDocument();
+  });
+
+  it("deletes a layer and refreshes layer numbering", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
+    expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 3" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete layer 2" }));
+    expect(screen.queryByRole("button", { name: "layer 3" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+  });
+
+  it("allows renaming a layer on double-click", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const layerOneButton = screen.getByRole("button", { name: "layer 1" });
+    fireEvent.doubleClick(layerOneButton);
+
+    const renameInput = screen.getByLabelText("Rename layer 1");
+    fireEvent.change(renameInput, { target: { value: "HeroLayer" } });
+    fireEvent.keyDown(renameInput, { key: "Enter", code: "Enter" });
+
+    expect(screen.getByRole("button", { name: "HeroLayer" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "layer 1" })).not.toBeInTheDocument();
+  });
+
+  it("allows selecting individual layers", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
+    const layerOneButton = screen.getByRole("button", { name: "layer 1" });
+    const layerTwoButton = screen.getByRole("button", { name: "layer 2" });
+
+    expect(layerOneButton).toHaveClass("is-selected");
+    expect(layerTwoButton).not.toHaveClass("is-selected");
+
+    fireEvent.click(layerTwoButton);
+    expect(layerTwoButton).toHaveClass("is-selected");
+    expect(layerOneButton).not.toHaveClass("is-selected");
+  });
+
+  it("hides add layer button at 12 layers and shows it again after deletion", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    for (let i = 0; i < 11; i += 1) {
+      fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
+    }
+
+    expect(screen.getByRole("button", { name: "layer 12" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete layer 12" }));
+    expect(screen.getByRole("button", { name: /add layer/i })).toBeInTheDocument();
   });
 });

@@ -17,7 +17,7 @@
   --ai-accent-strong: var(--edit-expert-accent-strong);
   --ai-accent-shadow: var(--edit-expert-accent-shadow);
   --edit-expert-stage-max-width: clamp(360px, 58vw, 560px);
-  --edit-expert-primary-size: clamp(360px, 40vw, 590px);
+  --edit-expert-primary-size: clamp(360px, 36.8vw, 556px);
   --edit-expert-secondary-width: clamp(72px, calc(var(--app-fixed-width) * 0.09), 92px);
   --edit-expert-secondary-aspect: 4 / 5;
   --edit-expert-secondary-border: 1px dashed rgba(160, 170, 182, 0.45);

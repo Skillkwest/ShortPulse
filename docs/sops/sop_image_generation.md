@@ -2,6 +2,7 @@
 
 This SOP documents how ShortPulse generates images from text prompts, how the UI and API interact, and how to maintain and improve the flow.
 See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, and cross-vertical coordination.
+For Create properties panel, model-selector, and submission wiring details, see `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`.
 
 ## Scope
 - Image generation in AI Studio’s Create → Image flow.

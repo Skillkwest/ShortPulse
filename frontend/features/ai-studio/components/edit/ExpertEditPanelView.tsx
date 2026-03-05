@@ -6,14 +6,15 @@ import {
   CircleHalf,
   Eraser,
   GearSix,
+  MagicWand,
   PaintBrush,
   PaintBrushBroad,
   Plus,
   PlusCircle,
   Sliders,
   Sparkle,
-  Stack,
   StackSimple,
+  Sticker,
   TrashSimple,
   UploadSimple,
 } from "phosphor-react";
@@ -188,13 +189,27 @@ const editPresetLabels = [
   "Enhance Realism",
   "Custom 1",
   "Custom 2",
-  "Custom 3",
-  "Custom 4",
   "More presets",
+] as const;
+const editPresetUtilityActions = [
+  {
+    label: "Remove Background",
+    icon: MagicWand,
+    iconWeight: "fill" as const,
+    buttonClassName: "edit-expert-preset-action-btn--remove-bg",
+    creditCost: 1,
+  },
+] as const;
+const editLayerUtilityActions = [
+  {
+    label: "Compose Image",
+    icon: Sparkle,
+    buttonClassName: "edit-expert-preset-action-btn--compose-image",
+  },
 ] as const;
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
-const MAX_LAYERS = 12;
+const MAX_LAYERS = 10;
 const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
 const autoLayerNamePattern = /^layer\s*'?\d+'?$/i;
 const isAutoLayerName = (value: string) => autoLayerNamePattern.test(value.trim());
@@ -349,6 +364,30 @@ export function ExpertEditPanelView({
               ))}
             </div>
           </div>
+          <div className="edit-expert-preset-actions" aria-label="Preset utility actions">
+            {editPresetUtilityActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
+                  aria-label={action.label}
+                >
+                  <Icon size={20} weight={action.iconWeight ?? "regular"} />
+                  <span className="edit-expert-preset-action-btn-copy">
+                    <span>{action.label}</span>
+                    {action.creditCost != null ? (
+                      <span className="edit-expert-preset-action-btn-cost" aria-hidden="true">
+                        <span className="model-chip-icon">✦</span>
+                        <span className="model-chip-credits">{action.creditCost}</span>
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="edit-expert-layers-toolbar" aria-label="Edit layers toolbar">
           <div className="edit-expert-layers-toolbar-title-card">
@@ -414,6 +453,19 @@ export function ExpertEditPanelView({
                       className="edit-expert-layer-delete-btn"
                       aria-label={`Delete ${layerName}`}
                       onClick={() => {
+                        if (index === 0) {
+                          setLayers((previous) =>
+                            previous.map((value, valueIndex) =>
+                              valueIndex === 0 ? formatLayerName(1) : value
+                            )
+                          );
+                          setEditingLayerIndex((previousIndex) =>
+                            previousIndex === 0 ? null : previousIndex
+                          );
+                          setEditingLayerValue("");
+                          return;
+                        }
+
                         setLayers((previous) =>
                           normalizeAutoLayerNames(
                             previous.filter((_, valueIndex) => valueIndex !== index)
@@ -477,6 +529,22 @@ export function ExpertEditPanelView({
               <Plus size={12} weight="bold" />
             </button>
           ) : null}
+          <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
+            {editLayerUtilityActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
+                  aria-label={action.label}
+                >
+                  <Icon size={20} weight="regular" />
+                  <span>{action.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div
@@ -680,7 +748,7 @@ export function ExpertEditPanelView({
           <div className="edit-expert-styles-control">
             <p className="edit-expert-styles-title">Styles</p>
             <button type="button" className="edit-expert-styles-btn" aria-label="Styles">
-              <Stack size={18} weight="regular" />
+              <Sticker size={22} weight="regular" />
             </button>
           </div>
         </div>

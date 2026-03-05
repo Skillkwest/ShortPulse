@@ -2,6 +2,7 @@
 
 This SOP documents how ShortPulse generates videos from text prompts or image references, how the UI and API interact, and how to maintain and improve the flow.
 See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, and coordination across AI Studio verticals.
+For Create properties panel, model-selector, and submission wiring details, see `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`.
 
 ## Scope
 - Video generation in AI Studio’s Create → Video flow (text-to-video and image-to-video models).

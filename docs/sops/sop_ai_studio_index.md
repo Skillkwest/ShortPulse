@@ -11,6 +11,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
 - Agent safety control plane: `docs/sops/sop_ai_studio_agent_safety_control_plane.md` — profile tuning knobs, admin control routes, rollback/cooldown workflow, and SQL validation gates.
 - Agent rollout ops: `docs/sops/sop_ai_studio_agent_rollout_operations.md` — progressive ring rollout, freeze/rollback triggers, and evidence capture workflow.
+- Create panel + generation wiring: `docs/sops/sop_ai_studio_create_properties_generation_wiring.md` — end-to-end wiring map for Create properties UI, model selectors, submit pipeline, and agent/control integration.
 - Session persistence (reference-only): `docs/sops/sop_ai_studio_session_persistence_reference_only.md` — staged restore/write enablement and rollback runbook for reference-only session continuity.
 
 ## Reference Grid Foundation Program Docs
@@ -25,6 +26,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Pricing dispatcher: `frontend/features/ai-studio/logic/pricing.ts` (`computeCostForModel`, `buildDefaultPricingParams`).
 - Pricing strategies: `frontend/features/ai-studio/logic/pricingStrategies.ts` (per-MP, per-image, per-duration).
 - Create model-selection policy: `frontend/features/ai-studio/logic/modelSelectionPolicy.ts` (shared option filtering + startup default precedence).
+- Create panel contract adapter: `frontend/features/ai-studio/hooks/useAiStudioCreatePanelProps.ts` (maps page orchestration state to `CreatePropertiesPanel` props).
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceGrid.tsx` (virtualization + autoplay budget gating).

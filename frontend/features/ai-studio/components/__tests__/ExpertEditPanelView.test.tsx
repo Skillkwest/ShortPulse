@@ -55,6 +55,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByLabelText("Secondary edit image 2")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
   });
 
   it("disables inline generate until a primary image exists", () => {
@@ -177,17 +178,35 @@ describe("ExpertEditPanelView", () => {
     expect(layerOneButton).not.toHaveClass("is-selected");
   });
 
-  it("hides add layer button at 12 layers and shows it again after deletion", () => {
+  it("does not delete layer 1 and resets its name back to layer 1", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
-    for (let i = 0; i < 11; i += 1) {
+    const layerOneButton = screen.getByRole("button", { name: "layer 1" });
+    fireEvent.doubleClick(layerOneButton);
+
+    const renameInput = screen.getByLabelText("Rename layer 1");
+    fireEvent.change(renameInput, { target: { value: "HeroLayer" } });
+    fireEvent.keyDown(renameInput, { key: "Enter", code: "Enter" });
+
+    expect(screen.getByRole("button", { name: "HeroLayer" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete HeroLayer" }));
+
+    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "HeroLayer" })).not.toBeInTheDocument();
+  });
+
+  it("hides add layer button at 10 layers and shows it again after deletion", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    for (let i = 0; i < 9; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
     }
 
-    expect(screen.getByRole("button", { name: "layer 12" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 10" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete layer 12" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete layer 10" }));
     expect(screen.getByRole("button", { name: /add layer/i })).toBeInTheDocument();
   });
 });

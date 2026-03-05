@@ -14,8 +14,9 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 | Component | Role |
 | --- | --- |
-| `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, and manages outputs/reference images. |
-| `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
+| `frontend/features/ai-studio/hooks/useAiStudioState.ts` + `frontend/features/ai-studio/hooks/useAiStudioStateEffects.ts` | Shared workspace state/actions and output/reference collections; state effects enforce aspect/resolution/reference compatibility guardrails. |
+| `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts` + `useAiStudioGenerationPromptComposer.ts` + `useAiStudioTaskSubmission.ts` + `hooks/taskSubmission/*` | Generation preflight/invariants, prompt+reference composition, provider submit routing, and queued status polling lifecycle. |
+| `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` | Create properties UI (mode toggle, aspect/model/resolution selectors, prompt input, Generate CTA with estimated credits). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files. |
 | `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Reference grid (draggable cards) and file drop surface for seeding references. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), prompt/token estimates, drag/drop utilities, and provider clients (Fal). |
@@ -24,8 +25,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Environment prerequisites
 
-1. Image models rely on Fal provider keys; no agent prompts are involved in this flow.  
-2. `OPENAI_API_KEY` is still required for the separate text/describe workflows documented in `docs/sops/sop_text_generation.md`; this SOP does not depend on those prompts.  
+1. Image models rely on Fal provider keys; provider submission does not route through legacy prompt-generation endpoints.
+2. `OPENAI_API_KEY` is still required for separate text/describe workflows documented in `docs/sops/sop_text_generation.md`; in chat-enabled Create sessions, generated image prompts may originate from agent output before provider submit.
 3. Credits: generation debit/refund is server-authoritative through API submit routes; `useCredits` reads balance only.
 
 ## Image generation workflow (Create → Image)
@@ -35,7 +36,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 3. User enters a prompt (optionally informed by previously described prompts).  
 4. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect, resolution })`; disabled until a model is selected or the user lacks sufficient credits.  
 5. On click:  
-   - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal) with aspect-mapped sizing; no agent prompts are involved.
+   - `CreatePropertiesPanel.onGenerate` routes through `useAiStudioGenerationController.handlePrimarySubmit`, which runs start invariants/preflight and delegates prompt composition to `useAiStudioGenerationPromptComposer`.
+   - `useAiStudioTaskSubmission` creates/reconciles optimistic output state, resolves `taskSubmission` handler route by model id, and submits provider payloads (including aspect/resolution/reference mappings).
    - Fal submit routes reserve credits before provider submission (no immediate debit posted).
    - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`) and `Retry-After`; denied requests release reservations immediately.
    - Fal success captures reservation into a debit; failed submit/status outcomes release reservation.
@@ -114,7 +116,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Prompt handling
 
 - Prompt textarea is bound to shared `prompt` state; Save Prompt creates a text `StudioOutput` card.  
-- When Image-to-Text mode is off, the typed prompt is sent as-is to the image model (no auto-describe and no agent prompts).  
+- When Image-to-Text mode is off, typed prompt text is used as the provider submit prompt unless a chat-originated canonical prompt is explicitly applied first.  
 - Improvement: consider auto-filling the image prompt from the last describe result when switching from describe → image to reduce friction.
 
 ## Error handling & UX
@@ -127,8 +129,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Model usage
 
-- Defaults: `gpt-5-nano` for text/vision calls (prompt refinement/describe); image models are chosen from the picker (Fal) and use provider-specific clients without agent prompts.  
-- Aspect normalization is provider/model-specific (see `pricing.ts` and submit logic in `useAiStudioState`).
+- Defaults: `gpt-5-nano` for text/vision calls (prompt refinement/describe); image models are chosen from the picker (Fal) and submit through provider-specific handler routes.
+- Aspect normalization is provider/model-specific (see `pricing.ts` and `hooks/taskSubmission/{imageHandlers,defaultHandlers}.ts`).
 - Cost computation: `computeCostForModel` uses aspect + selected image resolution where applicable (Nano Banana 2/Pro + Seedream tiers) for estimate display; generation charging happens server-side in submit APIs.
 - Local reference ingestion: blob/data image inputs are uploaded through `/api/upload-image` and replaced with signed HTTPS URLs before submit; provider submit routes should receive URL payloads, not base64 bodies.
 

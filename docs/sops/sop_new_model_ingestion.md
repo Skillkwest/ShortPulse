@@ -15,23 +15,30 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
    - `frontend/features/ai-studio/logic/pricingStrategies.ts`: add strategy fn for the pricing rule (per-image/per-MP/per-duration/tiered) and register it.
 2) **Model registry + UI options**
    - `frontend/features/ai-studio/logic/modelRegistry.ts`: add `ModelConfig` with `id`, `label`, `provider`, `mediaType`, `defaultAspect`, `allowedAspects`, `pricingStrategy`, optional `sizeMap`, and any default runtime params (`defaultDurationSeconds`, `defaultResolution`, `defaultAudio`).
+   - `frontend/lib/model-runtime/modelCatalog.ts`: add/update payload validation and capability metadata when the model introduces new submit fields/contracts.
    - `frontend/features/ai-studio/constants.ts`: add `modelOptions` entry (UI label) and aspect clamps/allowed sets if needed.
    - `frontend/features/ai-studio/components/ModelModal.tsx`: ensure grouping/order if a new section is needed (cost chips use `computeCostForModel` automatically).
 3) **Client + API proxy**
    - Fal models: add Next proxies `frontend/pages/api/fal/<model>-submit.ts` and `<model>-status.ts`; add client helpers in `frontend/lib/falClient.ts` (submit/status).
    - OpenAI/other providers: add provider-specific helper and server-side proxy routes to keep keys hidden.
 4) **Generation flow**
-   - `frontend/features/ai-studio/hooks/useAiStudioState.ts`:
-     - Aspect clamp in the effect for the new model.
-     - Submit branch routing to the correct helper with provider defaults (format, safety, steps/guidance).
-     - Polling: add provider key to use the correct status helper.
-     - Preview seeds: set `previewUrl` if needed (e.g., image→video).
+   - `frontend/features/ai-studio/hooks/useAiStudioStateEffects.ts`:
+     - Add/update aspect/resolution/reference compatibility clamps for the new model/tool/mode.
+   - `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`:
+     - Extend preflight/start-decision gates only if the new model changes submit invariants.
+   - `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`:
+     - Ensure prompt/reference composition rules cover the new model contract.
+   - `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts` + `frontend/features/ai-studio/hooks/taskSubmission/routing.ts`:
+     - Route the new model id to the correct handler family (`default`/`image`/`video`).
+   - `frontend/features/ai-studio/hooks/taskSubmission/{defaultHandlers,imageHandlers,videoHandlers}.ts`:
+     - Add provider payload mapping, submit/status helper calls, status normalization, and preview URL extraction for the model.
 5) **Docs**
    - Add `docs/api-<provider>-<model>.md` with auth, endpoints, payload, output, defaults, pricing formula, allowed aspects/size map.
    - Link in `docs/README.md` under API Reference.
    - Update `docs/sops/sop_image_generation.md` or relevant SOP table if the model is image/video.
 6) **Validation**
    - Ensure `computeCostForModel` returns non-null for the model (tests below).
+   - Ensure submission route mapping + payload matrix coverage are updated for the model family.
    - Smoke in dev: select model → see cost on Generate → submit → poll completes → preview/result URLs populate.
 
 ## Guardrails / tests

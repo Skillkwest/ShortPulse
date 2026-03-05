@@ -20,6 +20,32 @@ Purpose: document how the Create properties panel is wired to model selection, g
 | Agent client bridge | `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts` + `useAiStudioAgentOrchestration.ts` + `../../ai-agent/useAiAgent.ts` | Owns chat state, attachment prep, prompt application, and agent-output-to-generate handoff. |
 | Agent runtime + control plane | `frontend/pages/api/ai/studio-agent.ts`, `frontend/pages/api/ai/{generate-prompt,describe-image}.ts`, `frontend/lib/server/api/agentSafetyPolicyControlPlane.ts`, `frontend/pages/api/admin/agent-safety-policy/*` | Server-authoritative agent execution, safety precheck/profile resolution, and admin activation/rollback/version controls. |
 
+## Architecture diagrams
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant CP as CreatePropertiesPanel
+  participant GC as useAiStudioGenerationController
+  participant PC as useAiStudioGenerationPromptComposer
+  participant TS as useAiStudioTaskSubmission
+  participant RH as taskSubmission handlers
+  participant API as Provider/API routes
+  participant POLL as Queue status polling
+
+  U->>CP: Click Generate
+  CP->>GC: onGenerate()
+  GC->>GC: preflight + invariants
+  GC->>PC: generateOutput()
+  PC->>TS: submitTask(...)
+  TS->>RH: resolveSubmissionHandlerRoute(modelId)
+  RH->>API: submit request
+  API-->>TS: queued/request_id
+  TS->>POLL: start status polling
+  POLL-->>TS: completed/failed status
+  TS-->>CP: output lifecycle updates
+```
+
 ## Create properties panel wiring
 1. `AiStudioPage` builds `panelProps` with `useAiStudioPanelProps`, then passes `propertiesCreate` into `AiStudioPageContent`.
 2. `useAiStudioCreatePanelProps` maps shared page handlers into create-panel callbacks (`onGenerate`, `onChatOffInlineGenerate`, `onModelPickerOpen`, agent actions, character controls).

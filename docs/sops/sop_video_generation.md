@@ -14,8 +14,9 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 | Component | Role |
 | --- | --- |
-| `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, and manages outputs/reference images/videos. |
-| `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
+| `frontend/features/ai-studio/hooks/useAiStudioState.ts` + `frontend/features/ai-studio/hooks/useAiStudioStateEffects.ts` | Shared workspace state/actions and output/reference collections; state effects enforce compatibility guardrails as tool/mode/model change. |
+| `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts` + `useAiStudioGenerationPromptComposer.ts` + `useAiStudioTaskSubmission.ts` + `hooks/taskSubmission/*` | Generation preflight/invariants, prompt+reference composition, provider submit routing, and queued status polling lifecycle. |
+| `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` | Create properties UI for text/image create modes; it routes generate events into the shared generation controller used across verticals. |
 | `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx` | UI for Video (reference drops, prompt textarea, aspect/model picker, Generate CTA). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files for image-to-video. |
 | `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Reference grid (draggable cards) and file drop surface for seeding references; renders inline video previews when outputs are mp4s. |
@@ -24,8 +25,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Environment prerequisites
 
-1. Video models rely on Fal provider keys; no agent prompts are used in this flow.  
-2. `OPENAI_API_KEY` is still required for separate text/describe workflows documented in `docs/sops/sop_text_generation.md`; video generation does not depend on those prompts.  
+1. Video models rely on Fal provider keys; provider submission for video flows does not route through legacy prompt-generation endpoints.
+2. `OPENAI_API_KEY` is still required for separate text/describe workflows documented in `docs/sops/sop_text_generation.md`; chat-enabled sessions can still source prompt text from agent output before submit.
 3. Credits: generation charging is server-authoritative in submit APIs; `useCredits` reads `ai_credit_balance` and does not write ledger rows.
 
 ## Video generation workflow (Create → Video)
@@ -34,7 +35,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 2. User enters a prompt (and optionally prepares an image reference if the model requires/accepts it).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
-   - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal video) with aspect-mapped sizing and any reference inputs required by the model.  
+   - Generate events route through `useAiStudioGenerationController.handlePrimarySubmit`, which runs start invariants/preflight and delegates prompt/reference composition.
+   - `useAiStudioTaskSubmission` creates/reconciles optimistic output state, resolves `taskSubmission` handler route by model id, and submits Fal/Kie payloads (including aspect/duration/resolution/audio/reference mappings).
    - Fal submit routes reserve credits before provider submission (no immediate debit posted).
    - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`) and `Retry-After`; denied requests release reservations immediately.
    - Fal success captures reservation into a debit; failed submit/status outcomes release reservation.
@@ -69,14 +71,14 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Result ingestion & previews
 
-- Status polling (`useAiStudioState`) normalizes provider responses and extracts video URLs from multiple shapes: `video.url`, `video_url`, or `videos[]` (and their nested `data/output/result` variants).  
+- Status polling (`hooks/taskSubmission/queueStatusPolling.ts`) normalizes provider responses and extracts video URLs from multiple shapes: `video.url`, `video_url`, or `videos[]` (and their nested `data/output/result` variants).
 - When a video URL is present, it is stored as `previewUrl` and rendered as an autoplaying muted loop in both Reference Grid cards and Studio Preview; images still use CSS backgrounds.  
 - If a completed task returns a URL but no card appears, verify the URL shape matches the handled keys above and that the dev server has been restarted after code changes.
 
 ## Prompt handling
 
 - Prompt textarea is bound to shared `prompt` state; Save Prompt creates a text `StudioOutput` card.  
-- Prompts are sent directly to the chosen video model (no agent prompts).  
+- Prompt text is sent to the chosen video model through submission handlers; when chat output is explicitly applied first, that canonicalized text becomes the submitted prompt.  
 - Improvement: consider reusing the last describe result as a starting prompt when switching from describe → video.
 
 ## Error handling & UX
@@ -89,8 +91,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Model usage
 
 - Video models are selected from the picker (Fal + Kie video entries; Kie routes are runtime-gated server-side).  
-- Aspect normalization is provider/model-specific (see `pricing.ts` and submit logic in `useAiStudioState`).
-- Cost computation: `computeCostForModel` uses aspect plus duration/resolution/audio defaults for estimate display; charging occurs in server submit APIs. Prompt-refine/describe flows currently report usage but are not debited. No agent prompts are sent in video flows.
+- Aspect normalization is provider/model-specific (see `pricing.ts` and `hooks/taskSubmission/{videoHandlers,defaultHandlers}.ts`).
+- Cost computation: `computeCostForModel` uses aspect plus duration/resolution/audio defaults for estimate display; charging occurs in server submit APIs. Prompt-refine/describe flows currently report usage but are not debited. Video submit payloads are built by provider handlers after prompt selection is finalized in UI state.
 
 ## Supported video models (current)
 
@@ -108,7 +110,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Maintenance rules
 
-1. Keep prompts in `frontend/lib/agentPromptsConfig.ts` for text/describe only; video flows do not use agent prompts.  
+1. Keep prompt templates in `frontend/lib/agentPromptsConfig.ts` for text/describe helper routes only; do not introduce separate video-only prompt template files.
 2. When adding video models, update `modelOptions`, `pricing.ts`, and aspect constraints; ensure the cost estimator and server charge metadata are correct, update the table above, and keep model filtering accurate.  
 3. Align SOP defaults with code (credit gating, charging behavior, model filtering).  
 4. Run `npm run lint` after changes; smoke-test Create → Video with text-only and reference-required models (prompt entry, generate, output appears, credit debited, no errors).

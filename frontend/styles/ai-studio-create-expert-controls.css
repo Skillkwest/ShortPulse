@@ -9,7 +9,7 @@
 .create-expert-controls-row {
   margin-top: 6px;
   justify-content: flex-start;
-  padding-inline: var(--create-expert-inline-gutter, clamp(12px, 5vw, 56px));
+  padding-inline: clamp(6px, 2vw, 20px);
   box-sizing: border-box;
 }
 

@@ -58,6 +58,18 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
   });
 
+  it("enables Remove Background only when a primary image is loaded", () => {
+    const { rerender } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
+
+    expect(screen.getByRole("button", { name: "Remove Background" })).toBeDisabled();
+
+    rerender(
+      <ExpertEditPanelView {...baseProps} referenceImageUrl="https://example.com/reference.png" />
+    );
+
+    expect(screen.getByRole("button", { name: "Remove Background" })).not.toBeDisabled();
+  });
+
   it("disables inline generate until a primary image exists", () => {
     render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
 
@@ -121,6 +133,46 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(selectTab);
     expect(selectTab).toHaveAttribute("aria-selected", "true");
     expect(unselectTab).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("collapses and expands inpaint controls from the skinny toggle button", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const collapseButton = screen.getByRole("button", { name: /collapse inpaint controls/i });
+    expect(collapseButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("inpaint-collapse-icon-dots")).toBeInTheDocument();
+    expect(screen.queryByTestId("inpaint-collapse-icon-brush")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Tools", { selector: ".edit-expert-inpaint-collapse-title" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^move$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^brush$/i })).toBeInTheDocument();
+
+    fireEvent.click(collapseButton);
+    expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    expect(screen.getByTestId("inpaint-collapse-icon-brush")).toBeInTheDocument();
+    expect(screen.queryByTestId("inpaint-collapse-icon-dots")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Tools", { selector: ".edit-expert-inpaint-collapse-title" })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^move$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^brush$/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    expect(screen.getByRole("button", { name: /collapse inpaint controls/i })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+    expect(screen.getByTestId("inpaint-collapse-icon-dots")).toBeInTheDocument();
+    expect(screen.queryByTestId("inpaint-collapse-icon-brush")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Tools", { selector: ".edit-expert-inpaint-collapse-title" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^move$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^brush$/i })).toBeInTheDocument();
   });
 
   it("adds new layers in sequential order when add layer is clicked", () => {

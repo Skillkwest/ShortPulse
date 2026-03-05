@@ -2,6 +2,7 @@ import Image from "next/image";
 import React from "react";
 import {
   ArrowsOutCardinal,
+  CaretRight,
   CircleDashed,
   CircleHalf,
   Eraser,
@@ -198,12 +199,14 @@ const editPresetUtilityActions = [
     iconWeight: "fill" as const,
     buttonClassName: "edit-expert-preset-action-btn--remove-bg",
     creditCost: 1,
+    hideIcon: true,
+    requiresPrimaryImage: true,
   },
 ] as const;
 const editLayerUtilityActions = [
   {
-    label: "Compose Image",
-    icon: Sparkle,
+    label: "Flatten Image",
+    icon: StackSimple,
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
   },
 ] as const;
@@ -248,6 +251,7 @@ export function ExpertEditPanelView({
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
+  const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(false);
   const [layers, setLayers] = React.useState<string[]>([formatLayerName(1)]);
   const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
   const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
@@ -367,23 +371,31 @@ export function ExpertEditPanelView({
           <div className="edit-expert-preset-actions" aria-label="Preset utility actions">
             {editPresetUtilityActions.map((action) => {
               const Icon = action.icon;
+              const isActionDisabled = Boolean(action.requiresPrimaryImage && !referenceImageUrl);
               return (
                 <button
                   key={action.label}
                   type="button"
                   className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
                   aria-label={action.label}
+                  disabled={isActionDisabled}
                 >
-                  <Icon size={20} weight={action.iconWeight ?? "regular"} />
+                  {!action.hideIcon ? (
+                    <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
+                      <Icon size={20} weight={action.iconWeight ?? "regular"} />
+                    </span>
+                  ) : null}
                   <span className="edit-expert-preset-action-btn-copy">
                     <span>{action.label}</span>
-                    {action.creditCost != null ? (
-                      <span className="edit-expert-preset-action-btn-cost" aria-hidden="true">
+                  </span>
+                  {action.creditCost != null ? (
+                    <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
+                      <span className="edit-expert-preset-action-btn-cost">
                         <span className="model-chip-icon">✦</span>
                         <span className="model-chip-credits">{action.creditCost}</span>
                       </span>
-                    ) : null}
-                  </span>
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -578,129 +590,162 @@ export function ExpertEditPanelView({
           )}
         </div>
 
-        <div className="edit-expert-inpaint-row">
+        <div className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""}`}>
           <div
-            className="edit-expert-inpaint-wrapper"
+            className={`edit-expert-inpaint-wrapper ${isInpaintCollapsed ? "is-collapsed" : ""}`}
             role="group"
             aria-label="Inpaint controls group"
           >
-            <div className="edit-expert-inpaint-tool-rail" aria-label="Inpaint action tools">
-              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
-                <ArrowsOutCardinal size={14} weight="regular" />
-                <span>Move</span>
-              </button>
-              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
-                <PaintBrushBroad size={14} weight="regular" />
-                <span>In-paint</span>
-              </button>
-              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
-                <PlusCircle size={14} weight="regular" />
-                <span>Insert</span>
-              </button>
-              <button type="button" className="edit-expert-inpaint-tool-rail-btn">
-                <Eraser size={14} weight="regular" />
-                <span>Erase</span>
+            <div className="edit-expert-inpaint-collapse-control">
+              {isInpaintCollapsed ? (
+                <p className="edit-expert-inpaint-collapse-title">Tools</p>
+              ) : null}
+              <button
+                type="button"
+                className="edit-expert-inpaint-collapse-btn"
+                aria-label={
+                  isInpaintCollapsed ? "Expand inpaint controls" : "Collapse inpaint controls"
+                }
+                aria-expanded={!isInpaintCollapsed}
+                aria-controls="edit-expert-inpaint-content"
+                onClick={() => setIsInpaintCollapsed((previous) => !previous)}
+              >
+                {isInpaintCollapsed ? (
+                  <PaintBrushBroad
+                    size={20}
+                    weight="regular"
+                    data-testid="inpaint-collapse-icon-brush"
+                  />
+                ) : (
+                  <CaretRight size={20} weight="fill" data-testid="inpaint-collapse-icon-dots" />
+                )}
               </button>
             </div>
-            <div className="edit-expert-inpaint-controls" role="group" aria-label="Inpaint tools">
-              <div className="edit-expert-inpaint-mode-row">
-                <button
-                  type="button"
-                  className={`edit-expert-inpaint-mode-btn ${
-                    selectedInpaintMode === "brush" ? "is-active" : ""
-                  }`}
-                  aria-pressed={selectedInpaintMode === "brush"}
-                  onClick={() => setSelectedInpaintMode("brush")}
-                >
-                  <PaintBrush size={16} weight="regular" />
-                  <span>Brush</span>
-                </button>
-                <button
-                  type="button"
-                  className={`edit-expert-inpaint-mode-btn ${
-                    selectedInpaintMode === "lasso" ? "is-active" : ""
-                  }`}
-                  aria-pressed={selectedInpaintMode === "lasso"}
-                  onClick={() => setSelectedInpaintMode("lasso")}
-                >
-                  <CircleDashed size={16} weight="regular" />
-                  <span>Lasso</span>
-                </button>
-                <button
-                  type="button"
-                  className={`edit-expert-inpaint-mode-btn ${
-                    selectedInpaintMode === "auto" ? "is-active" : ""
-                  }`}
-                  aria-pressed={selectedInpaintMode === "auto"}
-                  onClick={() => setSelectedInpaintMode("auto")}
-                >
-                  <Sparkle size={16} weight="regular" />
-                  <span>Auto</span>
-                </button>
-              </div>
-              <div className="edit-expert-inpaint-divider" aria-hidden="true" />
-              <div className="edit-expert-inpaint-selection-row">
-                <div
-                  className="edit-expert-inpaint-select-tabs"
-                  role="tablist"
-                  aria-label="Selection mode"
-                >
-                  <button
-                    type="button"
-                    className={`edit-expert-inpaint-select-tab ${
-                      selectedInpaintSelectionTab === "select" ? "is-active" : ""
-                    }`}
-                    role="tab"
-                    aria-selected={selectedInpaintSelectionTab === "select"}
-                    onClick={() => setSelectedInpaintSelectionTab("select")}
-                  >
-                    Select
+            {!isInpaintCollapsed ? (
+              <div id="edit-expert-inpaint-content" className="edit-expert-inpaint-content">
+                <div className="edit-expert-inpaint-tool-rail" aria-label="Inpaint action tools">
+                  <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                    <ArrowsOutCardinal size={14} weight="regular" />
+                    <span>Move</span>
                   </button>
-                  <button
-                    type="button"
-                    className={`edit-expert-inpaint-select-tab ${
-                      selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
-                    }`}
-                    role="tab"
-                    aria-selected={selectedInpaintSelectionTab === "unselect"}
-                    onClick={() => setSelectedInpaintSelectionTab("unselect")}
-                  >
-                    Unselect
+                  <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                    <PaintBrushBroad size={14} weight="regular" />
+                    <span>In-paint</span>
+                  </button>
+                  <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                    <PlusCircle size={14} weight="regular" />
+                    <span>Insert</span>
+                  </button>
+                  <button type="button" className="edit-expert-inpaint-tool-rail-btn">
+                    <Eraser size={14} weight="regular" />
+                    <span>Erase</span>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  className="edit-expert-inpaint-action-btn"
-                  aria-label="Invert selection"
+                <div
+                  className="edit-expert-inpaint-controls"
+                  role="group"
+                  aria-label="Inpaint tools"
                 >
-                  <CircleHalf size={18} weight="regular" />
-                </button>
-                <button
-                  type="button"
-                  className="edit-expert-inpaint-action-btn"
-                  aria-label="Clear selection"
-                >
-                  <TrashSimple size={18} weight="regular" />
-                </button>
+                  <div className="edit-expert-inpaint-mode-row">
+                    <button
+                      type="button"
+                      className={`edit-expert-inpaint-mode-btn ${
+                        selectedInpaintMode === "brush" ? "is-active" : ""
+                      }`}
+                      aria-pressed={selectedInpaintMode === "brush"}
+                      onClick={() => setSelectedInpaintMode("brush")}
+                    >
+                      <PaintBrush size={16} weight="regular" />
+                      <span>Brush</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`edit-expert-inpaint-mode-btn ${
+                        selectedInpaintMode === "lasso" ? "is-active" : ""
+                      }`}
+                      aria-pressed={selectedInpaintMode === "lasso"}
+                      onClick={() => setSelectedInpaintMode("lasso")}
+                    >
+                      <CircleDashed size={16} weight="regular" />
+                      <span>Lasso</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`edit-expert-inpaint-mode-btn ${
+                        selectedInpaintMode === "auto" ? "is-active" : ""
+                      }`}
+                      aria-pressed={selectedInpaintMode === "auto"}
+                      onClick={() => setSelectedInpaintMode("auto")}
+                    >
+                      <Sparkle size={16} weight="regular" />
+                      <span>Auto</span>
+                    </button>
+                  </div>
+                  <div className="edit-expert-inpaint-divider" aria-hidden="true" />
+                  <div className="edit-expert-inpaint-selection-row">
+                    <div
+                      className="edit-expert-inpaint-select-tabs"
+                      role="tablist"
+                      aria-label="Selection mode"
+                    >
+                      <button
+                        type="button"
+                        className={`edit-expert-inpaint-select-tab ${
+                          selectedInpaintSelectionTab === "select" ? "is-active" : ""
+                        }`}
+                        role="tab"
+                        aria-selected={selectedInpaintSelectionTab === "select"}
+                        onClick={() => setSelectedInpaintSelectionTab("select")}
+                      >
+                        Select
+                      </button>
+                      <button
+                        type="button"
+                        className={`edit-expert-inpaint-select-tab ${
+                          selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
+                        }`}
+                        role="tab"
+                        aria-selected={selectedInpaintSelectionTab === "unselect"}
+                        onClick={() => setSelectedInpaintSelectionTab("unselect")}
+                      >
+                        Unselect
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="edit-expert-inpaint-action-btn"
+                      aria-label="Invert selection"
+                    >
+                      <CircleHalf size={18} weight="regular" />
+                    </button>
+                    <button
+                      type="button"
+                      className="edit-expert-inpaint-action-btn"
+                      aria-label="Clear selection"
+                    >
+                      <TrashSimple size={18} weight="regular" />
+                    </button>
+                  </div>
+                  <div className="edit-expert-inpaint-stroke-row">
+                    <label
+                      className="edit-expert-inpaint-stroke-label"
+                      htmlFor="edit-expert-inpaint-stroke-size"
+                    >
+                      Stroke Size
+                    </label>
+                    <input
+                      id="edit-expert-inpaint-stroke-size"
+                      className="edit-expert-inpaint-stroke-slider"
+                      type="range"
+                      min={1}
+                      max={100}
+                      defaultValue={58}
+                      aria-label="Stroke size"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="edit-expert-inpaint-stroke-row">
-                <label
-                  className="edit-expert-inpaint-stroke-label"
-                  htmlFor="edit-expert-inpaint-stroke-size"
-                >
-                  Stroke Size
-                </label>
-                <input
-                  id="edit-expert-inpaint-stroke-size"
-                  className="edit-expert-inpaint-stroke-slider"
-                  type="range"
-                  min={1}
-                  max={100}
-                  defaultValue={58}
-                  aria-label="Stroke size"
-                />
-              </div>
-            </div>
+            ) : null}
           </div>
           <div className="edit-expert-secondary-control">
             <p className="edit-expert-secondary-title">Reference Images</p>

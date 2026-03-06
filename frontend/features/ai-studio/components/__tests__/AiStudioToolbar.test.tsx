@@ -1,8 +1,8 @@
 /**
  * AiStudioToolbar primary-tool tests.
- * Verifies Character remains visible as a primary action and routes selection callbacks.
+ * Verifies primary/shortcut actions render and route toolbar selection callbacks.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioToolbar } from "../AiStudioToolbar";
 
@@ -64,7 +64,8 @@ describe("AiStudioToolbar", () => {
     { button: "Create", expected: "create" as const },
     { button: "Edit", expected: "edit" as const },
     { button: "Video", expected: "video" as const },
-    { button: "Character", expected: "character" as const },
+    { button: "Canvas", expected: "canvas" as const },
+    { button: "Characters", expected: "character" as const },
   ])("routes $button clicks to $expected", ({ button, expected }) => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
@@ -86,7 +87,7 @@ describe("AiStudioToolbar", () => {
     expect(onSelectTool).toHaveBeenCalledWith(expected);
   });
 
-  it("shows Character as a primary toolbar button", () => {
+  it("shows Characters as the first Shortcuts button with secondary styling", () => {
     render(
       <AiStudioToolbar
         selectedTool={null}
@@ -98,10 +99,21 @@ describe("AiStudioToolbar", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Character" })).toBeInTheDocument();
+    const shortcutsSection = screen.getByText("Shortcuts").closest(".toolbar-lower");
+    expect(shortcutsSection).not.toBeNull();
+    const shortcutButtons = within(shortcutsSection as HTMLElement).getAllByRole("button");
+    expect(shortcutButtons.map((button) => button.textContent?.trim())).toEqual([
+      "Characters",
+      "Presets",
+      "Styles",
+      "Templates",
+    ]);
+    expect(
+      within(shortcutsSection as HTMLElement).getByRole("button", { name: "Characters" })
+    ).toHaveClass("toolbar-item-secondary");
   });
 
-  it("routes Character clicks to canonical character selection and closes create tools", () => {
+  it("routes Characters clicks to canonical character selection and closes create tools", () => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
 
@@ -116,13 +128,13 @@ describe("AiStudioToolbar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Character" }));
+    fireEvent.click(screen.getByRole("button", { name: "Characters" }));
 
     expect(onToggleCreateTools).toHaveBeenCalledWith(false);
     expect(onSelectTool).toHaveBeenCalledWith("character");
   });
 
-  it("toggles Character off when it is already active", () => {
+  it("toggles Characters off when it is already active", () => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
 
@@ -137,7 +149,7 @@ describe("AiStudioToolbar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Character" }));
+    fireEvent.click(screen.getByRole("button", { name: "Characters" }));
 
     expect(onToggleCreateTools).toHaveBeenCalledWith(false);
     expect(onSelectTool).toHaveBeenCalledWith(null);
@@ -150,8 +162,8 @@ describe("AiStudioToolbar", () => {
     { selectedTool: "image" as const, button: "Edit" },
     { selectedTool: "video" as const, button: "Video" },
     { selectedTool: "kling" as const, button: "Video" },
-    { selectedTool: "character" as const, button: "Character" },
-    { selectedTool: "canvas" as const, button: "Character" },
+    { selectedTool: "character" as const, button: "Characters" },
+    { selectedTool: "canvas" as const, button: "Canvas" },
   ])("toggles $button off when selectedTool is $selectedTool", ({ selectedTool, button }) => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();

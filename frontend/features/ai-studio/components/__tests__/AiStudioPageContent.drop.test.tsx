@@ -63,6 +63,9 @@ vi.mock("../CharacterPanel", () => ({
 vi.mock("../VideoPropertiesPanel", () => ({
   VideoPropertiesPanel: () => <div data-testid="video-properties" />,
 }));
+vi.mock("../canvas/CanvasPropertiesPanel", () => ({
+  CanvasPropertiesPanel: () => <div data-testid="canvas-properties" />,
+}));
 
 vi.mock("../../../prefabs/agent", () => ({
   AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
@@ -115,6 +118,7 @@ const createProps = (
     expertEditEligible: false,
   } as AiStudioPageContentProps["propertiesEditExpert"],
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
+  propertiesCanvas: {} as AiStudioPageContentProps["propertiesCanvas"],
   isTemplateView: false,
   referenceGridProps: {
     outputs: [],
@@ -200,7 +204,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(characterBanner).toHaveClass("ai-alert-banner--error");
   });
 
-  it("routes primary workflows and aliases to the expected panel surfaces", () => {
+  it("routes workflows to panel surfaces and renders Canvas as a dedicated panel", () => {
     const { rerender } = render(
       <AiStudioPageContent {...createProps({ selectedTool: "create" })} />
     );
@@ -225,7 +229,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("character-panel")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
-    expect(screen.getByTestId("character-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("canvas-properties")).toBeInTheDocument();
   });
 
   it("routes edit workflow to expert edit panel when eligible", () => {
@@ -264,6 +268,31 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
 
     expect(onPasteTextReference).toHaveBeenCalledWith("dropped prompt text");
+  });
+
+  it("keeps right-column text drop routing intact while Canvas is active", () => {
+    const onPasteTextReference = vi.fn();
+    const baseProps = createProps();
+    const props = createProps({
+      selectedTool: "canvas",
+      referenceGridProps: {
+        ...baseProps.referenceGridProps,
+        onPasteTextReference,
+      },
+    });
+
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["text/plain"],
+      files: makeEmptyFileList(),
+      getData: (type: string) => (type === "text/plain" ? "Dropped note" : ""),
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onPasteTextReference).toHaveBeenCalledWith("Dropped note");
   });
 
   it("routes file drops through the reference-grid file handler", () => {

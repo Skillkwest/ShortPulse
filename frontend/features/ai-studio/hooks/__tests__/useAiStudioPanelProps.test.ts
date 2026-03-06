@@ -102,6 +102,7 @@ const createParams = (
     extraImageUrls: [null, null, null],
     editReferenceText: "Edit prompt",
     handleImageRegenerateWithDebit: vi.fn(),
+    addSessionMediaReference: vi.fn(),
     referenceImageWarning: null,
     resolveOutputPreviewUrl: vi.fn((id: string | null | undefined) => {
       if (!id) return null;
@@ -174,6 +175,36 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesCreate.onChatOffInlineGenerate).toBe(
       handleChatOffInlineGenerate
     );
+  });
+
+  it("forwards expert edit flatten callbacks into expert edit panel props", () => {
+    const handleImageRegenerateWithDebit = vi.fn();
+    const addSessionMediaReference = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          handleImageRegenerateWithDebit,
+          addSessionMediaReference,
+        })
+      )
+    );
+
+    result.current.propertiesEditExpert.onRegenerateWithReferenceInputs?.([
+      "blob:flatten-primary",
+      "https://example.com/extra.png",
+    ]);
+    result.current.propertiesEditExpert.onAddSessionMediaReference?.({
+      url: "blob:flatten-card",
+      mimeType: "image/png",
+    });
+
+    expect(handleImageRegenerateWithDebit).toHaveBeenCalledWith({
+      referenceInputsOverride: ["blob:flatten-primary", "https://example.com/extra.png"],
+    });
+    expect(addSessionMediaReference).toHaveBeenCalledWith({
+      url: "blob:flatten-card",
+      mimeType: "image/png",
+    });
   });
 
   it("does not disable generate controls when only agent send is busy", () => {

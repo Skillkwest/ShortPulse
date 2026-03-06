@@ -11,6 +11,7 @@ import {
   type IconProps,
   Person,
   Selection,
+  Sliders,
   Sparkle,
   SquaresFour,
   StackSimple,
@@ -49,6 +50,8 @@ type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGE
 const toolIcons: Record<ToolId, IconComponent> = {
   create: Sparkle,
   workflows: FlowArrow,
+  presets: Sliders,
+  styles: Sparkle,
   templates: SquaresFour,
   "my-generations": StackSimple,
   community: Globe,
@@ -58,7 +61,7 @@ const toolIcons: Record<ToolId, IconComponent> = {
   character: Person,
   kling: VideoCamera,
   edit: Selection,
-  canvas: Person,
+  canvas: SquaresFour,
 };
 
 /**
@@ -76,14 +79,15 @@ function AiStudioToolbarComponent({
   const isEditSelected = isEditWorkflow(selectedTool);
   const isVideoSelected = isVideoWorkflow(selectedTool);
   const isCharacterSelected = isCharacterWorkflow(selectedTool);
-  const activePrimary: "create" | "video" | "edit" | "character" | null = isCreateSelected
+  const isCanvasSelected = selectedTool === "canvas";
+  const activePrimary: "create" | "video" | "edit" | "canvas" | null = isCreateSelected
     ? "create"
     : isVideoSelected
       ? "video"
       : isEditSelected
         ? "edit"
-        : isCharacterSelected
-          ? "character"
+        : isCanvasSelected
+          ? "canvas"
           : null;
 
   return (
@@ -143,8 +147,8 @@ function AiStudioToolbarComponent({
           const isActive =
             tool.id === "video"
               ? isVideoSelected
-              : tool.id === "character"
-                ? isCharacterSelected
+              : tool.id === "canvas"
+                ? isCanvasSelected
                 : tool.id === "edit"
                   ? isEditSelected
                   : selectedTool === tool.id;
@@ -156,7 +160,7 @@ function AiStudioToolbarComponent({
               data-tool-id={tool.id}
               onClick={() => {
                 const isToggleablePrimary =
-                  tool.id === "video" || tool.id === "edit" || tool.id === "character";
+                  tool.id === "video" || tool.id === "edit" || tool.id === "canvas";
                 if (isToggleablePrimary && isActive) {
                   onToggleCreateTools(false);
                   onSelectTool(null);
@@ -178,13 +182,19 @@ function AiStudioToolbarComponent({
           <p className="toolbar-section-label">Shortcuts</p>
           {lowerToolList.map((tool) => {
             const IconComponent = toolIcons[tool.id];
-            const isActive = selectedTool === tool.id;
+            const isCharacterShortcut = tool.id === "character";
+            const isActive = isCharacterShortcut ? isCharacterSelected : selectedTool === tool.id;
             return (
               <button
                 key={tool.id}
                 type="button"
                 className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
                 onClick={() => {
+                  if (isCharacterShortcut && isCharacterSelected) {
+                    onToggleCreateTools(false);
+                    onSelectTool(null);
+                    return;
+                  }
                   onToggleCreateTools(false);
                   onSelectTool(tool.id);
                 }}

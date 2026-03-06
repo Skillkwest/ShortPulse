@@ -588,6 +588,37 @@ describe("useAiStudioGenerationController", () => {
     ]);
   });
 
+  it("forwards explicit image regenerate reference overrides", async () => {
+    const regenerateOutput = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => null);
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/bytedance/seedream/v5/lite/edit",
+      regenerateOutput,
+      resolveCharacterModeSubmissionOverrides,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        referenceInputsOverride: ["blob:flatten-primary", "https://example.com/extra.png"],
+      });
+    });
+
+    expect(resolveCharacterModeSubmissionOverrides).toHaveBeenCalledWith(
+      "default prompt",
+      "edit",
+      null,
+      ["blob:flatten-primary", "https://example.com/extra.png"]
+    );
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelIdOverride: "fal-ai/bytedance/seedream/v5/lite/edit",
+        referenceInputsOverride: ["blob:flatten-primary", "https://example.com/extra.png"],
+      })
+    );
+  });
+
   it("allows regenerate submissions while agent send is in flight", async () => {
     const regenerateOutput = vi.fn();
     const params = createParams({

@@ -22,6 +22,7 @@ import { normalizeAgentOutputGenerateRequest } from "../features/ai-studio/logic
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
+import { useAiStudioCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import {
   useAiStudioCharacterModeController,
   type CharacterModeInjectionBundle,
@@ -47,6 +48,7 @@ import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../features/character-manager/components/CharacterManagerShell";
+import type { ResolveCanvasDropReference } from "../features/ai-studio/components/canvas/canvasTypes";
 import {
   getAiStudioShellSectionRenderCounters,
   resetAiStudioShellSectionRenderCounters,
@@ -350,6 +352,41 @@ export default function AiStudioPage() {
     },
     [getOutputById, resolveSavedMediaIdFromOutput]
   );
+  const resolveCanvasDropReference = useCallback<ResolveCanvasDropReference>(
+    (payload: InternalReferenceDragPayload) => {
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
+      const output = outputId ? getOutputById(outputId) : null;
+      if (!output) return null;
+      if (output.mode === "text") {
+        const text = (output.prompt || output.previewText || "").trim();
+        if (!text) return null;
+        return {
+          kind: "text",
+          outputId: outputId || null,
+          text,
+          sourceSurface: payload.sourceSurface ?? null,
+        };
+      }
+      if (output.mode !== "image") return null;
+      const sourceUrl =
+        output.resultUrls?.[imageIndex] ?? output.previewUrl ?? payload.referenceUrl ?? null;
+      if (!sourceUrl) return null;
+      return {
+        kind: "image",
+        outputId: outputId || null,
+        mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
+        src: sourceUrl,
+        alt: (output.prompt || output.previewText || "Canvas reference").trim(),
+        sourceSurface: payload.sourceSurface ?? null,
+      };
+    },
+    [getOutputById, resolveSavedMediaIdFromOutput]
+  );
+  const canvasWorkspaceProps = useAiStudioCanvasWorkspaceState({
+    resolveCanvasDropReference,
+    onPinTextReference: addPastedPromptReference,
+  });
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
     mediaAutosaveEnabled,
@@ -1449,6 +1486,7 @@ export default function AiStudioPage() {
     extraImageUrls,
     editReferenceText,
     handleImageRegenerateWithDebit,
+    addSessionMediaReference: addPastedMediaReference,
     referenceImageWarning,
     resolveOutputPreviewUrl: resolvePanelOutputPreviewUrl,
     isReferencePromptEnhancing,
@@ -1522,6 +1560,7 @@ export default function AiStudioPage() {
     propertiesImage,
     propertiesEditExpert,
     propertiesVideo,
+    propertiesCanvas,
     referenceGridProps,
     studioPreviewProps,
     detailModalOutput,
@@ -1533,6 +1572,7 @@ export default function AiStudioPage() {
     onOpenMediaLibrary,
   } = mapHookContractsToPageContentProps({
     panelProps,
+    canvasProps: canvasWorkspaceProps,
     referenceGridProps: referenceGridHookProps,
     previewDetailProps,
   });
@@ -1575,6 +1615,7 @@ export default function AiStudioPage() {
         propertiesImage={propertiesImage}
         propertiesEditExpert={propertiesEditExpert}
         propertiesVideo={propertiesVideo}
+        propertiesCanvas={propertiesCanvas}
         isTemplateView={isTemplateView}
         referenceGridProps={referenceGridProps}
         studioPreviewProps={studioPreviewProps}

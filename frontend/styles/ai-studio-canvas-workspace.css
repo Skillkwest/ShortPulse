@@ -1,0 +1,194 @@
+/**
+ * AI Studio Canvas workspace styling.
+ * Defines the V1 board surface, transformed world layer, and canvas card presentation.
+ */
+.canvas-properties-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--ai-shell-column-max-height);
+  height: 100%;
+}
+
+.canvas-workspace-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 0;
+  border: none;
+  background-color: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+
+.canvas-workspace-viewport.is-drop-active {
+  box-shadow:
+    inset 0 0 0 1px rgba(248, 240, 222, 0.08),
+    0 0 0 2px rgba(245, 221, 174, 0.08),
+    0 22px 36px rgba(0, 0, 0, 0.28);
+}
+
+.canvas-workspace-viewport:active {
+  cursor: grabbing;
+}
+
+.canvas-workspace-world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+.canvas-workspace-grid {
+  position: absolute;
+  left: -8000px;
+  top: -8000px;
+  width: 16000px;
+  height: 16000px;
+  background-image: radial-gradient(circle, rgba(228, 232, 240, 0.11) 1.2px, transparent 1.4px);
+  background-size: 40px 40px;
+  background-position: 20px 20px;
+  pointer-events: none;
+}
+
+.canvas-scene-item {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(232, 210, 168, 0.12);
+  background: rgba(16, 18, 22, 0.94);
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.28);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.canvas-scene-item:active {
+  cursor: grabbing;
+}
+
+.canvas-scene-item.is-selected {
+  border-color: rgba(245, 221, 174, 0.56);
+  box-shadow:
+    0 0 0 1px rgba(245, 221, 174, 0.18),
+    0 22px 34px rgba(0, 0, 0, 0.34);
+}
+
+.canvas-scene-item--image {
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.canvas-scene-item--image.is-selected {
+  border: none;
+  box-shadow:
+    0 0 0 1px rgba(244, 238, 226, 1),
+    0 18px 30px rgba(0, 0, 0, 0.3);
+}
+
+.canvas-scene-item--text.is-selected {
+  border-width: 1px;
+  border-color: rgba(244, 238, 226, 1);
+  box-shadow:
+    0 0 0 1px rgba(244, 238, 226, 1),
+    0 18px 30px rgba(0, 0, 0, 0.3);
+}
+
+.canvas-scene-item__image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.canvas-scene-item--text {
+  min-height: 120px;
+  padding: 16px 16px 0;
+  position: relative;
+}
+
+.canvas-scene-item--draft {
+  min-height: 120px;
+}
+
+.canvas-scene-item__text {
+  margin: 0;
+  color: #f3ead8;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.canvas-scene-item__pin-button {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3ead8;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.canvas-scene-item--text:hover .canvas-scene-item__pin-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.canvas-scene-item__pin-button:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.canvas-scene-item__text-editor,
+.canvas-scene-item__draft-input {
+  width: 100%;
+  min-height: 88px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #f3ead8;
+  font: inherit;
+  line-height: 1.55;
+  resize: none;
+  outline: none;
+}
+
+.canvas-scene-item__text-editor {
+  margin-bottom: 16px;
+}
+
+.canvas-scene-item__text-editor::placeholder,
+.canvas-scene-item__draft-input::placeholder {
+  color: rgba(243, 234, 216, 0.42);
+}
+
+.ai-studio-page[data-selected-tool="canvas"] .panel.ai-panel.ai-properties {
+  padding: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 960px) {
+  .canvas-properties-panel {
+    min-height: auto;
+  }
+
+  .canvas-workspace-viewport {
+    height: 100%;
+  }
+}

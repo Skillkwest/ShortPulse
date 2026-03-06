@@ -31,7 +31,10 @@ type UseAiStudioEditExpertPanelPropsParams = {
   setReferenceImageUrl: (url: string | null) => void;
   setExtraImageUrl: (index: number, url: string | null) => void;
   handleEditPromptTextChange: (value: string) => void;
-  handleImageRegenerateWithDebit: () => void;
+  handleImageRegenerateWithDebit: (options?: {
+    referenceInputsOverride?: string[];
+  }) => void | Promise<void>;
+  addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
@@ -67,6 +70,7 @@ export const useAiStudioEditExpertPanelProps = ({
   setExtraImageUrl,
   handleEditPromptTextChange,
   handleImageRegenerateWithDebit,
+  addSessionMediaReference,
   currentCostCredits,
   isGenerateDisabled,
   isGenerateClickLocked,
@@ -100,6 +104,9 @@ export const useAiStudioEditExpertPanelProps = ({
       onExtraImageChange: setExtraImageUrl,
       onPromptTextChange: handleEditPromptTextChange,
       onRegenerate: handleImageRegenerateWithDebit,
+      onRegenerateWithReferenceInputs: (referenceInputs: string[]) =>
+        handleImageRegenerateWithDebit({ referenceInputsOverride: referenceInputs }),
+      onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
       isGenerateBusy: isPromptGenerating,
@@ -139,6 +146,7 @@ export const useAiStudioEditExpertPanelProps = ({
       resolveOutputPreviewUrl,
       selectedCharacterId,
       setAspect,
+      addSessionMediaReference,
       setExtraImageUrl,
       setImageResolution,
       setIsCharacterModeEnabled,

@@ -5,10 +5,12 @@
 import { describe, expect, it } from "vitest";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
+  AI_SHELL_LEFT_DEFAULT_RATIO,
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
+  AI_SHELL_RIGHT_CANVAS_MIN_PX,
   AI_SHELL_RIGHT_MIN_PX,
   clampAiShellLeftWidth,
   getAiShellLeftWidthBounds,
@@ -45,6 +47,13 @@ describe("getAiShellLeftWidthBounds", () => {
     });
     expect(bounds.max).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
   });
+
+  it("supports a canvas right column minimum of zero", () => {
+    const bounds = getAiShellLeftWidthBounds(1700, {
+      minRightWidthPx: AI_SHELL_RIGHT_CANVAS_MIN_PX,
+    });
+    expect(bounds.max).toBe(1700 - AI_SHELL_DIVIDER_TRACK_PX);
+  });
 });
 
 describe("clampAiShellLeftWidth", () => {
@@ -68,12 +77,24 @@ describe("clampAiShellLeftWidth", () => {
       })
     ).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
   });
+
+  it("allows the divider to cover the full right column for canvas mode", () => {
+    expect(
+      clampAiShellLeftWidth(2000, 1600, {
+        minRightWidthPx: AI_SHELL_RIGHT_CANVAS_MIN_PX,
+      })
+    ).toBe(1600 - AI_SHELL_DIVIDER_TRACK_PX);
+  });
 });
 
 describe("getDefaultAiShellLeftWidth", () => {
   it("computes a clamped ratio-based default", () => {
-    expect(getDefaultAiShellLeftWidth(1500)).toBe(600);
-    expect(getDefaultAiShellLeftWidth(900)).toBe(clampAiShellLeftWidth(900 * 0.4, 900));
+    expect(getDefaultAiShellLeftWidth(1500)).toBe(
+      clampAiShellLeftWidth(1500 * AI_SHELL_LEFT_DEFAULT_RATIO, 1500)
+    );
+    expect(getDefaultAiShellLeftWidth(900)).toBe(
+      clampAiShellLeftWidth(900 * AI_SHELL_LEFT_DEFAULT_RATIO, 900)
+    );
   });
 
   it("clamps defaults to a larger caller-provided minimum when needed", () => {

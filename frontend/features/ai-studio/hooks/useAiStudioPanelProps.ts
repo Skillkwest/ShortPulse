@@ -115,7 +115,10 @@ export type UseAiStudioPanelPropsParams = {
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
-  handleImageRegenerateWithDebit: () => void;
+  handleImageRegenerateWithDebit: (options?: {
+    referenceInputsOverride?: string[];
+  }) => void | Promise<void>;
+  addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   isReferencePromptEnhancing: boolean;
@@ -239,6 +242,7 @@ export const useAiStudioPanelProps = ({
   extraImageUrls,
   editReferenceText,
   handleImageRegenerateWithDebit,
+  addSessionMediaReference,
   referenceImageWarning,
   resolveOutputPreviewUrl,
   isReferencePromptEnhancing,
@@ -422,6 +426,7 @@ export const useAiStudioPanelProps = ({
     setExtraImageUrl,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,
+    addSessionMediaReference,
     currentCostCredits,
     isGenerateDisabled,
     isGenerateClickLocked,

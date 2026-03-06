@@ -4,7 +4,15 @@
  */
 import React from "react";
 import Link from "next/link";
-import { FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
+import {
+  FlowArrow,
+  Globe,
+  type IconProps,
+  Sliders,
+  Sparkle,
+  SquaresFour,
+  StackSimple,
+} from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
@@ -17,10 +25,12 @@ import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
+import { CanvasPropertiesPanel } from "./canvas/CanvasPropertiesPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import type { ResolveCharacterDropReference } from "../../character-manager/components/CharacterManagerShell";
+import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -47,6 +57,7 @@ import {
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_RIGHT_CANVAS_MIN_PX,
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
@@ -56,7 +67,13 @@ type FailureCard = Pick<
   "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail"
 >;
 
-type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
+type ComingSoonToolId =
+  | "templates"
+  | "presets"
+  | "styles"
+  | "workflows"
+  | "my-generations"
+  | "community";
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
 const comingSoonCopy: Record<
@@ -69,6 +86,18 @@ const comingSoonCopy: Record<
     detail:
       "Templates allow you to select pre-set models and selections for specific generative tasks.",
     icon: SquaresFour,
+  },
+  presets: {
+    title: "Presets",
+    summary: "Reusable preset bundles for common generation patterns.",
+    detail: "Presets are UI-only in this phase and will be wired in a future rollout.",
+    icon: Sliders,
+  },
+  styles: {
+    title: "Styles",
+    summary: "A curated style library for consistent creative direction.",
+    detail: "Styles are UI-only in this phase and will be wired in a future rollout.",
+    icon: Sparkle,
   },
   workflows: {
     title: "Workflows",
@@ -91,7 +120,12 @@ const comingSoonCopy: Record<
 };
 
 const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
-  tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
+  tool === "templates" ||
+  tool === "presets" ||
+  tool === "styles" ||
+  tool === "workflows" ||
+  tool === "my-generations" ||
+  tool === "community";
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
@@ -240,6 +274,7 @@ type CreateSectionProps = React.ComponentProps<typeof CreatePropertiesPanel>;
 type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
 type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
+type CanvasSectionProps = CanvasPropertiesPanelProps;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
 const FLAG_SHELL_DECOUPLE = PERF_FLAG_SHELL_DECOUPLE;
 const FLAG_DND_BACKPRESSURE = PERF_FLAG_SHELL_DND_BACKPRESSURE;
@@ -423,6 +458,7 @@ export type AiStudioPageContentProps = {
   propertiesImage: EditSectionProps;
   propertiesEditExpert: EditExpertSectionProps;
   propertiesVideo: VideoSectionProps;
+  propertiesCanvas: CanvasSectionProps;
   isTemplateView: boolean;
   referenceGridProps: ReferenceGridProps;
   /**
@@ -483,6 +519,7 @@ export function AiStudioPageContent({
   propertiesImage,
   propertiesEditExpert,
   propertiesVideo,
+  propertiesCanvas,
   isTemplateView,
   referenceGridProps,
   referenceCanvasProps,
@@ -532,6 +569,7 @@ export function AiStudioPageContent({
         ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
         : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
+  const minRightWidthPx = selectedTool === "canvas" ? AI_SHELL_RIGHT_CANVAS_MIN_PX : undefined;
   const {
     shellRef,
     leftColumnRef,
@@ -540,10 +578,12 @@ export function AiStudioPageContent({
     shellStyle,
     collapseToMin,
     dividerProps,
+    rightColumnHidden,
   } = useAiStudioShellResize({
     enabled: Boolean(selectedTool),
     minLeftWidthPx,
     maxLeftWidthPx,
+    minRightWidthPx,
   });
   const shellClassName = [
     "ai-shell",
@@ -635,6 +675,7 @@ export function AiStudioPageContent({
         <EditPropertiesPanel {...propertiesImage} />
       ),
       video: <VideoPropertiesPanel {...propertiesVideo} />,
+      canvas: <CanvasPropertiesPanel {...propertiesCanvas} />,
       character: (
         <CharacterPanel
           beginnerMode={beginnerMode}
@@ -648,6 +689,7 @@ export function AiStudioPageContent({
       beginnerMode,
       propertiesImage,
       propertiesEditExpert,
+      propertiesCanvas,
       resolvedCreateProperties,
       resolveCharacterDropReference,
       propertiesVideo,
@@ -773,6 +815,7 @@ export function AiStudioPageContent({
               selectedTool={selectedTool}
               showDivider={showDivider}
               dividerProps={dividerProps}
+              rightColumnHidden={rightColumnHidden}
               propertiesPanelContent={propertiesPanelContent}
               rightColumnDropMode={rightColumnDropMode as RightColumnDropMode}
               onRightColumnDropCapture={handleRightColumnDropCapture}

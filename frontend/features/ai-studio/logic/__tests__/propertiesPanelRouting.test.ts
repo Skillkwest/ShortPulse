@@ -16,11 +16,11 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("image")).toBe("edit");
   });
 
-  it("routes video aliases to video and character aliases to character", () => {
+  it("routes video aliases to video and canvas to its dedicated panel", () => {
     expect(resolvePropertiesPanelKind("video")).toBe("video");
     expect(resolvePropertiesPanelKind("kling")).toBe("video");
     expect(resolvePropertiesPanelKind("character")).toBe("character");
-    expect(resolvePropertiesPanelKind("canvas")).toBe("character");
+    expect(resolvePropertiesPanelKind("canvas")).toBe("canvas");
   });
 
   it("falls back to none for null", () => {

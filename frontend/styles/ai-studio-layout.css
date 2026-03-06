@@ -48,6 +48,12 @@
   --ai-toolbar-font-size: 12px;
   --ai-toolbar-font-weight: 100;
   --ai-toolbar-label-size: 14px;
+  --ai-canvas-cream-soft: #f8f0de;
+  --ai-canvas-cream: #f5ddae;
+  --ai-canvas-cream-deep: #e8d2a8;
+  --ai-canvas-cream-outline: rgba(245, 221, 174, 0.4);
+  --ai-canvas-cream-shadow: rgba(232, 210, 168, 0.22);
+  --ai-canvas-ink: #2f2618;
 }
 
 .ai-studio-body,
@@ -58,6 +64,11 @@ body:has(.ai-studio-page) {
   background: var(--color-bg) !important;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+html:has(.ai-studio-page[data-selected-tool="canvas"]),
+body:has(.ai-studio-page[data-selected-tool="canvas"]) {
+  overflow-y: hidden;
 }
 
 .ai-studio-page .ai-alert-banner {
@@ -226,6 +237,11 @@ body:has(.ai-studio-page) {
   overflow: visible;
   display: flex;
   flex-direction: column;
+}
+
+.ai-studio-page[data-selected-tool="canvas"] {
+  height: var(--app-fixed-height);
+  overflow: hidden;
 }
 
 .ai-studio-page .generate-rounding-note {
@@ -583,7 +599,7 @@ body:has(.ai-studio-page) {
   grid-template-columns:
     var(--ai-shell-left-width, minmax(420px, 1.2fr))
     var(--ai-shell-divider-track-width)
-    minmax(320px, 1fr);
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
   gap: 0;
   transition: grid-template-columns 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
@@ -592,7 +608,7 @@ body:has(.ai-studio-page) {
   grid-template-columns:
     var(--ai-shell-left-width, minmax(1060px, 1.28fr))
     var(--ai-shell-divider-track-width)
-    minmax(320px, 1fr);
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
   transition: none;
 }
 
@@ -600,7 +616,7 @@ body:has(.ai-studio-page) {
   grid-template-columns:
     var(--ai-shell-left-width, minmax(840px, 1000px))
     var(--ai-shell-divider-track-width)
-    minmax(320px, 1fr);
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
 }
 
 .ai-shell.ai-shell-resizable.ai-shell-resizing {
@@ -668,6 +684,13 @@ body:has(.ai-studio-page) {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  opacity: var(--ai-shell-right-visibility, 1);
+  transition: opacity 40ms linear;
+}
+
+.ai-shell-right[data-right-column-hidden="true"] {
+  pointer-events: none;
+  opacity: 0;
 }
 
 .ai-right-drop-overlay {
@@ -714,10 +737,14 @@ body:has(.ai-studio-page) {
 }
 
 .ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:hover::before,
 .ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="canvas"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
+  background: var(--ai-canvas-cream);
+  box-shadow: 0 0 0 1px var(--ai-canvas-cream-outline);
+}
+
+.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:hover::before,
 .ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="canvas"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
 .ai-studio-page[data-selected-tool="character"]
   .ai-shell.ai-shell-resizing
   .ai-shell-divider::before {
@@ -731,6 +758,10 @@ body:has(.ai-studio-page) {
 }
 
 .ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:focus-visible,
+.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible {
+  outline-color: var(--ai-canvas-cream);
+}
+
 .ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible {
   outline-color: rgba(74, 224, 116, 0.82);
 }
@@ -1008,7 +1039,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="kling"],
   .toolbar-item[data-tool-id="video"],
   .toolbar-item[data-tool-id="edit"],
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) {
+  .toolbar-item[data-tool-id="canvas"] {
     transition: none;
   }
 
@@ -1016,7 +1047,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="kling"]:hover,
   .toolbar-item[data-tool-id="video"]:hover,
   .toolbar-item[data-tool-id="edit"]:hover,
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):hover {
+  .toolbar-item[data-tool-id="canvas"]:hover {
     transform: none;
   }
 
@@ -1024,7 +1055,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="kling"].is-active,
   .toolbar-item[data-tool-id="video"].is-active,
   .toolbar-item[data-tool-id="edit"].is-active,
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]).is-active {
+  .toolbar-item[data-tool-id="canvas"].is-active {
     transform: none;
   }
 }
@@ -1049,7 +1080,7 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="kling"]::before,
 .toolbar-item[data-tool-id="video"]::before,
 .toolbar-item[data-tool-id="edit"]::before,
-.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"])::before {
+.toolbar-item[data-tool-id="canvas"]::before {
   display: none;
 }
 
@@ -1121,9 +1152,9 @@ body.ai-shell-resizing * {
   padding: 10px 14px;
 }
 
-/* Canvas button - purple/indigo gradient */
-.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) {
-  background: linear-gradient(135deg, #155d46 0%, #4dba67 100%);
+/* Canvas button - cream gradient with dark foreground */
+.toolbar-item[data-tool-id="canvas"] {
+  background: linear-gradient(135deg, #f8f0de 0%, #f0e2c3 55%, #e8d2a8 100%);
   margin: 4px 0;
   padding: 10px 14px;
   border: none;
@@ -1131,28 +1162,30 @@ body.ai-shell-resizing * {
   position: relative;
   min-height: 40px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 14px rgba(29, 24, 16, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.45) inset;
 }
 
 /* Canvas button hover */
-.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):hover {
-  background: linear-gradient(135deg, #155d46 0%, #3dcc5f 100%);
+.toolbar-item[data-tool-id="canvas"]:hover {
+  background: linear-gradient(135deg, #fcf6e8 0%, #f5e9d0 55%, #efdcb9 100%);
   transform: translateY(-2px);
   box-shadow:
-    0 8px 20px rgba(6, 95, 70, 0.32),
-    0 4px 12px rgba(5, 150, 105, 0.34),
-    0 0 0 1px rgba(52, 211, 153, 0.2);
+    0 10px 22px rgba(50, 38, 21, 0.26),
+    0 4px 12px rgba(235, 211, 168, 0.3),
+    0 0 0 1px rgba(245, 219, 173, 0.45);
 }
 
-/* Canvas button active - dual borders (dark + purple) */
-.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]).is-active {
-  background: linear-gradient(135deg, #106d50 0%, #4cc768 100%);
+/* Canvas button active - warm ring with high-contrast text */
+.toolbar-item[data-tool-id="canvas"].is-active {
+  background: linear-gradient(135deg, #f4e7ca 0%, #eddcb7 55%, #e3cb9c 100%);
   transform: scale(1);
   box-shadow:
-    0 0 0 3px #4ae074,
-    0 4px 12px rgba(0, 0, 0, 0.35),
-    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    0 0 0 3px #f5ddae,
+    0 6px 14px rgba(29, 24, 16, 0.22),
+    inset 0 0 0 2px rgba(70, 51, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
   padding: 10px 14px;
 }
 
@@ -1173,8 +1206,8 @@ body.ai-shell-resizing * {
   outline-offset: 3px;
 }
 
-.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):focus-visible {
-  outline: 2px solid #34d399;
+.toolbar-item[data-tool-id="canvas"]:focus-visible {
+  outline: 2px solid #f5ddae;
   outline-offset: 3px;
 }
 
@@ -1183,30 +1216,24 @@ body.ai-shell-resizing * {
 .ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="create"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible),
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="video"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible),
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible),
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) {
   background: transparent;
   border: 1px solid var(--ai-toolbar-secondary-fg);
@@ -1221,9 +1248,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="create"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible)
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1232,9 +1257,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="video"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible)
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1243,17 +1266,15 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="edit"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible)
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   svg {
   color: var(--ai-toolbar-secondary-fg) !important;
@@ -1266,9 +1287,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="create"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible)
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1277,9 +1296,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="video"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible)
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1288,17 +1305,15 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="edit"]
-  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
-    :hover
-  ):not(:focus-visible)
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
-.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
+.ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label {
   color: var(--ai-toolbar-secondary-fg) !important;
@@ -1308,21 +1323,42 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="kling"] svg,
 .toolbar-item[data-tool-id="video"] svg,
 .toolbar-item[data-tool-id="edit"] svg,
-.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) svg {
+.toolbar-item[data-tool-id="canvas"] svg {
   width: 18px !important;
   height: 18px !important;
+}
+
+.toolbar-item[data-tool-id="create"] svg,
+.toolbar-item[data-tool-id="kling"] svg,
+.toolbar-item[data-tool-id="video"] svg,
+.toolbar-item[data-tool-id="edit"] svg {
   color: #ffffff !important;
+}
+
+.toolbar-item[data-tool-id="canvas"] svg {
+  color: #2f2618 !important;
 }
 
 .toolbar-item[data-tool-id="create"] .toolbar-label,
 .toolbar-item[data-tool-id="kling"] .toolbar-label,
 .toolbar-item[data-tool-id="video"] .toolbar-label,
 .toolbar-item[data-tool-id="edit"] .toolbar-label,
-.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) .toolbar-label {
+.toolbar-item[data-tool-id="canvas"] .toolbar-label {
   font-size: 14px !important;
   font-weight: 600 !important;
   letter-spacing: 0.3px;
+}
+
+.toolbar-item[data-tool-id="create"] .toolbar-label,
+.toolbar-item[data-tool-id="kling"] .toolbar-label,
+.toolbar-item[data-tool-id="video"] .toolbar-label,
+.toolbar-item[data-tool-id="edit"] .toolbar-label {
   color: #ffffff !important;
+}
+
+.toolbar-item[data-tool-id="canvas"] .toolbar-label {
+  color: #2f2618 !important;
+  font-weight: 700 !important;
 }
 
 .toolbar-item::before {

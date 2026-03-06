@@ -49,6 +49,10 @@ type GenerateResult = {
   optimisticOutputId: string | null;
 };
 
+type RegenerateWithDebitOptions = {
+  referenceInputsOverride?: string[];
+};
+
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
@@ -526,165 +530,178 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     void handleGenerate(rawPrompt ?? "", { modeOverride: "image", toolOverride: "create" });
   }, [agentInput, handleGenerate, prompt, setPromptOrigin]);
 
-  const runRegenerateWithDebit = useCallback(async () => {
-    if (!tryAcquireGenerateClickLock()) return;
+  const runRegenerateWithDebit = useCallback(
+    async (options?: RegenerateWithDebitOptions) => {
+      if (!tryAcquireGenerateClickLock()) return;
 
-    if (isGenerateDisabled && !isCreditGuardrail) {
-      setUiError(resolveGuardrailBlockMessage());
-      return;
-    }
-    if (isCreditGuardrail) {
-      const hasFreshCredits = await ensureFreshCreditsForRun(currentCostCredits);
-      if (!hasFreshCredits) {
+      if (isGenerateDisabled && !isCreditGuardrail) {
         setUiError(resolveGuardrailBlockMessage());
         return;
       }
-    }
-    const promptToUse = resolveDefaultPromptForTool(selectedTool);
-    const regenerateStartDecision = resolveGenerationStartDecision({
-      tool: selectedTool,
-      mode,
-      modelId: model,
-      promptText: promptToUse,
-      checkCreateTextMode: false,
-      checkPrompt: shouldCheckPromptAtGenerationStart({
-        tool: selectedTool,
-        modelId: model,
-      }),
-    });
-    if (!regenerateStartDecision.allow) {
-      setUiError(regenerateStartDecision.message);
-      return;
-    }
-    let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
-    try {
-      trackCharacterModeEvent?.("generation_preflight_started", {
-        trigger: "regenerate",
-        tool: selectedTool,
-        model_id: model,
-        is_character_mode: isCharacterModeEnabled,
-      });
-      const characterModeBundleForSubmit = await withDeadline({
-        timeoutMs: PREFLIGHT_TIMEOUT_MS,
-        timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
-        run: () => refreshCharacterModeInjectionBundleForSubmission(selectedTool),
-      });
-      const userReferenceInputs = resolveUserReferenceInputsForTool(selectedTool);
-      characterModeOverrides = resolveCharacterModeSubmissionOverrides(
-        promptToUse,
-        selectedTool,
-        characterModeBundleForSubmit,
-        userReferenceInputs
-      );
-    } catch (error) {
-      if (error instanceof DeadlineExceededError) {
-        trackCharacterModeEvent?.("generation_preflight_timeout", {
-          trigger: "regenerate",
-          tool: selectedTool,
-          model_id: model,
-          is_character_mode: isCharacterModeEnabled,
-          duration_ms: error.timeoutMs,
-          reason_code: "PREFLIGHT_TIMEOUT",
-        });
+      if (isCreditGuardrail) {
+        const hasFreshCredits = await ensureFreshCreditsForRun(currentCostCredits);
+        if (!hasFreshCredits) {
+          setUiError(resolveGuardrailBlockMessage());
+          return;
+        }
       }
-      setUiError(
-        error instanceof DeadlineExceededError
-          ? PREFLIGHT_TIMEOUT_ERROR
-          : error instanceof Error
-            ? error.message
-            : "Unable to start generation."
-      );
-      return;
-    }
-    const hasCharacterModeReferences =
-      (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
-    const regenerateCharacterModeDecision =
-      characterModeOverrides &&
-      resolveGenerationStartDecision({
+
+      const promptToUse = resolveDefaultPromptForTool(selectedTool);
+      const regenerateStartDecision = resolveGenerationStartDecision({
         tool: selectedTool,
         mode,
         modelId: model,
         promptText: promptToUse,
         checkCreateTextMode: false,
-        checkPrompt: false,
-        checkModel: false,
-        checkCharacterReferences: true,
-        hasCharacterModeReferences,
+        checkPrompt: shouldCheckPromptAtGenerationStart({
+          tool: selectedTool,
+          modelId: model,
+        }),
       });
-    if (
-      characterModeOverrides &&
-      regenerateCharacterModeDecision &&
-      !regenerateCharacterModeDecision.allow
-    ) {
+      if (!regenerateStartDecision.allow) {
+        setUiError(regenerateStartDecision.message);
+        return;
+      }
+
+      let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
+      try {
+        trackCharacterModeEvent?.("generation_preflight_started", {
+          trigger: "regenerate",
+          tool: selectedTool,
+          model_id: model,
+          is_character_mode: isCharacterModeEnabled,
+        });
+        const characterModeBundleForSubmit = await withDeadline({
+          timeoutMs: PREFLIGHT_TIMEOUT_MS,
+          timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
+          run: () => refreshCharacterModeInjectionBundleForSubmission(selectedTool),
+        });
+        const userReferenceInputs =
+          options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(selectedTool);
+        characterModeOverrides = resolveCharacterModeSubmissionOverrides(
+          promptToUse,
+          selectedTool,
+          characterModeBundleForSubmit,
+          userReferenceInputs
+        );
+      } catch (error) {
+        if (error instanceof DeadlineExceededError) {
+          trackCharacterModeEvent?.("generation_preflight_timeout", {
+            trigger: "regenerate",
+            tool: selectedTool,
+            model_id: model,
+            is_character_mode: isCharacterModeEnabled,
+            duration_ms: error.timeoutMs,
+            reason_code: "PREFLIGHT_TIMEOUT",
+          });
+        }
+        setUiError(
+          error instanceof DeadlineExceededError
+            ? PREFLIGHT_TIMEOUT_ERROR
+            : error instanceof Error
+              ? error.message
+              : "Unable to start generation."
+        );
+        return;
+      }
+
+      const hasCharacterModeReferences =
+        (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
+      const regenerateCharacterModeDecision =
+        characterModeOverrides &&
+        resolveGenerationStartDecision({
+          tool: selectedTool,
+          mode,
+          modelId: model,
+          promptText: promptToUse,
+          checkCreateTextMode: false,
+          checkPrompt: false,
+          checkModel: false,
+          checkCharacterReferences: true,
+          hasCharacterModeReferences,
+        });
+      if (
+        characterModeOverrides &&
+        regenerateCharacterModeDecision &&
+        !regenerateCharacterModeDecision.allow
+      ) {
+        trackCharacterModeFallback(characterModeOverrides, selectedTool);
+        trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
+          tool: selectedTool,
+          fallback_code: characterModeOverrides.fallbackCode,
+          has_character_description: characterModeOverrides.hasCharacterDescription,
+          character_reference_count: characterModeOverrides.characterReferenceCount,
+        });
+        setUiError(regenerateCharacterModeDecision.message);
+        return;
+      }
+
       trackCharacterModeFallback(characterModeOverrides, selectedTool);
-      trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
-        tool: selectedTool,
-        fallback_code: characterModeOverrides.fallbackCode,
-        has_character_description: characterModeOverrides.hasCharacterDescription,
-        character_reference_count: characterModeOverrides.characterReferenceCount,
+      const effectiveModelId = resolveEffectiveSubmitModelId(selectedTool);
+      const wasSubmitModelCoerced =
+        effectiveModelId != null && model != null && effectiveModelId !== model;
+      if (wasSubmitModelCoerced) {
+        setModel(effectiveModelId);
+        trackCharacterModeEvent?.("character_mode_submit_invariant_coerced", {
+          trigger: "regenerate",
+          tool: selectedTool,
+          from_model_id: model,
+          to_model_id: effectiveModelId,
+        });
+      }
+
+      enqueueOptimisticDebit(currentCostCredits, activeOutputId ?? null);
+      regenerateOutput({
+        modelIdOverride: effectiveModelId,
+        submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
+        displayPromptOverride: characterModeOverrides?.displayPromptOverride,
+        referenceInputsOverride:
+          characterModeOverrides?.referenceInputsOverride ?? options?.referenceInputsOverride,
+        ...(characterModeOverrides?.characterContextOverride
+          ? { characterContextOverride: characterModeOverrides.characterContextOverride }
+          : {}),
       });
-      setUiError(regenerateCharacterModeDecision.message);
-      return;
-    }
-    trackCharacterModeFallback(characterModeOverrides, selectedTool);
-    const effectiveModelId = resolveEffectiveSubmitModelId(selectedTool);
-    const wasSubmitModelCoerced =
-      effectiveModelId != null && model != null && effectiveModelId !== model;
-    if (wasSubmitModelCoerced) {
-      setModel(effectiveModelId);
-      trackCharacterModeEvent?.("character_mode_submit_invariant_coerced", {
-        trigger: "regenerate",
-        tool: selectedTool,
-        from_model_id: model,
-        to_model_id: effectiveModelId,
-      });
-    }
-    enqueueOptimisticDebit(currentCostCredits, activeOutputId ?? null);
-    regenerateOutput({
-      modelIdOverride: effectiveModelId,
-      submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
-      displayPromptOverride: characterModeOverrides?.displayPromptOverride,
-      referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
-      ...(characterModeOverrides?.characterContextOverride
-        ? { characterContextOverride: characterModeOverrides.characterContextOverride }
-        : {}),
-    });
-    if (characterModeOverrides?.notice) {
-      setUiNotice(characterModeOverrides.notice);
-    }
-  }, [
-    activeOutputId,
-    currentCostCredits,
-    enqueueOptimisticDebit,
-    ensureFreshCreditsForRun,
-    isCreditGuardrail,
-    isGenerateDisabled,
-    mode,
-    model,
-    isCharacterModeEnabled,
-    refreshCharacterModeInjectionBundleForSubmission,
-    regenerateOutput,
-    resolveGuardrailBlockMessage,
-    resolveEffectiveSubmitModelId,
-    resolveCharacterModeSubmissionOverrides,
-    resolveDefaultPromptForTool,
-    resolveUserReferenceInputsForTool,
-    selectedTool,
-    setModel,
-    setUiError,
-    setUiNotice,
-    trackCharacterModeFallback,
-    trackCharacterModeEvent,
-    tryAcquireGenerateClickLock,
-  ]);
+      if (characterModeOverrides?.notice) {
+        setUiNotice(characterModeOverrides.notice);
+      }
+    },
+    [
+      activeOutputId,
+      currentCostCredits,
+      enqueueOptimisticDebit,
+      ensureFreshCreditsForRun,
+      isCreditGuardrail,
+      isGenerateDisabled,
+      mode,
+      model,
+      isCharacterModeEnabled,
+      refreshCharacterModeInjectionBundleForSubmission,
+      regenerateOutput,
+      resolveGuardrailBlockMessage,
+      resolveEffectiveSubmitModelId,
+      resolveCharacterModeSubmissionOverrides,
+      resolveDefaultPromptForTool,
+      resolveUserReferenceInputsForTool,
+      selectedTool,
+      setModel,
+      setUiError,
+      setUiNotice,
+      trackCharacterModeFallback,
+      trackCharacterModeEvent,
+      tryAcquireGenerateClickLock,
+    ]
+  );
 
   const handleRegenerateWithDebit = useCallback(async () => {
     await runRegenerateWithDebit();
   }, [runRegenerateWithDebit]);
 
-  const handleImageRegenerateWithDebit = useCallback(async () => {
-    await runRegenerateWithDebit();
-  }, [runRegenerateWithDebit]);
+  const handleImageRegenerateWithDebit = useCallback(
+    async (options?: RegenerateWithDebitOptions) => {
+      await runRegenerateWithDebit(options);
+    },
+    [runRegenerateWithDebit]
+  );
 
   return {
     isGenerateClickLocked,

@@ -211,10 +211,13 @@ export const primaryToolList: ToolConfig[] = [
 export const editToolList: ToolConfig[] = [
   { id: "edit", label: "Edit", desc: "Edit and refine content" },
   { id: "video", label: "Video", desc: "Generate video content" },
-  { id: "character", label: "Character", desc: "Create and manage character references" },
+  { id: "canvas", label: "Canvas", desc: "Canvas workspace (coming soon)" },
 ];
 
 export const lowerToolList: ToolConfig[] = [
+  { id: "character", label: "Characters", desc: "Create and manage character references" },
+  { id: "presets", label: "Presets", desc: "Browse reusable presets" },
+  { id: "styles", label: "Styles", desc: "Browse reusable styles" },
   { id: "templates", label: "Templates", desc: "Browse AI templates" },
 ];
 

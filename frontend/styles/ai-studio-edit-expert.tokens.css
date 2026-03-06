@@ -29,6 +29,8 @@
   --edit-expert-secondary-radius: 8px;
   --edit-expert-secondary-rail-offset: clamp(18px, 2.2vw, 24px);
   --edit-expert-panel-gap: 8px;
+  --edit-expert-title-to-control-gap: 10px;
+  --edit-expert-tools-title-to-control-gap: 8px;
   --edit-expert-input-min-height: 86px;
   --edit-expert-input-bg: rgba(12, 15, 22, 0.88);
   --edit-expert-input-border: rgba(201, 205, 214, 0.16);

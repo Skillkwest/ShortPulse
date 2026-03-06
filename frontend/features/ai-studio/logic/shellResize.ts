@@ -5,19 +5,21 @@
 
 export const AI_SHELL_LEFT_MIN_PX = 540;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 840;
-export const AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX = 910;
+export const AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX = 930;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1000;
 export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 1060;
 export const AI_SHELL_RIGHT_MIN_PX = 320;
+export const AI_SHELL_RIGHT_CANVAS_MIN_PX = 0;
 export const AI_SHELL_DIVIDER_TRACK_PX = 16;
 export const AI_SHELL_RESIZE_BREAKPOINT_PX = 960;
-export const AI_SHELL_LEFT_DEFAULT_RATIO = 0.4;
+export const AI_SHELL_LEFT_DEFAULT_RATIO = 0.7;
 export const AI_SHELL_LEFT_MIN_FALLBACK_PX = 420;
-export const AI_SHELL_LEFT_WIDTH_STORAGE_KEY = "shortpulse.aiStudio.shellLeftWidthPx";
+export const AI_SHELL_LEFT_WIDTH_STORAGE_KEY = "shortpulse.aiStudio.shellLeftWidthPx.v2";
 
 type ShellResizeBoundsOptions = {
   minLeftWidthPx?: number;
   maxLeftWidthPx?: number;
+  minRightWidthPx?: number;
 };
 
 /**
@@ -36,6 +38,10 @@ export const getAiShellLeftWidthBounds = (
     };
   }
   const safeContainerWidth = Math.floor(containerWidth);
+  const minRightWidthPx =
+    typeof options?.minRightWidthPx === "number" && Number.isFinite(options.minRightWidthPx)
+      ? Math.max(0, Math.floor(options.minRightWidthPx))
+      : AI_SHELL_RIGHT_MIN_PX;
   const requestedMin = Math.max(
     AI_SHELL_LEFT_MIN_FALLBACK_PX,
     options?.minLeftWidthPx ?? AI_SHELL_LEFT_MIN_PX
@@ -44,10 +50,10 @@ export const getAiShellLeftWidthBounds = (
     requestedMin,
     Math.max(
       AI_SHELL_LEFT_MIN_FALLBACK_PX,
-      safeContainerWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX
+      safeContainerWidth - minRightWidthPx - AI_SHELL_DIVIDER_TRACK_PX
     )
   );
-  const containerMax = safeContainerWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX;
+  const containerMax = safeContainerWidth - minRightWidthPx - AI_SHELL_DIVIDER_TRACK_PX;
   const requestedMaxCandidate = options?.maxLeftWidthPx;
   const requestedMax =
     typeof requestedMaxCandidate === "number" && Number.isFinite(requestedMaxCandidate)

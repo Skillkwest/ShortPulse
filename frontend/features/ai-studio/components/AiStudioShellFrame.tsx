@@ -75,6 +75,7 @@ type AiStudioShellFrameProps = {
   triggerFilePicker: () => void;
   onOpenMediaLibrary?: () => void;
   beginnerMode: boolean;
+  rightColumnHidden?: boolean;
 };
 
 export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
@@ -101,6 +102,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   triggerFilePicker,
   onOpenMediaLibrary,
   beginnerMode,
+  rightColumnHidden,
 }: AiStudioShellFrameProps) {
   const { activeCount } = useOutputCounts();
   const isDenseSession = activeCount >= 40;
@@ -122,6 +124,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
       <div
         ref={rightColumnRef}
         className={`ai-shell-right${rightColumnDropMode !== "none" ? " is-drop-overlay-active" : ""}`}
+        data-right-column-hidden={rightColumnHidden ? "true" : undefined}
         onDropCapture={onRightColumnDropCapture}
         onDragOverCapture={onRightColumnDragOverCapture}
         onDragEnterCapture={onRightColumnDragEnterCapture}

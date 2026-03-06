@@ -173,11 +173,15 @@
 .ai-studio-page[data-selected-tool="canvas"]
   .reference-grid-horizontal-divider-wrap:hover
   .reference-grid-horizontal-divider::before,
-.ai-studio-page[data-selected-tool="character"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider::before,
 .ai-studio-page[data-selected-tool="canvas"]
   .reference-grid-horizontal-divider-wrap:focus-visible
+  .reference-grid-horizontal-divider::before {
+  background: var(--ai-canvas-cream);
+  box-shadow: 0 0 0 1px var(--ai-canvas-cream-outline);
+}
+
+.ai-studio-page[data-selected-tool="character"]
+  .reference-grid-horizontal-divider-wrap:hover
   .reference-grid-horizontal-divider::before,
 .ai-studio-page[data-selected-tool="character"]
   .reference-grid-horizontal-divider-wrap:focus-visible
@@ -189,11 +193,16 @@
 .ai-studio-page[data-selected-tool="canvas"]
   .reference-grid-horizontal-divider-wrap:hover
   .reference-grid-horizontal-divider-pill,
-.ai-studio-page[data-selected-tool="character"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider-pill,
 .ai-studio-page[data-selected-tool="canvas"]
   .reference-grid-horizontal-divider-wrap:focus-visible
+  .reference-grid-horizontal-divider-pill {
+  color: rgba(252, 248, 240, 0.98);
+  border-color: var(--ai-canvas-cream-outline);
+  background: rgba(245, 221, 174, 0.16);
+}
+
+.ai-studio-page[data-selected-tool="character"]
+  .reference-grid-horizontal-divider-wrap:hover
   .reference-grid-horizontal-divider-pill,
 .ai-studio-page[data-selected-tool="character"]
   .reference-grid-horizontal-divider-wrap:focus-visible

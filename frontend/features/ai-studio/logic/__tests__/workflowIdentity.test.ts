@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  isCanvasWorkflow,
   isCharacterWorkflow,
   isCreateWorkflow,
   isEditWorkflow,
@@ -21,7 +22,7 @@ describe("workflowIdentity", () => {
     expect(resolveWorkflowId("video")).toBe("video");
     expect(resolveWorkflowId("kling")).toBe("video");
     expect(resolveWorkflowId("character")).toBe("character");
-    expect(resolveWorkflowId("canvas")).toBe("character");
+    expect(resolveWorkflowId("canvas")).toBe("canvas");
     expect(resolveWorkflowId(null)).toBe("none");
   });
 
@@ -29,7 +30,7 @@ describe("workflowIdentity", () => {
     expect(normalizeToolId("text")).toBe("create");
     expect(normalizeToolId("image")).toBe("edit");
     expect(normalizeToolId("kling")).toBe("video");
-    expect(normalizeToolId("canvas")).toBe("character");
+    expect(normalizeToolId("canvas")).toBe("canvas");
     expect(normalizeToolId(null)).toBeNull();
   });
 
@@ -37,6 +38,7 @@ describe("workflowIdentity", () => {
     expect(isCreateWorkflow("text")).toBe(true);
     expect(isEditWorkflow("image")).toBe(true);
     expect(isVideoWorkflow("kling")).toBe(true);
-    expect(isCharacterWorkflow("canvas")).toBe(true);
+    expect(isCharacterWorkflow("canvas")).toBe(false);
+    expect(isCanvasWorkflow("canvas")).toBe(true);
   });
 });

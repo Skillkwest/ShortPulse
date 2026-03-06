@@ -42,6 +42,8 @@ describe("useAiStudioPageDerivations", () => {
     );
 
     expect(result.current.isTemplateView).toBe(false);
+    rerender({ selectedTool: "canvas" });
+    expect(result.current.isTemplateView).toBe(false);
     rerender({ selectedTool: "templates" });
     expect(result.current.isTemplateView).toBe(true);
   });

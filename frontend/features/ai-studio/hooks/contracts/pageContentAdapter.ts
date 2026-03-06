@@ -2,6 +2,7 @@
  * Boundary adapter that maps hook-owned contracts into `AiStudioPageContent` props.
  */
 import type { AiStudioPageContentProps } from "../../components/AiStudioPageContent";
+import type { CanvasPropertiesPanelProps } from "../../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
   AiStudioPanelContracts,
   AiStudioPreviewDetailContracts,
@@ -10,6 +11,7 @@ import type {
 
 type AiStudioPageContentAdapterInput = {
   panelProps: AiStudioPanelContracts;
+  canvasProps: CanvasPropertiesPanelProps;
   referenceGridProps: AiStudioReferenceGridContract;
   previewDetailProps: AiStudioPreviewDetailContracts;
 };
@@ -21,6 +23,7 @@ export type AiStudioPageContentAdapterOutput = Pick<
   | "propertiesImage"
   | "propertiesEditExpert"
   | "propertiesVideo"
+  | "propertiesCanvas"
   | "referenceGridProps"
   | "studioPreviewProps"
   | "detailModalOutput"
@@ -37,6 +40,7 @@ export type AiStudioPageContentAdapterOutput = Pick<
  */
 export const mapHookContractsToPageContentProps = ({
   panelProps,
+  canvasProps,
   referenceGridProps,
   previewDetailProps,
 }: AiStudioPageContentAdapterInput): AiStudioPageContentAdapterOutput => ({
@@ -45,6 +49,7 @@ export const mapHookContractsToPageContentProps = ({
   propertiesImage: panelProps.propertiesImage,
   propertiesEditExpert: panelProps.propertiesEditExpert,
   propertiesVideo: panelProps.propertiesVideo,
+  propertiesCanvas: canvasProps,
   referenceGridProps,
   studioPreviewProps: previewDetailProps.studioPreviewProps,
   detailModalOutput: previewDetailProps.detailModalOutput,

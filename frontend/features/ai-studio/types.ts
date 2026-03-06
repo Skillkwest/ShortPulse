@@ -4,7 +4,7 @@
  */
 export type StudioMode = "text" | "image" | "video";
 
-export type WorkflowId = "create" | "edit" | "video" | "character" | "none";
+export type WorkflowId = "create" | "edit" | "video" | "character" | "canvas" | "none";
 
 export type AspectOption = {
   value: string;
@@ -92,6 +92,8 @@ export type StudioOutput = {
 export type ToolId =
   | "create"
   | "workflows"
+  | "presets"
+  | "styles"
   | "templates"
   | "my-generations"
   | "community"

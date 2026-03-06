@@ -4,6 +4,7 @@
  */
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -54,9 +55,20 @@ type CanvasDropSession =
       startClientY: number;
     };
 
+type CanvasPendingSceneItem = {
+  id: string;
+  kind: CanvasSceneItem["kind"];
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+};
+
 export type CanvasPropertiesPanelProps = {
   camera: CanvasCamera;
   items: CanvasSceneItem[];
+  pendingItems: CanvasPendingSceneItem[];
   viewportRef: RefObject<HTMLDivElement>;
   isDropActive: boolean;
   draftTextEntry: { x: number; y: number; value: string } | null;
@@ -90,6 +102,24 @@ export type CanvasPropertiesPanelProps = {
 
 const DRAG_TEXT_HINT_PATTERN =
   /^text\/(?:plain|prompt|x-moz-url|html|uri-list)|application\/json$/i;
+const CANVAS_TEXT_ITEM_HEIGHT = 120;
+const CANVAS_PENDING_BASE_Z_INDEX = 1_000_000;
+
+const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName;
+  if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") return true;
+  if (target.isContentEditable) return true;
+  return Boolean(target.closest("[contenteditable='true']"));
+};
+
+const shouldStartPanFromPointerDown = ({
+  button,
+  isSpacePanActive,
+}: {
+  button: number;
+  isSpacePanActive: boolean;
+}): boolean => button === 1 || (button === 0 && isSpacePanActive);
 
 const getHighestCanvasZIndex = (items: CanvasSceneItem[]): number =>
   items.reduce((highest, item) => Math.max(highest, item.z), 0);
@@ -208,6 +238,32 @@ const resolveCanvasImageDimensions = async (
   });
 };
 
+const resolveCanvasImageDimensionsFromResolution = (
+  resolved: Extract<CanvasDropResolution, { kind: "image" }>
+): { width: number; height: number } | null => {
+  if (
+    typeof resolved.width === "number" &&
+    Number.isFinite(resolved.width) &&
+    resolved.width > 0 &&
+    typeof resolved.height === "number" &&
+    Number.isFinite(resolved.height) &&
+    resolved.height > 0
+  ) {
+    return fitCanvasImageToProxyFrame({
+      width: resolved.width,
+      height: resolved.height,
+    });
+  }
+  return null;
+};
+
+const waitForNextAnimationFrame = async (): Promise<void> => {
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") return;
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+};
+
 const buildCanvasSceneItem = ({
   resolved,
   x,
@@ -265,8 +321,10 @@ export const useAiStudioCanvasWorkspaceState = ({
   const viewportRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<CanvasDropSession>({ kind: "none" });
   const dragDepthRef = useRef(0);
+  const isSpacePanActiveRef = useRef(false);
   const [camera, setCamera] = useState<CanvasCamera>(CANVAS_DEFAULT_CAMERA);
   const [items, setItems] = useState<CanvasSceneItem[]>([]);
+  const [pendingItems, setPendingItems] = useState<CanvasPendingSceneItem[]>([]);
   const [isDropActive, setIsDropActive] = useState(false);
   const [draftTextEntry, setDraftTextEntry] = useState<{
     x: number;
@@ -276,6 +334,41 @@ export const useAiStudioCanvasWorkspaceState = ({
   const [textEditSession, setTextEditSession] = useState<{ itemId: string; value: string } | null>(
     null
   );
+
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (isEditableKeyboardTarget(event.target)) return;
+      isSpacePanActiveRef.current = true;
+      event.preventDefault();
+    };
+    const handleKeyUp = (event: globalThis.KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      isSpacePanActiveRef.current = false;
+      if (isEditableKeyboardTarget(event.target)) return;
+      event.preventDefault();
+    };
+    const handleWindowBlur = () => {
+      isSpacePanActiveRef.current = false;
+    };
+    window.addEventListener("keydown", handleKeyDown, {
+      capture: true,
+    });
+    window.addEventListener("keyup", handleKeyUp, {
+      capture: true,
+    });
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, {
+        capture: true,
+      });
+      window.removeEventListener("keyup", handleKeyUp, {
+        capture: true,
+      });
+      window.removeEventListener("blur", handleWindowBlur);
+      isSpacePanActiveRef.current = false;
+    };
+  }, []);
 
   const clearSelection = useCallback(() => {
     setItems((currentItems) => clearCanvasSelection(currentItems));
@@ -295,30 +388,79 @@ export const useAiStudioCanvasWorkspaceState = ({
   }, []);
 
   const addResolvedItem = useCallback(
-    async (resolved: CanvasDropResolution, worldX: number, worldY: number) => {
-      const dimensions =
-        resolved.kind === "image" ? await resolveCanvasImageDimensions(resolved) : null;
-      setItems((currentItems) => {
-        const highestZ = getHighestCanvasZIndex(currentItems) + 1;
-        const nextItems = clearCanvasSelection(currentItems);
-        const offsetX =
+    async (
+      resolved: CanvasDropResolution,
+      worldX: number,
+      worldY: number,
+      options: { showLoadingPlaceholder?: boolean } = {}
+    ) => {
+      const showLoadingPlaceholder = Boolean(options.showLoadingPlaceholder);
+      const pendingId = showLoadingPlaceholder ? randomId() : null;
+      const preResolvedImageDimensions =
+        resolved.kind === "image" ? resolveCanvasImageDimensionsFromResolution(resolved) : null;
+      const pendingWidth =
+        resolved.kind === "image"
+          ? (preResolvedImageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH)
+          : CANVAS_TEXT_ITEM_WIDTH;
+      const pendingHeight =
+        resolved.kind === "image"
+          ? (preResolvedImageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT)
+          : CANVAS_TEXT_ITEM_HEIGHT;
+      const pendingX = Math.round((worldX - pendingWidth / 2) * 100) / 100;
+      const pendingY =
+        resolved.kind === "image"
+          ? Math.round((worldY - pendingHeight / 2) * 100) / 100
+          : Math.round((worldY - 36) * 100) / 100;
+      if (pendingId) {
+        setPendingItems((currentPendingItems) => [
+          ...currentPendingItems,
+          {
+            id: pendingId,
+            kind: resolved.kind,
+            x: pendingX,
+            y: pendingY,
+            z: CANVAS_PENDING_BASE_Z_INDEX + currentPendingItems.length + 1,
+            width: pendingWidth,
+            height: pendingHeight,
+          },
+        ]);
+      }
+      try {
+        if (showLoadingPlaceholder && resolved.kind === "text") {
+          await waitForNextAnimationFrame();
+        }
+        const dimensions =
           resolved.kind === "image"
-            ? (dimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
-            : CANVAS_TEXT_ITEM_WIDTH / 2;
-        const offsetY =
-          resolved.kind === "image" ? (dimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2 : 36;
-        return [
-          ...nextItems,
-          buildCanvasSceneItem({
-            resolved,
-            x: Math.round((worldX - offsetX) * 100) / 100,
-            y: Math.round((worldY - offsetY) * 100) / 100,
-            z: highestZ,
-            width: dimensions?.width,
-            height: dimensions?.height,
-          }),
-        ];
-      });
+            ? (preResolvedImageDimensions ?? (await resolveCanvasImageDimensions(resolved)))
+            : null;
+        setItems((currentItems) => {
+          const highestZ = getHighestCanvasZIndex(currentItems) + 1;
+          const nextItems = clearCanvasSelection(currentItems);
+          const offsetX =
+            resolved.kind === "image"
+              ? (dimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
+              : CANVAS_TEXT_ITEM_WIDTH / 2;
+          const offsetY =
+            resolved.kind === "image" ? (dimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2 : 36;
+          return [
+            ...nextItems,
+            buildCanvasSceneItem({
+              resolved,
+              x: Math.round((worldX - offsetX) * 100) / 100,
+              y: Math.round((worldY - offsetY) * 100) / 100,
+              z: highestZ,
+              width: dimensions?.width,
+              height: dimensions?.height,
+            }),
+          ];
+        });
+      } finally {
+        if (pendingId) {
+          setPendingItems((currentPendingItems) =>
+            currentPendingItems.filter((item) => item.id !== pendingId)
+          );
+        }
+      }
     },
     []
   );
@@ -384,7 +526,9 @@ export const useAiStudioCanvasWorkspaceState = ({
         rect,
         camera,
       });
-      await addResolvedItem(resolved, point.x, point.y);
+      await addResolvedItem(resolved, point.x, point.y, {
+        showLoadingPlaceholder: true,
+      });
       return true;
     },
     [addResolvedItem, camera, resolveCanvasDropReference]
@@ -392,7 +536,14 @@ export const useAiStudioCanvasWorkspaceState = ({
 
   const handleViewportPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
+      const shouldPan =
+        event.button === 0 ||
+        shouldStartPanFromPointerDown({
+          button: event.button,
+          isSpacePanActive: isSpacePanActiveRef.current,
+        });
+      if (!shouldPan) return;
+      event.preventDefault();
       clearSelection();
       clearDraftTextEntry();
       clearTextEditSession();
@@ -470,8 +621,12 @@ export const useAiStudioCanvasWorkspaceState = ({
 
   const handleItemPointerDown = useCallback(
     (itemId: string, event: PointerEvent<HTMLElement>) => {
-      if (event.button !== 0) return;
-      if (textEditSession?.itemId === itemId) return;
+      const shouldPan = shouldStartPanFromPointerDown({
+        button: event.button,
+        isSpacePanActive: isSpacePanActiveRef.current,
+      });
+      if (!shouldPan && event.button !== 0) return;
+      if (textEditSession?.itemId === itemId && !shouldPan) return;
       event.preventDefault();
       event.stopPropagation();
       clearTextEditSession();
@@ -479,9 +634,19 @@ export const useAiStudioCanvasWorkspaceState = ({
       if (typeof event.currentTarget.setPointerCapture === "function") {
         event.currentTarget.setPointerCapture(event.pointerId);
       }
+      if (shouldPan) {
+        interactionRef.current = {
+          kind: "pan",
+          pointerId: event.pointerId,
+          cameraX: camera.x,
+          cameraY: camera.y,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+        };
+        return;
+      }
       setItems((currentItems) => {
         const selectedItems = selectCanvasItem(currentItems, itemId);
-        const draggedItem = selectedItems.find((item) => item.id === itemId);
         interactionRef.current = {
           kind: "item-drag",
           pointerId: event.pointerId,
@@ -492,12 +657,24 @@ export const useAiStudioCanvasWorkspaceState = ({
         return selectedItems;
       });
     },
-    [clearTextEditSession, textEditSession?.itemId]
+    [camera.x, camera.y, clearTextEditSession, textEditSession?.itemId]
   );
 
   const handleItemPointerMove = useCallback(
     (itemId: string, event: PointerEvent<HTMLElement>) => {
       const interaction = interactionRef.current;
+      if (interaction.kind === "pan" && interaction.pointerId === event.pointerId) {
+        setCamera((currentCamera) => ({
+          ...currentCamera,
+          x:
+            Math.round((interaction.cameraX + event.clientX - interaction.startClientX) * 100) /
+            100,
+          y:
+            Math.round((interaction.cameraY + event.clientY - interaction.startClientY) * 100) /
+            100,
+        }));
+        return;
+      }
       if (
         interaction.kind !== "item-drag" ||
         interaction.pointerId !== event.pointerId ||
@@ -530,11 +707,13 @@ export const useAiStudioCanvasWorkspaceState = ({
 
   const handleItemPointerUp = useCallback((itemId: string, event: PointerEvent<HTMLElement>) => {
     const interaction = interactionRef.current;
-    if (
+    const isMatchingPanInteraction =
+      interaction.kind === "pan" && interaction.pointerId === event.pointerId;
+    const isMatchingDragInteraction =
       interaction.kind === "item-drag" &&
       interaction.pointerId === event.pointerId &&
-      interaction.itemId === itemId
-    ) {
+      interaction.itemId === itemId;
+    if (isMatchingPanInteraction || isMatchingDragInteraction) {
       interactionRef.current = { kind: "none" };
       if (typeof event.currentTarget.releasePointerCapture === "function") {
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -545,11 +724,13 @@ export const useAiStudioCanvasWorkspaceState = ({
   const handleItemPointerCancel = useCallback(
     (itemId: string, event: PointerEvent<HTMLElement>) => {
       const interaction = interactionRef.current;
-      if (
+      const isMatchingPanInteraction =
+        interaction.kind === "pan" && interaction.pointerId === event.pointerId;
+      const isMatchingDragInteraction =
         interaction.kind === "item-drag" &&
         interaction.pointerId === event.pointerId &&
-        interaction.itemId === itemId
-      ) {
+        interaction.itemId === itemId;
+      if (isMatchingPanInteraction || isMatchingDragInteraction) {
         interactionRef.current = { kind: "none" };
         if (typeof event.currentTarget.releasePointerCapture === "function") {
           event.currentTarget.releasePointerCapture(event.pointerId);
@@ -593,15 +774,9 @@ export const useAiStudioCanvasWorkspaceState = ({
       setIsDropActive(false);
       const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
       if (internalPayload) {
-        const didHandle = await handleResolvedInternalDrop(
-          internalPayload,
-          event.clientX,
-          event.clientY
-        );
-        if (didHandle) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
+        event.preventDefault();
+        event.stopPropagation();
+        void handleResolvedInternalDrop(internalPayload, event.clientX, event.clientY);
         return;
       }
       const droppedText = normalizeDroppedText(event.dataTransfer);
@@ -627,7 +802,10 @@ export const useAiStudioCanvasWorkspaceState = ({
           text: droppedText,
         },
         point.x,
-        point.y
+        point.y,
+        {
+          showLoadingPlaceholder: true,
+        }
       );
     },
     [addResolvedItem, camera, handleResolvedInternalDrop]
@@ -756,6 +934,7 @@ export const useAiStudioCanvasWorkspaceState = ({
     () => ({
       camera,
       items,
+      pendingItems,
       viewportRef,
       isDropActive,
       draftTextEntry,
@@ -815,6 +994,7 @@ export const useAiStudioCanvasWorkspaceState = ({
       handleTextItemEditKeyDown,
       isDropActive,
       items,
+      pendingItems,
       textEditSession,
     ]
   );

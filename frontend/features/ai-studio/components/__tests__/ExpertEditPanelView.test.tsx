@@ -362,15 +362,16 @@ describe("ExpertEditPanelView", () => {
     expect(slider).toHaveValue("26");
   });
 
-  it("shows reticle cursor only for inpaint brush when selected layer has an image", async () => {
+  it("shows brush and lasso cursors only for active inpaint modes when selected layer has an image", async () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
     const primaryDropzone = screen.getByLabelText("Primary edit image");
 
     expect(primaryDropzone).toHaveStyle({ cursor: "" });
 
     uploadPrimaryFile(container, "reticle-target.png");
-    expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
-    expect(primaryDropzone.style.cursor).toContain("crosshair");
+    const brushCursor = primaryDropzone.style.cursor;
+    expect(brushCursor).toContain("data:image/svg+xml");
+    expect(brushCursor).toContain("crosshair");
 
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
@@ -379,11 +380,26 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
     fireEvent.click(screen.getByRole("button", { name: /^lasso$/i }));
-    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+    const lassoCursor = primaryDropzone.style.cursor;
+    expect(lassoCursor).toContain("data:image/svg+xml");
+    expect(lassoCursor).toContain("crosshair");
+    expect(lassoCursor).not.toEqual(brushCursor);
 
     fireEvent.click(screen.getByRole("button", { name: /^brush$/i }));
     expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
     expect(primaryDropzone.style.cursor).toContain("crosshair");
+  });
+
+  it("does not show lasso cursor when selected layer has no image", async () => {
+    render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^lasso$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    expect(primaryDropzone).toHaveStyle({ cursor: "" });
   });
 
   it("updates inpaint brush reticle size as stroke slider changes", async () => {

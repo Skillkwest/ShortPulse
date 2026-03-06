@@ -31,6 +31,7 @@ const IMAGE_MODELS = new Set([
   "fal/flux-2/edit",
   "fal/flux-2-pro/edit",
   "fal/flux-2-pro",
+  "fal-ai/flux-pro/v1/fill",
 ]);
 
 /**

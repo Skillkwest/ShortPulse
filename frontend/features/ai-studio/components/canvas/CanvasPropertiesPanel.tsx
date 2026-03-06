@@ -12,6 +12,7 @@ import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceSta
 export function CanvasPropertiesPanel({
   camera,
   items,
+  pendingItems,
   viewportRef,
   isDropActive,
   draftTextEntry,
@@ -72,6 +73,32 @@ export function CanvasPropertiesPanel({
           }}
         >
           <div className="canvas-workspace-grid" aria-hidden="true" />
+          {pendingItems.map((item) => (
+            <article
+              key={item.id}
+              className={`canvas-scene-item canvas-scene-item--${item.kind} canvas-scene-item--pending`}
+              data-testid={`canvas-pending-item-${item.id}`}
+              style={{
+                left: `${item.x}px`,
+                top: `${item.y}px`,
+                zIndex: item.z,
+                width: `${item.width}px`,
+                height: `${item.height}px`,
+              }}
+            >
+              <div
+                className="canvas-scene-item__loading"
+                role="status"
+                aria-label="Loading reference"
+              >
+                <span
+                  className="canvas-scene-item__loading-spinner"
+                  data-testid="canvas-loading-spinner"
+                  aria-hidden="true"
+                />
+              </div>
+            </article>
+          ))}
           {items.map((item) => {
             const isEditingTextItem = item.kind === "text" && editingTextItemId === item.id;
             return (

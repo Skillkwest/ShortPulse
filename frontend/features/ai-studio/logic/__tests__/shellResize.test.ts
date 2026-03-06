@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
-  AI_SHELL_LEFT_DEFAULT_RATIO,
+  AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
@@ -89,12 +89,8 @@ describe("clampAiShellLeftWidth", () => {
 
 describe("getDefaultAiShellLeftWidth", () => {
   it("computes a clamped ratio-based default", () => {
-    expect(getDefaultAiShellLeftWidth(1500)).toBe(
-      clampAiShellLeftWidth(1500 * AI_SHELL_LEFT_DEFAULT_RATIO, 1500)
-    );
-    expect(getDefaultAiShellLeftWidth(900)).toBe(
-      clampAiShellLeftWidth(900 * AI_SHELL_LEFT_DEFAULT_RATIO, 900)
-    );
+    expect(getDefaultAiShellLeftWidth(1500)).toBe(600);
+    expect(getDefaultAiShellLeftWidth(900)).toBe(clampAiShellLeftWidth(900 * 0.4, 900));
   });
 
   it("clamps defaults to a larger caller-provided minimum when needed", () => {
@@ -107,6 +103,12 @@ describe("getDefaultAiShellLeftWidth", () => {
     expect(
       getDefaultAiShellLeftWidth(3000, { maxLeftWidthPx: AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX })
     ).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
+  });
+
+  it("supports a caller-provided preferred ratio for tool-specific defaults", () => {
+    expect(
+      getDefaultAiShellLeftWidth(1600, { preferredRatio: AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO })
+    ).toBe(clampAiShellLeftWidth(1600 * AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO, 1600));
   });
 });
 
@@ -130,13 +132,13 @@ describe("shouldCollapseAiShellOnToolSelect", () => {
   it("collapses when switching to edit/video/character tools", () => {
     expect(shouldCollapseAiShellOnToolSelect(null, "edit")).toBe(true);
     expect(shouldCollapseAiShellOnToolSelect("text", "video")).toBe(true);
-    expect(shouldCollapseAiShellOnToolSelect("text", "canvas")).toBe(true);
     expect(shouldCollapseAiShellOnToolSelect("text", "character")).toBe(true);
   });
 
   it("does not collapse when re-selecting the same tool or choosing other tools", () => {
     expect(shouldCollapseAiShellOnToolSelect("edit", "edit")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("video", "video")).toBe(false);
+    expect(shouldCollapseAiShellOnToolSelect("text", "canvas")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("canvas", "canvas")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("character", "character")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("text", "create")).toBe(false);

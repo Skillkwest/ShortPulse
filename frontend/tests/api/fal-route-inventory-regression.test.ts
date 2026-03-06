@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 const FAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "fal");
 
 const EXPECTED_FAL_ROUTE_FILES = [
+  "flux-pro-fill-status.ts",
+  "flux-pro-fill-submit.ts",
   "flux2-edit-status.ts",
   "flux2-edit-submit.ts",
   "flux2-status.ts",
@@ -19,6 +21,10 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "flux2pro-edit-submit.ts",
   "flux2pro-status.ts",
   "flux2pro-submit.ts",
+  "kie-kling-status.ts",
+  "kie-kling-submit.ts",
+  "kie-veo-status.ts",
+  "kie-veo-submit.ts",
   "kling-status.ts",
   "kling-v3-image-to-video-status.ts",
   "kling-v3-image-to-video-submit.ts",

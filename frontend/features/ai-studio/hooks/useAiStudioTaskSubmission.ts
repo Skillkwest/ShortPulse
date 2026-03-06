@@ -15,6 +15,7 @@ import {
   isModelDefaultImageResolution,
 } from "../logic/imageResolution";
 import { buildGenerationReplayConfigV1 } from "../logic/generationReplay";
+import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import { shouldRequirePromptForEditModel } from "../logic/editPromptPolicy";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
@@ -183,6 +184,7 @@ export const useAiStudioTaskSubmission = ({
         modelIdOverride?: string | null;
         aspectOverride?: string;
         imageResolutionOverride?: string;
+        inpaintOverride?: InpaintSubmissionOverride | null;
       }
     ) => {
       setUiError(null);
@@ -323,6 +325,7 @@ export const useAiStudioTaskSubmission = ({
         setSaved(false);
 
         let preparedImageInputs: string[] = [];
+        let preparedInpaintOverride: InpaintSubmissionOverride | null = null;
         try {
           addBreadcrumb({
             type: "ui",
@@ -334,19 +337,42 @@ export const useAiStudioTaskSubmission = ({
               tool: effectiveTool,
             },
           });
-          preparedImageInputs = (
-            await withDeadline({
-              timeoutMs: PREPARE_REFERENCE_TIMEOUT_MS,
-              timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
-              run: async () =>
-                Promise.all(
+          const preflightPrepared = await withDeadline({
+            timeoutMs: PREPARE_REFERENCE_TIMEOUT_MS,
+            timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
+            run: async () => {
+              const preparedReferences = (
+                await Promise.all(
                   imageInputs.map(async (url) => {
                     const normalized = await prepareImageUrlForSubmission(url);
                     return normalized ?? null;
                   })
-                ),
-            })
-          ).filter((url): url is string => Boolean(url));
+                )
+              ).filter((url): url is string => Boolean(url));
+              const inpaintOverride = options?.inpaintOverride;
+              if (!inpaintOverride) {
+                return {
+                  preparedReferences,
+                  preparedInpaint: null as InpaintSubmissionOverride | null,
+                };
+              }
+              const [preparedBaseImageInput, preparedMaskInput] = await Promise.all([
+                prepareImageUrlForSubmission(inpaintOverride.baseImageInput),
+                prepareImageUrlForSubmission(inpaintOverride.maskInput),
+              ]);
+              return {
+                preparedReferences,
+                preparedInpaint: {
+                  modelId: inpaintOverride.modelId ?? null,
+                  baseImageInput: preparedBaseImageInput ?? "",
+                  maskInput: preparedMaskInput ?? "",
+                  outputFormat: inpaintOverride.outputFormat,
+                } satisfies InpaintSubmissionOverride,
+              };
+            },
+          });
+          preparedImageInputs = preflightPrepared.preparedReferences;
+          preparedInpaintOverride = preflightPrepared.preparedInpaint;
         } catch (error) {
           const isPreflightTimeout = error instanceof DeadlineExceededError;
           const detail = isPreflightTimeout
@@ -395,6 +421,22 @@ export const useAiStudioTaskSubmission = ({
             })
           );
           return;
+        }
+        if (options?.inpaintOverride) {
+          const hasPreparedInpaintInputs = Boolean(
+            preparedInpaintOverride?.baseImageInput && preparedInpaintOverride?.maskInput
+          );
+          if (!hasPreparedInpaintInputs) {
+            setOutputs((prev) =>
+              applySubmissionFailureToOutputs(prev, id, {
+                timestamp: "Missing mask",
+                errorMessage: "Inpaint generation requires a base image and mask.",
+                errorMessageShort: "Mask required.",
+                errorDetail: "Inpaint generation requires a base image and mask.",
+              })
+            );
+            return;
+          }
         }
         const generationReplay = buildReplaySnapshot(preparedImageInputs.slice(0, 8));
         if (generationReplay) {
@@ -614,6 +656,7 @@ export const useAiStudioTaskSubmission = ({
               updateOutputById,
               startPollingWithGeneration,
               falReferencePayload,
+              inpaintOverride: preparedInpaintOverride,
             });
             if (!handled) {
               throw submitNotStartedError(

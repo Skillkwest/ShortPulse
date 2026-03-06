@@ -14,6 +14,7 @@ describe("resolveSubmissionHandlerRoute", () => {
     expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana-2/edit")).toBe("image");
     expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana-pro/edit")).toBe("image");
     expect(resolveSubmissionHandlerRoute("fal-ai/bytedance/seedream/v5/lite/edit")).toBe("image");
+    expect(resolveSubmissionHandlerRoute("fal-ai/flux-pro/v1/fill")).toBe("image");
   });
 
   it("routes unknown and fallback models to default handler", () => {

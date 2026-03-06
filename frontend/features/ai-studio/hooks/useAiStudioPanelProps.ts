@@ -18,6 +18,7 @@ import type {
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput } from "../types";
+import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
 import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 import { useAiStudioCreatePanelProps } from "./useAiStudioCreatePanelProps";
@@ -117,6 +118,7 @@ export type UseAiStudioPanelPropsParams = {
   editReferenceText: string;
   handleImageRegenerateWithDebit: (options?: {
     referenceInputsOverride?: string[];
+    inpaintOverride?: InpaintSubmissionOverride | null;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;

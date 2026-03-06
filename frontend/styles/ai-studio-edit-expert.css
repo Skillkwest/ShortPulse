@@ -682,15 +682,26 @@
 .edit-expert-primary-layer-canvas {
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
 }
 
 .edit-expert-primary-layer-frame {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+}
+
+.edit-expert-inpaint-overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999;
+  pointer-events: none;
 }
 
 .edit-expert-primary-dropzone .reference-drop-content {
@@ -1024,8 +1035,8 @@
   min-width: var(--edit-expert-secondary-width);
   height: var(--edit-expert-secondary-width);
   border-radius: 10px;
-  border: 1px solid rgba(37, 174, 228, 0.94);
-  background: rgba(45, 49, 50, 0.309);
+  border: 1px solid rgba(92, 96, 104, 0.9);
+  background: rgba(37, 41, 47, 0.64);
   box-shadow:
     0 8px 16px rgba(0, 0, 0, 0.26),
     inset 0 1px 0 rgba(233, 238, 246, 0.14);
@@ -1139,12 +1150,8 @@
 
 /* MOVE TOOL - Selected State */
 .edit-expert-inpaint-tool-rail-btn.is-selected-move {
-  border-color: rgba(236, 225, 198, 0.84); /* MOVE BORDER */
-  background: linear-gradient(
-    135deg,
-    rgba(251, 244, 227, 0.95),
-    rgba(230, 217, 186, 0.88)
-  ); /* MOVE BACKGROUND */
+  border-color: rgba(245, 185, 66, 0.9); /* MOVE BORDER */
+  background: linear-gradient(135deg, #f5b754 0%, #f4921f 100%); /* MOVE BACKGROUND */
   color: #000;
   font-weight: 700;
 }
@@ -1172,8 +1179,12 @@
 
 /* CROP TOOL - Selected State */
 .edit-expert-inpaint-tool-rail-btn.is-selected-crop {
-  border-color: rgba(245, 185, 66, 0.9); /* CROP BORDER */
-  background: linear-gradient(135deg, #f5b754 0%, #f4921f 100%); /* CROP BACKGROUND */
+  border-color: rgba(236, 225, 198, 0.84); /* CROP BORDER */
+  background: linear-gradient(
+    135deg,
+    rgba(251, 244, 227, 0.95),
+    rgba(230, 217, 186, 0.88)
+  ); /* CROP BACKGROUND */
   color: #000;
   font-weight: 700;
 }
@@ -1228,50 +1239,50 @@
 }
 
 .edit-expert-inpaint-controls.is-themed-crop {
-  border-color: rgba(245, 185, 66, 0.42);
-}
-
-.edit-expert-inpaint-controls.is-themed-crop .edit-expert-crop-chip {
-  border-color: rgba(245, 185, 66, 0.34);
-}
-
-.edit-expert-inpaint-controls.is-themed-crop .edit-expert-crop-chip.is-selected {
-  border-color: rgba(245, 185, 66, 0.84);
-  background: rgba(85, 68, 38, 0.46);
-}
-
-.edit-expert-inpaint-controls.is-themed-crop .edit-expert-crop-apply-btn {
-  border-color: rgba(245, 185, 66, 0.88);
-}
-
-.edit-expert-inpaint-controls.is-themed-move {
   border-color: rgba(223, 204, 165, 0.4);
 }
 
-.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn {
+.edit-expert-inpaint-controls.is-themed-crop .edit-expert-crop-chip {
   border-color: rgba(223, 204, 165, 0.34);
 }
 
+.edit-expert-inpaint-controls.is-themed-crop .edit-expert-crop-chip.is-selected {
+  border-color: rgba(235, 222, 195, 0.84);
+  background: rgba(82, 74, 60, 0.46);
+}
+
+.edit-expert-inpaint-controls.is-themed-crop .edit-expert-crop-apply-btn {
+  border-color: rgba(223, 204, 165, 0.88);
+}
+
+.edit-expert-inpaint-controls.is-themed-move {
+  border-color: rgba(245, 185, 66, 0.42);
+}
+
+.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn {
+  border-color: rgba(245, 185, 66, 0.34);
+}
+
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn.is-active {
-  border-color: rgba(235, 222, 195, 0.92);
-  background: linear-gradient(135deg, rgba(248, 241, 226, 0.96), rgba(232, 220, 193, 0.9));
-  color: rgba(38, 30, 20, 0.96);
+  border-color: rgba(245, 185, 66, 0.92);
+  background: linear-gradient(135deg, rgba(245, 183, 84, 0.94), rgba(244, 146, 31, 0.94));
+  color: rgba(28, 22, 12, 0.97);
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-divider {
-  background: rgba(223, 204, 165, 0.45);
+  background: rgba(245, 185, 66, 0.45);
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-history-btn {
-  border-color: rgba(223, 204, 165, 0.36);
+  border-color: rgba(245, 185, 66, 0.36);
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-zoom-slider::-webkit-slider-thumb {
-  background: #efdfba;
+  background: #f5d39a;
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-zoom-slider::-moz-range-thumb {
-  background: #efdfba;
+  background: #f5d39a;
 }
 
 .edit-expert-inpaint-row.is-collapsing .edit-expert-inpaint-controls {
@@ -1624,7 +1635,7 @@
 
 .edit-expert-crop-chip:focus-visible {
   outline: none;
-  border-color: rgba(245, 185, 66, 0.82);
+  border-color: rgba(235, 222, 195, 0.82);
 }
 
 .edit-expert-crop-chip.is-selected {
@@ -1656,8 +1667,8 @@
   align-self: center;
   justify-self: center;
   border-radius: 10px;
-  border: 1px solid rgba(245, 185, 66, 0.95);
-  background: linear-gradient(135deg, rgba(245, 183, 84, 0.94), rgba(244, 146, 31, 0.94));
+  border: 1px solid rgba(223, 204, 165, 0.95);
+  background: linear-gradient(135deg, rgba(248, 241, 226, 0.96), rgba(232, 220, 193, 0.9));
   color: rgba(28, 22, 12, 0.97);
   font-size: 12px;
   font-weight: 700;
@@ -1668,7 +1679,7 @@
   justify-content: center;
   box-shadow:
     0 6px 14px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 239, 202, 0.34);
+    inset 0 1px 0 rgba(255, 251, 240, 0.34);
   cursor: pointer;
   transition:
     border-color 0.16s ease,
@@ -1678,19 +1689,19 @@
 }
 
 .edit-expert-crop-apply-btn:hover {
-  border-color: rgba(245, 185, 66, 1);
-  background: linear-gradient(135deg, rgba(247, 190, 95, 0.96), rgba(245, 157, 53, 0.96));
+  border-color: rgba(235, 222, 195, 1);
+  background: linear-gradient(135deg, rgba(251, 244, 227, 0.96), rgba(236, 225, 198, 0.94));
   transform: translateY(-1px);
   box-shadow:
     0 9px 16px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255, 243, 213, 0.4);
+    inset 0 1px 0 rgba(255, 253, 245, 0.4);
 }
 
 .edit-expert-crop-apply-btn:focus-visible {
   outline: none;
-  border-color: rgba(245, 185, 66, 1);
+  border-color: rgba(235, 222, 195, 1);
   box-shadow:
-    0 0 0 2px rgba(245, 185, 66, 0.24),
+    0 0 0 2px rgba(223, 204, 165, 0.24),
     0 8px 16px rgba(0, 0, 0, 0.32);
 }
 
@@ -1698,7 +1709,7 @@
   transform: translateY(0);
   box-shadow:
     0 4px 10px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 239, 202, 0.22);
+    inset 0 1px 0 rgba(255, 251, 240, 0.22);
 }
 
 .edit-expert-move-controls-content {

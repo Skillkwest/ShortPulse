@@ -8,6 +8,7 @@ import {
   buildRegenerateReferencePool,
   buildVideoReferenceInputs,
 } from "../logic/referenceInputs";
+import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 export type AiStudioGenerateSubmissionOverrides = {
@@ -17,6 +18,7 @@ export type AiStudioGenerateSubmissionOverrides = {
   characterContextOverride?: StudioOutput["characterContext"];
   outputIdOverride?: string;
   modelIdOverride?: string | null;
+  inpaintOverride?: InpaintSubmissionOverride | null;
 };
 
 type GenerateOutputOptions = {
@@ -46,6 +48,7 @@ type UseAiStudioGenerationPromptComposerParams = {
       characterContextOverride?: StudioOutput["characterContext"];
       outputIdOverride?: string;
       modelIdOverride?: string | null;
+      inpaintOverride?: InpaintSubmissionOverride | null;
     }
   ) => void;
 };
@@ -134,6 +137,7 @@ export const useAiStudioGenerationPromptComposer = ({
         displayPromptOverride: displayPromptToSubmit,
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
+        inpaintOverride: options?.inpaintOverride,
         ...(typeof options?.outputIdOverride === "string"
           ? { outputIdOverride: options.outputIdOverride }
           : {}),
@@ -185,6 +189,7 @@ export const useAiStudioGenerationPromptComposer = ({
         displayPromptOverride: displayPromptToUse,
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
+        inpaintOverride: options?.inpaintOverride,
       });
     },
     [

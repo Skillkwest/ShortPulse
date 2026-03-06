@@ -89,6 +89,42 @@
     0 18px 30px rgba(0, 0, 0, 0.3);
 }
 
+.canvas-scene-item--pending {
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(244, 238, 226, 0.2);
+  background: rgba(15, 18, 24, 0.86);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.26);
+  pointer-events: none;
+  cursor: default;
+}
+
+.canvas-scene-item--pending.canvas-scene-item--image {
+  border-radius: 4px;
+  border: 1px solid rgba(244, 238, 226, 0.18);
+}
+
+.canvas-scene-item--pending.canvas-scene-item--text {
+  min-height: 0;
+  padding: 0;
+}
+
+.canvas-scene-item__loading {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.canvas-scene-item__loading-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(244, 238, 226, 0.28);
+  border-top-color: rgba(244, 238, 226, 0.92);
+  animation: canvas-scene-item-loading-spin 0.8s linear infinite;
+}
+
 .canvas-scene-item--text.is-selected {
   border-width: 1px;
   border-color: rgba(244, 238, 226, 1);
@@ -176,6 +212,12 @@
 .canvas-scene-item__text-editor::placeholder,
 .canvas-scene-item__draft-input::placeholder {
   color: rgba(243, 234, 216, 0.42);
+}
+
+@keyframes canvas-scene-item-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ai-studio-page[data-selected-tool="canvas"] .panel.ai-panel.ai-properties {

@@ -29,6 +29,7 @@ type UseAiStudioShellResizeArgs = {
   minLeftWidthPx?: number;
   maxLeftWidthPx?: number;
   minRightWidthPx?: number;
+  defaultLeftRatio?: number;
 };
 
 type DragSession = {
@@ -54,6 +55,7 @@ export const useAiStudioShellResize = ({
   minLeftWidthPx,
   maxLeftWidthPx,
   minRightWidthPx,
+  defaultLeftRatio,
 }: UseAiStudioShellResizeArgs) => {
   const shellRef = useRef<HTMLElement | null>(null);
   const leftColumnRef = useRef<HTMLElement | null>(null);
@@ -115,6 +117,7 @@ export const useAiStudioShellResize = ({
           minLeftWidthPx,
           maxLeftWidthPx,
           minRightWidthPx,
+          preferredRatio: defaultLeftRatio,
         });
       const next = clampAiShellLeftWidth(candidate, containerWidth, {
         minLeftWidthPx,
@@ -123,7 +126,7 @@ export const useAiStudioShellResize = ({
       });
       return prev === next ? prev : next;
     });
-  }, [maxLeftWidthPx, minLeftWidthPx, minRightWidthPx, resolveContainerWidth]);
+  }, [defaultLeftRatio, maxLeftWidthPx, minLeftWidthPx, minRightWidthPx, resolveContainerWidth]);
 
   useEffect(() => {
     if (!enabled || !isResizableViewport) return stopResizing;
@@ -193,6 +196,7 @@ export const useAiStudioShellResize = ({
           minLeftWidthPx,
           maxLeftWidthPx,
           minRightWidthPx,
+          preferredRatio: defaultLeftRatio,
         });
       const clampedStartWidth = clampAiShellLeftWidth(activeLeftWidth, containerWidth, {
         minLeftWidthPx,
@@ -242,6 +246,7 @@ export const useAiStudioShellResize = ({
       maxLeftWidthPx,
       minLeftWidthPx,
       minRightWidthPx,
+      defaultLeftRatio,
       resolveContainerWidth,
       stopResizing,
     ]
@@ -265,6 +270,7 @@ export const useAiStudioShellResize = ({
           minLeftWidthPx,
           maxLeftWidthPx,
           minRightWidthPx,
+          preferredRatio: defaultLeftRatio,
         });
 
       if (event.key === "Home") {
@@ -298,6 +304,7 @@ export const useAiStudioShellResize = ({
       maxLeftWidthPx,
       minLeftWidthPx,
       minRightWidthPx,
+      defaultLeftRatio,
       resolveContainerWidth,
     ]
   );
@@ -310,6 +317,7 @@ export const useAiStudioShellResize = ({
       minLeftWidthPx,
       maxLeftWidthPx,
       minRightWidthPx,
+      preferredRatio: defaultLeftRatio,
     });
     setLeftWidthPx(defaultWidth);
     setContainerWidthPx(Math.round(containerWidth));
@@ -319,6 +327,7 @@ export const useAiStudioShellResize = ({
     maxLeftWidthPx,
     minLeftWidthPx,
     minRightWidthPx,
+    defaultLeftRatio,
     resolveContainerWidth,
   ]);
 
@@ -357,6 +366,7 @@ export const useAiStudioShellResize = ({
         minLeftWidthPx,
         maxLeftWidthPx,
         minRightWidthPx,
+        preferredRatio: defaultLeftRatio,
       }),
     Math.max(containerWidthPx, 1),
     { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx }

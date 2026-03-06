@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CanvasPropertiesPanel } from "../CanvasPropertiesPanel";
 import { useAiStudioCanvasWorkspaceState } from "../useAiStudioCanvasWorkspaceState";
@@ -12,7 +12,7 @@ const createTransfer = (entries: Record<string, string>) =>
     getData: (type: string) => entries[type] ?? "",
   }) as unknown as DataTransfer;
 
-const resolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
+const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
   if (payload.outputId === "img-1") {
     return {
       kind: "image",
@@ -38,12 +38,13 @@ const resolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
 
 type CanvasHarnessProps = {
   onPinTextReference?: (text: string) => void;
+  resolveCanvasDropReference?: ResolveCanvasDropReference;
 };
 
-function CanvasHarness({ onPinTextReference }: CanvasHarnessProps) {
+function CanvasHarness({ onPinTextReference, resolveCanvasDropReference }: CanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const canvasProps = useAiStudioCanvasWorkspaceState({
-    resolveCanvasDropReference,
+    resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     onPinTextReference,
   });
 
@@ -99,7 +100,101 @@ describe("CanvasPropertiesPanel", () => {
     expect(Number(item.getAttribute("data-height"))).toBeCloseTo(123.75, 2);
   });
 
-  it("creates a text item from an internal prompt drop", () => {
+  it("shows a loading spinner placeholder while an image reference is resolving", async () => {
+    const OriginalImage = globalThis.Image;
+    let pendingImageOnload: (() => void) | null = null;
+    class MockImage {
+      naturalWidth = 1920;
+      naturalHeight = 1080;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      set src(_value: string) {
+        pendingImageOnload = this.onload;
+      }
+    }
+    (globalThis as { Image: typeof Image }).Image = MockImage as unknown as typeof Image;
+    try {
+      const slowResolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
+        if (payload.outputId !== "img-slow") return null;
+        return {
+          kind: "image",
+          outputId: "img-slow",
+          mediaId: "media-slow",
+          src: "https://example.com/slow-reference.png",
+          alt: "Slow reference image",
+          sourceSurface: payload.sourceSurface ?? null,
+        };
+      };
+      render(<CanvasHarness resolveCanvasDropReference={slowResolveCanvasDropReference} />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-version": "1",
+          "text/reference-id": "img-slow",
+          "text/reference-output-id": "img-slow",
+          "text/reference-source-surface": "all-refs",
+        }),
+        clientX: 300,
+        clientY: 200,
+      });
+
+      expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
+      await waitFor(() => expect(typeof pendingImageOnload).toBe("function"));
+      act(() => {
+        pendingImageOnload?.();
+      });
+      expect(await screen.findByAltText("Slow reference image")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
+      });
+    } finally {
+      (globalThis as { Image: typeof Image }).Image = OriginalImage;
+    }
+  });
+
+  it("shows a loading spinner placeholder while a text reference is resolving", async () => {
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    let pendingFrameCallback: FrameRequestCallback | null = null;
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      pendingFrameCallback = callback;
+      return 1;
+    }) as typeof window.requestAnimationFrame;
+    try {
+      render(<CanvasHarness />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-version": "1",
+          "text/reference-id": "txt-1",
+          "text/reference-output-id": "txt-1",
+          "text/reference-source-surface": "all-refs",
+        }),
+        clientX: 240,
+        clientY: 160,
+      });
+
+      expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
+      expect(screen.queryByText("Prompt reference")).not.toBeInTheDocument();
+      act(() => {
+        pendingFrameCallback?.(16);
+      });
+      expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
+      });
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
+  });
+
+  it("creates a text item from an internal prompt drop", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -116,11 +211,11 @@ describe("CanvasPropertiesPanel", () => {
       clientY: 160,
     });
 
-    expect(screen.getByText("Prompt reference")).toBeInTheDocument();
-    expect(screen.getByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "text");
+    expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
+    expect(await screen.findByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "text");
   });
 
-  it("creates a text item from an external plain-text drop", () => {
+  it("creates a text item from an external plain-text drop", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -133,7 +228,7 @@ describe("CanvasPropertiesPanel", () => {
       clientY: 140,
     });
 
-    expect(screen.getByText("External note")).toBeInTheDocument();
+    expect(await screen.findByText("External note")).toBeInTheDocument();
   });
 
   it("pins a text reference to the grid via the pin button", async () => {
@@ -194,7 +289,7 @@ describe("CanvasPropertiesPanel", () => {
     expect(screen.queryByTestId("canvas-draft-text-input")).not.toBeInTheDocument();
   });
 
-  it("edits a text reference in place on double click and saves with Enter", () => {
+  it("edits a text reference in place on double click and saves with Enter", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -207,7 +302,7 @@ describe("CanvasPropertiesPanel", () => {
       clientY: 170,
     });
 
-    const item = screen.getByTestId(/canvas-item-/);
+    const item = await screen.findByTestId(/canvas-item-/);
     fireEvent.doubleClick(item);
 
     const input = screen.getByTestId("canvas-text-edit-input");
@@ -223,7 +318,7 @@ describe("CanvasPropertiesPanel", () => {
     expect(screen.queryByTestId("canvas-text-edit-input")).not.toBeInTheDocument();
   });
 
-  it("supports select and deselect interactions", () => {
+  it("supports select and deselect interactions", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -236,7 +331,7 @@ describe("CanvasPropertiesPanel", () => {
       clientY: 140,
     });
 
-    const item = screen.getByTestId(/canvas-item-/);
+    const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-selected", "true");
 
     fireEvent.pointerDown(viewport, {
@@ -308,7 +403,7 @@ describe("CanvasPropertiesPanel", () => {
     });
   });
 
-  it("updates item coordinates while dragging", () => {
+  it("updates item coordinates while dragging", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -321,7 +416,7 @@ describe("CanvasPropertiesPanel", () => {
       clientY: 140,
     });
 
-    const item = screen.getByTestId(/canvas-item-/);
+    const item = await screen.findByTestId(/canvas-item-/);
     const startX = Number(item.getAttribute("data-x"));
     const startY = Number(item.getAttribute("data-y"));
 
@@ -344,6 +439,96 @@ describe("CanvasPropertiesPanel", () => {
 
     expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
     expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+  });
+
+  it("pans instead of dragging when Space is held while dragging over an item", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Pan override",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const startItemX = Number(item.getAttribute("data-x"));
+    const startItemY = Number(item.getAttribute("data-y"));
+
+    fireEvent.keyDown(window, {
+      code: "Space",
+      key: " ",
+    });
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 120,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(item, {
+      pointerId: 120,
+      clientX: 260,
+      clientY: 180,
+    });
+    fireEvent.pointerUp(item, {
+      pointerId: 120,
+      clientX: 260,
+      clientY: 180,
+    });
+
+    fireEvent.keyUp(window, {
+      code: "Space",
+      key: " ",
+    });
+
+    expect(Number(item.getAttribute("data-x"))).toBe(startItemX);
+    expect(Number(item.getAttribute("data-y"))).toBe(startItemY);
+    expect(Number(viewport.getAttribute("data-camera-x"))).toBe(40);
+    expect(Number(viewport.getAttribute("data-camera-y"))).toBe(40);
+  });
+
+  it("pans instead of dragging when using middle mouse drag over an item", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Middle pan override",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const startItemX = Number(item.getAttribute("data-x"));
+    const startItemY = Number(item.getAttribute("data-y"));
+
+    fireEvent.pointerDown(item, {
+      button: 1,
+      pointerId: 121,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(item, {
+      pointerId: 121,
+      clientX: 265,
+      clientY: 185,
+    });
+    fireEvent.pointerUp(item, {
+      pointerId: 121,
+      clientX: 265,
+      clientY: 185,
+    });
+
+    expect(Number(item.getAttribute("data-x"))).toBe(startItemX);
+    expect(Number(item.getAttribute("data-y"))).toBe(startItemY);
+    expect(Number(viewport.getAttribute("data-camera-x"))).toBe(45);
+    expect(Number(viewport.getAttribute("data-camera-y"))).toBe(45);
   });
 
   it("updates camera position while panning the background", () => {
@@ -389,7 +574,7 @@ describe("CanvasPropertiesPanel", () => {
     expect(Number(viewport.getAttribute("data-camera-zoom"))).toBeGreaterThan(1);
   });
 
-  it("preserves scene state when the panel unmounts and remounts within the page session", () => {
+  it("preserves scene state when the panel unmounts and remounts within the page session", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -401,6 +586,8 @@ describe("CanvasPropertiesPanel", () => {
       clientX: 240,
       clientY: 160,
     });
+
+    expect(await screen.findByText("Persistent note")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle" }));
     expect(screen.queryByTestId("canvas-viewport")).not.toBeInTheDocument();

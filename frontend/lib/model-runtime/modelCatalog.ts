@@ -167,6 +167,32 @@ const catalog: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["num_images", "seed", "guidance_scale", "num_inference_steps"],
     },
   },
+  "fal-ai/flux-pro/v1/fill": {
+    modelId: "fal-ai/flux-pro/v1/fill",
+    provider: "fal",
+    sourceUrl: "https://fal.ai/models/fal-ai/flux-pro/v1/fill/api",
+    verifiedAt: VERIFIED_AT,
+    submitAspectField: "none",
+    defaultAspect: "1:1",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
+    falSubmitUrl: "https://queue.fal.run/fal-ai/flux-pro/v1/fill",
+    falStatusBaseUrls: [
+      "https://queue.fal.run/fal-ai/flux-pro/requests",
+      "https://queue.fal.run/fal-ai/flux-pro/v1/fill/requests",
+    ],
+    falTimeoutMs: 60000,
+    payloadValidation: {
+      requiredStringFields: ["prompt", "image_url", "mask_url"],
+      enumFields: {
+        output_format: ["png", "jpeg"],
+        safety_tolerance: ["1", "2", "3", "4", "5", "6"],
+      },
+      optionalBooleanFields: ["sync_mode", "enhance_prompt"],
+      optionalNumberFields: ["num_images", "seed"],
+    },
+  },
   "fal-ai/nano-banana": {
     modelId: "fal-ai/nano-banana",
     provider: "fal",

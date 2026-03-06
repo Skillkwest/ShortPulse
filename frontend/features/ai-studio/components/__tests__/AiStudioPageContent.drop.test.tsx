@@ -71,6 +71,8 @@ vi.mock("../../../prefabs/agent", () => ({
   AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
 }));
 
+const collapseToMinMock = vi.fn();
+
 vi.mock("../hooks/useAiStudioShellResize", () => ({
   useAiStudioShellResize: () => ({
     shellRef: { current: null },
@@ -78,7 +80,7 @@ vi.mock("../hooks/useAiStudioShellResize", () => ({
     showDivider: false,
     isResizing: false,
     shellStyle: {},
-    collapseToMin: vi.fn(),
+    collapseToMin: collapseToMinMock,
     dividerProps: {},
   }),
 }));
@@ -184,6 +186,13 @@ const createProps = (
 });
 
 describe("AiStudioPageContent right column drop router", () => {
+  it("does not collapse to minimum when canvas is selected on initial hydration", () => {
+    collapseToMinMock.mockClear();
+    const { rerender } = render(<AiStudioPageContent {...createProps({ selectedTool: null })} />);
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
+    expect(collapseToMinMock).not.toHaveBeenCalled();
+  });
+
   it("renders high-contrast alert banner variants for error and warning notices", () => {
     render(
       <AiStudioPageContent

@@ -6,6 +6,7 @@ import {
   submitFalFlux2,
   submitFalFlux2Edit,
   submitFalFlux2Klein,
+  submitFalFluxProFill,
   submitFalFlux2Pro,
   submitFalFlux2ProEdit,
   submitFalNanoBananaEdit,
@@ -40,7 +41,8 @@ const handoffSubmitResponse = ({
     | "fal-flux2-klein"
     | "fal-flux2-edit"
     | "fal-flux2-pro"
-    | "fal-flux2-pro-edit";
+    | "fal-flux2-pro-edit"
+    | "fal-flux-pro-fill";
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
 }) => {
   if ("status" in response && response.status === "queued") {
@@ -67,7 +69,30 @@ export const handleImageModelSubmission = async ({
   notifyGenerationFailure,
   startPollingWithGeneration,
   falReferencePayload,
+  inpaintOverride,
 }: ImageSubmissionArgs): Promise<boolean> => {
+  if (finalModel === "fal-ai/flux-pro/v1/fill") {
+    const preparedBaseImage = inpaintOverride?.baseImageInput?.trim();
+    const preparedMaskImage = inpaintOverride?.maskInput?.trim();
+    if (!preparedBaseImage || !preparedMaskImage) {
+      notifyGenerationFailure(id, "FLUX Fill requires both a base image and mask.");
+      return true;
+    }
+    const response = await submitFalFluxProFill({
+      prompt: cleanedPrompt,
+      image_url: preparedBaseImage,
+      mask_url: preparedMaskImage,
+      num_images: 1,
+      output_format: inpaintOverride?.outputFormat ?? "png",
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-flux-pro-fill",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
   if (finalModel === "fal-ai/nano-banana/edit") {
     if (!preparedImageInputs.length) {
       notifyGenerationFailure(id, "Nano Banana Edit requires at least one reference image.");

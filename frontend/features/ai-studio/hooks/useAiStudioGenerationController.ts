@@ -19,6 +19,7 @@ import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
+import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type CharacterModeFallbackSummary<TFallbackCode extends string> = {
@@ -51,6 +52,7 @@ type GenerateResult = {
 
 type RegenerateWithDebitOptions = {
   referenceInputsOverride?: string[];
+  inpaintOverride?: InpaintSubmissionOverride | null;
 };
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
@@ -135,6 +137,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       characterContextOverride?: StudioOutput["characterContext"];
       outputIdOverride?: string;
       modelIdOverride?: string | null;
+      inpaintOverride?: InpaintSubmissionOverride | null;
     }
   ) => void;
   regenerateOutput: (options?: {
@@ -144,6 +147,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     characterContextOverride?: StudioOutput["characterContext"];
     outputIdOverride?: string;
     modelIdOverride?: string | null;
+    inpaintOverride?: InpaintSubmissionOverride | null;
   }) => void;
   activeOutputId?: string | null;
 };
@@ -637,7 +641,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
 
       trackCharacterModeFallback(characterModeOverrides, selectedTool);
-      const effectiveModelId = resolveEffectiveSubmitModelId(selectedTool);
+      const effectiveModelId =
+        options?.inpaintOverride?.modelId ?? resolveEffectiveSubmitModelId(selectedTool);
       const wasSubmitModelCoerced =
         effectiveModelId != null && model != null && effectiveModelId !== model;
       if (wasSubmitModelCoerced) {
@@ -657,6 +662,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride:
           characterModeOverrides?.referenceInputsOverride ?? options?.referenceInputsOverride,
+        inpaintOverride: options?.inpaintOverride,
         ...(characterModeOverrides?.characterContextOverride
           ? { characterContextOverride: characterModeOverrides.characterContextOverride }
           : {}),

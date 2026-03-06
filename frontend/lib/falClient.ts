@@ -7,6 +7,7 @@ import { fetchWithAuth } from "./authenticatedFetch";
 export type FalSubmitRequest = {
   prompt: string;
   image_url?: string;
+  mask_url?: string;
   image_size?: string | { width: number; height: number };
   image_urls?: string[];
   num_inference_steps?: number;
@@ -437,6 +438,10 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/flux2klein-submit`,
     missingRequestIdMessage: "Fal FLUX 2 Klein did not return a request_id",
   },
+  fluxProFill: {
+    route: `${FAL_API_BASE}/flux-pro-fill-submit`,
+    missingRequestIdMessage: "Fal FLUX Pro Fill did not return a request_id",
+  },
   nanoBanana: {
     route: `${FAL_API_BASE}/nano-banana-submit`,
     missingRequestIdMessage: "Fal Nano Banana did not return a request_id",
@@ -545,6 +550,10 @@ const statusEndpointRegistry = {
   },
   flux2Klein: {
     route: `${FAL_API_BASE}/flux2klein-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  fluxProFill: {
+    route: `${FAL_API_BASE}/flux-pro-fill-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
   nanoBanana: {
@@ -742,6 +751,11 @@ export const submitFalFlux2Klein = (payload: FalSubmitRequest) =>
   submitFalEndpoint("flux2Klein", payload);
 export const fetchFalFlux2KleinStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("flux2Klein", requestId);
+
+export const submitFalFluxProFill = (payload: FalSubmitRequest) =>
+  submitFalEndpoint("fluxProFill", payload);
+export const fetchFalFluxProFillStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("fluxProFill", requestId);
 
 export const submitFalNanoBanana = (payload: FalNanoBananaSubmitRequest) =>
   submitFalEndpoint("nanoBanana", payload);

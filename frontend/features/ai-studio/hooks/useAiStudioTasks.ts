@@ -7,6 +7,7 @@ import {
   fetchKieKlingImageToVideoStatus,
   fetchKieVeoImageToVideoStatus,
   fetchFalFlux2ProStatus,
+  fetchFalFluxProFillStatus,
   fetchFalFlux2Status,
   fetchFalFlux2KleinStatus,
   fetchFalFlux2EditStatus,
@@ -135,6 +136,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFlux2Status(taskId);
     case "fal-flux2-klein":
       return fetchFalFlux2KleinStatus(taskId);
+    case "fal-flux-pro-fill":
+      return fetchFalFluxProFillStatus(taskId);
     case "fal-flux2-edit":
       return fetchFalFlux2EditStatus(taskId);
     case "fal-flux2-pro":

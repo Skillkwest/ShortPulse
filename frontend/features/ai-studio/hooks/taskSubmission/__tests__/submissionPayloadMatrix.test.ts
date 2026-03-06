@@ -15,6 +15,7 @@ import {
   submitFalFlux2,
   submitFalFlux2Edit,
   submitFalFlux2Klein,
+  submitFalFluxProFill,
   submitFalFlux2Pro,
   submitFalFlux2ProEdit,
   submitFalKlingV3ImageToVideo,
@@ -41,6 +42,7 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalFlux2: vi.fn(),
   submitFalFlux2Edit: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
+  submitFalFluxProFill: vi.fn(),
   submitFalFlux2Pro: vi.fn(),
   submitFalFlux2ProEdit: vi.fn(),
   submitFalKlingV3ImageToVideo: vi.fn(),
@@ -111,6 +113,11 @@ const CASES: Record<string, CaseConfig> = {
     expectedSafetyChecker: false,
     expectedSafetyTolerance: "5",
     expectedReferenceField: "image_urls",
+  },
+  "fal-ai/flux-pro/v1/fill": {
+    route: "image",
+    submitName: "submitFalFluxProFill",
+    expectedReferenceField: "none",
   },
   "fal-ai/nano-banana": {
     route: "default",
@@ -263,6 +270,15 @@ const makeImageArgs = (
     image_url: "https://cdn.test/ref-1.png",
     image_urls: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
   },
+  inpaintOverride:
+    modelId === "fal-ai/flux-pro/v1/fill"
+      ? {
+          modelId: "fal-ai/flux-pro/v1/fill",
+          baseImageInput: "https://cdn.test/inpaint-base.png",
+          maskInput: "https://cdn.test/inpaint-mask.png",
+          outputFormat: "png",
+        }
+      : undefined,
 });
 
 const makeVideoArgs = (
@@ -287,6 +303,7 @@ const submitSpyByName = {
   submitFalFlux2: vi.mocked(submitFalFlux2),
   submitFalFlux2Edit: vi.mocked(submitFalFlux2Edit),
   submitFalFlux2Klein: vi.mocked(submitFalFlux2Klein),
+  submitFalFluxProFill: vi.mocked(submitFalFluxProFill),
   submitFalFlux2Pro: vi.mocked(submitFalFlux2Pro),
   submitFalFlux2ProEdit: vi.mocked(submitFalFlux2ProEdit),
   submitFalKlingV3ImageToVideo: vi.mocked(submitFalKlingV3ImageToVideo),
@@ -402,6 +419,10 @@ describe("task submission payload matrix", () => {
       } else if (config.expectedReferenceField === "first_last_frame_urls") {
         expect(typeof payload.first_frame_url).toBe("string");
         expect(typeof payload.last_frame_url).toBe("string");
+      }
+      if (modelId === "fal-ai/flux-pro/v1/fill") {
+        expect(typeof payload.image_url).toBe("string");
+        expect(typeof payload.mask_url).toBe("string");
       }
 
       if (typeof config.expectedSafetyChecker === "boolean") {

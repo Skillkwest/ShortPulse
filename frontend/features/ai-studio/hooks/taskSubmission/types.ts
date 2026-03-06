@@ -2,6 +2,7 @@
  * Shared types for AI Studio task submission handlers.
  */
 import type { FalSubmitResponse } from "../../../../lib/falClient";
+import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import { getModelConfig } from "../../logic/pricing";
 import { Provider } from "../../logic/stateParsers";
 import { StudioOutput } from "../../types";
@@ -51,6 +52,7 @@ export type VideoSubmissionArgs = BaseSubmissionArgs & {
 
 export type ImageSubmissionArgs = BaseSubmissionArgs & {
   falReferencePayload: { image_url: string; image_urls: string[] } | Record<string, never>;
+  inpaintOverride?: InpaintSubmissionOverride | null;
 };
 
 export type SubmissionHandlerRoute = "video" | "image" | "default";

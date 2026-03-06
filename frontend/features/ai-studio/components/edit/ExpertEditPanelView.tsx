@@ -21,6 +21,7 @@ import {
   TrashSimple,
   UploadSimple,
 } from "phosphor-react";
+import type { Icon as PhosphorIcon } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import type { AspectOption } from "../../types";
 import { modelLogos } from "../../constants";
@@ -30,6 +31,7 @@ import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
 import { composePrimaryLayersToBlob } from "../../logic/expertEditLayerCompose";
+import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
@@ -38,6 +40,7 @@ import {
   type CreateCharacterOption,
   useCreateCharacterModeController,
 } from "../create/useCreateCharacterModeController";
+import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
 
 export type ExpertEditPanelViewProps = {
   expertEditEligible: boolean;
@@ -61,7 +64,10 @@ export type ExpertEditPanelViewProps = {
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
   onRegenerate: () => void;
-  onRegenerateWithReferenceInputs?: (referenceInputs: string[]) => void | Promise<void>;
+  onRegenerateWithReferenceInputs?: (
+    referenceInputs: string[],
+    options?: { inpaintOverride?: InpaintSubmissionOverride | null }
+  ) => void | Promise<void>;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
@@ -283,7 +289,7 @@ const inpaintRailTools: ReadonlyArray<{
   id: RailTool;
   label: string;
   selectedClassName: string;
-  icon: React.ComponentType<any>;
+  icon: PhosphorIcon;
 }> = [
   {
     id: "inpaint",
@@ -319,6 +325,7 @@ const INPAINT_COLLAPSE_ANIMATION_MS = 140;
 const STATUS_TOAST_VISIBLE_MS = 1_000;
 const STATUS_TOAST_FADE_MS = 220;
 const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
+const INPAINT_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
 const MOVE_ZOOM_DEFAULT = 125;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
@@ -334,26 +341,34 @@ const clampLayerOpacity = (value: number) =>
   Math.min(LAYER_OPACITY_MAX, Math.max(LAYER_OPACITY_MIN, value));
 
 const buildInpaintBrushReticleCursor = (strokeSize: number) => {
-  const clampedStrokeSize = Math.min(100, Math.max(1, strokeSize));
-  const mappedDiameter = Math.round(6 + clampedStrokeSize * 0.46);
   const diameter = Math.min(
     INPAINT_CURSOR_DIAMETER_MAX,
-    Math.max(INPAINT_CURSOR_DIAMETER_MIN, mappedDiameter)
+    Math.max(INPAINT_CURSOR_DIAMETER_MIN, resolveInpaintBrushDiameter(strokeSize))
   );
   const canvasSize = diameter + INPAINT_CURSOR_PADDING * 2;
   const center = canvasSize / 2;
   const radius = diameter / 2;
-  const markerInset = Math.max(2, Math.floor(radius * 0.36));
-  const markerStart = center - radius + markerInset;
-  const markerEnd = center + radius - markerInset;
   const ringStrokeWidth = diameter >= 34 ? 2 : 1.6;
-  const markerStrokeWidth = diameter >= 34 ? 1.6 : 1.3;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}">
       <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(0,0,0,0.8)" stroke-width="${ringStrokeWidth + 1}" />
       <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(245,249,255,0.98)" stroke-width="${ringStrokeWidth}" />
-      <line x1="${center}" y1="${markerStart}" x2="${center}" y2="${markerEnd}" stroke="rgba(245,249,255,0.96)" stroke-width="${markerStrokeWidth}" stroke-linecap="round" />
-      <line x1="${markerStart}" y1="${center}" x2="${markerEnd}" y2="${center}" stroke="rgba(245,249,255,0.96)" stroke-width="${markerStrokeWidth}" stroke-linecap="round" />
+    </svg>
+  `.trim();
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
+};
+
+const buildInpaintLassoCursor = () => {
+  const cursorSize = 28;
+  const center = 9;
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${cursorSize}" height="${cursorSize}" viewBox="0 0 ${cursorSize} ${cursorSize}">
+      <g id="lasso-cursor">
+        <path d="M9 2.6c3.8 0 6.9 2.9 6.9 6.4s-3.1 6.4-6.9 6.4S2.1 12.5 2.1 9s3.1-6.4 6.9-6.4Z" fill="none" stroke="rgba(0,0,0,0.86)" stroke-width="2.2" />
+        <path d="M9 2.6c3.8 0 6.9 2.9 6.9 6.4s-3.1 6.4-6.9 6.4S2.1 12.5 2.1 9s3.1-6.4 6.9-6.4Z" fill="none" stroke="rgba(97,234,255,0.98)" stroke-width="1.4" />
+        <path d="M13.9 13.5l5.4 5.4" fill="none" stroke="rgba(0,0,0,0.86)" stroke-width="2.4" stroke-linecap="round" />
+        <path d="M13.9 13.5l5.4 5.4" fill="none" stroke="rgba(97,234,255,0.98)" stroke-width="1.4" stroke-linecap="round" />
+      </g>
     </svg>
   `.trim();
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
@@ -378,6 +393,34 @@ const revokeObjectUrlSafe = (url: string) => {
     URL.revokeObjectURL(url);
   } catch {
     // Preserve UI flow even when revocation fails.
+  }
+};
+
+const resolveBlobDimensions = async (blob: Blob): Promise<{ width: number; height: number }> => {
+  if (typeof window !== "undefined" && typeof window.createImageBitmap === "function") {
+    const bitmap = await window.createImageBitmap(blob);
+    const dimensions = {
+      width: Math.max(1, bitmap.width),
+      height: Math.max(1, bitmap.height),
+    };
+    bitmap.close();
+    return dimensions;
+  }
+  const tempUrl = URL.createObjectURL(blob);
+  try {
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const image = new window.Image();
+      image.onload = () =>
+        resolve({
+          width: Math.max(1, image.naturalWidth || 1),
+          height: Math.max(1, image.naturalHeight || 1),
+        });
+      image.onerror = () => reject(new Error("Unable to read image dimensions."));
+      image.src = tempUrl;
+    });
+    return dimensions;
+  } finally {
+    revokeObjectUrlSafe(tempUrl);
   }
 };
 
@@ -421,6 +464,7 @@ export function ExpertEditPanelView({
   const toastFadeTimerRef = React.useRef<number | null>(null);
   const transientRevokeTimersRef = React.useRef<Map<string, number>>(new Map());
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
+  const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
 
   const createLayer = React.useCallback(
     ({
@@ -497,14 +541,6 @@ export function ExpertEditPanelView({
   const isCropToolSelected = selectedRailTool === "crop";
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isMoveToolSelected = selectedRailTool === "move";
-  const shouldShowInpaintBrushReticle =
-    isInpaintToolSelected && selectedInpaintMode === "brush" && Boolean(selectedLayerImageUrl);
-  const primaryDropzoneCursor = React.useMemo(
-    () =>
-      shouldShowInpaintBrushReticle ? buildInpaintBrushReticleCursor(inpaintStrokeSize) : undefined,
-    [inpaintStrokeSize, shouldShowInpaintBrushReticle]
-  );
-
   React.useEffect(() => {
     setSelectedCropAspect(aspect);
   }, [aspect]);
@@ -577,6 +613,10 @@ export function ExpertEditPanelView({
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = (referenceText ?? "").trim().length > 0;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
+  const inpaintLayerSources = React.useMemo(
+    () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
+    [layers]
+  );
 
   const showStatusToast = React.useCallback((message: string) => {
     if (toastVisibleTimerRef.current != null) {
@@ -599,6 +639,50 @@ export function ExpertEditPanelView({
       toastVisibleTimerRef.current = null;
     }, STATUS_TOAST_VISIBLE_MS);
   }, []);
+
+  const {
+    overlayCanvasRef,
+    hasSelectedLayerMask,
+    imageHasInteractiveMask,
+    clearSelectedLayerMask,
+    invertSelectedLayerMask,
+    exportSelectedLayerMaskBlob,
+    onPointerDown: handleInpaintPointerDown,
+    onPointerMove: handleInpaintPointerMove,
+    onPointerUp: handleInpaintPointerUp,
+    onPointerCancel: handleInpaintPointerCancel,
+    onPointerLeave: handleInpaintPointerLeave,
+  } = useInpaintMaskController({
+    dropzoneRef: primaryDropzoneRef,
+    selectedLayerId: selectedLayer?.id ?? null,
+    selectedLayerImageUrl,
+    layerSources: inpaintLayerSources,
+    enabled: isInpaintToolSelected,
+    paintMode: selectedInpaintMode,
+    selectionMode: selectedInpaintSelectionTab,
+    strokeSize: inpaintStrokeSize,
+    onAutoToolAttempt: () => showStatusToast("Auto select is coming soon."),
+  });
+
+  const shouldShowInpaintBrushReticle =
+    isInpaintToolSelected &&
+    selectedInpaintMode === "brush" &&
+    Boolean(selectedLayerImageUrl) &&
+    imageHasInteractiveMask;
+  const shouldShowInpaintLassoCursor =
+    isInpaintToolSelected &&
+    selectedInpaintMode === "lasso" &&
+    Boolean(selectedLayerImageUrl) &&
+    imageHasInteractiveMask;
+  const primaryDropzoneCursor = React.useMemo(() => {
+    if (shouldShowInpaintBrushReticle) {
+      return buildInpaintBrushReticleCursor(inpaintStrokeSize);
+    }
+    if (shouldShowInpaintLassoCursor) {
+      return buildInpaintLassoCursor();
+    }
+    return undefined;
+  }, [inpaintStrokeSize, shouldShowInpaintBrushReticle, shouldShowInpaintLassoCursor]);
 
   const scheduleTransientObjectUrlRevoke = React.useCallback((url: string) => {
     const existingTimer = transientRevokeTimersRef.current.get(url);
@@ -725,19 +809,52 @@ export function ExpertEditPanelView({
       }
 
       let flattenedUrl: string | null = null;
+      let inpaintMaskUrl: string | null = null;
       try {
         const flattenedBlob = await composePrimaryLayersToBlob(layers, { mimeType: "image/png" });
         flattenedUrl = URL.createObjectURL(flattenedBlob);
         const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
-        if (onRegenerateWithReferenceInputs) {
-          await onRegenerateWithReferenceInputs(referenceInputs);
-        } else {
-          onRegenerate();
+
+        if (hasSelectedLayerMask) {
+          if (!onRegenerateWithReferenceInputs) {
+            showStatusToast("Inpaint generate is unavailable in this session.");
+            return;
+          }
+          const flattenedDimensions = await resolveBlobDimensions(flattenedBlob);
+          const inpaintMaskBlob = await exportSelectedLayerMaskBlob({
+            targetWidth: flattenedDimensions.width,
+            targetHeight: flattenedDimensions.height,
+            mimeType: "image/png",
+          });
+          if (!inpaintMaskBlob) {
+            showStatusToast("Mask selection is required for inpaint.");
+            return;
+          }
+          inpaintMaskUrl = URL.createObjectURL(inpaintMaskBlob);
+          await onRegenerateWithReferenceInputs(referenceInputs, {
+            inpaintOverride: {
+              modelId: INPAINT_FILL_MODEL_ID,
+              baseImageInput: flattenedUrl,
+              maskInput: inpaintMaskUrl,
+              outputFormat: "png",
+            },
+          });
+          return;
         }
+
+        if (!onRegenerateWithReferenceInputs) {
+          onRegenerate();
+          return;
+        }
+        await onRegenerateWithReferenceInputs(referenceInputs);
       } catch {
         if (flattenedUrl) {
           revokeObjectUrlSafe(flattenedUrl);
           flattenedUrl = null;
+        }
+        if (inpaintMaskUrl) {
+          revokeObjectUrlSafe(inpaintMaskUrl);
+          inpaintMaskUrl = null;
         }
         showStatusToast("Unable to flatten layers.");
       } finally {
@@ -748,11 +865,20 @@ export function ExpertEditPanelView({
             revokeObjectUrlSafe(flattenedUrl);
           }
         }
+        if (inpaintMaskUrl) {
+          if (onRegenerateWithReferenceInputs) {
+            scheduleTransientObjectUrlRevoke(inpaintMaskUrl);
+          } else {
+            revokeObjectUrlSafe(inpaintMaskUrl);
+          }
+        }
       }
     };
     void run();
   }, [
     buildFlattenReferenceInputs,
+    exportSelectedLayerMaskBlob,
+    hasSelectedLayerMask,
     layers,
     onRegenerate,
     onRegenerateWithReferenceInputs,
@@ -1279,6 +1405,7 @@ export function ExpertEditPanelView({
         </div>
 
         <div
+          ref={primaryDropzoneRef}
           className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
             primaryDragActive ? "is-dragging" : ""
           }`}
@@ -1287,7 +1414,15 @@ export function ExpertEditPanelView({
           onDragEnter={handlePrimaryDragEnter}
           onDragOver={handlePrimaryDragOver}
           onDragLeave={handlePrimaryDragLeave}
-          onClick={() => primaryInputRef.current?.click()}
+          onPointerDown={handleInpaintPointerDown}
+          onPointerMove={handleInpaintPointerMove}
+          onPointerUp={handleInpaintPointerUp}
+          onPointerCancel={handleInpaintPointerCancel}
+          onPointerLeave={handleInpaintPointerLeave}
+          onClick={() => {
+            if (hasPrimaryCompositePreview) return;
+            primaryInputRef.current?.click();
+          }}
           aria-label="Primary edit image"
         >
           {hasPrimaryCompositePreview ? (
@@ -1305,6 +1440,11 @@ export function ExpertEditPanelView({
                   />
                 ) : null
               )}
+              <canvas
+                ref={overlayCanvasRef}
+                className="edit-expert-inpaint-overlay-canvas"
+                aria-hidden="true"
+              />
             </div>
           ) : null}
           {hasPrimaryCompositePreview ? null : (
@@ -1490,6 +1630,8 @@ export function ExpertEditPanelView({
                           type="button"
                           className="edit-expert-inpaint-action-btn"
                           aria-label="Invert selection"
+                          onClick={invertSelectedLayerMask}
+                          disabled={!imageHasInteractiveMask}
                         >
                           <CircleHalf size={18} weight="regular" />
                         </button>
@@ -1497,6 +1639,8 @@ export function ExpertEditPanelView({
                           type="button"
                           className="edit-expert-inpaint-action-btn"
                           aria-label="Clear selection"
+                          onClick={clearSelectedLayerMask}
+                          disabled={!imageHasInteractiveMask}
                         >
                           <TrashSimple size={18} weight="regular" />
                         </button>

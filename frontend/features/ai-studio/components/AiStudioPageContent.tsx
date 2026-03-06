@@ -54,6 +54,7 @@ import {
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
+  AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
@@ -570,6 +571,8 @@ export function AiStudioPageContent({
         : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
   const minRightWidthPx = selectedTool === "canvas" ? AI_SHELL_RIGHT_CANVAS_MIN_PX : undefined;
+  const defaultLeftRatio =
+    selectedTool === "canvas" ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO : undefined;
   const {
     shellRef,
     leftColumnRef,
@@ -584,6 +587,7 @@ export function AiStudioPageContent({
     minLeftWidthPx,
     maxLeftWidthPx,
     minRightWidthPx,
+    defaultLeftRatio,
   });
   const shellClassName = [
     "ai-shell",
@@ -602,8 +606,10 @@ export function AiStudioPageContent({
     // Expert Create should always open at its minimum left width when Create is selected.
     const isCreateToolSelected = isCreateWorkflow(selectedTool);
     const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
+    const isInitialCanvasSelection = previousSelectedTool == null && selectedTool === "canvas";
     if (
-      shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
+      (!isInitialCanvasSelection &&
+        shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool)) ||
       shouldCollapseForExpertCreateSelection
     ) {
       collapseToMin();

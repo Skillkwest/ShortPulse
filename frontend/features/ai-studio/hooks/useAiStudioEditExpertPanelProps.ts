@@ -4,6 +4,7 @@
  */
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
+import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { AiStudioEditExpertPanelContract } from "./contracts/pageContentContracts";
 
 type UseAiStudioEditExpertPanelPropsParams = {
@@ -33,6 +34,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   handleEditPromptTextChange: (value: string) => void;
   handleImageRegenerateWithDebit: (options?: {
     referenceInputsOverride?: string[];
+    inpaintOverride?: InpaintSubmissionOverride | null;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
@@ -104,8 +106,14 @@ export const useAiStudioEditExpertPanelProps = ({
       onExtraImageChange: setExtraImageUrl,
       onPromptTextChange: handleEditPromptTextChange,
       onRegenerate: handleImageRegenerateWithDebit,
-      onRegenerateWithReferenceInputs: (referenceInputs: string[]) =>
-        handleImageRegenerateWithDebit({ referenceInputsOverride: referenceInputs }),
+      onRegenerateWithReferenceInputs: (
+        referenceInputs: string[],
+        options?: { inpaintOverride?: InpaintSubmissionOverride | null }
+      ) =>
+        handleImageRegenerateWithDebit({
+          referenceInputsOverride: referenceInputs,
+          inpaintOverride: options?.inpaintOverride,
+        }),
       onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,

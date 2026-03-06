@@ -12,14 +12,16 @@ export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_RIGHT_CANVAS_MIN_PX = 0;
 export const AI_SHELL_DIVIDER_TRACK_PX = 16;
 export const AI_SHELL_RESIZE_BREAKPOINT_PX = 960;
-export const AI_SHELL_LEFT_DEFAULT_RATIO = 0.7;
+export const AI_SHELL_LEFT_DEFAULT_RATIO = 0.4;
+export const AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO = 0.64;
 export const AI_SHELL_LEFT_MIN_FALLBACK_PX = 420;
-export const AI_SHELL_LEFT_WIDTH_STORAGE_KEY = "shortpulse.aiStudio.shellLeftWidthPx.v2";
+export const AI_SHELL_LEFT_WIDTH_STORAGE_KEY = "shortpulse.aiStudio.shellLeftWidthPx.v5";
 
 type ShellResizeBoundsOptions = {
   minLeftWidthPx?: number;
   maxLeftWidthPx?: number;
   minRightWidthPx?: number;
+  preferredRatio?: number;
 };
 
 /**
@@ -89,7 +91,13 @@ export const getDefaultAiShellLeftWidth = (
   containerWidth: number,
   options?: ShellResizeBoundsOptions
 ): number => {
-  const preferredWidth = containerWidth * AI_SHELL_LEFT_DEFAULT_RATIO;
+  const preferredRatio =
+    typeof options?.preferredRatio === "number" &&
+    Number.isFinite(options.preferredRatio) &&
+    options.preferredRatio > 0
+      ? options.preferredRatio
+      : AI_SHELL_LEFT_DEFAULT_RATIO;
+  const preferredWidth = containerWidth * preferredRatio;
   return clampAiShellLeftWidth(preferredWidth, containerWidth, options);
 };
 
@@ -120,8 +128,5 @@ export const shouldCollapseAiShellOnToolSelect = (
   previousTool: string | null,
   nextTool: string | null
 ): boolean =>
-  (nextTool === "edit" ||
-    nextTool === "video" ||
-    nextTool === "canvas" ||
-    nextTool === "character") &&
+  (nextTool === "edit" || nextTool === "video" || nextTool === "character") &&
   nextTool !== previousTool;

@@ -54,6 +54,7 @@ type RegenerateWithDebitOptions = {
   referenceInputsOverride?: string[];
   inpaintOverride?: InpaintSubmissionOverride | null;
   modelIdOverride?: string | null;
+  costOverrideCredits?: number | null;
 };
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
@@ -538,13 +539,30 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   const runRegenerateWithDebit = useCallback(
     async (options?: RegenerateWithDebitOptions) => {
       if (!tryAcquireGenerateClickLock()) return;
+      const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
+      let checkedFreshCredits = false;
+
+      if (
+        options?.costOverrideCredits != null &&
+        effectiveBalanceCredits != null &&
+        effectiveBalanceCredits < options.costOverrideCredits
+      ) {
+        const hasFreshCredits = await ensureFreshCreditsForRun(options.costOverrideCredits);
+        checkedFreshCredits = true;
+        if (!hasFreshCredits) {
+          setUiError("You do not have enough credits for this run.");
+          return;
+        }
+      }
 
       if (isGenerateDisabled && !isCreditGuardrail) {
         setUiError(resolveGuardrailBlockMessage());
         return;
       }
       if (isCreditGuardrail) {
-        const hasFreshCredits = await ensureFreshCreditsForRun(currentCostCredits);
+        const hasFreshCredits = checkedFreshCredits
+          ? true
+          : await ensureFreshCreditsForRun(requiredCredits);
         if (!hasFreshCredits) {
           setUiError(resolveGuardrailBlockMessage());
           return;
@@ -659,7 +677,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         });
       }
 
-      enqueueOptimisticDebit(currentCostCredits, activeOutputId ?? null);
+      enqueueOptimisticDebit(requiredCredits, activeOutputId ?? null);
       regenerateOutput({
         modelIdOverride: effectiveModelId,
         submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
@@ -678,6 +696,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     [
       activeOutputId,
       currentCostCredits,
+      effectiveBalanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       isCreditGuardrail,

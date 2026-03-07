@@ -114,6 +114,7 @@ export const useAiStudioState = ({
     setDetailOutputId,
     referenceImageUrl,
     setReferenceImageUrl,
+    setImageReferenceImageUrl,
     extraImageUrls,
     setExtraImageUrl,
     clearReferenceImages,
@@ -471,6 +472,7 @@ export const useAiStudioState = ({
       },
       outputs,
       findOutputById,
+      setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
     });
   const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
     prompt,

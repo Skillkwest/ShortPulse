@@ -5,6 +5,7 @@
 import type { ToolId } from "../types";
 
 export type EditPromptRequirement = "required" | "optional" | "unknown";
+export const BRIA_BACKGROUND_REMOVE_MODEL_ID = "fal-ai/bria/background/remove";
 
 const REQUIRED_EDIT_PROMPT_MODEL_IDS = new Set([
   "fal/flux-2/edit",
@@ -18,7 +19,7 @@ const REQUIRED_EDIT_PROMPT_MODEL_IDS = new Set([
   "fal-ai/bytedance/seedream/v5/lite/edit",
 ]);
 
-const OPTIONAL_EDIT_PROMPT_MODEL_IDS = new Set(["fal-ai/bria/background/remove"]);
+const OPTIONAL_EDIT_PROMPT_MODEL_IDS = new Set([BRIA_BACKGROUND_REMOVE_MODEL_ID]);
 
 const normalizeModelId = (modelId: string | null | undefined): string =>
   typeof modelId === "string" ? modelId.trim().toLowerCase() : "";

@@ -5,6 +5,12 @@
 export type ExpertEditCompositingLayer = {
   imageUrl: string | null;
   opacity?: number;
+  transform?: {
+    translateXRatio?: number;
+    translateYRatio?: number;
+    scale?: number;
+    rotationDeg?: number;
+  };
 };
 
 const DEFAULT_COMPOSITE_MIME_TYPE = "image/png";
@@ -39,6 +45,8 @@ const canvasToBlob = (canvas: HTMLCanvasElement, mimeType: string): Promise<Blob
   });
 
 const clampOpacity = (value: number) => Math.min(1, Math.max(0, value));
+const clampScale = (value: number) => Math.min(2, Math.max(0.5, value));
+const toRadians = (value: number) => (value * Math.PI) / 180;
 
 /**
  * Flattens populated layers into a single blob where the first layer in the
@@ -49,7 +57,7 @@ export const composePrimaryLayersToBlob = async (
   options?: { mimeType?: string }
 ): Promise<Blob> => {
   const populatedLayers = layers.filter(
-    (layer): layer is { imageUrl: string; opacity?: number } =>
+    (layer): layer is ExpertEditCompositingLayer & { imageUrl: string } =>
       typeof layer.imageUrl === "string" && !!layer.imageUrl
   );
   if (!populatedLayers.length) {
@@ -62,6 +70,7 @@ export const composePrimaryLayersToBlob = async (
     drawOrder.map(async (layer) => ({
       image: await loadImage(layer.imageUrl),
       opacity: clampOpacity(layer.opacity ?? 1),
+      transform: layer.transform ?? null,
     }))
   );
   const baseLayer = decodedLayers[0];
@@ -81,9 +90,31 @@ export const composePrimaryLayersToBlob = async (
     throw new Error("Canvas context unavailable for flatten.");
   }
 
-  decodedLayers.forEach(({ image, opacity }) => {
+  decodedLayers.forEach(({ image, opacity, transform }) => {
+    const translateXRatio = Number.isFinite(transform?.translateXRatio)
+      ? (transform?.translateXRatio as number)
+      : 0;
+    const translateYRatio = Number.isFinite(transform?.translateYRatio)
+      ? (transform?.translateYRatio as number)
+      : 0;
+    const scale = clampScale(Number.isFinite(transform?.scale) ? (transform?.scale as number) : 1);
+    const rotationDeg = Number.isFinite(transform?.rotationDeg)
+      ? (transform?.rotationDeg as number)
+      : 0;
+    const translateX = translateXRatio * width;
+    const translateY = translateYRatio * height;
+
+    context.save();
     context.globalAlpha = opacity;
-    context.drawImage(image, 0, 0, width, height);
+    context.translate(width / 2 + translateX, height / 2 + translateY);
+    if (rotationDeg !== 0) {
+      context.rotate(toRadians(rotationDeg));
+    }
+    if (scale !== 1) {
+      context.scale(scale, scale);
+    }
+    context.drawImage(image, -width / 2, -height / 2, width, height);
+    context.restore();
   });
   context.globalAlpha = 1;
 

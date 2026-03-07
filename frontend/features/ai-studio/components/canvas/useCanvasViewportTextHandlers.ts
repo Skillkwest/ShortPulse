@@ -1,0 +1,184 @@
+/**
+ * Encapsulates text editing, selection deletion, and pin actions for a Canvas viewport.
+ */
+import { useCallback, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  deleteCanvasSceneItemById,
+  selectCanvasSceneItem,
+  type CanvasSharedSceneState,
+} from "./canvasSceneState";
+import type { CanvasSceneItem } from "./canvasTypes";
+
+type UseCanvasViewportTextHandlersParams = {
+  items: CanvasSceneItem[];
+  draftTextEntry: { x: number; y: number; value: string } | null;
+  textEditSession: { itemId: string; value: string } | null;
+  onPinTextReference?: (text: string) => void;
+  scene: Pick<
+    CanvasSharedSceneState,
+    | "setItems"
+    | "setDraftTextEntry"
+    | "setTextEditSession"
+    | "clearDraftTextEntry"
+    | "clearTextEditSession"
+    | "deleteSelection"
+    | "commitDraftTextEntry"
+    | "commitTextItemEdit"
+  >;
+};
+
+type CanvasTextHandlers = {
+  onViewportKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+  onDraftTextChange: (value: string) => void;
+  onDraftTextKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  onItemDoubleClick: (id: string, event: MouseEvent<HTMLElement>) => void;
+  onItemContextMenu: (id: string, event: MouseEvent<HTMLElement>) => void;
+  onTextItemEditChange: (value: string) => void;
+  onTextItemEditKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  onTextItemEditBlur: () => void;
+  onPinTextItem: (id: string) => void;
+};
+
+/**
+ * Returns text-centric handlers that are shared by main and rail viewport instances.
+ */
+export const useCanvasViewportTextHandlers = ({
+  items,
+  draftTextEntry,
+  textEditSession,
+  onPinTextReference,
+  scene,
+}: UseCanvasViewportTextHandlersParams): CanvasTextHandlers => {
+  const {
+    setItems,
+    setDraftTextEntry,
+    setTextEditSession,
+    clearDraftTextEntry,
+    clearTextEditSession,
+    deleteSelection,
+    commitDraftTextEntry,
+    commitTextItemEdit,
+  } = scene;
+
+  const onViewportKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (draftTextEntry || textEditSession) return;
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      event.preventDefault();
+      deleteSelection();
+    },
+    [deleteSelection, draftTextEntry, textEditSession]
+  );
+
+  const onDraftTextChange = useCallback(
+    (value: string) => {
+      setDraftTextEntry((currentDraft) =>
+        currentDraft
+          ? {
+              ...currentDraft,
+              value,
+            }
+          : currentDraft
+      );
+    },
+    [setDraftTextEntry]
+  );
+
+  const onDraftTextKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitDraftTextEntry();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        clearDraftTextEntry();
+      }
+    },
+    [clearDraftTextEntry, commitDraftTextEntry]
+  );
+
+  const onItemDoubleClick = useCallback(
+    (id: string, event: MouseEvent<HTMLElement>) => {
+      event.stopPropagation();
+      const item = items.find((candidate) => candidate.id === id);
+      if (!item || item.kind !== "text") return;
+      clearDraftTextEntry();
+      setItems((currentItems) => selectCanvasSceneItem(currentItems, id));
+      setTextEditSession({
+        itemId: id,
+        value: item.text,
+      });
+    },
+    [clearDraftTextEntry, items, setItems, setTextEditSession]
+  );
+
+  const onItemContextMenu = useCallback(
+    (id: string, event: MouseEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setItems((currentItems) => deleteCanvasSceneItemById(currentItems, id));
+      setTextEditSession((currentSession) =>
+        currentSession?.itemId === id ? null : currentSession
+      );
+    },
+    [setItems, setTextEditSession]
+  );
+
+  const onTextItemEditChange = useCallback(
+    (value: string) => {
+      setTextEditSession((currentSession) =>
+        currentSession
+          ? {
+              ...currentSession,
+              value,
+            }
+          : currentSession
+      );
+    },
+    [setTextEditSession]
+  );
+
+  const onTextItemEditKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitTextItemEdit();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        clearTextEditSession();
+      }
+    },
+    [clearTextEditSession, commitTextItemEdit]
+  );
+
+  const onTextItemEditBlur = useCallback(() => {
+    commitTextItemEdit();
+  }, [commitTextItemEdit]);
+
+  const onPinTextItem = useCallback(
+    (id: string) => {
+      if (!onPinTextReference) return;
+      const item = items.find((candidate) => candidate.id === id);
+      if (!item || item.kind !== "text") return;
+      if (!item.text.trim()) return;
+      onPinTextReference(item.text);
+    },
+    [items, onPinTextReference]
+  );
+
+  return {
+    onViewportKeyDown,
+    onDraftTextChange,
+    onDraftTextKeyDown,
+    onItemDoubleClick,
+    onItemContextMenu,
+    onTextItemEditChange,
+    onTextItemEditKeyDown,
+    onTextItemEditBlur,
+    onPinTextItem,
+  };
+};

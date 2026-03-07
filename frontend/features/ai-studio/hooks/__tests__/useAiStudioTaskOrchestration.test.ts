@@ -19,8 +19,8 @@ vi.mock("../../../../lib/falClient", () => ({
   fetchFalQueueStatus: vi.fn(),
 }));
 
-const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
-  fn as unknown as Dispatch<SetStateAction<T>>;
+const asDispatch = <T>(fn: (value: SetStateAction<T>) => void): Dispatch<SetStateAction<T>> =>
+  fn as Dispatch<SetStateAction<T>>;
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -72,12 +72,23 @@ describe("useAiStudioTaskOrchestration", () => {
     }) as typeof useAiStudioTasks);
   });
 
-  it("does not wire generation success into auto-persistence", async () => {
-    const outputs = [createOutput({ id: "out-1", taskId: "task-1" })];
+  it("applies Bria remove-background success to primary reference and clears hidden output", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-1",
+        taskId: "task-1",
+        modelId: "fal-ai/bria/background/remove",
+        hiddenInReferenceGrid: true,
+      }),
+    ];
     const updateOutputById = vi.fn();
     const setUiNotice = vi.fn();
+    const setPrimaryEditReferenceImageUrl = vi.fn();
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
 
-    const { result } = renderHook(() =>
+    renderHook(() =>
       useAiStudioTaskOrchestration({
         taskSubmissionConfig: {
           aspect: "9:16",
@@ -103,7 +114,7 @@ describe("useAiStudioTaskOrchestration", () => {
           setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
           setUiError: asDispatch<string | null>(vi.fn()),
           setUiNotice: asDispatch<string | null>(setUiNotice),
-          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(setOutputs),
           setSaved: asDispatch<boolean>(vi.fn()),
           getDefaultDurationSeconds: vi.fn(() => 6),
           notifyGenerationFailure: vi.fn(),
@@ -112,16 +123,86 @@ describe("useAiStudioTaskOrchestration", () => {
         },
         outputs,
         findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        setPrimaryEditReferenceImageUrl,
       })
     );
 
-    expect(capturedTaskCallbacks?.onGenerationSuccess).toBeUndefined();
-    expect(capturedTaskCallbacks?.onGenerationFailure).toBeUndefined();
+    expect(capturedTaskCallbacks?.onGenerationSuccess).toBeDefined();
+    expect(capturedTaskCallbacks?.onGenerationFailure).toBeDefined();
 
     await act(async () => {
-      await result.current.onReferenceOutputMediaLoaded("out-1");
+      capturedTaskCallbacks?.onGenerationSuccess?.({
+        outputId: "out-1",
+        taskId: "task-1",
+        provider: "fal-bria-background-remove",
+        resultUrls: ["https://cdn.test/bria-result.png"],
+      });
     });
+
+    expect(setPrimaryEditReferenceImageUrl).toHaveBeenCalledWith(
+      "https://cdn.test/bria-result.png"
+    );
+    expect(outputs).toEqual([]);
     expect(updateOutputById).not.toHaveBeenCalled();
+  });
+
+  it("ignores success callbacks for non-Bria outputs", async () => {
+    let outputs = [createOutput({ id: "out-1", taskId: "task-1", modelId: "fal-ai/nano-banana" })];
+    const setPrimaryEditReferenceImageUrl = vi.fn();
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(setOutputs),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById: vi.fn(),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        setPrimaryEditReferenceImageUrl,
+      })
+    );
+
+    await act(async () => {
+      capturedTaskCallbacks?.onGenerationSuccess?.({
+        outputId: "out-1",
+        taskId: "task-1",
+        provider: "fal-nano-banana",
+        resultUrls: ["https://cdn.test/not-used.png"],
+      });
+    });
+
+    expect(setPrimaryEditReferenceImageUrl).not.toHaveBeenCalled();
+    expect(outputs).toHaveLength(1);
   });
 
   it("no-ops client persistence when polling hard-stop callback fires", async () => {

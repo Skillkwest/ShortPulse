@@ -21,7 +21,7 @@ export const useAiStudioReferenceSelectionState = ({
 }: UseAiStudioReferenceSelectionStateParams) => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>("create");
   const [showCreateTools, setShowCreateTools] = useState<boolean>(false);
-  const [imageReferenceImageUrl, setImageReferenceImageUrl] = useState<string | null>(null);
+  const [imageReferenceImageUrl, setImageReferenceImageUrlState] = useState<string | null>(null);
   const [imageExtraImageUrls, setImageExtraImageUrls] = useState<
     [string | null, string | null, string | null]
   >([null, null, null]);
@@ -63,10 +63,13 @@ export const useAiStudioReferenceSelectionState = ({
         setVideoReferenceImageUrl(url);
         return;
       }
-      setImageReferenceImageUrl(url);
+      setImageReferenceImageUrlState(url);
     },
     [isVideoReferenceTool]
   );
+  const setImageReferenceImageUrl = useCallback((url: string | null) => {
+    setImageReferenceImageUrlState(url);
+  }, []);
 
   const setExtraImageUrl = useCallback(
     (index: number, url: string | null) => {
@@ -88,7 +91,7 @@ export const useAiStudioReferenceSelectionState = ({
   );
 
   const clearReferenceImages = useCallback(() => {
-    setImageReferenceImageUrl(null);
+    setImageReferenceImageUrlState(null);
     setImageExtraImageUrls([null, null, null]);
     setVideoReferenceImageUrl(null);
     setVideoExtraImageUrls([null, null, null]);
@@ -134,6 +137,7 @@ export const useAiStudioReferenceSelectionState = ({
     isVideoReferenceTool,
     referenceImageUrl,
     setReferenceImageUrl,
+    setImageReferenceImageUrl,
     extraImageUrls,
     setExtraImageUrl,
     clearReferenceImages,

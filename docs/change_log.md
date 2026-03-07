@@ -258,6 +258,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
 
 ## 2026-02-12 (dashboard hidden tool reminders)
 - Removed the dashboard “Temporarily hidden” reminder row and the small Saved Creators/Performance pills from the Tools section so hidden surfaces have no in-app visual footprint.
+
+## 2026-03-07
+- AI Studio canvas reliability hardening: restored empty-space double-click text draft creation for the main canvas while preserving pan/zoom behavior and gesture dedupe.
+- Added dual-canvas draft/edit ownership controls so mirrored canvas instances no longer clear each other’s active text draft or text edit session.
+- Added canvas interaction regression coverage for slight drag-jitter double-tap fallback and dual-canvas draft visibility behavior.
+- Updated `docs/sops/sop_ai_studio_index.md` with explicit canvas interaction guardrails for dual-canvas behavior.
 - Preserved the actual feature routes; this changelog entry is the documentation reminder that those links are intentionally hidden from the dashboard UI.
 
 ## 2026-02-12 (character placeholder navigation)

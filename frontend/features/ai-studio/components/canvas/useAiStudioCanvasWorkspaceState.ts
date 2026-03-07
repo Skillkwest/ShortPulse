@@ -2,7 +2,7 @@
  * Page-scoped state controller for the AI Studio Canvas workspace.
  * Composes shared scene state with per-viewport camera + interaction controllers.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCanvasSharedSceneState } from "./canvasSceneState";
 import type { ResolveCanvasDropReference } from "./canvasTypes";
 import type {
@@ -30,6 +30,10 @@ export const useAiStudioCanvasWorkspaceState = ({
 } = {}): CanvasPropertiesPanelProps => {
   const sharedScene = useCanvasSharedSceneState();
   const isSpacePanActiveRef = useCanvasSpacePanTracker();
+  const [draftOwnerInstanceId, setDraftOwnerInstanceId] = useState<"main" | "rail" | null>(null);
+  const [textEditOwnerInstanceId, setTextEditOwnerInstanceId] = useState<"main" | "rail" | null>(
+    null
+  );
 
   return useCanvasViewportInstanceState({
     instanceId: "main",
@@ -37,6 +41,10 @@ export const useAiStudioCanvasWorkspaceState = ({
     resolveCanvasDropReference,
     onPinTextReference,
     isSpacePanActiveRef,
+    draftOwnerInstanceId,
+    textEditOwnerInstanceId,
+    setDraftOwnerInstanceId,
+    setTextEditOwnerInstanceId,
   });
 };
 
@@ -52,6 +60,10 @@ export const useAiStudioDualCanvasWorkspaceState = ({
 } = {}): AiStudioDualCanvasWorkspaceState => {
   const sharedScene = useCanvasSharedSceneState();
   const isSpacePanActiveRef = useCanvasSpacePanTracker();
+  const [draftOwnerInstanceId, setDraftOwnerInstanceId] = useState<"main" | "rail" | null>(null);
+  const [textEditOwnerInstanceId, setTextEditOwnerInstanceId] = useState<"main" | "rail" | null>(
+    null
+  );
 
   const mainCanvasProps = useCanvasViewportInstanceState({
     instanceId: "main",
@@ -59,6 +71,10 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDropReference,
     onPinTextReference,
     isSpacePanActiveRef,
+    draftOwnerInstanceId,
+    textEditOwnerInstanceId,
+    setDraftOwnerInstanceId,
+    setTextEditOwnerInstanceId,
   });
 
   const railCanvasProps = useCanvasViewportInstanceState({
@@ -67,6 +83,10 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDropReference,
     onPinTextReference,
     isSpacePanActiveRef,
+    draftOwnerInstanceId,
+    textEditOwnerInstanceId,
+    setDraftOwnerInstanceId,
+    setTextEditOwnerInstanceId,
   });
 
   return useMemo(

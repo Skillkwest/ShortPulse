@@ -120,6 +120,7 @@ export type UseAiStudioPanelPropsParams = {
     referenceInputsOverride?: string[];
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
+    costOverrideCredits?: number | null;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;

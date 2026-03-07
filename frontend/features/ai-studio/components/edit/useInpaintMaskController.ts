@@ -537,7 +537,7 @@ const renderOverlayFrame = ({
     ctx.save();
     ctx.drawImage(maskCanvas, 0, 0, width, height);
     ctx.globalCompositeOperation = "source-in";
-    ctx.fillStyle = "rgba(22, 238, 255, 0.58)";
+    ctx.fillStyle = "rgba(255, 0, 60, 0.58)";
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
 

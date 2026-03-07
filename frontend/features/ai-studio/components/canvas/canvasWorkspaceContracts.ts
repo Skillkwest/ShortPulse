@@ -22,10 +22,13 @@ export type CanvasPropertiesPanelProps = {
   viewportRef: RefObject<HTMLDivElement>;
   isDropActive: boolean;
   draftTextEntry: { x: number; y: number; value: string } | null;
+  isDraftTextEditable?: boolean;
   editingTextItemId: string | null;
   editingTextValue: string;
+  isTextEditEditable?: boolean;
   onViewportKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onViewportDoubleClick: (event: MouseEvent<HTMLDivElement>) => void;
+  onViewportClick?: (event: MouseEvent<HTMLDivElement>) => void;
   onViewportPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
   onViewportPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
   onViewportPointerUp: (event: PointerEvent<HTMLDivElement>) => void;

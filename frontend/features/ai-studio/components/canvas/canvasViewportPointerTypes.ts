@@ -1,0 +1,32 @@
+/**
+ * Shared pointer interaction primitives for Canvas viewport hooks.
+ */
+export type CanvasPointerSession =
+  | { kind: "none" }
+  | {
+      kind: "item-drag";
+      pointerId: number;
+      itemId: string;
+      lastClientX: number;
+      lastClientY: number;
+    }
+  | {
+      kind: "pan";
+      pointerId: number;
+      cameraX: number;
+      cameraY: number;
+      startClientX: number;
+      startClientY: number;
+      isActive: boolean;
+    };
+
+/**
+ * Returns true when pointer-down should enter panning mode.
+ */
+export const shouldStartCanvasPanFromPointerDown = ({
+  button,
+  isSpacePanActive,
+}: {
+  button: number;
+  isSpacePanActive: boolean;
+}): boolean => button === 1 || (button === 0 && isSpacePanActive);

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { fetchFalQueueStatus } from "../../../lib/falClient";
 import { normalizeProviderForPolling, type Provider } from "../logic/stateParsers";
+import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
@@ -18,6 +19,7 @@ type UseAiStudioTaskOrchestrationParams = {
   taskSubmissionConfig: TaskSubmissionConfig;
   outputs?: StudioOutput[];
   findOutputById: (id: string) => StudioOutput | null;
+  setPrimaryEditReferenceImageUrl?: (url: string | null) => void;
 };
 
 type StuckSpinnerRetryState = {
@@ -94,8 +96,10 @@ export const useAiStudioTaskOrchestration = ({
   taskSubmissionConfig,
   outputs = [],
   findOutputById,
+  setPrimaryEditReferenceImageUrl,
 }: UseAiStudioTaskOrchestrationParams) => {
-  const { updateOutputById, notifyGenerationFailure, setUiNotice } = taskSubmissionConfig;
+  const { updateOutputById, notifyGenerationFailure, setUiNotice, setOutputs } =
+    taskSubmissionConfig;
   const stuckSpinnerRetryStateRef = useRef<Record<string, StuckSpinnerRetryState>>({});
   const queueResumeInFlightRef = useRef<Record<string, boolean>>({});
   const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
@@ -115,10 +119,53 @@ export const useAiStudioTaskOrchestration = ({
     []
   );
 
+  const isBriaPrimaryReferenceReplacementOutput = useCallback((output: StudioOutput | null) => {
+    if (!output) return false;
+    return (
+      output.modelId === BRIA_BACKGROUND_REMOVE_MODEL_ID && output.hiddenInReferenceGrid === true
+    );
+  }, []);
+
+  const clearBriaReferenceReplacementOutput = useCallback(
+    (outputId: string) => {
+      if (!setPrimaryEditReferenceImageUrl) return;
+      setOutputs((prev) => prev.filter((item) => item.id !== outputId));
+    },
+    [setOutputs, setPrimaryEditReferenceImageUrl]
+  );
+
+  const handleGenerationSuccess = useCallback(
+    (payload: { outputId: string; resultUrls: string[] }) => {
+      const output = findOutputById(payload.outputId);
+      if (!isBriaPrimaryReferenceReplacementOutput(output)) return;
+      const primaryResultUrl = payload.resultUrls[0] ?? null;
+      if (!primaryResultUrl || !setPrimaryEditReferenceImageUrl) return;
+      setPrimaryEditReferenceImageUrl(primaryResultUrl);
+      clearBriaReferenceReplacementOutput(payload.outputId);
+    },
+    [
+      clearBriaReferenceReplacementOutput,
+      findOutputById,
+      isBriaPrimaryReferenceReplacementOutput,
+      setPrimaryEditReferenceImageUrl,
+    ]
+  );
+
+  const handleGenerationFailure = useCallback(
+    (payload: { outputId: string }) => {
+      const output = findOutputById(payload.outputId);
+      if (!isBriaPrimaryReferenceReplacementOutput(output)) return;
+      clearBriaReferenceReplacementOutput(payload.outputId);
+    },
+    [clearBriaReferenceReplacementOutput, findOutputById, isBriaPrimaryReferenceReplacementOutput]
+  );
+
   const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({
     updateOutputById,
     findOutputById,
     notifyGenerationFailure,
+    onGenerationSuccess: handleGenerationSuccess,
+    onGenerationFailure: handleGenerationFailure,
     onPollingOutputLookupHardStop: handlePollingOutputLookupHardStop,
   });
 

@@ -1630,6 +1630,75 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("marks Bria background-remove submissions as hidden from reference grid", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/nano-banana-pro",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "1K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Remove background", ["https://cdn.test/char-ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        modelIdOverride: "fal-ai/bria/background/remove",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe("fal-ai/bria/background/remove");
+    expect(outputs[0]?.hiddenInReferenceGrid).toBe(true);
+    expect(handleImageModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/bria/background/remove",
+      })
+    );
+  });
+
   it("fails immediately when image routing does not start a provider task", async () => {
     const setOutputs = vi.fn();
     const setIsPromptGenerating = vi.fn();

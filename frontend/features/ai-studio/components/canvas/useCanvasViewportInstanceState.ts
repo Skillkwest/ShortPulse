@@ -6,22 +6,13 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent,
-  type KeyboardEvent,
+  type Dispatch,
   type MutableRefObject,
   type MouseEvent,
   type PointerEvent,
+  type SetStateAction,
   type WheelEvent,
 } from "react";
-import {
-  extractInternalReferenceDragPayload,
-  type InternalReferenceDragPayload,
-} from "../../utils/dragDrop";
-import {
-  canAcceptCanvasDropTransfer,
-  extractCanvasDroppedText,
-  resolveCanvasDropClientPoint,
-} from "./canvasDropController";
 import {
   CANVAS_DEFAULT_CAMERA,
   CANVAS_TEXT_ITEM_WIDTH,
@@ -29,48 +20,61 @@ import {
   viewportPointToCanvasWorld,
   zoomCanvasCameraAtViewportPoint,
 } from "./canvasGeometry";
+import { resolveCanvasDropClientPoint } from "./canvasDropController";
 import {
+  CANVAS_DOUBLE_TAP_MAX_DISTANCE_PX,
   shouldCreateDraftFromPointerDetail,
   shouldSuppressDraftCreation,
   resolveViewportTapState,
   type CanvasInteractionPoint,
 } from "./canvasInteractionController";
-import {
-  deleteCanvasSceneItemById,
-  selectCanvasSceneItem,
-  type CanvasSharedSceneState,
-} from "./canvasSceneState";
+import { selectCanvasSceneItem, type CanvasSharedSceneState } from "./canvasSceneState";
 import type { ResolveCanvasDropReference } from "./canvasTypes";
+import {
+  shouldStartCanvasPanFromPointerDown,
+  type CanvasPointerSession,
+} from "./canvasViewportPointerTypes";
 import type {
   CanvasPropertiesPanelProps,
   CanvasWorkspaceInstanceId,
 } from "./canvasWorkspaceContracts";
+import { useCanvasViewportDropHandlers } from "./useCanvasViewportDropHandlers";
+import { useCanvasViewportTextHandlers } from "./useCanvasViewportTextHandlers";
 
-type CanvasDropSession =
-  | { kind: "none" }
-  | {
-      kind: "item-drag";
-      pointerId: number;
-      itemId: string;
-      lastClientX: number;
-      lastClientY: number;
-    }
-  | {
-      kind: "pan";
-      pointerId: number;
-      cameraX: number;
-      cameraY: number;
-      startClientX: number;
-      startClientY: number;
-    };
+const VIEWPORT_PAN_ACTIVATION_DISTANCE_PX = 6;
 
-const shouldStartPanFromPointerDown = ({
-  button,
-  isSpacePanActive,
+const setPointerCaptureIfAvailable = ({
+  target,
+  pointerId,
 }: {
-  button: number;
-  isSpacePanActive: boolean;
-}): boolean => button === 1 || (button === 0 && isSpacePanActive);
+  target: HTMLElement;
+  pointerId: number;
+}) => {
+  if (typeof target.setPointerCapture !== "function") return;
+  try {
+    target.setPointerCapture(pointerId);
+  } catch {
+    // Ignore sporadic pointer-capture errors during rapid gesture transitions.
+  }
+};
+
+const releasePointerCaptureIfHeld = ({
+  target,
+  pointerId,
+}: {
+  target: HTMLElement;
+  pointerId: number;
+}) => {
+  if (typeof target.releasePointerCapture !== "function") return;
+  if (typeof target.hasPointerCapture === "function" && !target.hasPointerCapture(pointerId)) {
+    return;
+  }
+  try {
+    target.releasePointerCapture(pointerId);
+  } catch {
+    // Ignore release errors if capture was already lost.
+  }
+};
 
 type UseCanvasViewportInstanceStateParams = {
   instanceId: CanvasWorkspaceInstanceId;
@@ -78,8 +82,11 @@ type UseCanvasViewportInstanceStateParams = {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   onPinTextReference?: (text: string) => void;
   isSpacePanActiveRef: MutableRefObject<boolean>;
+  draftOwnerInstanceId: CanvasWorkspaceInstanceId | null;
+  textEditOwnerInstanceId: CanvasWorkspaceInstanceId | null;
+  setDraftOwnerInstanceId: Dispatch<SetStateAction<CanvasWorkspaceInstanceId | null>>;
+  setTextEditOwnerInstanceId: Dispatch<SetStateAction<CanvasWorkspaceInstanceId | null>>;
 };
-
 /**
  * Builds a single Canvas viewport contract over shared scene state.
  */
@@ -89,15 +96,16 @@ export const useCanvasViewportInstanceState = ({
   resolveCanvasDropReference,
   onPinTextReference,
   isSpacePanActiveRef,
+  draftOwnerInstanceId,
+  textEditOwnerInstanceId,
+  setDraftOwnerInstanceId,
+  setTextEditOwnerInstanceId,
 }: UseCanvasViewportInstanceStateParams): CanvasPropertiesPanelProps => {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const interactionRef = useRef<CanvasDropSession>({ kind: "none" });
-  const dragDepthRef = useRef(0);
+  const interactionRef = useRef<CanvasPointerSession>({ kind: "none" });
   const lastViewportTapRef = useRef<CanvasInteractionPoint | null>(null);
   const lastViewportDraftCreationRef = useRef<CanvasInteractionPoint | null>(null);
   const [camera, setCamera] = useState(CANVAS_DEFAULT_CAMERA);
-  const [isDropActive, setIsDropActive] = useState(false);
-
   const {
     items,
     pendingItems,
@@ -107,37 +115,100 @@ export const useCanvasViewportInstanceState = ({
     setDraftTextEntry,
     setTextEditSession,
     clearSelection,
-    clearDraftTextEntry,
-    clearTextEditSession,
+    clearDraftTextEntry: clearDraftTextEntryState,
+    clearTextEditSession: clearTextEditSessionState,
     deleteSelection,
     addResolvedItem,
-    commitDraftTextEntry,
-    commitTextItemEdit,
+    commitDraftTextEntry: commitDraftTextEntryState,
+    commitTextItemEdit: commitTextItemEditState,
   } = sharedScene;
 
-  const handleResolvedInternalDrop = useCallback(
-    async (
-      payload: InternalReferenceDragPayload,
-      clientX: number,
-      clientY: number
-    ): Promise<boolean> => {
-      if (!resolveCanvasDropReference || !viewportRef.current) return false;
-      const resolved = resolveCanvasDropReference(payload);
-      if (!resolved) return false;
-      const rect = viewportRef.current.getBoundingClientRect();
-      const normalizedPoint = resolveCanvasDropClientPoint({ clientX, clientY, rect });
-      const point = viewportPointToCanvasWorld({
-        clientX: normalizedPoint.clientX,
-        clientY: normalizedPoint.clientY,
-        rect,
-        camera,
-      });
-      await addResolvedItem(resolved, point.x, point.y, {
-        showLoadingPlaceholder: true,
-      });
-      return true;
+  const clearDraftTextEntry = useCallback(() => {
+    clearDraftTextEntryState();
+    setDraftOwnerInstanceId(null);
+  }, [clearDraftTextEntryState, setDraftOwnerInstanceId]);
+
+  const clearTextEditSession = useCallback(() => {
+    clearTextEditSessionState();
+    setTextEditOwnerInstanceId(null);
+  }, [clearTextEditSessionState, setTextEditOwnerInstanceId]);
+
+  const commitDraftTextEntry = useCallback(() => {
+    commitDraftTextEntryState();
+    setDraftOwnerInstanceId(null);
+  }, [commitDraftTextEntryState, setDraftOwnerInstanceId]);
+
+  const commitTextItemEdit = useCallback(() => {
+    commitTextItemEditState();
+    setTextEditOwnerInstanceId(null);
+  }, [commitTextItemEditState, setTextEditOwnerInstanceId]);
+  const {
+    isDropActive,
+    onViewportDragEnter,
+    onViewportDragOver,
+    onViewportDragLeave,
+    onViewportDrop,
+  } = useCanvasViewportDropHandlers({
+    viewportRef,
+    camera,
+    resolveCanvasDropReference,
+    addResolvedItem,
+  });
+
+  const {
+    onViewportKeyDown,
+    onDraftTextChange,
+    onDraftTextKeyDown,
+    onItemDoubleClick: onItemDoubleClickBase,
+    onItemContextMenu,
+    onTextItemEditChange,
+    onTextItemEditKeyDown,
+    onTextItemEditBlur,
+    onPinTextItem,
+  } = useCanvasViewportTextHandlers({
+    items,
+    draftTextEntry,
+    textEditSession,
+    onPinTextReference,
+    scene: {
+      setItems,
+      setDraftTextEntry,
+      setTextEditSession,
+      clearDraftTextEntry,
+      clearTextEditSession,
+      deleteSelection,
+      commitDraftTextEntry,
+      commitTextItemEdit,
     },
-    [addResolvedItem, camera, resolveCanvasDropReference]
+  });
+
+  const onItemDoubleClick = useCallback(
+    (id: string, event: MouseEvent<HTMLElement>) => {
+      setDraftOwnerInstanceId(null);
+      setTextEditOwnerInstanceId(instanceId);
+      onItemDoubleClickBase(id, event);
+    },
+    [instanceId, onItemDoubleClickBase, setDraftOwnerInstanceId, setTextEditOwnerInstanceId]
+  );
+
+  const isDraftTextEditable =
+    draftOwnerInstanceId == null ? instanceId === "main" : draftOwnerInstanceId === instanceId;
+  const isTextEditEditable =
+    textEditOwnerInstanceId == null
+      ? instanceId === "main"
+      : textEditOwnerInstanceId === instanceId;
+
+  const logCanvasGesture = useCallback(
+    (eventName: string, payload?: Record<string, unknown>) => {
+      if (typeof window === "undefined") return;
+      if (!(window as { __shortpulseCanvasDebug?: boolean }).__shortpulseCanvasDebug) return;
+      if (payload) {
+        console.log(`[canvas:${instanceId}] ${eventName}`, payload);
+        return;
+      }
+      console.log(`[canvas:${instanceId}] ${eventName}`);
+    },
+    [instanceId]
   );
 
   const createDraftTextAtClientPoint = useCallback(
@@ -157,13 +228,23 @@ export const useCanvasViewportInstanceState = ({
       });
       clearSelection();
       clearTextEditSession();
+      setDraftOwnerInstanceId(instanceId);
+      setTextEditOwnerInstanceId(null);
       setDraftTextEntry({
         x: Math.round((point.x - CANVAS_TEXT_ITEM_WIDTH / 2) * 100) / 100,
         y: Math.round((point.y - 36) * 100) / 100,
         value: "",
       });
     },
-    [camera, clearSelection, clearTextEditSession, setDraftTextEntry]
+    [
+      camera,
+      clearSelection,
+      clearTextEditSession,
+      instanceId,
+      setDraftOwnerInstanceId,
+      setDraftTextEntry,
+      setTextEditOwnerInstanceId,
+    ]
   );
 
   const handleViewportPointerDown = useCallback(
@@ -184,24 +265,38 @@ export const useCanvasViewportInstanceState = ({
           clientX: event.clientX,
           clientY: event.clientY,
         };
+        logCanvasGesture("pointerdown.detail-fallback.create-draft", {
+          detail: event.detail,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
         createDraftTextAtClientPoint(event.clientX, event.clientY);
         return;
       }
 
       const shouldPan =
         event.button === 0 ||
-        shouldStartPanFromPointerDown({
+        shouldStartCanvasPanFromPointerDown({
           button: event.button,
           isSpacePanActive: isSpacePanActiveRef.current,
         });
       if (!shouldPan) return;
-      event.preventDefault();
       clearSelection();
       clearDraftTextEntry();
       clearTextEditSession();
       event.currentTarget.focus();
-      if (typeof event.currentTarget.setPointerCapture === "function") {
-        event.currentTarget.setPointerCapture(event.pointerId);
+      const isImmediatePan =
+        event.button !== 0 ||
+        shouldStartCanvasPanFromPointerDown({
+          button: event.button,
+          isSpacePanActive: isSpacePanActiveRef.current,
+        });
+      if (isImmediatePan) {
+        event.preventDefault();
+        setPointerCaptureIfAvailable({
+          target: event.currentTarget,
+          pointerId: event.pointerId,
+        });
       }
       interactionRef.current = {
         kind: "pan",
@@ -210,7 +305,14 @@ export const useCanvasViewportInstanceState = ({
         cameraY: camera.y,
         startClientX: event.clientX,
         startClientY: event.clientY,
+        isActive: isImmediatePan,
       };
+      logCanvasGesture("pointerdown.pan-candidate", {
+        isImmediatePan,
+        button: event.button,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
     },
     [
       camera.x,
@@ -220,6 +322,7 @@ export const useCanvasViewportInstanceState = ({
       clearTextEditSession,
       createDraftTextAtClientPoint,
       isSpacePanActiveRef,
+      logCanvasGesture,
     ]
   );
 
@@ -236,26 +339,87 @@ export const useCanvasViewportInstanceState = ({
           nextPoint,
         })
       ) {
+        logCanvasGesture("dblclick.suppressed", nextPoint);
         return;
       }
       event.preventDefault();
       event.stopPropagation();
       lastViewportTapRef.current = null;
       lastViewportDraftCreationRef.current = nextPoint;
+      logCanvasGesture("dblclick.create-draft", nextPoint);
       createDraftTextAtClientPoint(event.clientX, event.clientY);
     },
-    [createDraftTextAtClientPoint]
+    [createDraftTextAtClientPoint, logCanvasGesture]
   );
 
-  const handleViewportPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    const interaction = interactionRef.current;
-    if (interaction.kind !== "pan" || interaction.pointerId !== event.pointerId) return;
-    setCamera((currentCamera) => ({
-      ...currentCamera,
-      x: Math.round((interaction.cameraX + event.clientX - interaction.startClientX) * 100) / 100,
-      y: Math.round((interaction.cameraY + event.clientY - interaction.startClientY) * 100) / 100,
-    }));
-  }, []);
+  const handleViewportClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || event.detail < 2) return;
+      const nextPoint = {
+        timeStamp: event.timeStamp,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
+      if (
+        shouldSuppressDraftCreation({
+          lastCreation: lastViewportDraftCreationRef.current,
+          nextPoint,
+        })
+      ) {
+        logCanvasGesture("click.detail-fallback.suppressed", {
+          detail: event.detail,
+          ...nextPoint,
+        });
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      lastViewportTapRef.current = null;
+      lastViewportDraftCreationRef.current = nextPoint;
+      logCanvasGesture("click.detail-fallback.create-draft", {
+        detail: event.detail,
+        ...nextPoint,
+      });
+      createDraftTextAtClientPoint(event.clientX, event.clientY);
+    },
+    [createDraftTextAtClientPoint, logCanvasGesture]
+  );
+
+  const handleViewportPointerMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const interaction = interactionRef.current;
+      if (interaction.kind !== "pan" || interaction.pointerId !== event.pointerId) return;
+      const travelDistance = Math.hypot(
+        event.clientX - interaction.startClientX,
+        event.clientY - interaction.startClientY
+      );
+      const shouldActivatePan =
+        interaction.isActive || travelDistance >= VIEWPORT_PAN_ACTIVATION_DISTANCE_PX;
+      if (!shouldActivatePan) return;
+      if (!interaction.isActive) {
+        setPointerCaptureIfAvailable({
+          target: event.currentTarget,
+          pointerId: event.pointerId,
+        });
+        interactionRef.current = {
+          ...interaction,
+          isActive: true,
+        };
+        logCanvasGesture("pointermove.activate-pan", {
+          clientX: event.clientX,
+          clientY: event.clientY,
+          travelDistance,
+        });
+      }
+      event.preventDefault();
+      setCamera((currentCamera) => ({
+        ...currentCamera,
+        x: Math.round((interaction.cameraX + event.clientX - interaction.startClientX) * 100) / 100,
+        y: Math.round((interaction.cameraY + event.clientY - interaction.startClientY) * 100) / 100,
+      }));
+    },
+    [logCanvasGesture]
+  );
 
   const handleViewportPointerUp = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -266,44 +430,100 @@ export const useCanvasViewportInstanceState = ({
           clientX: event.clientX,
           clientY: event.clientY,
         };
-        const travelDistance = Math.hypot(
-          event.clientX - interaction.startClientX,
-          event.clientY - interaction.startClientY
-        );
-        const tapResolution = resolveViewportTapState({
-          previousTap: lastViewportTapRef.current,
-          nextTap: currentTap,
-          isSpacePanActive: isSpacePanActiveRef.current,
-          travelDistance,
-        });
-        lastViewportTapRef.current = tapResolution.nextStoredTap;
-        if (tapResolution.shouldCreateDraft) {
-          lastViewportDraftCreationRef.current = currentTap;
-          createDraftTextAtClientPoint(event.clientX, event.clientY);
+        if (!interaction.isActive) {
+          const travelDistance = Math.hypot(
+            event.clientX - interaction.startClientX,
+            event.clientY - interaction.startClientY
+          );
+          const tapResolution = resolveViewportTapState({
+            previousTap: lastViewportTapRef.current,
+            nextTap: currentTap,
+            isSpacePanActive: isSpacePanActiveRef.current,
+            travelDistance,
+          });
+          lastViewportTapRef.current = tapResolution.nextStoredTap;
+          if (tapResolution.shouldCreateDraft) {
+            lastViewportDraftCreationRef.current = currentTap;
+            logCanvasGesture("pointerup.double-tap.create-draft", {
+              ...currentTap,
+              travelDistance,
+            });
+            createDraftTextAtClientPoint(event.clientX, event.clientY);
+          } else {
+            logCanvasGesture("pointerup.double-tap.no-draft", {
+              ...currentTap,
+              travelDistance,
+            });
+          }
+        } else {
+          const travelDistance = Math.hypot(
+            event.clientX - interaction.startClientX,
+            event.clientY - interaction.startClientY
+          );
+          const shouldTreatPanAsTap =
+            event.button === 0 &&
+            !isSpacePanActiveRef.current &&
+            travelDistance <= CANVAS_DOUBLE_TAP_MAX_DISTANCE_PX;
+          if (shouldTreatPanAsTap) {
+            setCamera((currentCamera) => ({
+              ...currentCamera,
+              x: interaction.cameraX,
+              y: interaction.cameraY,
+            }));
+            const tapResolution = resolveViewportTapState({
+              previousTap: lastViewportTapRef.current,
+              nextTap: currentTap,
+              isSpacePanActive: false,
+              travelDistance,
+            });
+            lastViewportTapRef.current = tapResolution.nextStoredTap;
+            if (tapResolution.shouldCreateDraft) {
+              lastViewportDraftCreationRef.current = currentTap;
+              logCanvasGesture("pointerup.reclassified-pan.double-tap.create-draft", {
+                ...currentTap,
+                travelDistance,
+              });
+              createDraftTextAtClientPoint(event.clientX, event.clientY);
+            } else {
+              logCanvasGesture("pointerup.reclassified-pan.double-tap.no-draft", {
+                ...currentTap,
+                travelDistance,
+              });
+            }
+          } else {
+            lastViewportTapRef.current = null;
+            logCanvasGesture("pointerup.end-pan", currentTap);
+          }
         }
         interactionRef.current = { kind: "none" };
-        if (typeof event.currentTarget.releasePointerCapture === "function") {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
+        releasePointerCaptureIfHeld({
+          target: event.currentTarget,
+          pointerId: event.pointerId,
+        });
       }
     },
-    [createDraftTextAtClientPoint, isSpacePanActiveRef]
+    [createDraftTextAtClientPoint, isSpacePanActiveRef, logCanvasGesture]
   );
 
-  const handleViewportPointerCancel = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    const interaction = interactionRef.current;
-    if (interaction.kind === "pan" && interaction.pointerId === event.pointerId) {
-      lastViewportTapRef.current = null;
-      interactionRef.current = { kind: "none" };
-      if (typeof event.currentTarget.releasePointerCapture === "function") {
-        event.currentTarget.releasePointerCapture(event.pointerId);
+  const handleViewportPointerCancel = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const interaction = interactionRef.current;
+      if (interaction.kind === "pan" && interaction.pointerId === event.pointerId) {
+        lastViewportTapRef.current = null;
+        interactionRef.current = { kind: "none" };
+        releasePointerCaptureIfHeld({
+          target: event.currentTarget,
+          pointerId: event.pointerId,
+        });
+        logCanvasGesture("pointercancel.reset-pan");
       }
-    }
-  }, []);
+    },
+    [logCanvasGesture]
+  );
 
   const handleItemPointerDown = useCallback(
     (itemId: string, event: PointerEvent<HTMLElement>) => {
-      const shouldPan = shouldStartPanFromPointerDown({
+      const shouldPan = shouldStartCanvasPanFromPointerDown({
         button: event.button,
         isSpacePanActive: isSpacePanActiveRef.current,
       });
@@ -324,6 +544,7 @@ export const useCanvasViewportInstanceState = ({
           cameraY: camera.y,
           startClientX: event.clientX,
           startClientY: event.clientY,
+          isActive: true,
         };
         return;
       }
@@ -404,9 +625,10 @@ export const useCanvasViewportInstanceState = ({
       interaction.itemId === itemId;
     if (isMatchingPanInteraction || isMatchingDragInteraction) {
       interactionRef.current = { kind: "none" };
-      if (typeof event.currentTarget.releasePointerCapture === "function") {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
+      releasePointerCaptureIfHeld({
+        target: event.currentTarget,
+        pointerId: event.pointerId,
+      });
     }
   }, []);
 
@@ -421,83 +643,13 @@ export const useCanvasViewportInstanceState = ({
         interaction.itemId === itemId;
       if (isMatchingPanInteraction || isMatchingDragInteraction) {
         interactionRef.current = { kind: "none" };
-        if (typeof event.currentTarget.releasePointerCapture === "function") {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
+        releasePointerCaptureIfHeld({
+          target: event.currentTarget,
+          pointerId: event.pointerId,
+        });
       }
     },
     []
-  );
-
-  const handleViewportDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!canAcceptCanvasDropTransfer(event.dataTransfer)) return;
-    event.preventDefault();
-    dragDepthRef.current += 1;
-    setIsDropActive(true);
-  }, []);
-
-  const handleViewportDragOver = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      if (!canAcceptCanvasDropTransfer(event.dataTransfer)) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
-      if (!isDropActive) {
-        setIsDropActive(true);
-      }
-    },
-    [isDropActive]
-  );
-
-  const handleViewportDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!canAcceptCanvasDropTransfer(event.dataTransfer)) return;
-    event.preventDefault();
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) {
-      setIsDropActive(false);
-    }
-  }, []);
-
-  const handleViewportDrop = useCallback(
-    async (event: DragEvent<HTMLDivElement>) => {
-      dragDepthRef.current = 0;
-      setIsDropActive(false);
-      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
-      if (internalPayload) {
-        event.preventDefault();
-        event.stopPropagation();
-        void handleResolvedInternalDrop(internalPayload, event.clientX, event.clientY);
-        return;
-      }
-      const droppedText = extractCanvasDroppedText(event.dataTransfer);
-      if (!droppedText || !viewportRef.current) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const rect = viewportRef.current.getBoundingClientRect();
-      const normalizedPoint = resolveCanvasDropClientPoint({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        rect,
-      });
-      const point = viewportPointToCanvasWorld({
-        clientX: normalizedPoint.clientX,
-        clientY: normalizedPoint.clientY,
-        rect,
-        camera,
-      });
-      void addResolvedItem(
-        {
-          kind: "text",
-          outputId: null,
-          text: droppedText,
-        },
-        point.x,
-        point.y,
-        {
-          showLoadingPlaceholder: true,
-        }
-      );
-    },
-    [addResolvedItem, camera, handleResolvedInternalDrop]
   );
 
   const handleViewportWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
@@ -521,116 +673,6 @@ export const useCanvasViewportInstanceState = ({
     );
   }, []);
 
-  const handleViewportKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      if (draftTextEntry || textEditSession) return;
-      if (event.key !== "Delete" && event.key !== "Backspace") return;
-      event.preventDefault();
-      deleteSelection();
-    },
-    [deleteSelection, draftTextEntry, textEditSession]
-  );
-
-  const handleDraftTextChange = useCallback(
-    (value: string) => {
-      setDraftTextEntry((currentDraft) =>
-        currentDraft
-          ? {
-              ...currentDraft,
-              value,
-            }
-          : currentDraft
-      );
-    },
-    [setDraftTextEntry]
-  );
-
-  const handleDraftTextKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitDraftTextEntry();
-        return;
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        clearDraftTextEntry();
-      }
-    },
-    [clearDraftTextEntry, commitDraftTextEntry]
-  );
-
-  const handleItemDoubleClick = useCallback(
-    (id: string, event: MouseEvent<HTMLElement>) => {
-      event.stopPropagation();
-      const item = items.find((candidate) => candidate.id === id);
-      if (!item || item.kind !== "text") return;
-      clearDraftTextEntry();
-      setItems((currentItems) => selectCanvasSceneItem(currentItems, id));
-      setTextEditSession({
-        itemId: id,
-        value: item.text,
-      });
-    },
-    [clearDraftTextEntry, items, setItems, setTextEditSession]
-  );
-
-  const handleItemContextMenu = useCallback(
-    (id: string, event: MouseEvent<HTMLElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setItems((currentItems) => deleteCanvasSceneItemById(currentItems, id));
-      setTextEditSession((currentSession) =>
-        currentSession?.itemId === id ? null : currentSession
-      );
-    },
-    [setItems, setTextEditSession]
-  );
-
-  const handleTextItemEditChange = useCallback(
-    (value: string) => {
-      setTextEditSession((currentSession) =>
-        currentSession
-          ? {
-              ...currentSession,
-              value,
-            }
-          : currentSession
-      );
-    },
-    [setTextEditSession]
-  );
-
-  const handleTextItemEditKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitTextItemEdit();
-        return;
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        clearTextEditSession();
-      }
-    },
-    [clearTextEditSession, commitTextItemEdit]
-  );
-
-  const handleTextItemEditBlur = useCallback(() => {
-    commitTextItemEdit();
-  }, [commitTextItemEdit]);
-
-  const handlePinTextItem = useCallback(
-    (id: string) => {
-      if (!onPinTextReference) return;
-      const item = items.find((candidate) => candidate.id === id);
-      if (!item || item.kind !== "text") return;
-      if (!item.text.trim()) return;
-      onPinTextReference(item.text);
-    },
-    [items, onPinTextReference]
-  );
-
   return useMemo(
     () => ({
       instanceId,
@@ -640,63 +682,69 @@ export const useCanvasViewportInstanceState = ({
       viewportRef,
       isDropActive,
       draftTextEntry,
+      isDraftTextEditable,
       editingTextItemId: textEditSession?.itemId ?? null,
       editingTextValue: textEditSession?.value ?? "",
-      onViewportKeyDown: handleViewportKeyDown,
+      isTextEditEditable,
+      onViewportKeyDown,
       onViewportDoubleClick: handleViewportDoubleClick,
+      onViewportClick: handleViewportClick,
       onViewportPointerDown: handleViewportPointerDown,
       onViewportPointerMove: handleViewportPointerMove,
       onViewportPointerUp: handleViewportPointerUp,
       onViewportPointerCancel: handleViewportPointerCancel,
-      onViewportDragEnter: handleViewportDragEnter,
-      onViewportDragOver: handleViewportDragOver,
-      onViewportDragLeave: handleViewportDragLeave,
-      onViewportDrop: handleViewportDrop,
+      onViewportDragEnter,
+      onViewportDragOver,
+      onViewportDragLeave,
+      onViewportDrop,
       onViewportWheel: handleViewportWheel,
       onItemPointerDown: handleItemPointerDown,
       onItemPointerMove: handleItemPointerMove,
       onItemPointerUp: handleItemPointerUp,
       onItemPointerCancel: handleItemPointerCancel,
-      onItemContextMenu: handleItemContextMenu,
-      onItemDoubleClick: handleItemDoubleClick,
-      onPinTextItem: handlePinTextItem,
-      onDraftTextChange: handleDraftTextChange,
-      onDraftTextKeyDown: handleDraftTextKeyDown,
+      onItemContextMenu,
+      onItemDoubleClick,
+      onPinTextItem,
+      onDraftTextChange,
+      onDraftTextKeyDown,
       onDraftTextBlur: clearDraftTextEntry,
-      onTextItemEditChange: handleTextItemEditChange,
-      onTextItemEditKeyDown: handleTextItemEditKeyDown,
-      onTextItemEditBlur: handleTextItemEditBlur,
+      onTextItemEditChange,
+      onTextItemEditKeyDown,
+      onTextItemEditBlur,
     }),
     [
       camera,
       clearDraftTextEntry,
       draftTextEntry,
-      handleDraftTextChange,
-      handleDraftTextKeyDown,
-      handleItemContextMenu,
-      handleItemDoubleClick,
       handleItemPointerCancel,
       handleItemPointerDown,
       handleItemPointerMove,
       handleItemPointerUp,
-      handlePinTextItem,
-      handleTextItemEditBlur,
-      handleTextItemEditChange,
-      handleTextItemEditKeyDown,
+      handleViewportClick,
       handleViewportDoubleClick,
-      handleViewportDragEnter,
-      handleViewportDragLeave,
-      handleViewportDragOver,
-      handleViewportDrop,
-      handleViewportKeyDown,
       handleViewportPointerCancel,
       handleViewportPointerDown,
       handleViewportPointerMove,
       handleViewportPointerUp,
       handleViewportWheel,
       instanceId,
+      isDraftTextEditable,
       isDropActive,
+      isTextEditEditable,
       items,
+      onDraftTextChange,
+      onDraftTextKeyDown,
+      onItemContextMenu,
+      onItemDoubleClick,
+      onPinTextItem,
+      onTextItemEditBlur,
+      onTextItemEditChange,
+      onTextItemEditKeyDown,
+      onViewportDragEnter,
+      onViewportDragLeave,
+      onViewportDragOver,
+      onViewportDrop,
+      onViewportKeyDown,
       pendingItems,
       textEditSession,
     ]

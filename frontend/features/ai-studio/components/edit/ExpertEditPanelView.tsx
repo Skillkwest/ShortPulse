@@ -33,6 +33,7 @@ import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDro
 import { composePrimaryLayersToBlob } from "../../logic/expertEditLayerCompose";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import { computeCostForModel } from "../../logic/pricing";
+import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
@@ -44,9 +45,14 @@ import {
 import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import {
+  EDIT_PRESET_PANEL_MAX,
   EDIT_PRESET_MORE_LABEL,
   EDIT_PRESET_SURFACE_LABELS,
-  EDIT_PRESET_TOOLBAR_LABELS,
+  EXPERT_EDIT_PRESET_DRAG_MIME,
+  type ExpertEditPresetDragPayload,
+  parseExpertEditPresetDragPayload,
+  serializeExpertEditPresetDragPayload,
+  sortPresetLabelsByCanonicalOrder,
 } from "./expertEditPresets";
 
 export type ExpertEditPanelViewProps = {
@@ -76,6 +82,7 @@ export type ExpertEditPanelViewProps = {
     options?: {
       inpaintOverride?: InpaintSubmissionOverride | null;
       modelIdOverride?: string | null;
+      costOverrideCredits?: number | null;
     }
   ) => void | Promise<void>;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
@@ -227,16 +234,16 @@ const inpaintRailTools: ReadonlyArray<{
   icon: PhosphorIcon;
 }> = [
   {
-    id: "inpaint",
-    label: "Inpaint",
-    selectedClassName: "is-selected-inpaint",
-    icon: PaintBrushBroad,
-  },
-  {
     id: "move",
     label: "Move",
     selectedClassName: "is-selected-move",
     icon: ArrowsOutCardinal,
+  },
+  {
+    id: "inpaint",
+    label: "Inpaint",
+    selectedClassName: "is-selected-inpaint",
+    icon: PaintBrushBroad,
   },
   {
     id: "crop",
@@ -247,7 +254,7 @@ const inpaintRailTools: ReadonlyArray<{
 ];
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
-type MoveMode = "move" | "resize" | "rotate";
+type TransformDragMode = "move" | "resize" | "rotate";
 const cropAspectRatioPresets = [
   { value: "9:16", label: "Vertical" },
   { value: "4:5", label: "Social Post" },
@@ -256,12 +263,13 @@ const cropAspectRatioPresets = [
   { value: "16:9", label: "Landscape" },
 ] as const;
 const MAX_LAYERS = 10;
+const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
 const INPAINT_COLLAPSE_ANIMATION_MS = 140;
 const STATUS_TOAST_VISIBLE_MS = 1_000;
 const STATUS_TOAST_FADE_MS = 220;
 const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
+const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 const INPAINT_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
-const BRIA_REMOVE_BACKGROUND_MODEL_ID = "fal-ai/bria/background/remove";
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const MOVE_ZOOM_DEFAULT = 125;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
@@ -271,11 +279,89 @@ const INPAINT_CURSOR_PADDING = 6;
 const LAYER_OPACITY_MIN = 0;
 const LAYER_OPACITY_MAX = 1;
 const LAYER_OPACITY_DEFAULT = 1;
+const LAYER_TRANSLATE_RATIO_MIN = -1;
+const LAYER_TRANSLATE_RATIO_MAX = 1;
+const LAYER_SCALE_MIN = 0.5;
+const LAYER_SCALE_MAX = 2;
+const TRANSFORM_ROTATE_HANDLE_INSET_PX = 16;
 const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
 const autoLayerNamePattern = /^layer\s*'?\d+'?$/i;
 const isAutoLayerName = (value: string) => autoLayerNamePattern.test(value.trim());
 const clampLayerOpacity = (value: number) =>
   Math.min(LAYER_OPACITY_MAX, Math.max(LAYER_OPACITY_MIN, value));
+const clampLayerTranslateRatio = (value: number) =>
+  Math.min(LAYER_TRANSLATE_RATIO_MAX, Math.max(LAYER_TRANSLATE_RATIO_MIN, value));
+const clampLayerScale = (value: number) =>
+  Math.min(LAYER_SCALE_MAX, Math.max(LAYER_SCALE_MIN, value));
+const resolveMoveScaleFromZoom = (zoomValue: number) => clampLayerScale(zoomValue / 100);
+
+type LayerTransform = {
+  translateXRatio: number;
+  translateYRatio: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+const defaultLayerTransform = (): LayerTransform => ({
+  translateXRatio: 0,
+  translateYRatio: 0,
+  scale: 1,
+  rotationDeg: 0,
+});
+
+type TransformGeometry = {
+  centerX: number;
+  centerY: number;
+  resizeHandleX: number;
+  resizeHandleY: number;
+  rotateHandleX: number;
+  rotateHandleY: number;
+};
+
+const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+const toDegrees = (radians: number) => (radians * 180) / Math.PI;
+
+const rotatePoint = (x: number, y: number, rotationDeg: number) => {
+  const rotation = toRadians(rotationDeg);
+  const cosine = Math.cos(rotation);
+  const sine = Math.sin(rotation);
+  return {
+    x: x * cosine - y * sine,
+    y: x * sine + y * cosine,
+  };
+};
+
+const resolveTransformGeometry = ({
+  transform,
+  width,
+  height,
+}: {
+  transform: LayerTransform;
+  width: number;
+  height: number;
+}): TransformGeometry => {
+  const centerX = width / 2 + transform.translateXRatio * width;
+  const centerY = height / 2 + transform.translateYRatio * height;
+  const halfWidth = (width / 2) * transform.scale;
+  const halfHeight = (height / 2) * transform.scale;
+  const cornerVector = rotatePoint(halfWidth, -halfHeight, transform.rotationDeg);
+  const rotateHandleDistance = Math.max(
+    halfHeight - TRANSFORM_ROTATE_HANDLE_INSET_PX,
+    halfHeight * 0.35
+  );
+  const rotateVector = rotatePoint(0, -rotateHandleDistance, transform.rotationDeg);
+  return {
+    centerX,
+    centerY,
+    resizeHandleX: centerX + cornerVector.x,
+    resizeHandleY: centerY + cornerVector.y,
+    rotateHandleX: centerX + rotateVector.x,
+    rotateHandleY: centerY + rotateVector.y,
+  };
+};
+
+const computeDistance = (x1: number, y1: number, x2: number, y2: number) =>
+  Math.hypot(x2 - x1, y2 - y1);
 
 const buildInpaintBrushReticleCursor = (strokeSize: number) => {
   const diameter = Math.min(
@@ -318,12 +404,95 @@ type ExpertEditLayer = {
   opacity: number;
   isAutoNamed: boolean;
   ownsImageUrl: boolean;
+  transform: LayerTransform;
 };
 
 const normalizeAutoLayers = (layers: ExpertEditLayer[]) =>
   layers.map((layer, index) =>
     layer.isAutoNamed ? { ...layer, name: formatLayerName(index + 1) } : layer
   );
+
+type TransformPointerSession = {
+  active: boolean;
+  pointerId: number;
+  layerId: string | null;
+  dragMode: TransformDragMode;
+  startClientX: number;
+  startClientY: number;
+  baseTranslateXRatio: number;
+  baseTranslateYRatio: number;
+  baseScale: number;
+  dropzoneWidth: number;
+  dropzoneHeight: number;
+  centerX: number;
+  centerY: number;
+  baseDistanceToCenter: number;
+  baseAngleOffsetRad: number;
+};
+
+const createIdleTransformPointerSession = (): TransformPointerSession => ({
+  active: false,
+  pointerId: -1,
+  layerId: null,
+  dragMode: "move",
+  startClientX: 0,
+  startClientY: 0,
+  baseTranslateXRatio: 0,
+  baseTranslateYRatio: 0,
+  baseScale: 1,
+  dropzoneWidth: 1,
+  dropzoneHeight: 1,
+  centerX: 0,
+  centerY: 0,
+  baseDistanceToCenter: 1,
+  baseAngleOffsetRad: 0,
+});
+
+const writePresetDragTransfer = (
+  transfer: DataTransfer,
+  payload: { label: string; source: "surface" | "panel" }
+) => {
+  const serializedPayload = serializeExpertEditPresetDragPayload(payload);
+  transfer.setData(EXPERT_EDIT_PRESET_DRAG_MIME, serializedPayload);
+  transfer.setData("text/plain", payload.label);
+};
+
+const resolvePresetDragPayload = (
+  transfer: DataTransfer | null | undefined,
+  activeDragPayload: ExpertEditPresetDragPayload | null
+) => parseExpertEditPresetDragPayload(transfer) ?? activeDragPayload;
+
+const setOpaquePresetDragImage = (
+  transfer: DataTransfer,
+  sourceElement: HTMLElement
+): (() => void) | null => {
+  if (typeof document === "undefined" || typeof transfer.setDragImage !== "function") {
+    return null;
+  }
+  const rect = sourceElement.getBoundingClientRect();
+  const dragPreview = sourceElement.cloneNode(true) as HTMLElement;
+  dragPreview.style.position = "fixed";
+  dragPreview.style.top = "-9999px";
+  dragPreview.style.left = "-9999px";
+  dragPreview.style.pointerEvents = "none";
+  dragPreview.style.opacity = "1";
+  dragPreview.style.transform = "none";
+  dragPreview.style.margin = "0";
+  dragPreview.style.width = `${Math.max(1, Math.round(rect.width))}px`;
+  dragPreview.style.height = `${Math.max(1, Math.round(rect.height))}px`;
+  dragPreview.style.boxSizing = "border-box";
+  dragPreview.style.background = "#1a1f27";
+  dragPreview.style.border = "1px solid rgba(201, 205, 214, 0.36)";
+  dragPreview.style.color = "rgba(238, 242, 248, 0.94)";
+  dragPreview.style.boxShadow = "0 8px 22px rgba(0, 0, 0, 0.45)";
+  document.body.appendChild(dragPreview);
+  transfer.setDragImage(dragPreview, Math.round(rect.width / 2), Math.round(rect.height / 2));
+  return () => {
+    if (dragPreview.parentNode) {
+      dragPreview.parentNode.removeChild(dragPreview);
+    }
+  };
+};
 
 const revokeObjectUrlSafe = (url: string) => {
   try {
@@ -399,9 +568,16 @@ export function ExpertEditPanelView({
   const inpaintCollapseTimerRef = React.useRef<number | null>(null);
   const toastVisibleTimerRef = React.useRef<number | null>(null);
   const toastFadeTimerRef = React.useRef<number | null>(null);
+  const removeBackgroundPendingTimeoutRef = React.useRef<number | null>(null);
+  const removeBackgroundPendingSourceUrlRef = React.useRef<string | null>(null);
   const transientRevokeTimersRef = React.useRef<Map<string, number>>(new Map());
+  const activePresetDragPayloadRef = React.useRef<ExpertEditPresetDragPayload | null>(null);
+  const presetDragPreviewCleanupRef = React.useRef<(() => void) | null>(null);
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const transformPointerSessionRef = React.useRef<TransformPointerSession>(
+    createIdleTransformPointerSession()
+  );
 
   const createLayer = React.useCallback(
     ({
@@ -425,13 +601,15 @@ export function ExpertEditPanelView({
       opacity: clampLayerOpacity(opacity),
       isAutoNamed,
       ownsImageUrl,
+      transform: defaultLayerTransform(),
     }),
     []
   );
 
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("inpaint");
-  const [selectedMoveMode, setSelectedMoveMode] = React.useState<MoveMode>("move");
+  const [selectedTransformMode, setSelectedTransformMode] =
+    React.useState<TransformDragMode>("move");
   const [moveZoomValue, setMoveZoomValue] = React.useState(MOVE_ZOOM_DEFAULT);
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
   const [selectedCropAspect, setSelectedCropAspect] = React.useState(aspect);
@@ -440,6 +618,9 @@ export function ExpertEditPanelView({
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
+  const [selectedPresetLabels, setSelectedPresetLabels] = React.useState<string[]>([]);
+  const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
+  const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
   const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
     createLayer({
@@ -456,6 +637,15 @@ export function ExpertEditPanelView({
   const [dragOverLayerIndex, setDragOverLayerIndex] = React.useState<number | null>(null);
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
+  const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
+  const [dropzoneSize, setDropzoneSize] = React.useState({ width: 0, height: 0 });
+  const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
+    string | null
+  >(null);
+  const globalZoomScale = React.useMemo(
+    () => resolveMoveScaleFromZoom(moveZoomValue),
+    [moveZoomValue]
+  );
 
   const resolvedSelectedLayerIndex =
     selectedLayerIndex == null || selectedLayerIndex < 0 || selectedLayerIndex >= layers.length
@@ -468,16 +658,47 @@ export function ExpertEditPanelView({
     [layers]
   );
   const hasPrimaryCompositePreview = populatedLayerCount > 0;
+  const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
   const hostPrimaryImageUrl = React.useMemo(
     () =>
       selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
     [layers, selectedLayerImageUrl]
   );
+  const availablePresetLabels = React.useMemo(() => {
+    if (!selectedPresetLabels.length) return EDIT_PRESET_SURFACE_LABELS;
+    const selectedLabelSet = new Set(selectedPresetLabels);
+    return EDIT_PRESET_SURFACE_LABELS.filter((label) => !selectedLabelSet.has(label));
+  }, [selectedPresetLabels]);
+  const hasSelectedPresetLabels = selectedPresetLabels.length > 0;
 
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isCropToolSelected = selectedRailTool === "crop";
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isMoveToolSelected = selectedRailTool === "move";
+  React.useEffect(() => {
+    const dropzone = primaryDropzoneRef.current;
+    if (!dropzone) return;
+    const syncSize = () => {
+      const nextWidth = Math.max(0, dropzone.clientWidth);
+      const nextHeight = Math.max(0, dropzone.clientHeight);
+      setDropzoneSize((previous) =>
+        previous.width === nextWidth && previous.height === nextHeight
+          ? previous
+          : { width: nextWidth, height: nextHeight }
+      );
+    };
+    syncSize();
+
+    if (typeof ResizeObserver === "function") {
+      const resizeObserver = new ResizeObserver(() => syncSize());
+      resizeObserver.observe(dropzone);
+      return () => resizeObserver.disconnect();
+    }
+
+    window.addEventListener("resize", syncSize);
+    return () => window.removeEventListener("resize", syncSize);
+  }, []);
+
   React.useEffect(() => {
     setSelectedCropAspect(aspect);
   }, [aspect]);
@@ -552,7 +773,7 @@ export function ExpertEditPanelView({
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
   const removeBackgroundCostCredits = React.useMemo(() => {
     return (
-      computeCostForModel(BRIA_REMOVE_BACKGROUND_MODEL_ID, {
+      computeCostForModel(BRIA_BACKGROUND_REMOVE_MODEL_ID, {
         aspect,
       })?.credits ?? 1
     );
@@ -583,6 +804,174 @@ export function ExpertEditPanelView({
       toastVisibleTimerRef.current = null;
     }, STATUS_TOAST_VISIBLE_MS);
   }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (presetDragPreviewCleanupRef.current) {
+        presetDragPreviewCleanupRef.current();
+        presetDragPreviewCleanupRef.current = null;
+      }
+    };
+  }, []);
+
+  const clearRemoveBackgroundPending = React.useCallback(() => {
+    if (removeBackgroundPendingTimeoutRef.current != null) {
+      window.clearTimeout(removeBackgroundPendingTimeoutRef.current);
+      removeBackgroundPendingTimeoutRef.current = null;
+    }
+    removeBackgroundPendingSourceUrlRef.current = null;
+    setRemoveBackgroundPendingLayerId(null);
+  }, []);
+
+  const beginRemoveBackgroundPending = React.useCallback(
+    (layerId: string | null, sourceImageUrl: string | null) => {
+      clearRemoveBackgroundPending();
+      if (!layerId) return;
+      setRemoveBackgroundPendingLayerId(layerId);
+      removeBackgroundPendingSourceUrlRef.current = sourceImageUrl;
+      removeBackgroundPendingTimeoutRef.current = window.setTimeout(() => {
+        clearRemoveBackgroundPending();
+      }, REMOVE_BACKGROUND_PENDING_TIMEOUT_MS);
+    },
+    [clearRemoveBackgroundPending]
+  );
+
+  const addPresetToPanel = React.useCallback(
+    (label: string) => {
+      const candidateLabel = label.trim();
+      if (!candidateLabel) return;
+      setSelectedPresetLabels((previous) => {
+        if (previous.includes(candidateLabel)) return previous;
+        if (previous.length >= EDIT_PRESET_PANEL_MAX) {
+          showStatusToast(PRESET_PANEL_LIMIT_TOAST);
+          return previous;
+        }
+        return sortPresetLabelsByCanonicalOrder([...previous, candidateLabel]);
+      });
+    },
+    [showStatusToast]
+  );
+
+  const removePresetFromPanel = React.useCallback((label: string) => {
+    const candidateLabel = label.trim();
+    if (!candidateLabel) return;
+    setSelectedPresetLabels((previous) =>
+      previous.includes(candidateLabel)
+        ? previous.filter((presetLabel) => presetLabel !== candidateLabel)
+        : previous
+    );
+  }, []);
+
+  const beginPresetDragSession = React.useCallback(
+    (event: React.DragEvent<HTMLButtonElement>, payload: ExpertEditPresetDragPayload) => {
+      event.stopPropagation();
+      activePresetDragPayloadRef.current = payload;
+      event.dataTransfer.effectAllowed = "move";
+      writePresetDragTransfer(event.dataTransfer, payload);
+      if (presetDragPreviewCleanupRef.current) {
+        presetDragPreviewCleanupRef.current();
+        presetDragPreviewCleanupRef.current = null;
+      }
+      presetDragPreviewCleanupRef.current = setOpaquePresetDragImage(
+        event.dataTransfer,
+        event.currentTarget
+      );
+      if (!presetDragPreviewCleanupRef.current) return;
+      window.setTimeout(() => {
+        if (presetDragPreviewCleanupRef.current) {
+          presetDragPreviewCleanupRef.current();
+          presetDragPreviewCleanupRef.current = null;
+        }
+      }, 0);
+    },
+    []
+  );
+
+  const handleSurfacePresetDragStart = React.useCallback(
+    (event: React.DragEvent<HTMLButtonElement>, label: string) => {
+      beginPresetDragSession(event, { label, source: "surface" });
+    },
+    [beginPresetDragSession]
+  );
+
+  const handlePanelPresetDragStart = React.useCallback(
+    (event: React.DragEvent<HTMLButtonElement>, label: string) => {
+      beginPresetDragSession(event, { label, source: "panel" });
+    },
+    [beginPresetDragSession]
+  );
+
+  const handlePresetDragEnd = React.useCallback(() => {
+    setIsPresetPanelDropActive(false);
+    setIsPresetsSurfaceDropActive(false);
+    activePresetDragPayloadRef.current = null;
+    if (presetDragPreviewCleanupRef.current) {
+      presetDragPreviewCleanupRef.current();
+      presetDragPreviewCleanupRef.current = null;
+    }
+  }, []);
+
+  const handlePresetPanelDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    const payload = resolvePresetDragPayload(
+      event.dataTransfer,
+      activePresetDragPayloadRef.current
+    );
+    if (!payload || payload.source !== "surface") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    setIsPresetPanelDropActive(true);
+  }, []);
+
+  const handlePresetPanelDragLeave = React.useCallback(() => {
+    setIsPresetPanelDropActive(false);
+  }, []);
+
+  const handlePresetPanelDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const payload = resolvePresetDragPayload(
+        event.dataTransfer,
+        activePresetDragPayloadRef.current
+      );
+      if (!payload || payload.source !== "surface") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setIsPresetPanelDropActive(false);
+      addPresetToPanel(payload.label);
+    },
+    [addPresetToPanel]
+  );
+
+  const handlePresetsSurfaceDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    const payload = resolvePresetDragPayload(
+      event.dataTransfer,
+      activePresetDragPayloadRef.current
+    );
+    if (!payload || payload.source !== "panel") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    setIsPresetsSurfaceDropActive(true);
+  }, []);
+
+  const handlePresetsSurfaceDragLeave = React.useCallback(() => {
+    setIsPresetsSurfaceDropActive(false);
+  }, []);
+
+  const handlePresetsSurfaceDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const payload = resolvePresetDragPayload(
+        event.dataTransfer,
+        activePresetDragPayloadRef.current
+      );
+      if (!payload || payload.source !== "panel") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setIsPresetsSurfaceDropActive(false);
+      removePresetFromPanel(payload.label);
+    },
+    [removePresetFromPanel]
+  );
 
   const {
     overlayCanvasRef,
@@ -619,8 +1008,65 @@ export function ExpertEditPanelView({
     selectedInpaintMode === "lasso" &&
     Boolean(selectedLayerImageUrl) &&
     imageHasInteractiveMask;
+  const selectedLayerTransformGeometry = React.useMemo(() => {
+    if (!isMoveToolSelected || !selectedLayer?.imageUrl) return null;
+    if (dropzoneSize.width <= 0 || dropzoneSize.height <= 0) return null;
+    return resolveTransformGeometry({
+      transform: {
+        ...selectedLayer.transform,
+        scale: selectedLayer.transform.scale * globalZoomScale,
+      },
+      width: dropzoneSize.width,
+      height: dropzoneSize.height,
+    });
+  }, [dropzoneSize.height, dropzoneSize.width, globalZoomScale, isMoveToolSelected, selectedLayer]);
+  const selectedLayerTransformBoxStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    if (!selectedLayerTransformGeometry || !selectedLayer) return undefined;
+    return {
+      left: `${selectedLayerTransformGeometry.centerX}px`,
+      top: `${selectedLayerTransformGeometry.centerY}px`,
+      width: `${dropzoneSize.width * selectedLayer.transform.scale * globalZoomScale}px`,
+      height: `${dropzoneSize.height * selectedLayer.transform.scale * globalZoomScale}px`,
+      transform: `translate(-50%, -50%) rotate(${selectedLayer.transform.rotationDeg}deg)`,
+    };
+  }, [
+    dropzoneSize.height,
+    dropzoneSize.width,
+    globalZoomScale,
+    selectedLayer,
+    selectedLayerTransformGeometry,
+  ]);
+  const selectedLayerResizeHandleStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    if (!selectedLayerTransformGeometry) return undefined;
+    return {
+      left: `${selectedLayerTransformGeometry.resizeHandleX}px`,
+      top: `${selectedLayerTransformGeometry.resizeHandleY}px`,
+    };
+  }, [selectedLayerTransformGeometry]);
+  const selectedLayerRotateHandleStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    if (!selectedLayerTransformGeometry) return undefined;
+    return {
+      left: `${selectedLayerTransformGeometry.rotateHandleX}px`,
+      top: `${selectedLayerTransformGeometry.rotateHandleY}px`,
+    };
+  }, [selectedLayerTransformGeometry]);
   const morePresetsSurfaceId = React.useId();
   const primaryDropzoneCursor = React.useMemo(() => {
+    if (isMoveToolSelected && selectedLayerImageUrl) {
+      const resolvedDragMode = isTransformPointerDragging
+        ? transformPointerSessionRef.current.dragMode
+        : selectedTransformMode;
+      if (resolvedDragMode === "rotate") {
+        return "crosshair";
+      }
+      if (resolvedDragMode === "resize") {
+        return "nwse-resize";
+      }
+      if (resolvedDragMode === "move" && isTransformPointerDragging) {
+        return "grabbing";
+      }
+      return "grab";
+    }
     if (shouldShowInpaintBrushReticle) {
       return buildInpaintBrushReticleCursor(inpaintStrokeSize);
     }
@@ -628,7 +1074,15 @@ export function ExpertEditPanelView({
       return buildInpaintLassoCursor();
     }
     return undefined;
-  }, [inpaintStrokeSize, shouldShowInpaintBrushReticle, shouldShowInpaintLassoCursor]);
+  }, [
+    inpaintStrokeSize,
+    isTransformPointerDragging,
+    isMoveToolSelected,
+    selectedTransformMode,
+    selectedLayerImageUrl,
+    shouldShowInpaintBrushReticle,
+    shouldShowInpaintLassoCursor,
+  ]);
   const primaryDropzoneStyle = React.useMemo(() => {
     if (isMorePresetsSurfaceOpen) return undefined;
     if (!primaryDropzoneCursor) return undefined;
@@ -670,6 +1124,7 @@ export function ExpertEditPanelView({
           ...targetLayer,
           imageUrl: candidateUrl,
           ownsImageUrl: payload.ownsImageUrl,
+          transform: defaultLayerTransform(),
         };
         setLayers(nextLayers);
         return;
@@ -727,6 +1182,7 @@ export function ExpertEditPanelView({
         imageUrl: flattenedLayerUrl,
         opacity: LAYER_OPACITY_DEFAULT,
         ownsImageUrl: true,
+        transform: defaultLayerTransform(),
       };
       setLayers([flattenedLayer]);
       setSelectedLayerIndex(0);
@@ -754,42 +1210,36 @@ export function ExpertEditPanelView({
 
   const handleRemoveBackground = React.useCallback(() => {
     const run = async () => {
-      if (populatedLayerCount <= 0) {
-        showStatusToast("Add at least one layer image before removing background.");
+      const selectedLayerInput = selectedLayerImageUrl?.trim() ?? "";
+      if (!selectedLayerInput) {
+        showStatusToast("Select a layer with an image before removing background.");
         return;
       }
       if (!onRegenerateWithReferenceInputs) {
         showStatusToast("Remove background is unavailable in this session.");
         return;
       }
+      const pendingLayerId = selectedLayer?.id ?? null;
+      beginRemoveBackgroundPending(pendingLayerId, selectedLayer?.imageUrl ?? null);
 
-      let flattenedUrl: string | null = null;
       try {
-        const flattenedBlob = await composePrimaryLayersToBlob(layers, { mimeType: "image/png" });
-        flattenedUrl = URL.createObjectURL(flattenedBlob);
-        const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
-        await onRegenerateWithReferenceInputs(referenceInputs, {
-          modelIdOverride: BRIA_REMOVE_BACKGROUND_MODEL_ID,
+        await onRegenerateWithReferenceInputs([selectedLayerInput], {
+          modelIdOverride: BRIA_BACKGROUND_REMOVE_MODEL_ID,
+          costOverrideCredits: removeBackgroundCostCredits,
         });
       } catch {
-        if (flattenedUrl) {
-          revokeObjectUrlSafe(flattenedUrl);
-          flattenedUrl = null;
-        }
+        clearRemoveBackgroundPending();
         showStatusToast("Unable to remove background.");
-      } finally {
-        if (flattenedUrl) {
-          scheduleTransientObjectUrlRevoke(flattenedUrl);
-        }
       }
     };
     void run();
   }, [
-    buildFlattenReferenceInputs,
-    layers,
+    beginRemoveBackgroundPending,
+    clearRemoveBackgroundPending,
+    removeBackgroundCostCredits,
     onRegenerateWithReferenceInputs,
-    populatedLayerCount,
-    scheduleTransientObjectUrlRevoke,
+    selectedLayer,
+    selectedLayerImageUrl,
     showStatusToast,
   ]);
 
@@ -956,41 +1406,227 @@ export function ExpertEditPanelView({
   const handlePrimaryPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isMoveToolSelected) {
+        if (!selectedLayer?.imageUrl) {
+          showStatusToast("Select a layer image before transforming.");
+          return;
+        }
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        const dropzone = primaryDropzoneRef.current;
+        if (!dropzone) return;
+        const rect = dropzone.getBoundingClientRect();
+        const width = Math.max(1, rect.width);
+        const height = Math.max(1, rect.height);
+        const pointerX = event.clientX - rect.left;
+        const pointerY = event.clientY - rect.top;
+        const transformGeometry = resolveTransformGeometry({
+          transform: selectedLayer.transform,
+          width,
+          height,
+        });
+        const dragMode = selectedTransformMode;
+        const distanceToCenter = Math.max(
+          1,
+          computeDistance(pointerX, pointerY, transformGeometry.centerX, transformGeometry.centerY)
+        );
+        const pointerAngle = Math.atan2(
+          pointerY - transformGeometry.centerY,
+          pointerX - transformGeometry.centerX
+        );
+        event.preventDefault();
+        if ((event.currentTarget as HTMLElement | null)?.setPointerCapture) {
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        }
+        transformPointerSessionRef.current = {
+          active: true,
+          pointerId: event.pointerId,
+          layerId: selectedLayer.id,
+          dragMode,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          baseTranslateXRatio: selectedLayer.transform.translateXRatio,
+          baseTranslateYRatio: selectedLayer.transform.translateYRatio,
+          baseScale: selectedLayer.transform.scale,
+          dropzoneWidth: width,
+          dropzoneHeight: height,
+          centerX: transformGeometry.centerX,
+          centerY: transformGeometry.centerY,
+          baseDistanceToCenter: distanceToCenter,
+          baseAngleOffsetRad: pointerAngle - toRadians(selectedLayer.transform.rotationDeg),
+        };
+        setIsTransformPointerDragging(true);
+        return;
+      }
       handleInpaintPointerDown(event);
     },
-    [handleInpaintPointerDown, isMorePresetsSurfaceOpen]
+    [
+      handleInpaintPointerDown,
+      isMorePresetsSurfaceOpen,
+      isMoveToolSelected,
+      selectedLayer,
+      selectedTransformMode,
+      showStatusToast,
+    ]
   );
 
   const handlePrimaryPointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isMoveToolSelected) {
+        const dropzone = primaryDropzoneRef.current;
+        if (!dropzone) return;
+        const rect = dropzone.getBoundingClientRect();
+        const pointerX = event.clientX - rect.left;
+        const pointerY = event.clientY - rect.top;
+        const session = transformPointerSessionRef.current;
+        if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
+        event.preventDefault();
+        if (session.dragMode === "move") {
+          const deltaX = event.clientX - session.startClientX;
+          const deltaY = event.clientY - session.startClientY;
+          const nextTranslateXRatio = clampLayerTranslateRatio(
+            session.baseTranslateXRatio + deltaX / session.dropzoneWidth
+          );
+          const nextTranslateYRatio = clampLayerTranslateRatio(
+            session.baseTranslateYRatio + deltaY / session.dropzoneHeight
+          );
+          setLayers((previousLayers) =>
+            previousLayers.map((layer) =>
+              layer.id === session.layerId
+                ? {
+                    ...layer,
+                    transform: {
+                      ...layer.transform,
+                      translateXRatio: nextTranslateXRatio,
+                      translateYRatio: nextTranslateYRatio,
+                    },
+                  }
+                : layer
+            )
+          );
+          return;
+        }
+        if (session.dragMode === "resize") {
+          const nextDistanceToCenter = Math.max(
+            1,
+            computeDistance(pointerX, pointerY, session.centerX, session.centerY)
+          );
+          const nextScale = clampLayerScale(
+            session.baseScale * (nextDistanceToCenter / session.baseDistanceToCenter)
+          );
+          setLayers((previousLayers) =>
+            previousLayers.map((layer) =>
+              layer.id === session.layerId
+                ? {
+                    ...layer,
+                    transform: {
+                      ...layer.transform,
+                      scale: nextScale,
+                    },
+                  }
+                : layer
+            )
+          );
+          return;
+        }
+        const nextPointerAngle = Math.atan2(pointerY - session.centerY, pointerX - session.centerX);
+        const nextRotationDeg = toDegrees(nextPointerAngle - session.baseAngleOffsetRad);
+        setLayers((previousLayers) =>
+          previousLayers.map((layer) =>
+            layer.id === session.layerId
+              ? {
+                  ...layer,
+                  transform: {
+                    ...layer.transform,
+                    rotationDeg: nextRotationDeg,
+                  },
+                }
+              : layer
+          )
+        );
+        return;
+      }
       handleInpaintPointerMove(event);
     },
-    [handleInpaintPointerMove, isMorePresetsSurfaceOpen]
+    [handleInpaintPointerMove, isMorePresetsSurfaceOpen, isMoveToolSelected, selectedLayer]
+  );
+
+  const endTransformPointerSession = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = transformPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) return;
+      if ((event.currentTarget as HTMLElement | null)?.releasePointerCapture) {
+        try {
+          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+        } catch {
+          // Pointer capture can already be released.
+        }
+      }
+      transformPointerSessionRef.current = createIdleTransformPointerSession();
+      setIsTransformPointerDragging(false);
+    },
+    []
   );
 
   const handlePrimaryPointerUp = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isMoveToolSelected) {
+        endTransformPointerSession(event);
+        return;
+      }
       handleInpaintPointerUp(event);
     },
-    [handleInpaintPointerUp, isMorePresetsSurfaceOpen]
+    [
+      endTransformPointerSession,
+      handleInpaintPointerUp,
+      isMorePresetsSurfaceOpen,
+      isMoveToolSelected,
+    ]
   );
 
   const handlePrimaryPointerCancel = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isMoveToolSelected) {
+        endTransformPointerSession(event);
+        return;
+      }
       handleInpaintPointerCancel(event);
     },
-    [handleInpaintPointerCancel, isMorePresetsSurfaceOpen]
+    [
+      endTransformPointerSession,
+      handleInpaintPointerCancel,
+      isMorePresetsSurfaceOpen,
+      isMoveToolSelected,
+    ]
   );
 
   const handlePrimaryPointerLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isMoveToolSelected) {
+        const session = transformPointerSessionRef.current;
+        if (!session.active) return;
+        const currentTarget = event.currentTarget as HTMLElement | null;
+        const hasPointerCapture = Boolean(
+          currentTarget &&
+          typeof currentTarget.hasPointerCapture === "function" &&
+          currentTarget.hasPointerCapture(event.pointerId)
+        );
+        if (session.active && event.pointerId === session.pointerId && !hasPointerCapture) {
+          endTransformPointerSession(event);
+        }
+        return;
+      }
       handleInpaintPointerLeave(event);
     },
-    [handleInpaintPointerLeave, isMorePresetsSurfaceOpen]
+    [
+      endTransformPointerSession,
+      handleInpaintPointerLeave,
+      isMorePresetsSurfaceOpen,
+      isMoveToolSelected,
+    ]
   );
 
   const handlePrimaryDropzoneClick = React.useCallback(() => {
@@ -1001,6 +1637,12 @@ export function ExpertEditPanelView({
   const closeMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
     setPrimaryDragActive(false);
+    setIsPresetsSurfaceDropActive(false);
+    setIsPresetPanelDropActive(false);
+  }, []);
+
+  const toggleMorePresetsSurface = React.useCallback(() => {
+    setIsMorePresetsSurfaceOpen((previous) => !previous);
   }, []);
 
   const handleAddLayer = React.useCallback(() => {
@@ -1101,6 +1743,7 @@ export function ExpertEditPanelView({
                   imageUrl: null,
                   opacity: LAYER_OPACITY_DEFAULT,
                   ownsImageUrl: false,
+                  transform: defaultLayerTransform(),
                 }
               : layer
           )
@@ -1175,12 +1818,17 @@ export function ExpertEditPanelView({
 
     setLayers((previous) => {
       if (!previous.length) return previous;
+      const lockedRemoveBackgroundIndex = removeBackgroundPendingLayerId
+        ? previous.findIndex((layer) => layer.id === removeBackgroundPendingLayerId)
+        : -1;
       const targetIndex =
-        selectedLayerIndex == null ||
-        selectedLayerIndex < 0 ||
-        selectedLayerIndex >= previous.length
-          ? 0
-          : selectedLayerIndex;
+        lockedRemoveBackgroundIndex >= 0
+          ? lockedRemoveBackgroundIndex
+          : selectedLayerIndex == null ||
+              selectedLayerIndex < 0 ||
+              selectedLayerIndex >= previous.length
+            ? 0
+            : selectedLayerIndex;
       const targetLayer = previous[targetIndex];
       if (!targetLayer) return previous;
       if (targetLayer.imageUrl === referenceImageUrl && !targetLayer.ownsImageUrl) {
@@ -1191,10 +1839,38 @@ export function ExpertEditPanelView({
         ...targetLayer,
         imageUrl: referenceImageUrl,
         ownsImageUrl: false,
+        transform: defaultLayerTransform(),
       };
       return nextLayers;
     });
-  }, [referenceImageUrl, selectedLayerIndex]);
+  }, [referenceImageUrl, removeBackgroundPendingLayerId, selectedLayerIndex]);
+
+  React.useEffect(() => {
+    if (!removeBackgroundPendingLayerId) return;
+    const pendingLayer =
+      layers.find((layer) => layer.id === removeBackgroundPendingLayerId) ?? null;
+    if (!pendingLayer) {
+      clearRemoveBackgroundPending();
+      return;
+    }
+    const pendingSourceUrl = removeBackgroundPendingSourceUrlRef.current;
+    if (
+      typeof pendingLayer.imageUrl === "string" &&
+      pendingLayer.imageUrl.length > 0 &&
+      pendingLayer.imageUrl !== pendingSourceUrl
+    ) {
+      clearRemoveBackgroundPending();
+    }
+  }, [clearRemoveBackgroundPending, layers, removeBackgroundPendingLayerId]);
+
+  React.useEffect(() => {
+    if (!isMoveToolSelected) {
+      if (isTransformPointerDragging) {
+        setIsTransformPointerDragging(false);
+      }
+      transformPointerSessionRef.current = createIdleTransformPointerSession();
+    }
+  }, [isMoveToolSelected, isTransformPointerDragging]);
 
   React.useEffect(() => {
     if (lastDispatchedPrimaryRef.current === hostPrimaryImageUrl) return;
@@ -1215,6 +1891,10 @@ export function ExpertEditPanelView({
       if (toastFadeTimerRef.current != null) {
         window.clearTimeout(toastFadeTimerRef.current);
         toastFadeTimerRef.current = null;
+      }
+      if (removeBackgroundPendingTimeoutRef.current != null) {
+        window.clearTimeout(removeBackgroundPendingTimeoutRef.current);
+        removeBackgroundPendingTimeoutRef.current = null;
       }
       transientRevokeTimersRef.current.forEach((timer, url) => {
         window.clearTimeout(timer);
@@ -1292,44 +1972,62 @@ export function ExpertEditPanelView({
             </span>
           </div>
           <div className="edit-expert-preset-toolbar-card">
-            <div className="edit-expert-preset-toolbar-list">
-              {EDIT_PRESET_TOOLBAR_LABELS.map((label) => (
-                <React.Fragment key={label}>
-                  {label === EDIT_PRESET_MORE_LABEL ? (
-                    <div className="edit-expert-preset-divider" aria-hidden="true" />
-                  ) : null}
+            <div
+              className={`edit-expert-preset-toolbar-list ${
+                hasSelectedPresetLabels ? "is-populated" : "is-empty"
+              } ${isPresetPanelDropActive ? "is-drop-active" : ""}`.trim()}
+              aria-label="Preset panel list"
+              onDragOver={handlePresetPanelDragOver}
+              onDragLeave={handlePresetPanelDragLeave}
+              onDrop={handlePresetPanelDrop}
+            >
+              {hasSelectedPresetLabels ? (
+                selectedPresetLabels.map((label) => (
                   <button
+                    key={label}
                     type="button"
-                    className="edit-expert-preset-btn"
+                    draggable
+                    className="edit-expert-preset-btn edit-expert-preset-btn--selected"
                     aria-label={`Apply ${label} preset`}
-                    aria-expanded={
-                      label === EDIT_PRESET_MORE_LABEL ? isMorePresetsSurfaceOpen : undefined
-                    }
-                    aria-controls={
-                      label === EDIT_PRESET_MORE_LABEL ? morePresetsSurfaceId : undefined
-                    }
-                    onClick={
-                      label === EDIT_PRESET_MORE_LABEL
-                        ? () => setIsMorePresetsSurfaceOpen(isMorePresetsSurfaceOpen ? false : true)
-                        : undefined
-                    }
+                    onDragStart={(event) => handlePanelPresetDragStart(event, label)}
+                    onDragEnd={handlePresetDragEnd}
                   >
-                    {label === EDIT_PRESET_MORE_LABEL ? (
-                      <span className="edit-expert-preset-btn-icon" aria-hidden="true">
-                        <GearSix size={12} weight="regular" />
-                      </span>
-                    ) : null}
                     {label}
                   </button>
-                </React.Fragment>
-              ))}
+                ))
+              ) : (
+                <button
+                  type="button"
+                  className="edit-expert-preset-empty-drop"
+                  aria-label="Empty preset drop target"
+                  onClick={() => setIsMorePresetsSurfaceOpen(true)}
+                >
+                  Drag presets here
+                </button>
+              )}
+              <div className="edit-expert-preset-divider" aria-hidden="true" />
+              <button
+                type="button"
+                className="edit-expert-preset-btn"
+                aria-label={`Apply ${EDIT_PRESET_MORE_LABEL} preset`}
+                aria-expanded={isMorePresetsSurfaceOpen}
+                aria-controls={morePresetsSurfaceId}
+                onClick={toggleMorePresetsSurface}
+              >
+                <span className="edit-expert-preset-btn-icon" aria-hidden="true">
+                  <GearSix size={12} weight="regular" />
+                </span>
+                {EDIT_PRESET_MORE_LABEL}
+              </button>
             </div>
           </div>
           <div className="edit-expert-preset-actions" aria-label="Preset utility actions">
             {editPresetUtilityActions.map((action) => {
               const Icon = action.icon;
               const isActionDisabled = Boolean(
-                isGenerateDisabled || (action.requiresPrimaryImage && !selectedLayerImageUrl)
+                isGenerateDisabled ||
+                (action.requiresPrimaryImage && !selectedLayerImageUrl) ||
+                (action.id === REMOVE_BACKGROUND_ACTION_ID && isRemoveBackgroundPending)
               );
               const actionCreditCost =
                 action.id === REMOVE_BACKGROUND_ACTION_ID
@@ -1493,6 +2191,7 @@ export function ExpertEditPanelView({
           onPointerLeave={handlePrimaryPointerLeave}
           onClick={handlePrimaryDropzoneClick}
           aria-label="Primary edit image"
+          aria-busy={isRemoveBackgroundPending || undefined}
         >
           {hasPrimaryCompositePreview ? (
             <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
@@ -1500,13 +2199,37 @@ export function ExpertEditPanelView({
                 layer.imageUrl ? (
                   <div
                     key={layer.id}
-                    className="edit-expert-primary-layer-frame"
+                    className={`edit-expert-primary-layer-frame ${
+                      layer.id === removeBackgroundPendingLayerId ? "is-loading" : ""
+                    }`.trim()}
                     style={{
-                      backgroundImage: `url(${layer.imageUrl})`,
+                      backgroundImage:
+                        layer.id === removeBackgroundPendingLayerId
+                          ? undefined
+                          : `url(${layer.imageUrl})`,
                       zIndex: layers.length - index,
                       opacity: clampLayerOpacity(layer.opacity),
+                      transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale * globalZoomScale}) rotate(${layer.transform.rotationDeg}deg)`,
+                      transformOrigin: "center center",
                     }}
-                  />
+                  >
+                    {layer.id === removeBackgroundPendingLayerId ? (
+                      <div
+                        className="edit-expert-primary-layer-loading"
+                        role="status"
+                        aria-label="Removing background"
+                        aria-live="polite"
+                      >
+                        <span
+                          className="edit-expert-primary-layer-loading-spinner"
+                          aria-hidden="true"
+                        />
+                        <span className="edit-expert-primary-layer-loading-text">
+                          Removing background...
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null
               )}
               <canvas
@@ -1514,6 +2237,22 @@ export function ExpertEditPanelView({
                 className="edit-expert-inpaint-overlay-canvas"
                 aria-hidden="true"
               />
+              {isMoveToolSelected && selectedLayer?.imageUrl && selectedLayerTransformGeometry ? (
+                <div className="edit-expert-transform-gizmo" aria-hidden="true">
+                  <div
+                    className="edit-expert-transform-gizmo-box"
+                    style={selectedLayerTransformBoxStyle}
+                  />
+                  <div
+                    className="edit-expert-transform-gizmo-handle is-resize"
+                    style={selectedLayerResizeHandleStyle}
+                  />
+                  <div
+                    className="edit-expert-transform-gizmo-handle is-rotate"
+                    style={selectedLayerRotateHandleStyle}
+                  />
+                </div>
+              ) : null}
             </div>
           ) : null}
           {hasPrimaryCompositePreview ? null : (
@@ -1525,8 +2264,14 @@ export function ExpertEditPanelView({
           <ExpertEditPresetsSurface
             id={morePresetsSurfaceId}
             isOpen={isMorePresetsSurfaceOpen}
-            labels={EDIT_PRESET_SURFACE_LABELS}
+            labels={availablePresetLabels}
             onClose={closeMorePresetsSurface}
+            onPresetDragStart={handleSurfacePresetDragStart}
+            onPresetDragEnd={handlePresetDragEnd}
+            onSurfaceDragOver={handlePresetsSurfaceDragOver}
+            onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
+            onSurfaceDrop={handlePresetsSurfaceDrop}
+            isDropActive={isPresetsSurfaceDropActive}
           />
         </div>
 
@@ -1750,30 +2495,30 @@ export function ExpertEditPanelView({
                         <button
                           type="button"
                           className={`edit-expert-move-mode-btn ${
-                            selectedMoveMode === "move" ? "is-active" : ""
+                            selectedTransformMode === "move" ? "is-active" : ""
                           }`}
-                          aria-pressed={selectedMoveMode === "move"}
-                          onClick={() => setSelectedMoveMode("move")}
+                          aria-pressed={selectedTransformMode === "move"}
+                          onClick={() => setSelectedTransformMode("move")}
                         >
                           Move
                         </button>
                         <button
                           type="button"
                           className={`edit-expert-move-mode-btn ${
-                            selectedMoveMode === "resize" ? "is-active" : ""
+                            selectedTransformMode === "resize" ? "is-active" : ""
                           }`}
-                          aria-pressed={selectedMoveMode === "resize"}
-                          onClick={() => setSelectedMoveMode("resize")}
+                          aria-pressed={selectedTransformMode === "resize"}
+                          onClick={() => setSelectedTransformMode("resize")}
                         >
                           Resize
                         </button>
                         <button
                           type="button"
                           className={`edit-expert-move-mode-btn ${
-                            selectedMoveMode === "rotate" ? "is-active" : ""
+                            selectedTransformMode === "rotate" ? "is-active" : ""
                           }`}
-                          aria-pressed={selectedMoveMode === "rotate"}
-                          onClick={() => setSelectedMoveMode("rotate")}
+                          aria-pressed={selectedTransformMode === "rotate"}
+                          onClick={() => setSelectedTransformMode("rotate")}
                         >
                           Rotate
                         </button>

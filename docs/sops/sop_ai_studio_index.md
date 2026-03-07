@@ -46,6 +46,11 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` forces legacy Edit panel.
 - Chat mode control is hidden/off in Expert Edit; inline Generate remains the primary action.
 
+## Canvas interaction guardrails
+- Dual-canvas layout (main + right-rail) shares scene data but keeps viewport camera state independent per instance.
+- Draft-text and text-edit ownership are instance-scoped so double-click draft creation cannot be auto-cleared by the mirrored canvas instance.
+- Empty-space text draft creation must remain single-create per gesture (native `dblclick` plus pointer/click fallbacks are deduped).
+
 ## Model modal ordering policy
 - Source of truth: `frontend/features/ai-studio/components/ModelModal.tsx`.
 - Model chips are ordered deterministically by context using provider-priority and model-priority maps.

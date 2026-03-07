@@ -228,6 +228,52 @@ describe("Canvas interaction behavior", () => {
     expect(Number(viewport.getAttribute("data-camera-y"))).toBe(50);
   });
 
+  it("creates a draft from double-tap fallback when slight drag jitter would otherwise trigger pan", () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.pointerDown(viewport, {
+      button: 0,
+      pointerId: 80,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 80,
+      clientX: 228,
+      clientY: 148,
+    });
+    fireEvent.pointerUp(viewport, {
+      button: 0,
+      pointerId: 80,
+      clientX: 228,
+      clientY: 148,
+    });
+
+    fireEvent.pointerDown(viewport, {
+      button: 0,
+      pointerId: 81,
+      clientX: 232,
+      clientY: 152,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 81,
+      clientX: 240,
+      clientY: 160,
+    });
+    fireEvent.pointerUp(viewport, {
+      button: 0,
+      pointerId: 81,
+      clientX: 240,
+      clientY: 160,
+    });
+
+    expect(screen.getByTestId("canvas-draft-text-input")).toBeInTheDocument();
+    expect(Number(viewport.getAttribute("data-camera-x"))).toBe(0);
+    expect(Number(viewport.getAttribute("data-camera-y"))).toBe(0);
+  });
+
   it("zooms around the pointer location", () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
@@ -390,5 +436,28 @@ describe("Canvas interaction behavior", () => {
     } finally {
       window.removeEventListener("wheel", windowWheelSpy);
     }
+  });
+
+  it("keeps a draft visible after main-canvas double-click when dual canvas is mounted", () => {
+    const { container } = render(<DualCanvasHarness />);
+    const mainViewport = container.querySelector(
+      '[data-canvas-instance="main"]'
+    ) as HTMLElement | null;
+    const railViewport = container.querySelector(
+      '[data-canvas-instance="rail"]'
+    ) as HTMLElement | null;
+    expect(mainViewport).toBeTruthy();
+    expect(railViewport).toBeTruthy();
+    mockViewportRect(mainViewport as HTMLElement);
+    mockViewportRect(railViewport as HTMLElement);
+
+    fireEvent.doubleClick(mainViewport as HTMLElement, {
+      button: 0,
+      clientX: 240,
+      clientY: 180,
+    });
+
+    expect(screen.getByTestId("canvas-draft-text-input")).toBeInTheDocument();
+    expect(screen.getAllByTestId("canvas-draft-text-input")).toHaveLength(1);
   });
 });

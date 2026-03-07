@@ -648,6 +648,56 @@ describe("useAiStudioGenerationController", () => {
     expect(setUiError).not.toHaveBeenCalledWith("Add a prompt to start a generation.");
   });
 
+  it("uses regenerate cost override for credit guardrail checks and optimistic debit", async () => {
+    const regenerateOutput = vi.fn();
+    const setUiError = vi.fn();
+    const setOptimisticDebitEntries = vi.fn();
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      currentCostCredits: 15,
+      effectiveBalanceCredits: 2,
+      balanceCredits: 2,
+      isGenerateDisabled: true,
+      isCreditGuardrail: true,
+      generationGuardrail: "You do not have enough credits for this run.",
+      refreshBalance: vi.fn(async () => 2),
+      regenerateOutput,
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+      setUiError: asDispatch<string | null>(setUiError),
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        referenceInputsOverride: ["blob:flatten-primary"],
+        modelIdOverride: "fal-ai/bria/background/remove",
+        costOverrideCredits: 1,
+      });
+    });
+
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelIdOverride: "fal-ai/bria/background/remove",
+        referenceInputsOverride: ["blob:flatten-primary"],
+      })
+    );
+    expect(setUiError).not.toHaveBeenCalled();
+    const updater = setOptimisticDebitEntries.mock.calls[0]?.[0] as
+      | ((prev: { credits: number; outputId: string | null }[]) => {
+          credits: number;
+          outputId: string | null;
+          createdAtMs?: number;
+        }[])
+      | undefined;
+    expect(typeof updater).toBe("function");
+    expect(updater?.([])).toEqual([
+      expect.objectContaining({ credits: 1, outputId: null, createdAtMs: expect.any(Number) }),
+    ]);
+  });
+
   it("allows regenerate submissions while agent send is in flight", async () => {
     const regenerateOutput = vi.fn();
     const params = createParams({

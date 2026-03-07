@@ -17,10 +17,13 @@ export function CanvasPropertiesPanel({
   viewportRef,
   isDropActive,
   draftTextEntry,
+  isDraftTextEditable = true,
   editingTextItemId,
   editingTextValue,
+  isTextEditEditable = true,
   onViewportKeyDown,
   onViewportDoubleClick,
+  onViewportClick,
   onViewportPointerDown,
   onViewportPointerMove,
   onViewportPointerUp,
@@ -84,6 +87,7 @@ export function CanvasPropertiesPanel({
         onPointerCancel={onViewportPointerCancel}
         onKeyDown={onViewportKeyDown}
         onDoubleClick={onViewportDoubleClick}
+        onClick={onViewportClick}
         onDragEnter={onViewportDragEnter}
         onDragOver={onViewportDragOver}
         onDragLeave={onViewportDragLeave}
@@ -174,16 +178,20 @@ export function CanvasPropertiesPanel({
                     draggable={false}
                   />
                 ) : isEditingTextItem ? (
-                  <textarea
-                    className="canvas-scene-item__text-editor"
-                    data-testid="canvas-text-edit-input"
-                    value={editingTextValue}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onChange={(event) => onTextItemEditChange(event.target.value)}
-                    onKeyDown={onTextItemEditKeyDown}
-                    onBlur={onTextItemEditBlur}
-                    autoFocus
-                  />
+                  isTextEditEditable ? (
+                    <textarea
+                      className="canvas-scene-item__text-editor"
+                      data-testid="canvas-text-edit-input"
+                      value={editingTextValue}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onChange={(event) => onTextItemEditChange(event.target.value)}
+                      onKeyDown={onTextItemEditKeyDown}
+                      onBlur={onTextItemEditBlur}
+                      autoFocus
+                    />
+                  ) : (
+                    <p className="canvas-scene-item__text">{editingTextValue}</p>
+                  )
                 ) : (
                   <>
                     <p className="canvas-scene-item__text">{item.text}</p>
@@ -221,15 +229,19 @@ export function CanvasPropertiesPanel({
                 width: "260px",
               }}
             >
-              <textarea
-                className="canvas-scene-item__draft-input"
-                data-testid="canvas-draft-text-input"
-                value={draftTextEntry.value}
-                onChange={(event) => onDraftTextChange(event.target.value)}
-                onKeyDown={onDraftTextKeyDown}
-                onBlur={onDraftTextBlur}
-                autoFocus
-              />
+              {isDraftTextEditable ? (
+                <textarea
+                  className="canvas-scene-item__draft-input"
+                  data-testid="canvas-draft-text-input"
+                  value={draftTextEntry.value}
+                  onChange={(event) => onDraftTextChange(event.target.value)}
+                  onKeyDown={onDraftTextKeyDown}
+                  onBlur={onDraftTextBlur}
+                  autoFocus
+                />
+              ) : (
+                <p className="canvas-scene-item__text">{draftTextEntry.value}</p>
+              )}
             </article>
           ) : null}
         </div>

@@ -10,6 +10,12 @@ export type ExpertEditPresetsSurfaceProps = {
   labels: readonly string[];
   onClose: () => void;
   onPresetSelect?: (label: string) => void;
+  onPresetDragStart?: (event: React.DragEvent<HTMLButtonElement>, label: string) => void;
+  onPresetDragEnd?: () => void;
+  onSurfaceDragOver?: (event: React.DragEvent<HTMLElement>) => void;
+  onSurfaceDrop?: (event: React.DragEvent<HTMLElement>) => void;
+  onSurfaceDragLeave?: (event: React.DragEvent<HTMLElement>) => void;
+  isDropActive?: boolean;
 };
 
 /**
@@ -21,6 +27,12 @@ export const ExpertEditPresetsSurface = ({
   labels,
   onClose,
   onPresetSelect,
+  onPresetDragStart,
+  onPresetDragEnd,
+  onSurfaceDragOver,
+  onSurfaceDrop,
+  onSurfaceDragLeave,
+  isDropActive = false,
 }: ExpertEditPresetsSurfaceProps) => {
   const surfaceRef = React.useRef<HTMLElement | null>(null);
 
@@ -35,6 +47,17 @@ export const ExpertEditPresetsSurface = ({
       const targetNode = event.target as Node | null;
       if (!targetNode) return;
       if (surfaceRef.current?.contains(targetNode)) return;
+      const interactiveOutsideSelectors = [
+        ".edit-expert-preset-btn--selected",
+        ".edit-expert-preset-empty-drop",
+      ];
+      const targetElement = targetNode instanceof Element ? targetNode : null;
+      if (
+        targetElement &&
+        interactiveOutsideSelectors.some((selector) => targetElement.closest(selector))
+      ) {
+        return;
+      }
       onClose();
     };
     document.addEventListener("pointerdown", handlePointerDown);
@@ -49,11 +72,14 @@ export const ExpertEditPresetsSurface = ({
     <section
       id={id}
       ref={surfaceRef}
-      className="edit-expert-presets-surface"
+      className={`edit-expert-presets-surface ${isDropActive ? "is-drop-active" : ""}`.trim()}
       role="region"
       aria-label="More presets"
       tabIndex={-1}
       onClick={(event) => event.stopPropagation()}
+      onDragOver={onSurfaceDragOver}
+      onDrop={onSurfaceDrop}
+      onDragLeave={onSurfaceDragLeave}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
         event.preventDefault();
@@ -84,10 +110,13 @@ export const ExpertEditPresetsSurface = ({
               key={label}
               type="button"
               role="listitem"
+              draggable
               className={`edit-expert-presets-chip ${
                 /^custom\s+\d+$/i.test(label) ? "is-custom-label" : ""
               }`.trim()}
               onClick={() => onPresetSelect?.(label)}
+              onDragStart={(event) => onPresetDragStart?.(event, label)}
+              onDragEnd={onPresetDragEnd}
             >
               {label}
             </button>

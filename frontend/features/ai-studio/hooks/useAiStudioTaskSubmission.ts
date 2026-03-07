@@ -16,7 +16,10 @@ import {
 } from "../logic/imageResolution";
 import { buildGenerationReplayConfigV1 } from "../logic/generationReplay";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
-import { shouldRequirePromptForEditModel } from "../logic/editPromptPolicy";
+import {
+  BRIA_BACKGROUND_REMOVE_MODEL_ID,
+  shouldRequirePromptForEditModel,
+} from "../logic/editPromptPolicy";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import { prepareImageUrlForSubmission } from "../utils/imageUpload";
@@ -314,6 +317,7 @@ export const useAiStudioTaskSubmission = ({
           saveError: null,
           characterContext: options?.characterContextOverride,
           submissionTraceId,
+          hiddenInReferenceGrid: finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID ? true : undefined,
         };
 
         // Render or reconcile the spinner placeholder before URL prep/submission work begins.

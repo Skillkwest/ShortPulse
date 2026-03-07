@@ -6,6 +6,7 @@ import { startTransition, useCallback, useEffect, useRef } from "react";
 import {
   fetchKieKlingImageToVideoStatus,
   fetchKieVeoImageToVideoStatus,
+  fetchFalBriaBackgroundRemoveStatus,
   fetchFalFlux2ProStatus,
   fetchFalFluxProFillStatus,
   fetchFalFlux2Status,
@@ -138,6 +139,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFlux2KleinStatus(taskId);
     case "fal-flux-pro-fill":
       return fetchFalFluxProFillStatus(taskId);
+    case "fal-bria-background-remove":
+      return fetchFalBriaBackgroundRemoveStatus(taskId);
     case "fal-flux2-edit":
       return fetchFalFlux2EditStatus(taskId);
     case "fal-flux2-pro":

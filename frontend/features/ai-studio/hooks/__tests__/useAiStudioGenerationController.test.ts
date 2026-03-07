@@ -619,6 +619,35 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
+  it("allows promptless regenerate when model override is Bria background remove", async () => {
+    const regenerateOutput = vi.fn();
+    const setUiError = vi.fn();
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/bytedance/seedream/v5/lite/edit",
+      resolveDefaultPromptForTool: vi.fn(() => ""),
+      regenerateOutput,
+      setUiError: asDispatch<string | null>(setUiError),
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        referenceInputsOverride: ["blob:flatten-primary"],
+        modelIdOverride: "fal-ai/bria/background/remove",
+      });
+    });
+
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelIdOverride: "fal-ai/bria/background/remove",
+        referenceInputsOverride: ["blob:flatten-primary"],
+      })
+    );
+    expect(setUiError).not.toHaveBeenCalledWith("Add a prompt to start a generation.");
+  });
+
   it("allows regenerate submissions while agent send is in flight", async () => {
     const regenerateOutput = vi.fn();
     const params = createParams({

@@ -119,6 +119,7 @@ export type UseAiStudioPanelPropsParams = {
   handleImageRegenerateWithDebit: (options?: {
     referenceInputsOverride?: string[];
     inpaintOverride?: InpaintSubmissionOverride | null;
+    modelIdOverride?: string | null;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;

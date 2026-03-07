@@ -12,6 +12,11 @@ describe("editPromptPolicy", () => {
     expect(resolveEditPromptRequirement("fal-ai/bytedance/seedream/v5/lite/edit")).toBe("required");
   });
 
+  it("marks Bria background remove as prompt-optional", () => {
+    expect(resolveEditPromptRequirement("fal-ai/bria/background/remove")).toBe("optional");
+    expect(shouldRequirePromptForEditModel("fal-ai/bria/background/remove")).toBe(false);
+  });
+
   it("treats unknown edit model ids as unknown and required-by-default", () => {
     expect(resolveEditPromptRequirement("fal-ai/unknown/edit")).toBe("unknown");
     expect(shouldRequirePromptForEditModel("fal-ai/unknown/edit")).toBe(true);

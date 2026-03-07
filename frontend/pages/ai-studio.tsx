@@ -23,6 +23,7 @@ import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
+import { resolveCanvasDropImageSourceUrl } from "../features/ai-studio/components/canvas/canvasDropResolvers";
 import {
   useAiStudioCharacterModeController,
   type CharacterModeInjectionBundle,
@@ -369,8 +370,11 @@ export default function AiStudioPage() {
         };
       }
       if (output.mode !== "image") return null;
-      const sourceUrl =
-        output.resultUrls?.[imageIndex] ?? output.previewUrl ?? payload.referenceUrl ?? null;
+      const sourceUrl = resolveCanvasDropImageSourceUrl({
+        output,
+        imageIndex,
+        payloadReferenceUrl: payload.referenceUrl,
+      });
       if (!sourceUrl) return null;
       return {
         kind: "image",
@@ -378,6 +382,8 @@ export default function AiStudioPage() {
         mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
         src: sourceUrl,
         alt: (output.prompt || output.previewText || "Canvas reference").trim(),
+        width: payload.width,
+        height: payload.height,
         sourceSurface: payload.sourceSurface ?? null,
       };
     },

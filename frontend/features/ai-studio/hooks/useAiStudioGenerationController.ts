@@ -53,6 +53,7 @@ type GenerateResult = {
 type RegenerateWithDebitOptions = {
   referenceInputsOverride?: string[];
   inpaintOverride?: InpaintSubmissionOverride | null;
+  modelIdOverride?: string | null;
 };
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
@@ -551,15 +552,19 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
 
       const promptToUse = resolveDefaultPromptForTool(selectedTool);
+      const effectiveSubmitModelId =
+        options?.inpaintOverride?.modelId ??
+        options?.modelIdOverride ??
+        resolveEffectiveSubmitModelId(selectedTool);
       const regenerateStartDecision = resolveGenerationStartDecision({
         tool: selectedTool,
         mode,
-        modelId: model,
+        modelId: effectiveSubmitModelId,
         promptText: promptToUse,
         checkCreateTextMode: false,
         checkPrompt: shouldCheckPromptAtGenerationStart({
           tool: selectedTool,
-          modelId: model,
+          modelId: effectiveSubmitModelId,
         }),
       });
       if (!regenerateStartDecision.allow) {
@@ -572,7 +577,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         trackCharacterModeEvent?.("generation_preflight_started", {
           trigger: "regenerate",
           tool: selectedTool,
-          model_id: model,
+          model_id: effectiveSubmitModelId,
           is_character_mode: isCharacterModeEnabled,
         });
         const characterModeBundleForSubmit = await withDeadline({
@@ -593,7 +598,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           trackCharacterModeEvent?.("generation_preflight_timeout", {
             trigger: "regenerate",
             tool: selectedTool,
-            model_id: model,
+            model_id: effectiveSubmitModelId,
             is_character_mode: isCharacterModeEnabled,
             duration_ms: error.timeoutMs,
             reason_code: "PREFLIGHT_TIMEOUT",
@@ -616,7 +621,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         resolveGenerationStartDecision({
           tool: selectedTool,
           mode,
-          modelId: model,
+          modelId: effectiveSubmitModelId,
           promptText: promptToUse,
           checkCreateTextMode: false,
           checkPrompt: false,
@@ -641,8 +646,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
 
       trackCharacterModeFallback(characterModeOverrides, selectedTool);
-      const effectiveModelId =
-        options?.inpaintOverride?.modelId ?? resolveEffectiveSubmitModelId(selectedTool);
+      const effectiveModelId = effectiveSubmitModelId;
       const wasSubmitModelCoerced =
         effectiveModelId != null && model != null && effectiveModelId !== model;
       if (wasSubmitModelCoerced) {

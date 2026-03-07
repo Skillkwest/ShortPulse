@@ -2,7 +2,11 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { useAiStudioTasks } from "../useAiStudioTasks";
-import { fetchFalSeedreamStatus, fetchFalStatus } from "../../../../lib/falClient";
+import {
+  fetchFalBriaBackgroundRemoveStatus,
+  fetchFalSeedreamStatus,
+  fetchFalStatus,
+} from "../../../../lib/falClient";
 
 vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
@@ -10,6 +14,7 @@ vi.mock("../../../../lib/clientBreadcrumbs", () => ({
 
 vi.mock("../../../../lib/falClient", () => ({
   fetchFalStatus: vi.fn(),
+  fetchFalBriaBackgroundRemoveStatus: vi.fn(),
   fetchFalFlux2Status: vi.fn(),
   fetchFalFlux2KleinStatus: vi.fn(),
   fetchFalFlux2EditStatus: vi.fn(),
@@ -51,6 +56,7 @@ const flushQueuedOutputUpdates = async () => {
 
 describe("useAiStudioTasks", () => {
   const fetchFalStatusMock = vi.mocked(fetchFalStatus);
+  const fetchFalBriaBackgroundRemoveStatusMock = vi.mocked(fetchFalBriaBackgroundRemoveStatus);
   const fetchFalSeedreamStatusMock = vi.mocked(fetchFalSeedreamStatus);
 
   beforeEach(() => {
@@ -308,6 +314,48 @@ describe("useAiStudioTasks", () => {
     );
     expect(output.taskState).toBe("success");
     expect(output.previewUrl).toBe("https://cdn.test/final-seedream.png");
+  });
+
+  it("polls Bria background-remove tasks via the Bria status endpoint", async () => {
+    fetchFalBriaBackgroundRemoveStatusMock.mockResolvedValueOnce({
+      status: "completed",
+      data: { images: [{ url: "https://cdn.test/bria-output.png" }] },
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("bria-task-1", "out-1", 0, "fal-bria-background-remove");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+
+    expect(fetchFalBriaBackgroundRemoveStatusMock).toHaveBeenCalledWith("bria-task-1");
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "bria-task-1",
+        provider: "fal-bria-background-remove",
+        resultUrls: ["https://cdn.test/bria-output.png"],
+      })
+    );
+    expect(output.previewUrl).toBe("https://cdn.test/bria-output.png");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
   it("treats done states as terminal and enters no-media finalization retries", async () => {

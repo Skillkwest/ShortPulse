@@ -273,6 +273,11 @@ export type FalNanoBanana2SubmitRequest = {
   image_urls?: string[];
 };
 
+export type FalBriaBackgroundRemoveSubmitRequest = {
+  image_url: string;
+  sync_mode?: boolean;
+};
+
 const FAL_API_BASE = "/api/fal";
 const SUBMIT_AUTH_TIMEOUT_MS = 4_000;
 
@@ -442,6 +447,10 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/flux-pro-fill-submit`,
     missingRequestIdMessage: "Fal FLUX Pro Fill did not return a request_id",
   },
+  briaBackgroundRemove: {
+    route: `${FAL_API_BASE}/bria-background-remove-submit`,
+    missingRequestIdMessage: "Fal Bria background remove did not return a request_id",
+  },
   nanoBanana: {
     route: `${FAL_API_BASE}/nano-banana-submit`,
     missingRequestIdMessage: "Fal Nano Banana did not return a request_id",
@@ -554,6 +563,10 @@ const statusEndpointRegistry = {
   },
   fluxProFill: {
     route: `${FAL_API_BASE}/flux-pro-fill-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  briaBackgroundRemove: {
+    route: `${FAL_API_BASE}/bria-background-remove-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
   nanoBanana: {
@@ -756,6 +769,11 @@ export const submitFalFluxProFill = (payload: FalSubmitRequest) =>
   submitFalEndpoint("fluxProFill", payload);
 export const fetchFalFluxProFillStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("fluxProFill", requestId);
+
+export const submitFalBriaBackgroundRemove = (payload: FalBriaBackgroundRemoveSubmitRequest) =>
+  submitFalEndpoint("briaBackgroundRemove", payload);
+export const fetchFalBriaBackgroundRemoveStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("briaBackgroundRemove", requestId);
 
 export const submitFalNanoBanana = (payload: FalNanoBananaSubmitRequest) =>
   submitFalEndpoint("nanoBanana", payload);

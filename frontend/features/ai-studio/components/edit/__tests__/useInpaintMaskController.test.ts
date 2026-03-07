@@ -7,8 +7,12 @@ import {
   deriveMaskContourFromAlpha,
   INPAINT_MARCHING_ANTS_DASH_PATTERN,
   INPAINT_MARCHING_ANTS_STEP_MS,
+  resolvePointerSampleEvents,
+  resolveMaskExportSourceWindow,
   resolveNextMarchingAntPhaseState,
+  shouldEndPointerSessionOnLeave,
   shouldRenderLassoPreview,
+  toClampedCanvasPoint,
 } from "../useInpaintMaskController";
 
 const makeMaskData = (width: number, height: number, activePixels: Array<[number, number]>) => {
@@ -86,9 +90,143 @@ describe("useInpaintMaskController helpers", () => {
     expect(buildContourPathsFromSegments([])).toEqual([]);
   });
 
+  it("clips export source window to image bounds inside the mask canvas", () => {
+    expect(
+      resolveMaskExportSourceWindow({
+        imageRect: {
+          x: -12.4,
+          y: 8.2,
+          width: 160.8,
+          height: 120.6,
+        },
+        maskWidth: 100,
+        maskHeight: 90,
+      })
+    ).toEqual({
+      sx: 0,
+      sy: 8,
+      sw: 100,
+      sh: 82,
+    });
+  });
+
+  it("falls back to full mask canvas window when image rect is absent", () => {
+    expect(
+      resolveMaskExportSourceWindow({
+        imageRect: null,
+        maskWidth: 128,
+        maskHeight: 72,
+      })
+    ).toEqual({
+      sx: 0,
+      sy: 0,
+      sw: 128,
+      sh: 72,
+    });
+  });
+
+  it("returns null for degenerate export windows", () => {
+    expect(
+      resolveMaskExportSourceWindow({
+        imageRect: {
+          x: 150,
+          y: 10,
+          width: 25,
+          height: 40,
+        },
+        maskWidth: 100,
+        maskHeight: 90,
+      })
+    ).toBeNull();
+    expect(
+      resolveMaskExportSourceWindow({
+        imageRect: null,
+        maskWidth: 0,
+        maskHeight: 90,
+      })
+    ).toBeNull();
+  });
+
+  it("falls back to the native pointer event when coalesced sampling is empty", () => {
+    const nativePointerEvent = {
+      clientX: 12,
+      clientY: 18,
+      getCoalescedEvents: () => [] as PointerEvent[],
+    } as unknown as PointerEvent;
+    const sampleEvents = resolvePointerSampleEvents(nativePointerEvent);
+    expect(sampleEvents).toHaveLength(1);
+    expect(sampleEvents[0]).toBe(nativePointerEvent);
+  });
+
+  it("uses coalesced pointer events when available", () => {
+    const sampleA = { clientX: 10, clientY: 20 } as PointerEvent;
+    const sampleB = { clientX: 14, clientY: 24 } as PointerEvent;
+    const nativePointerEvent = {
+      clientX: 8,
+      clientY: 16,
+      getCoalescedEvents: () => [sampleA, sampleB],
+    } as unknown as PointerEvent;
+    expect(resolvePointerSampleEvents(nativePointerEvent)).toEqual([sampleA, sampleB]);
+  });
+
+  it("clamps sampled pointer coordinates to the dropzone bounds", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+    expect(toClampedCanvasPoint({ clientX: -30, clientY: 400 }, rect)).toEqual({
+      x: 0,
+      y: 100,
+    });
+    expect(toClampedCanvasPoint({ clientX: 99, clientY: 65 }, rect)).toEqual({
+      x: 89,
+      y: 45,
+    });
+  });
+
   it("shows live preview only while lasso is active", () => {
     expect(shouldRenderLassoPreview(true, "lasso")).toBe(true);
     expect(shouldRenderLassoPreview(true, "brush")).toBe(false);
     expect(shouldRenderLassoPreview(false, "lasso")).toBe(false);
+  });
+
+  it("keeps active pointer sessions alive on leave while capture is held", () => {
+    expect(
+      shouldEndPointerSessionOnLeave({
+        isSessionActive: true,
+        sessionPointerId: 44,
+        eventPointerId: 44,
+        hasPointerCapture: true,
+      })
+    ).toBe(false);
+  });
+
+  it("ends active pointer sessions on leave when capture is not held", () => {
+    expect(
+      shouldEndPointerSessionOnLeave({
+        isSessionActive: true,
+        sessionPointerId: 44,
+        eventPointerId: 44,
+        hasPointerCapture: false,
+      })
+    ).toBe(true);
+    expect(
+      shouldEndPointerSessionOnLeave({
+        isSessionActive: false,
+        sessionPointerId: 44,
+        eventPointerId: 44,
+        hasPointerCapture: false,
+      })
+    ).toBe(false);
+    expect(
+      shouldEndPointerSessionOnLeave({
+        isSessionActive: true,
+        sessionPointerId: 44,
+        eventPointerId: 45,
+        hasPointerCapture: false,
+      })
+    ).toBe(false);
   });
 });

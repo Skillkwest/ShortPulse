@@ -2,6 +2,7 @@ import React from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ExpertEditPanelView } from "../edit/ExpertEditPanelView";
+import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
 
 const { composePrimaryLayersToBlobMock } = vi.hoisted(() => ({
   composePrimaryLayersToBlobMock: vi.fn(async () => new Blob(["flattened"], { type: "image/png" })),
@@ -34,6 +35,14 @@ const createLayerDragTransfer = () =>
     dropEffect: "move",
     setData: vi.fn(),
     getData: vi.fn(() => ""),
+  }) as unknown as DataTransfer;
+
+const createImageDropTransfer = (url: string) =>
+  ({
+    files: [],
+    types: ["text/plain"],
+    setData: vi.fn(),
+    getData: vi.fn((type: string) => (type === "text/plain" ? url : "")),
   }) as unknown as DataTransfer;
 
 describe("ExpertEditPanelView", () => {
@@ -124,6 +133,15 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).not.toBeDisabled();
   });
 
+  it("keeps Remove Background disabled when generate is globally disabled", () => {
+    const { container } = render(
+      <ExpertEditPanelView {...baseProps} referenceImageUrl={null} isGenerateDisabled />
+    );
+
+    uploadPrimaryFile(container, "selected-layer.png");
+    expect(screen.getByRole("button", { name: "Remove Background" })).toBeDisabled();
+  });
+
   it("keeps inline generate disabled when an image exists but prompt is empty", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
 
@@ -149,32 +167,84 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: /generate/i })).not.toBeDisabled();
   });
 
-  it("opens More Presets modal and renders the preset chips grid", () => {
+  it("opens inline More Presets surface in the primary dropzone", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const trigger = screen.getByRole("button", { name: /apply more presets preset/i });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(trigger);
+    const surface = screen.getByRole("region", { name: /more presets/i });
+    expect(surface).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(within(surface).getByText("Selfie")).toBeInTheDocument();
+    expect(within(surface).getByText("Enhance Realism")).toBeInTheDocument();
+    expect(within(surface).getByText("Custom 1")).toBeInTheDocument();
+    expect(within(surface).getByText("Custom 18")).toBeInTheDocument();
+    expect(within(surface).getAllByRole("listitem")).toHaveLength(27);
+    expect(screen.queryByRole("dialog", { name: /more presets/i })).not.toBeInTheDocument();
+    expect(document.querySelector(".edit-expert-presets-backdrop")).not.toBeInTheDocument();
+    expect(document.querySelector(".model-modal-backdrop")).not.toBeInTheDocument();
+  });
+
+  it("renders More Presets chips in a deterministic locked order", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    const modal = screen.getByRole("dialog", { name: /more presets/i });
-    expect(modal).toBeInTheDocument();
-    expect(within(modal).getByText("Selfie")).toBeInTheDocument();
-    expect(within(modal).getByText("Custom two")).toBeInTheDocument();
-    expect(within(modal).getAllByRole("listitem")).toHaveLength(7);
+    const surface = screen.getByRole("region", { name: /more presets/i });
+    const renderedLabels = within(surface)
+      .getAllByRole("listitem")
+      .map((node) => node.textContent?.trim());
+    const expectedLabels = [
+      "Selfie",
+      "Side Profile",
+      "Over Shoulder",
+      "From Behind",
+      "Low Angle",
+      "Drone View",
+      "Zoom In",
+      "Zoom Out",
+      "Enhance Realism",
+      ...Array.from({ length: 18 }, (_, index) => `Custom ${index + 1}`),
+    ];
+
+    expect(renderedLabels).toEqual(expectedLabels);
   });
 
-  it("closes More Presets modal via the close button", () => {
+  it("closes inline More Presets surface via the close button", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    fireEvent.click(screen.getByRole("button", { name: /close presets modal/i }));
-    expect(screen.queryByRole("dialog", { name: /more presets/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /close presets/i }));
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
   });
 
-  it("closes More Presets modal via backdrop click", () => {
-    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+  it("closes inline More Presets surface when trigger is clicked again", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const trigger = screen.getByRole("button", { name: /apply more presets preset/i });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
+  });
+
+  it("closes inline More Presets surface with Escape", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    const backdrop = container.querySelector(".edit-expert-presets-backdrop") as HTMLElement;
-    fireEvent.click(backdrop);
-    expect(screen.queryByRole("dialog", { name: /more presets/i })).not.toBeInTheDocument();
+    const surface = screen.getByRole("region", { name: /more presets/i });
+    fireEvent.keyDown(surface, { key: "Escape" });
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
+  });
+
+  it("closes inline More Presets surface when clicking outside", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
+    expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
   });
 
   it("does not render chat mode toggle in expert edit", () => {
@@ -390,6 +460,28 @@ describe("ExpertEditPanelView", () => {
     expect(primaryDropzone.style.cursor).toContain("crosshair");
   });
 
+  it("suppresses inpaint cursor while presets surface is open and restores it on close", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/reticle-source.png"
+      />
+    );
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
+    expect(primaryDropzone.style.cursor).toContain("crosshair");
+
+    const trigger = screen.getByRole("button", { name: /apply more presets preset/i });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
+    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
+    expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
+    expect(primaryDropzone.style.cursor).toContain("crosshair");
+  });
+
   it("does not show lasso cursor when selected layer has no image", async () => {
     render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
 
@@ -400,6 +492,19 @@ describe("ExpertEditPanelView", () => {
 
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     expect(primaryDropzone).toHaveStyle({ cursor: "" });
+  });
+
+  it("shows a toast when drawing is attempted without a selected layer image", () => {
+    render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 0,
+      clientY: 0,
+    });
+    expect(screen.getByText("Select a layer image before drawing.")).toBeInTheDocument();
   });
 
   it("updates inpaint brush reticle size as stroke slider changes", async () => {
@@ -422,6 +527,140 @@ describe("ExpertEditPanelView", () => {
     const largerCursor = primaryDropzone.style.cursor;
     expect(largerCursor).toContain("data:image/svg+xml");
     expect(largerCursor).not.toEqual(initialCursor);
+  });
+
+  it("routes edge-of-dropzone pointer events to inpaint handlers", () => {
+    const onPointerDown = vi.fn();
+    const onPointerMove = vi.fn();
+    const onPointerUp = vi.fn();
+    const onPointerCancel = vi.fn();
+    const onPointerLeave = vi.fn();
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        hasSelectedLayerMask: false,
+        imageHasInteractiveMask: true,
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown,
+        onPointerMove,
+        onPointerUp,
+        onPointerCancel,
+        onPointerLeave,
+      });
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/primary-image.png"
+          referenceText="prompt text"
+        />
+      );
+      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      fireEvent.pointerDown(primaryDropzone, {
+        pointerId: 1,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 1,
+        clientY: 1,
+      });
+      fireEvent.pointerMove(primaryDropzone, {
+        pointerId: 1,
+        pointerType: "mouse",
+        clientX: 2,
+        clientY: 2,
+      });
+      fireEvent.pointerUp(primaryDropzone, {
+        pointerId: 1,
+        pointerType: "mouse",
+        clientX: 2,
+        clientY: 2,
+      });
+      expect(onPointerDown).toHaveBeenCalledTimes(1);
+      expect(onPointerMove).toHaveBeenCalledTimes(1);
+      expect(onPointerUp).toHaveBeenCalledTimes(1);
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
+  });
+
+  it("suppresses inpaint pointer handlers while presets surface is open", () => {
+    const onPointerDown = vi.fn();
+    const onPointerMove = vi.fn();
+    const onPointerUp = vi.fn();
+    const onPointerCancel = vi.fn();
+    const onPointerLeave = vi.fn();
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        hasSelectedLayerMask: false,
+        imageHasInteractiveMask: true,
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown,
+        onPointerMove,
+        onPointerUp,
+        onPointerCancel,
+        onPointerLeave,
+      });
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/primary-image.png"
+          referenceText="prompt text"
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
+      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      fireEvent.pointerDown(primaryDropzone, {
+        pointerId: 1,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 1,
+        clientY: 1,
+      });
+      expect(onPointerDown).not.toHaveBeenCalled();
+      expect(onPointerCancel).not.toHaveBeenCalled();
+      expect(onPointerLeave).not.toHaveBeenCalled();
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
+  });
+
+  it("suppresses dropzone upload click while presets surface is open", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+    const primaryInput = getPrimaryFileInput(container);
+    const inputClickSpy = vi.spyOn(primaryInput, "click");
+
+    fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
+    fireEvent.click(screen.getByLabelText("Primary edit image"));
+
+    expect(inputClickSpy).not.toHaveBeenCalled();
+  });
+
+  it("suppresses primary drag/drop ingest while presets surface is open", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/existing-primary.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const transfer = createImageDropTransfer("https://example.com/new-drop-image.png");
+    fireEvent.dragEnter(primaryDropzone, { dataTransfer: transfer });
+    fireEvent.dragOver(primaryDropzone, { dataTransfer: transfer });
+    fireEvent.drop(primaryDropzone, { dataTransfer: transfer });
+
+    expect(primaryDropzone).not.toHaveClass("is-dragging");
+    expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
   });
 
   it("adds new layers in sequential order when add layer is clicked", () => {
@@ -659,5 +898,116 @@ describe("ExpertEditPanelView", () => {
     }
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(referenceInputs).toContain("https://example.com/extra.png");
+  });
+
+  it("auto-flattens on remove background and submits Bria model override", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        extraImageUrls={["https://example.com/extra.png", null, null]}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Remove Background" }));
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryLayersToBlobMock).toHaveBeenCalled();
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const [referenceInputs, options] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: { calls: Array<[string[], { modelIdOverride?: string | null }?]> };
+      }
+    ).mock.calls[0] ?? [[], undefined];
+    expect(referenceInputs?.[0]).toMatch(/^blob:flatten-/);
+    expect(referenceInputs).toContain("https://example.com/extra.png");
+    expect(options).toEqual(
+      expect.objectContaining({ modelIdOverride: "fal-ai/bria/background/remove" })
+    );
+  });
+
+  it("submits FLUX Fill override with base and mask urls when a mask is present", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => new Blob(["mask"], { type: "image/png" })),
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 640;
+      naturalHeight = 640;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    try {
+      const { container } = render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceText="prompt text"
+          onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+        />
+      );
+      uploadPrimaryFile(container, "layer-1.png");
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /generate/i }));
+        await Promise.resolve();
+      });
+
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+      const inpaintOptions = (
+        onRegenerateWithReferenceInputs as unknown as {
+          mock: { calls: Array<[string[], { inpaintOverride?: unknown }?]> };
+        }
+      ).mock.calls[0]?.[1];
+      expect(inpaintOptions?.inpaintOverride).toEqual({
+        modelId: "fal-ai/flux-pro/v1/fill",
+        baseImageInput: expect.stringMatching(/^blob:flatten-/),
+        maskInput: expect.stringMatching(/^blob:flatten-/),
+        outputFormat: "png",
+      });
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 });

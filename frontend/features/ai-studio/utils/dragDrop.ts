@@ -66,6 +66,8 @@ const REFERENCE_TRANSFER_OUTPUT_ID_TYPE = "text/reference-output-id";
 const REFERENCE_TRANSFER_IMAGE_INDEX_TYPE = "text/reference-image-index";
 const REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE = "text/reference-source-surface";
 const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
+const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
+const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 
 export type InternalReferenceDragPayload = {
   version: number;
@@ -76,6 +78,8 @@ export type InternalReferenceDragPayload = {
   mediaId: string | null;
   referenceUrl: string | null;
   sourceSurface: ReferenceDragSourceSurface | null;
+  width?: number;
+  height?: number;
 };
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
@@ -91,6 +95,12 @@ const parseReferenceDragSourceSurface = (
 const parseReferenceImageIndex = (value: string | null | undefined): number => {
   const parsed = Number.parseInt((value ?? "").trim(), 10);
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return parsed;
+};
+
+const parseReferenceDimension = (value: string | null | undefined): number | undefined => {
+  const parsed = Number.parseFloat((value ?? "").trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return parsed;
 };
 
@@ -112,6 +122,8 @@ export const extractInternalReferenceDragPayload = (
     normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_OUTPUT_ID_TYPE)) ??
     referenceId;
   const mediaId = normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_MEDIA_ID_TYPE));
+  const width = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_WIDTH_TYPE));
+  const height = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_HEIGHT_TYPE));
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url")
   );
@@ -119,7 +131,7 @@ export const extractInternalReferenceDragPayload = (
   if (!originRaw && !hasLegacyInternalHints) return null;
   if (originRaw && originRaw !== INTERNAL_REFERENCE_DRAG_ORIGIN) return null;
   if (!outputId && !referenceId && !mediaId && !referenceUrl) return null;
-  return {
+  const payload: InternalReferenceDragPayload = {
     version: Number.parseInt(transfer.getData(REFERENCE_TRANSFER_VERSION_TYPE), 10) || 1,
     origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
     referenceId,
@@ -129,6 +141,9 @@ export const extractInternalReferenceDragPayload = (
     referenceUrl,
     sourceSurface,
   };
+  if (typeof width === "number") payload.width = width;
+  if (typeof height === "number") payload.height = height;
+  return payload;
 };
 
 const clampDragGhostSize = (value: number): number =>
@@ -682,6 +697,17 @@ export const prepareReferenceDrag = (
   const imagePreviewUrl = resolveReferenceTransferUrl(output, "image");
   const referenceMediaId =
     output.savedMediaIds?.[imageIndex]?.trim() ?? output.savedMediaIds?.[0]?.trim();
+  const previewImageNode = (options?.dragImage ?? event.currentTarget).querySelector(
+    ".reference-card-image"
+  );
+  const naturalWidth =
+    previewImageNode instanceof HTMLImageElement && previewImageNode.naturalWidth > 0
+      ? previewImageNode.naturalWidth
+      : 0;
+  const naturalHeight =
+    previewImageNode instanceof HTMLImageElement && previewImageNode.naturalHeight > 0
+      ? previewImageNode.naturalHeight
+      : 0;
   if (previewUrl) {
     transfer.setData("text/uri-list", previewUrl);
     transfer.setData("text/reference-url", previewUrl);
@@ -697,6 +723,10 @@ export const prepareReferenceDrag = (
   transfer.setData(REFERENCE_TRANSFER_VERSION_TYPE, String(INTERNAL_REFERENCE_DRAG_VERSION));
   transfer.setData(REFERENCE_TRANSFER_IMAGE_INDEX_TYPE, String(imageIndex));
   transfer.setData(REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE, sourceSurface);
+  if (naturalWidth > 0 && naturalHeight > 0) {
+    transfer.setData(REFERENCE_TRANSFER_WIDTH_TYPE, String(naturalWidth));
+    transfer.setData(REFERENCE_TRANSFER_HEIGHT_TYPE, String(naturalHeight));
+  }
   if (referenceMediaId) {
     transfer.setData(REFERENCE_TRANSFER_MEDIA_ID_TYPE, referenceMediaId);
   }

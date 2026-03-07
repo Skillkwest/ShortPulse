@@ -127,11 +127,9 @@
 }
 
 .canvas-scene-item--text.is-selected {
-  border-width: 1px;
-  border-color: rgba(244, 238, 226, 1);
-  box-shadow:
-    0 0 0 1px rgba(244, 238, 226, 1),
-    0 18px 30px rgba(0, 0, 0, 0.3);
+  /* Visual lock: selected text refs must remain a strict 1px border with no outline-like shadow. */
+  border: 1px solid rgba(244, 238, 226, 1);
+  box-shadow: none;
 }
 
 .canvas-scene-item__image {

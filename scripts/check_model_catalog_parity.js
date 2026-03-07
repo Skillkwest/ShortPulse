@@ -48,6 +48,8 @@ const MODEL_DOC_MAP = {
   "fal/flux-2/edit": "api-fal-flux-2-edit.md",
   "fal/flux-2-pro": "api-fal-flux-2-pro.md",
   "fal/flux-2-pro/edit": "api-fal-flux-2-pro-edit.md",
+  "fal-ai/flux-pro/v1/fill": "api-fal-flux-pro-fill.md",
+  "fal-ai/bria/background/remove": "api-fal-bria-background-remove.md",
   "fal-ai/nano-banana": "api-fal-nano-banana.md",
   "fal-ai/nano-banana/edit": "api-fal-nano-banana-edit.md",
   "fal-ai/nano-banana-2": "api-fal-nano-banana-2.md",

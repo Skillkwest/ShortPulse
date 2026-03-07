@@ -18,6 +18,8 @@ const REQUIRED_EDIT_PROMPT_MODEL_IDS = new Set([
   "fal-ai/bytedance/seedream/v5/lite/edit",
 ]);
 
+const OPTIONAL_EDIT_PROMPT_MODEL_IDS = new Set(["fal-ai/bria/background/remove"]);
+
 const normalizeModelId = (modelId: string | null | undefined): string =>
   typeof modelId === "string" ? modelId.trim().toLowerCase() : "";
 
@@ -26,6 +28,7 @@ export const resolveEditPromptRequirement = (
 ): EditPromptRequirement => {
   const normalizedModelId = normalizeModelId(modelId);
   if (!normalizedModelId) return "unknown";
+  if (OPTIONAL_EDIT_PROMPT_MODEL_IDS.has(normalizedModelId)) return "optional";
   if (REQUIRED_EDIT_PROMPT_MODEL_IDS.has(normalizedModelId)) return "required";
   return "unknown";
 };

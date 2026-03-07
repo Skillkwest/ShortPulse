@@ -62,6 +62,8 @@ Start here for all repository documentation.
 - `docs/api/api-fal-flux-2-edit.md`
 - `docs/api/api-fal-flux-2-pro.md`
 - `docs/api/api-fal-flux-2-pro-edit.md`
+- `docs/api/api-fal-flux-pro-fill.md`
+- `docs/api/api-fal-bria-background-remove.md`
 - `docs/api/api-fal-flux-dev.md`
 - `docs/api/api-fal-nano-banana.md`
 - `docs/api/api-fal-nano-banana-edit.md`

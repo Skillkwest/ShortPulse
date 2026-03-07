@@ -16,6 +16,7 @@ export type Provider =
   | "fal-flux2-pro"
   | "fal-flux2-pro-edit"
   | "fal-flux-pro-fill"
+  | "fal-bria-background-remove"
   | "fal-kling"
   | "fal-nano-banana"
   | "fal-nano-banana-2"
@@ -68,6 +69,13 @@ export const normalizeProviderForPolling = (
     }
     if (normalized.includes("nano-banana")) return "fal-nano-banana";
     if (normalized.includes("flux-pro") && normalized.includes("fill")) return "fal-flux-pro-fill";
+    if (
+      normalized.includes("bria") &&
+      normalized.includes("background") &&
+      normalized.includes("remove")
+    ) {
+      return "fal-bria-background-remove";
+    }
     if (normalized.includes("flux-2-pro") && normalized.includes("edit"))
       return "fal-flux2-pro-edit";
     if (normalized.includes("flux-2-pro")) return "fal-flux2-pro";

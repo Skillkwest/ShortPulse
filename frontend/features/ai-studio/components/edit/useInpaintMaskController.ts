@@ -24,6 +24,13 @@ type InpaintImageRect = {
   height: number;
 };
 
+type MaskExportSourceWindow = {
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+};
+
 type MaskLayerMeta = {
   hasContent: boolean;
   width: number;
@@ -49,6 +56,7 @@ type UseInpaintMaskControllerParams = {
   selectionMode: InpaintSelectionMode;
   strokeSize: number;
   onAutoToolAttempt?: () => void;
+  onPaintAttemptWithoutImage?: () => void;
 };
 
 type ExportMaskBlobParams = {
@@ -76,6 +84,8 @@ const MARCHING_ANTS_PHASE_MODULO = 120;
 export const INPAINT_MARCHING_ANTS_STEP_MS = 110;
 export const INPAINT_MARCHING_ANTS_DASH_PATTERN = [6, 4] as const;
 const MARCHING_ANTS_DASH_OFFSET_STEP = 1;
+const LASSO_PREVIEW_ANTS_PHYSICAL_PX = 1;
+const LASSO_PREVIEW_GUIDE_STROKE_WIDTH = 1.25;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -90,6 +100,47 @@ const toCanvasPoint = (
     x,
     y,
   };
+};
+
+export const toClampedCanvasPoint = (
+  event: { clientX: number; clientY: number },
+  rect: DOMRect
+): InpaintPoint => ({
+  x: clamp(event.clientX - rect.left, 0, rect.width),
+  y: clamp(event.clientY - rect.top, 0, rect.height),
+});
+
+/**
+ * Normalizes pointer sampling across browsers.
+ * Some engines expose getCoalescedEvents but may return an empty list for a move event.
+ */
+export const resolvePointerSampleEvents = (
+  nativeEvent: PointerEvent & {
+    getCoalescedEvents?: () => PointerEvent[];
+  }
+) => {
+  if (typeof nativeEvent.getCoalescedEvents !== "function") {
+    return [nativeEvent];
+  }
+  const coalescedEvents = nativeEvent.getCoalescedEvents();
+  if (!coalescedEvents.length) {
+    return [nativeEvent];
+  }
+  return coalescedEvents;
+};
+
+const resolveLassoAntStrokeWidth = (dpr: number) =>
+  LASSO_PREVIEW_ANTS_PHYSICAL_PX / Math.max(1, dpr);
+
+const tracePolylinePath = (ctx: CanvasRenderingContext2D, points: InpaintPoint[]) => {
+  if (!points.length) return;
+  const firstPoint = points[0]!;
+  ctx.beginPath();
+  ctx.moveTo(firstPoint.x, firstPoint.y);
+  for (let index = 1; index < points.length; index += 1) {
+    const point = points[index]!;
+    ctx.lineTo(point.x, point.y);
+  }
 };
 
 const createMaskCanvas = (width: number, height: number) => {
@@ -139,6 +190,44 @@ const resolveImageRectForContain = (
     y: (dropzoneHeight - height) / 2,
     width,
     height,
+  };
+};
+
+/**
+ * Resolves source sampling bounds for mask export.
+ * Editing can happen anywhere in the dropzone, but submit-time mask export is clipped
+ * to the visible image rect so provider payloads remain aligned with the flattened base image.
+ */
+export const resolveMaskExportSourceWindow = ({
+  imageRect,
+  maskWidth,
+  maskHeight,
+}: {
+  imageRect: InpaintImageRect | null;
+  maskWidth: number;
+  maskHeight: number;
+}): MaskExportSourceWindow | null => {
+  if (maskWidth <= 0 || maskHeight <= 0) return null;
+  if (!imageRect) {
+    return {
+      sx: 0,
+      sy: 0,
+      sw: maskWidth,
+      sh: maskHeight,
+    };
+  }
+  const sx = clamp(Math.floor(imageRect.x), 0, maskWidth);
+  const sy = clamp(Math.floor(imageRect.y), 0, maskHeight);
+  const endX = clamp(Math.ceil(imageRect.x + imageRect.width), 0, maskWidth);
+  const endY = clamp(Math.ceil(imageRect.y + imageRect.height), 0, maskHeight);
+  const sw = Math.max(0, endX - sx);
+  const sh = Math.max(0, endY - sy);
+  if (sw <= 0 || sh <= 0) return null;
+  return {
+    sx,
+    sy,
+    sw,
+    sh,
   };
 };
 
@@ -382,9 +471,12 @@ const drawBrushSegment = ({
   ctx.moveTo(from.x, from.y);
   ctx.lineTo(to.x, to.y);
   ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(to.x, to.y, radius, 0, Math.PI * 2);
-  ctx.fill();
+  const isTapSample = Math.abs(from.x - to.x) < 0.001 && Math.abs(from.y - to.y) < 0.001;
+  if (isTapSample) {
+    ctx.beginPath();
+    ctx.arc(to.x, to.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 };
 
@@ -492,68 +584,98 @@ const renderOverlayFrame = ({
     }
   }
 
-  if (lassoPreviewPoints.length > 1) {
+  if (lassoPreviewPoints.length > 0) {
     ctx.save();
-
-    if (lassoPreviewPoints.length > 2) {
-      ctx.fillStyle = "rgba(43, 212, 255, 0.14)";
-      ctx.beginPath();
-      ctx.moveTo(lassoPreviewPoints[0]!.x, lassoPreviewPoints[0]!.y);
-      for (let index = 1; index < lassoPreviewPoints.length; index += 1) {
-        const point = lassoPreviewPoints[index]!;
-        ctx.lineTo(point.x, point.y);
-      }
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.68)";
-    ctx.beginPath();
-    ctx.moveTo(lassoPreviewPoints[0]!.x, lassoPreviewPoints[0]!.y);
-    for (let index = 1; index < lassoPreviewPoints.length; index += 1) {
-      const point = lassoPreviewPoints[index]!;
-      ctx.lineTo(point.x, point.y);
-    }
-    ctx.stroke();
-
+    const firstPoint = lassoPreviewPoints[0]!;
+    const lastPoint = lassoPreviewPoints[lassoPreviewPoints.length - 1]!;
     const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
     const baseOffset = -(phase * MARCHING_ANTS_DASH_OFFSET_STEP);
+    const lassoAntStrokeWidth = resolveLassoAntStrokeWidth(dpr);
 
-    ctx.strokeStyle = "rgba(95, 231, 255, 0.98)";
-    ctx.lineWidth = 1.4;
-    ctx.setLineDash([dashSize, dashGap]);
-    ctx.lineDashOffset = baseOffset;
-    ctx.beginPath();
-    ctx.moveTo(lassoPreviewPoints[0]!.x, lassoPreviewPoints[0]!.y);
-    for (let index = 1; index < lassoPreviewPoints.length; index += 1) {
-      const point = lassoPreviewPoints[index]!;
-      ctx.lineTo(point.x, point.y);
-    }
-    ctx.stroke();
+    if (lassoPreviewPoints.length > 1) {
+      if (lassoPreviewPoints.length > 2) {
+        ctx.fillStyle = "rgba(43, 212, 255, 0.22)";
+        tracePolylinePath(ctx, lassoPreviewPoints);
+        ctx.closePath();
+        ctx.fill();
+      }
 
-    if (lassoPreviewPoints.length > 2) {
-      const firstPoint = lassoPreviewPoints[0]!;
-      const lastPoint = lassoPreviewPoints[lassoPreviewPoints.length - 1]!;
-
-      ctx.strokeStyle = "rgba(95, 231, 255, 0.78)";
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([dashSize, dashGap]);
-      ctx.lineDashOffset = baseOffset + dashSize;
-      ctx.beginPath();
-      ctx.moveTo(lastPoint.x, lastPoint.y);
-      ctx.lineTo(firstPoint.x, firstPoint.y);
+      ctx.setLineDash([]);
+      ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 1.1;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.72)";
+      tracePolylinePath(ctx, lassoPreviewPoints);
       ctx.stroke();
+
+      ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
+      ctx.strokeStyle = "rgba(95, 231, 255, 0.56)";
+      tracePolylinePath(ctx, lassoPreviewPoints);
+      ctx.stroke();
+
+      ctx.lineWidth = lassoAntStrokeWidth;
+      ctx.setLineDash([dashSize, dashGap]);
+      ctx.lineDashOffset = baseOffset;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.9)";
+      tracePolylinePath(ctx, lassoPreviewPoints);
+      ctx.stroke();
+      ctx.lineDashOffset = baseOffset + dashSize;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+      tracePolylinePath(ctx, lassoPreviewPoints);
+      ctx.stroke();
+
+      if (lassoPreviewPoints.length > 2) {
+        ctx.setLineDash([]);
+        ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 0.95;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.66)";
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(firstPoint.x, firstPoint.y);
+        ctx.stroke();
+
+        ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
+        ctx.strokeStyle = "rgba(95, 231, 255, 0.5)";
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(firstPoint.x, firstPoint.y);
+        ctx.stroke();
+
+        ctx.lineWidth = lassoAntStrokeWidth;
+        ctx.setLineDash([dashSize, dashGap]);
+        ctx.lineDashOffset = baseOffset + dashSize;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(firstPoint.x, firstPoint.y);
+        ctx.stroke();
+      }
 
       ctx.setLineDash([]);
       ctx.fillStyle = "rgba(95, 231, 255, 0.98)";
       ctx.beginPath();
-      ctx.arc(firstPoint.x, firstPoint.y, 2.8, 0, Math.PI * 2);
+      ctx.arc(firstPoint.x, firstPoint.y, 3.1, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
       ctx.beginPath();
-      ctx.arc(lastPoint.x, lastPoint.y, 2.4, 0, Math.PI * 2);
+      ctx.arc(lastPoint.x, lastPoint.y, 2.8, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const pulseRadius = 4.2 + ((phase % 12) / 12) * 1.2;
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1.65;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.74)";
+      ctx.beginPath();
+      ctx.arc(firstPoint.x, firstPoint.y, pulseRadius + 1, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(95, 231, 255, 0.98)";
+      ctx.lineWidth = Math.max(lassoAntStrokeWidth, 1);
+      ctx.beginPath();
+      ctx.arc(firstPoint.x, firstPoint.y, pulseRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(95, 231, 255, 0.98)";
+      ctx.beginPath();
+      ctx.arc(firstPoint.x, firstPoint.y, 2.4, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -573,6 +695,25 @@ export const shouldRenderLassoPreview = (isPointerActive: boolean, paintMode: In
   isPointerActive && paintMode === "lasso";
 
 /**
+ * Pointer leave should only cancel an active session when capture is not held.
+ */
+export const shouldEndPointerSessionOnLeave = ({
+  isSessionActive,
+  sessionPointerId,
+  eventPointerId,
+  hasPointerCapture,
+}: {
+  isSessionActive: boolean;
+  sessionPointerId: number;
+  eventPointerId: number;
+  hasPointerCapture: boolean;
+}) => {
+  if (!isSessionActive) return false;
+  if (eventPointerId !== sessionPointerId) return false;
+  return !hasPointerCapture;
+};
+
+/**
  * Manages mask painting interactions and overlay rendering for Expert Edit inpaint.
  */
 export const useInpaintMaskController = ({
@@ -585,6 +726,7 @@ export const useInpaintMaskController = ({
   selectionMode,
   strokeSize,
   onAutoToolAttempt,
+  onPaintAttemptWithoutImage,
 }: UseInpaintMaskControllerParams): UseInpaintMaskControllerResult => {
   const overlayCanvasRef = React.useRef<HTMLCanvasElement>(null);
   const maskCanvasesRef = React.useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -852,12 +994,16 @@ export const useInpaintMaskController = ({
 
   const onPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!enabled || !selectedLayerId || !selectedLayerImageUrl) return;
+      if (!enabled || !selectedLayerId) return;
       if (paintMode === "auto") {
         onAutoToolAttempt?.();
         return;
       }
       if (paintMode !== "brush" && paintMode !== "lasso") return;
+      if (!selectedLayerImageUrl) {
+        onPaintAttemptWithoutImage?.();
+        return;
+      }
       if (event.pointerType === "mouse" && event.button !== 0) return;
       const dropzone = dropzoneRef.current;
       if (!dropzone) return;
@@ -902,6 +1048,7 @@ export const useInpaintMaskController = ({
       enabled,
       ensureMaskCanvasForLayer,
       onAutoToolAttempt,
+      onPaintAttemptWithoutImage,
       paintMode,
       queueLayerAnalysis,
       renderOverlayNow,
@@ -921,15 +1068,11 @@ export const useInpaintMaskController = ({
 
       event.preventDefault();
       const rect = dropzone.getBoundingClientRect();
-      const events =
-        typeof (event.nativeEvent as PointerEvent).getCoalescedEvents === "function"
-          ? (event.nativeEvent as PointerEvent).getCoalescedEvents()
-          : [event.nativeEvent as PointerEvent];
+      const events = resolvePointerSampleEvents(event.nativeEvent as PointerEvent);
 
       if (paintMode === "lasso") {
         events.forEach((sampleEvent) => {
-          const point = toCanvasPoint(sampleEvent, rect);
-          if (!point) return;
+          const point = toCanvasPoint(sampleEvent, rect) ?? toClampedCanvasPoint(sampleEvent, rect);
           session.lassoPoints.push(point);
           session.lastPoint = point;
         });
@@ -947,8 +1090,7 @@ export const useInpaintMaskController = ({
       let previousPoint = session.lastPoint;
       const radius = resolveInpaintBrushDiameter(strokeSize) / 2;
       events.forEach((sampleEvent) => {
-        const point = toCanvasPoint(sampleEvent, rect);
-        if (!point) return;
+        const point = toCanvasPoint(sampleEvent, rect) ?? toClampedCanvasPoint(sampleEvent, rect);
         if (!previousPoint) previousPoint = point;
         drawBrushSegment({
           ctx,
@@ -999,6 +1141,23 @@ export const useInpaintMaskController = ({
 
   const onPointerLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = pointerSessionRef.current;
+      const currentTarget = event.currentTarget as HTMLElement | null;
+      const hasPointerCapture = Boolean(
+        currentTarget &&
+        typeof currentTarget.hasPointerCapture === "function" &&
+        currentTarget.hasPointerCapture(event.pointerId)
+      );
+      if (
+        !shouldEndPointerSessionOnLeave({
+          isSessionActive: session.active,
+          sessionPointerId: session.pointerId,
+          eventPointerId: event.pointerId,
+          hasPointerCapture,
+        })
+      ) {
+        return;
+      }
       endPointerSession(event, false);
     },
     [endPointerSession]
@@ -1177,18 +1336,25 @@ export const useInpaintMaskController = ({
       exportCtx.fillStyle = "black";
       exportCtx.fillRect(0, 0, width, height);
 
-      const sourceImageRect = imageRect ?? {
-        x: 0,
-        y: 0,
-        width: maskCanvas.width,
-        height: maskCanvas.height,
-      };
-      const sx = clamp(Math.floor(sourceImageRect.x), 0, maskCanvas.width);
-      const sy = clamp(Math.floor(sourceImageRect.y), 0, maskCanvas.height);
-      const sw = clamp(Math.ceil(sourceImageRect.width), 1, maskCanvas.width - sx);
-      const sh = clamp(Math.ceil(sourceImageRect.height), 1, maskCanvas.height - sy);
-
-      exportCtx.drawImage(maskCanvas, sx, sy, sw, sh, 0, 0, width, height);
+      // Inpaint drawing is intentionally dropzone-wide, but only the visible image area
+      // is exported for provider submit so the mask aligns with flattened image pixels.
+      const exportSourceWindow = resolveMaskExportSourceWindow({
+        imageRect,
+        maskWidth: maskCanvas.width,
+        maskHeight: maskCanvas.height,
+      });
+      if (!exportSourceWindow) return null;
+      exportCtx.drawImage(
+        maskCanvas,
+        exportSourceWindow.sx,
+        exportSourceWindow.sy,
+        exportSourceWindow.sw,
+        exportSourceWindow.sh,
+        0,
+        0,
+        width,
+        height
+      );
 
       const blob = await new Promise<Blob | null>((resolve) => {
         exportCanvas.toBlob(resolve, mimeType);

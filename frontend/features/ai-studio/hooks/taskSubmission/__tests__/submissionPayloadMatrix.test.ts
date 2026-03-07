@@ -12,6 +12,7 @@ import { handleVideoModelSubmission } from "../videoHandlers";
 import { resolveSubmissionHandlerRoute } from "../routing";
 import type { ImageSubmissionArgs, VideoSubmissionArgs } from "../types";
 import {
+  submitFalBriaBackgroundRemove,
   submitFalFlux2,
   submitFalFlux2Edit,
   submitFalFlux2Klein,
@@ -39,6 +40,7 @@ import {
 } from "../../../../../lib/falClient";
 
 vi.mock("../../../../../lib/falClient", () => ({
+  submitFalBriaBackgroundRemove: vi.fn(),
   submitFalFlux2: vi.fn(),
   submitFalFlux2Edit: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
@@ -82,6 +84,11 @@ type CaseConfig = {
 };
 
 const CASES: Record<string, CaseConfig> = {
+  "fal-ai/bria/background/remove": {
+    route: "image",
+    submitName: "submitFalBriaBackgroundRemove",
+    expectedReferenceField: "image_url",
+  },
   "fal-ai/flux-2/klein/9b": {
     route: "image",
     submitName: "submitFalFlux2Klein",
@@ -300,6 +307,7 @@ const makeVideoArgs = (
 });
 
 const submitSpyByName = {
+  submitFalBriaBackgroundRemove: vi.mocked(submitFalBriaBackgroundRemove),
   submitFalFlux2: vi.mocked(submitFalFlux2),
   submitFalFlux2Edit: vi.mocked(submitFalFlux2Edit),
   submitFalFlux2Klein: vi.mocked(submitFalFlux2Klein),
@@ -423,6 +431,10 @@ describe("task submission payload matrix", () => {
       if (modelId === "fal-ai/flux-pro/v1/fill") {
         expect(typeof payload.image_url).toBe("string");
         expect(typeof payload.mask_url).toBe("string");
+      }
+      if (modelId === "fal-ai/bria/background/remove") {
+        expect(typeof payload.image_url).toBe("string");
+        expect(payload.prompt).toBeUndefined();
       }
 
       if (typeof config.expectedSafetyChecker === "boolean") {

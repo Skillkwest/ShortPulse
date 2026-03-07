@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 const FAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "fal");
 
 const EXPECTED_FAL_ROUTE_FILES = [
+  "bria-background-remove-status.ts",
+  "bria-background-remove-submit.ts",
   "flux-pro-fill-status.ts",
   "flux-pro-fill-submit.ts",
   "flux2-edit-status.ts",

@@ -39,6 +39,7 @@ export const imageGenerationProviders = new Set<Provider>([
   "fal-flux2-edit",
   "fal-flux2-pro",
   "fal-flux2-pro-edit",
+  "fal-bria-background-remove",
   "fal-seedream",
   "fal-nano-banana",
   "fal-nano-banana-edit",

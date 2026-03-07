@@ -32,6 +32,7 @@ import { stripEditLabel } from "../../utils/modelLabels";
 import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
 import { composePrimaryLayersToBlob } from "../../logic/expertEditLayerCompose";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import { computeCostForModel } from "../../logic/pricing";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
@@ -41,6 +42,12 @@ import {
   useCreateCharacterModeController,
 } from "../create/useCreateCharacterModeController";
 import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
+import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
+import {
+  EDIT_PRESET_MORE_LABEL,
+  EDIT_PRESET_SURFACE_LABELS,
+  EDIT_PRESET_TOOLBAR_LABELS,
+} from "./expertEditPresets";
 
 export type ExpertEditPanelViewProps = {
   expertEditEligible: boolean;
@@ -66,7 +73,10 @@ export type ExpertEditPanelViewProps = {
   onRegenerate: () => void;
   onRegenerateWithReferenceInputs?: (
     referenceInputs: string[],
-    options?: { inpaintOverride?: InpaintSubmissionOverride | null }
+    options?: {
+      inpaintOverride?: InpaintSubmissionOverride | null;
+      modelIdOverride?: string | null;
+    }
   ) => void | Promise<void>;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
@@ -90,68 +100,6 @@ type CharacterPickerModalProps = {
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
   onSelectedCharacterIdChange?: (value: string) => void;
-};
-
-type MorePresetsModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-};
-
-const morePresetsModalLabels = [
-  "Selfie",
-  "Side profile",
-  "Over shoulder",
-  "From behind",
-  "Low angle",
-  "Custom one",
-  "Custom two",
-] as const;
-
-const MorePresetsModal = ({ isOpen, onClose }: MorePresetsModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <>
-      <div className="model-modal-backdrop edit-expert-presets-backdrop" onClick={onClose} />
-      <div
-        className="model-modal edit-expert-presets-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="More presets"
-      >
-        <div className="model-modal-header">
-          <div className="model-modal-title-group">
-            <h3 className="model-modal-title">More Presets</h3>
-            <p className="model-modal-subtitle">
-              Available preset chips for this Expert Edit pass.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="ghost-btn mini model-modal-close"
-            aria-label="Close presets modal"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </div>
-        <div className="model-modal-scroll">
-          <div className="edit-expert-presets-chip-grid" role="list" aria-label="Available presets">
-            {morePresetsModalLabels.map((label) => (
-              <button
-                key={label}
-                type="button"
-                role="listitem"
-                className="edit-expert-presets-chip"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </>
-  );
 };
 
 const CharacterPickerModal = ({
@@ -252,22 +200,9 @@ const CharacterPickerModal = ({
 };
 
 const secondaries = [0, 1, 2] as const;
-const editPresetLabels = [
-  "Selfie",
-  "Side Profile",
-  "Over Shoulder",
-  "From Behind",
-  "Low Angle",
-  "Drone View",
-  "Zoom In",
-  "Zoom Out",
-  "Enhance Realism",
-  "Custom 1",
-  "Custom 2",
-  "More presets",
-] as const;
 const editPresetUtilityActions = [
   {
+    id: "remove-background",
     label: "Remove Background",
     icon: MagicWand,
     iconWeight: "fill" as const,
@@ -326,6 +261,8 @@ const STATUS_TOAST_VISIBLE_MS = 1_000;
 const STATUS_TOAST_FADE_MS = 220;
 const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 const INPAINT_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
+const BRIA_REMOVE_BACKGROUND_MODEL_ID = "fal-ai/bria/background/remove";
+const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const MOVE_ZOOM_DEFAULT = 125;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
@@ -502,7 +439,7 @@ export function ExpertEditPanelView({
     React.useState<InpaintSelectionTab>("select");
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
-  const [isMorePresetsModalOpen, setIsMorePresetsModalOpen] = React.useState(false);
+  const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
   const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
     createLayer({
@@ -613,6 +550,13 @@ export function ExpertEditPanelView({
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = (referenceText ?? "").trim().length > 0;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
+  const removeBackgroundCostCredits = React.useMemo(() => {
+    return (
+      computeCostForModel(BRIA_REMOVE_BACKGROUND_MODEL_ID, {
+        aspect,
+      })?.credits ?? 1
+    );
+  }, [aspect]);
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]
@@ -662,6 +606,7 @@ export function ExpertEditPanelView({
     selectionMode: selectedInpaintSelectionTab,
     strokeSize: inpaintStrokeSize,
     onAutoToolAttempt: () => showStatusToast("Auto select is coming soon."),
+    onPaintAttemptWithoutImage: () => showStatusToast("Select a layer image before drawing."),
   });
 
   const shouldShowInpaintBrushReticle =
@@ -674,6 +619,7 @@ export function ExpertEditPanelView({
     selectedInpaintMode === "lasso" &&
     Boolean(selectedLayerImageUrl) &&
     imageHasInteractiveMask;
+  const morePresetsSurfaceId = React.useId();
   const primaryDropzoneCursor = React.useMemo(() => {
     if (shouldShowInpaintBrushReticle) {
       return buildInpaintBrushReticleCursor(inpaintStrokeSize);
@@ -683,6 +629,11 @@ export function ExpertEditPanelView({
     }
     return undefined;
   }, [inpaintStrokeSize, shouldShowInpaintBrushReticle, shouldShowInpaintLassoCursor]);
+  const primaryDropzoneStyle = React.useMemo(() => {
+    if (isMorePresetsSurfaceOpen) return undefined;
+    if (!primaryDropzoneCursor) return undefined;
+    return { cursor: primaryDropzoneCursor };
+  }, [isMorePresetsSurfaceOpen, primaryDropzoneCursor]);
 
   const scheduleTransientObjectUrlRevoke = React.useCallback((url: string) => {
     const existingTimer = transientRevokeTimersRef.current.get(url);
@@ -801,6 +752,47 @@ export function ExpertEditPanelView({
     showStatusToast,
   ]);
 
+  const handleRemoveBackground = React.useCallback(() => {
+    const run = async () => {
+      if (populatedLayerCount <= 0) {
+        showStatusToast("Add at least one layer image before removing background.");
+        return;
+      }
+      if (!onRegenerateWithReferenceInputs) {
+        showStatusToast("Remove background is unavailable in this session.");
+        return;
+      }
+
+      let flattenedUrl: string | null = null;
+      try {
+        const flattenedBlob = await composePrimaryLayersToBlob(layers, { mimeType: "image/png" });
+        flattenedUrl = URL.createObjectURL(flattenedBlob);
+        const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
+        await onRegenerateWithReferenceInputs(referenceInputs, {
+          modelIdOverride: BRIA_REMOVE_BACKGROUND_MODEL_ID,
+        });
+      } catch {
+        if (flattenedUrl) {
+          revokeObjectUrlSafe(flattenedUrl);
+          flattenedUrl = null;
+        }
+        showStatusToast("Unable to remove background.");
+      } finally {
+        if (flattenedUrl) {
+          scheduleTransientObjectUrlRevoke(flattenedUrl);
+        }
+      }
+    };
+    void run();
+  }, [
+    buildFlattenReferenceInputs,
+    layers,
+    onRegenerateWithReferenceInputs,
+    populatedLayerCount,
+    scheduleTransientObjectUrlRevoke,
+    showStatusToast,
+  ]);
+
   const handleInlineGenerate = React.useCallback(() => {
     const run = async () => {
       if (populatedLayerCount <= 0) {
@@ -908,20 +900,30 @@ export function ExpertEditPanelView({
 
   const handlePrimaryDragEnter = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
       if (allowPrimaryImageDrag(event)) {
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag]
+    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
   );
 
   const handlePrimaryDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
       if (allowPrimaryImageDrag(event)) {
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag]
+    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
   );
 
   const handlePrimaryDragLeave = React.useCallback(() => {
@@ -930,6 +932,11 @@ export function ExpertEditPanelView({
 
   const handlePrimaryDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
       event.preventDefault();
       setPrimaryDragActive(false);
       const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
@@ -943,8 +950,58 @@ export function ExpertEditPanelView({
       if (isBlobUrl && !canAcceptBlob) return;
       applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl: Boolean(fromFile && isBlobUrl) });
     },
-    [applyPrimaryImageIngress, resolvePreviewUrlById]
+    [applyPrimaryImageIngress, isMorePresetsSurfaceOpen, resolvePreviewUrlById]
   );
+
+  const handlePrimaryPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      handleInpaintPointerDown(event);
+    },
+    [handleInpaintPointerDown, isMorePresetsSurfaceOpen]
+  );
+
+  const handlePrimaryPointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      handleInpaintPointerMove(event);
+    },
+    [handleInpaintPointerMove, isMorePresetsSurfaceOpen]
+  );
+
+  const handlePrimaryPointerUp = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      handleInpaintPointerUp(event);
+    },
+    [handleInpaintPointerUp, isMorePresetsSurfaceOpen]
+  );
+
+  const handlePrimaryPointerCancel = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      handleInpaintPointerCancel(event);
+    },
+    [handleInpaintPointerCancel, isMorePresetsSurfaceOpen]
+  );
+
+  const handlePrimaryPointerLeave = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      handleInpaintPointerLeave(event);
+    },
+    [handleInpaintPointerLeave, isMorePresetsSurfaceOpen]
+  );
+
+  const handlePrimaryDropzoneClick = React.useCallback(() => {
+    if (isMorePresetsSurfaceOpen || hasPrimaryCompositePreview) return;
+    primaryInputRef.current?.click();
+  }, [hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]);
+
+  const closeMorePresetsSurface = React.useCallback(() => {
+    setIsMorePresetsSurfaceOpen(false);
+    setPrimaryDragActive(false);
+  }, []);
 
   const handleAddLayer = React.useCallback(() => {
     if (layers.length >= MAX_LAYERS) {
@@ -1236,20 +1293,28 @@ export function ExpertEditPanelView({
           </div>
           <div className="edit-expert-preset-toolbar-card">
             <div className="edit-expert-preset-toolbar-list">
-              {editPresetLabels.map((label) => (
+              {EDIT_PRESET_TOOLBAR_LABELS.map((label) => (
                 <React.Fragment key={label}>
-                  {label === "More presets" ? (
+                  {label === EDIT_PRESET_MORE_LABEL ? (
                     <div className="edit-expert-preset-divider" aria-hidden="true" />
                   ) : null}
                   <button
                     type="button"
                     className="edit-expert-preset-btn"
                     aria-label={`Apply ${label} preset`}
+                    aria-expanded={
+                      label === EDIT_PRESET_MORE_LABEL ? isMorePresetsSurfaceOpen : undefined
+                    }
+                    aria-controls={
+                      label === EDIT_PRESET_MORE_LABEL ? morePresetsSurfaceId : undefined
+                    }
                     onClick={
-                      label === "More presets" ? () => setIsMorePresetsModalOpen(true) : undefined
+                      label === EDIT_PRESET_MORE_LABEL
+                        ? () => setIsMorePresetsSurfaceOpen(isMorePresetsSurfaceOpen ? false : true)
+                        : undefined
                     }
                   >
-                    {label === "More presets" ? (
+                    {label === EDIT_PRESET_MORE_LABEL ? (
                       <span className="edit-expert-preset-btn-icon" aria-hidden="true">
                         <GearSix size={12} weight="regular" />
                       </span>
@@ -1264,15 +1329,22 @@ export function ExpertEditPanelView({
             {editPresetUtilityActions.map((action) => {
               const Icon = action.icon;
               const isActionDisabled = Boolean(
-                action.requiresPrimaryImage && !selectedLayerImageUrl
+                isGenerateDisabled || (action.requiresPrimaryImage && !selectedLayerImageUrl)
               );
+              const actionCreditCost =
+                action.id === REMOVE_BACKGROUND_ACTION_ID
+                  ? removeBackgroundCostCredits
+                  : action.creditCost;
               return (
                 <button
-                  key={action.label}
+                  key={action.id}
                   type="button"
                   className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
                   aria-label={action.label}
                   disabled={isActionDisabled}
+                  onClick={
+                    action.id === REMOVE_BACKGROUND_ACTION_ID ? handleRemoveBackground : undefined
+                  }
                 >
                   {!action.hideIcon ? (
                     <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
@@ -1282,11 +1354,11 @@ export function ExpertEditPanelView({
                   <span className="edit-expert-preset-action-btn-copy">
                     <span>{action.label}</span>
                   </span>
-                  {action.creditCost != null ? (
+                  {actionCreditCost != null ? (
                     <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
                       <span className="edit-expert-preset-action-btn-cost">
                         <span className="model-chip-icon">✦</span>
-                        <span className="model-chip-credits">{action.creditCost}</span>
+                        <span className="model-chip-credits">{actionCreditCost}</span>
                       </span>
                     </span>
                   ) : null}
@@ -1407,22 +1479,19 @@ export function ExpertEditPanelView({
         <div
           ref={primaryDropzoneRef}
           className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
-            primaryDragActive ? "is-dragging" : ""
-          }`}
-          style={primaryDropzoneCursor ? { cursor: primaryDropzoneCursor } : undefined}
+            isMorePresetsSurfaceOpen ? "is-presets-open" : ""
+          } ${primaryDragActive ? "is-dragging" : ""}`}
+          style={primaryDropzoneStyle}
           onDrop={handlePrimaryDrop}
           onDragEnter={handlePrimaryDragEnter}
           onDragOver={handlePrimaryDragOver}
           onDragLeave={handlePrimaryDragLeave}
-          onPointerDown={handleInpaintPointerDown}
-          onPointerMove={handleInpaintPointerMove}
-          onPointerUp={handleInpaintPointerUp}
-          onPointerCancel={handleInpaintPointerCancel}
-          onPointerLeave={handleInpaintPointerLeave}
-          onClick={() => {
-            if (hasPrimaryCompositePreview) return;
-            primaryInputRef.current?.click();
-          }}
+          onPointerDown={handlePrimaryPointerDown}
+          onPointerMove={handlePrimaryPointerMove}
+          onPointerUp={handlePrimaryPointerUp}
+          onPointerCancel={handlePrimaryPointerCancel}
+          onPointerLeave={handlePrimaryPointerLeave}
+          onClick={handlePrimaryDropzoneClick}
           aria-label="Primary edit image"
         >
           {hasPrimaryCompositePreview ? (
@@ -1453,6 +1522,12 @@ export function ExpertEditPanelView({
               <p className="reference-drop-title">Click to upload an image</p>
             </div>
           )}
+          <ExpertEditPresetsSurface
+            id={morePresetsSurfaceId}
+            isOpen={isMorePresetsSurfaceOpen}
+            labels={EDIT_PRESET_SURFACE_LABELS}
+            onClose={closeMorePresetsSurface}
+          />
         </div>
 
         <div
@@ -1964,10 +2039,6 @@ export function ExpertEditPanelView({
         characterOptions={characterOptions}
         selectedCharacterId={selectedCharacterId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
-      />
-      <MorePresetsModal
-        isOpen={isMorePresetsModalOpen}
-        onClose={() => setIsMorePresetsModalOpen(false)}
       />
     </div>
   );

@@ -1,0 +1,222 @@
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import type { ResolveCanvasDropReference } from "../canvasTypes";
+import { CanvasHarness, createTransfer, mockViewportRect } from "./canvasTestHarness";
+
+describe("Canvas drop behavior", () => {
+  it("creates an image item from an internal reference-grid drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "img-1",
+        "text/reference-output-id": "img-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    expect(await screen.findByAltText("Reference image")).toBeInTheDocument();
+    const item = screen.getByTestId(/canvas-item-/);
+    expect(item).toHaveAttribute("data-kind", "image");
+    expect(Number(item.getAttribute("data-width"))).toBe(220);
+    expect(Number(item.getAttribute("data-height"))).toBeCloseTo(123.75, 2);
+  });
+
+  it("uses internal payload dimensions to size image drops before image decode", async () => {
+    const payloadSizedResolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
+      if (payload.outputId !== "img-payload-sized") return null;
+      return {
+        kind: "image",
+        outputId: "img-payload-sized",
+        mediaId: "media-sized",
+        src: "https://example.com/payload-sized-reference.png",
+        alt: "Payload-sized image",
+        width: payload.width,
+        height: payload.height,
+        sourceSurface: payload.sourceSurface ?? null,
+      };
+    };
+    render(<CanvasHarness resolveCanvasDropReference={payloadSizedResolveCanvasDropReference} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "img-payload-sized",
+        "text/reference-output-id": "img-payload-sized",
+        "text/reference-source-surface": "all-refs",
+        "text/reference-width": "2000",
+        "text/reference-height": "1000",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    expect(await screen.findByAltText("Payload-sized image")).toBeInTheDocument();
+    const item = screen.getByTestId(/canvas-item-/);
+    expect(Number(item.getAttribute("data-width"))).toBe(220);
+    expect(Number(item.getAttribute("data-height"))).toBe(110);
+  });
+
+  it("delays unknown-size image placeholder until dimensions resolve, then matches final ratio", async () => {
+    const OriginalImage = globalThis.Image;
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    let pendingImageOnload: (() => void) | null = null;
+    let pendingFrameCallback: FrameRequestCallback | null = null;
+    class MockImage {
+      naturalWidth = 1920;
+      naturalHeight = 1080;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      set src(_value: string) {
+        pendingImageOnload = this.onload;
+      }
+    }
+    (globalThis as { Image: typeof Image }).Image = MockImage as unknown as typeof Image;
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      pendingFrameCallback = callback;
+      return 1;
+    }) as typeof window.requestAnimationFrame;
+    try {
+      const slowResolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
+        if (payload.outputId !== "img-slow") return null;
+        return {
+          kind: "image",
+          outputId: "img-slow",
+          mediaId: "media-slow",
+          src: "https://example.com/slow-reference.png",
+          alt: "Slow reference image",
+          sourceSurface: payload.sourceSurface ?? null,
+        };
+      };
+      render(<CanvasHarness resolveCanvasDropReference={slowResolveCanvasDropReference} />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-version": "1",
+          "text/reference-id": "img-slow",
+          "text/reference-output-id": "img-slow",
+          "text/reference-source-surface": "all-refs",
+        }),
+        clientX: 300,
+        clientY: 200,
+      });
+
+      expect(screen.queryByTestId("canvas-loading-spinner")).toBeNull();
+      await waitFor(() => expect(typeof pendingImageOnload).toBe("function"));
+      act(() => {
+        pendingImageOnload?.();
+      });
+      const pendingItem = await screen.findByTestId(/canvas-pending-item-/);
+      await waitFor(() => {
+        expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
+      });
+      expect(Number(pendingItem.getAttribute("style")?.match(/width:\s*([0-9.]+)px/)?.[1])).toBe(
+        220
+      );
+      expect(Number(pendingItem.getAttribute("style")?.match(/height:\s*([0-9.]+)px/)?.[1])).toBe(
+        123.75
+      );
+      act(() => {
+        pendingFrameCallback?.(16);
+      });
+      expect(await screen.findByAltText("Slow reference image")).toBeInTheDocument();
+      const finalItem = screen.getByTestId(/canvas-item-/);
+      expect(Number(finalItem.getAttribute("data-width"))).toBe(220);
+      expect(Number(finalItem.getAttribute("data-height"))).toBe(123.75);
+      await waitFor(() => {
+        expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
+      });
+    } finally {
+      (globalThis as { Image: typeof Image }).Image = OriginalImage;
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
+  });
+
+  it("shows a loading spinner placeholder while a text reference is resolving", async () => {
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    let pendingFrameCallback: FrameRequestCallback | null = null;
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      pendingFrameCallback = callback;
+      return 1;
+    }) as typeof window.requestAnimationFrame;
+    try {
+      render(<CanvasHarness />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-version": "1",
+          "text/reference-id": "txt-1",
+          "text/reference-output-id": "txt-1",
+          "text/reference-source-surface": "all-refs",
+        }),
+        clientX: 240,
+        clientY: 160,
+      });
+
+      expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
+      expect(screen.queryByText("Prompt reference")).not.toBeInTheDocument();
+      act(() => {
+        pendingFrameCallback?.(16);
+      });
+      expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
+      });
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
+  });
+
+  it("creates a text item from an internal prompt drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "txt-1",
+        "text/reference-output-id": "txt-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 240,
+      clientY: 160,
+    });
+
+    expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
+    expect(await screen.findByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "text");
+  });
+
+  it("creates a text item from an external plain-text drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "External note",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    expect(await screen.findByText("External note")).toBeInTheDocument();
+  });
+});

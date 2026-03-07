@@ -1,0 +1,101 @@
+/**
+ * Canvas test harness utilities.
+ * Provides shared render scaffolding and transfer helpers for canvas suites.
+ */
+import React, { useState } from "react";
+import { CanvasPropertiesPanel } from "../CanvasPropertiesPanel";
+import {
+  useAiStudioCanvasWorkspaceState,
+  useAiStudioDualCanvasWorkspaceState,
+} from "../useAiStudioCanvasWorkspaceState";
+import type { ResolveCanvasDropReference } from "../canvasTypes";
+
+export const createTransfer = (entries: Record<string, string>) =>
+  ({
+    types: Object.keys(entries),
+    files: { length: 0, item: () => null },
+    getData: (type: string) => entries[type] ?? "",
+  }) as unknown as DataTransfer;
+
+export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
+  if (payload.outputId === "img-1") {
+    return {
+      kind: "image",
+      outputId: "img-1",
+      mediaId: "media-1",
+      src: "https://example.com/reference.png",
+      alt: "Reference image",
+      width: 1280,
+      height: 720,
+      sourceSurface: payload.sourceSurface ?? null,
+    };
+  }
+  if (payload.outputId === "txt-1") {
+    return {
+      kind: "text",
+      outputId: "txt-1",
+      text: "Prompt reference",
+      sourceSurface: payload.sourceSurface ?? null,
+    };
+  }
+  return null;
+};
+
+export type CanvasHarnessProps = {
+  onPinTextReference?: (text: string) => void;
+  resolveCanvasDropReference?: ResolveCanvasDropReference;
+};
+
+export function CanvasHarness({
+  onPinTextReference,
+  resolveCanvasDropReference,
+}: CanvasHarnessProps) {
+  const [visible, setVisible] = useState(true);
+  const canvasProps = useAiStudioCanvasWorkspaceState({
+    resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
+    onPinTextReference,
+  });
+
+  return (
+    <div>
+      <button type="button" onClick={() => setVisible((current) => !current)}>
+        Toggle
+      </button>
+      {visible ? <CanvasPropertiesPanel {...canvasProps} /> : null}
+    </div>
+  );
+}
+
+export function DualCanvasHarness({
+  onPinTextReference,
+  resolveCanvasDropReference,
+}: CanvasHarnessProps) {
+  const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
+    resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
+    onPinTextReference,
+  });
+
+  return (
+    <div>
+      <CanvasPropertiesPanel {...mainCanvasProps} />
+      <CanvasPropertiesPanel {...railCanvasProps} />
+    </div>
+  );
+}
+
+export const mockViewportRect = (element: HTMLElement) => {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 600,
+      bottom: 400,
+      width: 600,
+      height: 400,
+      toJSON: () => ({}),
+    }),
+  });
+};

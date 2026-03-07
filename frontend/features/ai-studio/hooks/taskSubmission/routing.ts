@@ -21,6 +21,7 @@ const VIDEO_MODELS = new Set([
 ]);
 
 const IMAGE_MODELS = new Set([
+  "fal-ai/bria/background/remove",
   "fal-ai/nano-banana/edit",
   "fal-ai/nano-banana-2/edit",
   "fal-ai/nano-banana-pro/edit",

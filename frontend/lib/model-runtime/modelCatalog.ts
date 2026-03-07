@@ -193,6 +193,27 @@ const catalog: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["num_images", "seed"],
     },
   },
+  "fal-ai/bria/background/remove": {
+    modelId: "fal-ai/bria/background/remove",
+    provider: "fal",
+    sourceUrl: "https://fal.ai/models/fal-ai/bria/background/remove/api",
+    verifiedAt: VERIFIED_AT,
+    submitAspectField: "none",
+    defaultAspect: "1:1",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
+    falSubmitUrl: "https://queue.fal.run/fal-ai/bria/background/remove",
+    falStatusBaseUrls: [
+      "https://queue.fal.run/fal-ai/bria/requests",
+      "https://queue.fal.run/fal-ai/bria/background/remove/requests",
+    ],
+    falTimeoutMs: 60000,
+    payloadValidation: {
+      requiredStringFields: ["image_url"],
+      optionalBooleanFields: ["sync_mode"],
+    },
+  },
   "fal-ai/nano-banana": {
     modelId: "fal-ai/nano-banana",
     provider: "fal",

@@ -3,6 +3,7 @@
  */
 import {
   type FalSubmitResponse,
+  submitFalBriaBackgroundRemove,
   submitFalFlux2,
   submitFalFlux2Edit,
   submitFalFlux2Klein,
@@ -42,7 +43,8 @@ const handoffSubmitResponse = ({
     | "fal-flux2-edit"
     | "fal-flux2-pro"
     | "fal-flux2-pro-edit"
-    | "fal-flux-pro-fill";
+    | "fal-flux-pro-fill"
+    | "fal-bria-background-remove";
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
 }) => {
   if ("status" in response && response.status === "queued") {
@@ -71,6 +73,23 @@ export const handleImageModelSubmission = async ({
   falReferencePayload,
   inpaintOverride,
 }: ImageSubmissionArgs): Promise<boolean> => {
+  if (finalModel === "fal-ai/bria/background/remove") {
+    const sourceImageUrl = preparedImageInputs[0]?.trim();
+    if (!sourceImageUrl) {
+      notifyGenerationFailure(id, "Background remove requires a source image.");
+      return true;
+    }
+    const response = await submitFalBriaBackgroundRemove({
+      image_url: sourceImageUrl,
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-bria-background-remove",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
   if (finalModel === "fal-ai/flux-pro/v1/fill") {
     const preparedBaseImage = inpaintOverride?.baseImageInput?.trim();
     const preparedMaskImage = inpaintOverride?.maskInput?.trim();

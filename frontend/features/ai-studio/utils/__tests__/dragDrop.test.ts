@@ -146,6 +146,35 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
   });
 
+  it("writes internal drag image dimensions when a rendered image is available", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    const image = document.createElement("img");
+    image.className = "reference-card-image";
+    Object.defineProperty(image, "naturalWidth", {
+      configurable: true,
+      value: 1600,
+    });
+    Object.defineProperty(image, "naturalHeight", {
+      configurable: true,
+      value: 900,
+    });
+    dragNode.appendChild(image);
+
+    prepareReferenceDrag(event, {
+      id: "ref-image-dims",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-image-dims.png",
+    });
+
+    expect(setData).toHaveBeenCalledWith("text/reference-width", "1600");
+    expect(setData).toHaveBeenCalledWith("text/reference-height", "900");
+  });
+
   it("extracts versioned internal reference payload metadata", () => {
     const transfer = makeTransfer({
       "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -170,6 +199,39 @@ describe("dragDrop payload extraction", () => {
       referenceUrl: "https://cdn.example.com/out-123.png",
       sourceSurface: "all-refs",
     });
+  });
+
+  it("extracts optional dimension metadata from internal reference payloads", () => {
+    const transfer = makeTransfer({
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-version": "1",
+      "text/reference-id": "out-123",
+      "text/reference-output-id": "out-123",
+      "text/reference-width": "1920",
+      "text/reference-height": "1080",
+    });
+
+    const payload = extractInternalReferenceDragPayload(transfer);
+
+    expect(payload?.width).toBe(1920);
+    expect(payload?.height).toBe(1080);
+  });
+
+  it("ignores invalid internal reference dimension metadata", () => {
+    const transfer = makeTransfer({
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-version": "1",
+      "text/reference-id": "out-123",
+      "text/reference-output-id": "out-123",
+      "text/reference-width": "nope",
+      "text/reference-height": "-20",
+    });
+
+    const payload = extractInternalReferenceDragPayload(transfer);
+
+    expect(payload).toBeTruthy();
+    expect(payload?.width).toBeUndefined();
+    expect(payload?.height).toBeUndefined();
   });
 
   it("supports legacy internal payloads without explicit origin metadata", () => {

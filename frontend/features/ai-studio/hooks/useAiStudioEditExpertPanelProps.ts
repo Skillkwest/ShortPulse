@@ -35,6 +35,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   handleImageRegenerateWithDebit: (options?: {
     referenceInputsOverride?: string[];
     inpaintOverride?: InpaintSubmissionOverride | null;
+    modelIdOverride?: string | null;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
@@ -108,11 +109,15 @@ export const useAiStudioEditExpertPanelProps = ({
       onRegenerate: handleImageRegenerateWithDebit,
       onRegenerateWithReferenceInputs: (
         referenceInputs: string[],
-        options?: { inpaintOverride?: InpaintSubmissionOverride | null }
+        options?: {
+          inpaintOverride?: InpaintSubmissionOverride | null;
+          modelIdOverride?: string | null;
+        }
       ) =>
         handleImageRegenerateWithDebit({
           referenceInputsOverride: referenceInputs,
           inpaintOverride: options?.inpaintOverride,
+          modelIdOverride: options?.modelIdOverride,
         }),
       onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,

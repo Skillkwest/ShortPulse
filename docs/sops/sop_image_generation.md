@@ -156,6 +156,9 @@ For Create properties panel, model-selector, and submission wiring details, see 
   2. Inline prompt/composer row includes model/aspect/resolution selectors and inline Generate button.
   3. Generate remains disabled until primary reference image exists.
   4. Chat mode UI is hidden/off for Expert Edit.
+  5. Inpaint editing can paint anywhere inside the primary drop zone (including outside the visible image bounds).
+  6. Inpaint submit exports only the visible image-area mask window (`imageRect`) so FLUX Fill mask pixels remain aligned with flattened base-image dimensions.
+  7. `Remove Background` flattens visible layers and routes regenerate through hidden Bria RMBG (`fal-ai/bria/background/remove`) with prompt-optional submit policy.
 - Prompt guard policy for Edit submit is model-capability driven (`editPromptPolicy`); unknown capability defaults to prompt required.
 
 ## Supported image models (current)

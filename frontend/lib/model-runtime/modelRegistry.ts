@@ -163,6 +163,27 @@ const registry: Record<string, ModelConfig> = {
     allowedResolutions: contractAllowedResolutions("fal-ai/flux-pro/v1/fill", ["model_default"]),
     supportsImageToImage: true,
   },
+  "fal-ai/bria/background/remove": {
+    id: "fal-ai/bria/background/remove",
+    label: "Bria Background Remove",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: contractDefaultAspect("fal-ai/bria/background/remove", "1:1"),
+    allowedAspects: contractAllowedAspects("fal-ai/bria/background/remove", [
+      "1:1",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+    ]),
+    pricingStrategy: "fal-flux2-klein-per-mp",
+    sizeMap: falImageSizeMap,
+    defaultResolution: contractDefaultResolution("fal-ai/bria/background/remove", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal-ai/bria/background/remove", [
+      "model_default",
+    ]),
+    supportsImageToImage: true,
+  },
   "fal-ai/nano-banana": {
     id: "fal-ai/nano-banana",
     label: "Nano Banana",

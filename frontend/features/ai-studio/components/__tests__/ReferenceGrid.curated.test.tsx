@@ -1506,6 +1506,24 @@ describe("ReferenceGrid curated split", () => {
     expect(container.querySelector(".reference-grid-inventory-stack")).toBeTruthy();
   });
 
+  it("hides the rail canvas section when the main canvas tool is active", () => {
+    const { container, queryByRole, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "canvas",
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+
+    expect(container.querySelector(".reference-rail-canvas-section")).toBeNull();
+    expect(
+      queryByRole("separator", { name: "Resize Canvas and Quick Slot Inventory sections" })
+    ).toBeNull();
+    expect(getByText("Quick Slot Inventory")).toBeInTheDocument();
+    expect(getByText("Reference Grid")).toBeInTheDocument();
+  });
+
   it("snaps the top canvas split toward canvas and inventory via top divider pills", () => {
     const { container, getByRole, getByText } = render(
       <ReferenceGrid

@@ -332,7 +332,7 @@ export function ReferenceGrid({
     columnCount: 5,
     rowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
   });
-  const showRailCanvasSection = Boolean(railCanvasProps);
+  const showRailCanvasSection = Boolean(railCanvasProps) && selectedTool !== "canvas";
   const railCanvasSplit = useReferenceGridHorizontalSplit({
     enabled: showRailCanvasSection,
     containerRef: panelRef,

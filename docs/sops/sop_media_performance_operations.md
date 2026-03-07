@@ -74,11 +74,15 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 4. Confirm offscreen cards pause/detach according to configured delay.
 
 ### 3b) Validate Curated Split Behavior
-1. Confirm top `Curated` section is empty by default and only accepts internal drags from `All refs`.
-2. Drag a card from bottom `All refs` into top `Curated`; verify add + dedupe semantics.
-3. Reorder curated cards by dragging within top section; verify before/after/end behavior.
-4. Remove a curated card using the explicit remove control on the active card.
-5. Drag the horizontal divider with pointer and keyboard (`ArrowUp`, `ArrowDown`, `Home`, `End`) and verify section resizing.
+1. Confirm top `Canvas` section renders above `Quick Slot Inventory` and remains interactive.
+2. Drag/keyboard resize the top divider and validate pills:
+   - left pill `Canvas ↓` expands the canvas section
+   - right pill `Inventory ↑` collapses canvas to header height
+3. Confirm `Quick Slot Inventory` remains empty by default and only accepts internal drags from `All refs`.
+4. Drag a card from bottom `All refs` into `Quick Slot Inventory`; verify add + dedupe semantics.
+5. Reorder quick-slot cards by dragging within top inventory section; verify before/after/end behavior.
+6. Remove a quick-slot card using the explicit remove control on the active card.
+7. Drag the lower horizontal divider with pointer and keyboard (`ArrowUp`, `ArrowDown`, `Home`, `End`) and verify quick-slot/all-refs resizing.
 
 ### 4) Validate Usage Accuracy
 1. Confirm Media Library storage usage uses RPC-backed total:
@@ -280,7 +284,7 @@ Monitor these events during rollout:
    - Media Library route (images/videos/private/AI tabs)
    - AI Studio modal search + paging + selection
    - Reference Grid autoplay behavior on desktop and small-screen widths
-   - Curated split interactions (drag add/reorder/remove + divider resize)
+   - Canvas + split interactions (top canvas divider + quick-slot/all-refs divider)
 11. CI perf gate (internal branches with audit creds):
    - `.github/workflows/ci.yml` job `ai_studio_perf_gate`
    - Uses `PLAYWRIGHT_AUDIT_EMAIL` + `PLAYWRIGHT_AUDIT_PASSWORD` secrets

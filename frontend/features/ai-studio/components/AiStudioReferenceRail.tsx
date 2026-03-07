@@ -6,10 +6,12 @@ import React from "react";
 import { ReferenceGrid } from "./ReferenceGrid";
 import type { ToolId } from "../types";
 import type { ReferenceGridProps } from "./ReferenceGrid";
+import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
 type AiStudioReferenceRailProps = {
   referenceGridProps: ReferenceGridProps;
+  railCanvasProps?: CanvasPropertiesPanelProps;
   onDropFiles: (files: FileList) => void;
   onTriggerFilePicker: () => void;
   selectedTool: ToolId | null;
@@ -18,6 +20,7 @@ type AiStudioReferenceRailProps = {
 
 export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   referenceGridProps,
+  railCanvasProps,
   onDropFiles,
   onTriggerFilePicker,
   selectedTool,
@@ -29,6 +32,7 @@ export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
       <div className="reference-column-sticky">
         <ReferenceGrid
           {...referenceGridProps}
+          railCanvasProps={railCanvasProps}
           onDropFiles={onDropFiles}
           onTriggerFileSelect={onTriggerFilePicker}
           selectedTool={selectedTool}

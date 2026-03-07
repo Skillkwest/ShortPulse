@@ -1,5 +1,7 @@
 import React from "react";
 import type { StudioOutput } from "../../types";
+import { CanvasPropertiesPanel } from "../../components/canvas/CanvasPropertiesPanel";
+import type { CanvasPropertiesPanelProps } from "../../components/canvas/useAiStudioCanvasWorkspaceState";
 import { ReferenceGridArchiveControls } from "./ReferenceGridArchiveControls";
 
 type HorizontalSplitViewModel = {
@@ -24,7 +26,13 @@ type ReferenceGridSectionsProps = {
   onOpenMediaLibrary?: () => void;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
+  railCanvasProps?: CanvasPropertiesPanelProps;
+  showRailCanvasSection: boolean;
+  railCanvasSplit: HorizontalSplitViewModel;
+  railCanvasSectionRef: React.MutableRefObject<HTMLDivElement | null>;
+  railCanvasHeaderRef: React.MutableRefObject<HTMLDivElement | null>;
   horizontalSplit: HorizontalSplitViewModel;
+  inventoryStackRef: React.MutableRefObject<HTMLDivElement | null>;
   curatedSectionRef: React.MutableRefObject<HTMLDivElement | null>;
   curatedHeaderRef: React.MutableRefObject<HTMLDivElement | null>;
   curatedScrollContainerRef: React.MutableRefObject<HTMLDivElement | null>;
@@ -65,7 +73,13 @@ export function ReferenceGridSections({
   onOpenMediaLibrary,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
+  railCanvasProps,
+  showRailCanvasSection,
+  railCanvasSplit,
+  railCanvasSectionRef,
+  railCanvasHeaderRef,
   horizontalSplit,
+  inventoryStackRef,
   curatedSectionRef,
   curatedHeaderRef,
   curatedScrollContainerRef,
@@ -106,59 +120,23 @@ export function ReferenceGridSections({
         />
       ) : null}
       <div className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}`}>
-        {isCuratedSplitEnabled ? (
+        {showRailCanvasSection && railCanvasProps ? (
           <>
             <div
-              ref={curatedSectionRef}
-              className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}${horizontalSplit.isAllRefsExpanded ? " is-all-refs-expanded" : ""}`}
-              style={horizontalSplit.topSectionStyle}
-              onDrop={handleCuratedSectionDrop}
-              onDragOver={handleCuratedSectionDragOver}
-              onDragEnter={handleCuratedSectionDragEnter}
-              onDragLeave={handleCuratedSectionDragLeave}
+              ref={railCanvasSectionRef}
+              className={`reference-rail-canvas-section${railCanvasSplit.isAllRefsExpanded ? " is-inventory-expanded" : ""}`}
+              style={railCanvasSplit.topSectionStyle}
             >
-              <div ref={curatedHeaderRef} className="reference-curated-header">
-                <p className="eyebrow">Quick Slot Inventory</p>
+              <div ref={railCanvasHeaderRef} className="reference-rail-canvas-header">
+                <p className="eyebrow">Canvas</p>
               </div>
-              <div
-                className="reference-curated-scroll"
-                onScroll={handleCuratedScroll}
-                ref={curatedScrollContainerRef}
-              >
-                <div
-                  className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
-                  ref={curatedGridRef}
-                  style={curatedGridStyle}
-                >
-                  {curatedOutputsLength === 0 ? (
-                    <div className="reference-curated-empty">
-                      <p className="preview-title">
-                        Drag &amp; drop references here from the Reference Grid.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {curatedTopSpacerHeight > 0 ? (
-                        <div
-                          className="reference-virtual-spacer"
-                          style={{ height: curatedTopSpacerHeight }}
-                        />
-                      ) : null}
-                      {curatedCardNodes}
-                      {curatedBottomSpacerHeight > 0 ? (
-                        <div
-                          className="reference-virtual-spacer"
-                          style={{ height: curatedBottomSpacerHeight }}
-                        />
-                      ) : null}
-                    </>
-                  )}
-                </div>
+              <div className="reference-rail-canvas-body">
+                <CanvasPropertiesPanel {...railCanvasProps} />
               </div>
             </div>
             <div
-              className="reference-grid-horizontal-divider-wrap"
-              {...horizontalSplit.dividerProps}
+              className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--canvas-inventory"
+              {...railCanvasSplit.dividerProps}
             >
               <button
                 type="button"
@@ -168,10 +146,10 @@ export function ReferenceGridSections({
                 }}
                 onClick={(event) => {
                   event.stopPropagation();
-                  horizontalSplit.snapToInventoryExpanded();
+                  railCanvasSplit.snapToInventoryExpanded();
                 }}
               >
-                Inventory ↓
+                Canvas ↓
               </button>
               <div className="reference-grid-horizontal-divider" />
               <button
@@ -182,69 +160,166 @@ export function ReferenceGridSections({
                 }}
                 onClick={(event) => {
                   event.stopPropagation();
-                  const curatedHeaderNode = curatedSectionRef.current?.querySelector(
-                    ".reference-curated-header"
-                  );
+                  const headerNode = railCanvasHeaderRef.current;
                   const targetTopHeightPx =
-                    curatedHeaderNode instanceof HTMLElement
-                      ? curatedHeaderNode.offsetHeight
-                      : undefined;
-                  horizontalSplit.snapToAllRefsExpanded(targetTopHeightPx);
+                    headerNode instanceof HTMLElement ? headerNode.offsetHeight : undefined;
+                  railCanvasSplit.snapToAllRefsExpanded(targetTopHeightPx);
                 }}
               >
-                All Refs ↑
+                Inventory ↑
               </button>
             </div>
           </>
         ) : null}
         <div
-          className={`reference-all-refs-section${horizontalSplit.isInventoryExpanded ? " is-inventory-expanded" : ""}`}
-          style={isCuratedSplitEnabled ? horizontalSplit.bottomSectionStyle : undefined}
+          ref={inventoryStackRef}
+          className={`reference-grid-inventory-stack${showRailCanvasSection && railCanvasSplit.isInventoryExpanded ? " is-canvas-expanded" : ""}`}
+          style={showRailCanvasSection ? railCanvasSplit.bottomSectionStyle : undefined}
         >
           {isCuratedSplitEnabled ? (
-            <ReferenceGridArchiveControls
-              archiveCount={archiveCount}
-              showHeader={showHeader}
-              isArchivePanelOpen={isArchivePanelOpen}
-              archivedOutputs={archivedOutputs}
-              onToggleArchivePanel={onToggleArchivePanel}
-              onTriggerFileSelect={onTriggerFileSelect}
-              onOpenMediaLibrary={onOpenMediaLibrary}
-              onRestoreArchivedOutput={onRestoreArchivedOutput}
-              onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
-            />
+            <>
+              <div
+                ref={curatedSectionRef}
+                className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}${horizontalSplit.isAllRefsExpanded ? " is-all-refs-expanded" : ""}`}
+                style={horizontalSplit.topSectionStyle}
+                onDrop={handleCuratedSectionDrop}
+                onDragOver={handleCuratedSectionDragOver}
+                onDragEnter={handleCuratedSectionDragEnter}
+                onDragLeave={handleCuratedSectionDragLeave}
+              >
+                <div ref={curatedHeaderRef} className="reference-curated-header">
+                  <p className="eyebrow">Quick Slot Inventory</p>
+                </div>
+                <div
+                  className="reference-curated-scroll"
+                  onScroll={handleCuratedScroll}
+                  ref={curatedScrollContainerRef}
+                >
+                  <div
+                    className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+                    ref={curatedGridRef}
+                    style={curatedGridStyle}
+                  >
+                    {curatedOutputsLength === 0 ? (
+                      <div className="reference-curated-empty">
+                        <p className="preview-title">
+                          Drag &amp; drop references here from the Reference Grid.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {curatedTopSpacerHeight > 0 ? (
+                          <div
+                            className="reference-virtual-spacer"
+                            style={{ height: curatedTopSpacerHeight }}
+                          />
+                        ) : null}
+                        {curatedCardNodes}
+                        {curatedBottomSpacerHeight > 0 ? (
+                          <div
+                            className="reference-virtual-spacer"
+                            style={{ height: curatedBottomSpacerHeight }}
+                          />
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div
+                className="reference-grid-horizontal-divider-wrap"
+                {...horizontalSplit.dividerProps}
+              >
+                <button
+                  type="button"
+                  className="reference-grid-horizontal-divider-pill"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    horizontalSplit.snapToInventoryExpanded();
+                  }}
+                >
+                  Inventory ↓
+                </button>
+                <div className="reference-grid-horizontal-divider" />
+                <button
+                  type="button"
+                  className="reference-grid-horizontal-divider-pill"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    const curatedHeaderNode = curatedSectionRef.current?.querySelector(
+                      ".reference-curated-header"
+                    );
+                    const targetTopHeightPx =
+                      curatedHeaderNode instanceof HTMLElement
+                        ? curatedHeaderNode.offsetHeight
+                        : undefined;
+                    horizontalSplit.snapToAllRefsExpanded(targetTopHeightPx);
+                  }}
+                >
+                  All Refs ↑
+                </button>
+              </div>
+            </>
           ) : null}
           <div
-            className="reference-canvas-scroll"
-            onScroll={handleAllRefsScroll}
-            ref={scrollContainerRef}
+            className={`reference-all-refs-section${horizontalSplit.isInventoryExpanded ? " is-inventory-expanded" : ""}`}
+            style={isCuratedSplitEnabled ? horizontalSplit.bottomSectionStyle : undefined}
           >
+            {isCuratedSplitEnabled ? (
+              <ReferenceGridArchiveControls
+                archiveCount={archiveCount}
+                showHeader={showHeader}
+                isArchivePanelOpen={isArchivePanelOpen}
+                archivedOutputs={archivedOutputs}
+                hideUploadActions={horizontalSplit.isInventoryExpanded}
+                onToggleArchivePanel={onToggleArchivePanel}
+                onTriggerFileSelect={onTriggerFileSelect}
+                onOpenMediaLibrary={onOpenMediaLibrary}
+                onRestoreArchivedOutput={onRestoreArchivedOutput}
+                onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
+              />
+            ) : null}
             <div
-              className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
-              ref={gridRef}
-              style={gridStyle}
+              className="reference-canvas-scroll"
+              onScroll={handleAllRefsScroll}
+              ref={scrollContainerRef}
             >
-              {outputsLength === 0 ? (
-                <div className="reference-empty">
-                  <p className="preview-title">Upload or generate to see your references here.</p>
-                  <p className="subdued tiny helper-text">
-                    New text prompts, images, and videos will appear in this grid.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {topSpacerHeight > 0 ? (
-                    <div className="reference-virtual-spacer" style={{ height: topSpacerHeight }} />
-                  ) : null}
-                  {allRefsCardNodes}
-                  {bottomSpacerHeight > 0 ? (
-                    <div
-                      className="reference-virtual-spacer"
-                      style={{ height: bottomSpacerHeight }}
-                    />
-                  ) : null}
-                </>
-              )}
+              <div
+                className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+                ref={gridRef}
+                style={gridStyle}
+              >
+                {outputsLength === 0 ? (
+                  <div className="reference-empty">
+                    <p className="preview-title">Upload or generate to see your references here.</p>
+                    <p className="subdued tiny helper-text">
+                      New text prompts, images, and videos will appear in this grid.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {topSpacerHeight > 0 ? (
+                      <div
+                        className="reference-virtual-spacer"
+                        style={{ height: topSpacerHeight }}
+                      />
+                    ) : null}
+                    {allRefsCardNodes}
+                    {bottomSpacerHeight > 0 ? (
+                      <div
+                        className="reference-virtual-spacer"
+                        style={{ height: bottomSpacerHeight }}
+                      />
+                    ) : null}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceSta
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
  */
 export function CanvasPropertiesPanel({
+  instanceId,
   camera,
   items,
   pendingItems,
@@ -49,6 +50,7 @@ export function CanvasPropertiesPanel({
         ref={viewportRef}
         className={`canvas-workspace-viewport${isDropActive ? " is-drop-active" : ""}`}
         data-testid="canvas-viewport"
+        data-canvas-instance={instanceId}
         data-camera-x={camera.x}
         data-camera-y={camera.y}
         data-camera-zoom={camera.zoom}

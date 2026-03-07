@@ -10,9 +10,12 @@ import {
   useState,
   type DragEvent,
   type KeyboardEvent,
+  type MutableRefObject,
   type MouseEvent,
   type PointerEvent,
+  type Dispatch,
   type RefObject,
+  type SetStateAction,
   type WheelEvent,
 } from "react";
 import { randomId } from "../../logic/ids";
@@ -36,6 +39,8 @@ import type {
   CanvasSceneItem,
   ResolveCanvasDropReference,
 } from "./canvasTypes";
+
+export type CanvasWorkspaceInstanceId = "main" | "rail";
 
 type CanvasDropSession =
   | { kind: "none" }
@@ -66,6 +71,7 @@ type CanvasPendingSceneItem = {
 };
 
 export type CanvasPropertiesPanelProps = {
+  instanceId?: CanvasWorkspaceInstanceId;
   camera: CanvasCamera;
   items: CanvasSceneItem[];
   pendingItems: CanvasPendingSceneItem[];
@@ -98,6 +104,11 @@ export type CanvasPropertiesPanelProps = {
   onTextItemEditChange: (value: string) => void;
   onTextItemEditKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onTextItemEditBlur: () => void;
+};
+
+export type AiStudioDualCanvasWorkspaceState = {
+  mainCanvasProps: CanvasPropertiesPanelProps;
+  railCanvasProps: CanvasPropertiesPanelProps;
 };
 
 const DRAG_TEXT_HINT_PATTERN =
@@ -308,32 +319,30 @@ const buildCanvasSceneItem = ({
         width: CANVAS_TEXT_ITEM_WIDTH,
       };
 
-/**
- * Returns the Canvas workspace state and handlers used by the panel renderer.
- */
-export const useAiStudioCanvasWorkspaceState = ({
-  resolveCanvasDropReference,
-  onPinTextReference,
-}: {
-  resolveCanvasDropReference?: ResolveCanvasDropReference;
-  onPinTextReference?: (text: string) => void;
-} = {}): CanvasPropertiesPanelProps => {
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const interactionRef = useRef<CanvasDropSession>({ kind: "none" });
-  const dragDepthRef = useRef(0);
+type CanvasSharedSceneState = {
+  items: CanvasSceneItem[];
+  pendingItems: CanvasPendingSceneItem[];
+  draftTextEntry: { x: number; y: number; value: string } | null;
+  textEditSession: { itemId: string; value: string } | null;
+  setItems: Dispatch<SetStateAction<CanvasSceneItem[]>>;
+  setDraftTextEntry: Dispatch<SetStateAction<{ x: number; y: number; value: string } | null>>;
+  setTextEditSession: Dispatch<SetStateAction<{ itemId: string; value: string } | null>>;
+  clearSelection: () => void;
+  clearDraftTextEntry: () => void;
+  clearTextEditSession: () => void;
+  deleteSelection: () => void;
+  addResolvedItem: (
+    resolved: CanvasDropResolution,
+    worldX: number,
+    worldY: number,
+    options?: { showLoadingPlaceholder?: boolean }
+  ) => Promise<void>;
+  commitDraftTextEntry: () => void;
+  commitTextItemEdit: () => void;
+};
+
+const useCanvasSpacePanTracker = () => {
   const isSpacePanActiveRef = useRef(false);
-  const [camera, setCamera] = useState<CanvasCamera>(CANVAS_DEFAULT_CAMERA);
-  const [items, setItems] = useState<CanvasSceneItem[]>([]);
-  const [pendingItems, setPendingItems] = useState<CanvasPendingSceneItem[]>([]);
-  const [isDropActive, setIsDropActive] = useState(false);
-  const [draftTextEntry, setDraftTextEntry] = useState<{
-    x: number;
-    y: number;
-    value: string;
-  } | null>(null);
-  const [textEditSession, setTextEditSession] = useState<{ itemId: string; value: string } | null>(
-    null
-  );
 
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -351,6 +360,7 @@ export const useAiStudioCanvasWorkspaceState = ({
     const handleWindowBlur = () => {
       isSpacePanActiveRef.current = false;
     };
+
     window.addEventListener("keydown", handleKeyDown, {
       capture: true,
     });
@@ -358,6 +368,7 @@ export const useAiStudioCanvasWorkspaceState = ({
       capture: true,
     });
     window.addEventListener("blur", handleWindowBlur);
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown, {
         capture: true,
@@ -369,6 +380,21 @@ export const useAiStudioCanvasWorkspaceState = ({
       isSpacePanActiveRef.current = false;
     };
   }, []);
+
+  return isSpacePanActiveRef;
+};
+
+const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
+  const [items, setItems] = useState<CanvasSceneItem[]>([]);
+  const [pendingItems, setPendingItems] = useState<CanvasPendingSceneItem[]>([]);
+  const [draftTextEntry, setDraftTextEntry] = useState<{
+    x: number;
+    y: number;
+    value: string;
+  } | null>(null);
+  const [textEditSession, setTextEditSession] = useState<{ itemId: string; value: string } | null>(
+    null
+  );
 
   const clearSelection = useCallback(() => {
     setItems((currentItems) => clearCanvasSelection(currentItems));
@@ -411,6 +437,7 @@ export const useAiStudioCanvasWorkspaceState = ({
         resolved.kind === "image"
           ? Math.round((worldY - pendingHeight / 2) * 100) / 100
           : Math.round((worldY - 36) * 100) / 100;
+
       if (pendingId) {
         setPendingItems((currentPendingItems) => [
           ...currentPendingItems,
@@ -425,6 +452,7 @@ export const useAiStudioCanvasWorkspaceState = ({
           },
         ]);
       }
+
       try {
         if (showLoadingPlaceholder && resolved.kind === "text") {
           await waitForNextAnimationFrame();
@@ -433,6 +461,7 @@ export const useAiStudioCanvasWorkspaceState = ({
           resolved.kind === "image"
             ? (preResolvedImageDimensions ?? (await resolveCanvasImageDimensions(resolved)))
             : null;
+
         setItems((currentItems) => {
           const highestZ = getHighestCanvasZIndex(currentItems) + 1;
           const nextItems = clearCanvasSelection(currentItems);
@@ -509,6 +538,60 @@ export const useAiStudioCanvasWorkspaceState = ({
     });
   }, []);
 
+  return {
+    items,
+    pendingItems,
+    draftTextEntry,
+    textEditSession,
+    setItems,
+    setDraftTextEntry,
+    setTextEditSession,
+    clearSelection,
+    clearDraftTextEntry,
+    clearTextEditSession,
+    deleteSelection,
+    addResolvedItem,
+    commitDraftTextEntry,
+    commitTextItemEdit,
+  };
+};
+
+const useCanvasViewportInstanceState = ({
+  instanceId,
+  sharedScene,
+  resolveCanvasDropReference,
+  onPinTextReference,
+  isSpacePanActiveRef,
+}: {
+  instanceId: CanvasWorkspaceInstanceId;
+  sharedScene: CanvasSharedSceneState;
+  resolveCanvasDropReference?: ResolveCanvasDropReference;
+  onPinTextReference?: (text: string) => void;
+  isSpacePanActiveRef: MutableRefObject<boolean>;
+}): CanvasPropertiesPanelProps => {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const interactionRef = useRef<CanvasDropSession>({ kind: "none" });
+  const dragDepthRef = useRef(0);
+  const [camera, setCamera] = useState<CanvasCamera>(CANVAS_DEFAULT_CAMERA);
+  const [isDropActive, setIsDropActive] = useState(false);
+
+  const {
+    items,
+    pendingItems,
+    draftTextEntry,
+    textEditSession,
+    setItems,
+    setDraftTextEntry,
+    setTextEditSession,
+    clearSelection,
+    clearDraftTextEntry,
+    clearTextEditSession,
+    deleteSelection,
+    addResolvedItem,
+    commitDraftTextEntry,
+    commitTextItemEdit,
+  } = sharedScene;
+
   const handleResolvedInternalDrop = useCallback(
     async (
       payload: InternalReferenceDragPayload,
@@ -560,7 +643,14 @@ export const useAiStudioCanvasWorkspaceState = ({
         startClientY: event.clientY,
       };
     },
-    [camera.x, camera.y, clearDraftTextEntry, clearSelection, clearTextEditSession]
+    [
+      camera.x,
+      camera.y,
+      clearDraftTextEntry,
+      clearSelection,
+      clearTextEditSession,
+      isSpacePanActiveRef,
+    ]
   );
 
   const handleViewportDoubleClick = useCallback(
@@ -586,7 +676,7 @@ export const useAiStudioCanvasWorkspaceState = ({
         value: "",
       });
     },
-    [camera, clearSelection, clearTextEditSession]
+    [camera, clearSelection, clearTextEditSession, setDraftTextEntry]
   );
 
   const handleViewportPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -657,7 +747,14 @@ export const useAiStudioCanvasWorkspaceState = ({
         return selectedItems;
       });
     },
-    [camera.x, camera.y, clearTextEditSession, textEditSession?.itemId]
+    [
+      camera.x,
+      camera.y,
+      clearTextEditSession,
+      isSpacePanActiveRef,
+      setItems,
+      textEditSession?.itemId,
+    ]
   );
 
   const handleItemPointerMove = useCallback(
@@ -702,7 +799,7 @@ export const useAiStudioCanvasWorkspaceState = ({
         )
       );
     },
-    [camera.zoom]
+    [camera.zoom, setItems]
   );
 
   const handleItemPointerUp = useCallback((itemId: string, event: PointerEvent<HTMLElement>) => {
@@ -841,16 +938,19 @@ export const useAiStudioCanvasWorkspaceState = ({
     [deleteSelection, draftTextEntry, textEditSession]
   );
 
-  const handleDraftTextChange = useCallback((value: string) => {
-    setDraftTextEntry((currentDraft) =>
-      currentDraft
-        ? {
-            ...currentDraft,
-            value,
-          }
-        : currentDraft
-    );
-  }, []);
+  const handleDraftTextChange = useCallback(
+    (value: string) => {
+      setDraftTextEntry((currentDraft) =>
+        currentDraft
+          ? {
+              ...currentDraft,
+              value,
+            }
+          : currentDraft
+      );
+    },
+    [setDraftTextEntry]
+  );
 
   const handleDraftTextKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -879,26 +979,34 @@ export const useAiStudioCanvasWorkspaceState = ({
         value: item.text,
       });
     },
-    [clearDraftTextEntry, items]
+    [clearDraftTextEntry, items, setItems, setTextEditSession]
   );
 
-  const handleItemContextMenu = useCallback((id: string, event: MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setItems((currentItems) => deleteCanvasItemById(currentItems, id));
-    setTextEditSession((currentSession) => (currentSession?.itemId === id ? null : currentSession));
-  }, []);
+  const handleItemContextMenu = useCallback(
+    (id: string, event: MouseEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setItems((currentItems) => deleteCanvasItemById(currentItems, id));
+      setTextEditSession((currentSession) =>
+        currentSession?.itemId === id ? null : currentSession
+      );
+    },
+    [setItems, setTextEditSession]
+  );
 
-  const handleTextItemEditChange = useCallback((value: string) => {
-    setTextEditSession((currentSession) =>
-      currentSession
-        ? {
-            ...currentSession,
-            value,
-          }
-        : currentSession
-    );
-  }, []);
+  const handleTextItemEditChange = useCallback(
+    (value: string) => {
+      setTextEditSession((currentSession) =>
+        currentSession
+          ? {
+              ...currentSession,
+              value,
+            }
+          : currentSession
+      );
+    },
+    [setTextEditSession]
+  );
 
   const handleTextItemEditKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -932,6 +1040,7 @@ export const useAiStudioCanvasWorkspaceState = ({
 
   return useMemo(
     () => ({
+      instanceId,
       camera,
       items,
       pendingItems,
@@ -969,33 +1078,94 @@ export const useAiStudioCanvasWorkspaceState = ({
       camera,
       clearDraftTextEntry,
       draftTextEntry,
-      handleItemDoubleClick,
       handleDraftTextChange,
       handleDraftTextKeyDown,
+      handleItemContextMenu,
+      handleItemDoubleClick,
       handleItemPointerCancel,
       handleItemPointerDown,
       handleItemPointerMove,
       handleItemPointerUp,
-      handleItemContextMenu,
       handlePinTextItem,
+      handleTextItemEditBlur,
+      handleTextItemEditChange,
+      handleTextItemEditKeyDown,
       handleViewportDoubleClick,
-      handleViewportKeyDown,
       handleViewportDragEnter,
       handleViewportDragLeave,
       handleViewportDragOver,
       handleViewportDrop,
+      handleViewportKeyDown,
       handleViewportPointerCancel,
       handleViewportPointerDown,
       handleViewportPointerMove,
       handleViewportPointerUp,
       handleViewportWheel,
-      handleTextItemEditBlur,
-      handleTextItemEditChange,
-      handleTextItemEditKeyDown,
+      instanceId,
       isDropActive,
       items,
       pendingItems,
       textEditSession,
     ]
+  );
+};
+
+/**
+ * Returns the Canvas workspace state and handlers used by the primary properties panel renderer.
+ */
+export const useAiStudioCanvasWorkspaceState = ({
+  resolveCanvasDropReference,
+  onPinTextReference,
+}: {
+  resolveCanvasDropReference?: ResolveCanvasDropReference;
+  onPinTextReference?: (text: string) => void;
+} = {}): CanvasPropertiesPanelProps => {
+  const sharedScene = useCanvasSharedSceneState();
+  const isSpacePanActiveRef = useCanvasSpacePanTracker();
+
+  return useCanvasViewportInstanceState({
+    instanceId: "main",
+    sharedScene,
+    resolveCanvasDropReference,
+    onPinTextReference,
+    isSpacePanActiveRef,
+  });
+};
+
+/**
+ * Returns two Canvas panel contracts that share scene state while keeping viewport cameras isolated.
+ */
+export const useAiStudioDualCanvasWorkspaceState = ({
+  resolveCanvasDropReference,
+  onPinTextReference,
+}: {
+  resolveCanvasDropReference?: ResolveCanvasDropReference;
+  onPinTextReference?: (text: string) => void;
+} = {}): AiStudioDualCanvasWorkspaceState => {
+  const sharedScene = useCanvasSharedSceneState();
+  const isSpacePanActiveRef = useCanvasSpacePanTracker();
+
+  const mainCanvasProps = useCanvasViewportInstanceState({
+    instanceId: "main",
+    sharedScene,
+    resolveCanvasDropReference,
+    onPinTextReference,
+    isSpacePanActiveRef,
+  });
+
+  const railCanvasProps = useCanvasViewportInstanceState({
+    instanceId: "rail",
+    sharedScene,
+    resolveCanvasDropReference,
+    onPinTextReference,
+    isSpacePanActiveRef,
+  });
+
+  return useMemo(
+    () => ({
+      mainCanvasProps,
+      railCanvasProps,
+    }),
+    [mainCanvasProps, railCanvasProps]
   );
 };

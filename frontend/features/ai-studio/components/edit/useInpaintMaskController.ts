@@ -29,6 +29,7 @@ type MaskLayerMeta = {
   width: number;
   height: number;
   contourSegments: number[];
+  contourPaths: number[][];
 };
 
 type PointerSession = {
@@ -80,17 +81,11 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 const toCanvasPoint = (
   event: { clientX: number; clientY: number },
-  rect: DOMRect,
-  imageRect: InpaintImageRect | null
+  rect: DOMRect
 ): InpaintPoint | null => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
   if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
-  if (imageRect) {
-    const withinX = x >= imageRect.x && x <= imageRect.x + imageRect.width;
-    const withinY = y >= imageRect.y && y <= imageRect.y + imageRect.height;
-    if (!withinX || !withinY) return null;
-  }
   return {
     x,
     y,
@@ -181,6 +176,113 @@ export const resolveNextMarchingAntPhaseState = ({
 type DerivedMaskContour = {
   hasContent: boolean;
   contourSegments: number[];
+  contourPaths: number[][];
+};
+
+type ContourEdge = {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  startKey: string;
+  endKey: string;
+};
+
+const toContourPointKey = (x: number, y: number) => `${x},${y}`;
+
+/**
+ * Chains directed contour segments into longer connected paths so dashed strokes
+ * animate smoothly instead of resetting on each 1px boundary segment.
+ */
+export const buildContourPathsFromSegments = (contourSegments: number[]): number[][] => {
+  if (contourSegments.length < 4) return [];
+
+  const edges: ContourEdge[] = [];
+  for (let index = 0; index < contourSegments.length; index += 4) {
+    const startX = contourSegments[index];
+    const startY = contourSegments[index + 1];
+    const endX = contourSegments[index + 2];
+    const endY = contourSegments[index + 3];
+    if (
+      typeof startX !== "number" ||
+      typeof startY !== "number" ||
+      typeof endX !== "number" ||
+      typeof endY !== "number"
+    ) {
+      continue;
+    }
+    if (startX === endX && startY === endY) continue;
+    edges.push({
+      startX,
+      startY,
+      endX,
+      endY,
+      startKey: toContourPointKey(startX, startY),
+      endKey: toContourPointKey(endX, endY),
+    });
+  }
+
+  if (!edges.length) return [];
+
+  const outgoingByStart = new Map<string, number[]>();
+  edges.forEach((edge, edgeIndex) => {
+    const entry = outgoingByStart.get(edge.startKey);
+    if (entry) {
+      entry.push(edgeIndex);
+      return;
+    }
+    outgoingByStart.set(edge.startKey, [edgeIndex]);
+  });
+
+  const edgeUsed = new Uint8Array(edges.length);
+  const paths: number[][] = [];
+
+  const resolveNextEdgeIndex = (currentKey: string, previousKey: string | null): number | null => {
+    const candidates = outgoingByStart.get(currentKey);
+    if (!candidates?.length) return null;
+    let fallback: number | null = null;
+    for (const candidateIndex of candidates) {
+      if (edgeUsed[candidateIndex]) continue;
+      const candidate = edges[candidateIndex];
+      if (!candidate) continue;
+      if (previousKey != null && candidate.endKey === previousKey) {
+        if (fallback == null) fallback = candidateIndex;
+        continue;
+      }
+      return candidateIndex;
+    }
+    return fallback;
+  };
+
+  edges.forEach((edge, edgeIndex) => {
+    if (edgeUsed[edgeIndex]) return;
+    edgeUsed[edgeIndex] = 1;
+
+    const path: number[] = [edge.startX, edge.startY, edge.endX, edge.endY];
+    const startKey = edge.startKey;
+    let previousKey: string | null = edge.startKey;
+    let currentKey: string = edge.endKey;
+    let guard = 0;
+    const guardLimit = edges.length + 1;
+
+    while (currentKey !== startKey && guard < guardLimit) {
+      const nextEdgeIndex = resolveNextEdgeIndex(currentKey, previousKey);
+      if (nextEdgeIndex == null) break;
+      const nextEdge = edges[nextEdgeIndex];
+      if (!nextEdge) break;
+      edgeUsed[nextEdgeIndex] = 1;
+      path.push(nextEdge.endX, nextEdge.endY);
+      previousKey = currentKey;
+      currentKey = nextEdge.endKey;
+      guard += 1;
+    }
+
+    if (path.length >= 4) {
+      paths.push(path);
+    }
+  });
+
+  return paths;
 };
 
 /**
@@ -192,7 +294,7 @@ export const deriveMaskContourFromAlpha = (
   data: Uint8ClampedArray
 ): DerivedMaskContour => {
   if (width <= 0 || height <= 0) {
-    return { hasContent: false, contourSegments: [] };
+    return { hasContent: false, contourSegments: [], contourPaths: [] };
   }
 
   const contourSegments: number[] = [];
@@ -222,9 +324,12 @@ export const deriveMaskContourFromAlpha = (
     }
   }
 
+  const contourPaths = buildContourPathsFromSegments(contourSegments);
+
   return {
     hasContent,
     contourSegments,
+    contourPaths,
   };
 };
 
@@ -238,6 +343,7 @@ const analyzeMaskCanvas = (canvas: HTMLCanvasElement): MaskLayerMeta => {
       width,
       height,
       contourSegments: [],
+      contourPaths: [],
     };
   }
   const imageData = ctx.getImageData(0, 0, width, height);
@@ -248,6 +354,7 @@ const analyzeMaskCanvas = (canvas: HTMLCanvasElement): MaskLayerMeta => {
     width,
     height,
     contourSegments: derivedContour.contourSegments,
+    contourPaths: derivedContour.contourPaths,
   };
 };
 
@@ -257,21 +364,14 @@ const drawBrushSegment = ({
   to,
   radius,
   selectionMode,
-  imageRect,
 }: {
   ctx: CanvasRenderingContext2D;
   from: InpaintPoint;
   to: InpaintPoint;
   radius: number;
   selectionMode: InpaintSelectionMode;
-  imageRect: InpaintImageRect | null;
 }) => {
   ctx.save();
-  if (imageRect) {
-    ctx.beginPath();
-    ctx.rect(imageRect.x, imageRect.y, imageRect.width, imageRect.height);
-    ctx.clip();
-  }
   ctx.globalCompositeOperation = selectionMode === "select" ? "source-over" : "destination-out";
   ctx.strokeStyle = "rgba(255,255,255,1)";
   ctx.fillStyle = "rgba(255,255,255,1)";
@@ -292,20 +392,13 @@ const applyLassoSelection = ({
   ctx,
   points,
   selectionMode,
-  imageRect,
 }: {
   ctx: CanvasRenderingContext2D;
   points: InpaintPoint[];
   selectionMode: InpaintSelectionMode;
-  imageRect: InpaintImageRect | null;
 }) => {
   if (points.length < 3) return;
   ctx.save();
-  if (imageRect) {
-    ctx.beginPath();
-    ctx.rect(imageRect.x, imageRect.y, imageRect.width, imageRect.height);
-    ctx.clip();
-  }
   ctx.globalCompositeOperation = selectionMode === "select" ? "source-over" : "destination-out";
   ctx.fillStyle = "rgba(255,255,255,1)";
   ctx.beginPath();
@@ -352,7 +445,7 @@ const renderOverlayFrame = ({
     ctx.save();
     ctx.drawImage(maskCanvas, 0, 0, width, height);
     ctx.globalCompositeOperation = "source-in";
-    ctx.fillStyle = "rgba(43, 212, 255, 0.36)";
+    ctx.fillStyle = "rgba(22, 238, 255, 0.58)";
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
 
@@ -361,37 +454,46 @@ const renderOverlayFrame = ({
       const scaleY = height / meta.height;
       const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
       const baseOffset = -(phase * MARCHING_ANTS_DASH_OFFSET_STEP);
+      const contourStrokeWidth = 1 / dpr;
+      const contourPaths = meta.contourPaths;
       const drawContourStroke = (strokeStyle: string, lineDashOffset: number) => {
         ctx.save();
         ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = 1.4;
+        ctx.lineWidth = contourStrokeWidth;
         ctx.setLineDash([dashSize, dashGap]);
         ctx.lineDashOffset = lineDashOffset;
         ctx.beginPath();
-        for (let index = 0; index < meta.contourSegments.length; index += 4) {
-          const x1 = meta.contourSegments[index] ?? 0;
-          const y1 = meta.contourSegments[index + 1] ?? 0;
-          const x2 = meta.contourSegments[index + 2] ?? 0;
-          const y2 = meta.contourSegments[index + 3] ?? 0;
-          ctx.moveTo(x1 * scaleX, y1 * scaleY);
-          ctx.lineTo(x2 * scaleX, y2 * scaleY);
+        if (contourPaths.length > 0) {
+          for (const path of contourPaths) {
+            if (path.length < 4) continue;
+            ctx.moveTo((path[0] ?? 0) * scaleX, (path[1] ?? 0) * scaleY);
+            for (let pointIndex = 2; pointIndex < path.length; pointIndex += 2) {
+              const pathX = path[pointIndex] ?? 0;
+              const pathY = path[pointIndex + 1] ?? 0;
+              ctx.lineTo(pathX * scaleX, pathY * scaleY);
+            }
+          }
+        } else {
+          for (let index = 0; index < meta.contourSegments.length; index += 4) {
+            const x1 = meta.contourSegments[index] ?? 0;
+            const y1 = meta.contourSegments[index + 1] ?? 0;
+            const x2 = meta.contourSegments[index + 2] ?? 0;
+            const y2 = meta.contourSegments[index + 3] ?? 0;
+            ctx.moveTo(x1 * scaleX, y1 * scaleY);
+            ctx.lineTo(x2 * scaleX, y2 * scaleY);
+          }
         }
         ctx.stroke();
         ctx.restore();
       };
 
-      drawContourStroke("rgba(0,0,0,0.92)", baseOffset);
-      drawContourStroke("rgba(255,255,255,0.98)", baseOffset + dashSize);
+      drawContourStroke("rgba(0,0,0,0.62)", baseOffset);
+      drawContourStroke("rgba(255,255,255,0.82)", baseOffset + dashSize);
     }
   }
 
   if (lassoPreviewPoints.length > 1) {
     ctx.save();
-    if (imageRect) {
-      ctx.beginPath();
-      ctx.rect(imageRect.x, imageRect.y, imageRect.width, imageRect.height);
-      ctx.clip();
-    }
 
     if (lassoPreviewPoints.length > 2) {
       ctx.fillStyle = "rgba(43, 212, 255, 0.14)";
@@ -675,11 +777,10 @@ export const useInpaintMaskController = ({
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx || canvas.width <= 0 || canvas.height <= 0) return;
-      const bounds = imageRect ?? { x: 0, y: 0, width: canvas.width, height: canvas.height };
-      const startX = clamp(Math.floor(bounds.x), 0, canvas.width);
-      const startY = clamp(Math.floor(bounds.y), 0, canvas.height);
-      const endX = clamp(Math.ceil(bounds.x + bounds.width), 0, canvas.width);
-      const endY = clamp(Math.ceil(bounds.y + bounds.height), 0, canvas.height);
+      const startX = 0;
+      const startY = 0;
+      const endX = canvas.width;
+      const endY = canvas.height;
       const width = Math.max(0, endX - startX);
       const height = Math.max(0, endY - startY);
       if (!width || !height) return;
@@ -702,7 +803,7 @@ export const useInpaintMaskController = ({
       ctx.putImageData(imageData, startX, startY);
       queueLayerAnalysis(layerId, true);
     },
-    [imageRect, queueLayerAnalysis]
+    [queueLayerAnalysis]
   );
 
   const endPointerSession = React.useCallback(
@@ -717,7 +818,6 @@ export const useInpaintMaskController = ({
             ctx,
             points: session.lassoPoints,
             selectionMode,
-            imageRect,
           });
         }
       }
@@ -742,7 +842,6 @@ export const useInpaintMaskController = ({
     },
     [
       ensureMaskCanvasForLayer,
-      imageRect,
       paintMode,
       queueLayerAnalysis,
       renderOverlayNow,
@@ -763,7 +862,7 @@ export const useInpaintMaskController = ({
       const dropzone = dropzoneRef.current;
       if (!dropzone) return;
       const rect = dropzone.getBoundingClientRect();
-      const point = toCanvasPoint(event, rect, imageRect);
+      const point = toCanvasPoint(event, rect);
       if (!point) return;
 
       event.preventDefault();
@@ -790,7 +889,6 @@ export const useInpaintMaskController = ({
           to: point,
           radius,
           selectionMode,
-          imageRect,
         });
         queueLayerAnalysis(selectedLayerId);
       }
@@ -803,7 +901,6 @@ export const useInpaintMaskController = ({
       dropzoneRef,
       enabled,
       ensureMaskCanvasForLayer,
-      imageRect,
       onAutoToolAttempt,
       paintMode,
       queueLayerAnalysis,
@@ -831,7 +928,7 @@ export const useInpaintMaskController = ({
 
       if (paintMode === "lasso") {
         events.forEach((sampleEvent) => {
-          const point = toCanvasPoint(sampleEvent, rect, imageRect);
+          const point = toCanvasPoint(sampleEvent, rect);
           if (!point) return;
           session.lassoPoints.push(point);
           session.lastPoint = point;
@@ -850,7 +947,7 @@ export const useInpaintMaskController = ({
       let previousPoint = session.lastPoint;
       const radius = resolveInpaintBrushDiameter(strokeSize) / 2;
       events.forEach((sampleEvent) => {
-        const point = toCanvasPoint(sampleEvent, rect, imageRect);
+        const point = toCanvasPoint(sampleEvent, rect);
         if (!point) return;
         if (!previousPoint) previousPoint = point;
         drawBrushSegment({
@@ -859,7 +956,6 @@ export const useInpaintMaskController = ({
           to: point,
           radius,
           selectionMode,
-          imageRect,
         });
         previousPoint = point;
         didPaint = true;
@@ -878,7 +974,6 @@ export const useInpaintMaskController = ({
       animateOverlay,
       dropzoneRef,
       ensureMaskCanvasForLayer,
-      imageRect,
       paintMode,
       queueLayerAnalysis,
       renderOverlayNow,

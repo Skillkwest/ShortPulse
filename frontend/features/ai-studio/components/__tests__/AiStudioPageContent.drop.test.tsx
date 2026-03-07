@@ -37,11 +37,27 @@ vi.mock("../ModelModal", () => ({
 }));
 
 vi.mock("../ReferenceGrid", () => ({
-  ReferenceGrid: () => (
+  ReferenceGrid: (props: {
+    railCanvasProps?: {
+      onViewportDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+      onViewportDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
+    };
+  }) => (
     <div
       data-testid="reference-grid"
       onDrop={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
-    />
+    >
+      <div
+        data-testid="reference-grid-rail-canvas"
+        data-canvas-instance="rail"
+        onDragOver={(event: React.DragEvent<HTMLDivElement>) =>
+          props.railCanvasProps?.onViewportDragOver?.(event)
+        }
+        onDrop={(event: React.DragEvent<HTMLDivElement>) =>
+          props.railCanvasProps?.onViewportDrop?.(event)
+        }
+      />
+    </div>
   ),
 }));
 
@@ -121,6 +137,7 @@ const createProps = (
   } as AiStudioPageContentProps["propertiesEditExpert"],
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
   propertiesCanvas: {} as AiStudioPageContentProps["propertiesCanvas"],
+  railCanvasProps: {} as AiStudioPageContentProps["railCanvasProps"],
   isTemplateView: false,
   referenceGridProps: {
     outputs: [],
@@ -302,6 +319,39 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
 
     expect(onPasteTextReference).toHaveBeenCalledWith("Dropped note");
+  });
+
+  it("lets rail-canvas viewport handle text drops before shell routing", () => {
+    const onPasteTextReference = vi.fn();
+    const onRailViewportDrop = vi.fn((event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+    });
+    const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
+      railCanvasProps: {
+        onViewportDragOver: (event: React.DragEvent<HTMLDivElement>) => {
+          event.preventDefault();
+        },
+        onViewportDrop: onRailViewportDrop,
+      } as unknown as AiStudioPageContentProps["railCanvasProps"],
+    });
+
+    const { getByTestId } = render(<AiStudioPageContent {...props} />);
+    const railCanvasViewport = getByTestId("reference-grid-rail-canvas");
+    const dataTransfer = {
+      types: ["text/plain"],
+      files: makeEmptyFileList(),
+      getData: (type: string) => (type === "text/plain" ? "Canvas note" : ""),
+    } as unknown as DataTransfer;
+
+    fireEvent.dragOver(railCanvasViewport, { dataTransfer });
+    fireEvent.drop(railCanvasViewport, { dataTransfer });
+
+    expect(onRailViewportDrop).toHaveBeenCalled();
+    expect(onPasteTextReference).not.toHaveBeenCalled();
   });
 
   it("routes file drops through the reference-grid file handler", () => {

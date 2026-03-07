@@ -8,6 +8,7 @@ describe("mapHookContractsToPageContentProps", () => {
     const propertiesEditExpert = { expertEditEligible: true } as unknown as Record<string, unknown>;
     const propertiesVideo = { id: "video" } as unknown as Record<string, unknown>;
     const propertiesCanvas = { id: "canvas" } as unknown as Record<string, unknown>;
+    const railCanvasProps = { id: "rail-canvas" } as unknown as Record<string, unknown>;
     const referenceGridProps = { id: "grid" } as unknown as Record<string, unknown>;
     const studioPreviewProps = { id: "preview" } as unknown as Record<string, unknown>;
     const onDetailClose = vi.fn();
@@ -26,6 +27,7 @@ describe("mapHookContractsToPageContentProps", () => {
         propertiesText: propertiesCreate as never,
       },
       canvasProps: propertiesCanvas as never,
+      railCanvasProps: railCanvasProps as never,
       referenceGridProps: referenceGridProps as never,
       previewDetailProps: {
         studioPreviewProps: studioPreviewProps as never,
@@ -45,6 +47,7 @@ describe("mapHookContractsToPageContentProps", () => {
     expect(result.propertiesEditExpert).toBe(propertiesEditExpert);
     expect(result.propertiesVideo).toBe(propertiesVideo);
     expect(result.propertiesCanvas).toBe(propertiesCanvas);
+    expect(result.railCanvasProps).toBe(railCanvasProps);
     expect(result.referenceGridProps).toBe(referenceGridProps);
     expect(result.studioPreviewProps).toBe(studioPreviewProps);
     expect(result.detailModalOutput).toBeNull();

@@ -22,7 +22,7 @@ import { normalizeAgentOutputGenerateRequest } from "../features/ai-studio/logic
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
-import { useAiStudioCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
+import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import {
   useAiStudioCharacterModeController,
   type CharacterModeInjectionBundle,
@@ -383,7 +383,7 @@ export default function AiStudioPage() {
     },
     [getOutputById, resolveSavedMediaIdFromOutput]
   );
-  const canvasWorkspaceProps = useAiStudioCanvasWorkspaceState({
+  const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
     onPinTextReference: addPastedPromptReference,
   });
@@ -1561,6 +1561,7 @@ export default function AiStudioPage() {
     propertiesEditExpert,
     propertiesVideo,
     propertiesCanvas,
+    railCanvasProps: railCanvasPanelProps,
     referenceGridProps,
     studioPreviewProps,
     detailModalOutput,
@@ -1572,7 +1573,8 @@ export default function AiStudioPage() {
     onOpenMediaLibrary,
   } = mapHookContractsToPageContentProps({
     panelProps,
-    canvasProps: canvasWorkspaceProps,
+    canvasProps: mainCanvasProps,
+    railCanvasProps,
     referenceGridProps: referenceGridHookProps,
     previewDetailProps,
   });
@@ -1616,6 +1618,7 @@ export default function AiStudioPage() {
         propertiesEditExpert={propertiesEditExpert}
         propertiesVideo={propertiesVideo}
         propertiesCanvas={propertiesCanvas}
+        railCanvasProps={railCanvasPanelProps}
         isTemplateView={isTemplateView}
         referenceGridProps={referenceGridProps}
         studioPreviewProps={studioPreviewProps}

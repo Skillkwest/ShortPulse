@@ -59,6 +59,7 @@ import { useReferenceGridViewportProjectionController } from "../reference-grid/
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
 import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
+import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -100,6 +101,7 @@ const REFERENCE_GRID_FLAG_TRANSITION_NONURGENT = PERF_FLAG_REFERENCE_GRID_TRANSI
 const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY;
 const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.28;
+const DEFAULT_CANVAS_SECTION_TOP_RATIO = 0.3;
 
 // Temporary UI experiment: set false to revert selection outline theming to default create-blue.
 const ENABLE_TOOL_THEMED_SELECTION_OUTLINE = true;
@@ -152,6 +154,7 @@ export type ReferenceGridProps = {
   ) => void;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
+  railCanvasProps?: CanvasPropertiesPanelProps;
 };
 
 /**
@@ -189,6 +192,7 @@ export function ReferenceGrid({
   onReorderCuratedReference,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
+  railCanvasProps,
 }: ReferenceGridProps) {
   const selectorOutputs = useOutputSelector((snapshot) => {
     if (outputsProp) return EMPTY_OUTPUTS;
@@ -256,6 +260,9 @@ export function ReferenceGrid({
   const curatedScrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const curatedGridRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const inventoryStackRef = React.useRef<HTMLDivElement | null>(null);
+  const railCanvasSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const railCanvasHeaderRef = React.useRef<HTMLDivElement | null>(null);
   const curatedSectionRef = React.useRef<HTMLDivElement | null>(null);
   const curatedHeaderRef = React.useRef<HTMLDivElement | null>(null);
   const videoVisibleKeySetRef = React.useRef<Set<string>>(new Set());
@@ -283,6 +290,7 @@ export function ReferenceGrid({
   const isCuratedDropActiveRef = React.useRef(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
   const [curatedHeaderHeightPx, setCuratedHeaderHeightPx] = useState(24);
+  const [railCanvasHeaderHeightPx, setRailCanvasHeaderHeightPx] = useState(24);
   const previousVisiblePreviewUrlByIdRef = React.useRef<Record<string, string | null>>({});
   const previewSwapTelemetryRef = React.useRef<{
     windowStartedAtMs: number;
@@ -324,15 +332,42 @@ export function ReferenceGrid({
     columnCount: 5,
     rowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
   });
+  const showRailCanvasSection = Boolean(railCanvasProps);
+  const railCanvasSplit = useReferenceGridHorizontalSplit({
+    enabled: showRailCanvasSection,
+    containerRef: panelRef,
+    defaultTopRatio: DEFAULT_CANVAS_SECTION_TOP_RATIO,
+    minTopSectionHeightPx: railCanvasHeaderHeightPx,
+    minBottomSectionHeightPx: 120,
+    allRefsSnapTopHeightPx: railCanvasHeaderHeightPx,
+    collapseTopHeightPx: railCanvasHeaderHeightPx,
+    ariaLabel: "Resize Canvas and Quick Slot Inventory sections",
+  });
   const horizontalSplit = useReferenceGridHorizontalSplit({
     enabled: isCuratedSplitEnabled,
-    containerRef: panelRef,
+    containerRef: inventoryStackRef,
     defaultTopRatio: DEFAULT_CURATED_SPLIT_TOP_RATIO,
     minTopSectionHeightPx: curatedHeaderHeightPx,
     minBottomSectionHeightPx: 72,
     allRefsSnapTopHeightPx: curatedHeaderHeightPx,
     collapseTopHeightPx: curatedHeaderHeightPx,
+    onOverflowDeltaPx: (deltaPx) => {
+      if (!showRailCanvasSection) return;
+      // Lower divider overflow past its top bound should push the upper divider up.
+      if (deltaPx >= 0) return;
+      railCanvasSplit.nudgeTopSectionHeightByPx(deltaPx);
+    },
   });
+  const clampInventorySplitToBounds = horizontalSplit.clampToContainerBounds;
+  React.useLayoutEffect(() => {
+    if (!showRailCanvasSection || !isCuratedSplitEnabled) return;
+    clampInventorySplitToBounds();
+  }, [
+    clampInventorySplitToBounds,
+    isCuratedSplitEnabled,
+    railCanvasSplit.topRatio,
+    showRailCanvasSection,
+  ]);
 
   React.useEffect(() => {
     if (!isCuratedSplitEnabled) return;
@@ -352,6 +387,24 @@ export function ReferenceGrid({
     observer.observe(node);
     return () => observer.disconnect();
   }, [isCuratedSplitEnabled]);
+  React.useEffect(() => {
+    if (!showRailCanvasSection) return;
+    const updateHeaderHeight = () => {
+      const node = railCanvasHeaderRef.current;
+      if (!node) return;
+      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
+      setRailCanvasHeaderHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
+    };
+    updateHeaderHeight();
+    if (typeof ResizeObserver === "undefined") return;
+    const node = railCanvasHeaderRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() => {
+      updateHeaderHeight();
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [showRailCanvasSection]);
   const lastRenderCommitAtRef = React.useRef<number>(0);
   const autoplayEnabledIdSet = React.useMemo(
     () => new Set(autoplayEnabledIds),
@@ -804,7 +857,13 @@ export function ReferenceGrid({
         onOpenMediaLibrary={onOpenMediaLibrary}
         onRestoreArchivedOutput={onRestoreArchivedOutput}
         onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
+        railCanvasProps={railCanvasProps}
+        showRailCanvasSection={showRailCanvasSection}
+        railCanvasSplit={railCanvasSplit}
+        railCanvasSectionRef={railCanvasSectionRef}
+        railCanvasHeaderRef={railCanvasHeaderRef}
         horizontalSplit={horizontalSplit}
+        inventoryStackRef={inventoryStackRef}
         curatedSectionRef={curatedSectionRef}
         curatedHeaderRef={curatedHeaderRef}
         curatedScrollContainerRef={curatedScrollContainerRef}

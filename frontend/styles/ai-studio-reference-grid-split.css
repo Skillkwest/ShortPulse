@@ -9,6 +9,58 @@
   flex-direction: column;
 }
 
+.reference-rail-canvas-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 2px;
+  background: var(--ai-container-card-bg);
+  border: 1px solid var(--ai-container-card-border);
+}
+
+.reference-rail-canvas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 10px;
+}
+
+.reference-rail-canvas-header .tiny,
+.reference-rail-canvas-header .eyebrow {
+  margin: 0;
+}
+
+.reference-rail-canvas-header .eyebrow {
+  line-height: 1;
+}
+
+.reference-rail-canvas-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reference-rail-canvas-section.is-inventory-expanded .reference-rail-canvas-body {
+  display: none;
+}
+
+.reference-rail-canvas-section .canvas-properties-panel {
+  min-height: 0;
+  height: 100%;
+}
+
+.reference-rail-canvas-section .canvas-workspace-viewport {
+  height: 100%;
+}
+
+.reference-grid-inventory-stack {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .reference-curated-section {
   display: flex;
   flex-direction: column;
@@ -219,8 +271,13 @@
   flex-direction: column;
 }
 
-.reference-all-refs-section .reference-all-refs-header {
+.reference-all-refs-section .panel-header.preview-header.reference-all-refs-header {
   margin-top: 6px;
+  padding: 0 4px;
+}
+
+.reference-all-refs-section .reference-all-refs-header .eyebrow {
+  margin-left: 8px;
 }
 
 .reference-all-refs-section.is-inventory-expanded .reference-canvas-scroll {

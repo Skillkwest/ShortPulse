@@ -107,6 +107,42 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
   ...overrides,
 });
 
+const createRailCanvasProps = (): ReferenceGridProps["railCanvasProps"] => ({
+  instanceId: "rail",
+  camera: { x: 0, y: 0, zoom: 1 },
+  items: [],
+  pendingItems: [],
+  viewportRef: { current: null },
+  isDropActive: false,
+  draftTextEntry: null,
+  editingTextItemId: null,
+  editingTextValue: "",
+  onViewportKeyDown: vi.fn(),
+  onViewportDoubleClick: vi.fn(),
+  onViewportPointerDown: vi.fn(),
+  onViewportPointerMove: vi.fn(),
+  onViewportPointerUp: vi.fn(),
+  onViewportPointerCancel: vi.fn(),
+  onViewportDragEnter: vi.fn(),
+  onViewportDragOver: vi.fn(),
+  onViewportDragLeave: vi.fn(),
+  onViewportDrop: vi.fn(),
+  onViewportWheel: vi.fn(),
+  onItemPointerDown: vi.fn(),
+  onItemPointerMove: vi.fn(),
+  onItemPointerUp: vi.fn(),
+  onItemPointerCancel: vi.fn(),
+  onItemContextMenu: vi.fn(),
+  onItemDoubleClick: vi.fn(),
+  onPinTextItem: vi.fn(),
+  onDraftTextChange: vi.fn(),
+  onDraftTextKeyDown: vi.fn(),
+  onDraftTextBlur: vi.fn(),
+  onTextItemEditChange: vi.fn(),
+  onTextItemEditKeyDown: vi.fn(),
+  onTextItemEditBlur: vi.fn(),
+});
+
 describe("ReferenceGrid curated split", () => {
   beforeEach(() => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
@@ -1357,6 +1393,34 @@ describe("ReferenceGrid curated split", () => {
     expect(allRefsSection.classList.contains("is-inventory-expanded")).toBe(true);
   });
 
+  it("hides add-files and media-library actions when lower divider is at inventory-expanded bottom", () => {
+    const { container, getByText } = render(<ReferenceGrid {...createProps()} />);
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    expect(container.querySelector(".reference-grid-add-files-btn")).toBeTruthy();
+    expect(container.querySelector(".reference-grid-media-library-btn")).toBeTruthy();
+
+    fireEvent.pointerDown(getByText("Inventory ↓"));
+    fireEvent.click(getByText("Inventory ↓"));
+
+    expect(container.querySelector(".reference-grid-add-files-btn")).toBeNull();
+    expect(container.querySelector(".reference-grid-media-library-btn")).toBeNull();
+  });
+
   it("snaps split toward all refs when clicking the all-refs divider pill", () => {
     const { container, getByRole, getByText } = render(<ReferenceGrid {...createProps()} />);
     const divider = getByRole("separator", {
@@ -1423,5 +1487,327 @@ describe("ReferenceGrid curated split", () => {
     fireEvent.keyDown(divider, { key: "Home" });
 
     expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(true);
+  });
+
+  it("renders a rail canvas section with a dedicated top divider", () => {
+    const { container, getByRole, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+
+    expect(getByText("Canvas")).toBeInTheDocument();
+    expect(
+      getByRole("separator", { name: "Resize Canvas and Quick Slot Inventory sections" })
+    ).toBeInTheDocument();
+    expect(container.querySelector(".reference-rail-canvas-section")).toBeTruthy();
+    expect(container.querySelector(".reference-grid-inventory-stack")).toBeTruthy();
+  });
+
+  it("snaps the top canvas split toward canvas and inventory via top divider pills", () => {
+    const { container, getByRole, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const divider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    const railSection = container.querySelector(".reference-rail-canvas-section") as HTMLElement;
+    expect(panel).toBeTruthy();
+    expect(railSection).toBeTruthy();
+
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(getByText("Canvas ↓"));
+    fireEvent.click(getByText("Canvas ↓"));
+    expect(divider).toHaveAttribute("aria-valuenow", "80");
+
+    const railHeader = container.querySelector(".reference-rail-canvas-header") as HTMLElement;
+    expect(railHeader).toBeTruthy();
+    Object.defineProperty(railHeader, "offsetHeight", {
+      configurable: true,
+      value: 44,
+    });
+
+    fireEvent.pointerDown(getByText("Inventory ↑"));
+    fireEvent.click(getByText("Inventory ↑"));
+    expect(divider).toHaveAttribute("aria-valuenow", "7");
+    expect(railSection.classList.contains("is-inventory-expanded")).toBe(true);
+  });
+
+  it("keeps lower divider clamped to its bounds while dragging top divider downward", () => {
+    const { container, getByRole, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const topDivider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    const lowerDivider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(getByText("Inventory ↓"));
+    fireEvent.click(getByText("Inventory ↓"));
+
+    fireEvent.pointerDown(topDivider, {
+      button: 0,
+      pointerId: 31,
+      clientY: 120,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 31,
+      clientY: 320,
+    });
+
+    const lowerNow = Number(lowerDivider.getAttribute("aria-valuenow"));
+    const lowerMax = Number(lowerDivider.getAttribute("aria-valuemax"));
+    expect(lowerNow).toBeLessThanOrEqual(lowerMax);
+
+    fireEvent.pointerUp(window, {
+      pointerId: 31,
+      clientY: 320,
+    });
+  });
+
+  it("does not inflate lower divider max ratio when inventory stack is undersized", () => {
+    const { container, getByRole, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    const inventoryStack = container.querySelector(
+      ".reference-grid-inventory-stack"
+    ) as HTMLElement;
+    const lowerDivider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    expect(panel).toBeTruthy();
+    expect(inventoryStack).toBeTruthy();
+
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+    Object.defineProperty(inventoryStack, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 80,
+        right: 600,
+        bottom: 80,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(getByText("Inventory ↓"));
+    fireEvent.click(getByText("Inventory ↓"));
+
+    expect(lowerDivider).toHaveAttribute("aria-valuemax", "10");
+    expect(lowerDivider).toHaveAttribute("aria-valuenow", "10");
+  });
+
+  it("pushes the top divider upward when lower divider is dragged past its top bound", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const topDivider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    const lowerDivider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    const topBefore = Number(topDivider.getAttribute("aria-valuenow"));
+    expect(topBefore).toBeGreaterThan(0);
+
+    fireEvent.pointerDown(lowerDivider, {
+      button: 0,
+      pointerId: 11,
+      clientY: 220,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 11,
+      clientY: -120,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 11,
+      clientY: -120,
+    });
+
+    const topAfter = Number(topDivider.getAttribute("aria-valuenow"));
+    expect(topAfter).toBeLessThan(topBefore);
+  });
+
+  it("keeps the top divider fixed while lower divider drag updates lower split", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const topDivider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    const lowerDivider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    const topBefore = Number(topDivider.getAttribute("aria-valuenow"));
+    const lowerBefore = Number(lowerDivider.getAttribute("aria-valuenow"));
+
+    fireEvent.pointerDown(lowerDivider, {
+      button: 0,
+      pointerId: 12,
+      clientY: 220,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 12,
+      clientY: 120,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 12,
+      clientY: 120,
+    });
+
+    const topAfter = Number(topDivider.getAttribute("aria-valuenow"));
+    const lowerAfter = Number(lowerDivider.getAttribute("aria-valuenow"));
+
+    expect(topAfter).toBe(topBefore);
+    expect(lowerAfter).not.toBe(lowerBefore);
+  });
+
+  it("does not move the top divider when lower divider is dragged downward", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const topDivider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    const lowerDivider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    const topBefore = Number(topDivider.getAttribute("aria-valuenow"));
+    fireEvent.pointerDown(lowerDivider, {
+      button: 0,
+      pointerId: 13,
+      clientY: 120,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 13,
+      clientY: 220,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 13,
+      clientY: 220,
+    });
+    const topAfter = Number(topDivider.getAttribute("aria-valuenow"));
+    expect(topAfter).toBe(topBefore);
   });
 });

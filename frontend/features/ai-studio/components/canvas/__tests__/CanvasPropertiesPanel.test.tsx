@@ -2,7 +2,10 @@ import React, { useState } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CanvasPropertiesPanel } from "../CanvasPropertiesPanel";
-import { useAiStudioCanvasWorkspaceState } from "../useAiStudioCanvasWorkspaceState";
+import {
+  useAiStudioCanvasWorkspaceState,
+  useAiStudioDualCanvasWorkspaceState,
+} from "../useAiStudioCanvasWorkspaceState";
 import type { ResolveCanvasDropReference } from "../canvasTypes";
 
 const createTransfer = (entries: Record<string, string>) =>
@@ -54,6 +57,20 @@ function CanvasHarness({ onPinTextReference, resolveCanvasDropReference }: Canva
         Toggle
       </button>
       {visible ? <CanvasPropertiesPanel {...canvasProps} /> : null}
+    </div>
+  );
+}
+
+function DualCanvasHarness({ onPinTextReference, resolveCanvasDropReference }: CanvasHarnessProps) {
+  const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
+    resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
+    onPinTextReference,
+  });
+
+  return (
+    <div>
+      <CanvasPropertiesPanel {...mainCanvasProps} />
+      <CanvasPropertiesPanel {...railCanvasProps} />
     </div>
   );
 }
@@ -594,5 +611,42 @@ describe("CanvasPropertiesPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle" }));
     expect(screen.getByText("Persistent note")).toBeInTheDocument();
+  });
+
+  it("shares scene state across main/rail instances while keeping camera state separate", async () => {
+    const { container } = render(<DualCanvasHarness />);
+    const mainViewport = container.querySelector(
+      '[data-canvas-instance="main"]'
+    ) as HTMLElement | null;
+    const railViewport = container.querySelector(
+      '[data-canvas-instance="rail"]'
+    ) as HTMLElement | null;
+    expect(mainViewport).toBeTruthy();
+    expect(railViewport).toBeTruthy();
+    mockViewportRect(mainViewport as HTMLElement);
+    mockViewportRect(railViewport as HTMLElement);
+
+    fireEvent.drop(mainViewport as HTMLElement, {
+      dataTransfer: createTransfer({
+        "text/plain": "Shared note",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Shared note")).toHaveLength(2);
+    });
+
+    fireEvent.wheel(mainViewport as HTMLElement, {
+      deltaY: -100,
+      clientX: 300,
+      clientY: 200,
+    });
+
+    expect(Number((mainViewport as HTMLElement).getAttribute("data-camera-zoom"))).toBeGreaterThan(
+      1
+    );
+    expect((railViewport as HTMLElement).getAttribute("data-camera-zoom")).toBe("1");
   });
 });

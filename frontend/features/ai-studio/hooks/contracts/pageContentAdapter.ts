@@ -12,6 +12,7 @@ import type {
 type AiStudioPageContentAdapterInput = {
   panelProps: AiStudioPanelContracts;
   canvasProps: CanvasPropertiesPanelProps;
+  railCanvasProps: CanvasPropertiesPanelProps;
   referenceGridProps: AiStudioReferenceGridContract;
   previewDetailProps: AiStudioPreviewDetailContracts;
 };
@@ -24,6 +25,7 @@ export type AiStudioPageContentAdapterOutput = Pick<
   | "propertiesEditExpert"
   | "propertiesVideo"
   | "propertiesCanvas"
+  | "railCanvasProps"
   | "referenceGridProps"
   | "studioPreviewProps"
   | "detailModalOutput"
@@ -41,6 +43,7 @@ export type AiStudioPageContentAdapterOutput = Pick<
 export const mapHookContractsToPageContentProps = ({
   panelProps,
   canvasProps,
+  railCanvasProps,
   referenceGridProps,
   previewDetailProps,
 }: AiStudioPageContentAdapterInput): AiStudioPageContentAdapterOutput => ({
@@ -50,6 +53,7 @@ export const mapHookContractsToPageContentProps = ({
   propertiesEditExpert: panelProps.propertiesEditExpert,
   propertiesVideo: panelProps.propertiesVideo,
   propertiesCanvas: canvasProps,
+  railCanvasProps,
   referenceGridProps,
   studioPreviewProps: previewDetailProps.studioPreviewProps,
   detailModalOutput: previewDetailProps.detailModalOutput,

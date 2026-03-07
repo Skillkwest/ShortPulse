@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  buildContourPathsFromSegments,
   deriveMaskContourFromAlpha,
   INPAINT_MARCHING_ANTS_DASH_PATTERN,
   INPAINT_MARCHING_ANTS_STEP_MS,
@@ -57,12 +58,32 @@ describe("useInpaintMaskController helpers", () => {
     expect(singlePixelMask.contourSegments).toEqual([
       0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0,
     ]);
+    expect(singlePixelMask.contourPaths).toEqual([[0, 0, 1, 0, 1, 1, 0, 1, 0, 0]]);
   });
 
   it("returns no contour for an empty mask", () => {
     const emptyMask = deriveMaskContourFromAlpha(3, 3, makeMaskData(3, 3, []));
     expect(emptyMask.hasContent).toBe(false);
     expect(emptyMask.contourSegments).toEqual([]);
+    expect(emptyMask.contourPaths).toEqual([]);
+  });
+
+  it("chains adjacent boundary segments into a continuous contour path", () => {
+    const twoPixelMask = deriveMaskContourFromAlpha(
+      3,
+      2,
+      makeMaskData(3, 2, [
+        [0, 0],
+        [1, 0],
+      ])
+    );
+    expect(twoPixelMask.hasContent).toBe(true);
+    expect(twoPixelMask.contourPaths).toHaveLength(1);
+    expect(twoPixelMask.contourPaths[0]).toEqual([0, 0, 1, 0, 2, 0, 2, 1, 1, 1, 0, 1, 0, 0]);
+  });
+
+  it("returns no paths when contour segments are empty", () => {
+    expect(buildContourPathsFromSegments([])).toEqual([]);
   });
 
   it("shows live preview only while lasso is active", () => {

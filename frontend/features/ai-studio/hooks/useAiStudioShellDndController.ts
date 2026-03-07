@@ -18,6 +18,10 @@ type UseAiStudioShellDndControllerParams = {
   onDropMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
   onDropTextReference?: (text: string) => void;
   useRafBackpressure?: boolean;
+  shouldBypassCapture?: (
+    event: React.DragEvent<HTMLElement>,
+    context: { dropMode?: ShellDropMode; payload?: ShellDropPayload }
+  ) => boolean;
 };
 
 type DragEventHandler = (event: React.DragEvent<HTMLElement>) => void;
@@ -35,6 +39,7 @@ export const useAiStudioShellDndController = ({
   onDropMediaReference,
   onDropTextReference,
   useRafBackpressure = true,
+  shouldBypassCapture,
 }: UseAiStudioShellDndControllerParams) => {
   const dragDepthRef = useRef(0);
   const dropModeRef = useRef<ShellDropMode>("none");
@@ -81,23 +86,33 @@ export const useAiStudioShellDndController = ({
     (event) => {
       const nextMode = resolveDropMode(event.dataTransfer);
       if (nextMode === "none") return;
+      if (shouldBypassCapture?.(event, { dropMode: nextMode })) {
+        dragDepthRef.current = 0;
+        applyDropMode("none");
+        return;
+      }
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       dragDepthRef.current += 1;
       applyDropMode(nextMode);
     },
-    [applyDropMode, resolveDropMode]
+    [applyDropMode, resolveDropMode, shouldBypassCapture]
   );
 
   const handleDragOverCapture: DragEventHandler = useCallback(
     (event) => {
       const nextMode = resolveDropMode(event.dataTransfer);
       if (nextMode === "none") return;
+      if (shouldBypassCapture?.(event, { dropMode: nextMode })) {
+        dragDepthRef.current = 0;
+        applyDropMode("none");
+        return;
+      }
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       applyDropMode(nextMode);
     },
-    [applyDropMode, resolveDropMode]
+    [applyDropMode, resolveDropMode, shouldBypassCapture]
   );
 
   const handleDragLeaveCapture: DragEventHandler = useCallback(
@@ -115,6 +130,10 @@ export const useAiStudioShellDndController = ({
   const handleDropCapture: DragEventHandler = useCallback(
     (event) => {
       const payload = resolveDropPayload(event.dataTransfer);
+      if (shouldBypassCapture?.(event, { payload })) {
+        clearDropState();
+        return;
+      }
       if (payload.kind === "none" || payload.kind === "internal") {
         clearDropState();
         return;
@@ -142,7 +161,14 @@ export const useAiStudioShellDndController = ({
       }
       clearDropState();
     },
-    [clearDropState, onDropFiles, onDropMediaReference, onDropTextReference, resolveDropPayload]
+    [
+      clearDropState,
+      onDropFiles,
+      onDropMediaReference,
+      onDropTextReference,
+      resolveDropPayload,
+      shouldBypassCapture,
+    ]
   );
 
   const shouldHandleShellRightColumnFallback = useCallback(

@@ -22,6 +22,8 @@ type UseReferenceGridHorizontalSplitArgs = {
   minBottomSectionHeightPx?: number;
   allRefsSnapTopHeightPx?: number;
   collapseTopHeightPx?: number;
+  ariaLabel?: string;
+  onOverflowDeltaPx?: (deltaPx: number) => void;
 };
 
 type DragSession = {
@@ -29,6 +31,7 @@ type DragSession = {
   containerHeight: number;
   startClientY: number;
   startRatio: number;
+  lastOverflowPx: number;
 };
 
 type RatioBounds = {
@@ -53,6 +56,24 @@ const FALLBACK_RATIO_BOUNDS: RatioBounds = {
   max: FALLBACK_MAX_RATIO,
 };
 
+const resolveElementHeight = (node: HTMLElement | null): number => {
+  if (!node) return 0;
+  const directHeight = node.getBoundingClientRect().height;
+  if (directHeight > 0) return directHeight;
+  if (node.clientHeight > 0) return node.clientHeight;
+  if (node.offsetHeight > 0) return node.offsetHeight;
+
+  let parent = node.parentElement;
+  while (parent) {
+    const parentHeight = parent.getBoundingClientRect().height;
+    if (parentHeight > 0) return parentHeight;
+    if (parent.clientHeight > 0) return parent.clientHeight;
+    if (parent.offsetHeight > 0) return parent.offsetHeight;
+    parent = parent.parentElement;
+  }
+  return 0;
+};
+
 const resolveRatioBounds = (
   containerHeight: number,
   minTopSectionHeightPx: number,
@@ -61,7 +82,12 @@ const resolveRatioBounds = (
   const safeHeight = Math.max(1, containerHeight);
   const min = clamp(minTopSectionHeightPx / safeHeight, 0.01, 0.98);
   const max = clamp(1 - minBottomSectionHeightPx / safeHeight, 0.02, 0.995);
-  return min <= max ? { min, max } : { min: 0.3, max: 0.7 };
+  if (min <= max) return { min, max };
+
+  // When the container is too small to satisfy both section minimums, pin the divider
+  // to a single safe ratio that preserves the lower bound rather than allowing overflow.
+  const pinned = clamp(max, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO);
+  return { min: pinned, max: pinned };
 };
 
 /**
@@ -75,6 +101,8 @@ export const useReferenceGridHorizontalSplit = ({
   minBottomSectionHeightPx = DEFAULT_MIN_BOTTOM_SECTION_HEIGHT_PX,
   allRefsSnapTopHeightPx = DEFAULT_ALL_REFS_SNAP_TOP_HEIGHT_PX,
   collapseTopHeightPx,
+  ariaLabel = "Resize Quick Slot Inventory and Reference Grid sections",
+  onOverflowDeltaPx,
 }: UseReferenceGridHorizontalSplitArgs) => {
   const dragSessionRef = useRef<DragSession | null>(null);
   const detachPointerListenersRef = useRef<(() => void) | null>(null);
@@ -97,9 +125,7 @@ export const useReferenceGridHorizontalSplit = ({
   useEffect(() => stopResizing, [stopResizing]);
 
   const resolveContainerHeight = useCallback((): number => {
-    const node = containerRef.current;
-    if (!node) return 0;
-    return node.getBoundingClientRect().height;
+    return resolveElementHeight(containerRef.current);
   }, [containerRef]);
 
   const clampTopRatio = useCallback(
@@ -152,11 +178,17 @@ export const useReferenceGridHorizontalSplit = ({
       const deltaY = event.clientY - session.startClientY;
       const nextRatio = session.startRatio + deltaY / Math.max(1, session.containerHeight);
       const clampedRatio = clampTopRatio(nextRatio, session.containerHeight);
+      const overflowPx = (nextRatio - clampedRatio) * session.containerHeight;
+      const overflowDeltaPx = overflowPx - session.lastOverflowPx;
+      session.lastOverflowPx = overflowPx;
+      if (Math.abs(overflowDeltaPx) >= 0.5) {
+        onOverflowDeltaPx?.(overflowDeltaPx);
+      }
       setTopRatio((prev) => {
         return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
       });
     },
-    [clampTopRatio]
+    [clampTopRatio, onOverflowDeltaPx]
   );
 
   const handleDividerPointerDown = useCallback(
@@ -172,6 +204,7 @@ export const useReferenceGridHorizontalSplit = ({
         containerHeight: height,
         startClientY: event.clientY,
         startRatio: clampedStartRatio,
+        lastOverflowPx: 0,
       };
 
       const handlePointerStop = (nativeEvent: PointerEvent) => {
@@ -324,6 +357,39 @@ export const useReferenceGridHorizontalSplit = ({
     [allRefsSnapTopHeightPx, clampTopRatio, resolveContainerHeight]
   );
 
+  const nudgeTopSectionHeightByPx = useCallback(
+    (deltaPx: number) => {
+      if (!enabled || !Number.isFinite(deltaPx) || Math.abs(deltaPx) < 0.5) return;
+      setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
+      const height = resolveContainerHeight();
+      if (!height) {
+        setTopRatio((prev) => {
+          const fallbackNext = clamp(prev + deltaPx / 600, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO);
+          return Math.abs(prev - fallbackNext) < 0.001 ? prev : fallbackNext;
+        });
+        return;
+      }
+      setContainerHeightPx((prev) => (prev === height ? prev : height));
+      setTopRatio((prev) => {
+        const nextRatio = prev + deltaPx / Math.max(1, height);
+        const clampedRatio = clampTopRatio(nextRatio, height);
+        return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
+      });
+    },
+    [clampTopRatio, enabled, resolveContainerHeight]
+  );
+
+  const clampToContainerBounds = useCallback(() => {
+    if (!enabled) return;
+    const height = resolveContainerHeight();
+    if (!height) return;
+    setContainerHeightPx((prev) => (prev === height ? prev : height));
+    setTopRatio((prev) => {
+      const clampedRatio = clampTopRatio(prev, height);
+      return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
+    });
+  }, [clampTopRatio, enabled, resolveContainerHeight]);
+
   const topSectionStyle = useMemo<CSSProperties>(
     () => ({
       flex: `0 0 ${Math.round(topRatio * 1000) / 10}%`,
@@ -340,16 +406,19 @@ export const useReferenceGridHorizontalSplit = ({
 
   return {
     topRatio,
+    bottomRatio: 1 - topRatio,
     topSectionStyle,
     bottomSectionStyle,
     isAllRefsExpanded,
     isInventoryExpanded,
     snapToInventoryExpanded,
     snapToAllRefsExpanded,
+    nudgeTopSectionHeightByPx,
+    clampToContainerBounds,
     dividerProps: {
       role: "separator" as const,
       "aria-orientation": "horizontal" as const,
-      "aria-label": "Resize Quick Slot Inventory and Reference Grid sections",
+      "aria-label": ariaLabel,
       "aria-valuemin": ariaValueMin,
       "aria-valuemax": ariaValueMax,
       "aria-valuenow": ariaValueNow,

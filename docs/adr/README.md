@@ -24,3 +24,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0027-ai-studio-reference-grid-reroll-replay-snapshot.md`
 - `docs/adr/0028-agent-safety-control-plane-and-modality-profiles.md`
 - `docs/adr/0029-ai-studio-reference-only-session-persistence.md`
+- `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`

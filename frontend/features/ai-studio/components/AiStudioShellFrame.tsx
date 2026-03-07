@@ -14,6 +14,7 @@ import type {
 } from "../../ai-agent/types";
 import type { ToolId } from "../types";
 import type { ReferenceGridProps } from "./ReferenceGrid";
+import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import { AiStudioPropertiesRail } from "./AiStudioPropertiesRail";
 import { AiStudioReferenceRail } from "./AiStudioReferenceRail";
 import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
@@ -70,6 +71,7 @@ type AiStudioShellFrameProps = {
   onShellDropCapture: (event: React.DragEvent<HTMLElement>) => void;
   agentChat: AgentChatProps;
   referenceGridProps: ReferenceGridProps;
+  railCanvasProps?: CanvasPropertiesPanelProps;
   studioPreviewProps: React.ComponentProps<typeof AiStudioPreviewRail>["studioPreviewProps"];
   handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
@@ -97,6 +99,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   onShellDropCapture,
   agentChat,
   referenceGridProps,
+  railCanvasProps,
   studioPreviewProps,
   handleReferenceGridFiles,
   triggerFilePicker,
@@ -202,6 +205,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
           <>
             <AiStudioReferenceRail
               referenceGridProps={referenceGridProps}
+              railCanvasProps={railCanvasProps}
               onDropFiles={handleReferenceGridFiles}
               onTriggerFilePicker={triggerFilePicker}
               selectedTool={selectedTool}

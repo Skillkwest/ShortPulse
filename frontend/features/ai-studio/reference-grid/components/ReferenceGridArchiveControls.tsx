@@ -8,6 +8,7 @@ type ReferenceGridArchiveControlsProps = {
   showHeader: boolean;
   isArchivePanelOpen: boolean;
   archivedOutputs: StudioOutput[];
+  hideUploadActions?: boolean;
   onToggleArchivePanel: () => void;
   onTriggerFileSelect?: () => void;
   onOpenMediaLibrary?: () => void;
@@ -23,6 +24,7 @@ export function ReferenceGridArchiveControls({
   showHeader,
   isArchivePanelOpen,
   archivedOutputs,
+  hideUploadActions = false,
   onToggleArchivePanel,
   onTriggerFileSelect,
   onOpenMediaLibrary,
@@ -37,25 +39,29 @@ export function ReferenceGridArchiveControls({
             <p className="eyebrow">Reference Grid</p>
           </div>
           <div className="preview-header-actions">
-            <button
-              type="button"
-              className="ghost-btn mini preview-media-btn reference-grid-add-files-btn"
-              onClick={onTriggerFileSelect}
-            >
-              <UploadSimple size={14} weight="regular" />
-              <span>Add files</span>
-            </button>
-            <PromptLibraryButton
-              onClick={(event) => {
-                event.preventDefault();
-                onOpenMediaLibrary?.();
-              }}
-              className="prompt-media-btn preview-media-btn reference-grid-media-library-btn"
-              aria-label="Open media library"
-              label="Media Library"
-              icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
-              tone="library"
-            />
+            {!hideUploadActions ? (
+              <>
+                <button
+                  type="button"
+                  className="ghost-btn mini preview-media-btn reference-grid-add-files-btn"
+                  onClick={onTriggerFileSelect}
+                >
+                  <UploadSimple size={14} weight="regular" />
+                  <span>Add files</span>
+                </button>
+                <PromptLibraryButton
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onOpenMediaLibrary?.();
+                  }}
+                  className="prompt-media-btn preview-media-btn reference-grid-media-library-btn"
+                  aria-label="Open media library"
+                  label="Media Library"
+                  icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
+                  tone="library"
+                />
+              </>
+            ) : null}
             {archiveCount > 0 ? (
               <button
                 type="button"

@@ -460,6 +460,7 @@ export type AiStudioPageContentProps = {
   propertiesEditExpert: EditExpertSectionProps;
   propertiesVideo: VideoSectionProps;
   propertiesCanvas: CanvasSectionProps;
+  railCanvasProps?: CanvasSectionProps;
   isTemplateView: boolean;
   referenceGridProps: ReferenceGridProps;
   /**
@@ -521,6 +522,7 @@ export function AiStudioPageContent({
   propertiesEditExpert,
   propertiesVideo,
   propertiesCanvas,
+  railCanvasProps,
   isTemplateView,
   referenceGridProps,
   referenceCanvasProps,
@@ -617,6 +619,12 @@ export function AiStudioPageContent({
     previousSelectedToolRef.current = selectedTool;
   }, [collapseToMin, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
+  const isTargetInsideRailCanvas = React.useCallback((target: EventTarget | null): boolean => {
+    const rightColumnNode = rightColumnRef.current;
+    if (!rightColumnNode || !(target instanceof Node)) return false;
+    const railCanvasViewport = rightColumnNode.querySelector('[data-canvas-instance="rail"]');
+    return railCanvasViewport instanceof HTMLElement ? railCanvasViewport.contains(target) : false;
+  }, []);
 
   useVisibleErrorTelemetry({
     source: "client.ai_studio.ui_error_banner",
@@ -753,6 +761,13 @@ export function AiStudioPageContent({
     onDropMediaReference: resolvedReferenceGridProps.onPasteMediaReference,
     onDropTextReference: resolvedReferenceGridProps.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
+    shouldBypassCapture: (event, context) => {
+      if (!isTargetInsideRailCanvas(event.target)) return false;
+      const payloadKind = context.payload?.kind;
+      if (payloadKind === "text" || payloadKind === "internal") return true;
+      if (context.dropMode === "text") return true;
+      return false;
+    },
   });
 
   return (
@@ -832,6 +847,7 @@ export function AiStudioPageContent({
               onShellDropCapture={handleShellDropCapture}
               agentChat={agentChat}
               referenceGridProps={resolvedReferenceGridProps}
+              railCanvasProps={railCanvasProps}
               studioPreviewProps={studioPreviewProps}
               handleReferenceGridFiles={resolvedHandleReferenceGridFiles}
               triggerFilePicker={triggerFilePicker}

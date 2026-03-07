@@ -44,6 +44,29 @@ export function CanvasPropertiesPanel({
   onTextItemEditKeyDown,
   onTextItemEditBlur,
 }: CanvasPropertiesPanelProps) {
+  React.useEffect(() => {
+    if (instanceId !== "rail") return;
+    const viewportNode = viewportRef.current;
+    if (!viewportNode) return;
+    const handleNativeWheel = (event: globalThis.WheelEvent) => {
+      if (!event.cancelable) return;
+      event.preventDefault();
+    };
+    viewportNode.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => {
+      viewportNode.removeEventListener("wheel", handleNativeWheel);
+    };
+  }, [instanceId, viewportRef]);
+
+  const handleViewportWheel = React.useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onViewportWheel(event);
+    },
+    [onViewportWheel]
+  );
+
   return (
     <section className="canvas-properties-panel">
       <div
@@ -65,7 +88,7 @@ export function CanvasPropertiesPanel({
         onDragOver={onViewportDragOver}
         onDragLeave={onViewportDragLeave}
         onDrop={onViewportDrop}
-        onWheel={onViewportWheel}
+        onWheel={handleViewportWheel}
       >
         <div
           className="canvas-workspace-world"

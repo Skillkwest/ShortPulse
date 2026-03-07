@@ -911,6 +911,7 @@ const useCanvasViewportInstanceState = ({
   const handleViewportWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
     if (!viewportRef.current) return;
     event.preventDefault();
+    event.stopPropagation();
     const rect = viewportRef.current.getBoundingClientRect();
     const delta = resolveCanvasWheelZoomDelta({
       deltaY: event.deltaY,

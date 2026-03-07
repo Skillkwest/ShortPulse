@@ -15,6 +15,7 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: contain;
   border-radius: 0;
   border: none;
   background-color: transparent;

@@ -649,4 +649,38 @@ describe("CanvasPropertiesPanel", () => {
     );
     expect((railViewport as HTMLElement).getAttribute("data-camera-zoom")).toBe("1");
   });
+
+  it("consumes wheel in the rail viewport so window scroll is not triggered", () => {
+    const { container } = render(<DualCanvasHarness />);
+    const railViewport = container.querySelector(
+      '[data-canvas-instance="rail"]'
+    ) as HTMLElement | null;
+    expect(railViewport).toBeTruthy();
+    mockViewportRect(railViewport as HTMLElement);
+
+    const windowWheelSpy = vi.fn();
+    window.addEventListener("wheel", windowWheelSpy);
+    try {
+      const wheelEvent = new WheelEvent("wheel", {
+        deltaY: -100,
+        clientX: 300,
+        clientY: 200,
+        bubbles: true,
+        cancelable: true,
+      });
+      let dispatchResult = true;
+      act(() => {
+        dispatchResult = (railViewport as HTMLElement).dispatchEvent(wheelEvent);
+      });
+
+      expect(dispatchResult).toBe(false);
+      expect(wheelEvent.defaultPrevented).toBe(true);
+      expect(windowWheelSpy).not.toHaveBeenCalled();
+      expect(
+        Number((railViewport as HTMLElement).getAttribute("data-camera-zoom"))
+      ).toBeGreaterThan(1);
+    } finally {
+      window.removeEventListener("wheel", windowWheelSpy);
+    }
+  });
 });

@@ -7,6 +7,8 @@ import {
   deriveMaskContourFromAlpha,
   INPAINT_MARCHING_ANTS_DASH_PATTERN,
   INPAINT_MARCHING_ANTS_STEP_MS,
+  resolveInpaintBrushPaintRadius,
+  resolveSceneCanvasPoint,
   resolvePointerSampleEvents,
   resolveMaskExportSourceWindow,
   resolveNextMarchingAntPhaseState,
@@ -186,10 +188,75 @@ describe("useInpaintMaskController helpers", () => {
     });
   });
 
+  it("maps pointer coordinates into unscaled scene space when zoomed", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+    expect(
+      resolveSceneCanvasPoint({
+        clientX: 60,
+        clientY: 45,
+        rect,
+        sceneScale: 0.5,
+      })
+    ).toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(
+      resolveSceneCanvasPoint({
+        clientX: 60,
+        clientY: 45,
+        rect,
+        sceneScale: 2,
+      })
+    ).toEqual({
+      x: 75,
+      y: 37.5,
+    });
+  });
+
+  it("clamps scaled scene coordinates after zoom adjustment", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+    expect(toClampedCanvasPoint({ clientX: 10, clientY: 20 }, rect, 0.5)).toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(toClampedCanvasPoint({ clientX: 210, clientY: 120 }, rect, 0.5)).toEqual({
+      x: 200,
+      y: 100,
+    });
+  });
+
   it("shows live preview only while lasso is active", () => {
     expect(shouldRenderLassoPreview(true, "lasso")).toBe(true);
     expect(shouldRenderLassoPreview(true, "brush")).toBe(false);
     expect(shouldRenderLassoPreview(false, "lasso")).toBe(false);
+  });
+
+  it("keeps brush paint radius visually stable by compensating for stage zoom", () => {
+    const radiusAt100 = resolveInpaintBrushPaintRadius({
+      strokeSize: 60,
+      sceneScale: 1,
+    });
+    const radiusAt200 = resolveInpaintBrushPaintRadius({
+      strokeSize: 60,
+      sceneScale: 2,
+    });
+    const radiusAt50 = resolveInpaintBrushPaintRadius({
+      strokeSize: 60,
+      sceneScale: 0.5,
+    });
+    expect(radiusAt200).toBeCloseTo(radiusAt100 / 2, 4);
+    expect(radiusAt50).toBeCloseTo(radiusAt100 * 2, 4);
   });
 
   it("keeps active pointer sessions alive on leave while capture is held", () => {

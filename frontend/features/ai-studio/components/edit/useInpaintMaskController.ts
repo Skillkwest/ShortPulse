@@ -52,6 +52,7 @@ type UseInpaintMaskControllerParams = {
   selectedLayerImageUrl: string | null;
   layerSources: InpaintLayerSource[];
   enabled: boolean;
+  sceneScale: number;
   paintMode: InpaintPaintMode;
   selectionMode: InpaintSelectionMode;
   strokeSize: number;
@@ -84,31 +85,78 @@ const MARCHING_ANTS_PHASE_MODULO = 120;
 export const INPAINT_MARCHING_ANTS_STEP_MS = 110;
 export const INPAINT_MARCHING_ANTS_DASH_PATTERN = [6, 4] as const;
 const MARCHING_ANTS_DASH_OFFSET_STEP = 1;
-const LASSO_PREVIEW_ANTS_PHYSICAL_PX = 1;
-const LASSO_PREVIEW_GUIDE_STROKE_WIDTH = 1.25;
+const LASSO_PREVIEW_ANTS_PHYSICAL_PX = 1.35;
+const LASSO_PREVIEW_GUIDE_STROKE_WIDTH = 1.7;
+const LASSO_THEME_FILL = "rgba(245, 185, 66, 0.32)";
+const LASSO_THEME_GUIDE = "rgba(245, 185, 66, 0.86)";
+const LASSO_THEME_ANCHOR = "rgba(255, 204, 84, 0.99)";
+const LASSO_THEME_ENDPOINT = "rgba(255, 238, 180, 0.99)";
+const LASSO_THEME_MARCH_DARK = "rgba(43, 28, 5, 0.98)";
+const LASSO_THEME_MARCH_LIGHT = "rgba(255, 245, 198, 1)";
+const MASK_CONTOUR_MARCH_DARK = "rgba(52, 36, 8, 0.72)";
+const MASK_CONTOUR_MARCH_LIGHT = "rgba(255, 234, 170, 0.88)";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+export const resolveSceneCanvasPoint = ({
+  clientX,
+  clientY,
+  rect,
+  sceneScale,
+}: {
+  clientX: number;
+  clientY: number;
+  rect: DOMRect;
+  sceneScale: number;
+}): InpaintPoint => {
+  const rawX = clientX - rect.left;
+  const rawY = clientY - rect.top;
+  if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
+    return { x: rawX, y: rawY };
+  }
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  return {
+    x: centerX + (rawX - centerX) / sceneScale,
+    y: centerY + (rawY - centerY) / sceneScale,
+  };
+};
+
 const toCanvasPoint = (
   event: { clientX: number; clientY: number },
-  rect: DOMRect
+  rect: DOMRect,
+  sceneScale = 1
 ): InpaintPoint | null => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
   if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
-  return {
-    x,
-    y,
-  };
+  return resolveSceneCanvasPoint({
+    clientX: event.clientX,
+    clientY: event.clientY,
+    rect,
+    sceneScale,
+  });
 };
 
 export const toClampedCanvasPoint = (
   event: { clientX: number; clientY: number },
-  rect: DOMRect
-): InpaintPoint => ({
-  x: clamp(event.clientX - rect.left, 0, rect.width),
-  y: clamp(event.clientY - rect.top, 0, rect.height),
-});
+  rect: DOMRect,
+  sceneScale = 1
+): InpaintPoint => {
+  const rawX = clamp(event.clientX - rect.left, 0, rect.width);
+  const rawY = clamp(event.clientY - rect.top, 0, rect.height);
+  if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
+    return { x: rawX, y: rawY };
+  }
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  const sceneX = centerX + (rawX - centerX) / sceneScale;
+  const sceneY = centerY + (rawY - centerY) / sceneScale;
+  return {
+    x: clamp(sceneX, 0, rect.width),
+    y: clamp(sceneY, 0, rect.height),
+  };
+};
 
 /**
  * Normalizes pointer sampling across browsers.
@@ -510,14 +558,12 @@ const renderOverlayFrame = ({
   meta,
   lassoPreviewPoints,
   phase,
-  imageRect,
 }: {
   canvas: HTMLCanvasElement;
   maskCanvas: HTMLCanvasElement | null;
   meta: MaskLayerMeta | null;
   lassoPreviewPoints: InpaintPoint[];
   phase: number;
-  imageRect: InpaintImageRect | null;
 }) => {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -579,13 +625,15 @@ const renderOverlayFrame = ({
         ctx.restore();
       };
 
-      drawContourStroke("rgba(0,0,0,0.62)", baseOffset);
-      drawContourStroke("rgba(255,255,255,0.82)", baseOffset + dashSize);
+      drawContourStroke(MASK_CONTOUR_MARCH_DARK, baseOffset);
+      drawContourStroke(MASK_CONTOUR_MARCH_LIGHT, baseOffset + dashSize);
     }
   }
 
   if (lassoPreviewPoints.length > 0) {
     ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     const firstPoint = lassoPreviewPoints[0]!;
     const lastPoint = lassoPreviewPoints[lassoPreviewPoints.length - 1]!;
     const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
@@ -594,7 +642,7 @@ const renderOverlayFrame = ({
 
     if (lassoPreviewPoints.length > 1) {
       if (lassoPreviewPoints.length > 2) {
-        ctx.fillStyle = "rgba(43, 212, 255, 0.22)";
+        ctx.fillStyle = LASSO_THEME_FILL;
         tracePolylinePath(ctx, lassoPreviewPoints);
         ctx.closePath();
         ctx.fill();
@@ -607,18 +655,18 @@ const renderOverlayFrame = ({
       ctx.stroke();
 
       ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
-      ctx.strokeStyle = "rgba(95, 231, 255, 0.56)";
+      ctx.strokeStyle = LASSO_THEME_GUIDE;
       tracePolylinePath(ctx, lassoPreviewPoints);
       ctx.stroke();
 
       ctx.lineWidth = lassoAntStrokeWidth;
       ctx.setLineDash([dashSize, dashGap]);
       ctx.lineDashOffset = baseOffset;
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.9)";
+      ctx.strokeStyle = LASSO_THEME_MARCH_DARK;
       tracePolylinePath(ctx, lassoPreviewPoints);
       ctx.stroke();
       ctx.lineDashOffset = baseOffset + dashSize;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.strokeStyle = LASSO_THEME_MARCH_LIGHT;
       tracePolylinePath(ctx, lassoPreviewPoints);
       ctx.stroke();
 
@@ -632,7 +680,7 @@ const renderOverlayFrame = ({
         ctx.stroke();
 
         ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
-        ctx.strokeStyle = "rgba(95, 231, 255, 0.5)";
+        ctx.strokeStyle = LASSO_THEME_GUIDE;
         ctx.beginPath();
         ctx.moveTo(lastPoint.x, lastPoint.y);
         ctx.lineTo(firstPoint.x, firstPoint.y);
@@ -641,7 +689,7 @@ const renderOverlayFrame = ({
         ctx.lineWidth = lassoAntStrokeWidth;
         ctx.setLineDash([dashSize, dashGap]);
         ctx.lineDashOffset = baseOffset + dashSize;
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.strokeStyle = LASSO_THEME_MARCH_LIGHT;
         ctx.beginPath();
         ctx.moveTo(lastPoint.x, lastPoint.y);
         ctx.lineTo(firstPoint.x, firstPoint.y);
@@ -649,12 +697,12 @@ const renderOverlayFrame = ({
       }
 
       ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(95, 231, 255, 0.98)";
+      ctx.fillStyle = LASSO_THEME_ANCHOR;
       ctx.beginPath();
       ctx.arc(firstPoint.x, firstPoint.y, 3.1, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
+      ctx.fillStyle = LASSO_THEME_ENDPOINT;
       ctx.beginPath();
       ctx.arc(lastPoint.x, lastPoint.y, 2.8, 0, Math.PI * 2);
       ctx.fill();
@@ -667,13 +715,13 @@ const renderOverlayFrame = ({
       ctx.arc(firstPoint.x, firstPoint.y, pulseRadius + 1, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.strokeStyle = "rgba(95, 231, 255, 0.98)";
+      ctx.strokeStyle = LASSO_THEME_ANCHOR;
       ctx.lineWidth = Math.max(lassoAntStrokeWidth, 1);
       ctx.beginPath();
       ctx.arc(firstPoint.x, firstPoint.y, pulseRadius, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.fillStyle = "rgba(95, 231, 255, 0.98)";
+      ctx.fillStyle = LASSO_THEME_ANCHOR;
       ctx.beginPath();
       ctx.arc(firstPoint.x, firstPoint.y, 2.4, 0, Math.PI * 2);
       ctx.fill();
@@ -686,6 +734,22 @@ export const resolveInpaintBrushDiameter = (strokeSize: number) => {
   const clampedStrokeSize = clamp(strokeSize, 1, 100);
   const mappedDiameter = Math.round(6 + clampedStrokeSize * 0.46);
   return clamp(mappedDiameter, 8, 52);
+};
+
+/**
+ * Resolves brush paint radius in mask-canvas units while compensating for stage zoom.
+ * This keeps the visible stroke footprint aligned with the on-screen reticle at any zoom level.
+ */
+export const resolveInpaintBrushPaintRadius = ({
+  strokeSize,
+  sceneScale,
+}: {
+  strokeSize: number;
+  sceneScale: number;
+}) => {
+  const diameter = resolveInpaintBrushDiameter(strokeSize);
+  const safeScale = Number.isFinite(sceneScale) && sceneScale > 0 ? sceneScale : 1;
+  return diameter / safeScale / 2;
 };
 
 /**
@@ -722,6 +786,7 @@ export const useInpaintMaskController = ({
   selectedLayerImageUrl,
   layerSources,
   enabled,
+  sceneScale,
   paintMode,
   selectionMode,
   strokeSize,
@@ -814,10 +879,9 @@ export const useInpaintMaskController = ({
         meta: selectedMaskMeta,
         lassoPreviewPoints,
         phase,
-        imageRect,
       });
     },
-    [imageRect, paintMode, selectedLayerId]
+    [paintMode, selectedLayerId]
   );
 
   const stopOverlayAnimation = React.useCallback(() => {
@@ -1008,7 +1072,7 @@ export const useInpaintMaskController = ({
       const dropzone = dropzoneRef.current;
       if (!dropzone) return;
       const rect = dropzone.getBoundingClientRect();
-      const point = toCanvasPoint(event, rect);
+      const point = toCanvasPoint(event, rect, sceneScale);
       if (!point) return;
 
       event.preventDefault();
@@ -1028,7 +1092,10 @@ export const useInpaintMaskController = ({
       };
 
       if (paintMode === "brush") {
-        const radius = resolveInpaintBrushDiameter(strokeSize) / 2;
+        const radius = resolveInpaintBrushPaintRadius({
+          strokeSize,
+          sceneScale,
+        });
         drawBrushSegment({
           ctx,
           from: point,
@@ -1056,6 +1123,7 @@ export const useInpaintMaskController = ({
       selectedLayerImageUrl,
       selectionMode,
       strokeSize,
+      sceneScale,
     ]
   );
 
@@ -1072,7 +1140,9 @@ export const useInpaintMaskController = ({
 
       if (paintMode === "lasso") {
         events.forEach((sampleEvent) => {
-          const point = toCanvasPoint(sampleEvent, rect) ?? toClampedCanvasPoint(sampleEvent, rect);
+          const point =
+            toCanvasPoint(sampleEvent, rect, sceneScale) ??
+            toClampedCanvasPoint(sampleEvent, rect, sceneScale);
           session.lassoPoints.push(point);
           session.lastPoint = point;
         });
@@ -1088,9 +1158,14 @@ export const useInpaintMaskController = ({
       if (!ctx) return;
       let didPaint = false;
       let previousPoint = session.lastPoint;
-      const radius = resolveInpaintBrushDiameter(strokeSize) / 2;
+      const radius = resolveInpaintBrushPaintRadius({
+        strokeSize,
+        sceneScale,
+      });
       events.forEach((sampleEvent) => {
-        const point = toCanvasPoint(sampleEvent, rect) ?? toClampedCanvasPoint(sampleEvent, rect);
+        const point =
+          toCanvasPoint(sampleEvent, rect, sceneScale) ??
+          toClampedCanvasPoint(sampleEvent, rect, sceneScale);
         if (!previousPoint) previousPoint = point;
         drawBrushSegment({
           ctx,
@@ -1122,6 +1197,7 @@ export const useInpaintMaskController = ({
       selectedLayerId,
       selectionMode,
       strokeSize,
+      sceneScale,
     ]
   );
 

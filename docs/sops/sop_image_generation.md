@@ -159,6 +159,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   5. Inpaint editing can paint anywhere inside the primary drop zone (including outside the visible image bounds).
   6. Inpaint submit exports only the visible image-area mask window (`imageRect`) so FLUX Fill mask pixels remain aligned with flattened base-image dimensions.
   7. `Remove Background` submits the currently selected layer image only and routes regenerate through hidden Bria RMBG (`fal-ai/bria/background/remove`) with prompt-optional submit policy.
+  8. Manual `Flatten Image` action uses stage-faithful 1:1 flattening (square output, transparent uncovered pixels, current layer transforms/z-order), while provider submission flattening remains on the existing provider-oriented compose path.
 - Prompt guard policy for Edit submit is model-capability driven (`editPromptPolicy`); unknown capability defaults to prompt required.
 
 ## Supported image models (current)

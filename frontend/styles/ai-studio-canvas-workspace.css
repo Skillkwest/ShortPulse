@@ -213,6 +213,13 @@
   color: rgba(243, 234, 216, 0.42);
 }
 
+.canvas-scene-item__text-editor:focus-visible,
+.canvas-scene-item__draft-input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
 @keyframes canvas-scene-item-loading-spin {
   to {
     transform: rotate(360deg);

@@ -3,18 +3,28 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ExpertEditPanelView } from "../edit/ExpertEditPanelView";
 import {
+  EDIT_PRESET_DEFAULT_PANEL_LABELS,
+  EDIT_PRESET_SURFACE_LABELS,
   EDIT_PRESET_PANEL_MAX,
   EXPERT_EDIT_PRESET_DRAG_MIME,
+  resolveExpertEditPresetPrompt,
   serializeExpertEditPresetDragPayload,
 } from "../edit/expertEditPresets";
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
 
-const { composePrimaryLayersToBlobMock } = vi.hoisted(() => ({
+const { composePrimaryLayersToBlobMock, composePrimaryStageLayersToBlobMock } = vi.hoisted(() => ({
   composePrimaryLayersToBlobMock: vi.fn(async () => new Blob(["flattened"], { type: "image/png" })),
+  composePrimaryStageLayersToBlobMock: vi.fn(
+    async () => new Blob(["flattened-stage"], { type: "image/png" })
+  ),
 }));
 
 vi.mock("../../logic/expertEditLayerCompose", () => ({
   composePrimaryLayersToBlob: composePrimaryLayersToBlobMock,
+}));
+
+vi.mock("../../logic/expertEditStageFlatten", () => ({
+  composePrimaryStageLayersToBlob: composePrimaryStageLayersToBlobMock,
 }));
 
 vi.mock("next/image", () => ({
@@ -132,6 +142,7 @@ describe("ExpertEditPanelView", () => {
   beforeEach(() => {
     objectUrlCounter = 0;
     composePrimaryLayersToBlobMock.mockClear();
+    composePrimaryStageLayersToBlobMock.mockClear();
     createObjectURLMock.mockReset();
     revokeObjectURLMock.mockReset();
     createObjectURLMock.mockImplementation((value: unknown) => {
@@ -218,11 +229,14 @@ describe("ExpertEditPanelView", () => {
     const surface = screen.getByRole("region", { name: /more presets/i });
     expect(surface).toBeInTheDocument();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
-    expect(within(surface).getByText("Selfie")).toBeInTheDocument();
-    expect(within(surface).getByText("Enhance Realism")).toBeInTheDocument();
+    expect(within(surface).queryByText("Selfie")).not.toBeInTheDocument();
+    expect(within(surface).queryByText("Enhance Realism")).not.toBeInTheDocument();
+    expect(within(surface).getByText("Over Shoulder")).toBeInTheDocument();
     expect(within(surface).getByText("Custom 1")).toBeInTheDocument();
     expect(within(surface).getByText("Custom 18")).toBeInTheDocument();
-    expect(within(surface).getAllByRole("listitem")).toHaveLength(27);
+    expect(within(surface).getAllByRole("listitem")).toHaveLength(
+      EDIT_PRESET_SURFACE_LABELS.length - EDIT_PRESET_DEFAULT_PANEL_LABELS.length
+    );
     expect(screen.queryByRole("dialog", { name: /more presets/i })).not.toBeInTheDocument();
     expect(document.querySelector(".edit-expert-presets-backdrop")).not.toBeInTheDocument();
     expect(document.querySelector(".model-modal-backdrop")).not.toBeInTheDocument();
@@ -247,22 +261,44 @@ describe("ExpertEditPanelView", () => {
       "Zoom Out",
       "Enhance Realism",
       ...Array.from({ length: 18 }, (_, index) => `Custom ${index + 1}`),
-    ];
+    ].filter((label) => !EDIT_PRESET_DEFAULT_PANEL_LABELS.includes(label));
 
     expect(renderedLabels).toEqual(expectedLabels);
   });
 
-  it("starts with an empty preset panel drop target", () => {
+  it("starts with seeded default presets in the panel", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
-    expect(screen.getByLabelText("Empty preset drop target")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /apply selfie preset/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply selfie preset/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply side profile preset/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /apply enhance realism preset/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Empty preset drop target")).not.toBeInTheDocument();
   });
 
-  it("opens More Presets when clicking empty preset drop target", () => {
+  it("shows empty drop target after removing all seeded presets and opens More Presets when clicked", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
-    fireEvent.click(screen.getByLabelText("Empty preset drop target"));
+    fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
+    const surface = screen.getByRole("region", { name: /more presets/i });
+
+    EDIT_PRESET_DEFAULT_PANEL_LABELS.forEach((label) => {
+      const transfer = createPresetDragTransfer({ label, source: "panel" });
+      const panelChip = screen.getByRole("button", {
+        name: new RegExp(`apply ${label} preset`, "i"),
+      });
+      fireEvent.dragStart(panelChip, { dataTransfer: transfer });
+      fireEvent.dragOver(surface, { dataTransfer: transfer });
+      fireEvent.drop(surface, { dataTransfer: transfer });
+      fireEvent.dragEnd(panelChip, { dataTransfer: transfer });
+    });
+
+    const emptyDropTarget = screen.getByLabelText("Empty preset drop target");
+    fireEvent.click(screen.getByRole("button", { name: /close presets/i }));
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
+
+    fireEvent.click(emptyDropTarget);
     expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
   });
 
@@ -271,17 +307,19 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
     const surface = screen.getByRole("region", { name: /more presets/i });
-    const selfieChip = within(surface).getByText("Selfie").closest("button") as HTMLButtonElement;
+    const customOneChip = within(surface)
+      .getByText("Custom 1")
+      .closest("button") as HTMLButtonElement;
     const panelList = screen.getByLabelText("Preset panel list");
     const transfer = createPresetDragTransfer();
 
-    fireEvent.dragStart(selfieChip, { dataTransfer: transfer });
+    fireEvent.dragStart(customOneChip, { dataTransfer: transfer });
     fireEvent.dragOver(panelList, { dataTransfer: transfer });
     fireEvent.drop(panelList, { dataTransfer: transfer });
-    fireEvent.dragEnd(selfieChip, { dataTransfer: transfer });
+    fireEvent.dragEnd(customOneChip, { dataTransfer: transfer });
 
-    expect(screen.getByRole("button", { name: /apply selfie preset/i })).toBeInTheDocument();
-    expect(within(surface).queryByText("Selfie")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply custom 1 preset/i })).toBeInTheDocument();
+    expect(within(surface).queryByText("Custom 1")).not.toBeInTheDocument();
   });
 
   it("adds a preset when dragover transfer data is unreadable", () => {
@@ -289,16 +327,47 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
     const surface = screen.getByRole("region", { name: /more presets/i });
-    const selfieChip = within(surface).getByText("Selfie").closest("button") as HTMLButtonElement;
+    const customOneChip = within(surface)
+      .getByText("Custom 1")
+      .closest("button") as HTMLButtonElement;
     const panelList = screen.getByLabelText("Preset panel list");
     const transfer = createPresetDragTransferWithoutReadableData();
 
-    fireEvent.dragStart(selfieChip, { dataTransfer: transfer });
+    fireEvent.dragStart(customOneChip, { dataTransfer: transfer });
     fireEvent.dragOver(panelList, { dataTransfer: transfer });
     fireEvent.drop(panelList, { dataTransfer: transfer });
-    fireEvent.dragEnd(selfieChip, { dataTransfer: transfer });
+    fireEvent.dragEnd(customOneChip, { dataTransfer: transfer });
 
-    expect(screen.getByRole("button", { name: /apply selfie preset/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply custom 1 preset/i })).toBeInTheDocument();
+  });
+
+  it("inserts mapped prompt text when clicking a selected panel preset", () => {
+    const onPromptTextChange = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onPromptTextChange={onPromptTextChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /apply selfie preset/i }));
+
+    expect(onPromptTextChange).toHaveBeenCalledWith(resolveExpertEditPresetPrompt("Selfie"));
+  });
+
+  it("inserts mapped prompt text when clicking a selected custom panel preset", () => {
+    const onPromptTextChange = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onPromptTextChange={onPromptTextChange} />);
+
+    const panelList = screen.getByLabelText("Preset panel list");
+    const transfer = createPresetDragTransfer({ label: "Custom 3", source: "surface" });
+    fireEvent.dragOver(panelList, { dataTransfer: transfer });
+    fireEvent.drop(panelList, { dataTransfer: transfer });
+
+    fireEvent.click(screen.getByRole("button", { name: /apply custom 3 preset/i }));
+
+    expect(onPromptTextChange).toHaveBeenCalledWith(resolveExpertEditPresetPrompt("Custom 3"));
+  });
+
+  it("resolves prompt copy for every canonical preset label", () => {
+    EDIT_PRESET_SURFACE_LABELS.forEach((label) => {
+      expect(resolveExpertEditPresetPrompt(label)).toBeTruthy();
+    });
   });
 
   it("removes a preset by dragging from panel back into More Presets", () => {
@@ -306,13 +375,6 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
     const surface = screen.getByRole("region", { name: /more presets/i });
-    const panelList = screen.getByLabelText("Preset panel list");
-
-    const surfaceToPanelTransfer = createPresetDragTransfer({ label: "Selfie", source: "surface" });
-    fireEvent.dragOver(panelList, { dataTransfer: surfaceToPanelTransfer });
-    fireEvent.drop(panelList, { dataTransfer: surfaceToPanelTransfer });
-    expect(screen.getByRole("button", { name: /apply selfie preset/i })).toBeInTheDocument();
-
     const panelChip = screen.getByRole("button", { name: /apply selfie preset/i });
     const panelToSurfaceTransfer = createPresetDragTransfer();
     fireEvent.dragStart(panelChip, { dataTransfer: panelToSurfaceTransfer });
@@ -350,7 +412,13 @@ describe("ExpertEditPanelView", () => {
     const selectedLabels = Array.from(
       container.querySelectorAll(".edit-expert-preset-btn--selected")
     ).map((node) => node.textContent?.trim());
-    expect(selectedLabels).toEqual(["Selfie", "Low Angle", "Custom 12"]);
+    expect(selectedLabels).toEqual([
+      "Selfie",
+      "Side Profile",
+      "Low Angle",
+      "Enhance Realism",
+      "Custom 12",
+    ]);
   });
 
   it("shows a toast and blocks insertion once preset panel reaches max capacity", () => {
@@ -359,22 +427,11 @@ describe("ExpertEditPanelView", () => {
     try {
       const { container } = render(<ExpertEditPanelView {...baseProps} />);
       const panelList = screen.getByLabelText("Preset panel list");
-      const labels = [
-        "Selfie",
-        "Side Profile",
-        "Over Shoulder",
-        "From Behind",
-        "Low Angle",
-        "Drone View",
-        "Zoom In",
-        "Zoom Out",
-        "Enhance Realism",
-        "Custom 1",
-        "Custom 2",
-        "Custom 3",
-      ];
+      const labelsToAddUntilMax = EDIT_PRESET_SURFACE_LABELS.filter(
+        (label) => !EDIT_PRESET_DEFAULT_PANEL_LABELS.includes(label)
+      ).slice(0, EDIT_PRESET_PANEL_MAX - EDIT_PRESET_DEFAULT_PANEL_LABELS.length);
 
-      labels.slice(0, EDIT_PRESET_PANEL_MAX).forEach((label) => {
+      labelsToAddUntilMax.forEach((label) => {
         const transfer = createPresetDragTransfer({ label, source: "surface" });
         fireEvent.dragOver(panelList, { dataTransfer: transfer });
         fireEvent.drop(panelList, { dataTransfer: transfer });
@@ -384,7 +441,7 @@ describe("ExpertEditPanelView", () => {
       );
 
       const overflowTransfer = createPresetDragTransfer({
-        label: labels[EDIT_PRESET_PANEL_MAX],
+        label: "Custom 18",
         source: "surface",
       });
       fireEvent.dragOver(panelList, { dataTransfer: overflowTransfer });
@@ -518,7 +575,7 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("renders Move/Inpaint/Crop rail buttons with Inpaint selected by default", async () => {
+  it("renders Move/Inpaint/Crop rail buttons with Move selected by default", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
@@ -531,8 +588,8 @@ describe("ExpertEditPanelView", () => {
       .map((button) => button.textContent?.trim()?.toLowerCase());
 
     expect(railOrder).toEqual(["move", "inpaint", "crop"]);
-    expect(inpaintButton).toHaveAttribute("aria-pressed", "true");
-    expect(moveButton).toHaveAttribute("aria-pressed", "false");
+    expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
+    expect(moveButton).toHaveAttribute("aria-pressed", "true");
     expect(cropButton).toHaveAttribute("aria-pressed", "false");
   });
 
@@ -544,15 +601,8 @@ describe("ExpertEditPanelView", () => {
     const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
     const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
     const cropButton = await within(rail).findByRole("button", { name: /^crop$/i });
-    expect(inpaintButton).toHaveAttribute("aria-pressed", "true");
-    expect(moveButton).toHaveAttribute("aria-pressed", "false");
-    expect(cropButton).toHaveAttribute("aria-pressed", "false");
-    const inpaintSettingsPanel = screen.getByRole("group", { name: /inpaint tools/i });
-    expect(inpaintSettingsPanel).toHaveClass("is-themed-inpaint");
-
-    fireEvent.click(moveButton);
-    expect(moveButton).toHaveAttribute("aria-pressed", "true");
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
+    expect(moveButton).toHaveAttribute("aria-pressed", "true");
     expect(cropButton).toHaveAttribute("aria-pressed", "false");
     const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
     expect(moveSettingsPanel).toHaveClass("is-themed-move");
@@ -564,14 +614,25 @@ describe("ExpertEditPanelView", () => {
       within(moveSettingsPanel).getByRole("button", { name: /^rotate$/i })
     ).toBeInTheDocument();
     expect(
-      within(moveSettingsPanel).getByRole("slider", { name: /zoom image/i })
-    ).toBeInTheDocument();
-    expect(
       within(moveSettingsPanel).getByRole("button", { name: /undo move action/i })
     ).toBeInTheDocument();
     expect(
       within(moveSettingsPanel).getByRole("button", { name: /redo move action/i })
     ).toBeInTheDocument();
+
+    fireEvent.click(inpaintButton);
+    expect(inpaintButton).toHaveAttribute("aria-pressed", "true");
+    expect(moveButton).toHaveAttribute("aria-pressed", "false");
+    expect(cropButton).toHaveAttribute("aria-pressed", "false");
+    const inpaintSettingsPanel = screen.getByRole("group", { name: /inpaint tools/i });
+    expect(inpaintSettingsPanel).toHaveClass("is-themed-inpaint");
+
+    fireEvent.click(moveButton);
+    expect(moveButton).toHaveAttribute("aria-pressed", "true");
+    expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
+    expect(cropButton).toHaveAttribute("aria-pressed", "false");
+    const moveSettingsPanelAgain = screen.getByRole("group", { name: /move tools/i });
+    expect(moveSettingsPanelAgain).toHaveClass("is-themed-move");
 
     fireEvent.click(cropButton);
     expect(cropButton).toHaveAttribute("aria-pressed", "true");
@@ -597,19 +658,14 @@ describe("ExpertEditPanelView", () => {
     expect(landscapeChip).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("resets move zoom slider to default on double click", async () => {
+  it("does not render a move zoom slider", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const slider = screen.getByRole("slider", { name: /zoom image/i });
-    fireEvent.change(slider, { target: { value: "170" } });
-    expect(slider).toHaveValue("170");
-
-    fireEvent.doubleClick(slider);
-    expect(slider).toHaveValue("125");
+    expect(screen.queryByRole("slider", { name: /zoom image/i })).not.toBeInTheDocument();
   });
 
   it("moves the selected layer inside the primary dropzone when dragging in move mode", async () => {
@@ -832,92 +888,6 @@ describe("ExpertEditPanelView", () => {
     expect(secondFrameAfter).toBeGreaterThan(secondFrameBefore);
   });
 
-  it("zooms the stage space without changing individual layer scales", async () => {
-    const { container } = render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/global-zoom-base.png"
-        referenceText="prompt text"
-      />
-    );
-
-    uploadPrimaryFile(container, "global-zoom-top.png");
-
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-
-    const framesBefore = Array.from(
-      document.querySelectorAll(".edit-expert-primary-layer-frame")
-    ) as HTMLDivElement[];
-    expect(framesBefore).toHaveLength(2);
-    const initialLayerScales = framesBefore.map(readFrameScale);
-    const stageCanvas = document.querySelector(
-      ".edit-expert-primary-layer-canvas"
-    ) as HTMLDivElement;
-    const initialStageScale = Number(
-      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
-    );
-
-    const slider = screen.getByRole("slider", { name: /zoom image/i });
-    fireEvent.change(slider, { target: { value: "150" } });
-
-    const nextLayerScales = (
-      Array.from(document.querySelectorAll(".edit-expert-primary-layer-frame")) as HTMLDivElement[]
-    ).map(readFrameScale);
-    const nextStageScale = Number(
-      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
-    );
-
-    expect(nextLayerScales).toEqual(initialLayerScales);
-    expect(nextStageScale).toBeGreaterThan(initialStageScale);
-  });
-
-  it("undoes and redoes move zoom changes from the move history controls", async () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/zoom-history-target.png"
-        referenceText="prompt text"
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-
-    const stageCanvas = document.querySelector(
-      ".edit-expert-primary-layer-canvas"
-    ) as HTMLDivElement;
-    const initialStageScale = Number(
-      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
-    );
-    const slider = screen.getByRole("slider", { name: /zoom image/i });
-    const undoButton = screen.getByRole("button", { name: /undo move action/i });
-    const redoButton = screen.getByRole("button", { name: /redo move action/i });
-
-    fireEvent.change(slider, { target: { value: "150" } });
-    const changedStageScale = Number(
-      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
-    );
-    expect(changedStageScale).toBeGreaterThan(initialStageScale);
-    expect(undoButton).not.toBeDisabled();
-    expect(redoButton).toBeDisabled();
-
-    fireEvent.click(undoButton);
-    const undoneStageScale = Number(
-      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
-    );
-    expect(undoneStageScale).toBeCloseTo(initialStageScale, 4);
-    expect(redoButton).not.toBeDisabled();
-
-    fireEvent.click(redoButton);
-    const redoneStageScale = Number(
-      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
-    );
-    expect(redoneStageScale).toBeCloseTo(changedStageScale, 4);
-  });
-
   it("resizes the selected layer when resize mode is active", async () => {
     render(
       <ExpertEditPanelView
@@ -975,6 +945,66 @@ describe("ExpertEditPanelView", () => {
 
     const resizedScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
     expect(resizedScale).toBeGreaterThan(1);
+  });
+
+  it("allows resizing the selected layer smaller than the previous minimum floor", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/resize-smaller-target.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^resize$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+    const initialScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
+    expect(initialScale).toBe(1);
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 451,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 196,
+      clientY: 4,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 451,
+      pointerType: "mouse",
+      clientX: 110,
+      clientY: 90,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 451,
+      pointerType: "mouse",
+      clientX: 110,
+      clientY: 90,
+    });
+
+    const resizedScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
+    expect(resizedScale).toBeLessThan(0.5);
+    expect(resizedScale).toBeGreaterThanOrEqual(0.2);
   });
 
   it("rotates the selected layer when rotate mode is active", async () => {
@@ -1055,13 +1085,15 @@ describe("ExpertEditPanelView", () => {
 
     expect(primaryDropzone).toHaveStyle({ cursor: "" });
 
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
+
     uploadPrimaryFile(container, "reticle-target.png");
     const brushCursor = primaryDropzone.style.cursor;
     expect(brushCursor).toContain("data:image/svg+xml");
     expect(brushCursor).toContain("crosshair");
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
     expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
 
@@ -1070,11 +1102,67 @@ describe("ExpertEditPanelView", () => {
     const lassoCursor = primaryDropzone.style.cursor;
     expect(lassoCursor).toContain("data:image/svg+xml");
     expect(lassoCursor).toContain("crosshair");
+    expect(lassoCursor).toContain("245%2C185%2C66");
     expect(lassoCursor).not.toEqual(brushCursor);
 
     fireEvent.click(screen.getByRole("button", { name: /^brush$/i }));
     expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
     expect(primaryDropzone.style.cursor).toContain("crosshair");
+  });
+
+  it("locks brush reticle cursor globally during active brush drawing and restores on pointer up", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/brush-cursor-lock.png"
+        referenceText="prompt text"
+      />
+    );
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 220,
+      height: 220,
+      right: 220,
+      bottom: 220,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+
+    expect(document.body.style.cursor).toBe("");
+    expect(document.documentElement.style.cursor).toBe("");
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 301,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 60,
+      clientY: 60,
+    });
+
+    expect(document.body.style.cursor).toContain("data:image/svg+xml");
+    expect(document.documentElement.style.cursor).toContain("data:image/svg+xml");
+
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 301,
+      pointerType: "mouse",
+      clientX: 88,
+      clientY: 88,
+    });
+
+    expect(document.body.style.cursor).toBe("");
+    expect(document.documentElement.style.cursor).toBe("");
   });
 
   it("suppresses inpaint cursor while presets surface is open and restores it on close", () => {
@@ -1085,6 +1173,11 @@ describe("ExpertEditPanelView", () => {
       />
     );
     const primaryDropzone = screen.getByLabelText("Primary edit image");
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+
     expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
     expect(primaryDropzone.style.cursor).toContain("crosshair");
 
@@ -1114,6 +1207,11 @@ describe("ExpertEditPanelView", () => {
   it("shows a toast when drawing is attempted without a selected layer image", () => {
     render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
     const primaryDropzone = screen.getByLabelText("Primary edit image");
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+
     fireEvent.pointerDown(primaryDropzone, {
       pointerId: 1,
       pointerType: "mouse",
@@ -1131,13 +1229,14 @@ describe("ExpertEditPanelView", () => {
         referenceImageUrl="https://example.com/reticle-source.png"
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
+
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     const initialCursor = primaryDropzone.style.cursor;
     expect(initialCursor).toContain("data:image/svg+xml");
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
     const slider = screen.getByRole("slider", { name: /stroke size/i });
 
     fireEvent.change(slider, { target: { value: "90" } });
@@ -1175,6 +1274,9 @@ describe("ExpertEditPanelView", () => {
           referenceText="prompt text"
         />
       );
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
       const primaryDropzone = screen.getByLabelText("Primary edit image");
       fireEvent.pointerDown(primaryDropzone, {
         pointerId: 1,
@@ -1400,7 +1502,8 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryLayersToBlobMock).toHaveBeenCalled();
+    expect(composePrimaryLayersToBlobMock).toHaveBeenCalledTimes(1);
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
     const composeCalls = composePrimaryLayersToBlobMock.mock.calls as unknown as Array<
       [
         Array<{
@@ -1477,13 +1580,88 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryLayersToBlobMock).toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
+    expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
     expect(onAddSessionMediaReference).toHaveBeenCalledWith({
       url: expect.stringMatching(/^blob:flatten-/),
       mimeType: "image/png",
     });
+  });
+
+  it("manual flatten forwards current layer transforms to stage flatten helper", async () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 313,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 32,
+      clientY: 36,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 313,
+      pointerType: "mouse",
+      clientX: 92,
+      clientY: 98,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 313,
+      pointerType: "mouse",
+      clientX: 92,
+      clientY: 98,
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Flatten Image" }));
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
+    const flattenCalls = (
+      composePrimaryStageLayersToBlobMock as unknown as {
+        mock: {
+          calls: unknown[][];
+        };
+      }
+    ).mock.calls;
+    const flattenArgs = (flattenCalls[0]?.[0] ?? []) as Array<{
+      imageUrl: string | null;
+      transform?: {
+        translateXRatio?: number;
+        translateYRatio?: number;
+      };
+    }>;
+    const movedLayer = flattenArgs.find((layer) => layer.imageUrl?.includes("layer-2.png"));
+    expect(movedLayer).toBeDefined();
+    expect(Math.abs(movedLayer?.transform?.translateXRatio ?? 0)).toBeGreaterThan(0.1);
+    expect(Math.abs(movedLayer?.transform?.translateYRatio ?? 0)).toBeGreaterThan(0.1);
   });
 
   it("auto-flattens on generate and forwards flattened refs with primary first", async () => {

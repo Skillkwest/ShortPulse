@@ -476,12 +476,16 @@
   font-size: 12px;
 }
 
-.edit-expert-presets-surface-close {
+.ghost-btn.mini.edit-expert-presets-surface-close {
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
   min-width: 28px;
-  border-radius: 999px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -506,19 +510,22 @@
 .edit-expert-presets-surface-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: 2px 2px 2px 0;
+  overflow: hidden;
+  padding: 2px 0 0;
 }
 
 .edit-expert-presets-chip-grid {
+  height: 100%;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
+  grid-auto-rows: calc((100% - 64px) / 9);
   padding-top: 1px;
 }
 
 .edit-expert-presets-chip {
-  min-height: 42px;
+  min-height: 0;
+  height: 100%;
   border-radius: 8px;
   border: 1px solid rgba(201, 205, 214, 0.24);
   background: rgba(201, 205, 214, 0.06);
@@ -527,7 +534,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: none;
-  padding: 8px 10px;
+  padding: 6px 10px;
   cursor: grab;
   transition:
     border-color 0.16s ease,
@@ -777,21 +784,26 @@
   z-index: 103;
 }
 
-.edit-expert-layer-status-toast {
-  width: fit-content;
-  max-width: 132px;
-  align-self: center;
-  margin-top: 2px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(201, 205, 214, 0.32);
-  background: rgba(19, 24, 33, 0.92);
-  color: rgba(224, 231, 241, 0.94);
-  font-size: 10px;
-  font-weight: 600;
+.edit-expert-stage-status-toast {
+  position: absolute;
+  left: calc(-140px - 18px);
+  bottom: -40px;
+  width: 156px;
+  max-width: 156px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.36);
+  background: rgba(19, 24, 33, 0.96);
+  color: rgba(224, 231, 241, 0.96);
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1.2;
   text-align: center;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.36),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  pointer-events: none;
+  z-index: 125;
   opacity: 1;
   transform: translateY(0);
   transition:
@@ -799,7 +811,22 @@
     transform 0.2s ease;
 }
 
-.edit-expert-layer-status-toast.is-fading {
+.edit-expert-stage-status-toast.is-info {
+  border-color: rgba(132, 188, 255, 0.4);
+  background: rgba(16, 28, 44, 0.96);
+  color: rgba(213, 233, 255, 0.96);
+}
+
+.edit-expert-stage-status-toast.is-warning {
+  border-color: rgba(255, 186, 74, 0.72);
+  background: linear-gradient(135deg, rgba(52, 33, 11, 0.98), rgba(26, 18, 8, 0.98));
+  color: rgba(255, 220, 156, 0.98);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 214, 145, 0.13);
+}
+
+.edit-expert-stage-status-toast.is-fading {
   opacity: 0;
   transform: translateY(-2px);
 }
@@ -857,16 +884,6 @@
   background-position: center;
 }
 
-.edit-expert-primary-layer-frame.is-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background:
-    radial-gradient(circle at 30% 24%, rgba(37, 169, 191, 0.18), transparent 56%),
-    radial-gradient(circle at 72% 70%, rgba(103, 114, 132, 0.24), transparent 62%),
-    rgba(19, 24, 33, 0.78);
-}
-
 .edit-expert-primary-layer-loading {
   display: inline-flex;
   flex-direction: column;
@@ -878,6 +895,19 @@
   border: 1px solid rgba(201, 205, 214, 0.24);
   background: rgba(19, 24, 33, 0.78);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.edit-expert-primary-layer-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1101;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(37, 169, 191, 0.12), transparent 56%),
+    radial-gradient(circle at 72% 70%, rgba(103, 114, 132, 0.18), transparent 62%);
 }
 
 .edit-expert-primary-layer-loading-spinner {
@@ -913,42 +943,6 @@
   height: 100%;
   z-index: 999;
   pointer-events: none;
-}
-
-.edit-expert-transform-gizmo {
-  position: absolute;
-  inset: 0;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-.edit-expert-transform-gizmo-box {
-  position: absolute;
-  border: 1px solid rgba(112, 226, 255, 0.82);
-  border-radius: 8px;
-  box-shadow:
-    0 0 0 1px rgba(4, 20, 33, 0.42),
-    inset 0 0 0 1px rgba(16, 40, 59, 0.3);
-}
-
-.edit-expert-transform-gizmo-handle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  margin-top: -6px;
-  border-radius: 999px;
-  border: 1px solid rgba(102, 215, 250, 0.92);
-  box-shadow: 0 0 0 1px rgba(8, 22, 36, 0.6);
-  background: rgba(8, 22, 34, 0.94);
-}
-
-.edit-expert-transform-gizmo-handle.is-resize {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(34, 211, 238, 0.95));
-}
-
-.edit-expert-transform-gizmo-handle.is-rotate {
-  background: linear-gradient(135deg, rgba(67, 56, 202, 0.94), rgba(14, 165, 233, 0.94));
 }
 
 .edit-expert-primary-dropzone .reference-drop-content {

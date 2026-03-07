@@ -271,7 +271,10 @@ const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 const INPAINT_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
+const MOVE_ZOOM_MIN = 50;
+const MOVE_ZOOM_MAX = 200;
 const MOVE_ZOOM_DEFAULT = 125;
+const TRANSFORM_HISTORY_LIMIT = 80;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
 const INPAINT_CURSOR_DIAMETER_MAX = 52;
@@ -294,6 +297,8 @@ const clampLayerTranslateRatio = (value: number) =>
 const clampLayerScale = (value: number) =>
   Math.min(LAYER_SCALE_MAX, Math.max(LAYER_SCALE_MIN, value));
 const resolveMoveScaleFromZoom = (zoomValue: number) => clampLayerScale(zoomValue / 100);
+const clampMoveZoomValue = (value: number) =>
+  Math.min(MOVE_ZOOM_MAX, Math.max(MOVE_ZOOM_MIN, value));
 
 type LayerTransform = {
   translateXRatio: number;
@@ -308,6 +313,90 @@ const defaultLayerTransform = (): LayerTransform => ({
   scale: 1,
   rotationDeg: 0,
 });
+
+type TransformHistoryLayerSnapshot = {
+  layerId: string;
+  transform: LayerTransform;
+};
+
+type TransformHistoryEntry = {
+  zoomValue: number;
+  layerOrderSignature: string;
+  layerSnapshots: TransformHistoryLayerSnapshot[];
+};
+
+type TransformHistoryState = {
+  past: TransformHistoryEntry[];
+  present: TransformHistoryEntry;
+  future: TransformHistoryEntry[];
+};
+
+const cloneLayerTransform = (transform: LayerTransform): LayerTransform => ({
+  translateXRatio: transform.translateXRatio,
+  translateYRatio: transform.translateYRatio,
+  scale: transform.scale,
+  rotationDeg: transform.rotationDeg,
+});
+
+const areLayerTransformsEqual = (left: LayerTransform, right: LayerTransform) =>
+  left.translateXRatio === right.translateXRatio &&
+  left.translateYRatio === right.translateYRatio &&
+  left.scale === right.scale &&
+  left.rotationDeg === right.rotationDeg;
+
+const buildTransformHistoryEntry = (
+  layers: ExpertEditLayer[],
+  zoomValue: number
+): TransformHistoryEntry => ({
+  zoomValue: clampMoveZoomValue(zoomValue),
+  layerOrderSignature: layers.map((layer) => layer.id).join("|"),
+  layerSnapshots: layers.map((layer) => ({
+    layerId: layer.id,
+    transform: cloneLayerTransform(layer.transform),
+  })),
+});
+
+const areTransformHistoryEntriesEqual = (
+  left: TransformHistoryEntry,
+  right: TransformHistoryEntry
+) => {
+  if (left.zoomValue !== right.zoomValue) return false;
+  if (left.layerOrderSignature !== right.layerOrderSignature) return false;
+  if (left.layerSnapshots.length !== right.layerSnapshots.length) return false;
+  for (let index = 0; index < left.layerSnapshots.length; index += 1) {
+    const leftSnapshot = left.layerSnapshots[index];
+    const rightSnapshot = right.layerSnapshots[index];
+    if (!leftSnapshot || !rightSnapshot) return false;
+    if (leftSnapshot.layerId !== rightSnapshot.layerId) return false;
+    if (!areLayerTransformsEqual(leftSnapshot.transform, rightSnapshot.transform)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const applyTransformHistoryEntryToLayers = (
+  layers: ExpertEditLayer[],
+  entry: TransformHistoryEntry
+) => {
+  const currentLayerOrderSignature = layers.map((layer) => layer.id).join("|");
+  if (currentLayerOrderSignature !== entry.layerOrderSignature) {
+    return layers;
+  }
+  const transformByLayerId = new Map(
+    entry.layerSnapshots.map((snapshot) => [snapshot.layerId, snapshot.transform])
+  );
+  return layers.map((layer) => {
+    const snapshotTransform = transformByLayerId.get(layer.id);
+    if (!snapshotTransform || areLayerTransformsEqual(layer.transform, snapshotTransform)) {
+      return layer;
+    }
+    return {
+      ...layer,
+      transform: cloneLayerTransform(snapshotTransform),
+    };
+  });
+};
 
 type TransformGeometry = {
   centerX: number;
@@ -417,8 +506,8 @@ type TransformPointerSession = {
   pointerId: number;
   layerId: string | null;
   dragMode: TransformDragMode;
-  startClientX: number;
-  startClientY: number;
+  startCanvasX: number;
+  startCanvasY: number;
   baseTranslateXRatio: number;
   baseTranslateYRatio: number;
   baseScale: number;
@@ -435,8 +524,8 @@ const createIdleTransformPointerSession = (): TransformPointerSession => ({
   pointerId: -1,
   layerId: null,
   dragMode: "move",
-  startClientX: 0,
-  startClientY: 0,
+  startCanvasX: 0,
+  startCanvasY: 0,
   baseTranslateXRatio: 0,
   baseTranslateYRatio: 0,
   baseScale: 1,
@@ -530,6 +619,30 @@ const resolveBlobDimensions = async (blob: Blob): Promise<{ width: number; heigh
   }
 };
 
+const resolveCanvasSpacePoint = ({
+  clientX,
+  clientY,
+  rect,
+  sceneScale,
+}: {
+  clientX: number;
+  clientY: number;
+  rect: DOMRect;
+  sceneScale: number;
+}) => {
+  const rawX = clientX - rect.left;
+  const rawY = clientY - rect.top;
+  if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
+    return { x: rawX, y: rawY };
+  }
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  return {
+    x: centerX + (rawX - centerX) / sceneScale,
+    y: centerY + (rawY - centerY) / sceneScale,
+  };
+};
+
 export function ExpertEditPanelView({
   aspect,
   modelId,
@@ -578,6 +691,7 @@ export function ExpertEditPanelView({
   const transformPointerSessionRef = React.useRef<TransformPointerSession>(
     createIdleTransformPointerSession()
   );
+  const transformGestureBaselineRef = React.useRef<TransformHistoryEntry | null>(null);
 
   const createLayer = React.useCallback(
     ({
@@ -630,15 +744,22 @@ export function ExpertEditPanelView({
       ownsImageUrl: false,
     }),
   ]);
+  const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
+    () => ({
+      past: [],
+      present: buildTransformHistoryEntry(layers, moveZoomValue),
+      future: [],
+    })
+  );
   const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
   const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
   const [editingLayerValue, setEditingLayerValue] = React.useState("");
   const [draggingLayerIndex, setDraggingLayerIndex] = React.useState<number | null>(null);
   const [dragOverLayerIndex, setDragOverLayerIndex] = React.useState<number | null>(null);
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
+  const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
   const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
-  const [dropzoneSize, setDropzoneSize] = React.useState({ width: 0, height: 0 });
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
   >(null);
@@ -651,6 +772,12 @@ export function ExpertEditPanelView({
     selectedLayerIndex == null || selectedLayerIndex < 0 || selectedLayerIndex >= layers.length
       ? 0
       : selectedLayerIndex;
+  const currentTransformHistoryEntry = React.useMemo(
+    () => buildTransformHistoryEntry(layers, moveZoomValue),
+    [layers, moveZoomValue]
+  );
+  const canUndoTransformHistory = transformHistoryState.past.length > 0;
+  const canRedoTransformHistory = transformHistoryState.future.length > 0;
   const selectedLayer = layers[resolvedSelectedLayerIndex] ?? null;
   const selectedLayerImageUrl = selectedLayer?.imageUrl ?? null;
   const populatedLayerCount = React.useMemo(
@@ -675,29 +802,7 @@ export function ExpertEditPanelView({
   const isCropToolSelected = selectedRailTool === "crop";
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isMoveToolSelected = selectedRailTool === "move";
-  React.useEffect(() => {
-    const dropzone = primaryDropzoneRef.current;
-    if (!dropzone) return;
-    const syncSize = () => {
-      const nextWidth = Math.max(0, dropzone.clientWidth);
-      const nextHeight = Math.max(0, dropzone.clientHeight);
-      setDropzoneSize((previous) =>
-        previous.width === nextWidth && previous.height === nextHeight
-          ? previous
-          : { width: nextWidth, height: nextHeight }
-      );
-    };
-    syncSize();
-
-    if (typeof ResizeObserver === "function") {
-      const resizeObserver = new ResizeObserver(() => syncSize());
-      resizeObserver.observe(dropzone);
-      return () => resizeObserver.disconnect();
-    }
-
-    window.addEventListener("resize", syncSize);
-    return () => window.removeEventListener("resize", syncSize);
-  }, []);
+  const sceneZoomScale = isMoveToolSelected ? globalZoomScale : 1;
 
   React.useEffect(() => {
     setSelectedCropAspect(aspect);
@@ -783,27 +888,31 @@ export function ExpertEditPanelView({
     [layers]
   );
 
-  const showStatusToast = React.useCallback((message: string) => {
-    if (toastVisibleTimerRef.current != null) {
-      window.clearTimeout(toastVisibleTimerRef.current);
-      toastVisibleTimerRef.current = null;
-    }
-    if (toastFadeTimerRef.current != null) {
-      window.clearTimeout(toastFadeTimerRef.current);
-      toastFadeTimerRef.current = null;
-    }
-    setStatusToastMessage(message);
-    setIsStatusToastFading(false);
-    toastVisibleTimerRef.current = window.setTimeout(() => {
-      setIsStatusToastFading(true);
-      toastFadeTimerRef.current = window.setTimeout(() => {
-        setStatusToastMessage(null);
-        setIsStatusToastFading(false);
+  const showStatusToast = React.useCallback(
+    (message: string, tone: "info" | "warning" = "info") => {
+      if (toastVisibleTimerRef.current != null) {
+        window.clearTimeout(toastVisibleTimerRef.current);
+        toastVisibleTimerRef.current = null;
+      }
+      if (toastFadeTimerRef.current != null) {
+        window.clearTimeout(toastFadeTimerRef.current);
         toastFadeTimerRef.current = null;
-      }, STATUS_TOAST_FADE_MS);
-      toastVisibleTimerRef.current = null;
-    }, STATUS_TOAST_VISIBLE_MS);
-  }, []);
+      }
+      setStatusToastMessage(message);
+      setStatusToastTone(tone);
+      setIsStatusToastFading(false);
+      toastVisibleTimerRef.current = window.setTimeout(() => {
+        setIsStatusToastFading(true);
+        toastFadeTimerRef.current = window.setTimeout(() => {
+          setStatusToastMessage(null);
+          setIsStatusToastFading(false);
+          toastFadeTimerRef.current = null;
+        }, STATUS_TOAST_FADE_MS);
+        toastVisibleTimerRef.current = null;
+      }, STATUS_TOAST_VISIBLE_MS);
+    },
+    []
+  );
 
   React.useEffect(() => {
     return () => {
@@ -843,7 +952,7 @@ export function ExpertEditPanelView({
       setSelectedPresetLabels((previous) => {
         if (previous.includes(candidateLabel)) return previous;
         if (previous.length >= EDIT_PRESET_PANEL_MAX) {
-          showStatusToast(PRESET_PANEL_LIMIT_TOAST);
+          showStatusToast(PRESET_PANEL_LIMIT_TOAST, "warning");
           return previous;
         }
         return sortPresetLabelsByCanonicalOrder([...previous, candidateLabel]);
@@ -1008,48 +1117,6 @@ export function ExpertEditPanelView({
     selectedInpaintMode === "lasso" &&
     Boolean(selectedLayerImageUrl) &&
     imageHasInteractiveMask;
-  const selectedLayerTransformGeometry = React.useMemo(() => {
-    if (!isMoveToolSelected || !selectedLayer?.imageUrl) return null;
-    if (dropzoneSize.width <= 0 || dropzoneSize.height <= 0) return null;
-    return resolveTransformGeometry({
-      transform: {
-        ...selectedLayer.transform,
-        scale: selectedLayer.transform.scale * globalZoomScale,
-      },
-      width: dropzoneSize.width,
-      height: dropzoneSize.height,
-    });
-  }, [dropzoneSize.height, dropzoneSize.width, globalZoomScale, isMoveToolSelected, selectedLayer]);
-  const selectedLayerTransformBoxStyle = React.useMemo<React.CSSProperties | undefined>(() => {
-    if (!selectedLayerTransformGeometry || !selectedLayer) return undefined;
-    return {
-      left: `${selectedLayerTransformGeometry.centerX}px`,
-      top: `${selectedLayerTransformGeometry.centerY}px`,
-      width: `${dropzoneSize.width * selectedLayer.transform.scale * globalZoomScale}px`,
-      height: `${dropzoneSize.height * selectedLayer.transform.scale * globalZoomScale}px`,
-      transform: `translate(-50%, -50%) rotate(${selectedLayer.transform.rotationDeg}deg)`,
-    };
-  }, [
-    dropzoneSize.height,
-    dropzoneSize.width,
-    globalZoomScale,
-    selectedLayer,
-    selectedLayerTransformGeometry,
-  ]);
-  const selectedLayerResizeHandleStyle = React.useMemo<React.CSSProperties | undefined>(() => {
-    if (!selectedLayerTransformGeometry) return undefined;
-    return {
-      left: `${selectedLayerTransformGeometry.resizeHandleX}px`,
-      top: `${selectedLayerTransformGeometry.resizeHandleY}px`,
-    };
-  }, [selectedLayerTransformGeometry]);
-  const selectedLayerRotateHandleStyle = React.useMemo<React.CSSProperties | undefined>(() => {
-    if (!selectedLayerTransformGeometry) return undefined;
-    return {
-      left: `${selectedLayerTransformGeometry.rotateHandleX}px`,
-      top: `${selectedLayerTransformGeometry.rotateHandleY}px`,
-    };
-  }, [selectedLayerTransformGeometry]);
   const morePresetsSurfaceId = React.useId();
   const primaryDropzoneCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
@@ -1403,6 +1470,84 @@ export function ExpertEditPanelView({
     [applyPrimaryImageIngress, isMorePresetsSurfaceOpen, resolvePreviewUrlById]
   );
 
+  const commitTransformHistoryTransition = React.useCallback(
+    (nextEntry: TransformHistoryEntry, baselineEntry?: TransformHistoryEntry | null) => {
+      setTransformHistoryState((previousHistory) => {
+        const previousEntry = baselineEntry ?? previousHistory.present;
+        if (areTransformHistoryEntriesEqual(previousEntry, nextEntry)) {
+          return previousHistory;
+        }
+        const nextPast = [...previousHistory.past, previousEntry];
+        const trimmedPast =
+          nextPast.length > TRANSFORM_HISTORY_LIMIT
+            ? nextPast.slice(nextPast.length - TRANSFORM_HISTORY_LIMIT)
+            : nextPast;
+        return {
+          past: trimmedPast,
+          present: nextEntry,
+          future: [],
+        };
+      });
+    },
+    []
+  );
+
+  const applyTransformHistoryEntry = React.useCallback((entry: TransformHistoryEntry) => {
+    setLayers((previousLayers) => applyTransformHistoryEntryToLayers(previousLayers, entry));
+    setMoveZoomValue(entry.zoomValue);
+  }, []);
+
+  const handleMoveZoomChange = React.useCallback(
+    (nextZoomRawValue: number) => {
+      if (!Number.isFinite(nextZoomRawValue)) return;
+      const nextZoomValue = clampMoveZoomValue(Math.round(nextZoomRawValue));
+      if (nextZoomValue === moveZoomValue) return;
+      const baselineEntry = buildTransformHistoryEntry(layers, moveZoomValue);
+      const nextEntry = buildTransformHistoryEntry(layers, nextZoomValue);
+      setMoveZoomValue(nextZoomValue);
+      commitTransformHistoryTransition(nextEntry, baselineEntry);
+    },
+    [commitTransformHistoryTransition, layers, moveZoomValue]
+  );
+
+  const handleMoveZoomReset = React.useCallback(() => {
+    handleMoveZoomChange(MOVE_ZOOM_DEFAULT);
+  }, [handleMoveZoomChange]);
+
+  const handleUndoMoveAction = React.useCallback(() => {
+    let targetEntry: TransformHistoryEntry | null = null;
+    setTransformHistoryState((previousHistory) => {
+      if (!previousHistory.past.length) return previousHistory;
+      targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
+      if (!targetEntry) return previousHistory;
+      return {
+        past: previousHistory.past.slice(0, -1),
+        present: targetEntry,
+        future: [previousHistory.present, ...previousHistory.future],
+      };
+    });
+    if (targetEntry) {
+      applyTransformHistoryEntry(targetEntry);
+    }
+  }, [applyTransformHistoryEntry]);
+
+  const handleRedoMoveAction = React.useCallback(() => {
+    let targetEntry: TransformHistoryEntry | null = null;
+    setTransformHistoryState((previousHistory) => {
+      if (!previousHistory.future.length) return previousHistory;
+      targetEntry = previousHistory.future[0] ?? null;
+      if (!targetEntry) return previousHistory;
+      return {
+        past: [...previousHistory.past, previousHistory.present],
+        present: targetEntry,
+        future: previousHistory.future.slice(1),
+      };
+    });
+    if (targetEntry) {
+      applyTransformHistoryEntry(targetEntry);
+    }
+  }, [applyTransformHistoryEntry]);
+
   const handlePrimaryPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
@@ -1417,8 +1562,14 @@ export function ExpertEditPanelView({
         const rect = dropzone.getBoundingClientRect();
         const width = Math.max(1, rect.width);
         const height = Math.max(1, rect.height);
-        const pointerX = event.clientX - rect.left;
-        const pointerY = event.clientY - rect.top;
+        const pointer = resolveCanvasSpacePoint({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect,
+          sceneScale: sceneZoomScale,
+        });
+        const pointerX = pointer.x;
+        const pointerY = pointer.y;
         const transformGeometry = resolveTransformGeometry({
           transform: selectedLayer.transform,
           width,
@@ -1437,13 +1588,14 @@ export function ExpertEditPanelView({
         if ((event.currentTarget as HTMLElement | null)?.setPointerCapture) {
           (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
         }
+        transformGestureBaselineRef.current = buildTransformHistoryEntry(layers, moveZoomValue);
         transformPointerSessionRef.current = {
           active: true,
           pointerId: event.pointerId,
           layerId: selectedLayer.id,
           dragMode,
-          startClientX: event.clientX,
-          startClientY: event.clientY,
+          startCanvasX: pointerX,
+          startCanvasY: pointerY,
           baseTranslateXRatio: selectedLayer.transform.translateXRatio,
           baseTranslateYRatio: selectedLayer.transform.translateYRatio,
           baseScale: selectedLayer.transform.scale,
@@ -1463,8 +1615,11 @@ export function ExpertEditPanelView({
       handleInpaintPointerDown,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
+      layers,
+      moveZoomValue,
       selectedLayer,
       selectedTransformMode,
+      sceneZoomScale,
       showStatusToast,
     ]
   );
@@ -1476,14 +1631,20 @@ export function ExpertEditPanelView({
         const dropzone = primaryDropzoneRef.current;
         if (!dropzone) return;
         const rect = dropzone.getBoundingClientRect();
-        const pointerX = event.clientX - rect.left;
-        const pointerY = event.clientY - rect.top;
+        const pointer = resolveCanvasSpacePoint({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect,
+          sceneScale: sceneZoomScale,
+        });
+        const pointerX = pointer.x;
+        const pointerY = pointer.y;
         const session = transformPointerSessionRef.current;
         if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
         event.preventDefault();
         if (session.dragMode === "move") {
-          const deltaX = event.clientX - session.startClientX;
-          const deltaY = event.clientY - session.startClientY;
+          const deltaX = pointerX - session.startCanvasX;
+          const deltaY = pointerY - session.startCanvasY;
           const nextTranslateXRatio = clampLayerTranslateRatio(
             session.baseTranslateXRatio + deltaX / session.dropzoneWidth
           );
@@ -1548,7 +1709,7 @@ export function ExpertEditPanelView({
       }
       handleInpaintPointerMove(event);
     },
-    [handleInpaintPointerMove, isMorePresetsSurfaceOpen, isMoveToolSelected, selectedLayer]
+    [handleInpaintPointerMove, isMorePresetsSurfaceOpen, isMoveToolSelected, sceneZoomScale]
   );
 
   const endTransformPointerSession = React.useCallback(
@@ -1564,8 +1725,13 @@ export function ExpertEditPanelView({
       }
       transformPointerSessionRef.current = createIdleTransformPointerSession();
       setIsTransformPointerDragging(false);
+      const baselineEntry = transformGestureBaselineRef.current;
+      transformGestureBaselineRef.current = null;
+      if (!baselineEntry) return;
+      const nextEntry = buildTransformHistoryEntry(layers, moveZoomValue);
+      commitTransformHistoryTransition(nextEntry, baselineEntry);
     },
-    []
+    [commitTransformHistoryTransition, layers, moveZoomValue]
   );
 
   const handlePrimaryPointerUp = React.useCallback(
@@ -1834,12 +2000,13 @@ export function ExpertEditPanelView({
       if (targetLayer.imageUrl === referenceImageUrl && !targetLayer.ownsImageUrl) {
         return previous;
       }
+      const preserveLayerTransform = lockedRemoveBackgroundIndex >= 0;
       const nextLayers = [...previous];
       nextLayers[targetIndex] = {
         ...targetLayer,
         imageUrl: referenceImageUrl,
         ownsImageUrl: false,
-        transform: defaultLayerTransform(),
+        transform: preserveLayerTransform ? targetLayer.transform : defaultLayerTransform(),
       };
       return nextLayers;
     });
@@ -1869,8 +2036,23 @@ export function ExpertEditPanelView({
         setIsTransformPointerDragging(false);
       }
       transformPointerSessionRef.current = createIdleTransformPointerSession();
+      transformGestureBaselineRef.current = null;
     }
   }, [isMoveToolSelected, isTransformPointerDragging]);
+
+  React.useEffect(() => {
+    if (isTransformPointerDragging) return;
+    setTransformHistoryState((previousHistory) => {
+      if (areTransformHistoryEntriesEqual(previousHistory.present, currentTransformHistoryEntry)) {
+        return previousHistory;
+      }
+      return {
+        past: [],
+        present: currentTransformHistoryEntry,
+        future: [],
+      };
+    });
+  }, [currentTransformHistoryEntry, isTransformPointerDragging]);
 
   React.useEffect(() => {
     if (lastDispatchedPrimaryRef.current === hostPrimaryImageUrl) return;
@@ -2163,15 +2345,6 @@ export function ExpertEditPanelView({
               );
             })}
           </div>
-          {statusToastMessage ? (
-            <div
-              className={`edit-expert-layer-status-toast ${isStatusToastFading ? "is-fading" : ""}`}
-              role="status"
-              aria-live="polite"
-            >
-              {statusToastMessage}
-            </div>
-          ) : null}
         </div>
 
         <div
@@ -2194,42 +2367,27 @@ export function ExpertEditPanelView({
           aria-busy={isRemoveBackgroundPending || undefined}
         >
           {hasPrimaryCompositePreview ? (
-            <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
+            <div
+              className="edit-expert-primary-layer-canvas"
+              style={{
+                transform: `scale(${sceneZoomScale})`,
+                transformOrigin: "center center",
+              }}
+              aria-hidden="true"
+            >
               {layers.map((layer, index) =>
                 layer.imageUrl ? (
                   <div
                     key={layer.id}
-                    className={`edit-expert-primary-layer-frame ${
-                      layer.id === removeBackgroundPendingLayerId ? "is-loading" : ""
-                    }`.trim()}
+                    className="edit-expert-primary-layer-frame"
                     style={{
-                      backgroundImage:
-                        layer.id === removeBackgroundPendingLayerId
-                          ? undefined
-                          : `url(${layer.imageUrl})`,
+                      backgroundImage: `url(${layer.imageUrl})`,
                       zIndex: layers.length - index,
                       opacity: clampLayerOpacity(layer.opacity),
-                      transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale * globalZoomScale}) rotate(${layer.transform.rotationDeg}deg)`,
+                      transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
                       transformOrigin: "center center",
                     }}
-                  >
-                    {layer.id === removeBackgroundPendingLayerId ? (
-                      <div
-                        className="edit-expert-primary-layer-loading"
-                        role="status"
-                        aria-label="Removing background"
-                        aria-live="polite"
-                      >
-                        <span
-                          className="edit-expert-primary-layer-loading-spinner"
-                          aria-hidden="true"
-                        />
-                        <span className="edit-expert-primary-layer-loading-text">
-                          Removing background...
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
+                  />
                 ) : null
               )}
               <canvas
@@ -2237,20 +2395,25 @@ export function ExpertEditPanelView({
                 className="edit-expert-inpaint-overlay-canvas"
                 aria-hidden="true"
               />
-              {isMoveToolSelected && selectedLayer?.imageUrl && selectedLayerTransformGeometry ? (
-                <div className="edit-expert-transform-gizmo" aria-hidden="true">
+              {isRemoveBackgroundPending ? (
+                <div
+                  className="edit-expert-primary-layer-loading-overlay"
+                  data-testid="edit-expert-remove-background-loading-overlay"
+                >
                   <div
-                    className="edit-expert-transform-gizmo-box"
-                    style={selectedLayerTransformBoxStyle}
-                  />
-                  <div
-                    className="edit-expert-transform-gizmo-handle is-resize"
-                    style={selectedLayerResizeHandleStyle}
-                  />
-                  <div
-                    className="edit-expert-transform-gizmo-handle is-rotate"
-                    style={selectedLayerRotateHandleStyle}
-                  />
+                    className="edit-expert-primary-layer-loading"
+                    role="status"
+                    aria-label="Removing background"
+                    aria-live="polite"
+                  >
+                    <span
+                      className="edit-expert-primary-layer-loading-spinner"
+                      aria-hidden="true"
+                    />
+                    <span className="edit-expert-primary-layer-loading-text">
+                      Removing background...
+                    </span>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -2274,6 +2437,18 @@ export function ExpertEditPanelView({
             isDropActive={isPresetsSurfaceDropActive}
           />
         </div>
+
+        {statusToastMessage ? (
+          <div
+            className={`edit-expert-stage-status-toast ${
+              statusToastTone === "warning" ? "is-warning" : "is-info"
+            } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
+            role="status"
+            aria-live="polite"
+          >
+            {statusToastMessage}
+          </div>
+        ) : null}
 
         <div
           className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""} ${
@@ -2535,11 +2710,11 @@ export function ExpertEditPanelView({
                           id="edit-expert-move-zoom"
                           className="edit-expert-move-zoom-slider"
                           type="range"
-                          min={50}
-                          max={200}
+                          min={MOVE_ZOOM_MIN}
+                          max={MOVE_ZOOM_MAX}
                           value={moveZoomValue}
-                          onChange={(event) => setMoveZoomValue(Number(event.target.value))}
-                          onDoubleClick={() => setMoveZoomValue(MOVE_ZOOM_DEFAULT)}
+                          onChange={(event) => handleMoveZoomChange(Number(event.target.value))}
+                          onDoubleClick={handleMoveZoomReset}
                           aria-label="Zoom image"
                         />
                       </div>
@@ -2548,6 +2723,8 @@ export function ExpertEditPanelView({
                           type="button"
                           className="edit-expert-move-history-btn"
                           aria-label="Undo move action"
+                          onClick={handleUndoMoveAction}
+                          disabled={!canUndoTransformHistory}
                         >
                           <ArrowCounterClockwise size={14} weight="regular" />
                           Undo
@@ -2556,6 +2733,8 @@ export function ExpertEditPanelView({
                           type="button"
                           className="edit-expert-move-history-btn"
                           aria-label="Redo move action"
+                          onClick={handleRedoMoveAction}
+                          disabled={!canRedoTransformHistory}
                         >
                           <ArrowClockwise size={14} weight="regular" />
                           Redo

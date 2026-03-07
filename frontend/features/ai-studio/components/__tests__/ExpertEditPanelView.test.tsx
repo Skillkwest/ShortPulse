@@ -78,6 +78,14 @@ const createPresetDragTransferWithoutReadableData = () =>
 const readFrameScale = (frame: HTMLDivElement) =>
   Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
 
+const readFrameTranslate = (frame: HTMLDivElement) => {
+  const match = frame.style.transform.match(/translate\(([-\d.]+)%\s*,\s*([-\d.]+)%\)/);
+  return {
+    x: Number(match?.[1] ?? "0"),
+    y: Number(match?.[2] ?? "0"),
+  };
+};
+
 describe("ExpertEditPanelView", () => {
   const createObjectURLMock = vi.fn();
   const revokeObjectURLMock = vi.fn();
@@ -657,8 +665,104 @@ describe("ExpertEditPanelView", () => {
       clientY: 70,
     });
 
-    expect(frame.style.transform).toContain("translate(20%");
-    expect(frame.style.transform).toContain("25%");
+    const translateMatch = frame.style.transform.match(/translate\(([-\d.]+)%\s*,\s*([-\d.]+)%\)/);
+    expect(translateMatch).not.toBeNull();
+    const translateX = Number(translateMatch?.[1] ?? "0");
+    const translateY = Number(translateMatch?.[2] ?? "0");
+    expect(translateX).toBeGreaterThan(10);
+    expect(translateY).toBeGreaterThan(10);
+  });
+
+  it("does not render transform indicator overlays in move mode", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/clean-move-preview.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    expect(document.querySelector(".edit-expert-transform-gizmo")).toBeNull();
+    expect(document.querySelector(".edit-expert-transform-gizmo-box")).toBeNull();
+    expect(document.querySelector(".edit-expert-transform-gizmo-handle")).toBeNull();
+  });
+
+  it("undoes and redoes move transforms from the move history controls", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/move-history-target.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+    const undoButton = screen.getByRole("button", { name: /undo move action/i });
+    const redoButton = screen.getByRole("button", { name: /redo move action/i });
+    expect(undoButton).toBeDisabled();
+    expect(redoButton).toBeDisabled();
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 141,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 30,
+      clientY: 30,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 141,
+      pointerType: "mouse",
+      clientX: 80,
+      clientY: 95,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 141,
+      pointerType: "mouse",
+      clientX: 80,
+      clientY: 95,
+    });
+
+    const movedTranslate = readFrameTranslate(frame);
+    expect(movedTranslate.x).toBeGreaterThan(10);
+    expect(movedTranslate.y).toBeGreaterThan(10);
+    expect(undoButton).not.toBeDisabled();
+    expect(redoButton).toBeDisabled();
+
+    fireEvent.click(undoButton);
+    const undoneTranslate = readFrameTranslate(frame);
+    expect(Math.abs(undoneTranslate.x)).toBeLessThan(0.01);
+    expect(Math.abs(undoneTranslate.y)).toBeLessThan(0.01);
+    expect(redoButton).not.toBeDisabled();
+
+    fireEvent.click(redoButton);
+    const redoneTranslate = readFrameTranslate(frame);
+    expect(redoneTranslate.x).toBeCloseTo(movedTranslate.x, 4);
+    expect(redoneTranslate.y).toBeCloseTo(movedTranslate.y, 4);
   });
 
   it("resizes only the selected layer when resize mode is active", async () => {
@@ -728,7 +832,7 @@ describe("ExpertEditPanelView", () => {
     expect(secondFrameAfter).toBeGreaterThan(secondFrameBefore);
   });
 
-  it("applies zoom slider scale to all populated layers", async () => {
+  it("zooms the stage space without changing individual layer scales", async () => {
     const { container } = render(
       <ExpertEditPanelView
         {...baseProps}
@@ -747,17 +851,71 @@ describe("ExpertEditPanelView", () => {
       document.querySelectorAll(".edit-expert-primary-layer-frame")
     ) as HTMLDivElement[];
     expect(framesBefore).toHaveLength(2);
-    const initialScales = framesBefore.map(readFrameScale);
+    const initialLayerScales = framesBefore.map(readFrameScale);
+    const stageCanvas = document.querySelector(
+      ".edit-expert-primary-layer-canvas"
+    ) as HTMLDivElement;
+    const initialStageScale = Number(
+      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
+    );
 
     const slider = screen.getByRole("slider", { name: /zoom image/i });
     fireEvent.change(slider, { target: { value: "150" } });
 
-    const nextScales = (
+    const nextLayerScales = (
       Array.from(document.querySelectorAll(".edit-expert-primary-layer-frame")) as HTMLDivElement[]
     ).map(readFrameScale);
+    const nextStageScale = Number(
+      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
+    );
 
-    expect(nextScales[0]).toBeGreaterThan(initialScales[0]);
-    expect(nextScales[1]).toBeGreaterThan(initialScales[1]);
+    expect(nextLayerScales).toEqual(initialLayerScales);
+    expect(nextStageScale).toBeGreaterThan(initialStageScale);
+  });
+
+  it("undoes and redoes move zoom changes from the move history controls", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/zoom-history-target.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const stageCanvas = document.querySelector(
+      ".edit-expert-primary-layer-canvas"
+    ) as HTMLDivElement;
+    const initialStageScale = Number(
+      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
+    );
+    const slider = screen.getByRole("slider", { name: /zoom image/i });
+    const undoButton = screen.getByRole("button", { name: /undo move action/i });
+    const redoButton = screen.getByRole("button", { name: /redo move action/i });
+
+    fireEvent.change(slider, { target: { value: "150" } });
+    const changedStageScale = Number(
+      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
+    );
+    expect(changedStageScale).toBeGreaterThan(initialStageScale);
+    expect(undoButton).not.toBeDisabled();
+    expect(redoButton).toBeDisabled();
+
+    fireEvent.click(undoButton);
+    const undoneStageScale = Number(
+      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
+    );
+    expect(undoneStageScale).toBeCloseTo(initialStageScale, 4);
+    expect(redoButton).not.toBeDisabled();
+
+    fireEvent.click(redoButton);
+    const redoneStageScale = Number(
+      stageCanvas.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1"
+    );
+    expect(redoneStageScale).toBeCloseTo(changedStageScale, 4);
   });
 
   it("resizes the selected layer when resize mode is active", async () => {
@@ -1427,9 +1585,7 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(
-      document.querySelector(".edit-expert-primary-layer-frame.is-loading")
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("edit-expert-remove-background-loading-overlay")).toBeInTheDocument();
     expect(screen.getByText("Removing background...")).toBeInTheDocument();
     expect(screen.getByLabelText("Primary edit image")).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeDisabled();
@@ -1446,9 +1602,102 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(document.querySelector(".edit-expert-primary-layer-frame.is-loading")).toBeNull();
+    expect(screen.queryByTestId("edit-expert-remove-background-loading-overlay")).toBeNull();
     expect(screen.queryByText("Removing background...")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Primary edit image")).not.toHaveAttribute("aria-busy");
+
+    releasePendingSubmit();
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
+
+  it("keeps the moved layer position after remove background completes", async () => {
+    let releasePendingSubmit = () => {};
+    const pendingSubmitPromise = new Promise<void>((resolve) => {
+      releasePendingSubmit = () => {
+        resolve();
+      };
+    });
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => await pendingSubmitPromise);
+    const { container, rerender } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl={null}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-move.png");
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 241,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 24,
+      clientY: 24,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 241,
+      pointerType: "mouse",
+      clientX: 66,
+      clientY: 76,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 241,
+      pointerType: "mouse",
+      clientX: 66,
+      clientY: 76,
+    });
+    const movedTranslate = readFrameTranslate(frame);
+    expect(movedTranslate.x).toBeGreaterThan(10);
+    expect(movedTranslate.y).toBeGreaterThan(10);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Remove Background" }));
+      await Promise.resolve();
+    });
+
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/bria-moved-result.png"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const frameAfter = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+    const translatedAfter = readFrameTranslate(frameAfter);
+    expect(translatedAfter.x).toBeCloseTo(movedTranslate.x, 4);
+    expect(translatedAfter.y).toBeCloseTo(movedTranslate.y, 4);
 
     releasePendingSubmit();
     await act(async () => {

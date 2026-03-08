@@ -53,7 +53,9 @@ Typical result shape:
 - Polling provider token: `fal-bria-background-remove`.
 
 ## Pricing (ShortPulse)
-- Uses pricing strategy `fal-flux2-klein-per-mp` (fixed by product decision for this integration).
+- Expert Edit `Remove Background` is intentionally free for users (no credit debit).
+- Server submit wiring enables this through `skipBilling: true` on `/api/fal/bria-background-remove-submit`.
+- UI regenerate path also forces `costOverrideCredits: 0` for this action.
 
 ## Security notes
 - Never expose `FAL_KEY` in browser code.

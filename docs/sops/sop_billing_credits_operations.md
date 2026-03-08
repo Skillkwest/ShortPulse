@@ -99,6 +99,7 @@ Safety checks:
 
 ## Charging model behavior
 - Fal generation submit endpoints reserve credits server-side before provider submission.
+- Exception: Bria remove-background submit (`/api/fal/bria-background-remove-submit`) is intentionally free and bypasses billing reservation/debit (`skipBilling: true`).
 - Admission enforcement is authoritative only in reservation billing mode.
 - Queue mode (`SHORTPULSE_FAL_QUEUE_ENABLED=true`) accepts over-cap submits as `202 GENERATION_QUEUED` and holds reservations until queue dispatch succeeds or exhausts.
 - Submit rejection/transport failure auto-releases reservation (no debit posted).

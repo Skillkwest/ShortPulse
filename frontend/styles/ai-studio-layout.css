@@ -232,11 +232,56 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   --ai-accent: var(--ai-accent-base); /* right side / solid accent */
   --ai-accent-strong: var(--ai-accent-base); /* optional second tone */
   --ai-accent-shadow: rgba(52, 201, 255, 0.176); /* glow */
+  --ai-styles-selection-border: rgba(37, 204, 255, 0.84);
+  --ai-styles-selection-ring: rgba(37, 204, 255, 0.24);
+  --ai-styles-selection-fill: rgba(37, 204, 255, 0.1);
+  --ai-styles-selection-btn-bg: rgba(30, 56, 68, 0.8);
+  --ai-styles-selection-btn-bg-hover: rgba(38, 70, 84, 0.84);
+  --ai-styles-selection-copy: rgba(37, 204, 255, 0.96);
   min-height: var(--app-fixed-height);
   height: auto;
   overflow: visible;
   display: flex;
   flex-direction: column;
+}
+
+.ai-studio-page[data-selected-tool="create"],
+.ai-studio-page[data-selected-tool="text"] {
+  --ai-styles-selection-border: rgba(37, 204, 255, 0.84);
+  --ai-styles-selection-ring: rgba(37, 204, 255, 0.24);
+  --ai-styles-selection-fill: rgba(37, 204, 255, 0.1);
+  --ai-styles-selection-btn-bg: rgba(30, 56, 68, 0.8);
+  --ai-styles-selection-btn-bg-hover: rgba(38, 70, 84, 0.84);
+  --ai-styles-selection-copy: rgba(37, 204, 255, 0.96);
+}
+
+.ai-studio-page[data-selected-tool="edit"],
+.ai-studio-page[data-selected-tool="image"] {
+  --ai-styles-selection-border: rgba(245, 185, 66, 0.82);
+  --ai-styles-selection-ring: rgba(245, 185, 66, 0.24);
+  --ai-styles-selection-fill: rgba(245, 185, 66, 0.08);
+  --ai-styles-selection-btn-bg: rgba(58, 49, 48, 0.78);
+  --ai-styles-selection-btn-bg-hover: rgba(66, 56, 52, 0.84);
+  --ai-styles-selection-copy: rgb(255, 194, 80);
+}
+
+.ai-studio-page[data-selected-tool="video"],
+.ai-studio-page[data-selected-tool="kling"] {
+  --ai-styles-selection-border: rgba(170, 101, 239, 0.84);
+  --ai-styles-selection-ring: rgba(170, 101, 239, 0.26);
+  --ai-styles-selection-fill: rgba(170, 101, 239, 0.11);
+  --ai-styles-selection-btn-bg: rgba(58, 44, 79, 0.82);
+  --ai-styles-selection-btn-bg-hover: rgba(66, 50, 90, 0.86);
+  --ai-styles-selection-copy: rgb(193, 101, 255);
+}
+
+.ai-studio-page[data-selected-tool="canvas"] {
+  --ai-styles-selection-border: rgba(245, 221, 174, 0.84);
+  --ai-styles-selection-ring: rgba(245, 221, 174, 0.28);
+  --ai-styles-selection-fill: rgba(245, 221, 174, 0.14);
+  --ai-styles-selection-btn-bg: rgba(70, 58, 43, 0.84);
+  --ai-styles-selection-btn-bg-hover: rgba(78, 65, 48, 0.88);
+  --ai-styles-selection-copy: rgba(247, 239, 224, 0.96);
 }
 
 .ai-studio-page[data-selected-tool="canvas"] {
@@ -375,10 +420,39 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   color: rgba(230, 236, 245, 0.9);
 }
 
+.ai-hero-shortcut-button:disabled {
+  color: rgba(201, 205, 214, 0.35);
+  cursor: not-allowed;
+}
+
+.ai-hero-shortcut-button:disabled:hover {
+  color: rgba(201, 205, 214, 0.35);
+}
+
 .ai-hero-shortcut-button:focus-visible {
   outline: 1px solid rgba(101, 204, 255, 0.7);
   outline-offset: 3px;
   border-radius: 3px;
+}
+
+.ai-studio-page[data-selected-tool="create"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="text"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="kling"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page:not([data-selected-tool]) .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgba(37, 204, 255, 0.96);
+}
+
+.ai-studio-page[data-selected-tool="edit"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="image"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgb(255, 194, 80);
+}
+
+.ai-studio-page[data-selected-tool="video"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgb(193, 101, 255);
+}
+
+.ai-studio-page[data-selected-tool="canvas"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgba(247, 239, 224, 0.96);
 }
 
 .ai-hero-shortcut-icon-button {

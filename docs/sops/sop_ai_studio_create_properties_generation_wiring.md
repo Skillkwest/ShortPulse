@@ -55,6 +55,7 @@ sequenceDiagram
 4. Model picker open path is anchored with `anchorId="create-model"` and `context="text-image"` so modal ordering/filtering stays deterministic for Create.
 5. Prompt step always routes through the same `PromptStep` contract; chat-off inline generate uses raw input fallback rules via `handleChatOffInlineGenerate`.
 6. Character mode and character picker are controlled by `useCreateCharacterModeController`; selection state remains in page-level orchestration.
+7. In Expert Create, the composer leading slot mounts the shared `StylesControl`; it toggles the right-rail Styles section and uses `AiStudioPageContent` shared state (`isStylesPanelOpen`, `selectedStyleId`) so Create/Edit surfaces stay in sync.
 
 ## Model selector and startup default pipeline
 1. Allowed options are computed in `useAiStudioAllowedModelOptions` via `resolveAiStudioAllowedModelOptions`.
@@ -121,7 +122,7 @@ When changing Create panel behavior or generation wiring, update all relevant la
 3. Submit layer: `useAiStudioGenerationController.ts`, `useAiStudioGenerationPromptComposer.ts`, and `useAiStudioTaskSubmission.ts` (+ route handlers if model routing changed).
 4. Agent/control layer: bridge hooks and API routes if prompt ownership or safety paths changed.
 5. Docs/indexes: this SOP, `sop_ai_studio_index.md`, and vertical SOPs (`text/image/video/agent`) for any behavior delta.
-6. Expert Edit action wiring: keep `Remove Background` on the same regenerate pipeline using `modelIdOverride` (no parallel submit stack).
+6. Expert Edit action wiring: keep `Remove Background` on the same regenerate pipeline using `modelIdOverride` (no parallel submit stack) and keep it free (`costOverrideCredits: 0` + Bria submit `skipBilling: true`).
 
 ## Verification checklist
 - `npm -C frontend run test -- CreatePropertiesPanel useAiStudioGenerationController submitInvariants submissionPayloadMatrix`

@@ -63,6 +63,15 @@ import {
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
+import {
+  createInitialWorkflowPanelVisibility,
+  resolveEffectivePanelVisibility,
+  resolveHeaderShortcutStateMap,
+  resolvePanelVisibilityWorkflowKey,
+  toggleWorkflowPanelVisibilityByShortcut,
+  type HeaderShortcutId,
+  type WorkflowPanelVisibilityByWorkflow,
+} from "../logic/panelVisibility";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -134,39 +143,6 @@ const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
   { id: "reference-grid", label: "Reference Grid" },
   { id: "styles", label: "Styles" },
 ] as const;
-type HeaderShortcutId = (typeof AI_STUDIO_HEADER_SHORTCUT_BUTTONS)[number]["id"];
-type WorkflowPanelVisibilityKey = "create" | "edit" | "video" | "canvas";
-type WorkflowPanelVisibilityState = {
-  canvas: boolean;
-  quickSlot: boolean;
-  referenceGrid: boolean;
-  styles: boolean;
-};
-
-const DEFAULT_WORKFLOW_PANEL_VISIBILITY: Record<
-  WorkflowPanelVisibilityKey,
-  WorkflowPanelVisibilityState
-> = {
-  create: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
-  edit: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
-  video: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
-  canvas: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
-};
-
-const resolvePanelVisibilityWorkflowKey = (tool: ToolId | null): WorkflowPanelVisibilityKey => {
-  switch (tool) {
-    case "edit":
-    case "image":
-      return "edit";
-    case "video":
-      return "video";
-    case "canvas":
-      return "canvas";
-    default:
-      // Create group intentionally includes create/text/kling and all non-panel workflows.
-      return "create";
-  }
-};
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
@@ -601,14 +577,8 @@ export function AiStudioPageContent({
   const showExpertEditPanel =
     propertiesPanelKind === "edit" && propertiesEditExpert.expertEditEligible;
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
-  const [panelVisibilityByWorkflow, setPanelVisibilityByWorkflow] = React.useState<
-    Record<WorkflowPanelVisibilityKey, WorkflowPanelVisibilityState>
-  >(() => ({
-    create: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.create },
-    edit: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.edit },
-    video: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.video },
-    canvas: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.canvas },
-  }));
+  const [panelVisibilityByWorkflow, setPanelVisibilityByWorkflow] =
+    React.useState<WorkflowPanelVisibilityByWorkflow>(createInitialWorkflowPanelVisibility);
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const workflowPanelVisibilityKey = resolvePanelVisibilityWorkflowKey(selectedTool);
   const workflowPanelVisibility = panelVisibilityByWorkflow[workflowPanelVisibilityKey];
@@ -619,99 +589,43 @@ export function AiStudioPageContent({
   );
   const isCanvasToggleAvailable = Boolean(railCanvasProps) && selectedTool !== "canvas";
   const isStylesToggleAvailable = showStylesPanelEligible;
-  const isStylesPanelOpen = isStylesToggleAvailable && workflowPanelVisibility.styles;
-  const effectivePanelVisibility = React.useMemo(
+  const panelToggleAvailability = React.useMemo(
     () => ({
-      canvas: isCanvasToggleAvailable && workflowPanelVisibility.canvas && !isStylesPanelOpen,
-      quickSlot:
-        isQuickSlotToggleAvailable && workflowPanelVisibility.quickSlot && !isStylesPanelOpen,
-      referenceGrid: workflowPanelVisibility.referenceGrid,
-      styles: isStylesPanelOpen,
+      canvas: isCanvasToggleAvailable,
+      quickSlot: isQuickSlotToggleAvailable,
+      styles: isStylesToggleAvailable,
     }),
-    [
-      isCanvasToggleAvailable,
-      isQuickSlotToggleAvailable,
-      isStylesPanelOpen,
-      workflowPanelVisibility.canvas,
-      workflowPanelVisibility.quickSlot,
-      workflowPanelVisibility.referenceGrid,
-    ]
+    [isCanvasToggleAvailable, isQuickSlotToggleAvailable, isStylesToggleAvailable]
   );
+  const effectivePanelVisibility = React.useMemo(
+    () =>
+      resolveEffectivePanelVisibility({
+        workflowVisibility: workflowPanelVisibility,
+        availability: panelToggleAvailability,
+      }),
+    [panelToggleAvailability, workflowPanelVisibility]
+  );
+  const isStylesPanelOpen = effectivePanelVisibility.styles;
   const headerShortcutStates = React.useMemo(
-    () => ({
-      canvas: {
-        pressed: effectivePanelVisibility.canvas,
-        disabled: !isCanvasToggleAvailable,
-      },
-      "quick-slot-inventory": {
-        pressed: effectivePanelVisibility.quickSlot,
-        disabled: !isQuickSlotToggleAvailable,
-      },
-      "reference-grid": {
-        pressed: effectivePanelVisibility.referenceGrid,
-        disabled: false,
-      },
-      styles: {
-        pressed: effectivePanelVisibility.styles,
-        disabled: !isStylesToggleAvailable,
-      },
-    }),
-    [
-      effectivePanelVisibility.canvas,
-      effectivePanelVisibility.quickSlot,
-      effectivePanelVisibility.referenceGrid,
-      effectivePanelVisibility.styles,
-      isCanvasToggleAvailable,
-      isQuickSlotToggleAvailable,
-      isStylesToggleAvailable,
-    ]
+    () =>
+      resolveHeaderShortcutStateMap({
+        effectiveVisibility: effectivePanelVisibility,
+        availability: panelToggleAvailability,
+      }),
+    [effectivePanelVisibility, panelToggleAvailability]
   );
   const handleHeaderShortcutToggle = React.useCallback(
     (shortcutId: HeaderShortcutId) => {
-      if (shortcutId === "styles") {
-        if (!isStylesToggleAvailable) return;
-        setPanelVisibilityByWorkflow((previous) => {
-          const previousWorkflowVisibility = previous[workflowPanelVisibilityKey];
-          return {
-            ...previous,
-            [workflowPanelVisibilityKey]: {
-              ...previousWorkflowVisibility,
-              styles: !previousWorkflowVisibility.styles,
-            },
-          };
-        });
-        return;
-      }
-      if (shortcutId === "canvas" && !isCanvasToggleAvailable) return;
-      if (shortcutId === "quick-slot-inventory" && !isQuickSlotToggleAvailable) return;
       setPanelVisibilityByWorkflow((previous) => {
-        const previousWorkflowVisibility = previous[workflowPanelVisibilityKey];
-        return {
-          ...previous,
-          [workflowPanelVisibilityKey]: {
-            ...previousWorkflowVisibility,
-            canvas:
-              shortcutId === "canvas"
-                ? !previousWorkflowVisibility.canvas
-                : previousWorkflowVisibility.canvas,
-            quickSlot:
-              shortcutId === "quick-slot-inventory"
-                ? !previousWorkflowVisibility.quickSlot
-                : previousWorkflowVisibility.quickSlot,
-            referenceGrid:
-              shortcutId === "reference-grid"
-                ? !previousWorkflowVisibility.referenceGrid
-                : previousWorkflowVisibility.referenceGrid,
-          },
-        };
+        return toggleWorkflowPanelVisibilityByShortcut({
+          byWorkflow: previous,
+          workflowKey: workflowPanelVisibilityKey,
+          shortcutId,
+          availability: panelToggleAvailability,
+        });
       });
     },
-    [
-      isCanvasToggleAvailable,
-      isQuickSlotToggleAvailable,
-      isStylesToggleAvailable,
-      workflowPanelVisibilityKey,
-    ]
+    [panelToggleAvailability, workflowPanelVisibilityKey]
   );
   const { activeCount } = useOutputCounts();
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
@@ -773,18 +687,15 @@ export function AiStudioPageContent({
   }, [collapseToMin, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
-    if (!isStylesToggleAvailable) return;
     setPanelVisibilityByWorkflow((previous) => {
-      const previousWorkflowVisibility = previous[workflowPanelVisibilityKey];
-      return {
-        ...previous,
-        [workflowPanelVisibilityKey]: {
-          ...previousWorkflowVisibility,
-          styles: !previousWorkflowVisibility.styles,
-        },
-      };
+      return toggleWorkflowPanelVisibilityByShortcut({
+        byWorkflow: previous,
+        workflowKey: workflowPanelVisibilityKey,
+        shortcutId: "styles",
+        availability: panelToggleAvailability,
+      });
     });
-  }, [isStylesToggleAvailable, workflowPanelVisibilityKey]);
+  }, [panelToggleAvailability, workflowPanelVisibilityKey]);
   const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
     setSelectedStyleId(styleId);
   }, []);
@@ -795,13 +706,7 @@ export function AiStudioPageContent({
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
     }),
-    [
-      handleSelectedStyleIdChange,
-      handleStylesPanelToggle,
-      isStylesPanelOpen,
-      propertiesEditExpert,
-      selectedStyleId,
-    ]
+    [handleStylesPanelToggle, isStylesPanelOpen, propertiesEditExpert, selectedStyleId]
   );
   const resolvedCreatePropertiesWithStyles = React.useMemo(
     () => ({

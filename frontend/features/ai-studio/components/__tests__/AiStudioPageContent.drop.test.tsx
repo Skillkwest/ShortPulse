@@ -55,6 +55,12 @@ vi.mock("../ReferenceGrid", () => ({
       selectedStyleId: string | null;
       onSelectStyle?: (styleId: string | null) => void;
     };
+    panelVisibility?: {
+      canvas: boolean;
+      quickSlot: boolean;
+      referenceGrid: boolean;
+      styles: boolean;
+    };
     railCanvasProps?: {
       onViewportDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
       onViewportDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -62,6 +68,10 @@ vi.mock("../ReferenceGrid", () => ({
   }) => (
     <div
       data-testid="reference-grid"
+      data-panel-canvas={props.panelVisibility?.canvas ? "visible" : "hidden"}
+      data-panel-quick-slot={props.panelVisibility?.quickSlot ? "visible" : "hidden"}
+      data-panel-reference-grid={props.panelVisibility?.referenceGrid ? "visible" : "hidden"}
+      data-panel-styles={props.panelVisibility?.styles ? "visible" : "hidden"}
       onDrop={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
     >
       {props.stylesPanel?.isOpen ? (
@@ -255,6 +265,100 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByRole("button", { name: "Styles visibility" })).toBeInTheDocument();
   });
 
+  it("disables the quick-slot toggle when curated split is unavailable", () => {
+    render(<AiStudioPageContent {...createProps({ selectedTool: "create" })} />);
+    const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
+    expect(shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" })).toBeDisabled();
+  });
+
+  it("toggles right-rail panel visibility from header shortcuts", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "create",
+          referenceGridProps: {
+            ...createProps().referenceGridProps,
+            onAddCuratedReference: vi.fn(),
+            onRemoveCuratedReference: vi.fn(),
+            onReorderCuratedReference: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
+    const referenceGrid = screen.getByTestId("reference-grid");
+    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
+    const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
+    const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
+
+    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
+    expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
+    expect(referenceGridButton).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(canvasButton);
+    fireEvent.click(quickSlotButton);
+    fireEvent.click(referenceGridButton);
+
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "hidden");
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+    expect(quickSlotButton).toHaveAttribute("aria-pressed", "false");
+    expect(referenceGridButton).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("persists panel visibility toggles per workflow", () => {
+    const baseProps = createProps({
+      selectedTool: "create",
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onAddCuratedReference: vi.fn(),
+        onRemoveCuratedReference: vi.fn(),
+        onReorderCuratedReference: vi.fn(),
+      },
+    });
+    const { rerender } = render(<AiStudioPageContent {...baseProps} />);
+    const getShortcutButtons = () => within(screen.getByLabelText("AI Studio header shortcuts"));
+
+    fireEvent.click(getShortcutButtons().getByRole("button", { name: "Canvas" }));
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
+
+    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "edit" })} />);
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
+    fireEvent.click(getShortcutButtons().getByRole("button", { name: "Quick Slot Inventory" }));
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
+
+    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "create" })} />);
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-quick-slot",
+      "visible"
+    );
+  });
+
+  it("disables the header canvas toggle in canvas workflow", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "canvas",
+          referenceGridProps: {
+            ...createProps().referenceGridProps,
+            onAddCuratedReference: vi.fn(),
+            onRemoveCuratedReference: vi.fn(),
+            onReorderCuratedReference: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
+    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
+
+    expect(canvasButton).toBeDisabled();
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("does not collapse to minimum when canvas is selected on initial hydration", () => {
     collapseToMinMock.mockClear();
     const { rerender } = render(<AiStudioPageContent {...createProps({ selectedTool: null })} />);
@@ -354,6 +458,50 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.click(within(expertPanel).getByRole("button", { name: "Styles" }));
     expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("closed");
     expect(screen.queryByTestId("reference-grid-styles-panel")).not.toBeInTheDocument();
+  });
+
+  it("keeps header styles toggle synced with expert edit styles state", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "edit",
+          referenceGridProps: {
+            ...createProps().referenceGridProps,
+            onAddCuratedReference: vi.fn(),
+            onRemoveCuratedReference: vi.fn(),
+            onReorderCuratedReference: vi.fn(),
+          },
+          propertiesEditExpert: {
+            expertEditEligible: true,
+          } as AiStudioPageContentProps["propertiesEditExpert"],
+        })}
+      />
+    );
+
+    const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
+    const headerStylesButton = shortcutButtons.getByRole("button", { name: "Styles" });
+    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
+    const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
+
+    expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("closed");
+    fireEvent.click(headerStylesButton);
+
+    expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("open");
+    expect(headerStylesButton).toHaveAttribute("aria-pressed", "true");
+    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
+    expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-quick-slot",
+      "visible"
+    );
+
+    fireEvent.click(
+      within(screen.getByTestId("expert-edit-properties")).getByRole("button", { name: "Styles" })
+    );
+    expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("closed");
+    expect(headerStylesButton).toHaveAttribute("aria-pressed", "false");
   });
 
   it("wires styles toggle and style selection between expert create and reference rail", () => {

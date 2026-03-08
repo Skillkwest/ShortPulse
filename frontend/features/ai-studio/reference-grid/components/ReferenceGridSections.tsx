@@ -35,6 +35,7 @@ type ReferenceGridSectionsProps = {
   showRailCanvasSection: boolean;
   railCanvasSplit: HorizontalSplitViewModel;
   stylesSplit: HorizontalSplitViewModel;
+  referenceGridStylesStackRef: React.MutableRefObject<HTMLDivElement | null>;
   stylesPanel?: {
     isOpen: boolean;
     selectedStyleId: string | null;
@@ -94,6 +95,7 @@ export function ReferenceGridSections({
   showRailCanvasSection,
   railCanvasSplit,
   stylesSplit,
+  referenceGridStylesStackRef,
   stylesPanel,
   railCanvasSectionRef,
   railCanvasHeaderRef,
@@ -126,15 +128,24 @@ export function ReferenceGridSections({
   allRefsCardNodes,
 }: ReferenceGridSectionsProps) {
   const styleTiles = stylesPanel?.styles ?? [];
-  const hasInventorySections = showQuickSlotSection || showReferenceGridSection || showStylesSection;
+  const hasInventorySections =
+    showQuickSlotSection || showReferenceGridSection || showStylesSection;
   const showCanvasInventoryDivider = showRailCanvasSection && hasInventorySections;
   const showQuickSlotReferenceDivider = showQuickSlotSection && showReferenceGridSection;
   const showStylesReferenceDivider = showStylesSection && showReferenceGridSection;
-  const allRefsInventoryExpanded = showStylesReferenceDivider
+  const showQuickSlotStylesDivider =
+    showStylesSection && showQuickSlotSection && !showReferenceGridSection;
+  const showStylesInventoryDivider = showStylesReferenceDivider || showQuickSlotStylesDivider;
+  const stylesInventoryDividerUpperSectionLabel = showStylesReferenceDivider
+    ? "Reference Grid"
+    : "Quick Slot Inventory";
+  const allRefsInventoryExpanded = showStylesInventoryDivider
     ? stylesSplit.isInventoryExpanded
     : showQuickSlotReferenceDivider
       ? horizontalSplit.isInventoryExpanded
       : false;
+  const showNestedReferenceStylesStack =
+    showQuickSlotSection && showReferenceGridSection && showStylesSection;
   const shouldShowArchiveControls = showReferenceGridSection && !isCuratedSplitEnabled;
   const showEmptyState = !showRailCanvasSection && !hasInventorySections;
   return (
@@ -221,11 +232,18 @@ export function ReferenceGridSections({
                 <div
                   ref={curatedSectionRef}
                   className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}${
-                    showQuickSlotReferenceDivider && horizontalSplit.isAllRefsExpanded
+                    (showQuickSlotReferenceDivider && horizontalSplit.isAllRefsExpanded) ||
+                    (showQuickSlotStylesDivider && stylesSplit.isAllRefsExpanded)
                       ? " is-all-refs-expanded"
                       : ""
                   }`}
-                  style={showQuickSlotReferenceDivider ? horizontalSplit.topSectionStyle : undefined}
+                  style={
+                    showQuickSlotReferenceDivider
+                      ? horizontalSplit.topSectionStyle
+                      : showQuickSlotStylesDivider
+                        ? stylesSplit.topSectionStyle
+                        : undefined
+                  }
                   onDrop={handleCuratedSectionDrop}
                   onDragOver={handleCuratedSectionDragOver}
                   onDragEnter={handleCuratedSectionDragEnter}
@@ -313,7 +331,7 @@ export function ReferenceGridSections({
                 ) : null}
               </>
             ) : null}
-            {showReferenceGridSection ? (
+            {showReferenceGridSection && !showNestedReferenceStylesStack ? (
               <div
                 className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}`}
                 style={
@@ -362,7 +380,10 @@ export function ReferenceGridSections({
                     ) : (
                       <>
                         {topSpacerHeight > 0 ? (
-                          <div className="reference-virtual-spacer" style={{ height: topSpacerHeight }} />
+                          <div
+                            className="reference-virtual-spacer"
+                            style={{ height: topSpacerHeight }}
+                          />
                         ) : null}
                         {allRefsCardNodes}
                         {bottomSpacerHeight > 0 ? (
@@ -377,9 +398,74 @@ export function ReferenceGridSections({
                 </div>
               </div>
             ) : null}
-            {showStylesSection ? (
-              <>
-                {showStylesReferenceDivider ? (
+            {showNestedReferenceStylesStack ? (
+              <div
+                ref={referenceGridStylesStackRef}
+                className="reference-all-refs-styles-stack"
+                style={
+                  showQuickSlotReferenceDivider ? horizontalSplit.bottomSectionStyle : undefined
+                }
+              >
+                <div
+                  className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}`}
+                  style={stylesSplit.topSectionStyle}
+                >
+                  <div ref={allRefsHeaderRef}>
+                    {isCuratedSplitEnabled ? (
+                      <ReferenceGridArchiveControls
+                        archiveCount={archiveCount}
+                        showHeader={showHeader}
+                        isArchivePanelOpen={isArchivePanelOpen}
+                        archivedOutputs={archivedOutputs}
+                        hideUploadActions={allRefsInventoryExpanded}
+                        onToggleArchivePanel={onToggleArchivePanel}
+                        onTriggerFileSelect={onTriggerFileSelect}
+                        onOpenMediaLibrary={onOpenMediaLibrary}
+                        onRestoreArchivedOutput={onRestoreArchivedOutput}
+                        onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
+                      />
+                    ) : null}
+                  </div>
+                  <div
+                    className="reference-canvas-scroll"
+                    onScroll={handleAllRefsScroll}
+                    ref={scrollContainerRef}
+                  >
+                    <div
+                      className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+                      ref={gridRef}
+                      style={gridStyle}
+                    >
+                      {outputsLength === 0 ? (
+                        <div className="reference-empty">
+                          <p className="preview-title">
+                            Upload or generate to see your references here.
+                          </p>
+                          <p className="subdued tiny helper-text">
+                            New text prompts, images, and videos will appear in this grid.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          {topSpacerHeight > 0 ? (
+                            <div
+                              className="reference-virtual-spacer"
+                              style={{ height: topSpacerHeight }}
+                            />
+                          ) : null}
+                          {allRefsCardNodes}
+                          {bottomSpacerHeight > 0 ? (
+                            <div
+                              className="reference-virtual-spacer"
+                              style={{ height: bottomSpacerHeight }}
+                            />
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {showStylesInventoryDivider ? (
                   <div
                     className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--styles"
                     {...stylesSplit.dividerProps}
@@ -395,7 +481,7 @@ export function ReferenceGridSections({
                         stylesSplit.snapToInventoryExpanded();
                       }}
                     >
-                      Reference Grid ↓
+                      {stylesInventoryDividerUpperSectionLabel} ↓
                     </button>
                     <div className="reference-grid-horizontal-divider" />
                     <button
@@ -406,7 +492,9 @@ export function ReferenceGridSections({
                       }}
                       onClick={(event) => {
                         event.stopPropagation();
-                        const headerNode = allRefsHeaderRef.current;
+                        const headerNode = showStylesReferenceDivider
+                          ? allRefsHeaderRef.current
+                          : curatedHeaderRef.current;
                         const targetTopHeightPx =
                           headerNode instanceof HTMLElement ? headerNode.offsetHeight : undefined;
                         stylesSplit.snapToAllRefsExpanded(targetTopHeightPx);
@@ -423,12 +511,121 @@ export function ReferenceGridSections({
                       ? " is-reference-grid-expanded"
                       : ""
                   }`}
-                  style={showStylesReferenceDivider ? stylesSplit.bottomSectionStyle : undefined}
+                  style={showStylesInventoryDivider ? stylesSplit.bottomSectionStyle : undefined}
                   aria-label="Styles"
                 >
                   <div ref={stylesHeaderRef} className="reference-styles-header">
                     <p className="eyebrow">Styles</p>
-                    <p className="tiny subdued helper-text">Select a style for your generation.</p>
+                    <p className="tiny subdued helper-text">
+                      Choose a style preset now. Drag-and-drop workflow support is coming soon.
+                    </p>
+                  </div>
+                  <div className="reference-styles-scroll">
+                    <div className="reference-styles-grid" role="list" aria-label="Style options">
+                      {styleTiles.map((style) => {
+                        const isSelected =
+                          !style.placeholder && stylesPanel?.selectedStyleId === style.id;
+                        return (
+                          <button
+                            key={style.id}
+                            type="button"
+                            className={`reference-styles-tile ${
+                              isSelected ? "is-selected" : ""
+                            } ${style.placeholder ? "is-placeholder" : ""}`.trim()}
+                            aria-label={`Style tile: ${style.title}${
+                              style.placeholder ? " (coming soon)" : ""
+                            }`}
+                            aria-pressed={style.placeholder ? undefined : isSelected}
+                            disabled={style.placeholder}
+                            onClick={() => {
+                              if (style.placeholder) return;
+                              stylesPanel?.onSelectStyle?.(style.id);
+                            }}
+                          >
+                            <span className="reference-styles-tile-title">{style.title}</span>
+                            <span
+                              className="reference-styles-tile-preview"
+                              style={
+                                style.previewUrl
+                                  ? {
+                                      backgroundImage: resolveStylePreviewBackgroundImage(
+                                        style.previewUrl
+                                      ),
+                                    }
+                                  : undefined
+                              }
+                              aria-hidden="true"
+                            >
+                              {style.placeholder ? (
+                                <span className="reference-styles-tile-coming-soon">
+                                  Coming soon
+                                </span>
+                              ) : null}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+              </div>
+            ) : null}
+            {showStylesSection && !showNestedReferenceStylesStack ? (
+              <>
+                {showStylesInventoryDivider ? (
+                  <div
+                    className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--styles"
+                    {...stylesSplit.dividerProps}
+                  >
+                    <button
+                      type="button"
+                      className="reference-grid-horizontal-divider-pill"
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        stylesSplit.snapToInventoryExpanded();
+                      }}
+                    >
+                      {stylesInventoryDividerUpperSectionLabel} ↓
+                    </button>
+                    <div className="reference-grid-horizontal-divider" />
+                    <button
+                      type="button"
+                      className="reference-grid-horizontal-divider-pill"
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        const headerNode = showStylesReferenceDivider
+                          ? allRefsHeaderRef.current
+                          : curatedHeaderRef.current;
+                        const targetTopHeightPx =
+                          headerNode instanceof HTMLElement ? headerNode.offsetHeight : undefined;
+                        stylesSplit.snapToAllRefsExpanded(targetTopHeightPx);
+                      }}
+                    >
+                      Styles ↑
+                    </button>
+                  </div>
+                ) : null}
+                <section
+                  id="reference-rail-styles-section"
+                  className={`reference-styles-section${
+                    showStylesReferenceDivider && stylesSplit.isAllRefsExpanded
+                      ? " is-reference-grid-expanded"
+                      : ""
+                  }`}
+                  style={showStylesInventoryDivider ? stylesSplit.bottomSectionStyle : undefined}
+                  aria-label="Styles"
+                >
+                  <div ref={stylesHeaderRef} className="reference-styles-header">
+                    <p className="eyebrow">Styles</p>
+                    <p className="tiny subdued helper-text">
+                      Choose a style preset now. Drag-and-drop workflow support is coming soon.
+                    </p>
                   </div>
                   <div className="reference-styles-scroll">
                     <div className="reference-styles-grid" role="list" aria-label="Style options">

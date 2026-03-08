@@ -2744,3 +2744,18 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
   - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
   - `docs/sops/sop_image_generation.md`.
+
+## 2026-03-08 (Styles panel parity + workflow-themed selection polish)
+- Extended shared Styles control parity into Expert Create composer so Create and Edit both toggle/use the same right-rail Styles panel state.
+- Updated styles rail card density to 3 columns and retained the 16-tile catalog contract (active tiles selectable, placeholders disabled).
+- Added workflow-themed styles selection visuals across both surfaces:
+  - Styles button open/active state and title text color now follow selected workflow theme.
+  - Right-rail selected style card border/fill now follows selected workflow theme.
+  - Theme mapping: Create/Text = blue, Edit/Image = amber, Video/Kling = violet, Canvas = cream.
+- Expert-mode styles panel polish:
+  - helper text hidden in expert mode,
+  - helper copy updated for current selection behavior plus forthcoming drag/drop workflow messaging.
+- Updated/extended focused regression coverage:
+  - `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`.

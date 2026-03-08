@@ -223,7 +223,10 @@ describe("ExpertEditPanelView", () => {
         onStylesPanelToggle={onStylesPanelToggle}
       />
     );
-    expect(screen.getByRole("button", { name: "Styles" })).toHaveAttribute("aria-expanded", "true");
+    const openStylesButton = screen.getByRole("button", { name: "Styles" });
+    expect(openStylesButton).toHaveAttribute("aria-expanded", "true");
+    expect(openStylesButton).toHaveClass("is-open");
+    expect(openStylesButton.closest(".edit-expert-styles-wrapper")).toHaveClass("is-open");
   });
 
   it("shows selected style preview filling the styles button", () => {

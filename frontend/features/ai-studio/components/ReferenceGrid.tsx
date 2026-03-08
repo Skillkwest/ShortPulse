@@ -245,13 +245,14 @@ export function ReferenceGrid({
       canvas: panelVisibility?.canvas ?? DEFAULT_PANEL_VISIBILITY.canvas,
       quickSlot: panelVisibility?.quickSlot ?? DEFAULT_PANEL_VISIBILITY.quickSlot,
       referenceGrid: panelVisibility?.referenceGrid ?? DEFAULT_PANEL_VISIBILITY.referenceGrid,
-      styles: panelVisibility?.styles ?? DEFAULT_PANEL_VISIBILITY.styles,
+      styles: panelVisibility?.styles ?? Boolean(stylesPanel?.isOpen),
     }),
     [
       panelVisibility?.canvas,
       panelVisibility?.quickSlot,
       panelVisibility?.referenceGrid,
       panelVisibility?.styles,
+      stylesPanel?.isOpen,
     ]
   );
   const isCuratedSplitEnabled =
@@ -259,15 +260,10 @@ export function ReferenceGrid({
     Boolean(onAddCuratedReference && onRemoveCuratedReference && onReorderCuratedReference);
   const isStylesPanelOpen = Boolean(stylesPanel?.isOpen) && panelVisibilityResolved.styles;
   const showReferenceGridSection = panelVisibilityResolved.referenceGrid;
-  const showQuickSlotSection =
-    isCuratedSplitEnabled && panelVisibilityResolved.quickSlot && !isStylesPanelOpen;
+  const showQuickSlotSection = isCuratedSplitEnabled && panelVisibilityResolved.quickSlot;
   const showRailCanvasSection =
-    Boolean(railCanvasProps) &&
-    selectedTool !== "canvas" &&
-    !isStylesPanelOpen &&
-    panelVisibilityResolved.canvas;
+    Boolean(railCanvasProps) && selectedTool !== "canvas" && panelVisibilityResolved.canvas;
   const isCuratedSplitActive = showQuickSlotSection;
-  const stylesSplitEnabled = isStylesPanelOpen && showReferenceGridSection;
   const outputById = React.useMemo(() => {
     const map: Record<string, StudioOutput> = {};
     [...allOutputs, ...archivedOutputs].forEach((item) => {
@@ -344,6 +340,19 @@ export function ReferenceGrid({
   const [railCanvasHeaderHeightPx, setRailCanvasHeaderHeightPx] = useState(24);
   const [allRefsHeaderHeightPx, setAllRefsHeaderHeightPx] = useState(24);
   const [stylesHeaderHeightPx, setStylesHeaderHeightPx] = useState(24);
+  const stylesSplitShowsReferenceGridTop = showReferenceGridSection;
+  const stylesSplitShowsQuickSlotTop = showQuickSlotSection && !showReferenceGridSection;
+  const stylesSplitEnabled =
+    isStylesPanelOpen && (stylesSplitShowsReferenceGridTop || stylesSplitShowsQuickSlotTop);
+  const stylesSplitTopHeaderHeightPx = stylesSplitShowsQuickSlotTop
+    ? curatedHeaderHeightPx
+    : allRefsHeaderHeightPx;
+  const stylesSplitMinTopSectionHeightPx = stylesSplitShowsQuickSlotTop
+    ? curatedHeaderHeightPx
+    : Math.max(72, allRefsHeaderHeightPx + 48);
+  const stylesSplitAriaLabel = stylesSplitShowsQuickSlotTop
+    ? "Resize Quick Slot Inventory and Styles sections"
+    : "Resize Reference Grid and Styles sections";
   const previousVisiblePreviewUrlByIdRef = React.useRef<Record<string, string | null>>({});
   const previewSwapTelemetryRef = React.useRef<{
     windowStartedAtMs: number;
@@ -385,6 +394,7 @@ export function ReferenceGrid({
     columnCount: 5,
     rowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
   });
+  const referenceGridStylesStackRef = React.useRef<HTMLDivElement | null>(null);
   const railCanvasSplit = useReferenceGridHorizontalSplit({
     enabled: showRailCanvasSection,
     containerRef: panelRef,
@@ -410,15 +420,20 @@ export function ReferenceGrid({
       railCanvasSplit.nudgeTopSectionHeightByPx(deltaPx);
     },
   });
+  const stylesSplitUsesNestedContainer =
+    isStylesPanelOpen && showQuickSlotSection && showReferenceGridSection;
+  const stylesSplitContainerRef = stylesSplitUsesNestedContainer
+    ? referenceGridStylesStackRef
+    : inventoryStackRef;
   const stylesSplit = useReferenceGridHorizontalSplit({
     enabled: stylesSplitEnabled,
-    containerRef: inventoryStackRef,
+    containerRef: stylesSplitContainerRef,
     defaultTopRatio: DEFAULT_STYLES_SPLIT_TOP_RATIO,
-    minTopSectionHeightPx: Math.max(72, allRefsHeaderHeightPx + 48),
+    minTopSectionHeightPx: stylesSplitMinTopSectionHeightPx,
     minBottomSectionHeightPx: Math.max(132, stylesHeaderHeightPx + 84),
-    allRefsSnapTopHeightPx: allRefsHeaderHeightPx,
-    collapseTopHeightPx: allRefsHeaderHeightPx,
-    ariaLabel: "Resize Reference Grid and Styles sections",
+    allRefsSnapTopHeightPx: stylesSplitTopHeaderHeightPx,
+    collapseTopHeightPx: stylesSplitTopHeaderHeightPx,
+    ariaLabel: stylesSplitAriaLabel,
   });
   const clampInventorySplitToBounds = horizontalSplit.clampToContainerBounds;
   React.useLayoutEffect(() => {
@@ -965,8 +980,8 @@ export function ReferenceGrid({
         railCanvasHeaderRef={railCanvasHeaderRef}
         horizontalSplit={horizontalSplit}
         stylesSplit={stylesSplit}
+        referenceGridStylesStackRef={referenceGridStylesStackRef}
         stylesPanel={stylesPanel}
-        isStylesPanelOpen={isStylesPanelOpen}
         inventoryStackRef={inventoryStackRef}
         curatedSectionRef={curatedSectionRef}
         curatedHeaderRef={curatedHeaderRef}

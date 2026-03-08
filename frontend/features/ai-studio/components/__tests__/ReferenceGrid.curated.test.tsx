@@ -1525,8 +1525,8 @@ describe("ReferenceGrid curated split", () => {
     expect(getByText("Reference Grid")).toBeInTheDocument();
   });
 
-  it("renders styles panel below Reference Grid and hides Canvas + Quick Slot sections", () => {
-    const { queryByText, getByText, getByRole } = render(
+  it("renders styles panel below Reference Grid while keeping Canvas + Quick Slot sections visible", () => {
+    const { queryByText, getByText, getByRole, queryByRole } = render(
       <ReferenceGrid
         {...createProps({
           selectedTool: "edit",
@@ -1541,16 +1541,122 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(queryByText("Canvas")).toBeNull();
-    expect(queryByText("Quick Slot Inventory")).toBeNull();
+    expect(queryByText("Canvas")).toBeInTheDocument();
+    expect(queryByText("Quick Slot Inventory")).toBeInTheDocument();
     expect(getByText("Reference Grid")).toBeInTheDocument();
     expect(getByText("Styles")).toBeInTheDocument();
     expect(
-      getByRole("separator", { name: "Resize Reference Grid and Styles sections" })
+      getByRole("separator", { name: "Resize Quick Slot Inventory and Reference Grid sections" })
+    ).toBeInTheDocument();
+    expect(
+      queryByRole("separator", { name: "Resize Reference Grid and Styles sections" })
+    ).toBeNull();
+  });
+
+  it("respects panel visibility toggles for Canvas, Quick Slot, and Reference Grid sections", () => {
+    const { queryByText, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          panelVisibility: {
+            canvas: false,
+            quickSlot: false,
+            referenceGrid: true,
+            styles: false,
+          },
+        })}
+      />
+    );
+
+    expect(queryByText("Canvas")).toBeNull();
+    expect(queryByText("Quick Slot Inventory")).toBeNull();
+    expect(getByText("Reference Grid")).toBeInTheDocument();
+  });
+
+  it("renders a right-rail empty state when all panel toggles are hidden", () => {
+    const { getByText, queryByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          panelVisibility: {
+            canvas: false,
+            quickSlot: false,
+            referenceGrid: false,
+            styles: false,
+          },
+        })}
+      />
+    );
+
+    expect(getByText("Right-rail panels are hidden.")).toBeInTheDocument();
+    expect(queryByText("Canvas")).toBeNull();
+    expect(queryByText("Quick Slot Inventory")).toBeNull();
+    expect(queryByText("Reference Grid")).toBeNull();
+  });
+
+  it("shows styles without split divider when Reference Grid is hidden", () => {
+    const { getByText, queryByText, queryByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          panelVisibility: {
+            canvas: false,
+            quickSlot: false,
+            referenceGrid: false,
+            styles: true,
+          },
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    expect(getByText("Styles")).toBeInTheDocument();
+    expect(queryByText("Reference Grid")).toBeNull();
+    expect(
+      queryByRole("separator", { name: "Resize Reference Grid and Styles sections" })
+    ).toBeNull();
+  });
+
+  it("renders a resizable divider between Quick Slot Inventory and Styles when Reference Grid is hidden", () => {
+    const { getByText, queryByText, getByRole, queryByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          panelVisibility: {
+            canvas: false,
+            quickSlot: true,
+            referenceGrid: false,
+            styles: true,
+          },
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    expect(getByText("Quick Slot Inventory")).toBeInTheDocument();
+    expect(getByText("Styles")).toBeInTheDocument();
+    expect(queryByText("Reference Grid")).toBeNull();
+    expect(
+      queryByRole("separator", { name: "Resize Reference Grid and Styles sections" })
+    ).toBeNull();
+    expect(
+      getByRole("separator", { name: "Resize Quick Slot Inventory and Styles sections" })
     ).toBeInTheDocument();
   });
 
-  it("renders styles rail for create workflow when styles panel is open", () => {
+  it("renders styles rail for create workflow when styles panel is open and keeps quick slot visible", () => {
     const { queryByText, getByText } = render(
       <ReferenceGrid
         {...createProps({
@@ -1565,7 +1671,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(queryByText("Quick Slot Inventory")).toBeNull();
+    expect(queryByText("Quick Slot Inventory")).toBeInTheDocument();
     expect(getByText("Reference Grid")).toBeInTheDocument();
     expect(getByText("Styles")).toBeInTheDocument();
   });

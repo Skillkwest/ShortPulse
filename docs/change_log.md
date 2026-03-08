@@ -2774,7 +2774,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added `PresetsLibraryPanel` as a presentational, prop-driven boundary that renders the full Expert Edit preset catalog from canonical preset definitions with custom override labels/prompts applied.
 - Kept primary Presets selection browse-only in v1: selecting a tile updates local highlight state only (no prompt apply, no preset-panel mutation, no drag/drop wiring).
 - Wired `presets` into `resolvePropertiesPanelKind` and the `AiStudioPageContent` panel registry while keeping the right rail visible when Presets is selected.
-- Added a dedicated stylesheet for the primary panel (`frontend/styles/ai-studio-presets-library.css`) and wired it through `frontend/styles/globals.css`; updated docs (`README.md`, `docs/routes.md`, `docs/styles-structure.md`).
+- Added a dedicated stylesheet for the primary panel (`frontend/styles/ai-studio-presets-library.css`) and wired it through `frontend/styles/globals.css`; updated docs (`README.md`, `docs/routes.md`, `docs/styles-structure.md`, `docs/sops/sop_ai_studio_index.md`, `docs/sops/sop_image_generation.md`).
 - Added session-restore parity for `selectedTool="presets"` in snapshot hydration allowlist (`sessionSnapshotHydrator`) and expanded focused AI Studio regression tests.
 
 ## 2026-03-08

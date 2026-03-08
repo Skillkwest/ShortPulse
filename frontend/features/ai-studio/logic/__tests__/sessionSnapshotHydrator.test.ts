@@ -83,6 +83,32 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agent.chatModeEnabled).toBe(true);
   });
 
+  it("keeps styles as a valid restored selected tool", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedTool: "styles",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedTool).toBe("styles");
+  });
+
+  it("keeps presets as a valid restored selected tool", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedTool: "presets",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedTool).toBe("presets");
+  });
+
   it("falls back for malformed workspace values", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

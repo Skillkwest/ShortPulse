@@ -3,16 +3,7 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import React from "react";
-import {
-  Eye,
-  FlowArrow,
-  Globe,
-  type IconProps,
-  Sliders,
-  Sparkle,
-  SquaresFour,
-  StackSimple,
-} from "phosphor-react";
+import { Eye, FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
@@ -27,9 +18,13 @@ import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
 import { CanvasPropertiesPanel } from "./canvas/CanvasPropertiesPanel";
+import { StylesLibraryPanel } from "./StylesLibraryPanel";
+import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
+import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
+import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
 import type { ResolveCharacterDropReference } from "../../character-manager/components/CharacterManagerShell";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type {
@@ -72,19 +67,14 @@ import {
   type HeaderShortcutId,
   type WorkflowPanelVisibilityByWorkflow,
 } from "../logic/panelVisibility";
+import { resolveExpertEditPresetCatalog, type ExpertEditPresetId } from "./edit/expertEditPresets";
 
 type FailureCard = Pick<
   StudioOutput,
   "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail"
 >;
 
-type ComingSoonToolId =
-  | "templates"
-  | "presets"
-  | "styles"
-  | "workflows"
-  | "my-generations"
-  | "community";
+type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
 const comingSoonCopy: Record<
@@ -97,18 +87,6 @@ const comingSoonCopy: Record<
     detail:
       "Templates allow you to select pre-set models and selections for specific generative tasks.",
     icon: SquaresFour,
-  },
-  presets: {
-    title: "Presets",
-    summary: "Reusable preset bundles for common generation patterns.",
-    detail: "Presets are UI-only in this phase and will be wired in a future rollout.",
-    icon: Sliders,
-  },
-  styles: {
-    title: "Styles",
-    summary: "A curated style library for consistent creative direction.",
-    detail: "Styles are UI-only in this phase and will be wired in a future rollout.",
-    icon: Sparkle,
   },
   workflows: {
     title: "Workflows",
@@ -131,12 +109,7 @@ const comingSoonCopy: Record<
 };
 
 const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
-  tool === "templates" ||
-  tool === "presets" ||
-  tool === "styles" ||
-  tool === "workflows" ||
-  tool === "my-generations" ||
-  tool === "community";
+  tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
 const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
   { id: "canvas", label: "Canvas" },
   { id: "quick-slot-inventory", label: "Quick Slot Inventory" },
@@ -580,6 +553,45 @@ export function AiStudioPageContent({
   const [panelVisibilityByWorkflow, setPanelVisibilityByWorkflow] =
     React.useState<WorkflowPanelVisibilityByWorkflow>(createInitialWorkflowPanelVisibility);
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
+  const {
+    styleDetailsById,
+    error: styleDetailsSaveError,
+    upsertStyleDetails,
+  } = useStylesLibraryStyleDetailsPreference();
+  const {
+    deletedStyleIds,
+    error: stylesDeleteError,
+    deleteStyleId,
+  } = useStylesLibraryDeletedStyleIdsPreference();
+  const stylesCatalogWithOverrides = React.useMemo(() => {
+    if (Object.keys(styleDetailsById).length === 0) return EXPERT_EDIT_STYLE_CATALOG;
+    return EXPERT_EDIT_STYLE_CATALOG.map((style) => {
+      if (style.placeholder) return style;
+      const styleDetails = styleDetailsById[style.id];
+      if (!styleDetails) return style;
+      const resolvedTitle = styleDetails.title.trim() || style.title;
+      return {
+        ...style,
+        style: styleDetails.style.trim() || resolvedTitle,
+        title: resolvedTitle,
+        referenceImageName: styleDetails.referenceImageName.trim() || resolvedTitle,
+        stylePrompt: styleDetails.stylePrompt.trim(),
+      };
+    });
+  }, [styleDetailsById]);
+  const visibleStylesCatalog = React.useMemo(() => {
+    if (deletedStyleIds.length === 0) return stylesCatalogWithOverrides;
+    const deletedIdSet = new Set(deletedStyleIds);
+    return stylesCatalogWithOverrides.filter((style) => !deletedIdSet.has(style.id));
+  }, [deletedStyleIds, stylesCatalogWithOverrides]);
+  React.useEffect(() => {
+    if (!selectedStyleId) return;
+    const styleStillVisible = visibleStylesCatalog.some((style) => style.id === selectedStyleId);
+    if (!styleStillVisible) {
+      setSelectedStyleId(null);
+    }
+  }, [selectedStyleId, visibleStylesCatalog]);
   const workflowPanelVisibilityKey = resolvePanelVisibilityWorkflowKey(selectedTool);
   const workflowPanelVisibility = panelVisibilityByWorkflow[workflowPanelVisibilityKey];
   const isQuickSlotToggleAvailable = Boolean(
@@ -597,14 +609,21 @@ export function AiStudioPageContent({
     }),
     [isCanvasToggleAvailable, isQuickSlotToggleAvailable, isStylesToggleAvailable]
   );
-  const effectivePanelVisibility = React.useMemo(
-    () =>
-      resolveEffectivePanelVisibility({
-        workflowVisibility: workflowPanelVisibility,
-        availability: panelToggleAvailability,
-      }),
-    [panelToggleAvailability, workflowPanelVisibility]
-  );
+  const effectivePanelVisibility = React.useMemo(() => {
+    const baseVisibility = resolveEffectivePanelVisibility({
+      workflowVisibility: workflowPanelVisibility,
+      availability: panelToggleAvailability,
+    });
+    if (selectedTool === "styles") {
+      return {
+        canvas: false,
+        quickSlot: false,
+        referenceGrid: true,
+        styles: false,
+      };
+    }
+    return baseVisibility;
+  }, [panelToggleAvailability, selectedTool, workflowPanelVisibility]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
   const headerShortcutStates = React.useMemo(
     () =>
@@ -724,7 +743,7 @@ export function AiStudioPageContent({
       stylesPanel: {
         isOpen: isStylesPanelOpen,
         selectedStyleId,
-        styles: EXPERT_EDIT_STYLE_CATALOG,
+        styles: visibleStylesCatalog,
         onSelectStyle: handleSelectedStyleIdChange,
       },
     }),
@@ -734,8 +753,16 @@ export function AiStudioPageContent({
       isStylesPanelOpen,
       resolvedReferenceGridProps,
       selectedStyleId,
+      visibleStylesCatalog,
     ]
   );
+  const presetsLibraryCatalog = React.useMemo(
+    () => resolveExpertEditPresetCatalog(propertiesEditExpert.customPresetOverrides),
+    [propertiesEditExpert.customPresetOverrides]
+  );
+  const handleSelectedPresetIdChange = React.useCallback((presetId: ExpertEditPresetId | null) => {
+    setSelectedPresetId(presetId);
+  }, []);
   const isTargetInsideRailCanvas = React.useCallback((target: EventTarget | null): boolean => {
     const rightColumnNode = rightColumnRef.current;
     if (!rightColumnNode || !(target instanceof Node)) return false;
@@ -813,6 +840,24 @@ export function AiStudioPageContent({
           resolveCharacterDropReference={resolveCharacterDropReference}
         />
       ),
+      presets: (
+        <PresetsLibraryPanel
+          presets={presetsLibraryCatalog}
+          selectedPresetId={selectedPresetId}
+          onSelectPreset={handleSelectedPresetIdChange}
+        />
+      ),
+      styles: (
+        <StylesLibraryPanel
+          styles={visibleStylesCatalog}
+          selectedStyleId={selectedStyleId}
+          onSelectStyle={handleSelectedStyleIdChange}
+          onSaveStyleDetails={upsertStyleDetails}
+          saveError={styleDetailsSaveError}
+          onDeleteStyle={deleteStyleId}
+          deleteError={stylesDeleteError}
+        />
+      ),
       none: null,
     }),
     [
@@ -826,6 +871,16 @@ export function AiStudioPageContent({
       propertiesVideo,
       showExpertEditPanel,
       showExpertCreatePanel,
+      presetsLibraryCatalog,
+      selectedPresetId,
+      handleSelectedPresetIdChange,
+      selectedStyleId,
+      handleSelectedStyleIdChange,
+      upsertStyleDetails,
+      styleDetailsSaveError,
+      deleteStyleId,
+      stylesDeleteError,
+      visibleStylesCatalog,
     ]
   );
   const resolvePanelFromRegistry = React.useCallback(

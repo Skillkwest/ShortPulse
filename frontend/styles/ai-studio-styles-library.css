@@ -1,0 +1,394 @@
+/**
+ * AI Studio primary Styles library panel styles.
+ * Keeps the left-panel styles grid isolated from right-rail styles presentation rules.
+ */
+.styles-library-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+}
+
+.styles-library-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.styles-library-header .eyebrow {
+  margin: 0;
+}
+
+.styles-library-header .helper-text {
+  margin: 0;
+}
+
+.styles-library-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.styles-library-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.styles-library-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.styles-library-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.2);
+  border-radius: 999px;
+}
+
+.styles-library-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.32);
+}
+
+.styles-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.styles-library-tile {
+  position: relative;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  border-radius: 12px;
+  background: rgba(201, 205, 214, 0.04);
+  padding: 9px;
+  display: flex;
+  cursor: grab;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.styles-library-tile-select {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.styles-library-tile:active {
+  cursor: grabbing;
+}
+
+.styles-library-tile:hover:not(.is-placeholder) {
+  border-color: rgba(205, 210, 220, 0.36);
+  background: rgba(201, 205, 214, 0.08);
+  transform: translateY(-1px);
+}
+
+.styles-library-tile.is-selected {
+  border-color: var(--ai-styles-selection-border, rgba(245, 185, 66, 0.82));
+  box-shadow: 0 0 0 1px var(--ai-styles-selection-ring, rgba(245, 185, 66, 0.26));
+  background: var(--ai-styles-selection-fill, rgba(245, 185, 66, 0.08));
+}
+
+.styles-library-tile.is-dragging {
+  opacity: 0.58;
+  transform: scale(0.98);
+}
+
+.styles-library-tile.is-drop-target {
+  border-color: rgba(102, 196, 255, 0.82);
+  box-shadow: 0 0 0 1px rgba(102, 196, 255, 0.26);
+}
+
+.styles-library-tile.is-placeholder,
+.styles-library-tile .styles-library-tile-select:disabled {
+  cursor: not-allowed;
+  border-color: rgba(138, 148, 161, 0.22);
+  background: rgba(201, 205, 214, 0.03);
+}
+
+.styles-library-tile-delete {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 99, 99, 0.65);
+  background: rgba(46, 12, 16, 0.78);
+  color: rgba(255, 132, 132, 0.95);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.94);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.styles-library-tile:hover .styles-library-tile-delete,
+.styles-library-tile:focus-within .styles-library-tile-delete {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.styles-library-tile-delete:hover {
+  background: rgba(70, 14, 20, 0.88);
+  border-color: rgba(255, 115, 115, 0.88);
+}
+
+.styles-library-tile-delete:focus-visible {
+  outline: 2px solid rgba(255, 130, 130, 0.85);
+  outline-offset: 1px;
+}
+
+.styles-library-tile-title {
+  color: rgba(238, 242, 248, 0.94);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.styles-library-tile-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  border: none;
+  background:
+    linear-gradient(140deg, rgba(201, 205, 214, 0.12), rgba(201, 205, 214, 0.04)),
+    rgba(20, 23, 29, 0.85);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.styles-library-tile-coming-soon {
+  position: absolute;
+  inset: auto 8px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba(235, 241, 248, 0.88);
+  background: rgba(12, 15, 22, 0.72);
+  border: 1px solid rgba(201, 205, 214, 0.2);
+}
+
+.styles-library-add-tile {
+  border: 1px dashed rgba(118, 199, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(44, 80, 108, 0.18);
+  min-height: 100%;
+}
+
+.styles-library-add-button {
+  width: 100%;
+  height: 100%;
+  min-height: 154px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(211, 240, 255, 0.9);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.styles-library-add-button:hover {
+  background: rgba(60, 112, 147, 0.22);
+  transform: translateY(-1px);
+}
+
+.styles-library-add-button:focus-visible {
+  outline: 2px solid rgba(118, 199, 255, 0.76);
+  outline-offset: 1px;
+}
+
+.styles-library-add-plus {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.styles-library-add-label {
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.styles-library-edit-modal-backdrop,
+.styles-library-delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 12, 0.58);
+}
+
+.styles-library-edit-modal {
+  width: min(480px, calc(100vw - 24px));
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: rgba(16, 18, 24, 0.98);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.styles-library-edit-title {
+  margin: 0;
+  color: rgba(235, 241, 248, 0.96);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.styles-library-edit-copy {
+  margin: 0;
+}
+
+.styles-library-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.styles-library-edit-label {
+  color: rgba(229, 234, 242, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.styles-library-edit-input,
+.styles-library-edit-textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  background: rgba(10, 13, 19, 0.88);
+  color: rgba(235, 241, 248, 0.94);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 10px;
+}
+
+.styles-library-edit-textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.styles-library-edit-input:focus-visible,
+.styles-library-edit-textarea:focus-visible {
+  outline: 2px solid rgba(72, 195, 255, 0.72);
+  outline-offset: 1px;
+}
+
+.styles-library-edit-error {
+  margin: 0;
+  color: rgba(255, 132, 132, 0.95);
+}
+
+.styles-library-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.styles-library-edit-save {
+  border-color: rgba(72, 195, 255, 0.56);
+  color: rgba(163, 227, 255, 0.96);
+  background: rgba(11, 45, 68, 0.62);
+}
+
+.styles-library-edit-save:hover:not(:disabled) {
+  border-color: rgba(98, 210, 255, 0.82);
+  background: rgba(14, 58, 88, 0.7);
+}
+
+.styles-library-delete-modal {
+  width: min(330px, calc(100vw - 24px));
+  border-radius: 10px;
+  border: 1px solid rgba(255, 95, 95, 0.45);
+  background: rgba(16, 18, 24, 0.98);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.styles-library-delete-title {
+  margin: 0;
+  color: rgba(255, 219, 219, 0.96);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.styles-library-delete-copy {
+  margin: 0;
+}
+
+.styles-library-delete-error {
+  margin: 0;
+  color: rgba(255, 132, 132, 0.95);
+}
+
+.styles-library-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.styles-library-delete-confirm {
+  border-color: rgba(255, 99, 99, 0.62);
+  color: rgba(255, 142, 142, 0.96);
+  background: rgba(42, 16, 18, 0.78);
+}
+
+.styles-library-delete-confirm:hover:not(:disabled) {
+  border-color: rgba(255, 122, 122, 0.86);
+  background: rgba(58, 19, 22, 0.86);
+}
+
+@media (hover: none) {
+  .styles-library-tile-delete {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+}

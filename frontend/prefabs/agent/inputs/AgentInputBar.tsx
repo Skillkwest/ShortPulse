@@ -2,7 +2,7 @@
  * Auto-resizing textarea prefab used across agent/chat surfaces.
  * Keeps sizing + padding consistent while remaining drop-in.
  */
-import React, { useEffect, useImperativeHandle, useRef } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useRef } from "react";
 
 type AgentInputBarProps = {
   value: string;
@@ -28,15 +28,62 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
     forwardedRef
   ) {
     const localRef = useRef<HTMLTextAreaElement | null>(null);
+    const resizeRafRef = useRef<number | null>(null);
 
     useImperativeHandle(forwardedRef, () => localRef.current as HTMLTextAreaElement, []);
 
-    useEffect(() => {
+    const resizeToFit = useCallback(() => {
       const textarea = localRef.current;
       if (!textarea) return;
       textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeightPx)}px`;
-    }, [maxHeightPx, value]);
+      const nextHeightPx = Math.min(textarea.scrollHeight, maxHeightPx);
+      textarea.style.height = `${nextHeightPx}px`;
+    }, [maxHeightPx]);
+
+    const scheduleResizeToFit = useCallback(() => {
+      if (resizeRafRef.current != null) {
+        cancelAnimationFrame(resizeRafRef.current);
+      }
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeToFit();
+      });
+    }, [resizeToFit]);
+
+    useEffect(() => {
+      resizeToFit();
+    }, [resizeToFit, value]);
+
+    useEffect(() => {
+      const textarea = localRef.current;
+      if (!textarea) return undefined;
+
+      // Re-measure once the initial layout settles (refresh/splitter width transitions).
+      scheduleResizeToFit();
+
+      const onWindowResize = () => {
+        scheduleResizeToFit();
+      };
+
+      window.addEventListener("resize", onWindowResize);
+
+      const resizeObserver =
+        typeof ResizeObserver !== "undefined"
+          ? new ResizeObserver(() => {
+              scheduleResizeToFit();
+            })
+          : null;
+
+      resizeObserver?.observe(textarea);
+
+      return () => {
+        window.removeEventListener("resize", onWindowResize);
+        resizeObserver?.disconnect();
+        if (resizeRafRef.current != null) {
+          cancelAnimationFrame(resizeRafRef.current);
+          resizeRafRef.current = null;
+        }
+      };
+    }, [scheduleResizeToFit]);
 
     return (
       <div className={`agent-input-prefab ${className}`.trim()}>

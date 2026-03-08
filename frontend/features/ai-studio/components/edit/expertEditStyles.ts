@@ -1,6 +1,9 @@
 export type ExpertEditStyleTile = {
   id: string;
+  style?: string;
   title: string;
+  referenceImageName?: string;
+  stylePrompt?: string;
   previewUrl: string | null;
   placeholder: boolean;
 };
@@ -32,20 +35,7 @@ const PRIMARY_STYLE_TILES: readonly ExpertEditStyleTile[] = [
   },
 ];
 
-const STYLE_TILE_TOTAL = 16;
-
-export const EXPERT_EDIT_STYLE_CATALOG: readonly ExpertEditStyleTile[] = [
-  ...PRIMARY_STYLE_TILES,
-  ...Array.from(
-    { length: Math.max(0, STYLE_TILE_TOTAL - PRIMARY_STYLE_TILES.length) },
-    (_, index): ExpertEditStyleTile => ({
-      id: `style-placeholder-${index + 1}`,
-      title: `Placeholder ${index + 1}`,
-      previewUrl: null,
-      placeholder: true,
-    })
-  ),
-];
+export const EXPERT_EDIT_STYLE_CATALOG: readonly ExpertEditStyleTile[] = [...PRIMARY_STYLE_TILES];
 
 export const resolveStylePreviewBackgroundImage = (previewUrl: string | null) => {
   const resolvedPreviewUrl = previewUrl?.trim() ?? "";

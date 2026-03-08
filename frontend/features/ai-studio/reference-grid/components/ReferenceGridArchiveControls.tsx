@@ -6,6 +6,7 @@ import type { StudioOutput } from "../../types";
 type ReferenceGridArchiveControlsProps = {
   archiveCount: number;
   showHeader: boolean;
+  showTitle?: boolean;
   isArchivePanelOpen: boolean;
   archivedOutputs: StudioOutput[];
   hideUploadActions?: boolean;
@@ -22,6 +23,7 @@ type ReferenceGridArchiveControlsProps = {
 export function ReferenceGridArchiveControls({
   archiveCount,
   showHeader,
+  showTitle = true,
   isArchivePanelOpen,
   archivedOutputs,
   hideUploadActions = false,
@@ -35,9 +37,7 @@ export function ReferenceGridArchiveControls({
     <>
       {showHeader ? (
         <div className="panel-header preview-header reference-all-refs-header">
-          <div>
-            <p className="eyebrow">Reference Grid</p>
-          </div>
+          <div>{showTitle ? <p className="eyebrow">Reference Grid</p> : null}</div>
           <div className="preview-header-actions">
             {!hideUploadActions ? (
               <>

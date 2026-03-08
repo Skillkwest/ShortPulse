@@ -21,6 +21,8 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/landing-sections.css`: Marketing feature/pricing/FAQ sections and responsive rules.
 - `styles/ai-studio-layout.css`: AI Studio chrome (page shell, hero strip, toolbar/column layout).
 - `styles/ai-studio-coming-soon.css`: Temporary placeholders for templates, workflows, and gallery views.
+- `styles/ai-studio-styles-library.css`: Primary Styles library panel in the AI Studio properties column.
+- `styles/ai-studio-presets-library.css`: Primary Presets library panel in the AI Studio properties column.
 - `styles/ai-studio-canvas.css`: Reference grid and preview surfaces for AI Studio.
 - `styles/ai-studio-controls.css`: Step cards, toggles, and aspect/model selectors.
 - `styles/ai-studio-reference-properties.css`: Reference panel dropzones, frame/model controls, and upload layouts.
@@ -54,7 +56,7 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 1) foundation
 2) ui-patterns
 3) workspace (shared/chrome/dashboard/tools/media/profile)
-4) ai-studio (layout/coming-soon/canvas/controls/reference-properties)
+4) ai-studio (layout/coming-soon/styles-library/presets-library/canvas/controls/reference-properties)
 5) prefabs (agent core + variants)
 6) ai-studio (properties/text-properties/prompts/prompt-actions/model-picker/history/modals/responsive + expert-create split sheets)
 7) performance (core/detail/responsive)

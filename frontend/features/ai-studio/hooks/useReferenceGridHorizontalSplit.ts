@@ -23,15 +23,12 @@ type UseReferenceGridHorizontalSplitArgs = {
   allRefsSnapTopHeightPx?: number;
   collapseTopHeightPx?: number;
   ariaLabel?: string;
-  onOverflowDeltaPx?: (deltaPx: number) => void;
 };
 
 type DragSession = {
   pointerId: number;
   containerHeight: number;
-  startClientY: number;
-  startRatio: number;
-  lastOverflowPx: number;
+  lastClientY: number;
 };
 
 type RatioBounds = {
@@ -102,7 +99,6 @@ export const useReferenceGridHorizontalSplit = ({
   allRefsSnapTopHeightPx = DEFAULT_ALL_REFS_SNAP_TOP_HEIGHT_PX,
   collapseTopHeightPx,
   ariaLabel = "Resize Quick Slot Inventory and Reference Grid sections",
-  onOverflowDeltaPx,
 }: UseReferenceGridHorizontalSplitArgs) => {
   const dragSessionRef = useRef<DragSession | null>(null);
   const detachPointerListenersRef = useRef<(() => void) | null>(null);
@@ -112,7 +108,9 @@ export const useReferenceGridHorizontalSplit = ({
   const [topRatio, setTopRatio] = useState(() =>
     clamp(defaultTopRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO)
   );
+  const topRatioRef = useRef(topRatio);
   const [containerHeightPx, setContainerHeightPx] = useState(0);
+  const containerHeightRef = useRef(containerHeightPx);
 
   const stopResizing = useCallback(() => {
     if (detachPointerListenersRef.current) {
@@ -123,6 +121,12 @@ export const useReferenceGridHorizontalSplit = ({
   }, []);
 
   useEffect(() => stopResizing, [stopResizing]);
+  useEffect(() => {
+    topRatioRef.current = topRatio;
+  }, [topRatio]);
+  useEffect(() => {
+    containerHeightRef.current = containerHeightPx;
+  }, [containerHeightPx]);
 
   const resolveContainerHeight = useCallback((): number => {
     return resolveElementHeight(containerRef.current);
@@ -154,41 +158,69 @@ export const useReferenceGridHorizontalSplit = ({
     [allRefsSnapTopHeightPx, clampTopRatio, collapseTopHeightPx]
   );
 
-  const setClampedTopRatio = useCallback(
-    (nextRatio: number) => {
-      const height = resolveContainerHeight();
-      setContainerHeightPx((prev) => (prev === height ? prev : height));
-      if (height <= 0) {
-        setTopRatio((prev) => {
-          const safeNext = clamp(nextRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO);
-          return Math.abs(prev - safeNext) < 0.001 ? prev : safeNext;
-        });
-        return;
-      }
-      const clampedRatio = clampTopRatio(nextRatio, height);
-      setTopRatio((prev) => (Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio));
+  const commitTopRatio = useCallback((nextRatio: number) => {
+    topRatioRef.current = nextRatio;
+    setTopRatio((prev) => (Math.abs(prev - nextRatio) < 0.001 ? prev : nextRatio));
+  }, []);
+
+  const reconcileTopRatioForContainerHeight = useCallback(
+    (nextHeight: number) => {
+      if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+      const previousHeight =
+        containerHeightRef.current > 0 ? containerHeightRef.current : nextHeight;
+      const preservedTopHeightPx = topRatioRef.current * Math.max(1, previousHeight);
+      containerHeightRef.current = nextHeight;
+      setContainerHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
+      const clampedRatio = clampTopRatio(
+        preservedTopHeightPx / Math.max(1, nextHeight),
+        nextHeight
+      );
+      if (Math.abs(topRatioRef.current - clampedRatio) < 0.001) return;
+      commitTopRatio(clampedRatio);
     },
-    [clampTopRatio, resolveContainerHeight]
+    [clampTopRatio, commitTopRatio]
+  );
+
+  const applyDeltaPx = useCallback(
+    (deltaPx: number, resolvedHeight?: number): number => {
+      if (!Number.isFinite(deltaPx) || Math.abs(deltaPx) < 0.0001) return 0;
+      const containerHeight = Math.max(1, resolvedHeight ?? (resolveContainerHeight() || 600));
+      const bounds = resolveRatioBounds(
+        containerHeight,
+        minTopSectionHeightPx,
+        minBottomSectionHeightPx
+      );
+      const currentRatio = clamp(topRatioRef.current, bounds.min, bounds.max);
+      if (Math.abs(currentRatio - topRatioRef.current) >= 0.001) {
+        commitTopRatio(currentRatio);
+      }
+      const nextRatio = clamp(currentRatio + deltaPx / containerHeight, bounds.min, bounds.max);
+      const consumedPx = (nextRatio - currentRatio) * containerHeight;
+      const residualPx = deltaPx - consumedPx;
+      if (Math.abs(nextRatio - currentRatio) >= 0.001) {
+        commitTopRatio(nextRatio);
+      }
+      return Math.abs(residualPx) < 0.01 ? 0 : residualPx;
+    },
+    [commitTopRatio, minBottomSectionHeightPx, minTopSectionHeightPx, resolveContainerHeight]
   );
 
   const handleWindowPointerMove = useCallback(
     (event: PointerEvent) => {
       const session = dragSessionRef.current;
       if (!session || session.pointerId !== event.pointerId) return;
-      const deltaY = event.clientY - session.startClientY;
-      const nextRatio = session.startRatio + deltaY / Math.max(1, session.containerHeight);
-      const clampedRatio = clampTopRatio(nextRatio, session.containerHeight);
-      const overflowPx = (nextRatio - clampedRatio) * session.containerHeight;
-      const overflowDeltaPx = overflowPx - session.lastOverflowPx;
-      session.lastOverflowPx = overflowPx;
-      if (Math.abs(overflowDeltaPx) >= 0.5) {
-        onOverflowDeltaPx?.(overflowDeltaPx);
+      const deltaY = event.clientY - session.lastClientY;
+      if (Math.abs(deltaY) < 0.0001) return;
+      session.lastClientY = event.clientY;
+      const liveContainerHeight = resolveContainerHeight();
+      if (liveContainerHeight > 0 && liveContainerHeight !== session.containerHeight) {
+        session.containerHeight = liveContainerHeight;
+        setContainerHeightPx((prev) => (prev === liveContainerHeight ? prev : liveContainerHeight));
       }
-      setTopRatio((prev) => {
-        return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
-      });
+      setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
+      applyDeltaPx(deltaY, session.containerHeight);
     },
-    [clampTopRatio, onOverflowDeltaPx]
+    [applyDeltaPx, resolveContainerHeight]
   );
 
   const handleDividerPointerDown = useCallback(
@@ -198,13 +230,14 @@ export const useReferenceGridHorizontalSplit = ({
       if (!height) return;
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       setContainerHeightPx((prev) => (prev === height ? prev : height));
-      const clampedStartRatio = clampTopRatio(topRatio, height);
+      const clampedStartRatio = clampTopRatio(topRatioRef.current, height);
+      if (Math.abs(clampedStartRatio - topRatioRef.current) >= 0.001) {
+        commitTopRatio(clampedStartRatio);
+      }
       dragSessionRef.current = {
         pointerId: event.pointerId,
         containerHeight: height,
-        startClientY: event.clientY,
-        startRatio: clampedStartRatio,
-        lastOverflowPx: 0,
+        lastClientY: event.clientY,
       };
 
       const handlePointerStop = (nativeEvent: PointerEvent) => {
@@ -229,7 +262,8 @@ export const useReferenceGridHorizontalSplit = ({
       handleWindowPointerMove,
       resolveContainerHeight,
       stopResizing,
-      topRatio,
+      topRatioRef,
+      commitTopRatio,
     ]
   );
 
@@ -247,35 +281,43 @@ export const useReferenceGridHorizontalSplit = ({
       if (event.key === "Home") {
         event.preventDefault();
         if (!height) {
-          setTopRatio((prev) => (Math.abs(prev - bounds.min) < 0.001 ? prev : bounds.min));
+          commitTopRatio(bounds.min);
           return;
         }
         setContainerHeightPx((prev) => (prev === height ? prev : height));
-        setTopRatio((prev) => (Math.abs(prev - bounds.min) < 0.001 ? prev : bounds.min));
+        commitTopRatio(bounds.min);
         return;
       }
       if (event.key === "End") {
         event.preventDefault();
         if (!height) {
-          setTopRatio((prev) => (Math.abs(prev - bounds.max) < 0.001 ? prev : bounds.max));
+          commitTopRatio(bounds.max);
           return;
         }
         setContainerHeightPx((prev) => (prev === height ? prev : height));
-        setTopRatio((prev) => (Math.abs(prev - bounds.max) < 0.001 ? prev : bounds.max));
+        commitTopRatio(bounds.max);
         return;
       }
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
       event.preventDefault();
-      const delta = event.key === "ArrowUp" ? -step : step;
-      setClampedTopRatio(topRatio + delta);
+      if (!height) {
+        const deltaRatio = event.key === "ArrowUp" ? -step : step;
+        const nextRatio = clamp(topRatioRef.current + deltaRatio, bounds.min, bounds.max);
+        commitTopRatio(nextRatio);
+        return;
+      }
+      setContainerHeightPx((prev) => (prev === height ? prev : height));
+      const deltaPx = (event.key === "ArrowUp" ? -step : step) * height;
+      applyDeltaPx(deltaPx, height);
     },
     [
+      applyDeltaPx,
+      commitTopRatio,
       enabled,
       minBottomSectionHeightPx,
       minTopSectionHeightPx,
       resolveContainerHeight,
-      setClampedTopRatio,
-      topRatio,
+      topRatioRef,
     ]
   );
 
@@ -283,13 +325,8 @@ export const useReferenceGridHorizontalSplit = ({
     if (!enabled) return;
     const height = resolveContainerHeight();
     if (!height) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setContainerHeightPx((prev) => (prev === height ? prev : height));
-    setTopRatio((prev) => {
-      const clampedRatio = clampTopRatio(prev, height);
-      return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
-    });
-  }, [clampTopRatio, enabled, resolveContainerHeight]);
+    reconcileTopRatioForContainerHeight(height);
+  }, [enabled, reconcileTopRatioForContainerHeight, resolveContainerHeight]);
 
   useEffect(() => {
     if (!enabled || typeof ResizeObserver === "undefined") return;
@@ -298,15 +335,11 @@ export const useReferenceGridHorizontalSplit = ({
     const observer = new ResizeObserver(() => {
       const nextHeight = resolveContainerHeight();
       if (!nextHeight) return;
-      setContainerHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
-      setTopRatio((prev) => {
-        const clampedRatio = clampTopRatio(prev, nextHeight);
-        return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
-      });
+      reconcileTopRatioForContainerHeight(nextHeight);
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [clampTopRatio, containerRef, enabled, resolveContainerHeight]);
+  }, [containerRef, enabled, reconcileTopRatioForContainerHeight, resolveContainerHeight]);
 
   const ratioBounds =
     containerHeightPx > 0
@@ -328,13 +361,13 @@ export const useReferenceGridHorizontalSplit = ({
     setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
     const height = resolveContainerHeight();
     if (!height) {
-      setTopRatio((prev) => (Math.abs(prev - 0.995) < 0.001 ? prev : 0.995));
+      commitTopRatio(0.995);
       return;
     }
     setContainerHeightPx((prev) => (prev === height ? prev : height));
     const bounds = resolveRatioBounds(height, minTopSectionHeightPx, minBottomSectionHeightPx);
-    setTopRatio((prev) => (Math.abs(prev - bounds.max) < 0.001 ? prev : bounds.max));
-  }, [minBottomSectionHeightPx, minTopSectionHeightPx, resolveContainerHeight]);
+    commitTopRatio(bounds.max);
+  }, [commitTopRatio, minBottomSectionHeightPx, minTopSectionHeightPx, resolveContainerHeight]);
 
   const snapToAllRefsExpanded = useCallback(
     (topHeightPx?: number) => {
@@ -346,37 +379,29 @@ export const useReferenceGridHorizontalSplit = ({
       if (!height) {
         const fallbackRatio = clamp(resolvedTopHeightPx / 600, 0.01, 0.99);
         setAllRefsExpandedThresholdRatio((prev) => (prev === fallbackRatio ? prev : fallbackRatio));
-        setTopRatio((prev) => (Math.abs(prev - fallbackRatio) < 0.001 ? prev : fallbackRatio));
+        commitTopRatio(fallbackRatio);
         return;
       }
       setContainerHeightPx((prev) => (prev === height ? prev : height));
       const targetRatio = clampTopRatio(resolvedTopHeightPx / Math.max(1, height), height);
       setAllRefsExpandedThresholdRatio((prev) => (prev === targetRatio ? prev : targetRatio));
-      setTopRatio((prev) => (Math.abs(prev - targetRatio) < 0.001 ? prev : targetRatio));
+      commitTopRatio(targetRatio);
     },
-    [allRefsSnapTopHeightPx, clampTopRatio, resolveContainerHeight]
+    [allRefsSnapTopHeightPx, clampTopRatio, commitTopRatio, resolveContainerHeight]
   );
 
   const nudgeTopSectionHeightByPx = useCallback(
-    (deltaPx: number) => {
-      if (!enabled || !Number.isFinite(deltaPx) || Math.abs(deltaPx) < 0.5) return;
+    (deltaPx: number): number => {
+      if (!Number.isFinite(deltaPx)) return 0;
+      if (!enabled || Math.abs(deltaPx) < 0.0001) return deltaPx;
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       const height = resolveContainerHeight();
-      if (!height) {
-        setTopRatio((prev) => {
-          const fallbackNext = clamp(prev + deltaPx / 600, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO);
-          return Math.abs(prev - fallbackNext) < 0.001 ? prev : fallbackNext;
-        });
-        return;
+      if (height) {
+        setContainerHeightPx((prev) => (prev === height ? prev : height));
       }
-      setContainerHeightPx((prev) => (prev === height ? prev : height));
-      setTopRatio((prev) => {
-        const nextRatio = prev + deltaPx / Math.max(1, height);
-        const clampedRatio = clampTopRatio(nextRatio, height);
-        return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
-      });
+      return applyDeltaPx(deltaPx, height || 600);
     },
-    [clampTopRatio, enabled, resolveContainerHeight]
+    [applyDeltaPx, enabled, resolveContainerHeight]
   );
 
   const clampToContainerBounds = useCallback(() => {
@@ -384,11 +409,10 @@ export const useReferenceGridHorizontalSplit = ({
     const height = resolveContainerHeight();
     if (!height) return;
     setContainerHeightPx((prev) => (prev === height ? prev : height));
-    setTopRatio((prev) => {
-      const clampedRatio = clampTopRatio(prev, height);
-      return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
-    });
-  }, [clampTopRatio, enabled, resolveContainerHeight]);
+    const clampedRatio = clampTopRatio(topRatioRef.current, height);
+    if (Math.abs(topRatioRef.current - clampedRatio) < 0.001) return;
+    commitTopRatio(clampedRatio);
+  }, [clampTopRatio, commitTopRatio, enabled, resolveContainerHeight]);
 
   const topSectionStyle = useMemo<CSSProperties>(
     () => ({
@@ -407,6 +431,7 @@ export const useReferenceGridHorizontalSplit = ({
   return {
     topRatio,
     bottomRatio: 1 - topRatio,
+    topSectionHeightPx: containerHeightPx > 0 ? topRatio * containerHeightPx : 0,
     topSectionStyle,
     bottomSectionStyle,
     isAllRefsExpanded,

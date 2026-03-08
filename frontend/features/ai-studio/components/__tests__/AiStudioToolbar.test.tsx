@@ -66,6 +66,8 @@ describe("AiStudioToolbar", () => {
     { button: "Video", expected: "video" as const },
     { button: "Canvas", expected: "canvas" as const },
     { button: "Characters", expected: "character" as const },
+    { button: "Presets", expected: "presets" as const },
+    { button: "Styles", expected: "styles" as const },
   ])("routes $button clicks to $expected", ({ button, expected }) => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();

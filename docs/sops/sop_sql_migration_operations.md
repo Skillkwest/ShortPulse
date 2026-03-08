@@ -89,6 +89,10 @@ Current set:
 - `052_extend_queue_recovery_provider_scope_to_kie.sql`
 - `053_fix_ai_studio_session_upsert_ambiguity.sql`
 - `054_add_provider_attached_stale_reservation_cleanup.sql`
+- `055_add_user_preferences_expert_edit_preset_panel_labels.sql`
+- `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql`
+- `057_add_user_preferences_ai_studio_deleted_style_ids.sql`
+- `058_add_user_preferences_ai_studio_style_details_overrides.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

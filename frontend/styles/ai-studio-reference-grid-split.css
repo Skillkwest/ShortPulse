@@ -9,6 +9,15 @@
   flex-direction: column;
 }
 
+.reference-rail-canvas-section,
+.reference-grid-inventory-stack,
+.reference-curated-section,
+.reference-all-refs-section,
+.reference-all-refs-styles-stack,
+.reference-styles-section {
+  transition: none;
+}
+
 .reference-rail-canvas-section {
   display: flex;
   flex-direction: column;
@@ -23,7 +32,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 4px 10px;
+  padding: 2px 4px 4px;
 }
 
 .reference-rail-canvas-header .tiny,
@@ -79,7 +88,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 4px 25px;
+  padding: 2px 4px 8px;
 }
 
 .reference-curated-header .tiny,
@@ -178,21 +187,35 @@
 }
 
 .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: rgba(52, 200, 255, 0.72);
+  --reference-divider-active-ring: rgba(52, 200, 255, 0.25);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px 8px;
-  min-height: 20px;
+  padding: 2px 10px;
+  min-height: 10px;
   cursor: row-resize;
   user-select: none;
   touch-action: none;
+}
+
+.reference-grid-horizontal-divider-title {
+  margin: 0;
+  color: var(--ai-card-text-faint);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .reference-grid-horizontal-divider {
   position: relative;
   flex: 1;
   width: auto;
-  height: 16px;
+  height: 10px;
   pointer-events: none;
   outline: none;
 }
@@ -210,8 +233,13 @@
 
 .reference-grid-horizontal-divider-wrap:hover .reference-grid-horizontal-divider::before,
 .reference-grid-horizontal-divider-wrap:focus-visible .reference-grid-horizontal-divider::before {
-  background: rgba(52, 200, 255, 0.7);
-  box-shadow: 0 0 0 1px rgba(52, 200, 255, 0.25);
+  background: var(--reference-divider-active-color);
+  box-shadow: 0 0 0 1px var(--reference-divider-active-ring);
+}
+
+.reference-grid-horizontal-divider-wrap:hover .reference-grid-horizontal-divider-title,
+.reference-grid-horizontal-divider-wrap:focus-visible .reference-grid-horizontal-divider-title {
+  color: var(--reference-divider-active-color);
 }
 
 .reference-grid-horizontal-divider-pill {
@@ -236,6 +264,11 @@
     box-shadow 0.18s ease;
 }
 
+/* Temporary UI test state: hide divider pills while preserving draggable divider tracks. */
+.reference-grid-horizontal-divider-pill {
+  display: none;
+}
+
 .reference-grid-horizontal-divider-pill:hover,
 .reference-grid-horizontal-divider-pill:focus-visible {
   color: rgba(163, 198, 214, 0.88);
@@ -248,24 +281,25 @@
   outline-offset: 1px;
 }
 
-.ai-studio-page[data-selected-tool="canvas"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider::before,
-.ai-studio-page[data-selected-tool="canvas"]
-  .reference-grid-horizontal-divider-wrap:focus-visible
-  .reference-grid-horizontal-divider::before {
-  background: var(--ai-canvas-cream);
-  box-shadow: 0 0 0 1px var(--ai-canvas-cream-outline);
+.ai-studio-page[data-selected-tool="canvas"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: var(--ai-canvas-cream);
+  --reference-divider-active-ring: var(--ai-canvas-cream-outline);
 }
 
-.ai-studio-page[data-selected-tool="character"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider::before,
-.ai-studio-page[data-selected-tool="character"]
-  .reference-grid-horizontal-divider-wrap:focus-visible
-  .reference-grid-horizontal-divider::before {
-  background: #4ae074;
-  box-shadow: 0 0 0 1px rgba(74, 224, 116, 0.28);
+.ai-studio-page[data-selected-tool="edit"] .reference-grid-horizontal-divider-wrap,
+.ai-studio-page[data-selected-tool="image"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: #f5b942;
+  --reference-divider-active-ring: rgba(245, 185, 66, 0.28);
+}
+
+.ai-studio-page[data-selected-tool="video"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: #b997ff;
+  --reference-divider-active-ring: rgba(185, 151, 255, 0.28);
+}
+
+.ai-studio-page[data-selected-tool="character"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: #4ae074;
+  --reference-divider-active-ring: rgba(74, 224, 116, 0.28);
 }
 
 .ai-studio-page[data-selected-tool="canvas"]
@@ -317,8 +351,12 @@
   display: none;
 }
 
+.reference-all-refs-section.is-reference-grid-collapsed .reference-canvas-scroll {
+  display: none;
+}
+
 .reference-grid-horizontal-divider-wrap--styles {
-  padding-top: 7px;
+  padding-top: 2px;
 }
 
 .reference-styles-section {
@@ -333,7 +371,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 4px 4px 10px;
+  padding: 2px 4px 6px;
 }
 
 .reference-styles-header .eyebrow,
@@ -369,10 +407,6 @@
 
 .reference-styles-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(201, 205, 214, 0.32);
-}
-
-.reference-styles-section.is-reference-grid-expanded .reference-styles-scroll {
-  display: none;
 }
 
 .reference-styles-grid {

@@ -2759,3 +2759,33 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx`
   - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
   - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`.
+
+## 2026-03-08 (AI Studio primary Styles Library panel)
+- Implemented `Shortcuts -> Styles` as a real primary left-panel surface in AI Studio (no longer a coming-soon-only tool state).
+- Added `StylesLibraryPanel` as a presentational, prop-driven boundary that renders the existing 16-tile style catalog (real tiles + disabled placeholders) with shared selection visuals.
+- Kept style selection state centralized in `AiStudioPageContent` so primary styles panel, Expert Create styles control, and Expert Edit styles control remain synchronized.
+- Selecting the primary Styles tool now keeps the right rail visible in reference-grid-only mode (Canvas/Quick Slot/Styles subpanels hidden).
+- Preserved existing right-rail styles behavior for expert workflows; no generation/pricing/provider behavior changes.
+- Added a dedicated stylesheet for the primary panel (`frontend/styles/ai-studio-styles-library.css`) and wired it through `frontend/styles/globals.css`; updated docs (`docs/routes.md`, `docs/styles-structure.md`).
+- Added session-restore parity for `selectedTool="styles"` in snapshot hydration allowlist (`sessionSnapshotHydrator`).
+
+## 2026-03-08 (AI Studio primary Presets Library panel)
+- Implemented `Shortcuts -> Presets` as a real primary left-panel surface in AI Studio (removed from coming-soon tool handling).
+- Added `PresetsLibraryPanel` as a presentational, prop-driven boundary that renders the full Expert Edit preset catalog from canonical preset definitions with custom override labels/prompts applied.
+- Kept primary Presets selection browse-only in v1: selecting a tile updates local highlight state only (no prompt apply, no preset-panel mutation, no drag/drop wiring).
+- Wired `presets` into `resolvePropertiesPanelKind` and the `AiStudioPageContent` panel registry while keeping the right rail visible when Presets is selected.
+- Added a dedicated stylesheet for the primary panel (`frontend/styles/ai-studio-presets-library.css`) and wired it through `frontend/styles/globals.css`; updated docs (`README.md`, `docs/routes.md`, `docs/styles-structure.md`).
+- Added session-restore parity for `selectedTool="presets"` in snapshot hydration allowlist (`sessionSnapshotHydrator`) and expanded focused AI Studio regression tests.
+
+## 2026-03-08
+- Added AI Studio primary Styles Library delete UX: hovering a real style tile now reveals a destructive `X` action, and clicking it opens a compact yes/no confirmation modal.
+- Wired per-user style deletion persistence through `user_preferences.ai_studio_deleted_style_ids` with local fallback, shared selection synchronization, and catalog filtering across both primary Styles Library and right-rail styles surfaces.
+- Added SQL migration + rollback (`057_add_user_preferences_ai_studio_deleted_style_ids`) and updated bootstrap/docs parity (`sql/create_user_preferences_table.sql`, migration docs, routes map, data dictionary, security checklist).
+- Updated styles-library panel CSS for top-row breathing room and touch-device delete-button accessibility.
+- Added Styles Library tile edit modal: clicking a non-placeholder style now opens a popup with editable fields for `Style`, `Title`, `Reference Image Name`, and `Style Prompt`.
+- Added per-user style-detail persistence via `user_preferences.ai_studio_style_details_overrides` with local fallback and shared catalog synchronization across primary Styles Library and right-rail style selectors.
+- Added SQL migration + rollback (`058_add_user_preferences_ai_studio_style_details_overrides`) and updated user-preferences bootstrap/schema/docs parity.
+- Updated Styles tool shell behavior: opening primary Styles Library no longer hides the entire right rail; right rail now remains visible in reference-grid-only mode (Canvas/Quick Slot/Styles subpanels hidden).
+- Removed generated placeholder style cards from the shared style catalog so both the primary Styles Library and right-rail Styles panel now show only loaded, selectable styles.
+- Added a persistent trailing `+` card in the primary Styles Library; clicking it appends a new placeholder style card directly before the `+` card.
+- Added drag-and-drop reordering for primary Styles Library cards so users can rearrange style-card positions directly in the grid.

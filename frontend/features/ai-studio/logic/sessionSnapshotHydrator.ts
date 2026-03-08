@@ -19,6 +19,8 @@ const FALLBACK_PROMPT_ORIGIN = "manual" as const;
 const TOOL_IDS = new Set<ToolId>([
   "create",
   "workflows",
+  "presets",
+  "styles",
   "templates",
   "my-generations",
   "community",

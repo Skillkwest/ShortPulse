@@ -21,6 +21,8 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("kling")).toBe("video");
     expect(resolvePropertiesPanelKind("character")).toBe("character");
     expect(resolvePropertiesPanelKind("canvas")).toBe("canvas");
+    expect(resolvePropertiesPanelKind("presets")).toBe("presets");
+    expect(resolvePropertiesPanelKind("styles")).toBe("styles");
   });
 
   it("falls back to none for null", () => {

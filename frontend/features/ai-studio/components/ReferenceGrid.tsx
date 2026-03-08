@@ -104,6 +104,9 @@ const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
 const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.28;
 const DEFAULT_CANVAS_SECTION_TOP_RATIO = 0.3;
 const DEFAULT_STYLES_SPLIT_TOP_RATIO = 0.62;
+const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 22;
+const RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
+const CURATED_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 
 // Temporary UI experiment: set false to revert selection outline theming to default create-blue.
 const ENABLE_TOOL_THEMED_SELECTION_OUTLINE = true;
@@ -346,10 +349,10 @@ export function ReferenceGrid({
     isStylesPanelOpen && (stylesSplitShowsReferenceGridTop || stylesSplitShowsQuickSlotTop);
   const stylesSplitTopHeaderHeightPx = stylesSplitShowsQuickSlotTop
     ? curatedHeaderHeightPx
-    : allRefsHeaderHeightPx;
+    : STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX;
   const stylesSplitMinTopSectionHeightPx = stylesSplitShowsQuickSlotTop
     ? curatedHeaderHeightPx
-    : Math.max(72, allRefsHeaderHeightPx + 48);
+    : STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX;
   const stylesSplitAriaLabel = stylesSplitShowsQuickSlotTop
     ? "Resize Quick Slot Inventory and Styles sections"
     : "Resize Reference Grid and Styles sections";
@@ -400,7 +403,7 @@ export function ReferenceGrid({
     containerRef: panelRef,
     defaultTopRatio: DEFAULT_CANVAS_SECTION_TOP_RATIO,
     minTopSectionHeightPx: railCanvasHeaderHeightPx,
-    minBottomSectionHeightPx: 120,
+    minBottomSectionHeightPx: RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX,
     allRefsSnapTopHeightPx: railCanvasHeaderHeightPx,
     collapseTopHeightPx: railCanvasHeaderHeightPx,
     ariaLabel: "Resize Canvas and Quick Slot Inventory sections",
@@ -410,15 +413,9 @@ export function ReferenceGrid({
     containerRef: inventoryStackRef,
     defaultTopRatio: DEFAULT_CURATED_SPLIT_TOP_RATIO,
     minTopSectionHeightPx: curatedHeaderHeightPx,
-    minBottomSectionHeightPx: 72,
+    minBottomSectionHeightPx: CURATED_MIN_BOTTOM_STACK_HEIGHT_PX,
     allRefsSnapTopHeightPx: curatedHeaderHeightPx,
     collapseTopHeightPx: curatedHeaderHeightPx,
-    onOverflowDeltaPx: (deltaPx) => {
-      if (!showRailCanvasSection) return;
-      // Lower divider overflow past its top bound should push the upper divider up.
-      if (deltaPx >= 0) return;
-      railCanvasSplit.nudgeTopSectionHeightByPx(deltaPx);
-    },
   });
   const stylesSplitUsesNestedContainer =
     isStylesPanelOpen && showQuickSlotSection && showReferenceGridSection;
@@ -435,16 +432,6 @@ export function ReferenceGrid({
     collapseTopHeightPx: stylesSplitTopHeaderHeightPx,
     ariaLabel: stylesSplitAriaLabel,
   });
-  const clampInventorySplitToBounds = horizontalSplit.clampToContainerBounds;
-  React.useLayoutEffect(() => {
-    if (!showRailCanvasSection || !isCuratedSplitActive) return;
-    clampInventorySplitToBounds();
-  }, [
-    clampInventorySplitToBounds,
-    isCuratedSplitActive,
-    railCanvasSplit.topRatio,
-    showRailCanvasSection,
-  ]);
 
   React.useEffect(() => {
     if (!isCuratedSplitActive) return;

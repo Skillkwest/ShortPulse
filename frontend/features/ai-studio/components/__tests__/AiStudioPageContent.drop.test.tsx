@@ -128,6 +128,42 @@ vi.mock("../CharacterPanel", () => ({
   CharacterPanel: () => <div data-testid="character-panel" />,
 }));
 
+vi.mock("../StylesLibraryPanel", () => ({
+  StylesLibraryPanel: (props: {
+    selectedStyleId: string | null;
+    onSelectStyle?: (styleId: string | null) => void;
+  }) => (
+    <div data-testid="styles-library-panel">
+      <div data-testid="styles-library-selected-style">{props.selectedStyleId ?? ""}</div>
+      <button type="button" onClick={() => props.onSelectStyle?.("cinematic")}>
+        Select cinematic style in library
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("../PresetsLibraryPanel", () => ({
+  PresetsLibraryPanel: (props: {
+    presets: Array<{ presetId: string; label: string }>;
+    selectedPresetId: string | null;
+    onSelectPreset?: (presetId: string | null) => void;
+  }) => (
+    <div data-testid="presets-library-panel">
+      <div data-testid="presets-library-count">{props.presets.length}</div>
+      <div data-testid="presets-library-selected-preset">{props.selectedPresetId ?? ""}</div>
+      {props.presets.map((preset) => (
+        <button
+          key={preset.presetId}
+          type="button"
+          onClick={() => props.onSelectPreset?.(preset.presetId)}
+        >
+          Select {preset.label} preset
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
 vi.mock("../VideoPropertiesPanel", () => ({
   VideoPropertiesPanel: () => <div data-testid="video-properties" />,
 }));
@@ -412,6 +448,64 @@ describe("AiStudioPageContent right column drop router", () => {
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
     expect(screen.getByTestId("canvas-properties")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "styles" })} />);
+    expect(screen.getByTestId("styles-library-panel")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "presets" })} />);
+    expect(screen.getByTestId("presets-library-panel")).toBeInTheDocument();
+  });
+
+  it("renders the primary styles panel for styles tool without coming-soon card", () => {
+    render(<AiStudioPageContent {...createProps({ selectedTool: "styles" })} />);
+
+    expect(screen.getByTestId("styles-library-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-reference-grid",
+      "visible"
+    );
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
+    expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("A curated style library for consistent creative direction.")
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the primary presets panel without coming-soon card and keeps right rail visible", () => {
+    render(<AiStudioPageContent {...createProps({ selectedTool: "presets" })} />);
+
+    expect(screen.getByTestId("presets-library-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("presets-library-count")).toHaveTextContent("27");
+    expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
+    expect(screen.getByTestId("reference-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
+  });
+
+  it("hydrates the presets library from expert edit custom overrides and stays browse-only", () => {
+    const onPromptTextChange = vi.fn();
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "presets",
+          propertiesEditExpert: {
+            expertEditEligible: true,
+            onPromptTextChange,
+            customPresetOverrides: {
+              custom_1: {
+                label: "Library Custom",
+                prompt: "Custom panel prompt",
+              },
+            },
+          } as unknown as AiStudioPageContentProps["propertiesEditExpert"],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Library Custom preset" }));
+    expect(screen.getByTestId("presets-library-selected-preset")).toHaveTextContent("custom_1");
+    expect(onPromptTextChange).not.toHaveBeenCalled();
   });
 
   it("routes edit workflow to expert edit panel when eligible", () => {
@@ -531,6 +625,40 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select cinematic style" }));
     expect(screen.getByTestId("create-selected-style")).toHaveTextContent("cinematic");
     expect(screen.getByTestId("reference-grid-selected-style")).toHaveTextContent("cinematic");
+  });
+
+  it("keeps selected style synchronized between styles tool and expert create/edit surfaces", () => {
+    const baseProps = createProps({
+      selectedTool: "edit",
+      propertiesEditExpert: {
+        expertEditEligible: true,
+      } as AiStudioPageContentProps["propertiesEditExpert"],
+    });
+    const { rerender } = render(<AiStudioPageContent {...baseProps} />);
+
+    fireEvent.click(
+      within(screen.getByTestId("expert-edit-properties")).getByRole("button", { name: "Styles" })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Select cinematic style" }));
+    expect(screen.getByTestId("expert-edit-selected-style")).toHaveTextContent("cinematic");
+
+    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "styles" })} />);
+    expect(screen.getByTestId("styles-library-selected-style")).toHaveTextContent("cinematic");
+
+    rerender(
+      <AiStudioPageContent
+        {...createProps({
+          ...baseProps,
+          selectedTool: "create",
+          propertiesCreate: {
+            ...(createProps().propertiesCreate as object),
+            expertCreateUiEligible: true,
+            beginnerMode: false,
+          } as AiStudioPageContentProps["propertiesCreate"],
+        })}
+      />
+    );
+    expect(screen.getByTestId("create-selected-style")).toHaveTextContent("cinematic");
   });
 
   it("creates a text card when text is dropped on the right column shell", () => {

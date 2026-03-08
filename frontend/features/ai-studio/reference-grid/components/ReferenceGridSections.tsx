@@ -8,6 +8,7 @@ import { ReferenceGridArchiveControls } from "./ReferenceGridArchiveControls";
 
 type HorizontalSplitViewModel = {
   isAllRefsExpanded: boolean;
+  topSectionHeightPx: number;
   topSectionStyle?: React.CSSProperties;
   dividerProps: React.HTMLAttributes<HTMLDivElement>;
   snapToInventoryExpanded: () => void;
@@ -15,6 +16,8 @@ type HorizontalSplitViewModel = {
   isInventoryExpanded: boolean;
   bottomSectionStyle?: React.CSSProperties;
 };
+const STYLES_REFERENCE_GRID_UPLOAD_HIDE_BUFFER_PX = 120;
+const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 24;
 
 type ReferenceGridSectionsProps = {
   isCuratedSplitEnabled: boolean;
@@ -136,6 +139,14 @@ export function ReferenceGridSections({
   const showQuickSlotStylesDivider =
     showStylesSection && showQuickSlotSection && !showReferenceGridSection;
   const showStylesInventoryDivider = showStylesReferenceDivider || showQuickSlotStylesDivider;
+  const isReferenceGridNearCollapsedForStyles =
+    showStylesReferenceDivider &&
+    stylesSplit.topSectionHeightPx > 0 &&
+    stylesSplit.topSectionHeightPx <=
+      STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX + STYLES_REFERENCE_GRID_UPLOAD_HIDE_BUFFER_PX;
+  const isReferenceGridCollapsedForStyles =
+    showStylesReferenceDivider &&
+    (stylesSplit.isAllRefsExpanded || isReferenceGridNearCollapsedForStyles);
   const stylesInventoryDividerUpperSectionLabel = showStylesReferenceDivider
     ? "Reference Grid"
     : "Quick Slot Inventory";
@@ -146,23 +157,20 @@ export function ReferenceGridSections({
       : false;
   const showNestedReferenceStylesStack =
     showQuickSlotSection && showReferenceGridSection && showStylesSection;
-  const shouldShowArchiveControls = showReferenceGridSection && !isCuratedSplitEnabled;
+  const canvasInventoryDividerTitle = showQuickSlotSection
+    ? "Quick Slot Inventory"
+    : showReferenceGridSection
+      ? "Reference Grid"
+      : "Styles";
+  const showQuickSlotTitleInHeader = !showCanvasInventoryDivider;
+  const showReferenceGridTitleInHeader =
+    !showQuickSlotReferenceDivider && !showCanvasInventoryDivider;
+  const showStylesTitleInHeader = !showStylesInventoryDivider;
+  const hideReferenceGridUploadActions =
+    allRefsInventoryExpanded || isReferenceGridCollapsedForStyles;
   const showEmptyState = !showRailCanvasSection && !hasInventorySections;
   return (
     <>
-      {shouldShowArchiveControls ? (
-        <ReferenceGridArchiveControls
-          archiveCount={archiveCount}
-          showHeader={showHeader}
-          isArchivePanelOpen={isArchivePanelOpen}
-          archivedOutputs={archivedOutputs}
-          onToggleArchivePanel={onToggleArchivePanel}
-          onTriggerFileSelect={onTriggerFileSelect}
-          onOpenMediaLibrary={onOpenMediaLibrary}
-          onRestoreArchivedOutput={onRestoreArchivedOutput}
-          onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
-        />
-      ) : null}
       <div className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}`}>
         {showRailCanvasSection && railCanvasProps ? (
           <>
@@ -183,6 +191,9 @@ export function ReferenceGridSections({
                 className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--canvas-inventory"
                 {...railCanvasSplit.dividerProps}
               >
+                <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
+                  {canvasInventoryDividerTitle}
+                </span>
                 <button
                   type="button"
                   className="reference-grid-horizontal-divider-pill"
@@ -250,7 +261,9 @@ export function ReferenceGridSections({
                   onDragLeave={handleCuratedSectionDragLeave}
                 >
                   <div ref={curatedHeaderRef} className="reference-curated-header">
-                    <p className="eyebrow">Quick Slot Inventory</p>
+                    {showQuickSlotTitleInHeader ? (
+                      <p className="eyebrow">Quick Slot Inventory</p>
+                    ) : null}
                   </div>
                   <div
                     className="reference-curated-scroll"
@@ -293,6 +306,9 @@ export function ReferenceGridSections({
                     className="reference-grid-horizontal-divider-wrap"
                     {...horizontalSplit.dividerProps}
                   >
+                    <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
+                      Reference Grid
+                    </span>
                     <button
                       type="button"
                       className="reference-grid-horizontal-divider-pill"
@@ -333,7 +349,9 @@ export function ReferenceGridSections({
             ) : null}
             {showReferenceGridSection && !showNestedReferenceStylesStack ? (
               <div
-                className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}`}
+                className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}${
+                  isReferenceGridCollapsedForStyles ? " is-reference-grid-collapsed" : ""
+                }`}
                 style={
                   showStylesReferenceDivider
                     ? stylesSplit.topSectionStyle
@@ -343,20 +361,19 @@ export function ReferenceGridSections({
                 }
               >
                 <div ref={allRefsHeaderRef}>
-                  {isCuratedSplitEnabled ? (
-                    <ReferenceGridArchiveControls
-                      archiveCount={archiveCount}
-                      showHeader={showHeader}
-                      isArchivePanelOpen={isArchivePanelOpen}
-                      archivedOutputs={archivedOutputs}
-                      hideUploadActions={allRefsInventoryExpanded}
-                      onToggleArchivePanel={onToggleArchivePanel}
-                      onTriggerFileSelect={onTriggerFileSelect}
-                      onOpenMediaLibrary={onOpenMediaLibrary}
-                      onRestoreArchivedOutput={onRestoreArchivedOutput}
-                      onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
-                    />
-                  ) : null}
+                  <ReferenceGridArchiveControls
+                    archiveCount={archiveCount}
+                    showHeader={showHeader}
+                    showTitle={showReferenceGridTitleInHeader}
+                    isArchivePanelOpen={isArchivePanelOpen}
+                    archivedOutputs={archivedOutputs}
+                    hideUploadActions={hideReferenceGridUploadActions}
+                    onToggleArchivePanel={onToggleArchivePanel}
+                    onTriggerFileSelect={onTriggerFileSelect}
+                    onOpenMediaLibrary={onOpenMediaLibrary}
+                    onRestoreArchivedOutput={onRestoreArchivedOutput}
+                    onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
+                  />
                 </div>
                 <div
                   className="reference-canvas-scroll"
@@ -407,24 +424,25 @@ export function ReferenceGridSections({
                 }
               >
                 <div
-                  className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}`}
+                  className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}${
+                    isReferenceGridCollapsedForStyles ? " is-reference-grid-collapsed" : ""
+                  }`}
                   style={stylesSplit.topSectionStyle}
                 >
                   <div ref={allRefsHeaderRef}>
-                    {isCuratedSplitEnabled ? (
-                      <ReferenceGridArchiveControls
-                        archiveCount={archiveCount}
-                        showHeader={showHeader}
-                        isArchivePanelOpen={isArchivePanelOpen}
-                        archivedOutputs={archivedOutputs}
-                        hideUploadActions={allRefsInventoryExpanded}
-                        onToggleArchivePanel={onToggleArchivePanel}
-                        onTriggerFileSelect={onTriggerFileSelect}
-                        onOpenMediaLibrary={onOpenMediaLibrary}
-                        onRestoreArchivedOutput={onRestoreArchivedOutput}
-                        onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
-                      />
-                    ) : null}
+                    <ReferenceGridArchiveControls
+                      archiveCount={archiveCount}
+                      showHeader={showHeader}
+                      showTitle={showReferenceGridTitleInHeader}
+                      isArchivePanelOpen={isArchivePanelOpen}
+                      archivedOutputs={archivedOutputs}
+                      hideUploadActions={hideReferenceGridUploadActions}
+                      onToggleArchivePanel={onToggleArchivePanel}
+                      onTriggerFileSelect={onTriggerFileSelect}
+                      onOpenMediaLibrary={onOpenMediaLibrary}
+                      onRestoreArchivedOutput={onRestoreArchivedOutput}
+                      onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
+                    />
                   </div>
                   <div
                     className="reference-canvas-scroll"
@@ -470,6 +488,9 @@ export function ReferenceGridSections({
                     className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--styles"
                     {...stylesSplit.dividerProps}
                   >
+                    <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
+                      Styles
+                    </span>
                     <button
                       type="button"
                       className="reference-grid-horizontal-divider-pill"
@@ -495,8 +516,11 @@ export function ReferenceGridSections({
                         const headerNode = showStylesReferenceDivider
                           ? allRefsHeaderRef.current
                           : curatedHeaderRef.current;
-                        const targetTopHeightPx =
-                          headerNode instanceof HTMLElement ? headerNode.offsetHeight : undefined;
+                        const targetTopHeightPx = showStylesReferenceDivider
+                          ? STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX
+                          : headerNode instanceof HTMLElement
+                            ? headerNode.offsetHeight
+                            : undefined;
                         stylesSplit.snapToAllRefsExpanded(targetTopHeightPx);
                       }}
                     >
@@ -515,7 +539,7 @@ export function ReferenceGridSections({
                   aria-label="Styles"
                 >
                   <div ref={stylesHeaderRef} className="reference-styles-header">
-                    <p className="eyebrow">Styles</p>
+                    {showStylesTitleInHeader ? <p className="eyebrow">Styles</p> : null}
                     <p className="tiny subdued helper-text">
                       Choose a style preset now. Drag-and-drop workflow support is coming soon.
                     </p>
@@ -577,6 +601,9 @@ export function ReferenceGridSections({
                     className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--styles"
                     {...stylesSplit.dividerProps}
                   >
+                    <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
+                      Styles
+                    </span>
                     <button
                       type="button"
                       className="reference-grid-horizontal-divider-pill"
@@ -602,8 +629,11 @@ export function ReferenceGridSections({
                         const headerNode = showStylesReferenceDivider
                           ? allRefsHeaderRef.current
                           : curatedHeaderRef.current;
-                        const targetTopHeightPx =
-                          headerNode instanceof HTMLElement ? headerNode.offsetHeight : undefined;
+                        const targetTopHeightPx = showStylesReferenceDivider
+                          ? STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX
+                          : headerNode instanceof HTMLElement
+                            ? headerNode.offsetHeight
+                            : undefined;
                         stylesSplit.snapToAllRefsExpanded(targetTopHeightPx);
                       }}
                     >
@@ -622,7 +652,7 @@ export function ReferenceGridSections({
                   aria-label="Styles"
                 >
                   <div ref={stylesHeaderRef} className="reference-styles-header">
-                    <p className="eyebrow">Styles</p>
+                    {showStylesTitleInHeader ? <p className="eyebrow">Styles</p> : null}
                     <p className="tiny subdued helper-text">
                       Choose a style preset now. Drag-and-drop workflow support is coming soon.
                     </p>

@@ -104,3 +104,12 @@ export type ToolId =
   | "kling"
   | "edit"
   | "canvas";
+
+export type StylesLibraryStyleDetails = {
+  style: string;
+  title: string;
+  referenceImageName: string;
+  stylePrompt: string;
+};
+
+export type StylesLibraryStyleDetailsMap = Record<string, StylesLibraryStyleDetails>;

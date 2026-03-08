@@ -8,6 +8,7 @@ export type ChargeOptions = {
   modelId: string;
   payload: JsonObject;
   reason: string;
+  skipBilling?: boolean;
 };
 
 export type ChargeResult = {

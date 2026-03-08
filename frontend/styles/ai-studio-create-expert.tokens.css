@@ -23,12 +23,18 @@
   --create-expert-resolution-width: 120px;
   --create-expert-selector-gap: 6px;
   --create-expert-controls-gap: 6px;
-  --create-expert-inline-gutter: clamp(12px, 5vw, 56px);
+  --create-expert-inline-gutter: clamp(10px, 4vw, 44px);
   --create-expert-character-toggle-gap: 6px;
   --create-expert-selector-height: 40px;
   --create-expert-selector-bg: var(--color-bg);
   --create-expert-selector-hover-border: rgba(201, 205, 214, 0.3);
   --create-expert-output-generate-max-height: 140px;
+  /*
+   * Reuse Edit styles-control chrome in Expert Create.
+   * These tokens are normally scoped to `.edit-expert-panel`.
+   */
+  --edit-expert-secondary-width: clamp(72px, calc(var(--app-fixed-width) * 0.09), 92px);
+  --edit-expert-tools-title-to-control-gap: 8px;
 }
 
 .create-expert-panel .tool-header {

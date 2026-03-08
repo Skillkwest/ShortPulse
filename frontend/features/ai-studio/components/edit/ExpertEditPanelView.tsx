@@ -17,7 +17,6 @@ import {
   Sliders,
   Sparkle,
   StackSimple,
-  Sticker,
   TrashSimple,
   UploadSimple,
 } from "phosphor-react";
@@ -38,7 +37,6 @@ import {
   resolveCenteredAspectCropRect,
 } from "../../logic/expertEditLayerCrop";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
-import { computeCostForModel } from "../../logic/pricing";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
@@ -50,6 +48,7 @@ import {
 } from "../create/useCreateCharacterModeController";
 import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
+import { StylesControl } from "../StylesControl";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
@@ -117,6 +116,9 @@ export type ExpertEditPanelViewProps = {
   onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
   onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
+  isStylesPanelOpen?: boolean;
+  onStylesPanelToggle?: () => void;
+  selectedStyleId?: string | null;
 };
 
 type CharacterPickerModalProps = {
@@ -228,27 +230,27 @@ const CharacterPickerModal = ({
 const secondaries = [0, 1, 2] as const;
 const editPresetUtilityActions = [
   {
-    id: "remove-background",
-    label: "Remove Background",
-    icon: MagicWand,
-    iconWeight: "fill" as const,
-    buttonClassName: "edit-expert-preset-action-btn--remove-bg",
-    creditCost: 1,
-    hideIcon: true,
-    requiresPrimaryImage: true,
+    id: "composite-regenerate",
+    label: "Composite & Regenerate",
+    icon: ArrowClockwise,
+    iconWeight: "regular" as const,
+    buttonClassName: "edit-expert-preset-action-btn--compose-image",
+    creditCost: null,
+    hideIcon: false,
+    requiresPrimaryImage: false,
   },
 ] as const;
 const editLayerUtilityActions = [
   {
-    id: "flatten-image",
-    label: "Flatten & Add to Grid →",
-    icon: StackSimple,
+    id: "remove-background",
+    label: "Remove Background",
+    icon: MagicWand,
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
   },
   {
-    id: "composite-regenerate",
-    label: "Composite & Regenerate",
-    icon: ArrowClockwise,
+    id: "flatten-image",
+    label: "Flatten & Add to Grid →",
+    icon: StackSimple,
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
   },
 ] as const;
@@ -281,12 +283,6 @@ const inpaintRailTools: ReadonlyArray<{
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
 type TransformDragMode = "move" | "resize" | "rotate";
-type ExpertEditStyleTile = {
-  id: string;
-  title: string;
-  previewUrl: string | null;
-  placeholder: boolean;
-};
 const cropAspectRatioPresets = [
   { value: "9:16", label: "Vertical" },
   { value: "4:5", label: "Social Post" },
@@ -316,45 +312,6 @@ const LAYER_TRANSLATE_RATIO_MAX = 1;
 const LAYER_SCALE_MIN = 0.2;
 const LAYER_SCALE_MAX = 2;
 const TRANSFORM_ROTATE_HANDLE_INSET_PX = 16;
-const EXPERT_EDIT_PRIMARY_STYLE_TILES: readonly ExpertEditStyleTile[] = [
-  {
-    id: "photorealistic",
-    title: "Photorealistic",
-    previewUrl: "/dashboard/ai-studio-hero.png",
-    placeholder: false,
-  },
-  {
-    id: "cinematic",
-    title: "Cinematic",
-    previewUrl: "/dashboard/welcome-art.png",
-    placeholder: false,
-  },
-  {
-    id: "cell-phone-snapshot",
-    title: "Cell phone snapshot",
-    previewUrl: "/dashboard/media-library.png",
-    placeholder: false,
-  },
-  {
-    id: "anime",
-    title: "Anime",
-    previewUrl: "/Styles/Anime.png",
-    placeholder: false,
-  },
-];
-const EXPERT_EDIT_STYLE_TILE_TOTAL = 16;
-const expertEditStyleCatalog: readonly ExpertEditStyleTile[] = [
-  ...EXPERT_EDIT_PRIMARY_STYLE_TILES,
-  ...Array.from(
-    { length: Math.max(0, EXPERT_EDIT_STYLE_TILE_TOTAL - EXPERT_EDIT_PRIMARY_STYLE_TILES.length) },
-    (_, index): ExpertEditStyleTile => ({
-      id: `style-placeholder-${index + 1}`,
-      title: `Placeholder ${index + 1}`,
-      previewUrl: null,
-      placeholder: true,
-    })
-  ),
-];
 const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
 const autoLayerNamePattern = /^layer\s*'?(\d+)'?$/i;
 const isAutoLayerName = (value: string) => autoLayerNamePattern.test(value.trim());
@@ -799,6 +756,9 @@ export function ExpertEditPanelView({
   onSelectedPresetIdsChange,
   customPresetOverrides: controlledCustomPresetOverrides,
   onCustomPresetOverridesChange,
+  isStylesPanelOpen = false,
+  onStylesPanelToggle,
+  selectedStyleId: controlledSelectedStyleId,
 }: ExpertEditPanelViewProps) {
   const layerIdCounterRef = React.useRef(1);
   const foundationLayerIdRef = React.useRef<string | null>(null);
@@ -824,7 +784,6 @@ export function ExpertEditPanelView({
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
-  const stylesModalRef = React.useRef<HTMLDivElement | null>(null);
   const transformPointerSessionRef = React.useRef<TransformPointerSession>(
     createIdleTransformPointerSession()
   );
@@ -869,8 +828,6 @@ export function ExpertEditPanelView({
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
-  const [isStylesModalOpen, setIsStylesModalOpen] = React.useState(false);
-  const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [internalSelectedPresetIds, setInternalSelectedPresetIds] = React.useState<
     ExpertEditPresetId[]
   >(() => normalizePresetPanelPresetIds(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS));
@@ -919,12 +876,7 @@ export function ExpertEditPanelView({
   );
   const canUndoTransformHistory = transformHistoryState.past.length > 0;
   const canRedoTransformHistory = transformHistoryState.future.length > 0;
-  const selectedStyleTile = React.useMemo(
-    () =>
-      expertEditStyleCatalog.find((style) => !style.placeholder && style.id === selectedStyleId) ??
-      null,
-    [selectedStyleId]
-  );
+  const selectedStyleId = controlledSelectedStyleId ?? null;
   const selectedLayer = layers[resolvedSelectedLayerIndex] ?? null;
   const selectedLayerImageUrl = selectedLayer?.imageUrl ?? null;
   const populatedLayerCount = React.useMemo(
@@ -1003,6 +955,11 @@ export function ExpertEditPanelView({
   const isCropToolSelected = selectedRailTool === "crop";
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isMoveToolSelected = selectedRailTool === "move";
+  const collapsedToolsThemeClass = isMoveToolSelected
+    ? "is-active-move"
+    : isInpaintToolSelected
+      ? "is-active-inpaint"
+      : "is-active-crop";
   const sceneZoomScale = 1;
 
   const {
@@ -1073,13 +1030,6 @@ export function ExpertEditPanelView({
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = (referenceText ?? "").trim().length > 0;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
-  const removeBackgroundCostCredits = React.useMemo(() => {
-    return (
-      computeCostForModel(BRIA_BACKGROUND_REMOVE_MODEL_ID, {
-        aspect,
-      })?.credits ?? 1
-    );
-  }, [aspect]);
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]
@@ -1650,7 +1600,7 @@ export function ExpertEditPanelView({
       try {
         await onRegenerateWithReferenceInputs([selectedLayerInput], {
           modelIdOverride: BRIA_BACKGROUND_REMOVE_MODEL_ID,
-          costOverrideCredits: removeBackgroundCostCredits,
+          costOverrideCredits: 0,
         });
       } catch {
         clearRemoveBackgroundPending();
@@ -1661,7 +1611,6 @@ export function ExpertEditPanelView({
   }, [
     beginRemoveBackgroundPending,
     clearRemoveBackgroundPending,
-    removeBackgroundCostCredits,
     onRegenerateWithReferenceInputs,
     selectedLayer,
     selectedLayerImageUrl,
@@ -2155,48 +2104,9 @@ export function ExpertEditPanelView({
   const toggleMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen((previous) => !previous);
   }, []);
-  const openStylesModal = React.useCallback(() => {
-    setIsStylesModalOpen(true);
-  }, []);
-  const closeStylesModal = React.useCallback(() => {
-    setIsStylesModalOpen(false);
-  }, []);
-  const handleStyleTileSelect = React.useCallback(
-    (style: ExpertEditStyleTile) => {
-      if (style.placeholder) return;
-      setSelectedStyleId(style.id);
-      closeStylesModal();
-    },
-    [closeStylesModal]
-  );
-
-  React.useEffect(() => {
-    if (!isStylesModalOpen) return;
-    stylesModalRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      closeStylesModal();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [closeStylesModal, isStylesModalOpen]);
-
-  React.useEffect(() => {
-    if (!isStylesModalOpen) return;
-    const root = document.documentElement;
-    const body = document.body;
-    const previousRootOverflow = root.style.overflow;
-    const previousBodyOverflow = body.style.overflow;
-    root.style.overflow = "hidden";
-    body.style.overflow = "hidden";
-    return () => {
-      root.style.overflow = previousRootOverflow;
-      body.style.overflow = previousBodyOverflow;
-    };
-  }, [isStylesModalOpen]);
+  const handleStylesPanelToggle = React.useCallback(() => {
+    onStylesPanelToggle?.();
+  }, [onStylesPanelToggle]);
 
   const handleAddLayer = React.useCallback(() => {
     if (layers.length >= MAX_LAYERS) {
@@ -2641,14 +2551,9 @@ export function ExpertEditPanelView({
             {editPresetUtilityActions.map((action) => {
               const Icon = action.icon;
               const isActionDisabled = Boolean(
-                isGenerateDisabled ||
-                (action.requiresPrimaryImage && !selectedLayerImageUrl) ||
-                (action.id === REMOVE_BACKGROUND_ACTION_ID && isRemoveBackgroundPending)
+                isGenerateDisabled || (action.requiresPrimaryImage && !selectedLayerImageUrl)
               );
-              const actionCreditCost =
-                action.id === REMOVE_BACKGROUND_ACTION_ID
-                  ? removeBackgroundCostCredits
-                  : action.creditCost;
+              const actionCreditCost = action.creditCost;
               return (
                 <button
                   key={action.id}
@@ -2656,9 +2561,7 @@ export function ExpertEditPanelView({
                   className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
                   aria-label={action.label}
                   disabled={isActionDisabled}
-                  onClick={
-                    action.id === REMOVE_BACKGROUND_ACTION_ID ? handleRemoveBackground : undefined
-                  }
+                  onClick={undefined}
                 >
                   {!action.hideIcon ? (
                     <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
@@ -2765,14 +2668,23 @@ export function ExpertEditPanelView({
           <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
             {editLayerUtilityActions.map((action) => {
               const Icon = action.icon;
+              const isActionDisabled = Boolean(
+                action.id === REMOVE_BACKGROUND_ACTION_ID &&
+                (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)
+              );
               return (
                 <button
                   key={action.id}
                   type="button"
                   className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
                   aria-label={action.label}
+                  disabled={isActionDisabled}
                   onClick={
-                    action.id === "flatten-image" ? () => void handleManualFlatten() : undefined
+                    action.id === "flatten-image"
+                      ? () => void handleManualFlatten()
+                      : action.id === REMOVE_BACKGROUND_ACTION_ID
+                        ? handleRemoveBackground
+                        : undefined
                   }
                 >
                   <Icon size={20} weight="regular" />
@@ -2916,7 +2828,7 @@ export function ExpertEditPanelView({
               ) : null}
               <button
                 type="button"
-                className="edit-expert-inpaint-collapse-btn"
+                className={`edit-expert-inpaint-collapse-btn ${collapsedToolsThemeClass}`}
                 aria-label={
                   isInpaintCollapsed ? "Expand inpaint controls" : "Collapse inpaint controls"
                 }
@@ -3244,30 +3156,11 @@ export function ExpertEditPanelView({
               })}
             </div>
           </div>
-          <div className="edit-expert-styles-control">
-            <div className="edit-expert-styles-wrapper">
-              <p className="edit-expert-styles-title">Styles</p>
-              <button
-                type="button"
-                className={`edit-expert-styles-btn ${selectedStyleTile ? "has-selected-style" : ""}`.trim()}
-                aria-label="Styles"
-                aria-haspopup="dialog"
-                aria-expanded={isStylesModalOpen}
-                aria-controls="edit-expert-styles-modal"
-                onClick={openStylesModal}
-              >
-                {selectedStyleTile?.previewUrl ? (
-                  <span
-                    className="edit-expert-styles-btn-preview"
-                    style={{ backgroundImage: `url(${selectedStyleTile.previewUrl})` }}
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <Sticker size={22} weight="regular" />
-                )}
-              </button>
-            </div>
-          </div>
+          <StylesControl
+            isOpen={isStylesPanelOpen}
+            selectedStyleId={selectedStyleId}
+            onToggle={handleStylesPanelToggle}
+          />
         </div>
       </div>
 
@@ -3434,72 +3327,6 @@ export function ExpertEditPanelView({
         selectedCharacterId={selectedCharacterId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
       />
-      {isStylesModalOpen ? (
-        <div className="edit-expert-styles-modal-backdrop" onClick={closeStylesModal}>
-          <div
-            id="edit-expert-styles-modal"
-            ref={stylesModalRef}
-            className="edit-expert-styles-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Style presets"
-            tabIndex={-1}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="edit-expert-styles-modal-header">
-              <div className="edit-expert-styles-modal-title-group">
-                <h3 className="edit-expert-styles-modal-title">Styles</h3>
-                <p className="edit-expert-styles-modal-subtitle">
-                  Select a style preset for this edit pass.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="edit-expert-styles-modal-close"
-                aria-label="Close styles modal"
-                onClick={closeStylesModal}
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
-            <div className="edit-expert-styles-modal-scroll">
-              <div className="edit-expert-styles-modal-grid" role="list" aria-label="Style options">
-                {expertEditStyleCatalog.map((style) => {
-                  const isSelected = !style.placeholder && selectedStyleId === style.id;
-                  return (
-                    <button
-                      key={style.id}
-                      type="button"
-                      className={`edit-expert-style-tile ${
-                        isSelected ? "is-selected" : ""
-                      } ${style.placeholder ? "is-placeholder" : ""}`.trim()}
-                      aria-label={`Style tile: ${style.title}${style.placeholder ? " (coming soon)" : ""}`}
-                      aria-pressed={style.placeholder ? undefined : isSelected}
-                      disabled={style.placeholder}
-                      onClick={() => handleStyleTileSelect(style)}
-                    >
-                      <span className="edit-expert-style-tile-title">{style.title}</span>
-                      <span
-                        className="edit-expert-style-tile-preview"
-                        style={
-                          style.previewUrl
-                            ? { backgroundImage: `url(${style.previewUrl})` }
-                            : undefined
-                        }
-                        aria-hidden="true"
-                      >
-                        {style.placeholder ? (
-                          <span className="edit-expert-style-tile-coming-soon">Coming soon</span>
-                        ) : null}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/bria/background/remove",
+  skipBilling: true,
   submitUrl: getFalSubmitUrlRequired("fal-ai/bria/background/remove"),
   routeLabel: "Fal Bria background remove",
   timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bria/background/remove", 20000),

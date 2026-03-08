@@ -2729,3 +2729,18 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Preset panel interactions now resolve effective label/prompt from ID + custom overrides; clicking a selected preset continues to replace prompt text.
 - Added account-level persistence for preset panel allocation IDs and custom preset overrides through `user_preferences` (`expert_edit_preset_panel_ids`, `expert_edit_custom_presets`) with local fallback and backward compatibility from legacy label storage.
 - Added migration `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql`, rollback pair, and bootstrap-schema updates to include new columns/defaults.
+
+## 2026-03-08 (Expert Edit styles rail redesign)
+- Replaced the Expert Edit Styles modal with a right-rail Styles panel rendered below Reference Grid.
+- Moved styles UI ownership to `AiStudioPageContent` with shared state (`isStylesPanelOpen`, `selectedStyleId`) so the left Styles button preview and right-rail selection stay synchronized.
+- Updated Expert Edit Styles button behavior to toggle the right-rail panel (`aria-expanded`) and removed modal-only behavior/effects (dialog/backdrop/Escape/body scroll lock).
+- Added right-rail styles split behavior in Reference Grid:
+  - when styles are open, Canvas and Quick Slot Inventory are hidden,
+  - Reference Grid and Styles are separated by a dedicated horizontal divider (`Resize Reference Grid and Styles sections`),
+  - styles render as a 2-column card grid with 16 tiles, placeholders disabled, and visual selected state.
+- Extracted shared style catalog + preview URL helper into `frontend/features/ai-studio/components/edit/expertEditStyles.ts` and reused it across left-button preview and right-rail cards.
+- Updated tests and docs for the new interaction model:
+  - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
+  - `docs/sops/sop_image_generation.md`.

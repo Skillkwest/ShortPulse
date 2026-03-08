@@ -158,10 +158,11 @@ For Create properties panel, model-selector, and submission wiring details, see 
   4. Chat mode UI is hidden/off for Expert Edit.
   5. Inpaint editing can paint anywhere inside the primary drop zone (including outside the visible image bounds).
   6. Inpaint submit exports only the visible image-area mask window (`imageRect`) so FLUX Fill mask pixels remain aligned with flattened base-image dimensions.
-  7. `Remove Background` submits the currently selected layer image only and routes regenerate through hidden Bria RMBG (`fal-ai/bria/background/remove`) with prompt-optional submit policy.
+  7. `Remove Background` submits the currently selected layer image only, routes regenerate through hidden Bria RMBG (`fal-ai/bria/background/remove`) with prompt-optional submit policy, and is a free action (no credit debit).
   8. Manual `Flatten Image` action uses stage-faithful 1:1 flattening (square output, transparent uncovered pixels, current layer transforms/z-order), while provider submission flattening remains on the existing provider-oriented compose path.
   9. Layer stack uses a permanent foundation `layer 1` (clearable, never removable), all non-foundation layers are content-backed only, and primary image ingress inserts a new populated layer above the selected layer while preserving panel-top = visual-top z-order.
   10. Crop tool uses explicit aspect selection: no ratio is selected by default, ratio chips are toggleable, Crop mode renders a centered max-fit guide for the selected ratio, and `Crop` applies only to the active layer using stage-accurate pixels (including current move/resize/rotate) before resetting that layer transform. Crop selection does not change the global generation aspect selector.
+  11. Styles selector is a right-rail panel (not a modal): clicking the left Styles button toggles a Styles section below Reference Grid, hides Canvas + Quick Slot Inventory while open, keeps a selected-style preview in the left Styles button, and keeps the panel open after style selection.
 - Prompt guard policy for Edit submit is model-capability driven (`editPromptPolicy`); unknown capability defaults to prompt required.
 
 ## Supported image models (current)

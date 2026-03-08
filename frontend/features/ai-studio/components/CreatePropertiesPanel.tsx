@@ -18,6 +18,7 @@ import type {
   AgentOutputGenerateInput,
 } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
+import { StylesControl } from "./StylesControl";
 import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
@@ -100,6 +101,9 @@ export type CreatePropertiesPanelProps = {
   isCharacterOptionsLoading?: boolean;
   characterModeEnabled?: boolean;
   onCharacterModeEnabledChange?: (value: boolean) => void;
+  isStylesPanelOpen?: boolean;
+  onStylesPanelToggle?: () => void;
+  selectedStyleId?: string | null;
 };
 
 /**
@@ -285,6 +289,9 @@ export function CreatePropertiesPanel({
   isCharacterOptionsLoading = false,
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
+  isStylesPanelOpen = false,
+  onStylesPanelToggle,
+  selectedStyleId = null,
   onGenerate,
   onChatOffInlineGenerate,
 }: CreatePropertiesPanelProps) {
@@ -480,6 +487,13 @@ export function CreatePropertiesPanel({
     useAgentResponseInlineGeneratePrefab: true,
     highlightLatestAssistantOnly: true,
     agentInputMaxHeightPx: 132,
+    composerLeadingContent: (
+      <StylesControl
+        isOpen={isStylesPanelOpen}
+        selectedStyleId={selectedStyleId}
+        onToggle={onStylesPanelToggle}
+      />
+    ),
   };
 
   return (

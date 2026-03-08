@@ -41,6 +41,45 @@ describe("generationBilling reservation RPC handling", () => {
     logGenerationFailureMock.mockResolvedValue(undefined);
   });
 
+  it("returns a no-op charge context when billing is explicitly skipped", async () => {
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-free-action",
+      },
+      url: "/api/fal/bria-background-remove-submit",
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "fal-ai/bria/background/remove",
+      payload: {
+        image_url: "https://example.com/ref.png",
+      },
+      reason: "Fal Bria background remove generation",
+      skipBilling: true,
+    });
+
+    expect(charge).not.toBeNull();
+    expect(charge?.sourceRef).toBe("req-free-action");
+    expect(charge?.credits).toBe(0);
+    expect(charge?.billingMode).toBe("reservation");
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+
+    await charge?.markSubmitted("provider-req-1", {
+      route: "/api/fal/bria-background-remove-submit",
+    });
+    await charge?.refund("No-op refund");
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to direct debit only when the emergency fallback flag is enabled", async () => {
     process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED = "true";
     const rpcMock = vi.fn().mockResolvedValueOnce({

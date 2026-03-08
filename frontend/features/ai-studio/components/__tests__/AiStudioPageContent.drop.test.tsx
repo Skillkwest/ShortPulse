@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent, type AiStudioPageContentProps } from "../AiStudioPageContent";
 
@@ -24,7 +24,19 @@ vi.mock("../AiStudioToolbar", () => ({
 }));
 
 vi.mock("../CreatePropertiesPanel", () => ({
-  CreatePropertiesPanel: () => <div data-testid="text-properties" />,
+  CreatePropertiesPanel: (props: {
+    isStylesPanelOpen?: boolean;
+    selectedStyleId?: string | null;
+    onStylesPanelToggle?: () => void;
+  }) => (
+    <div data-testid="text-properties">
+      <button type="button" aria-label="Styles" onClick={() => props.onStylesPanelToggle?.()}>
+        Styles
+      </button>
+      <div data-testid="create-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
+      <div data-testid="create-selected-style">{props.selectedStyleId ?? ""}</div>
+    </div>
+  ),
   ComposeSendCard: () => <div data-testid="compose-send-card" />,
 }));
 
@@ -38,6 +50,11 @@ vi.mock("../ModelModal", () => ({
 
 vi.mock("../ReferenceGrid", () => ({
   ReferenceGrid: (props: {
+    stylesPanel?: {
+      isOpen: boolean;
+      selectedStyleId: string | null;
+      onSelectStyle?: (styleId: string | null) => void;
+    };
     railCanvasProps?: {
       onViewportDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
       onViewportDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -47,6 +64,19 @@ vi.mock("../ReferenceGrid", () => ({
       data-testid="reference-grid"
       onDrop={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
     >
+      {props.stylesPanel?.isOpen ? (
+        <div data-testid="reference-grid-styles-panel">
+          <div data-testid="reference-grid-selected-style">{props.stylesPanel.selectedStyleId}</div>
+          <button
+            type="button"
+            onClick={() => {
+              props.stylesPanel?.onSelectStyle?.("cinematic");
+            }}
+          >
+            Select cinematic style
+          </button>
+        </div>
+      ) : null}
       <div
         data-testid="reference-grid-rail-canvas"
         data-canvas-instance="rail"
@@ -65,7 +95,19 @@ vi.mock("../EditPropertiesPanel", () => ({
   EditPropertiesPanel: () => <div data-testid="edit-properties" />,
 }));
 vi.mock("../edit/ExpertEditPanelView", () => ({
-  ExpertEditPanelView: () => <div data-testid="expert-edit-properties" />,
+  ExpertEditPanelView: (props: {
+    isStylesPanelOpen?: boolean;
+    selectedStyleId?: string | null;
+    onStylesPanelToggle?: () => void;
+  }) => (
+    <div data-testid="expert-edit-properties">
+      <button type="button" aria-label="Styles" onClick={() => props.onStylesPanelToggle?.()}>
+        Styles
+      </button>
+      <div data-testid="expert-edit-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
+      <div data-testid="expert-edit-selected-style">{props.selectedStyleId ?? ""}</div>
+    </div>
+  ),
 }));
 
 vi.mock("../StudioPreview", () => ({
@@ -203,6 +245,16 @@ const createProps = (
 });
 
 describe("AiStudioPageContent right column drop router", () => {
+  it("renders header shortcut buttons in the top AI Studio header row", () => {
+    render(<AiStudioPageContent {...createProps()} />);
+
+    expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Styles visibility" })).toBeInTheDocument();
+  });
+
   it("does not collapse to minimum when canvas is selected on initial hydration", () => {
     collapseToMinMock.mockClear();
     const { rerender } = render(<AiStudioPageContent {...createProps({ selectedTool: null })} />);
@@ -271,6 +323,66 @@ describe("AiStudioPageContent right column drop router", () => {
     );
 
     expect(screen.getByTestId("expert-edit-properties")).toBeInTheDocument();
+  });
+
+  it("wires styles toggle and style selection between expert edit and reference rail", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "edit",
+          propertiesEditExpert: {
+            expertEditEligible: true,
+          } as AiStudioPageContentProps["propertiesEditExpert"],
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("closed");
+    expect(screen.queryByTestId("reference-grid-styles-panel")).not.toBeInTheDocument();
+
+    const expertPanel = screen.getByTestId("expert-edit-properties");
+    fireEvent.click(within(expertPanel).getByRole("button", { name: "Styles" }));
+
+    expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("open");
+    expect(screen.getByTestId("reference-grid-styles-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("expert-edit-selected-style")).toHaveTextContent("");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select cinematic style" }));
+    expect(screen.getByTestId("expert-edit-selected-style")).toHaveTextContent("cinematic");
+    expect(screen.getByTestId("reference-grid-selected-style")).toHaveTextContent("cinematic");
+
+    fireEvent.click(within(expertPanel).getByRole("button", { name: "Styles" }));
+    expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("closed");
+    expect(screen.queryByTestId("reference-grid-styles-panel")).not.toBeInTheDocument();
+  });
+
+  it("wires styles toggle and style selection between expert create and reference rail", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "create",
+          propertiesCreate: {
+            ...(createProps().propertiesCreate as object),
+            expertCreateUiEligible: true,
+            beginnerMode: false,
+          } as AiStudioPageContentProps["propertiesCreate"],
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("create-styles-open")).toHaveTextContent("closed");
+    expect(screen.queryByTestId("reference-grid-styles-panel")).not.toBeInTheDocument();
+
+    const createPanel = screen.getByTestId("text-properties");
+    fireEvent.click(within(createPanel).getByRole("button", { name: "Styles" }));
+
+    expect(screen.getByTestId("create-styles-open")).toHaveTextContent("open");
+    expect(screen.getByTestId("reference-grid-styles-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("create-selected-style")).toHaveTextContent("");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select cinematic style" }));
+    expect(screen.getByTestId("create-selected-style")).toHaveTextContent("cinematic");
+    expect(screen.getByTestId("reference-grid-selected-style")).toHaveTextContent("cinematic");
   });
 
   it("creates a text card when text is dropped on the right column shell", () => {

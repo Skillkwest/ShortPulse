@@ -291,6 +291,12 @@
   min-width: 0;
 }
 
+.agent-composer-leading {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
 .agent-composer-attachment-strip {
   position: absolute;
   top: 8px;

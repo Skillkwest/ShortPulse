@@ -58,11 +58,24 @@ export const chargeGenerationRequest = async ({
   modelId,
   payload,
   reason,
+  skipBilling = false,
 }: ChargeOptions): Promise<ChargeResult | null> => {
   const user = await requireApiUser(req, res);
   if (!user) return null;
   const sourceRef = resolveSourceRef(req);
   const routeLabel = req.url ?? "/api/generation";
+
+  if (skipBilling) {
+    return {
+      userId: user.id,
+      modelId,
+      credits: 0,
+      sourceRef,
+      billingMode: "reservation",
+      markSubmitted: async () => {},
+      refund: async () => {},
+    };
+  }
 
   const pricingParams = buildPricingParams(modelId, payload);
   const breakdown = computeCostForModel(modelId, pricingParams);

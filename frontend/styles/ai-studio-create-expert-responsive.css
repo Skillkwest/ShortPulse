@@ -30,6 +30,10 @@
     max-width: 100%;
   }
 
+  .create-expert-panel .create-expert-prompt-step .agent-composer-post-input-actions {
+    order: 3;
+  }
+
   .create-expert-panel .create-expert-prompt-step .agent-composer-input-shell .agent-input-prefab {
     height: auto;
     min-height: 76px;

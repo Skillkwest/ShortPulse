@@ -156,6 +156,59 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 
+  it("renders the shared styles control in expert create and toggles via callback", () => {
+    const onStylesPanelToggle = vi.fn();
+    const { rerender } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      isStylesPanelOpen: false,
+      onStylesPanelToggle,
+    });
+
+    const stylesButton = screen.getByRole("button", { name: "Styles" });
+    expect(stylesButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(stylesButton);
+    expect(onStylesPanelToggle).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <CreatePropertiesPanel
+        {...baseProps}
+        beginnerMode={false}
+        expertCreateUiEligible
+        agentEnabled
+        onAgentInputChange={vi.fn()}
+        onAgentSend={vi.fn()}
+        isStylesPanelOpen
+        onStylesPanelToggle={onStylesPanelToggle}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Styles" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows selected style preview in the expert create styles button", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      selectedStyleId: "cinematic",
+    });
+
+    const stylesButton = screen.getByRole("button", { name: "Styles" });
+    expect(stylesButton).toHaveClass("has-selected-style");
+    const preview = stylesButton.querySelector(
+      ".edit-expert-styles-btn-preview"
+    ) as HTMLSpanElement | null;
+    expect(preview).toBeTruthy();
+    expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
+  });
+
   it("hides input-bar attachment guidance in expert mode once chat history exists", () => {
     renderPanel({
       beginnerMode: false,

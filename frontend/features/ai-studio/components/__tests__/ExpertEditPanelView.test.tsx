@@ -155,6 +155,9 @@ describe("ExpertEditPanelView", () => {
     isCharacterOptionsLoading: false,
     characterModeEnabled: false,
     onCharacterModeEnabledChange: vi.fn(),
+    isStylesPanelOpen: false,
+    onStylesPanelToggle: vi.fn(),
+    selectedStyleId: null,
   };
 
   beforeEach(() => {
@@ -197,110 +200,47 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
   });
 
-  it("opens styles modal from the styles button", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
+  it("toggles styles panel via callback and reflects aria-expanded state", () => {
+    const onStylesPanelToggle = vi.fn();
+    const { rerender } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        isStylesPanelOpen={false}
+        onStylesPanelToggle={onStylesPanelToggle}
+      />
+    );
 
-    expect(screen.queryByRole("dialog", { name: /style presets/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    expect(screen.getByRole("dialog", { name: /style presets/i })).toBeInTheDocument();
-  });
+    const stylesButton = screen.getByRole("button", { name: "Styles" });
+    expect(stylesButton).toHaveAttribute("aria-expanded", "false");
 
-  it("locks background scrolling while styles modal is open", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
+    fireEvent.click(stylesButton);
+    expect(onStylesPanelToggle).toHaveBeenCalledTimes(1);
 
-    expect(document.documentElement.style.overflow).toBe("");
-    expect(document.body.style.overflow).toBe("");
-
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    expect(document.documentElement.style.overflow).toBe("hidden");
-    expect(document.body.style.overflow).toBe("hidden");
-
-    fireEvent.click(screen.getByRole("button", { name: /close styles modal/i }));
-    expect(document.documentElement.style.overflow).toBe("");
-    expect(document.body.style.overflow).toBe("");
-  });
-
-  it("renders a 16-tile styles grid with the requested first-row labels", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    expect(screen.getAllByRole("button", { name: /style tile:/i })).toHaveLength(16);
-    expect(screen.getByText("Photorealistic")).toBeInTheDocument();
-    expect(screen.getByText("Cinematic")).toBeInTheDocument();
-    expect(screen.getByText("Cell phone snapshot")).toBeInTheDocument();
-    expect(screen.getByText("Anime")).toBeInTheDocument();
-  });
-
-  it("renders placeholder style buttons for rows two through four", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    const placeholderTiles = screen.getAllByRole("button", { name: /\(coming soon\)/i });
-    expect(placeholderTiles).toHaveLength(12);
-    placeholderTiles.forEach((tile) => {
-      expect(tile).toBeDisabled();
-    });
-  });
-
-  it("selecting a non-placeholder style closes the modal", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    const cinematicTile = screen.getByRole("button", { name: /style tile: cinematic$/i });
-    fireEvent.click(cinematicTile);
-    expect(screen.queryByRole("dialog", { name: /style presets/i })).not.toBeInTheDocument();
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        isStylesPanelOpen
+        onStylesPanelToggle={onStylesPanelToggle}
+      />
+    );
+    expect(screen.getByRole("button", { name: "Styles" })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("shows selected style preview filling the styles button", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
+    render(<ExpertEditPanelView {...baseProps} selectedStyleId="cinematic" />);
 
     const stylesButton = screen.getByRole("button", { name: "Styles" });
-    expect(stylesButton.querySelector(".edit-expert-styles-btn-preview")).toBeNull();
-
-    fireEvent.click(stylesButton);
-    fireEvent.click(screen.getByRole("button", { name: /style tile: cinematic$/i }));
-
     const preview = stylesButton.querySelector(
       ".edit-expert-styles-btn-preview"
     ) as HTMLSpanElement | null;
     expect(preview).toBeTruthy();
     expect(stylesButton).toHaveClass("has-selected-style");
-    expect(preview?.style.backgroundImage).toContain("/dashboard/welcome-art.png");
+    expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
   });
 
-  it("closes styles modal via the close button", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
+  it("keeps existing expert edit interactions available with styles panel wiring", () => {
+    render(<ExpertEditPanelView {...baseProps} isStylesPanelOpen />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    fireEvent.click(screen.getByRole("button", { name: /close styles modal/i }));
-    expect(screen.queryByRole("dialog", { name: /style presets/i })).not.toBeInTheDocument();
-  });
-
-  it("closes styles modal when clicking the backdrop", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    const backdrop = document.querySelector(".edit-expert-styles-modal-backdrop");
-    expect(backdrop).toBeTruthy();
-    if (backdrop) {
-      fireEvent.click(backdrop);
-    }
-    expect(screen.queryByRole("dialog", { name: /style presets/i })).not.toBeInTheDocument();
-  });
-
-  it("closes styles modal with Escape", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("dialog", { name: /style presets/i })).not.toBeInTheDocument();
-  });
-
-  it("keeps existing expert edit interactions available after closing styles modal", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
-    fireEvent.click(screen.getByRole("button", { name: /close styles modal/i }));
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
     expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
   });
@@ -903,6 +843,43 @@ describe("ExpertEditPanelView", () => {
     expect(landscapeChip).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(landscapeChip);
     expect(landscapeChip).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("applies active tool theme classes to the collapsed tools button", () => {
+    vi.useFakeTimers();
+
+    try {
+      render(<ExpertEditPanelView {...baseProps} />);
+      const collapsedButton = screen.getByRole("button", { name: /expand inpaint controls/i });
+      expect(collapsedButton).toHaveClass("is-active-move");
+
+      fireEvent.click(collapsedButton);
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+      fireEvent.click(screen.getByRole("button", { name: /collapse inpaint controls/i }));
+      act(() => {
+        vi.advanceTimersByTime(180);
+      });
+      expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveClass(
+        "is-active-inpaint"
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      fireEvent.click(
+        within(screen.getByLabelText("Inpaint action tools")).getByRole("button", {
+          name: /^crop$/i,
+        })
+      );
+      fireEvent.click(screen.getByRole("button", { name: /collapse inpaint controls/i }));
+      act(() => {
+        vi.advanceTimersByTime(180);
+      });
+      expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveClass(
+        "is-active-crop"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not render a move zoom slider", async () => {
@@ -2259,7 +2236,7 @@ describe("ExpertEditPanelView", () => {
     expect(options).toEqual(
       expect.objectContaining({
         modelIdOverride: "fal-ai/bria/background/remove",
-        costOverrideCredits: 1,
+        costOverrideCredits: 0,
       })
     );
   });

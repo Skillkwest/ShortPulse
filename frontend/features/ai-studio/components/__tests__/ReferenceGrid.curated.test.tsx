@@ -6,6 +6,7 @@ import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 import type { StudioOutput } from "../../types";
+import { EXPERT_EDIT_STYLE_CATALOG } from "../edit/expertEditStyles";
 
 class MockResizeObserver {
   observe() {
@@ -1522,6 +1523,115 @@ describe("ReferenceGrid curated split", () => {
     ).toBeNull();
     expect(getByText("Quick Slot Inventory")).toBeInTheDocument();
     expect(getByText("Reference Grid")).toBeInTheDocument();
+  });
+
+  it("renders styles panel below Reference Grid and hides Canvas + Quick Slot sections", () => {
+    const { queryByText, getByText, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    expect(queryByText("Canvas")).toBeNull();
+    expect(queryByText("Quick Slot Inventory")).toBeNull();
+    expect(getByText("Reference Grid")).toBeInTheDocument();
+    expect(getByText("Styles")).toBeInTheDocument();
+    expect(
+      getByRole("separator", { name: "Resize Reference Grid and Styles sections" })
+    ).toBeInTheDocument();
+  });
+
+  it("renders styles rail for create workflow when styles panel is open", () => {
+    const { queryByText, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "create",
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    expect(queryByText("Quick Slot Inventory")).toBeNull();
+    expect(getByText("Reference Grid")).toBeInTheDocument();
+    expect(getByText("Styles")).toBeInTheDocument();
+  });
+
+  it("renders all style tiles and disables placeholder styles in the rail panel", () => {
+    const { getAllByRole, getByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    expect(getByText("Photorealistic")).toBeInTheDocument();
+    expect(getByText("Cinematic")).toBeInTheDocument();
+    expect(getByText("Cell phone snapshot")).toBeInTheDocument();
+    expect(getByText("Anime")).toBeInTheDocument();
+
+    const tiles = getAllByRole("button", { name: /style tile:/i });
+    expect(tiles).toHaveLength(16);
+    const placeholderTiles = getAllByRole("button", { name: /\(coming soon\)/i });
+    expect(placeholderTiles).toHaveLength(12);
+    placeholderTiles.forEach((tile) => {
+      expect(tile).toBeDisabled();
+    });
+  });
+
+  it("selects non-placeholder styles and applies selected visual state", () => {
+    const onSelectStyle = vi.fn();
+    const { getByRole, rerender } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle,
+          },
+        })}
+      />
+    );
+
+    fireEvent.click(getByRole("button", { name: /style tile: cinematic$/i }));
+    expect(onSelectStyle).toHaveBeenCalledWith("cinematic");
+
+    rerender(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: "cinematic",
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle,
+          },
+        })}
+      />
+    );
+    expect(getByRole("button", { name: /style tile: cinematic$/i })).toHaveClass("is-selected");
   });
 
   it("snaps the top canvas split toward canvas and inventory via top divider pills", () => {

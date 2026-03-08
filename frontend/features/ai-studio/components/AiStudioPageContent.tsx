@@ -3,8 +3,8 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import React from "react";
-import Link from "next/link";
 import {
+  Eye,
   FlowArrow,
   Globe,
   type IconProps,
@@ -22,6 +22,7 @@ import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { EditPropertiesPanel } from "./EditPropertiesPanel";
 import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
+import { EXPERT_EDIT_STYLE_CATALOG } from "./edit/expertEditStyles";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
@@ -127,6 +128,45 @@ const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
   tool === "workflows" ||
   tool === "my-generations" ||
   tool === "community";
+const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
+  { id: "canvas", label: "Canvas" },
+  { id: "quick-slot-inventory", label: "Quick Slot Inventory" },
+  { id: "reference-grid", label: "Reference Grid" },
+  { id: "styles", label: "Styles" },
+] as const;
+type HeaderShortcutId = (typeof AI_STUDIO_HEADER_SHORTCUT_BUTTONS)[number]["id"];
+type WorkflowPanelVisibilityKey = "create" | "edit" | "video" | "canvas";
+type WorkflowPanelVisibilityState = {
+  canvas: boolean;
+  quickSlot: boolean;
+  referenceGrid: boolean;
+  styles: boolean;
+};
+
+const DEFAULT_WORKFLOW_PANEL_VISIBILITY: Record<
+  WorkflowPanelVisibilityKey,
+  WorkflowPanelVisibilityState
+> = {
+  create: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
+  edit: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
+  video: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
+  canvas: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
+};
+
+const resolvePanelVisibilityWorkflowKey = (tool: ToolId | null): WorkflowPanelVisibilityKey => {
+  switch (tool) {
+    case "edit":
+    case "image":
+      return "edit";
+    case "video":
+      return "video";
+    case "canvas":
+      return "canvas";
+    default:
+      // Create group intentionally includes create/text/kling and all non-panel workflows.
+      return "create";
+  }
+};
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
@@ -560,6 +600,119 @@ export function AiStudioPageContent({
   );
   const showExpertEditPanel =
     propertiesPanelKind === "edit" && propertiesEditExpert.expertEditEligible;
+  const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
+  const [panelVisibilityByWorkflow, setPanelVisibilityByWorkflow] = React.useState<
+    Record<WorkflowPanelVisibilityKey, WorkflowPanelVisibilityState>
+  >(() => ({
+    create: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.create },
+    edit: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.edit },
+    video: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.video },
+    canvas: { ...DEFAULT_WORKFLOW_PANEL_VISIBILITY.canvas },
+  }));
+  const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
+  const workflowPanelVisibilityKey = resolvePanelVisibilityWorkflowKey(selectedTool);
+  const workflowPanelVisibility = panelVisibilityByWorkflow[workflowPanelVisibilityKey];
+  const isQuickSlotToggleAvailable = Boolean(
+    resolvedReferenceGridProps.onAddCuratedReference &&
+    resolvedReferenceGridProps.onRemoveCuratedReference &&
+    resolvedReferenceGridProps.onReorderCuratedReference
+  );
+  const isCanvasToggleAvailable = Boolean(railCanvasProps) && selectedTool !== "canvas";
+  const isStylesToggleAvailable = showStylesPanelEligible;
+  const isStylesPanelOpen = isStylesToggleAvailable && workflowPanelVisibility.styles;
+  const effectivePanelVisibility = React.useMemo(
+    () => ({
+      canvas: isCanvasToggleAvailable && workflowPanelVisibility.canvas && !isStylesPanelOpen,
+      quickSlot:
+        isQuickSlotToggleAvailable && workflowPanelVisibility.quickSlot && !isStylesPanelOpen,
+      referenceGrid: workflowPanelVisibility.referenceGrid,
+      styles: isStylesPanelOpen,
+    }),
+    [
+      isCanvasToggleAvailable,
+      isQuickSlotToggleAvailable,
+      isStylesPanelOpen,
+      workflowPanelVisibility.canvas,
+      workflowPanelVisibility.quickSlot,
+      workflowPanelVisibility.referenceGrid,
+    ]
+  );
+  const headerShortcutStates = React.useMemo(
+    () => ({
+      canvas: {
+        pressed: effectivePanelVisibility.canvas,
+        disabled: !isCanvasToggleAvailable,
+      },
+      "quick-slot-inventory": {
+        pressed: effectivePanelVisibility.quickSlot,
+        disabled: !isQuickSlotToggleAvailable,
+      },
+      "reference-grid": {
+        pressed: effectivePanelVisibility.referenceGrid,
+        disabled: false,
+      },
+      styles: {
+        pressed: effectivePanelVisibility.styles,
+        disabled: !isStylesToggleAvailable,
+      },
+    }),
+    [
+      effectivePanelVisibility.canvas,
+      effectivePanelVisibility.quickSlot,
+      effectivePanelVisibility.referenceGrid,
+      effectivePanelVisibility.styles,
+      isCanvasToggleAvailable,
+      isQuickSlotToggleAvailable,
+      isStylesToggleAvailable,
+    ]
+  );
+  const handleHeaderShortcutToggle = React.useCallback(
+    (shortcutId: HeaderShortcutId) => {
+      if (shortcutId === "styles") {
+        if (!isStylesToggleAvailable) return;
+        setPanelVisibilityByWorkflow((previous) => {
+          const previousWorkflowVisibility = previous[workflowPanelVisibilityKey];
+          return {
+            ...previous,
+            [workflowPanelVisibilityKey]: {
+              ...previousWorkflowVisibility,
+              styles: !previousWorkflowVisibility.styles,
+            },
+          };
+        });
+        return;
+      }
+      if (shortcutId === "canvas" && !isCanvasToggleAvailable) return;
+      if (shortcutId === "quick-slot-inventory" && !isQuickSlotToggleAvailable) return;
+      setPanelVisibilityByWorkflow((previous) => {
+        const previousWorkflowVisibility = previous[workflowPanelVisibilityKey];
+        return {
+          ...previous,
+          [workflowPanelVisibilityKey]: {
+            ...previousWorkflowVisibility,
+            canvas:
+              shortcutId === "canvas"
+                ? !previousWorkflowVisibility.canvas
+                : previousWorkflowVisibility.canvas,
+            quickSlot:
+              shortcutId === "quick-slot-inventory"
+                ? !previousWorkflowVisibility.quickSlot
+                : previousWorkflowVisibility.quickSlot,
+            referenceGrid:
+              shortcutId === "reference-grid"
+                ? !previousWorkflowVisibility.referenceGrid
+                : previousWorkflowVisibility.referenceGrid,
+          },
+        };
+      });
+    },
+    [
+      isCanvasToggleAvailable,
+      isQuickSlotToggleAvailable,
+      isStylesToggleAvailable,
+      workflowPanelVisibilityKey,
+    ]
+  );
   const { activeCount } = useOutputCounts();
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isPerformanceDenseSession =
@@ -619,6 +772,65 @@ export function AiStudioPageContent({
     previousSelectedToolRef.current = selectedTool;
   }, [collapseToMin, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
+  const handleStylesPanelToggle = React.useCallback(() => {
+    if (!isStylesToggleAvailable) return;
+    setPanelVisibilityByWorkflow((previous) => {
+      const previousWorkflowVisibility = previous[workflowPanelVisibilityKey];
+      return {
+        ...previous,
+        [workflowPanelVisibilityKey]: {
+          ...previousWorkflowVisibility,
+          styles: !previousWorkflowVisibility.styles,
+        },
+      };
+    });
+  }, [isStylesToggleAvailable, workflowPanelVisibilityKey]);
+  const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
+    setSelectedStyleId(styleId);
+  }, []);
+  const resolvedExpertEditProperties = React.useMemo(
+    () => ({
+      ...propertiesEditExpert,
+      isStylesPanelOpen,
+      onStylesPanelToggle: handleStylesPanelToggle,
+      selectedStyleId,
+    }),
+    [
+      handleSelectedStyleIdChange,
+      handleStylesPanelToggle,
+      isStylesPanelOpen,
+      propertiesEditExpert,
+      selectedStyleId,
+    ]
+  );
+  const resolvedCreatePropertiesWithStyles = React.useMemo(
+    () => ({
+      ...resolvedCreateProperties,
+      isStylesPanelOpen,
+      onStylesPanelToggle: handleStylesPanelToggle,
+      selectedStyleId,
+    }),
+    [handleStylesPanelToggle, isStylesPanelOpen, resolvedCreateProperties, selectedStyleId]
+  );
+  const resolvedReferenceGridPropsWithStylesPanel = React.useMemo(
+    () => ({
+      ...resolvedReferenceGridProps,
+      panelVisibility: effectivePanelVisibility,
+      stylesPanel: {
+        isOpen: isStylesPanelOpen,
+        selectedStyleId,
+        styles: EXPERT_EDIT_STYLE_CATALOG,
+        onSelectStyle: handleSelectedStyleIdChange,
+      },
+    }),
+    [
+      effectivePanelVisibility,
+      handleSelectedStyleIdChange,
+      isStylesPanelOpen,
+      resolvedReferenceGridProps,
+      selectedStyleId,
+    ]
+  );
   const isTargetInsideRailCanvas = React.useCallback((target: EventTarget | null): boolean => {
     const rightColumnNode = rightColumnRef.current;
     if (!rightColumnNode || !(target instanceof Node)) return false;
@@ -671,20 +883,20 @@ export function AiStudioPageContent({
       create: (
         <>
           <CreatePropertiesPanel
-            {...resolvedCreateProperties}
+            {...resolvedCreatePropertiesWithStyles}
             agentChatOpen={agentChat.isOpen}
-            onAgentEnhanceSend={resolvedCreateProperties.onAgentEnhanceSend}
+            onAgentEnhanceSend={resolvedCreatePropertiesWithStyles.onAgentEnhanceSend}
           />
           {!showExpertCreatePanel ? (
             <ComposeSendCard
-              {...resolvedCreateProperties}
-              onGenerate={resolvedCreateProperties.onGenerate}
+              {...resolvedCreatePropertiesWithStyles}
+              onGenerate={resolvedCreatePropertiesWithStyles.onGenerate}
             />
           ) : null}
         </>
       ),
       edit: showExpertEditPanel ? (
-        <ExpertEditPanelView {...propertiesEditExpert} />
+        <ExpertEditPanelView {...resolvedExpertEditProperties} />
       ) : (
         <EditPropertiesPanel {...propertiesImage} />
       ),
@@ -702,9 +914,9 @@ export function AiStudioPageContent({
       agentChat.isOpen,
       beginnerMode,
       propertiesImage,
-      propertiesEditExpert,
       propertiesCanvas,
-      resolvedCreateProperties,
+      resolvedCreatePropertiesWithStyles,
+      resolvedExpertEditProperties,
       resolveCharacterDropReference,
       propertiesVideo,
       showExpertEditPanel,
@@ -758,8 +970,8 @@ export function AiStudioPageContent({
     resolveDropMode: (transfer) => resolveRightColumnDropMode(transfer) as RightColumnDropMode,
     resolveDropPayload: (transfer) => resolveRightColumnDropPayload(transfer),
     onDropFiles: resolvedHandleReferenceGridFiles,
-    onDropMediaReference: resolvedReferenceGridProps.onPasteMediaReference,
-    onDropTextReference: resolvedReferenceGridProps.onPasteTextReference,
+    onDropMediaReference: resolvedReferenceGridPropsWithStylesPanel.onPasteMediaReference,
+    onDropTextReference: resolvedReferenceGridPropsWithStylesPanel.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
     shouldBypassCapture: (event, context) => {
       if (!isTargetInsideRailCanvas(event.target)) return false;
@@ -790,8 +1002,6 @@ export function AiStudioPageContent({
         <section className="ai-hero panel hero-banner ai-amber-hero">
           <div className="hero-text">
             <h1 className="ai-hero-title">AI Studio</h1>
-          </div>
-          <div className="hero-right">
             <div className="ai-credit-inline header-embedded">
               <span className="credit-label">Credits</span>
               <span className="credit-value">
@@ -801,13 +1011,34 @@ export function AiStudioPageContent({
                     ? balanceCredits.toLocaleString()
                     : "—"}
               </span>
-              <Link
-                href="/profile?section=account"
-                className="header-profile-link"
-                aria-label="Account settings"
+            </div>
+          </div>
+          <div className="hero-right">
+            <div className="ai-hero-shortcut-cluster">
+              <div className="ai-hero-shortcut-buttons" aria-label="AI Studio header shortcuts">
+                {AI_STUDIO_HEADER_SHORTCUT_BUTTONS.map((shortcut) => {
+                  const buttonState = headerShortcutStates[shortcut.id];
+                  return (
+                    <button
+                      key={shortcut.id}
+                      type="button"
+                      className="ai-hero-shortcut-button"
+                      aria-pressed={buttonState.pressed}
+                      disabled={buttonState.disabled}
+                      onClick={() => handleHeaderShortcutToggle(shortcut.id)}
+                    >
+                      {shortcut.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="ai-hero-shortcut-icon-button"
+                aria-label="Styles visibility"
               >
-                <span className="header-profile-avatar">KI</span>
-              </Link>
+                <Eye size={16} weight="regular" aria-hidden="true" />
+              </button>
             </div>
           </div>
         </section>
@@ -846,7 +1077,7 @@ export function AiStudioPageContent({
               onShellDragOverCapture={handleShellDragOverCapture}
               onShellDropCapture={handleShellDropCapture}
               agentChat={agentChat}
-              referenceGridProps={resolvedReferenceGridProps}
+              referenceGridProps={resolvedReferenceGridPropsWithStylesPanel}
               railCanvasProps={railCanvasProps}
               studioPreviewProps={studioPreviewProps}
               handleReferenceGridFiles={resolvedHandleReferenceGridFiles}

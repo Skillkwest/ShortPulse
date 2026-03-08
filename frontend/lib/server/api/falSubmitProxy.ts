@@ -36,6 +36,7 @@ type FalSubmitConfig = {
   provider?: string;
   submitUrl?: string;
   submitTargets?: SubmitTarget[];
+  skipBilling?: boolean;
   routeLabel: string;
   timeoutMs?: number;
   validatePayload?: (payload: Record<string, unknown>) => {
@@ -118,6 +119,7 @@ export const createFalSubmitHandler =
     provider = "fal",
     submitUrl,
     submitTargets,
+    skipBilling = false,
     routeLabel,
     timeoutMs = 20000,
     validatePayload,
@@ -242,6 +244,7 @@ export const createFalSubmitHandler =
       modelId,
       payload,
       reason: `${routeLabel} generation`,
+      skipBilling,
     });
     if (!charge) return;
     const runtimeFlags = readFalRuntimeFlags();

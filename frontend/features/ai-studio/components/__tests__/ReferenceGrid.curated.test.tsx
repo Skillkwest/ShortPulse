@@ -1525,8 +1525,8 @@ describe("ReferenceGrid curated split", () => {
     expect(getByText("Reference Grid")).toBeInTheDocument();
   });
 
-  it("renders styles panel below Reference Grid while keeping Canvas + Quick Slot sections visible", () => {
-    const { queryByText, getByText, getByRole, queryByRole } = render(
+  it("renders both resizable dividers when Quick Slot, Reference Grid, and Styles are visible", () => {
+    const { queryByText, getByText, getByRole } = render(
       <ReferenceGrid
         {...createProps({
           selectedTool: "edit",
@@ -1549,8 +1549,8 @@ describe("ReferenceGrid curated split", () => {
       getByRole("separator", { name: "Resize Quick Slot Inventory and Reference Grid sections" })
     ).toBeInTheDocument();
     expect(
-      queryByRole("separator", { name: "Resize Reference Grid and Styles sections" })
-    ).toBeNull();
+      getByRole("separator", { name: "Resize Reference Grid and Styles sections" })
+    ).toBeInTheDocument();
   });
 
   it("respects panel visibility toggles for Canvas, Quick Slot, and Reference Grid sections", () => {

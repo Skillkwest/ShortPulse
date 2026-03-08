@@ -80,7 +80,7 @@
 
 .edit-expert-preset-action-btn {
   width: 100%;
-  min-height: 56px;
+  min-height: 52px;
   border-radius: 7px;
   border: 1px solid var(--edit-expert-accent-strong);
   background: linear-gradient(
@@ -97,7 +97,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  padding: 12px 10px;
+  padding: 10px 10px;
   white-space: normal;
   line-height: 1.2;
   text-align: left;
@@ -115,7 +115,7 @@
   align-items: center;
   column-gap: 4px;
   gap: 4px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   font-weight: 700;
 }
 
@@ -453,7 +453,7 @@
 }
 
 .edit-expert-presets-surface.is-drop-active {
-  box-shadow: inset 0 0 0 1px rgba(100, 209, 230, 0.4);
+  background: #13171f;
 }
 
 .edit-expert-presets-surface-header {
@@ -519,7 +519,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 2px 0 0;
+  padding: 6px 0 0;
 }
 
 .edit-expert-presets-chip-grid {
@@ -528,13 +528,24 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   grid-auto-rows: calc((100% - 64px) / 9);
-  padding-top: 1px;
+  padding-top: 2px;
+}
+
+.edit-expert-presets-chip-item {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
 }
 
 .edit-expert-presets-chip {
+  width: 100%;
   min-height: 0;
   height: 100%;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid rgba(201, 205, 214, 0.24);
   background: rgba(201, 205, 214, 0.06);
   color: rgba(238, 242, 248, 0.92);
@@ -548,6 +559,10 @@
     border-color 0.16s ease,
     background 0.16s ease,
     transform 0.16s ease;
+}
+
+.edit-expert-presets-chip-item.is-custom .edit-expert-presets-chip {
+  padding-right: 36px;
 }
 
 .edit-expert-presets-chip:active {
@@ -576,6 +591,139 @@
 
 .edit-expert-presets-chip.is-custom-label:focus-visible {
   color: rgba(186, 196, 208, 0.86);
+}
+
+.edit-expert-presets-chip-edit {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: rgba(201, 205, 214, 0.08);
+  color: rgba(212, 220, 233, 0.76);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.edit-expert-presets-chip-edit:hover {
+  border-color: rgba(205, 210, 220, 0.38);
+  background: rgba(201, 205, 214, 0.16);
+  color: rgba(235, 241, 250, 0.92);
+}
+
+.edit-expert-presets-chip-edit:focus-visible {
+  outline: none;
+  border-color: rgba(205, 210, 220, 0.48);
+  background: rgba(201, 205, 214, 0.18);
+}
+
+.edit-expert-presets-custom-editor-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(3, 6, 10, 0.64);
+}
+
+.edit-expert-presets-custom-editor {
+  width: min(420px, 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  background: #111723;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.5);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-expert-presets-custom-editor-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-expert-presets-custom-editor-label {
+  margin: 0;
+  color: rgba(209, 218, 231, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.edit-expert-presets-custom-editor-input,
+.edit-expert-presets-custom-editor-textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  background: rgba(18, 25, 37, 0.96);
+  color: rgba(242, 246, 253, 0.94);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+.edit-expert-presets-custom-editor-input:focus-visible,
+.edit-expert-presets-custom-editor-textarea:focus-visible {
+  outline: none;
+  border-color: rgba(205, 210, 220, 0.44);
+  box-shadow: 0 0 0 1px rgba(205, 210, 220, 0.14);
+}
+
+.edit-expert-presets-custom-editor-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.edit-expert-presets-custom-editor-error {
+  margin: 0;
+  color: rgba(255, 177, 132, 0.96);
+  font-size: 12px;
+}
+
+.edit-expert-presets-custom-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.edit-expert-presets-custom-editor-btn {
+  min-width: 74px;
+  min-height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: rgba(201, 205, 214, 0.08);
+  color: rgba(235, 240, 249, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.edit-expert-presets-custom-editor-btn:hover {
+  border-color: rgba(205, 210, 220, 0.36);
+  background: rgba(201, 205, 214, 0.13);
+}
+
+.edit-expert-presets-custom-editor-btn.is-primary {
+  border-color: rgba(245, 185, 66, 0.54);
+  background: linear-gradient(135deg, rgba(245, 185, 66, 0.26), rgba(245, 140, 66, 0.24));
+  color: rgba(255, 228, 189, 0.98);
 }
 
 .edit-expert-layers-toolbar {
@@ -956,6 +1104,19 @@
   pointer-events: none;
 }
 
+.edit-expert-crop-guide-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.edit-expert-crop-guide-rect {
+  position: absolute;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 237, 201, 0.459);
+}
+
 .edit-expert-primary-dropzone .reference-drop-content {
   align-items: center;
   text-align: center;
@@ -1006,9 +1167,11 @@
 }
 
 .edit-expert-styles-btn {
+  position: relative;
   width: var(--edit-expert-secondary-width);
   min-width: var(--edit-expert-secondary-width);
   height: var(--edit-expert-secondary-width);
+  padding: 0;
   border-radius: 10px;
   border: 1px solid rgba(92, 96, 104, 0.9);
   background: rgba(37, 41, 47, 0.64);
@@ -1016,6 +1179,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -1036,6 +1200,23 @@
   outline: none;
   border-color: rgba(205, 210, 220, 0.2);
   background: rgba(52, 56, 64, 0.95);
+}
+
+.edit-expert-styles-btn.has-selected-style {
+  border-color: rgba(201, 205, 214, 0.34);
+  background: rgba(23, 27, 34, 0.96);
+}
+
+.edit-expert-styles-btn-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .edit-expert-styles-control {
@@ -1073,6 +1254,186 @@
   align-items: center;
   justify-content: center;
   gap: var(--edit-expert-tools-title-to-control-gap);
+}
+
+.edit-expert-styles-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(245, 185, 66, 0.08), transparent 40%),
+    radial-gradient(circle at 82% 30%, rgba(82, 193, 220, 0.09), transparent 42%),
+    rgba(7, 9, 14, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 1240;
+}
+
+.edit-expert-styles-modal {
+  width: fit-content;
+  max-width: 94vw;
+  max-height: min(760px, 90vh);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: #101215;
+  box-shadow:
+    0 32px 78px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  padding: 18px 18px 14px;
+}
+
+.edit-expert-styles-modal:focus,
+.edit-expert-styles-modal:focus-visible {
+  outline: none;
+}
+
+.edit-expert-styles-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.edit-expert-styles-modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.edit-expert-styles-modal-title {
+  margin: 0;
+  color: #f5f9ff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.edit-expert-styles-modal-subtitle {
+  margin: 0;
+  color: rgba(208, 216, 229, 0.72);
+  font-size: 12px;
+}
+
+.edit-expert-styles-modal-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(235, 241, 251, 0.92);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.edit-expert-styles-modal-close:hover {
+  border-color: rgba(234, 239, 247, 0.42);
+  background: rgba(234, 239, 247, 0.12);
+  color: #ffffff;
+}
+
+.edit-expert-styles-modal-close:focus-visible {
+  outline: 2px solid rgba(126, 171, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.edit-expert-styles-modal-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1px 2px 8px;
+}
+
+.edit-expert-styles-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 170px));
+  justify-content: center;
+  gap: 10px;
+  min-width: 560px;
+}
+
+.edit-expert-style-tile {
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  border-radius: 10px;
+  background: rgba(201, 205, 214, 0.04);
+  padding: 7px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.edit-expert-style-tile:hover:not(:disabled) {
+  border-color: rgba(205, 210, 220, 0.36);
+  background: rgba(201, 205, 214, 0.08);
+  transform: translateY(-1px);
+}
+
+.edit-expert-style-tile.is-selected {
+  border-color: rgba(245, 185, 66, 0.82);
+  box-shadow: 0 0 0 1px rgba(245, 185, 66, 0.26);
+  background: rgba(245, 185, 66, 0.08);
+}
+
+.edit-expert-style-tile.is-placeholder,
+.edit-expert-style-tile:disabled {
+  cursor: not-allowed;
+  border-color: rgba(138, 148, 161, 0.22);
+  background: rgba(201, 205, 214, 0.03);
+}
+
+.edit-expert-style-tile-title {
+  color: rgba(238, 242, 248, 0.94);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.edit-expert-style-tile-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background:
+    linear-gradient(140deg, rgba(201, 205, 214, 0.12), rgba(201, 205, 214, 0.04)),
+    rgba(20, 23, 29, 0.85);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.edit-expert-style-tile-coming-soon {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.36);
+  background: rgba(13, 16, 22, 0.82);
+  color: rgba(220, 228, 239, 0.78);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .edit-expert-inpaint-btn {
@@ -1502,6 +1863,11 @@
   border-color: rgba(223, 204, 165, 0.88);
 }
 
+.edit-expert-inpaint-controls.is-themed-crop .edit-expert-crop-history-btn {
+  border-color: rgba(223, 204, 165, 0.34);
+  color: rgba(238, 241, 248, 0.98);
+}
+
 .edit-expert-inpaint-controls.is-themed-move {
   border-color: rgba(52, 200, 255, 0.34);
 }
@@ -1833,7 +2199,9 @@
 }
 
 .edit-expert-crop-controls-content {
-  display: flex;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   width: 100%;
   height: 100%;
 }
@@ -1842,15 +2210,25 @@
   width: 100%;
   height: 100%;
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.edit-expert-crop-actions-row {
+  width: 100%;
+  height: 100%;
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: minmax(0, 1fr);
-  align-content: stretch;
   gap: 8px;
 }
 
 .edit-expert-crop-chip {
   min-height: 0;
   height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border-radius: 8px;
   border: 1px solid rgba(98, 102, 110, 0.56);
   background: rgba(34, 38, 44, 0.74);
@@ -1858,10 +2236,11 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
-  padding: 6px 9px;
+  align-items: center;
+  gap: 0;
+  padding: 6px 4px;
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   transition:
     border-color 0.16s ease,
     background 0.16s ease;
@@ -1887,29 +2266,23 @@
 }
 
 .edit-expert-crop-chip-ratio {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.1;
-}
-
-.edit-expert-crop-chip-label {
-  font-size: 10px;
-  font-weight: 500;
-  color: rgba(193, 199, 210, 0.94);
-  line-height: 1.2;
+  display: block;
+  width: auto;
+  font-size: clamp(13px, 1.2vw, 18px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
 }
 
 .edit-expert-crop-apply-btn {
   min-height: 0;
-  height: calc(100% - 10px);
-  width: calc(100% - 14px);
-  align-self: center;
-  justify-self: center;
-  border-radius: 10px;
+  height: 100%;
+  width: 100%;
+  border-radius: 8px;
   border: 1px solid rgba(223, 204, 165, 0.95);
   background: linear-gradient(135deg, rgba(248, 241, 226, 0.96), rgba(232, 220, 193, 0.9));
   color: rgba(28, 22, 12, 0.97);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1951,11 +2324,52 @@
     inset 0 1px 0 rgba(255, 251, 240, 0.22);
 }
 
+.edit-expert-crop-history-btn {
+  min-height: 0;
+  height: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(98, 102, 110, 0.56);
+  background: rgba(39, 43, 50, 0.82);
+  color: rgba(238, 241, 248, 0.96);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.edit-expert-crop-history-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.edit-expert-crop-history-btn:hover {
+  border-color: rgba(126, 132, 143, 0.68);
+  background: rgba(44, 48, 56, 0.9);
+}
+
+.edit-expert-crop-history-btn:focus-visible {
+  outline: none;
+  border-color: rgba(235, 222, 195, 0.82);
+}
+
+.edit-expert-crop-history-btn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
 .edit-expert-move-controls-content {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
+  gap: 14px;
+  padding: 4px 0;
   width: 100%;
   height: 100%;
 }
@@ -1998,6 +2412,7 @@
   width: 100%;
   height: 1px;
   background: rgba(126, 131, 141, 0.34);
+  margin: 2px 0;
 }
 
 .edit-expert-move-history-row {

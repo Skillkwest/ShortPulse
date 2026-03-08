@@ -6,6 +6,10 @@ import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { AiStudioEditExpertPanelContract } from "./contracts/pageContentContracts";
+import type {
+  ExpertEditCustomPresetOverrides,
+  ExpertEditPresetId,
+} from "../components/edit/expertEditPresets";
 
 type UseAiStudioEditExpertPanelPropsParams = {
   expertEditEligible: boolean;
@@ -53,6 +57,10 @@ type UseAiStudioEditExpertPanelPropsParams = {
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
+  selectedPresetIds?: readonly ExpertEditPresetId[];
+  onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
+  customPresetOverrides?: ExpertEditCustomPresetOverrides;
+  onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
 };
 
 /**
@@ -89,6 +97,10 @@ export const useAiStudioEditExpertPanelProps = ({
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
+  selectedPresetIds,
+  onSelectedPresetIdsChange,
+  customPresetOverrides,
+  onCustomPresetOverridesChange,
 }: UseAiStudioEditExpertPanelPropsParams): AiStudioEditExpertPanelContract =>
   useMemo(
     () => ({
@@ -136,6 +148,10 @@ export const useAiStudioEditExpertPanelProps = ({
       isCharacterOptionsLoading,
       characterModeEnabled: isCharacterModeEnabled,
       onCharacterModeEnabledChange: setIsCharacterModeEnabled,
+      selectedPresetIds,
+      onSelectedPresetIdsChange,
+      customPresetOverrides,
+      onCustomPresetOverridesChange,
     }),
     [
       aspect,
@@ -160,7 +176,11 @@ export const useAiStudioEditExpertPanelProps = ({
       referenceImageUrl,
       referenceImageWarning,
       resolveOutputPreviewUrl,
+      customPresetOverrides,
+      onCustomPresetOverridesChange,
+      onSelectedPresetIdsChange,
       selectedCharacterId,
+      selectedPresetIds,
       setAspect,
       addSessionMediaReference,
       setExtraImageUrl,

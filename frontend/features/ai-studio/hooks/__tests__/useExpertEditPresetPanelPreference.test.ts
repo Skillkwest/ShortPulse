@@ -1,0 +1,291 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
+  EDIT_PRESET_PANEL_MAX,
+  type ExpertEditPresetId,
+} from "../../components/edit/expertEditPresets";
+import { useExpertEditPresetPanelPreference } from "../useExpertEditPresetPanelPreference";
+
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+};
+
+const createDeferred = <T>(): Deferred<T> => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseClient: ensureSupabaseClientMock,
+}));
+
+describe("useExpertEditPresetPanelPreference", () => {
+  beforeEach(() => {
+    ensureSupabaseClientMock.mockReset();
+    window.localStorage.clear();
+  });
+
+  it("loads local preference and becomes ready when no user session exists", async () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.expert_edit_preset_panel_ids",
+      JSON.stringify(["low_angle", "custom_8"])
+    );
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.expert_edit_custom_presets",
+      JSON.stringify({
+        custom_8: { label: "My Custom Eight", prompt: "Use custom eight prompt." },
+      })
+    );
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      },
+      from: vi.fn(),
+    });
+
+    const { result } = renderHook(() => useExpertEditPresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.presetPanelIds).toEqual(["low_angle", "custom_8"]);
+    expect(result.current.customPresetOverrides).toEqual({
+      custom_8: { label: "My Custom Eight", prompt: "Use custom eight prompt." },
+    });
+    expect(result.current.syncState).toBe("ready");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("falls back to seeded defaults when stored/remote values are missing", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    });
+
+    const { result } = renderHook(() => useExpertEditPresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.presetPanelIds).toEqual(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS);
+    expect(result.current.customPresetOverrides).toEqual({});
+    expect(upsert).toHaveBeenCalledWith(
+      {
+        user_id: "user-1",
+        expert_edit_preset_panel_ids: EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
+        expert_edit_custom_presets: {},
+      },
+      { onConflict: "user_id" }
+    );
+  });
+
+  it("preserves an explicitly empty preset panel allocation", async () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.expert_edit_preset_panel_ids",
+      JSON.stringify([])
+    );
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      },
+      from: vi.fn(),
+    });
+
+    const { result } = renderHook(() => useExpertEditPresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.presetPanelIds).toEqual([]);
+
+    act(() => {
+      result.current.setPresetPanelIds([]);
+    });
+
+    const storedRaw = window.localStorage.getItem(
+      "shortpulse.ai_studio.expert_edit_preset_panel_ids"
+    );
+    expect(storedRaw).toBeTruthy();
+    expect(JSON.parse(storedRaw ?? "null")).toEqual([]);
+  });
+
+  it("uses legacy label fallback from remote and backfills new id columns", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        expert_edit_preset_panel_ids: null,
+        expert_edit_custom_presets: null,
+        expert_edit_preset_panel_labels: ["Selfie", "Custom 18"],
+      },
+      error: null,
+    });
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "user-2" } } },
+          error: null,
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    });
+
+    const { result } = renderHook(() => useExpertEditPresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.presetPanelIds).toEqual(["selfie", "custom_18"]);
+    expect(upsert).toHaveBeenCalledWith(
+      {
+        user_id: "user-2",
+        expert_edit_preset_panel_ids: ["selfie", "custom_18"],
+        expert_edit_custom_presets: {},
+      },
+      { onConflict: "user_id" }
+    );
+  });
+
+  it("normalizes oversized/invalid values and ignores stale failed writes", async () => {
+    const firstWrite = createDeferred<{ error: null | { message: string } }>();
+    const secondWrite = createDeferred<{ error: null | { message: string } }>();
+    let upsertCall = 0;
+
+    const upsert = vi.fn(() => {
+      const nextCall = upsertCall;
+      upsertCall += 1;
+      if (nextCall === 0) return firstWrite.promise;
+      return secondWrite.promise;
+    });
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        expert_edit_preset_panel_ids: ["unknown", "custom_18", "selfie", "selfie", 99] as unknown,
+        expert_edit_custom_presets: {
+          custom_18: { label: "Custom 18 Name", prompt: "Custom 18 Prompt" },
+          custom_3: { label: " ", prompt: " " },
+          custom_1: { label: "Custom One", prompt: "Custom One Prompt" },
+        },
+        expert_edit_preset_panel_labels: ["Selfie"],
+      },
+      error: null,
+    });
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    });
+
+    const { result } = renderHook(() => useExpertEditPresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.presetPanelIds).toEqual(["selfie", "custom_18"]);
+    expect(result.current.customPresetOverrides).toEqual({
+      custom_18: { label: "Custom 18 Name", prompt: "Custom 18 Prompt" },
+      custom_1: { label: "Custom One", prompt: "Custom One Prompt" },
+    });
+
+    act(() => {
+      result.current.setPresetPanelIds([
+        "custom_5",
+        ...Array.from({ length: 20 }, (_, index) => `custom_${index + 1}`),
+      ] as unknown as ExpertEditPresetId[]);
+      result.current.setPresetPanelIds(["selfie", "zoom_out", "custom_18"]);
+      result.current.setCustomPresetOverrides({
+        custom_18: { label: "Custom Eighteen", prompt: "Prompt Eighteen" },
+      });
+    });
+
+    await act(async () => {
+      secondWrite.resolve({ error: null });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("ready");
+      expect(result.current.presetPanelIds).toEqual(["selfie", "zoom_out", "custom_18"]);
+      expect(result.current.customPresetOverrides).toEqual({
+        custom_18: { label: "Custom Eighteen", prompt: "Prompt Eighteen" },
+      });
+    });
+
+    await act(async () => {
+      firstWrite.reject(new Error("stale failure"));
+      await Promise.resolve();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.presetPanelIds).toEqual(["selfie", "zoom_out", "custom_18"]);
+
+    const storedRaw = window.localStorage.getItem(
+      "shortpulse.ai_studio.expert_edit_preset_panel_ids"
+    );
+    expect(storedRaw).toBeTruthy();
+    const storedParsed = JSON.parse(storedRaw ?? "[]") as unknown[];
+    expect(storedParsed.length).toBeLessThanOrEqual(EDIT_PRESET_PANEL_MAX);
+  });
+});

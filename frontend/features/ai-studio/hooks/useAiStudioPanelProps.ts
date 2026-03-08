@@ -21,6 +21,10 @@ import type { StudioMode, StudioOutput } from "../types";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
 import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
+import type {
+  ExpertEditCustomPresetOverrides,
+  ExpertEditPresetId,
+} from "../components/edit/expertEditPresets";
 import { useAiStudioCreatePanelProps } from "./useAiStudioCreatePanelProps";
 import { useAiStudioEditPanelProps } from "./useAiStudioEditPanelProps";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
@@ -99,6 +103,10 @@ export type UseAiStudioPanelPropsParams = {
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
+  selectedExpertEditPresetIds?: readonly ExpertEditPresetId[];
+  onSelectedExpertEditPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
+  expertEditCustomPresetOverrides?: ExpertEditCustomPresetOverrides;
+  onExpertEditCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;
@@ -228,6 +236,10 @@ export const useAiStudioPanelProps = ({
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
+  selectedExpertEditPresetIds,
+  onSelectedExpertEditPresetIdsChange,
+  expertEditCustomPresetOverrides,
+  onExpertEditCustomPresetOverridesChange,
   videoDurationSeconds,
   videoResolution,
   imageResolution,
@@ -445,6 +457,10 @@ export const useAiStudioPanelProps = ({
     isCharacterOptionsLoading,
     isCharacterModeEnabled,
     setIsCharacterModeEnabled,
+    selectedPresetIds: selectedExpertEditPresetIds,
+    onSelectedPresetIdsChange: onSelectedExpertEditPresetIdsChange,
+    customPresetOverrides: expertEditCustomPresetOverrides,
+    onCustomPresetOverridesChange: onExpertEditCustomPresetOverridesChange,
   });
 
   const propertiesVideo = useAiStudioVideoPanelProps({

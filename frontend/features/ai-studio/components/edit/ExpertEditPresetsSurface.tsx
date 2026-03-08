@@ -3,19 +3,43 @@
  * Keeps the presets UI decoupled from global modal primitives.
  */
 import React from "react";
+import { PencilSimpleLine } from "phosphor-react";
+import type {
+  ExpertEditCustomPresetId,
+  ExpertEditCustomPresetOverride,
+  ExpertEditPresetId,
+  ExpertEditResolvedPreset,
+} from "./expertEditPresets";
 
 export type ExpertEditPresetsSurfaceProps = {
   id: string;
   isOpen: boolean;
-  labels: readonly string[];
+  presets: readonly ExpertEditResolvedPreset[];
   onClose: () => void;
-  onPresetSelect?: (label: string) => void;
-  onPresetDragStart?: (event: React.DragEvent<HTMLButtonElement>, label: string) => void;
+  onPresetSelect?: (presetId: ExpertEditPresetId) => void;
+  onPresetDragStart?: (
+    event: React.DragEvent<HTMLButtonElement>,
+    presetId: ExpertEditPresetId
+  ) => void;
   onPresetDragEnd?: () => void;
   onSurfaceDragOver?: (event: React.DragEvent<HTMLElement>) => void;
   onSurfaceDrop?: (event: React.DragEvent<HTMLElement>) => void;
   onSurfaceDragLeave?: (event: React.DragEvent<HTMLElement>) => void;
+  onCustomPresetSave?: (
+    presetId: ExpertEditCustomPresetId,
+    override: ExpertEditCustomPresetOverride
+  ) => void;
   isDropActive?: boolean;
+};
+
+type EditorDraft = {
+  label: string;
+  prompt: string;
+};
+
+const EMPTY_EDITOR_DRAFT: EditorDraft = {
+  label: "",
+  prompt: "",
 };
 
 /**
@@ -24,7 +48,7 @@ export type ExpertEditPresetsSurfaceProps = {
 export const ExpertEditPresetsSurface = ({
   id,
   isOpen,
-  labels,
+  presets,
   onClose,
   onPresetSelect,
   onPresetDragStart,
@@ -32,14 +56,68 @@ export const ExpertEditPresetsSurface = ({
   onSurfaceDragOver,
   onSurfaceDrop,
   onSurfaceDragLeave,
+  onCustomPresetSave,
   isDropActive = false,
 }: ExpertEditPresetsSurfaceProps) => {
   const surfaceRef = React.useRef<HTMLElement | null>(null);
+  const editorDialogRef = React.useRef<HTMLDivElement | null>(null);
+  const editorNameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [editingPresetId, setEditingPresetId] = React.useState<ExpertEditCustomPresetId | null>(
+    null
+  );
+  const [editorDraft, setEditorDraft] = React.useState<EditorDraft>(EMPTY_EDITOR_DRAFT);
+  const [editorError, setEditorError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setEditingPresetId(null);
+      setEditorDraft(EMPTY_EDITOR_DRAFT);
+      setEditorError(null);
+      return;
+    }
     surfaceRef.current?.focus();
   }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!editingPresetId) return;
+    editorNameInputRef.current?.focus();
+  }, [editingPresetId]);
+
+  const closeEditor = React.useCallback(() => {
+    setEditingPresetId(null);
+    setEditorDraft(EMPTY_EDITOR_DRAFT);
+    setEditorError(null);
+  }, []);
+
+  const openEditor = React.useCallback((preset: ExpertEditResolvedPreset) => {
+    if (!preset.isCustom) return;
+    setEditingPresetId(preset.presetId as ExpertEditCustomPresetId);
+    setEditorDraft({
+      label: preset.label,
+      prompt: preset.prompt,
+    });
+    setEditorError(null);
+  }, []);
+
+  const saveEditor = React.useCallback(() => {
+    if (!editingPresetId) return;
+    const nextLabel = editorDraft.label.trim();
+    const nextPrompt = editorDraft.prompt.trim();
+    if (!nextLabel || !nextPrompt) {
+      setEditorError("Name and prompt are required.");
+      return;
+    }
+    onCustomPresetSave?.(editingPresetId, {
+      label: nextLabel,
+      prompt: nextPrompt,
+    });
+    closeEditor();
+  }, [closeEditor, editingPresetId, editorDraft, onCustomPresetSave]);
+
+  const shouldUseMutedCustomLabel = React.useCallback((preset: ExpertEditResolvedPreset) => {
+    if (!preset.isCustom) return false;
+    return /^custom\s+\d+$/i.test(preset.label.trim());
+  }, []);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -47,15 +125,12 @@ export const ExpertEditPresetsSurface = ({
       const targetNode = event.target as Node | null;
       if (!targetNode) return;
       if (surfaceRef.current?.contains(targetNode)) return;
-      const interactiveOutsideSelectors = [
-        ".edit-expert-preset-btn--selected",
-        ".edit-expert-preset-empty-drop",
-      ];
       const targetElement = targetNode instanceof Element ? targetNode : null;
-      if (
-        targetElement &&
-        interactiveOutsideSelectors.some((selector) => targetElement.closest(selector))
-      ) {
+      const triggerElement = targetElement?.closest("[aria-controls]");
+      if (triggerElement && triggerElement.getAttribute("aria-controls") === id) {
+        return;
+      }
+      if (targetElement && targetElement.closest(".edit-expert-preset-btn--selected")) {
         return;
       }
       onClose();
@@ -64,7 +139,7 @@ export const ExpertEditPresetsSurface = ({
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [isOpen, onClose]);
+  }, [id, isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -77,6 +152,13 @@ export const ExpertEditPresetsSurface = ({
       aria-label="More presets"
       tabIndex={-1}
       onClick={(event) => event.stopPropagation()}
+      onPointerDownCapture={(event) => {
+        if (!editingPresetId) return;
+        const targetNode = event.target as Node | null;
+        if (!targetNode) return;
+        if (editorDialogRef.current?.contains(targetNode)) return;
+        closeEditor();
+      }}
       onDragOver={onSurfaceDragOver}
       onDrop={onSurfaceDrop}
       onDragLeave={onSurfaceDragLeave}
@@ -84,6 +166,10 @@ export const ExpertEditPresetsSurface = ({
         if (event.key !== "Escape") return;
         event.preventDefault();
         event.stopPropagation();
+        if (editingPresetId) {
+          closeEditor();
+          return;
+        }
         onClose();
       }}
     >
@@ -91,7 +177,7 @@ export const ExpertEditPresetsSurface = ({
         <div className="edit-expert-presets-surface-title-group">
           <h3 className="edit-expert-presets-surface-title">More Presets</h3>
           <p className="edit-expert-presets-surface-subtitle">
-            Available preset chips for this Expert Edit pass.
+            {"\u2190 Drag & drop presets into the preset panel to customize your workflow."}
           </p>
         </div>
         <button
@@ -105,24 +191,122 @@ export const ExpertEditPresetsSurface = ({
       </div>
       <div className="edit-expert-presets-surface-scroll">
         <div className="edit-expert-presets-chip-grid" role="list" aria-label="Available presets">
-          {labels.map((label) => (
-            <button
-              key={label}
-              type="button"
+          {presets.map((preset) => (
+            <div
+              key={preset.presetId}
               role="listitem"
-              draggable
-              className={`edit-expert-presets-chip ${
-                /^custom\s+\d+$/i.test(label) ? "is-custom-label" : ""
+              className={`edit-expert-presets-chip-item ${
+                preset.isCustom ? "is-custom" : ""
               }`.trim()}
-              onClick={() => onPresetSelect?.(label)}
-              onDragStart={(event) => onPresetDragStart?.(event, label)}
-              onDragEnd={onPresetDragEnd}
             >
-              {label}
-            </button>
+              <button
+                type="button"
+                draggable
+                className={`edit-expert-presets-chip ${
+                  shouldUseMutedCustomLabel(preset) ? "is-custom-label" : ""
+                }`.trim()}
+                onClick={() => onPresetSelect?.(preset.presetId)}
+                onDragStart={(event) => onPresetDragStart?.(event, preset.presetId)}
+                onDragEnd={onPresetDragEnd}
+              >
+                {preset.label}
+              </button>
+              {preset.isCustom ? (
+                <button
+                  type="button"
+                  className="edit-expert-presets-chip-edit"
+                  aria-label={`Edit ${preset.label} preset`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openEditor(preset);
+                  }}
+                >
+                  <PencilSimpleLine size={14} weight="regular" />
+                </button>
+              ) : null}
+            </div>
           ))}
         </div>
       </div>
+      {editingPresetId ? (
+        <div className="edit-expert-presets-custom-editor-overlay" onClick={closeEditor}>
+          <div
+            ref={editorDialogRef}
+            role="dialog"
+            aria-modal="false"
+            aria-label="Edit custom preset"
+            className="edit-expert-presets-custom-editor"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="edit-expert-presets-custom-editor-fields">
+              <label
+                className="edit-expert-presets-custom-editor-label"
+                htmlFor="preset-name-input"
+              >
+                Preset name
+              </label>
+              <input
+                id="preset-name-input"
+                ref={editorNameInputRef}
+                type="text"
+                className="edit-expert-presets-custom-editor-input"
+                value={editorDraft.label}
+                maxLength={40}
+                onChange={(event) => {
+                  setEditorDraft((previous) => ({
+                    ...previous,
+                    label: event.target.value,
+                  }));
+                  if (editorError) {
+                    setEditorError(null);
+                  }
+                }}
+              />
+              <label
+                className="edit-expert-presets-custom-editor-label"
+                htmlFor="preset-prompt-input"
+              >
+                Preset prompt
+              </label>
+              <textarea
+                id="preset-prompt-input"
+                className="edit-expert-presets-custom-editor-textarea"
+                value={editorDraft.prompt}
+                rows={5}
+                onChange={(event) => {
+                  setEditorDraft((previous) => ({
+                    ...previous,
+                    prompt: event.target.value,
+                  }));
+                  if (editorError) {
+                    setEditorError(null);
+                  }
+                }}
+              />
+              {editorError ? (
+                <p className="edit-expert-presets-custom-editor-error">{editorError}</p>
+              ) : null}
+            </div>
+            <div className="edit-expert-presets-custom-editor-actions">
+              <button
+                type="button"
+                className="edit-expert-presets-custom-editor-btn"
+                onClick={closeEditor}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="edit-expert-presets-custom-editor-btn is-primary"
+                onClick={saveEditor}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 };

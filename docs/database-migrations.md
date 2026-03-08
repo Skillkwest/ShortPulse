@@ -141,7 +141,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 52. `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql`
 53. `sql/migrations/053_fix_ai_studio_session_upsert_ambiguity.sql`
 54. `sql/migrations/054_add_provider_attached_stale_reservation_cleanup.sql`
-55. Rollback files:
+55. `sql/migrations/055_add_user_preferences_expert_edit_preset_panel_labels.sql`
+56. `sql/migrations/056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql`
+57. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -161,6 +163,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/046_fix_character_quickswap_storage_scope_check_rollback.sql`
     - `sql/migrations/rollback/047_add_agent_safety_policy_control_plane_rollback.sql`
     - `sql/migrations/rollback/049_enforce_expert_default_beginner_mode_rollback.sql`
+    - `sql/migrations/rollback/055_add_user_preferences_expert_edit_preset_panel_labels_rollback.sql`
+    - `sql/migrations/rollback/056_add_user_preferences_expert_edit_preset_ids_and_custom_presets_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -203,6 +207,8 @@ Billing safety note:
 - Migration `052_extend_queue_recovery_provider_scope_to_kie.sql` updates queued-submit persistence to store provider family from enqueue inputs and broadens recovery claims from Fal-only to Fal/Kie provider families.
 - Migration `053_fix_ai_studio_session_upsert_ambiguity.sql` resolves an ambiguity defect in AI Studio session snapshot upsert semantics to keep persistence writes deterministic.
 - Migration `054_add_provider_attached_stale_reservation_cleanup.sql` adds a service-role-only RPC to release clearly stale provider-attached reserved holds and supports automated cleanup from the generation-recovery route.
+- Migration `055_add_user_preferences_expert_edit_preset_panel_labels.sql` adds durable account-level Expert Edit preset panel label persistence (`user_preferences.expert_edit_preset_panel_labels`) with seeded defaults for new and existing users.
+- Migration `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql` adds canonical Expert Edit preset ID allocation persistence (`user_preferences.expert_edit_preset_panel_ids`) plus custom preset override persistence (`user_preferences.expert_edit_custom_presets`) while preserving legacy label fallback compatibility.
 
 ## Media storage scope verification (post-017)
 

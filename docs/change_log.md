@@ -2706,3 +2706,26 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - targeted session/model test suite (`42` tests) passes,
   - `npm -C frontend run lint` passes (one pre-existing unrelated warning in media-library hook),
   - `npm -C frontend run build` passes.
+
+## 2026-03-07 (Expert Edit Crop tool activation)
+- Implemented stage-accurate Crop workflow for Expert Edit:
+  - no default crop ratio selection,
+  - toggleable ratio chips (select/unselect),
+  - centered max-fit crop guide overlay in the primary stage,
+  - active-layer-only crop apply using current move/resize/rotate transform state.
+- Added a dedicated crop compositor helper module and geometry utilities:
+  - `frontend/features/ai-studio/logic/expertEditLayerCrop.ts`
+  - `frontend/features/ai-studio/logic/__tests__/expertEditLayerCrop.test.ts`
+- Wired Crop apply into `ExpertEditPanelView` and updated crop-panel behavior/tests:
+  - `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`
+  - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
+  - `frontend/styles/ai-studio-edit-expert.css`
+- Documented the active Crop tool contract in image-generation SOP:
+  - `docs/sops/sop_image_generation.md`
+
+## 2026-03-07 (Expert Edit custom preset authoring + persistence)
+- Refactored Expert Edit preset internals to canonical ID-based state (`selfie...custom_18`) while preserving deterministic canonical ordering and legacy label fallback mapping.
+- Added inline custom preset authoring in the More Presets surface: custom chips now expose an edit button that opens a contained mini editor for preset name + prompt, with Save/Cancel, Escape, and editor-outside-close behavior.
+- Preset panel interactions now resolve effective label/prompt from ID + custom overrides; clicking a selected preset continues to replace prompt text.
+- Added account-level persistence for preset panel allocation IDs and custom preset overrides through `user_preferences` (`expert_edit_preset_panel_ids`, `expert_edit_custom_presets`) with local fallback and backward compatibility from legacy label storage.
+- Added migration `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql`, rollback pair, and bootstrap-schema updates to include new columns/defaults.

@@ -12,6 +12,7 @@ import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioVie
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
+import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -193,6 +194,12 @@ export default function AiStudioPage() {
     syncState: mediaAutosaveSyncState,
     error: mediaAutosaveError,
   } = useMediaAutosavePreference();
+  const {
+    presetPanelIds: selectedExpertEditPresetIds,
+    customPresetOverrides: expertEditCustomPresetOverrides,
+    setPresetPanelIds: setSelectedExpertEditPresetIds,
+    setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
+  } = useExpertEditPresetPanelPreference();
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
@@ -1474,6 +1481,10 @@ export default function AiStudioPage() {
     isCharacterOptionsLoading,
     isCharacterModeEnabled,
     setIsCharacterModeEnabled,
+    selectedExpertEditPresetIds,
+    onSelectedExpertEditPresetIdsChange: setSelectedExpertEditPresetIds,
+    expertEditCustomPresetOverrides,
+    onExpertEditCustomPresetOverridesChange: setExpertEditCustomPresetOverrides,
     videoDurationSeconds,
     videoResolution,
     imageResolution,

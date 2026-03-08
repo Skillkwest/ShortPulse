@@ -32,6 +32,11 @@ import { stripEditLabel } from "../../utils/modelLabels";
 import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
 import { composePrimaryLayersToBlob } from "../../logic/expertEditLayerCompose";
 import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
+import {
+  composeExpertEditLayerCropToBlob,
+  parseAspectRatioToken,
+  resolveCenteredAspectCropRect,
+} from "../../logic/expertEditLayerCrop";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import { computeCostForModel } from "../../logic/pricing";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
@@ -46,16 +51,23 @@ import {
 import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import {
-  EDIT_PRESET_DEFAULT_PANEL_LABELS,
+  EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
   EDIT_PRESET_MORE_LABEL,
-  EDIT_PRESET_SURFACE_LABELS,
   EXPERT_EDIT_PRESET_DRAG_MIME,
+  type ExpertEditCustomPresetOverride,
+  type ExpertEditCustomPresetOverrides,
+  type ExpertEditCustomPresetId,
+  type ExpertEditPresetId,
   type ExpertEditPresetDragPayload,
+  normalizeExpertEditCustomPresetOverrides,
+  normalizePresetPanelPresetIds,
   parseExpertEditPresetDragPayload,
-  resolveExpertEditPresetPrompt,
+  resolveExpertEditPresetCatalog,
+  resolveExpertEditPresetLabelById,
+  resolveExpertEditPresetPromptById,
   serializeExpertEditPresetDragPayload,
-  sortPresetLabelsByCanonicalOrder,
+  sortPresetIdsByCanonicalOrder,
 } from "./expertEditPresets";
 
 export type ExpertEditPanelViewProps = {
@@ -101,6 +113,10 @@ export type ExpertEditPanelViewProps = {
   isCharacterOptionsLoading?: boolean;
   characterModeEnabled?: boolean;
   onCharacterModeEnabledChange?: (value: boolean) => void;
+  selectedPresetIds?: readonly ExpertEditPresetId[];
+  onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
+  customPresetOverrides?: ExpertEditCustomPresetOverrides;
+  onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
 };
 
 type CharacterPickerModalProps = {
@@ -224,8 +240,15 @@ const editPresetUtilityActions = [
 ] as const;
 const editLayerUtilityActions = [
   {
-    label: "Flatten Image",
+    id: "flatten-image",
+    label: "Flatten & Add to Grid →",
     icon: StackSimple,
+    buttonClassName: "edit-expert-preset-action-btn--compose-image",
+  },
+  {
+    id: "composite-regenerate",
+    label: "Composite & Regenerate",
+    icon: ArrowClockwise,
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
   },
 ] as const;
@@ -258,14 +281,20 @@ const inpaintRailTools: ReadonlyArray<{
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
 type TransformDragMode = "move" | "resize" | "rotate";
+type ExpertEditStyleTile = {
+  id: string;
+  title: string;
+  previewUrl: string | null;
+  placeholder: boolean;
+};
 const cropAspectRatioPresets = [
   { value: "9:16", label: "Vertical" },
   { value: "4:5", label: "Social Post" },
-  { value: "1:1", label: "Square" },
   { value: "5:4", label: "Photo" },
   { value: "16:9", label: "Landscape" },
 ] as const;
-const MAX_LAYERS = 10;
+const MAX_LAYERS = 8;
+const LAYER_LIMIT_REACHED_TOAST = `Layer limit reached (${MAX_LAYERS}).`;
 const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
 const INPAINT_COLLAPSE_ANIMATION_MS = 140;
 const STATUS_TOAST_VISIBLE_MS = 1_000;
@@ -287,9 +316,55 @@ const LAYER_TRANSLATE_RATIO_MAX = 1;
 const LAYER_SCALE_MIN = 0.2;
 const LAYER_SCALE_MAX = 2;
 const TRANSFORM_ROTATE_HANDLE_INSET_PX = 16;
+const EXPERT_EDIT_PRIMARY_STYLE_TILES: readonly ExpertEditStyleTile[] = [
+  {
+    id: "photorealistic",
+    title: "Photorealistic",
+    previewUrl: "/dashboard/ai-studio-hero.png",
+    placeholder: false,
+  },
+  {
+    id: "cinematic",
+    title: "Cinematic",
+    previewUrl: "/dashboard/welcome-art.png",
+    placeholder: false,
+  },
+  {
+    id: "cell-phone-snapshot",
+    title: "Cell phone snapshot",
+    previewUrl: "/dashboard/media-library.png",
+    placeholder: false,
+  },
+  {
+    id: "anime",
+    title: "Anime",
+    previewUrl: "/Styles/Anime.png",
+    placeholder: false,
+  },
+];
+const EXPERT_EDIT_STYLE_TILE_TOTAL = 16;
+const expertEditStyleCatalog: readonly ExpertEditStyleTile[] = [
+  ...EXPERT_EDIT_PRIMARY_STYLE_TILES,
+  ...Array.from(
+    { length: Math.max(0, EXPERT_EDIT_STYLE_TILE_TOTAL - EXPERT_EDIT_PRIMARY_STYLE_TILES.length) },
+    (_, index): ExpertEditStyleTile => ({
+      id: `style-placeholder-${index + 1}`,
+      title: `Placeholder ${index + 1}`,
+      previewUrl: null,
+      placeholder: true,
+    })
+  ),
+];
 const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
-const autoLayerNamePattern = /^layer\s*'?\d+'?$/i;
+const autoLayerNamePattern = /^layer\s*'?(\d+)'?$/i;
 const isAutoLayerName = (value: string) => autoLayerNamePattern.test(value.trim());
+const resolveAutoLayerNameNumber = (value: string) => {
+  const match = autoLayerNamePattern.exec(value.trim());
+  if (!match) return null;
+  const candidate = Number.parseInt(match[1] ?? "", 10);
+  if (!Number.isInteger(candidate) || candidate <= 0) return null;
+  return candidate;
+};
 const clampLayerOpacity = (value: number) =>
   Math.min(LAYER_OPACITY_MAX, Math.max(LAYER_OPACITY_MIN, value));
 const clampLayerTranslateRatio = (value: number) =>
@@ -486,10 +561,66 @@ type ExpertEditLayer = {
   transform: LayerTransform;
 };
 
-const normalizeAutoLayers = (layers: ExpertEditLayer[]) =>
-  layers.map((layer, index) =>
-    layer.isAutoNamed ? { ...layer, name: formatLayerName(index + 1) } : layer
+const layerHasImage = (layer: ExpertEditLayer) =>
+  typeof layer.imageUrl === "string" && layer.imageUrl.trim().length > 0;
+
+const resolveLowestUnusedAutoLayerNumber = ({
+  layers,
+  excludeLayerId,
+}: {
+  layers: ExpertEditLayer[];
+  excludeLayerId?: string | null;
+}) => {
+  const usedNumbers = new Set<number>();
+  layers.forEach((layer) => {
+    if (excludeLayerId && layer.id === excludeLayerId) return;
+    const resolvedNumber = resolveAutoLayerNameNumber(layer.name);
+    if (resolvedNumber != null) {
+      usedNumbers.add(resolvedNumber);
+    }
+  });
+  let candidate = 1;
+  while (usedNumbers.has(candidate)) {
+    candidate += 1;
+  }
+  return candidate;
+};
+
+const enforceLayerStackInvariants = ({
+  layers,
+  foundationLayerId,
+}: {
+  layers: ExpertEditLayer[];
+  foundationLayerId: string | null;
+}) => {
+  const resolvedFoundationId = foundationLayerId ?? layers[0]?.id ?? null;
+  if (!resolvedFoundationId) return layers;
+  const foundationLayer =
+    layers.find((layer) => layer.id === resolvedFoundationId) ?? layers[0] ?? null;
+  if (!foundationLayer) return layers;
+  const nextLayers = layers.filter(
+    (layer) => layer.id === resolvedFoundationId || layerHasImage(layer)
   );
+  const populatedNonFoundationLayers = nextLayers.filter(
+    (layer) => layer.id !== resolvedFoundationId
+  );
+  if (!layerHasImage(foundationLayer) && populatedNonFoundationLayers.length === 1) {
+    const promotedLayer = populatedNonFoundationLayers[0];
+    if (!promotedLayer) return nextLayers;
+    return [
+      promotedLayer.isAutoNamed
+        ? {
+            ...promotedLayer,
+            name: formatLayerName(1),
+          }
+        : promotedLayer,
+    ];
+  }
+  if (nextLayers.some((layer) => layer.id === resolvedFoundationId)) {
+    return nextLayers;
+  }
+  return [foundationLayer, ...nextLayers];
+};
 
 type TransformPointerSession = {
   active: boolean;
@@ -529,11 +660,12 @@ const createIdleTransformPointerSession = (): TransformPointerSession => ({
 
 const writePresetDragTransfer = (
   transfer: DataTransfer,
-  payload: { label: string; source: "surface" | "panel" }
+  payload: ExpertEditPresetDragPayload,
+  label: string
 ) => {
   const serializedPayload = serializeExpertEditPresetDragPayload(payload);
   transfer.setData(EXPERT_EDIT_PRESET_DRAG_MIME, serializedPayload);
-  transfer.setData("text/plain", payload.label);
+  transfer.setData("text/plain", label);
 };
 
 const resolvePresetDragPayload = (
@@ -663,8 +795,13 @@ export function ExpertEditPanelView({
   isCharacterOptionsLoading = false,
   characterModeEnabled = false,
   onCharacterModeEnabledChange,
+  selectedPresetIds: controlledPresetIds,
+  onSelectedPresetIdsChange,
+  customPresetOverrides: controlledCustomPresetOverrides,
+  onCustomPresetOverridesChange,
 }: ExpertEditPanelViewProps) {
   const layerIdCounterRef = React.useRef(1);
+  const foundationLayerIdRef = React.useRef<string | null>(null);
   const previousLayersRef = React.useRef<ExpertEditLayer[]>([]);
   const lastDispatchedPrimaryRef = React.useRef<string | null>(referenceImageUrl);
   const previousPrimaryPropRef = React.useRef<string | null>(referenceImageUrl);
@@ -687,6 +824,7 @@ export function ExpertEditPanelView({
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const stylesModalRef = React.useRef<HTMLDivElement | null>(null);
   const transformPointerSessionRef = React.useRef<TransformPointerSession>(
     createIdleTransformPointerSession()
   );
@@ -725,29 +863,32 @@ export function ExpertEditPanelView({
   const [selectedTransformMode, setSelectedTransformMode] =
     React.useState<TransformDragMode>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
-  const [selectedCropAspect, setSelectedCropAspect] = React.useState(aspect);
+  const [selectedCropAspect, setSelectedCropAspect] = React.useState<string | null>(null);
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
-  const [selectedPresetLabels, setSelectedPresetLabels] = React.useState<string[]>(() =>
-    sortPresetLabelsByCanonicalOrder(EDIT_PRESET_DEFAULT_PANEL_LABELS).slice(
-      0,
-      EDIT_PRESET_PANEL_MAX
-    )
-  );
+  const [isStylesModalOpen, setIsStylesModalOpen] = React.useState(false);
+  const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
+  const [internalSelectedPresetIds, setInternalSelectedPresetIds] = React.useState<
+    ExpertEditPresetId[]
+  >(() => normalizePresetPanelPresetIds(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS));
+  const [internalCustomPresetOverrides, setInternalCustomPresetOverrides] =
+    React.useState<ExpertEditCustomPresetOverrides>({});
   const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
   const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
-  const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
-    createLayer({
+  const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => {
+    const foundationLayer = createLayer({
       indexOneBased: 1,
       imageUrl: referenceImageUrl,
       isAutoNamed: true,
       ownsImageUrl: false,
-    }),
-  ]);
+    });
+    foundationLayerIdRef.current = foundationLayer.id;
+    return [foundationLayer];
+  });
   const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
     () => ({
       past: [],
@@ -767,6 +908,7 @@ export function ExpertEditPanelView({
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
   >(null);
+  const foundationLayerId = foundationLayerIdRef.current;
   const resolvedSelectedLayerIndex =
     selectedLayerIndex == null || selectedLayerIndex < 0 || selectedLayerIndex >= layers.length
       ? 0
@@ -777,10 +919,16 @@ export function ExpertEditPanelView({
   );
   const canUndoTransformHistory = transformHistoryState.past.length > 0;
   const canRedoTransformHistory = transformHistoryState.future.length > 0;
+  const selectedStyleTile = React.useMemo(
+    () =>
+      expertEditStyleCatalog.find((style) => !style.placeholder && style.id === selectedStyleId) ??
+      null,
+    [selectedStyleId]
+  );
   const selectedLayer = layers[resolvedSelectedLayerIndex] ?? null;
   const selectedLayerImageUrl = selectedLayer?.imageUrl ?? null;
   const populatedLayerCount = React.useMemo(
-    () => layers.filter((layer) => Boolean(layer.imageUrl)).length,
+    () => layers.filter((layer) => layerHasImage(layer)).length,
     [layers]
   );
   const hasPrimaryCompositePreview = populatedLayerCount > 0;
@@ -790,22 +938,72 @@ export function ExpertEditPanelView({
       selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
     [layers, selectedLayerImageUrl]
   );
-  const availablePresetLabels = React.useMemo(() => {
-    if (!selectedPresetLabels.length) return EDIT_PRESET_SURFACE_LABELS;
-    const selectedLabelSet = new Set(selectedPresetLabels);
-    return EDIT_PRESET_SURFACE_LABELS.filter((label) => !selectedLabelSet.has(label));
-  }, [selectedPresetLabels]);
-  const hasSelectedPresetLabels = selectedPresetLabels.length > 0;
+  const normalizedControlledPresetIds = React.useMemo(
+    () => (controlledPresetIds == null ? null : normalizePresetPanelPresetIds(controlledPresetIds)),
+    [controlledPresetIds]
+  );
+  const controlledPresetChangeHandler = onSelectedPresetIdsChange ?? null;
+  const isPresetPanelControlled =
+    normalizedControlledPresetIds != null && controlledPresetChangeHandler != null;
+  const selectedPresetIds = isPresetPanelControlled
+    ? normalizedControlledPresetIds
+    : internalSelectedPresetIds;
+  const updateSelectedPresetIds = React.useCallback(
+    (updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]) => {
+      if (isPresetPanelControlled) {
+        const next = normalizePresetPanelPresetIds(updater(normalizedControlledPresetIds));
+        controlledPresetChangeHandler(next);
+        return;
+      }
+      setInternalSelectedPresetIds((previous) => normalizePresetPanelPresetIds(updater(previous)));
+    },
+    [controlledPresetChangeHandler, isPresetPanelControlled, normalizedControlledPresetIds]
+  );
+  const isCustomOverridesControlled =
+    controlledCustomPresetOverrides != null && onCustomPresetOverridesChange != null;
+  const customPresetOverrides = React.useMemo(
+    () =>
+      normalizeExpertEditCustomPresetOverrides(
+        isCustomOverridesControlled
+          ? controlledCustomPresetOverrides
+          : internalCustomPresetOverrides
+      ),
+    [controlledCustomPresetOverrides, internalCustomPresetOverrides, isCustomOverridesControlled]
+  );
+  const updateCustomPresetOverrides = React.useCallback(
+    (updater: (previous: ExpertEditCustomPresetOverrides) => ExpertEditCustomPresetOverrides) => {
+      if (isCustomOverridesControlled) {
+        const nextValue = normalizeExpertEditCustomPresetOverrides(updater(customPresetOverrides));
+        onCustomPresetOverridesChange(nextValue);
+        return;
+      }
+      setInternalCustomPresetOverrides((previous) =>
+        normalizeExpertEditCustomPresetOverrides(updater(previous))
+      );
+    },
+    [customPresetOverrides, isCustomOverridesControlled, onCustomPresetOverridesChange]
+  );
+  const availablePresets = React.useMemo(() => {
+    const selectedPresetIdSet = new Set(selectedPresetIds);
+    return resolveExpertEditPresetCatalog(customPresetOverrides).filter(
+      (preset) => !selectedPresetIdSet.has(preset.presetId)
+    );
+  }, [customPresetOverrides, selectedPresetIds]);
+  const selectedPanelPresets = React.useMemo(
+    () =>
+      selectedPresetIds.map((presetId) => ({
+        presetId,
+        label: resolveExpertEditPresetLabelById(presetId, customPresetOverrides),
+      })),
+    [customPresetOverrides, selectedPresetIds]
+  );
+  const hasSelectedPresetIds = selectedPresetIds.length > 0;
 
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isCropToolSelected = selectedRailTool === "crop";
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isMoveToolSelected = selectedRailTool === "move";
   const sceneZoomScale = 1;
-
-  React.useEffect(() => {
-    setSelectedCropAspect(aspect);
-  }, [aspect]);
 
   const {
     extraOneInputRef,
@@ -945,46 +1143,64 @@ export function ExpertEditPanelView({
   );
 
   const addPresetToPanel = React.useCallback(
-    (label: string) => {
-      const candidateLabel = label.trim();
-      if (!candidateLabel) return;
-      setSelectedPresetLabels((previous) => {
-        if (previous.includes(candidateLabel)) return previous;
+    (presetId: ExpertEditPresetId | null | undefined) => {
+      if (!presetId) return;
+      updateSelectedPresetIds((previous) => {
+        if (previous.includes(presetId)) return previous;
         if (previous.length >= EDIT_PRESET_PANEL_MAX) {
           showStatusToast(PRESET_PANEL_LIMIT_TOAST, "warning");
           return previous;
         }
-        return sortPresetLabelsByCanonicalOrder([...previous, candidateLabel]);
+        return sortPresetIdsByCanonicalOrder([...previous, presetId]);
       });
     },
-    [showStatusToast]
+    [showStatusToast, updateSelectedPresetIds]
   );
 
-  const removePresetFromPanel = React.useCallback((label: string) => {
-    const candidateLabel = label.trim();
-    if (!candidateLabel) return;
-    setSelectedPresetLabels((previous) =>
-      previous.includes(candidateLabel)
-        ? previous.filter((presetLabel) => presetLabel !== candidateLabel)
-        : previous
-    );
-  }, []);
+  const removePresetFromPanel = React.useCallback(
+    (presetId: ExpertEditPresetId | null | undefined) => {
+      if (!presetId) return;
+      updateSelectedPresetIds((previous) =>
+        previous.includes(presetId)
+          ? previous.filter((candidatePresetId) => candidatePresetId !== presetId)
+          : previous
+      );
+    },
+    [updateSelectedPresetIds]
+  );
 
   const handlePanelPresetApply = React.useCallback(
-    (label: string) => {
-      const presetPrompt = resolveExpertEditPresetPrompt(label);
+    (presetId: ExpertEditPresetId) => {
+      const presetPrompt = resolveExpertEditPresetPromptById(presetId, customPresetOverrides);
       if (!presetPrompt) return;
       onPromptTextChange(presetPrompt);
     },
-    [onPromptTextChange]
+    [customPresetOverrides, onPromptTextChange]
+  );
+
+  const handleCustomPresetSave = React.useCallback(
+    (presetId: ExpertEditCustomPresetId, override: ExpertEditCustomPresetOverride) => {
+      updateCustomPresetOverrides((previous) => ({
+        ...previous,
+        [presetId]: {
+          label: override.label,
+          prompt: override.prompt,
+        },
+      }));
+    },
+    [updateCustomPresetOverrides]
   );
 
   const beginPresetDragSession = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, payload: ExpertEditPresetDragPayload) => {
+    (
+      event: React.DragEvent<HTMLButtonElement>,
+      payload: ExpertEditPresetDragPayload,
+      label: string
+    ) => {
       event.stopPropagation();
       activePresetDragPayloadRef.current = payload;
       event.dataTransfer.effectAllowed = "move";
-      writePresetDragTransfer(event.dataTransfer, payload);
+      writePresetDragTransfer(event.dataTransfer, payload, label);
       if (presetDragPreviewCleanupRef.current) {
         presetDragPreviewCleanupRef.current();
         presetDragPreviewCleanupRef.current = null;
@@ -1005,17 +1221,25 @@ export function ExpertEditPanelView({
   );
 
   const handleSurfacePresetDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, label: string) => {
-      beginPresetDragSession(event, { label, source: "surface" });
+    (event: React.DragEvent<HTMLButtonElement>, presetId: ExpertEditPresetId) => {
+      beginPresetDragSession(
+        event,
+        { presetId, source: "surface" },
+        resolveExpertEditPresetLabelById(presetId, customPresetOverrides)
+      );
     },
-    [beginPresetDragSession]
+    [beginPresetDragSession, customPresetOverrides]
   );
 
   const handlePanelPresetDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, label: string) => {
-      beginPresetDragSession(event, { label, source: "panel" });
+    (event: React.DragEvent<HTMLButtonElement>, presetId: ExpertEditPresetId) => {
+      beginPresetDragSession(
+        event,
+        { presetId, source: "panel" },
+        resolveExpertEditPresetLabelById(presetId, customPresetOverrides)
+      );
     },
-    [beginPresetDragSession]
+    [beginPresetDragSession, customPresetOverrides]
   );
 
   const handlePresetDragEnd = React.useCallback(() => {
@@ -1054,7 +1278,7 @@ export function ExpertEditPanelView({
       event.preventDefault();
       event.stopPropagation();
       setIsPresetPanelDropActive(false);
-      addPresetToPanel(payload.label);
+      addPresetToPanel(payload.presetId);
     },
     [addPresetToPanel]
   );
@@ -1085,7 +1309,7 @@ export function ExpertEditPanelView({
       event.preventDefault();
       event.stopPropagation();
       setIsPresetsSurfaceDropActive(false);
-      removePresetFromPanel(payload.label);
+      removePresetFromPanel(payload.presetId);
     },
     [removePresetFromPanel]
   );
@@ -1226,15 +1450,24 @@ export function ExpertEditPanelView({
       const targetLayer = layers[targetIndex];
       if (!targetLayer) return;
 
-      if (!targetLayer.imageUrl) {
+      const foundationIndex = foundationLayerId
+        ? layers.findIndex((layer) => layer.id === foundationLayerId)
+        : -1;
+      const foundationLayer = foundationIndex >= 0 ? layers[foundationIndex] : null;
+      const hasAnyPopulatedLayer = layers.some((layer) => layerHasImage(layer));
+      if (!hasAnyPopulatedLayer && foundationLayer) {
         const nextLayers = [...layers];
-        nextLayers[targetIndex] = {
-          ...targetLayer,
+        nextLayers[foundationIndex] = {
+          ...foundationLayer,
           imageUrl: candidateUrl,
           ownsImageUrl: payload.ownsImageUrl,
+          opacity: LAYER_OPACITY_DEFAULT,
           transform: defaultLayerTransform(),
         };
         setLayers(nextLayers);
+        setSelectedLayerIndex(foundationIndex);
+        setEditingLayerIndex(null);
+        setEditingLayerValue("");
         return;
       }
 
@@ -1242,22 +1475,26 @@ export function ExpertEditPanelView({
         if (payload.ownsImageUrl && candidateUrl.startsWith("blob:")) {
           revokeObjectUrlSafe(candidateUrl);
         }
-        showStatusToast("Layer limit reached (10).");
+        showStatusToast(LAYER_LIMIT_REACHED_TOAST);
         return;
       }
 
-      const appendedLayer = createLayer({
-        indexOneBased: layers.length + 1,
+      const insertedLayer = createLayer({
+        indexOneBased: resolveLowestUnusedAutoLayerNumber({ layers }),
         imageUrl: candidateUrl,
         ownsImageUrl: payload.ownsImageUrl,
       });
-      const nextLayers = normalizeAutoLayers([...layers, appendedLayer]);
+      const nextLayers = enforceLayerStackInvariants({
+        layers: [...layers.slice(0, targetIndex), insertedLayer, ...layers.slice(targetIndex)],
+        foundationLayerId,
+      });
       setLayers(nextLayers);
-      setSelectedLayerIndex(nextLayers.length - 1);
+      const insertedIndex = nextLayers.findIndex((layer) => layer.id === insertedLayer.id);
+      setSelectedLayerIndex(insertedIndex >= 0 ? insertedIndex : 0);
       setEditingLayerIndex(null);
       setEditingLayerValue("");
     },
-    [createLayer, layers, selectedLayerIndex, showStatusToast]
+    [createLayer, foundationLayerId, layers, selectedLayerIndex, showStatusToast]
   );
 
   const buildFlattenReferenceInputs = React.useCallback(
@@ -1284,7 +1521,10 @@ export function ExpertEditPanelView({
       });
       const flattenedLayerUrl = URL.createObjectURL(flattenedBlob);
       const flattenedReferenceUrl = URL.createObjectURL(flattenedBlob);
-      const layerOne = layers[0] ?? createLayer({ indexOneBased: 1 });
+      const layerOne =
+        layers.find((layer) => layer.id === foundationLayerId) ??
+        layers[0] ??
+        createLayer({ indexOneBased: layerIdCounterRef.current });
       const flattenedLayer: ExpertEditLayer = {
         ...layerOne,
         name: layerOne.isAutoNamed ? formatLayerName(1) : layerOne.name,
@@ -1311,12 +1551,87 @@ export function ExpertEditPanelView({
     }
   }, [
     createLayer,
+    foundationLayerId,
     layers,
     onAddSessionMediaReference,
     populatedLayerCount,
     scheduleTransientObjectUrlRevoke,
     showStatusToast,
   ]);
+
+  const handleCropAspectToggle = React.useCallback((nextAspect: string) => {
+    setSelectedCropAspect((previousAspect) => (previousAspect === nextAspect ? null : nextAspect));
+  }, []);
+
+  const selectedCropAspectRatio = React.useMemo(
+    () => parseAspectRatioToken(selectedCropAspect),
+    [selectedCropAspect]
+  );
+  const stageCropGuidePercentRect = React.useMemo(() => {
+    if (!selectedCropAspectRatio) return null;
+    return resolveCenteredAspectCropRect({
+      stageWidth: 100,
+      stageHeight: 100,
+      aspectRatio: selectedCropAspectRatio,
+    });
+  }, [selectedCropAspectRatio]);
+
+  const handleApplyCrop = React.useCallback(async () => {
+    if (!selectedCropAspectRatio) {
+      showStatusToast("Choose a crop ratio before applying crop.", "warning");
+      return;
+    }
+    const targetLayer = selectedLayer;
+    const targetImageUrl = targetLayer?.imageUrl?.trim() ?? "";
+    if (!targetLayer || !targetImageUrl) {
+      showStatusToast("Select a layer image before applying crop.", "warning");
+      return;
+    }
+    const dropzone = primaryDropzoneRef.current;
+    if (!dropzone) {
+      showStatusToast("Crop stage is unavailable.", "warning");
+      return;
+    }
+    const rect = dropzone.getBoundingClientRect();
+    const stageWidth = Math.max(1, Math.round(rect.width));
+    const stageHeight = Math.max(1, Math.round(rect.height));
+    const cropRect = resolveCenteredAspectCropRect({
+      stageWidth,
+      stageHeight,
+      aspectRatio: selectedCropAspectRatio,
+    });
+    if (!cropRect) {
+      showStatusToast("Unable to resolve crop bounds.", "warning");
+      return;
+    }
+
+    try {
+      const croppedBlob = await composeExpertEditLayerCropToBlob({
+        imageUrl: targetImageUrl,
+        stageWidth,
+        stageHeight,
+        cropRect,
+        transform: targetLayer.transform,
+        mimeType: "image/png",
+      });
+      const croppedImageUrl = URL.createObjectURL(croppedBlob);
+      setLayers((previousLayers) =>
+        previousLayers.map((layer) =>
+          layer.id === targetLayer.id
+            ? {
+                ...layer,
+                imageUrl: croppedImageUrl,
+                ownsImageUrl: true,
+                transform: defaultLayerTransform(),
+              }
+            : layer
+        )
+      );
+      showStatusToast("Crop applied.");
+    } catch {
+      showStatusToast("Unable to apply crop.", "warning");
+    }
+  }, [selectedCropAspectRatio, selectedLayer, showStatusToast]);
 
   const handleRemoveBackground = React.useCallback(() => {
     const run = async () => {
@@ -1840,19 +2155,56 @@ export function ExpertEditPanelView({
   const toggleMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen((previous) => !previous);
   }, []);
+  const openStylesModal = React.useCallback(() => {
+    setIsStylesModalOpen(true);
+  }, []);
+  const closeStylesModal = React.useCallback(() => {
+    setIsStylesModalOpen(false);
+  }, []);
+  const handleStyleTileSelect = React.useCallback(
+    (style: ExpertEditStyleTile) => {
+      if (style.placeholder) return;
+      setSelectedStyleId(style.id);
+      closeStylesModal();
+    },
+    [closeStylesModal]
+  );
+
+  React.useEffect(() => {
+    if (!isStylesModalOpen) return;
+    stylesModalRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeStylesModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeStylesModal, isStylesModalOpen]);
+
+  React.useEffect(() => {
+    if (!isStylesModalOpen) return;
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRootOverflow = root.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    root.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = previousRootOverflow;
+      body.style.overflow = previousBodyOverflow;
+    };
+  }, [isStylesModalOpen]);
 
   const handleAddLayer = React.useCallback(() => {
     if (layers.length >= MAX_LAYERS) {
-      showStatusToast("Layer limit reached (10).");
+      showStatusToast(LAYER_LIMIT_REACHED_TOAST);
       return;
     }
-    const nextLayers = normalizeAutoLayers([
-      ...layers,
-      createLayer({ indexOneBased: layers.length + 1 }),
-    ]);
-    setLayers(nextLayers);
-    setSelectedLayerIndex(nextLayers.length - 1);
-  }, [createLayer, layers, showStatusToast]);
+    primaryInputRef.current?.click();
+  }, [layers.length, showStatusToast]);
 
   const handleReorderLayers = React.useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -1928,14 +2280,17 @@ export function ExpertEditPanelView({
       const targetLayer = layers[index];
       if (!targetLayer) return;
 
-      if (index === 0) {
-        const nextLayers = normalizeAutoLayers(
-          layers.map((layer, layerIndex) =>
-            layerIndex === 0
+      const isFoundationLayer = targetLayer.id === foundationLayerId;
+      const selectedLayerId = layers[resolvedSelectedLayerIndex]?.id ?? null;
+      const editingLayerId =
+        editingLayerIndex != null ? (layers[editingLayerIndex]?.id ?? null) : null;
+
+      const nextLayers = isFoundationLayer
+        ? layers.map((layer) =>
+            layer.id === targetLayer.id
               ? {
                   ...layer,
-                  name: formatLayerName(1),
-                  isAutoNamed: true,
+                  name: layer.isAutoNamed ? formatLayerName(1) : layer.name,
                   imageUrl: null,
                   opacity: LAYER_OPACITY_DEFAULT,
                   ownsImageUrl: false,
@@ -1943,36 +2298,53 @@ export function ExpertEditPanelView({
                 }
               : layer
           )
-        );
-        setLayers(nextLayers);
-        setSelectedLayerIndex(0);
-        setEditingLayerIndex((previousIndex) => (previousIndex === 0 ? null : previousIndex));
-        setEditingLayerValue("");
-        return;
+        : layers.filter((_, layerIndex) => layerIndex !== index);
+      const normalizedLayers = enforceLayerStackInvariants({
+        layers: nextLayers,
+        foundationLayerId,
+      });
+
+      setLayers(normalizedLayers);
+      setEditingLayerValue("");
+
+      if (editingLayerId) {
+        const nextEditingIndex = normalizedLayers.findIndex((layer) => layer.id === editingLayerId);
+        setEditingLayerIndex(nextEditingIndex >= 0 ? nextEditingIndex : null);
+      } else {
+        setEditingLayerIndex(null);
       }
 
-      const nextLayers = normalizeAutoLayers(
-        layers.filter((_, layerIndex) => layerIndex !== index)
-      );
-      setLayers(nextLayers);
-      setEditingLayerIndex((previousIndex) => {
-        if (previousIndex == null) return previousIndex;
-        if (previousIndex === index) return null;
-        if (previousIndex > index) return previousIndex - 1;
-        return previousIndex;
-      });
-      setEditingLayerValue("");
-      setSelectedLayerIndex((previousIndex) => {
-        if (previousIndex == null) return previousIndex;
-        if (previousIndex === index) {
-          return Math.max(0, Math.min(index - 1, nextLayers.length - 1));
+      if (isFoundationLayer) {
+        const foundationIndex = normalizedLayers.findIndex((layer) => layer.id === targetLayer.id);
+        setSelectedLayerIndex(foundationIndex >= 0 ? foundationIndex : 0);
+        return;
+      }
+      if (selectedLayerId) {
+        const selectedIndex = normalizedLayers.findIndex((layer) => layer.id === selectedLayerId);
+        if (selectedIndex >= 0) {
+          setSelectedLayerIndex(selectedIndex);
+          return;
         }
-        if (previousIndex > index) return previousIndex - 1;
-        return previousIndex;
-      });
+      }
+      setSelectedLayerIndex(Math.max(0, Math.min(index - 1, normalizedLayers.length - 1)));
     },
-    [layers]
+    [editingLayerIndex, foundationLayerId, layers, resolvedSelectedLayerIndex]
   );
+
+  React.useEffect(() => {
+    if (layers.length <= 0) {
+      foundationLayerIdRef.current = null;
+      return;
+    }
+    if (!foundationLayerIdRef.current) {
+      foundationLayerIdRef.current = layers[0]?.id ?? null;
+      return;
+    }
+    const hasCurrentFoundation = layers.some((layer) => layer.id === foundationLayerIdRef.current);
+    if (!hasCurrentFoundation) {
+      foundationLayerIdRef.current = layers[0]?.id ?? null;
+    }
+  }, [layers]);
 
   React.useEffect(() => {
     if (!layers.length) {
@@ -2038,9 +2410,12 @@ export function ExpertEditPanelView({
         ownsImageUrl: false,
         transform: preserveLayerTransform ? targetLayer.transform : defaultLayerTransform(),
       };
-      return nextLayers;
+      return enforceLayerStackInvariants({
+        layers: nextLayers,
+        foundationLayerId,
+      });
     });
-  }, [referenceImageUrl, removeBackgroundPendingLayerId, selectedLayerIndex]);
+  }, [foundationLayerId, referenceImageUrl, removeBackgroundPendingLayerId, selectedLayerIndex]);
 
   React.useEffect(() => {
     if (!removeBackgroundPendingLayerId) return;
@@ -2163,18 +2538,29 @@ export function ExpertEditPanelView({
     (index: number) => {
       const nextName = editingLayerValue.trim();
       if (nextName.length > 0) {
+        const targetLayer = layers[index];
+        if (!targetLayer) {
+          setEditingLayerIndex(null);
+          setEditingLayerValue("");
+          return;
+        }
         const shouldRemainAutoNamed = isAutoLayerName(nextName);
-        const mappedName = shouldRemainAutoNamed ? formatLayerName(index + 1) : nextName;
-        const nextLayers = normalizeAutoLayers(
-          layers.map((layer, layerIndex) =>
-            layerIndex === index
-              ? {
-                  ...layer,
-                  name: mappedName,
-                  isAutoNamed: shouldRemainAutoNamed,
-                }
-              : layer
-          )
+        const mappedName = shouldRemainAutoNamed
+          ? formatLayerName(
+              resolveLowestUnusedAutoLayerNumber({
+                layers,
+                excludeLayerId: targetLayer.id,
+              })
+            )
+          : nextName;
+        const nextLayers = layers.map((layer, layerIndex) =>
+          layerIndex === index
+            ? {
+                ...layer,
+                name: mappedName,
+                isAutoNamed: shouldRemainAutoNamed,
+              }
+            : layer
         );
         setLayers(nextLayers);
       }
@@ -2202,26 +2588,26 @@ export function ExpertEditPanelView({
             <div className="edit-expert-preset-toolbar-list">
               <div
                 className={`edit-expert-preset-dropzone ${
-                  hasSelectedPresetLabels ? "is-populated" : "is-empty"
+                  hasSelectedPresetIds ? "is-populated" : "is-empty"
                 } ${isPresetPanelDropActive ? "is-drop-active" : ""}`.trim()}
                 aria-label="Preset panel list"
                 onDragOver={handlePresetPanelDragOver}
                 onDragLeave={handlePresetPanelDragLeave}
                 onDrop={handlePresetPanelDrop}
               >
-                {hasSelectedPresetLabels ? (
-                  selectedPresetLabels.map((label) => (
+                {hasSelectedPresetIds ? (
+                  selectedPanelPresets.map((preset) => (
                     <button
-                      key={label}
+                      key={preset.presetId}
                       type="button"
                       draggable
                       className="edit-expert-preset-btn edit-expert-preset-btn--selected"
-                      aria-label={`Apply ${label} preset`}
-                      onClick={() => handlePanelPresetApply(label)}
-                      onDragStart={(event) => handlePanelPresetDragStart(event, label)}
+                      aria-label={`Apply ${preset.label} preset`}
+                      onClick={() => handlePanelPresetApply(preset.presetId)}
+                      onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
                       onDragEnd={handlePresetDragEnd}
                     >
-                      {label}
+                      {preset.label}
                     </button>
                   ))
                 ) : (
@@ -2366,25 +2752,27 @@ export function ExpertEditPanelView({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            className="edit-expert-layers-add-btn"
-            aria-label="Add layer"
-            onClick={handleAddLayer}
-          >
-            <Plus size={12} weight="bold" />
-          </button>
+          {layers.length < MAX_LAYERS ? (
+            <button
+              type="button"
+              className="edit-expert-layers-add-btn"
+              aria-label="Add layer"
+              onClick={handleAddLayer}
+            >
+              <Plus size={12} weight="bold" />
+            </button>
+          ) : null}
           <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
             {editLayerUtilityActions.map((action) => {
               const Icon = action.icon;
               return (
                 <button
-                  key={action.label}
+                  key={action.id}
                   type="button"
                   className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
                   aria-label={action.label}
                   onClick={
-                    action.label === "Flatten Image" ? () => void handleManualFlatten() : undefined
+                    action.id === "flatten-image" ? () => void handleManualFlatten() : undefined
                   }
                 >
                   <Icon size={20} weight="regular" />
@@ -2472,16 +2860,30 @@ export function ExpertEditPanelView({
               <p className="reference-drop-title">Click to upload an image</p>
             </div>
           )}
+          {stageCropGuidePercentRect ? (
+            <div className="edit-expert-crop-guide-overlay" aria-hidden="true">
+              <div
+                className="edit-expert-crop-guide-rect"
+                style={{
+                  left: `${stageCropGuidePercentRect.x}%`,
+                  top: `${stageCropGuidePercentRect.y}%`,
+                  width: `${stageCropGuidePercentRect.width}%`,
+                  height: `${stageCropGuidePercentRect.height}%`,
+                }}
+              />
+            </div>
+          ) : null}
           <ExpertEditPresetsSurface
             id={morePresetsSurfaceId}
             isOpen={isMorePresetsSurfaceOpen}
-            labels={availablePresetLabels}
+            presets={availablePresets}
             onClose={closeMorePresetsSurface}
             onPresetDragStart={handleSurfacePresetDragStart}
             onPresetDragEnd={handlePresetDragEnd}
             onSurfaceDragOver={handlePresetsSurfaceDragOver}
             onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
             onSurfaceDrop={handlePresetsSurfaceDrop}
+            onCustomPresetSave={handleCustomPresetSave}
             isDropActive={isPresetsSurfaceDropActive}
           />
         </div>
@@ -2585,18 +2987,41 @@ export function ExpertEditPanelView({
                               className={`edit-expert-crop-chip ${
                                 isSelected ? "is-selected" : ""
                               }`.trim()}
+                              aria-label={`${preset.value} ${preset.label}`}
                               aria-pressed={isSelected}
-                              onClick={() => setSelectedCropAspect(preset.value)}
+                              onClick={() => handleCropAspectToggle(preset.value)}
                             >
                               <span className="edit-expert-crop-chip-ratio">{preset.value}</span>
-                              <span className="edit-expert-crop-chip-label">{preset.label}</span>
                             </button>
                           );
                         })}
+                      </div>
+                      <div className="edit-expert-crop-actions-row" aria-label="Crop actions">
+                        <button
+                          type="button"
+                          className="edit-expert-crop-history-btn"
+                          aria-label="Undo crop action"
+                          onClick={handleUndoMoveAction}
+                          disabled={!canUndoTransformHistory}
+                        >
+                          <ArrowCounterClockwise size={16} weight="regular" />
+                          Undo
+                        </button>
+                        <button
+                          type="button"
+                          className="edit-expert-crop-history-btn"
+                          aria-label="Redo crop action"
+                          onClick={handleRedoMoveAction}
+                          disabled={!canRedoTransformHistory}
+                        >
+                          <ArrowClockwise size={16} weight="regular" />
+                          Redo
+                        </button>
                         <button
                           type="button"
                           className="edit-expert-crop-apply-btn"
                           aria-label="Apply crop"
+                          onClick={() => void handleApplyCrop()}
                         >
                           Crop
                         </button>
@@ -2822,8 +3247,24 @@ export function ExpertEditPanelView({
           <div className="edit-expert-styles-control">
             <div className="edit-expert-styles-wrapper">
               <p className="edit-expert-styles-title">Styles</p>
-              <button type="button" className="edit-expert-styles-btn" aria-label="Styles">
-                <Sticker size={22} weight="regular" />
+              <button
+                type="button"
+                className={`edit-expert-styles-btn ${selectedStyleTile ? "has-selected-style" : ""}`.trim()}
+                aria-label="Styles"
+                aria-haspopup="dialog"
+                aria-expanded={isStylesModalOpen}
+                aria-controls="edit-expert-styles-modal"
+                onClick={openStylesModal}
+              >
+                {selectedStyleTile?.previewUrl ? (
+                  <span
+                    className="edit-expert-styles-btn-preview"
+                    style={{ backgroundImage: `url(${selectedStyleTile.previewUrl})` }}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Sticker size={22} weight="regular" />
+                )}
               </button>
             </div>
           </div>
@@ -2993,6 +3434,72 @@ export function ExpertEditPanelView({
         selectedCharacterId={selectedCharacterId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
       />
+      {isStylesModalOpen ? (
+        <div className="edit-expert-styles-modal-backdrop" onClick={closeStylesModal}>
+          <div
+            id="edit-expert-styles-modal"
+            ref={stylesModalRef}
+            className="edit-expert-styles-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Style presets"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="edit-expert-styles-modal-header">
+              <div className="edit-expert-styles-modal-title-group">
+                <h3 className="edit-expert-styles-modal-title">Styles</h3>
+                <p className="edit-expert-styles-modal-subtitle">
+                  Select a style preset for this edit pass.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="edit-expert-styles-modal-close"
+                aria-label="Close styles modal"
+                onClick={closeStylesModal}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className="edit-expert-styles-modal-scroll">
+              <div className="edit-expert-styles-modal-grid" role="list" aria-label="Style options">
+                {expertEditStyleCatalog.map((style) => {
+                  const isSelected = !style.placeholder && selectedStyleId === style.id;
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      className={`edit-expert-style-tile ${
+                        isSelected ? "is-selected" : ""
+                      } ${style.placeholder ? "is-placeholder" : ""}`.trim()}
+                      aria-label={`Style tile: ${style.title}${style.placeholder ? " (coming soon)" : ""}`}
+                      aria-pressed={style.placeholder ? undefined : isSelected}
+                      disabled={style.placeholder}
+                      onClick={() => handleStyleTileSelect(style)}
+                    >
+                      <span className="edit-expert-style-tile-title">{style.title}</span>
+                      <span
+                        className="edit-expert-style-tile-preview"
+                        style={
+                          style.previewUrl
+                            ? { backgroundImage: `url(${style.previewUrl})` }
+                            : undefined
+                        }
+                        aria-hidden="true"
+                      >
+                        {style.placeholder ? (
+                          <span className="edit-expert-style-tile-coming-soon">Coming soon</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

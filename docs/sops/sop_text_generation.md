@@ -29,7 +29,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | `frontend/lib/agentPromptLoader.ts` | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage. |
 | `frontend/pages/api/ai/generate-prompt.ts` | HTTP POST handler that sends `prompt` + system message to OpenAI chat completions and returns the refined prompt. |
 | `frontend/pages/api/ai/describe-image.ts` | HTTP POST handler that sends an image + system instructions to OpenAI vision (`gpt-5-nano` by default, optional fallback model) and returns the reverse prompt. |
-| `frontend/pages/api/ai/extract-style.ts` | HTTP POST handler that sends an image + style-extractor system instructions to OpenAI vision and returns reusable style descriptors for Styles Library create flows. |
+| `frontend/pages/api/ai/extract-style.ts` | HTTP POST handler that sends an image + style-extractor system instructions to OpenAI vision and returns reusable style descriptors plus a normalized style title for Styles Library create flows. |
 | `frontend/pages/api/ai/studio-agent.ts` | AI Studio prompt-agent route with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`), single-stage prompt-only canonical behavior (`actions.applyPrompt` on success), and canonical prompt continuity. |
 
 ## Studio agent hardening alignment

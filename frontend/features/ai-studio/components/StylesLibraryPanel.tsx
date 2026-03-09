@@ -8,6 +8,7 @@ import type { StylesLibraryStyleDetails } from "../types";
 import { postExtractStyle, prepareStyleImageUrl } from "../logic/styleExtraction";
 import { extractDragDropPayload } from "../utils/dragDrop";
 import { prepareImageUrlForSubmission } from "../utils/imageUpload";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { resolveStylePreviewBackgroundImage } from "./edit/expertEditStyles";
 
@@ -43,9 +44,17 @@ const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
   "image/url",
   "text/uri-list",
 ]);
+const BLOCKED_STYLE_IMAGE_SOURCE_ERROR = "blocked-style-image-source";
+const BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE =
+  "This image source blocks browser access. Download the image and drop the file directly.";
+const STYLE_EXTRACTION_TELEMETRY_SOURCE = "telemetry.ai_studio.style_extraction";
+
+type StyleExtractionOutcome = "success" | "fallback" | "blocked_source";
+type StyleExtractionFlow = "create_modal" | "library_drop";
 
 type ResolvedDroppedStylePreview = {
   previewImageUrl: string;
+  extractionSourceImageUrl: string;
   promptText: string;
 };
 
@@ -158,11 +167,6 @@ const cropImageDataUrlToSquareDataUrl = async (sourceDataUrl: string): Promise<s
   return canvas.toDataURL("image/jpeg", 0.9);
 };
 
-const cropImageFileToSquareDataUrl = async (file: File): Promise<string> => {
-  const sourceDataUrl = await readFileAsDataUrl(file);
-  return cropImageDataUrlToSquareDataUrl(sourceDataUrl);
-};
-
 const cropImageUrlToSquareDataUrl = async (sourceUrl: string): Promise<string> => {
   const response = await fetch(sourceUrl);
   if (!response.ok) {
@@ -204,6 +208,18 @@ const buildNextCustomStyleName = (styles: readonly ExpertEditStyleTile[]): strin
     candidateIndex += 1;
   }
   return `${CUSTOM_STYLE_NAME_PREFIX} ${candidateIndex}`;
+};
+
+const isDefaultCustomStyleName = (value: string): boolean =>
+  /^Custom Style \d+$/i.test(value.trim());
+
+const isBlockedStyleSourceError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const normalizedMessage = error.message.trim().toLowerCase();
+  return (
+    normalizedMessage === BLOCKED_STYLE_IMAGE_SOURCE_ERROR ||
+    normalizedMessage.includes("blocks browser access")
+  );
 };
 
 export function StylesLibraryPanel({
@@ -252,6 +268,27 @@ export function StylesLibraryPanel({
     return ordered.length === allStyles.length ? ordered : allStyles;
   }, [allStyles, orderedStyleIds]);
   const pendingEditPreviewImageUrl = pendingStyleEdit?.details.previewImageUrl?.trim() ?? "";
+  const trackStyleExtractionOutcome = React.useCallback(
+    (
+      outcome: StyleExtractionOutcome,
+      flow: StyleExtractionFlow,
+      metadata?: Record<string, unknown>
+    ) => {
+      void reportAppError({
+        source: STYLE_EXTRACTION_TELEMETRY_SOURCE,
+        scope: "app",
+        severity: "low",
+        message: `style_extraction.${outcome}`,
+        metadata: {
+          telemetry_family: "style_extraction",
+          outcome,
+          flow,
+          ...(metadata ?? {}),
+        },
+      });
+    },
+    []
+  );
 
   const closeDeleteModal = React.useCallback(() => {
     if (deleteSubmitting) return;
@@ -269,26 +306,38 @@ export function StylesLibraryPanel({
     setStylePromptExtractionError(null);
   }, [editSubmitting]);
 
-  const applyExtractedStylePromptToCreateDraft = React.useCallback((stylePrompt: string) => {
-    setPendingStyleEdit((previous) => {
-      if (!previous || previous.mode !== "create") return previous;
-      return {
-        ...previous,
-        details: {
-          ...previous.details,
-          stylePrompt,
-        },
-      };
-    });
-  }, []);
+  const applyExtractedStyleToCreateDraft = React.useCallback(
+    ({ stylePrompt, styleTitle }: { stylePrompt: string; styleTitle: string }) => {
+      setPendingStyleEdit((previous) => {
+        if (!previous || previous.mode !== "create") return previous;
+        const currentStyleName = previous.details.style.trim();
+        const shouldReplaceStyleName =
+          !currentStyleName.length || isDefaultCustomStyleName(currentStyleName);
+        return {
+          ...previous,
+          styleTitle: shouldReplaceStyleName ? styleTitle : previous.styleTitle,
+          details: {
+            ...previous.details,
+            stylePrompt,
+            style: shouldReplaceStyleName ? styleTitle : previous.details.style,
+            title: shouldReplaceStyleName ? styleTitle : previous.details.title,
+            referenceImageName: shouldReplaceStyleName
+              ? styleTitle
+              : previous.details.referenceImageName,
+          },
+        };
+      });
+    },
+    []
+  );
 
-  const extractStylePromptForCreateDraft = React.useCallback(
-    async (previewImageUrl: string) => {
+  const extractStyleForCreateDraft = React.useCallback(
+    async (sourceImageUrl: string) => {
       const requestId = ++stylePromptExtractionRequestIdRef.current;
       setStylePromptExtractionSubmitting(true);
       setStylePromptExtractionError(null);
       try {
-        const safeImageUrl = await prepareStyleImageUrl(previewImageUrl);
+        const safeImageUrl = await prepareStyleImageUrl(sourceImageUrl);
         if (!safeImageUrl) {
           throw new Error(
             "Unable to prepare image for style extraction. You can still enter the style prompt manually."
@@ -296,9 +345,25 @@ export function StylesLibraryPanel({
         }
         const extracted = await postExtractStyle(safeImageUrl);
         if (stylePromptExtractionRequestIdRef.current !== requestId) return;
-        applyExtractedStylePromptToCreateDraft(extracted.stylePrompt);
+        trackStyleExtractionOutcome("success", "create_modal", {
+          source_url_kind: safeImageUrl.startsWith("data:") ? "data" : "url",
+        });
+        applyExtractedStyleToCreateDraft({
+          stylePrompt: extracted.stylePrompt,
+          styleTitle: extracted.styleTitle,
+        });
       } catch (error) {
         if (stylePromptExtractionRequestIdRef.current !== requestId) return;
+        trackStyleExtractionOutcome(
+          isBlockedStyleSourceError(error) ? "blocked_source" : "fallback",
+          "create_modal",
+          {
+            error:
+              error instanceof Error && error.message.trim().length
+                ? error.message.trim().slice(0, 180)
+                : "unknown_error",
+          }
+        );
         setStylePromptExtractionError(
           error instanceof Error
             ? error.message
@@ -310,7 +375,7 @@ export function StylesLibraryPanel({
         }
       }
     },
-    [applyExtractedStylePromptToCreateDraft]
+    [applyExtractedStyleToCreateDraft, trackStyleExtractionOutcome]
   );
 
   const applyStylePreviewToPendingEdit = React.useCallback((previewImageUrl: string) => {
@@ -330,8 +395,10 @@ export function StylesLibraryPanel({
     async (transfer: DataTransfer): Promise<ResolvedDroppedStylePreview> => {
       const droppedImageFile = findDroppedImageFile(transfer);
       if (droppedImageFile) {
+        const sourceImageDataUrl = await readFileAsDataUrl(droppedImageFile);
         return {
-          previewImageUrl: await cropImageFileToSquareDataUrl(droppedImageFile),
+          previewImageUrl: await cropImageDataUrlToSquareDataUrl(sourceImageDataUrl),
+          extractionSourceImageUrl: sourceImageDataUrl,
           promptText: "",
         };
       }
@@ -342,8 +409,23 @@ export function StylesLibraryPanel({
       }
       const preparedDroppedImageUrl =
         (await prepareImageUrlForSubmission(droppedImageUrl)) ?? droppedImageUrl;
+      let previewImageUrl: string;
+      try {
+        previewImageUrl = await cropImageUrlToSquareDataUrl(preparedDroppedImageUrl);
+      } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : "";
+        if (
+          message.includes("failed to fetch") ||
+          message.includes("networkerror") ||
+          message.includes("cors")
+        ) {
+          throw new Error(BLOCKED_STYLE_IMAGE_SOURCE_ERROR);
+        }
+        throw error;
+      }
       return {
-        previewImageUrl: await cropImageUrlToSquareDataUrl(preparedDroppedImageUrl),
+        previewImageUrl,
+        extractionSourceImageUrl: preparedDroppedImageUrl,
         promptText: dragPayload.promptText?.trim() ?? "",
       };
     },
@@ -354,15 +436,23 @@ export function StylesLibraryPanel({
     async (transfer: DataTransfer) => {
       setLocalSaveError(null);
       try {
-        const { previewImageUrl } = await resolveDroppedStylePreview(transfer);
+        const { previewImageUrl, extractionSourceImageUrl } =
+          await resolveDroppedStylePreview(transfer);
         applyStylePreviewToPendingEdit(previewImageUrl);
         const shouldExtract = pendingStyleEdit?.mode === "create";
         if (shouldExtract) {
-          void extractStylePromptForCreateDraft(previewImageUrl);
+          void extractStyleForCreateDraft(extractionSourceImageUrl);
         }
       } catch (error) {
         if (error instanceof Error && error.message === "missing-dropped-style-image") {
           setLocalSaveError("Please drop an image reference.");
+          return;
+        }
+        if (error instanceof Error && error.message === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
+          trackStyleExtractionOutcome("blocked_source", "create_modal", {
+            stage: "preview_source",
+          });
+          setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
           return;
         }
         setLocalSaveError("Unable to process that image.");
@@ -370,9 +460,10 @@ export function StylesLibraryPanel({
     },
     [
       applyStylePreviewToPendingEdit,
-      extractStylePromptForCreateDraft,
+      extractStyleForCreateDraft,
       pendingStyleEdit?.mode,
       resolveDroppedStylePreview,
+      trackStyleExtractionOutcome,
     ]
   );
 
@@ -384,17 +475,18 @@ export function StylesLibraryPanel({
       }
       setLocalSaveError(null);
       try {
-        const croppedPreview = await cropImageFileToSquareDataUrl(file);
+        const sourceImageDataUrl = await readFileAsDataUrl(file);
+        const croppedPreview = await cropImageDataUrlToSquareDataUrl(sourceImageDataUrl);
         applyStylePreviewToPendingEdit(croppedPreview);
         const shouldExtract = pendingStyleEdit?.mode === "create";
         if (shouldExtract) {
-          void extractStylePromptForCreateDraft(croppedPreview);
+          void extractStyleForCreateDraft(sourceImageDataUrl);
         }
       } catch {
         setLocalSaveError("Unable to process that image.");
       }
     },
-    [applyStylePreviewToPendingEdit, extractStylePromptForCreateDraft, pendingStyleEdit?.mode]
+    [applyStylePreviewToPendingEdit, extractStyleForCreateDraft, pendingStyleEdit?.mode]
   );
 
   const createStyleFromDrop = React.useCallback(
@@ -403,25 +495,42 @@ export function StylesLibraryPanel({
       setCreateStyleFromDropSubmitting(true);
       setStylesLibraryDropError(null);
       try {
-        const { previewImageUrl, promptText } = await resolveDroppedStylePreview(transfer);
+        const { previewImageUrl, extractionSourceImageUrl, promptText } =
+          await resolveDroppedStylePreview(transfer);
         let extractedStylePrompt = promptText;
+        let extractedStyleTitle: string | null = null;
         try {
-          const safeImageUrl = await prepareStyleImageUrl(previewImageUrl);
+          const safeImageUrl = await prepareStyleImageUrl(extractionSourceImageUrl);
           if (!safeImageUrl) {
             throw new Error("Unable to prepare dropped image for style extraction.");
           }
           const extracted = await postExtractStyle(safeImageUrl);
           extractedStylePrompt = extracted.stylePrompt;
-        } catch {
-          setStylesLibraryDropError(
-            "Style prompt extraction failed. Style created anyway - you can edit the prompt manually."
-          );
+          extractedStyleTitle = extracted.styleTitle;
+          trackStyleExtractionOutcome("success", "library_drop", {
+            source_url_kind: safeImageUrl.startsWith("data:") ? "data" : "url",
+          });
+        } catch (error) {
+          const extractionOutcome: StyleExtractionOutcome = isBlockedStyleSourceError(error)
+            ? "blocked_source"
+            : "fallback";
+          trackStyleExtractionOutcome(extractionOutcome, "library_drop", {
+            error:
+              error instanceof Error && error.message.trim().length
+                ? error.message.trim().slice(0, 180)
+                : "unknown_error",
+          });
+          const detail =
+            error instanceof Error && error.message.trim().length
+              ? error.message.trim()
+              : "Style extraction could not run from that source.";
+          setStylesLibraryDropError(`${detail} Style created anyway; you can edit the prompt.`);
         }
         if (!onSaveStyleDetails) {
           setStylesLibraryDropError("Style saving is unavailable right now.");
           return;
         }
-        const customStyleName = buildNextCustomStyleName(allStyles);
+        const customStyleName = extractedStyleTitle?.trim() || buildNextCustomStyleName(allStyles);
         customStyleIdCounterRef.current += 1;
         const customStyleId = `style-library-custom-${Date.now()}-${customStyleIdCounterRef.current}`;
         const saved = await onSaveStyleDetails(customStyleId, {
@@ -443,6 +552,13 @@ export function StylesLibraryPanel({
           );
           return;
         }
+        if (error instanceof Error && error.message === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
+          trackStyleExtractionOutcome("blocked_source", "library_drop", {
+            stage: "preview_source",
+          });
+          setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
+          return;
+        }
         setStylesLibraryDropError("Unable to process that dropped image.");
       } finally {
         setCreateStyleFromDropSubmitting(false);
@@ -454,6 +570,7 @@ export function StylesLibraryPanel({
       onSaveStyleDetails,
       onSelectStyle,
       resolveDroppedStylePreview,
+      trackStyleExtractionOutcome,
     ]
   );
 

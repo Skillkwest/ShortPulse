@@ -232,4 +232,48 @@ describe("useAiStudioGenerationPromptComposer", () => {
       expect.objectContaining({ modelIdOverride: "fal-ai/nano-banana-pro/edit" })
     );
   });
+
+  it("appends selected style prompt to submission text while keeping display prompt unchanged", () => {
+    const submitTask = vi.fn();
+    const params = createParams({
+      selectedTool: "create",
+      selectedStylePrompt: "cinematic editorial photography style, moody lighting",
+      submitTask,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("Visible user prompt");
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "Visible user prompt\n\nVisual style reference: cinematic editorial photography style, moody lighting",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({ displayPromptOverride: "Visible user prompt" })
+    );
+  });
+
+  it("does not append selected style prompt for video submissions", () => {
+    const submitTask = vi.fn();
+    const params = createParams({
+      selectedTool: "video",
+      selectedStylePrompt: "cinematic editorial photography style, moody lighting",
+      submitTask,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("Video visible prompt");
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "Video visible prompt",
+      ["https://example.com/ref.png"],
+      expect.objectContaining({ displayPromptOverride: "Video visible prompt" })
+    );
+  });
 });

@@ -522,6 +522,7 @@ export type AiStudioPageContentProps = {
   handleReferenceCanvasFiles?: (files: FileList) => void;
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
 };
 
 export function AiStudioPageContent({
@@ -571,6 +572,7 @@ export function AiStudioPageContent({
   handleReferenceCanvasFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
+  onSelectedStylePromptChange,
 }: AiStudioPageContentProps) {
   const resolvedReferenceGridFileInputRef =
     referenceGridFileInputRef ?? referenceCanvasFileInputRef;
@@ -668,6 +670,15 @@ export function AiStudioPageContent({
       setSelectedStyleId(null);
     }
   }, [selectedStyleId, visibleStylesCatalog]);
+  const selectedStylePrompt = React.useMemo(() => {
+    if (!selectedStyleId) return null;
+    const selectedStyle = visibleStylesCatalog.find((style) => style.id === selectedStyleId);
+    const normalizedPrompt = selectedStyle?.stylePrompt?.trim() ?? "";
+    return normalizedPrompt.length ? normalizedPrompt : null;
+  }, [selectedStyleId, visibleStylesCatalog]);
+  React.useEffect(() => {
+    onSelectedStylePromptChange?.(selectedStylePrompt);
+  }, [onSelectedStylePromptChange, selectedStylePrompt]);
   const workflowPanelVisibilityKey = resolvePanelVisibilityWorkflowKey(selectedTool);
   const workflowPanelVisibility = panelVisibilityByWorkflow[workflowPanelVisibilityKey];
   const isQuickSlotToggleAvailable = Boolean(
@@ -817,6 +828,7 @@ export function AiStudioPageContent({
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
+      stylesCatalog: visibleStylesCatalog,
       onClearSelectedStyle: handleClearSelectedStyle,
     }),
     [
@@ -825,6 +837,7 @@ export function AiStudioPageContent({
       isStylesPanelOpen,
       propertiesEditExpert,
       selectedStyleId,
+      visibleStylesCatalog,
     ]
   );
   const resolvedCreatePropertiesWithStyles = React.useMemo(
@@ -833,6 +846,7 @@ export function AiStudioPageContent({
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
+      stylesCatalog: visibleStylesCatalog,
       onClearSelectedStyle: handleClearSelectedStyle,
     }),
     [
@@ -841,6 +855,7 @@ export function AiStudioPageContent({
       isStylesPanelOpen,
       resolvedCreateProperties,
       selectedStyleId,
+      visibleStylesCatalog,
     ]
   );
   const resolvedReferenceGridPropsWithStylesPanel = React.useMemo(

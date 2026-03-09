@@ -97,10 +97,53 @@ describe("POST /api/ai/extract-style", () => {
       expect.objectContaining({
         stylePrompt:
           "cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
+        styleTitle: "Cinematic Editorial Photography Dramatic Moody",
         usage: {
           inputTokens: 11,
           outputTokens: 14,
         },
+      })
+    );
+  });
+
+  it("parses style title when model returns STYLE TITLE and STYLE ADD-ON sections", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  "STYLE TITLE\nNoir Bloom\n\nSTYLE ADD-ON\ncinematic editorial photography style, dramatic moody lighting, shallow depth of field",
+              },
+            },
+          ],
+          usage: { prompt_tokens: 7, completion_tokens: 9 },
+        }),
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/image.png" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        styleTitle: "Noir Bloom",
+        stylePrompt:
+          "cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
       })
     );
   });

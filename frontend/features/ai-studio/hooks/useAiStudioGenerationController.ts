@@ -56,6 +56,8 @@ type RegenerateWithDebitOptions = {
   modelIdOverride?: string | null;
   costOverrideCredits?: number | null;
   hideOutputFromReferenceGrid?: boolean;
+  displayPromptOverride?: string | null;
+  submissionPromptOverride?: string | null;
 };
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
@@ -587,11 +589,19 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
 
       const promptToUse = resolveDefaultPromptForTool(selectedTool);
+      const promptForGuardrails =
+        typeof options?.displayPromptOverride === "string"
+          ? options.displayPromptOverride
+          : promptToUse;
+      const promptForCharacterComposition =
+        typeof options?.submissionPromptOverride === "string"
+          ? options.submissionPromptOverride
+          : promptForGuardrails;
       const regenerateStartDecision = resolveGenerationStartDecision({
         tool: selectedTool,
         mode,
         modelId: effectiveSubmitModelId,
-        promptText: promptToUse,
+        promptText: promptForGuardrails,
         checkCreateTextMode: false,
         checkPrompt: shouldCheckPromptAtGenerationStart({
           tool: selectedTool,
@@ -619,7 +629,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         const userReferenceInputs =
           options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(selectedTool);
         characterModeOverrides = resolveCharacterModeSubmissionOverrides(
-          promptToUse,
+          promptForCharacterComposition,
           selectedTool,
           characterModeBundleForSubmit,
           userReferenceInputs
@@ -653,7 +663,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           tool: selectedTool,
           mode,
           modelId: effectiveSubmitModelId,
-          promptText: promptToUse,
+          promptText: promptForGuardrails,
           checkCreateTextMode: false,
           checkPrompt: false,
           checkModel: false,
@@ -692,10 +702,16 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
 
       enqueueOptimisticDebit(requiredCredits, activeOutputId ?? null);
+      const resolvedDisplayPromptOverride =
+        typeof options?.displayPromptOverride === "string"
+          ? options.displayPromptOverride
+          : characterModeOverrides?.displayPromptOverride;
+      const resolvedSubmissionPromptOverride =
+        characterModeOverrides?.submissionPromptOverride ?? options?.submissionPromptOverride;
       regenerateOutput({
         modelIdOverride: effectiveModelId,
-        submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
-        displayPromptOverride: characterModeOverrides?.displayPromptOverride,
+        submissionPromptOverride: resolvedSubmissionPromptOverride,
+        displayPromptOverride: resolvedDisplayPromptOverride,
         referenceInputsOverride:
           characterModeOverrides?.referenceInputsOverride ?? options?.referenceInputsOverride,
         inpaintOverride: options?.inpaintOverride,

@@ -265,6 +265,10 @@ OUTPUT FORMAT
 
 Return output using this exact format.
 
+STYLE TITLE
+
+short creative style name
+
 STYLE ADD-ON
 
 descriptor, descriptor, descriptor, descriptor, descriptor
@@ -275,7 +279,7 @@ Rules:
 - No explanations
 - No commentary
 - No extra text
-- Only return the style block`,
+- Return both sections only`,
 
   STUDIO_AGENT_SYSTEM: `You are the ShortPulse AI Studio prompt editor.
 

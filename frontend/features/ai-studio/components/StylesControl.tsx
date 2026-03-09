@@ -5,6 +5,7 @@
 import React from "react";
 import { Sticker, X } from "phosphor-react";
 import {
+  type ExpertEditStyleTile,
   resolveExpertEditStyleById,
   resolveStylePreviewBackgroundImage,
 } from "./edit/expertEditStyles";
@@ -12,6 +13,7 @@ import {
 export type StylesControlProps = {
   isOpen?: boolean;
   selectedStyleId?: string | null;
+  styles?: readonly ExpertEditStyleTile[];
   onToggle?: () => void;
   onClearSelection?: () => void;
   controlsId?: string;
@@ -21,14 +23,17 @@ export type StylesControlProps = {
 export function StylesControl({
   isOpen = false,
   selectedStyleId = null,
+  styles,
   onToggle,
   onClearSelection,
   controlsId = "reference-rail-styles-section",
   className = "",
 }: StylesControlProps) {
   const selectedStyleTile = React.useMemo(
-    () => resolveExpertEditStyleById(selectedStyleId ?? null),
-    [selectedStyleId]
+    () =>
+      styles?.find((style) => !style.placeholder && style.id === (selectedStyleId ?? null)) ??
+      resolveExpertEditStyleById(selectedStyleId ?? null),
+    [selectedStyleId, styles]
   );
 
   return (

@@ -31,6 +31,7 @@ type UseAiStudioGenerationPromptComposerParams = {
   prompt: string;
   editReferenceText: string;
   videoReferenceText: string;
+  selectedStylePrompt?: string | null;
   selectedTool: ToolId | null;
   videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
   useReferenceImageIndicator: boolean;
@@ -74,6 +75,32 @@ const resolvePromptForTool = ({
   return prompt;
 };
 
+const shouldAppendStylePromptForTool = (tool: ToolId | null): boolean =>
+  tool === "create" || tool === "text" || tool === "image" || tool === "edit";
+
+const resolveNormalizedStylePrompt = (value: string | null | undefined): string => {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\s{2,}/g, " ");
+};
+
+const appendStylePromptToSubmission = ({
+  tool,
+  submissionPrompt,
+  selectedStylePrompt,
+}: {
+  tool: ToolId | null;
+  submissionPrompt: string;
+  selectedStylePrompt: string | null | undefined;
+}): string => {
+  if (!shouldAppendStylePromptForTool(tool)) return submissionPrompt;
+  const normalizedStylePrompt = resolveNormalizedStylePrompt(selectedStylePrompt);
+  if (!normalizedStylePrompt.length) return submissionPrompt;
+  const stylePromptLine = `Visual style reference: ${normalizedStylePrompt}`;
+  return submissionPrompt.trim().length
+    ? `${submissionPrompt}\n\n${stylePromptLine}`
+    : stylePromptLine;
+};
+
 /**
  * Returns generate/regenerate handlers with stable prompt and reference composition rules.
  */
@@ -81,6 +108,7 @@ export const useAiStudioGenerationPromptComposer = ({
   prompt,
   editReferenceText,
   videoReferenceText,
+  selectedStylePrompt = null,
   selectedTool,
   videoReferenceMode,
   useReferenceImageIndicator,
@@ -120,6 +148,11 @@ export const useAiStudioGenerationPromptComposer = ({
         typeof options?.submissionPromptOverride === "string"
           ? options.submissionPromptOverride
           : displayPromptToSubmit;
+      const compiledSubmissionPrompt = appendStylePromptToSubmission({
+        tool: effectiveTool,
+        submissionPrompt: submissionPromptToSubmit,
+        selectedStylePrompt,
+      });
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(effectiveTool);
       const isVideoGenerationTool = effectiveTool === "video" || effectiveTool === "kling";
@@ -133,7 +166,7 @@ export const useAiStudioGenerationPromptComposer = ({
         baseInputs,
         options?.referenceInputsOverride
       );
-      submitTask(submissionPromptToSubmit, imageInputs, {
+      submitTask(compiledSubmissionPrompt, imageInputs, {
         modeOverride: options?.modeOverride,
         selectedToolOverride: options?.selectedToolOverride,
         displayPromptOverride: displayPromptToSubmit,
@@ -152,6 +185,7 @@ export const useAiStudioGenerationPromptComposer = ({
       resolveReferenceInputsForTool,
       resolveMergedReferenceInputs,
       selectedTool,
+      selectedStylePrompt,
       submitTask,
       videoReferenceMode,
       videoReferenceText,
@@ -174,6 +208,11 @@ export const useAiStudioGenerationPromptComposer = ({
         typeof options?.submissionPromptOverride === "string"
           ? options.submissionPromptOverride.trim()
           : displayPromptToUse;
+      const compiledSubmissionPrompt = appendStylePromptToSubmission({
+        tool: selectedTool,
+        submissionPrompt: submissionPromptToUse,
+        selectedStylePrompt,
+      });
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(selectedTool);
       const referencePool = buildRegenerateReferencePool({
@@ -188,7 +227,7 @@ export const useAiStudioGenerationPromptComposer = ({
         referencePool,
         options?.referenceInputsOverride
       );
-      submitTask(submissionPromptToUse, imageInputs, {
+      submitTask(compiledSubmissionPrompt, imageInputs, {
         displayPromptOverride: displayPromptToUse,
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
@@ -203,6 +242,7 @@ export const useAiStudioGenerationPromptComposer = ({
       resolveReferenceInputsForTool,
       resolveMergedReferenceInputs,
       selectedTool,
+      selectedStylePrompt,
       submitTask,
       useReferenceImageIndicator,
       videoReferenceMode,

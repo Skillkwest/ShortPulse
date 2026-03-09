@@ -4,6 +4,10 @@ import {
   type ExpertEditCompositingLayer,
 } from "../../logic/expertEditLayerCompose";
 import {
+  analyzeExpertEditPromptTokens,
+  compileExpertEditSubmissionPrompt,
+} from "../../logic/expertEditPromptReferences";
+import {
   INPAINT_FLUX_FILL_MODEL_ID,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
@@ -12,6 +16,8 @@ type RegenerateWithReferenceInputsHandler = (
   referenceInputs: string[],
   options?: {
     inpaintOverride?: InpaintSubmissionOverride | null;
+    displayPromptOverride?: string | null;
+    submissionPromptOverride?: string | null;
   }
 ) => void | Promise<void>;
 
@@ -23,6 +29,7 @@ type ExportSelectedLayerMaskBlob = (params: {
 
 type UseExpertEditInlineGenerateParams = {
   layers: ExpertEditCompositingLayer[];
+  promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
   populatedLayerCount: number;
   isInpaintToolSelected: boolean;
@@ -34,6 +41,7 @@ type UseExpertEditInlineGenerateParams = {
   revokeObjectUrlSafe: (url: string) => void;
   resolveBlobDimensions: (blob: Blob) => Promise<{ width: number; height: number }>;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
+  onInvalidPromptReferenceToken?: (message: string) => void;
 };
 
 const MAX_REFERENCE_INPUTS = 8;
@@ -54,6 +62,7 @@ const resolveFlattenFailureToastMessage = (error: unknown): string => {
 
 export const useExpertEditInlineGenerate = ({
   layers,
+  promptText,
   extraImageUrls,
   populatedLayerCount,
   isInpaintToolSelected,
@@ -65,6 +74,7 @@ export const useExpertEditInlineGenerate = ({
   revokeObjectUrlSafe,
   resolveBlobDimensions,
   showStatusToast,
+  onInvalidPromptReferenceToken,
 }: UseExpertEditInlineGenerateParams) => {
   const buildFlattenReferenceInputs = React.useCallback(
     (flattenedPrimaryUrl: string) => {
@@ -84,6 +94,13 @@ export const useExpertEditInlineGenerate = ({
         showStatusToast("Add at least one layer image before generating.");
         return;
       }
+      const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls);
+      if (tokenAnalysis.hasInvalidTokens) {
+        const message =
+          tokenAnalysis.inlineError ?? "Use @img1, @img2, or @img3 with populated references.";
+        onInvalidPromptReferenceToken?.(message);
+        return;
+      }
 
       let flattenedUrl: string | null = null;
       let inpaintMaskUrl: string | null = null;
@@ -91,6 +108,17 @@ export const useExpertEditInlineGenerate = ({
         const flattenedBlob = await composePrimaryLayersToBlob(layers, { mimeType: "image/png" });
         flattenedUrl = URL.createObjectURL(flattenedBlob);
         const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
+        const compiledPrompt = compileExpertEditSubmissionPrompt({
+          displayPrompt: promptText,
+          secondarySlots: extraImageUrls,
+          referenceInputs,
+        });
+        const promptOverrideOptions = compiledPrompt.hasTokenReferences
+          ? {
+              displayPromptOverride: promptText,
+              submissionPromptOverride: compiledPrompt.submissionPrompt,
+            }
+          : undefined;
 
         if (isInpaintToolSelected) {
           if (!onRegenerateWithReferenceInputs) {
@@ -119,6 +147,7 @@ export const useExpertEditInlineGenerate = ({
               maskInput: inpaintMaskUrl,
               outputFormat: "png",
             },
+            ...promptOverrideOptions,
           });
           return;
         }
@@ -127,7 +156,7 @@ export const useExpertEditInlineGenerate = ({
           onRegenerate();
           return;
         }
-        await onRegenerateWithReferenceInputs(referenceInputs);
+        await onRegenerateWithReferenceInputs(referenceInputs, promptOverrideOptions);
       } catch (error) {
         if (flattenedUrl) {
           revokeObjectUrlSafe(flattenedUrl);
@@ -158,17 +187,20 @@ export const useExpertEditInlineGenerate = ({
     void run();
   }, [
     buildFlattenReferenceInputs,
+    extraImageUrls,
     exportSelectedLayerMaskBlob,
     hasSelectedLayerMask,
     isInpaintToolSelected,
     layers,
     onRegenerate,
     onRegenerateWithReferenceInputs,
+    promptText,
     populatedLayerCount,
     revokeObjectUrlSafe,
     scheduleTransientObjectUrlRevoke,
     resolveBlobDimensions,
     showStatusToast,
+    onInvalidPromptReferenceToken,
   ]);
 
   return {

@@ -22,6 +22,8 @@ const STYLE_EXTRACTOR_ID: AgentPromptId = "OPENAI_PROMPT_STYLE_EXTRACT";
 const DEFAULT_VISION_MODEL = "gpt-5-nano";
 const DEFAULT_FALLBACK_VISION_MODEL = "gpt-5-nano";
 const MAX_STYLE_PROMPT_LENGTH = 4000;
+const MAX_STYLE_TITLE_LENGTH = 80;
+const DEFAULT_STYLE_TITLE_FALLBACK = "Extracted Style";
 
 const clampStylePrompt = (value: string): string => {
   const trimmed = value.trim();
@@ -50,6 +52,131 @@ const normalizeExtractedStylePrompt = (value: string): string | null => {
   return clamped.length > 0 ? clamped : null;
 };
 
+const clampStyleTitle = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed.length <= MAX_STYLE_TITLE_LENGTH) return trimmed;
+  return trimmed.slice(0, MAX_STYLE_TITLE_LENGTH).trim();
+};
+
+const toTitleCaseWords = (value: string): string =>
+  value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      if (word.length <= 2) return word.toUpperCase();
+      return `${word.slice(0, 1).toUpperCase()}${word.slice(1).toLowerCase()}`;
+    })
+    .join(" ");
+
+const sanitizeTitleFragment = (value: string): string =>
+  value
+    .replace(/^STYLE\s*TITLE\s*:?\s*/i, "")
+    .replace(/^title\s*:?\s*/i, "")
+    .replace(/[“”"]/g, "")
+    .replace(/[`*_]+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+const normalizeExtractedStyleTitle = (value: string): string | null => {
+  const firstLine = value
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => sanitizeTitleFragment(line))
+    .find((line) => line.length > 0);
+  if (!firstLine) return null;
+  const withoutInlineMeta = firstLine
+    .replace(/\bSTYLE\s*ADD-ON\b.*$/i, "")
+    .replace(/\b(?:descriptors?|descriptor block)\b.*$/i, "")
+    .replace(/[,:;\-.]+$/g, "")
+    .trim();
+  if (!withoutInlineMeta) return null;
+  const singleSegment = withoutInlineMeta.includes(",")
+    ? (withoutInlineMeta.split(",")[0] ?? "").trim()
+    : withoutInlineMeta;
+  if (!singleSegment) return null;
+  if (isRefusalOrFallbackText(singleSegment)) return null;
+  const safeTitle = sanitizeGenerationPromptText(singleSegment);
+  if (!safeTitle) return null;
+  const clamped = clampStyleTitle(safeTitle);
+  if (!clamped) return null;
+  const normalizedTitle = toTitleCaseWords(clamped);
+  if (!normalizedTitle) return null;
+  return normalizedTitle;
+};
+
+const buildFallbackStyleTitle = (stylePrompt: string | null): string => {
+  if (!stylePrompt) return DEFAULT_STYLE_TITLE_FALLBACK;
+  const descriptorParts = stylePrompt
+    .split(",")
+    .map((part) =>
+      part
+        .replace(/\b(?:style|look|aesthetic|finish)\b/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim()
+    )
+    .filter(Boolean)
+    .slice(0, 2);
+  const rawTitle = descriptorParts
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!rawTitle) return DEFAULT_STYLE_TITLE_FALLBACK;
+  const words = rawTitle.split(/\s+/).slice(0, 5).join(" ");
+  const titled = normalizeExtractedStyleTitle(words);
+  return titled ?? DEFAULT_STYLE_TITLE_FALLBACK;
+};
+
+const parseStyleExtractionText = (
+  extractedText: string
+): { stylePrompt: string | null; styleTitle: string } => {
+  const lines = extractedText
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  let mode: "title" | "prompt" | null = null;
+  const titleLines: string[] = [];
+  const promptLines: string[] = [];
+
+  lines.forEach((line) => {
+    const normalized = line.trim();
+    const styleTitleMatch = normalized.match(/^STYLE\s*TITLE\s*:?\s*(.*)$/i);
+    if (styleTitleMatch) {
+      mode = "title";
+      const inline = styleTitleMatch[1]?.trim();
+      if (inline) titleLines.push(inline);
+      return;
+    }
+    const stylePromptMatch = normalized.match(/^STYLE\s*ADD-ON\s*:?\s*(.*)$/i);
+    if (stylePromptMatch) {
+      mode = "prompt";
+      const inline = stylePromptMatch[1]?.trim();
+      if (inline) promptLines.push(inline);
+      return;
+    }
+    if (mode === "title") {
+      titleLines.push(normalized);
+      return;
+    }
+    if (mode === "prompt") {
+      promptLines.push(normalized);
+      return;
+    }
+    promptLines.push(normalized);
+  });
+
+  const promptSourceText =
+    promptLines.length > 0 ? promptLines.join(", ") : extractedText.replace(/\r\n?/g, "\n");
+  const stylePrompt = normalizeExtractedStylePrompt(promptSourceText);
+  const extractedTitleCandidate =
+    normalizeExtractedStyleTitle(titleLines.join(" ")) ??
+    normalizeExtractedStyleTitle(extractedText);
+  const styleTitle = extractedTitleCandidate ?? buildFallbackStyleTitle(stylePrompt);
+
+  return { stylePrompt, styleTitle };
+};
+
 const isRefusalOrFallbackText = (value: string): boolean => {
   const normalized = value.trim();
   return (
@@ -62,6 +189,7 @@ type LegacyStyleExtractionSuccess = {
   ok: true;
   payload: {
     stylePrompt: string;
+    styleTitle: string;
     usage: {
       inputTokens?: number;
       outputTokens?: number;
@@ -174,7 +302,8 @@ export const executeLegacyStyleExtraction = async ({
       model: primaryVisionModel,
       systemPrompt,
       imageUrl: normalizedImageUrl,
-      userText: "Extract only reusable visual style descriptors.",
+      userText:
+        "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
     });
 
     if (
@@ -192,7 +321,8 @@ export const executeLegacyStyleExtraction = async ({
         model: fallbackVisionModel,
         systemPrompt,
         imageUrl: normalizedImageUrl,
-        userText: "Extract only reusable visual style descriptors.",
+        userText:
+          "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
       });
     }
 
@@ -226,7 +356,11 @@ export const executeLegacyStyleExtraction = async ({
 
     const data = extractionAttempt.data;
     const extractedText = extractImageDescriptionText(data);
-    const stylePrompt = extractedText ? normalizeExtractedStylePrompt(extractedText) : null;
+    const parsedExtraction = extractedText
+      ? parseStyleExtractionText(extractedText)
+      : { stylePrompt: null, styleTitle: DEFAULT_STYLE_TITLE_FALLBACK };
+    const stylePrompt = parsedExtraction.stylePrompt;
+    const styleTitle = parsedExtraction.styleTitle;
 
     if (!stylePrompt || isRefusalOrFallbackText(stylePrompt)) {
       await logGenerationFailure({
@@ -259,6 +393,7 @@ export const executeLegacyStyleExtraction = async ({
       ok: true,
       payload: {
         stylePrompt,
+        styleTitle,
         usage: {
           inputTokens: typeof promptTokens === "number" ? promptTokens : undefined,
           outputTokens: typeof completionTokens === "number" ? completionTokens : undefined,

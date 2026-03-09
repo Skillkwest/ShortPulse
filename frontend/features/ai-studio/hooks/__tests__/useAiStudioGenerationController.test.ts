@@ -650,6 +650,74 @@ describe("useAiStudioGenerationController", () => {
     expect(setUiError).not.toHaveBeenCalledWith("Add a prompt to start a generation.");
   });
 
+  it("forwards explicit regenerate display/submission prompt overrides", async () => {
+    const regenerateOutput = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => null);
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      resolveCharacterModeSubmissionOverrides,
+      regenerateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        displayPromptOverride: "raw @img1 prompt",
+        submissionPromptOverride: "compiled Figure 2 prompt",
+      });
+    });
+
+    expect(resolveCharacterModeSubmissionOverrides).toHaveBeenCalledWith(
+      "compiled Figure 2 prompt",
+      "edit",
+      null,
+      ["https://example.com/reference.png"]
+    );
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        displayPromptOverride: "raw @img1 prompt",
+        submissionPromptOverride: "compiled Figure 2 prompt",
+      })
+    );
+  });
+
+  it("prioritizes character-mode submission prompt override while preserving explicit display override", async () => {
+    const regenerateOutput = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
+      submissionPromptOverride: "character merged prompt",
+      displayPromptOverride: "character display prompt",
+      referenceInputsOverride: ["https://example.com/char-ref.png"],
+      notice: null,
+      fallbackCode: null,
+      characterReferenceCount: 1,
+      hasCharacterDescription: true,
+    }));
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      isCharacterModeEnabled: true,
+      resolveCharacterModeSubmissionOverrides,
+      regenerateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        displayPromptOverride: "raw @img1 prompt",
+        submissionPromptOverride: "compiled Figure 2 prompt",
+      });
+    });
+
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        displayPromptOverride: "raw @img1 prompt",
+        submissionPromptOverride: "character merged prompt",
+        referenceInputsOverride: ["https://example.com/char-ref.png"],
+      })
+    );
+  });
+
   it("uses regenerate cost override for credit guardrail checks and optimistic debit", async () => {
     const regenerateOutput = vi.fn();
     const setUiError = vi.fn();

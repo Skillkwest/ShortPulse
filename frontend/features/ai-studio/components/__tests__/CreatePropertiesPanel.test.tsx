@@ -213,6 +213,36 @@ describe("CreatePropertiesPanel", () => {
     expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
   });
 
+  it("shows selected custom style preview from the live styles catalog", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      selectedStyleId: "style-library-custom-1",
+      stylesCatalog: [
+        {
+          id: "style-library-custom-1",
+          title: "Noir Bloom",
+          style: "Noir Bloom",
+          referenceImageName: "Noir Bloom",
+          stylePrompt: "cinematic editorial photography style, dramatic moody lighting",
+          previewUrl: "https://demo.supabase.co/storage/v1/object/sign/media/noir.jpg",
+          placeholder: false,
+        },
+      ],
+    });
+
+    const stylesButton = screen.getByRole("button", { name: "Styles" });
+    expect(stylesButton).toHaveClass("has-selected-style");
+    const preview = stylesButton.querySelector(
+      ".edit-expert-styles-btn-preview"
+    ) as HTMLSpanElement | null;
+    expect(preview).toBeTruthy();
+    expect(preview?.style.backgroundImage).toContain("https://demo.supabase.co/storage");
+  });
+
   it("clears selected style from the expert create styles button", () => {
     const onClearSelectedStyle = vi.fn();
     renderPanel({

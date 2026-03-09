@@ -8,7 +8,6 @@ import {
   CaretRight,
   CircleDashed,
   CircleHalf,
-  Crop,
   GearSix,
   MagicWand,
   PaintBrush,
@@ -35,6 +34,13 @@ import {
   parseAspectRatioToken,
   resolveCenteredAspectCropRect,
 } from "../../logic/expertEditLayerCrop";
+import {
+  analyzeExpertEditPromptTokens,
+  buildExpertEditPromptHighlightSegments,
+  extractExpertEditPromptTokenFromTransfer,
+  insertExpertEditPromptTokenAtSelection,
+  setExpertEditPromptTokenDragData,
+} from "../../logic/expertEditPromptReferences";
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
   type InpaintSubmissionOverride,
@@ -71,6 +77,7 @@ import {
   serializeExpertEditPresetDragPayload,
   sortPresetIdsByCanonicalOrder,
 } from "./expertEditPresets";
+import type { ExpertEditStyleTile } from "./expertEditStyles";
 
 export type ExpertEditPanelViewProps = {
   expertEditEligible: boolean;
@@ -101,6 +108,8 @@ export type ExpertEditPanelViewProps = {
       modelIdOverride?: string | null;
       costOverrideCredits?: number | null;
       hideOutputFromReferenceGrid?: boolean;
+      displayPromptOverride?: string | null;
+      submissionPromptOverride?: string | null;
     }
   ) => void | Promise<void>;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
@@ -124,6 +133,7 @@ export type ExpertEditPanelViewProps = {
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
+  stylesCatalog?: readonly ExpertEditStyleTile[];
   onClearSelectedStyle?: () => void;
 };
 
@@ -269,7 +279,7 @@ const editLayerUtilityActions = [
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
   },
 ] as const;
-type RailTool = "move" | "inpaint" | "crop";
+type RailTool = "move" | "inpaint";
 const inpaintRailTools: ReadonlyArray<{
   id: RailTool;
   label: string;
@@ -288,22 +298,18 @@ const inpaintRailTools: ReadonlyArray<{
     selectedClassName: "is-selected-inpaint",
     icon: PaintBrushBroad,
   },
-  {
-    id: "crop",
-    label: "Crop",
-    selectedClassName: "is-selected-crop",
-    icon: Crop,
-  },
 ];
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
 type TransformDragMode = "move" | "resize" | "rotate";
 const cropAspectRatioPresets = [
-  { value: "9:16", label: "Vertical" },
-  { value: "4:5", label: "Social Post" },
-  { value: "5:4", label: "Photo" },
-  { value: "16:9", label: "Landscape" },
+  { value: "9:16", label: "Vertical", ratio: 9 / 16 },
+  { value: "4:5", label: "Social Post", ratio: 4 / 5 },
+  { value: "1:1", label: "Square", ratio: 1 },
+  { value: "5:4", label: "Photo", ratio: 5 / 4 },
+  { value: "16:9", label: "Landscape", ratio: 16 / 9 },
 ] as const;
+const frameAspectRatioPresets = cropAspectRatioPresets;
 const MAX_LAYERS = 8;
 const LAYER_LIMIT_REACHED_TOAST = `Layer limit reached (${MAX_LAYERS}).`;
 const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
@@ -785,6 +791,7 @@ export function ExpertEditPanelView({
   isStylesPanelOpen = false,
   onStylesPanelToggle,
   selectedStyleId: controlledSelectedStyleId,
+  stylesCatalog,
   onClearSelectedStyle,
 }: ExpertEditPanelViewProps) {
   const layerIdCounterRef = React.useRef(1);
@@ -811,6 +818,9 @@ export function ExpertEditPanelView({
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const promptHighlightRef = React.useRef<HTMLDivElement | null>(null);
+  const pendingPromptCaretRef = React.useRef<number | null>(null);
   const transformPointerSessionRef = React.useRef<TransformPointerSession>(
     createIdleTransformPointerSession()
   );
@@ -849,7 +859,7 @@ export function ExpertEditPanelView({
   const [selectedTransformMode, setSelectedTransformMode] =
     React.useState<TransformDragMode>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
-  const [selectedCropAspect, setSelectedCropAspect] = React.useState<string | null>(null);
+  const [selectedFrameAspect, setSelectedFrameAspect] = React.useState("1:1");
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
@@ -888,6 +898,7 @@ export function ExpertEditPanelView({
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
+  const [showPromptTokenInlineError, setShowPromptTokenInlineError] = React.useState(false);
   const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
@@ -994,7 +1005,6 @@ export function ExpertEditPanelView({
   const hasSelectedPresetIds = selectedPresetIds.length > 0;
 
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
-  const isCropToolSelected = selectedRailTool === "crop";
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isMoveToolSelected = selectedRailTool === "move";
   const isModelPickerLocked = isInpaintToolSelected;
@@ -1002,12 +1012,15 @@ export function ExpertEditPanelView({
     ? INPAINT_FLUX_FILL_MODEL_LABEL
     : stripEditLabel(modelLabel);
   const effectiveModelPickerLogoSrc = isModelPickerLocked ? undefined : modelLogoSrc;
-  const collapsedToolsThemeClass = isMoveToolSelected
-    ? "is-active-move"
-    : isInpaintToolSelected
-      ? "is-active-inpaint"
-      : "is-active-crop";
+  const collapsedToolsThemeClass = isMoveToolSelected ? "is-active-move" : "is-active-inpaint";
   const sceneZoomScale = 1;
+  const handlePromptTextChange = React.useCallback(
+    (value: string) => {
+      setShowPromptTokenInlineError(false);
+      onPromptTextChange(value);
+    },
+    [onPromptTextChange]
+  );
 
   const {
     extraOneInputRef,
@@ -1025,7 +1038,7 @@ export function ExpertEditPanelView({
     extraImageUrls,
     onPrimaryImageChange: () => {},
     onExtraImageChange,
-    onPromptTextChange,
+    onPromptTextChange: handlePromptTextChange,
     resolvePreviewUrlById,
     klingMultiPrompts: [],
     klingElements: [],
@@ -1074,8 +1087,20 @@ export function ExpertEditPanelView({
   });
 
   const inputRefs = [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] as const;
+  const promptTextValue = referenceText ?? "";
+  const promptTokenAnalysis = React.useMemo(
+    () => analyzeExpertEditPromptTokens(promptTextValue, extraImageUrls),
+    [extraImageUrls, promptTextValue]
+  );
+  const promptHighlightSegments = React.useMemo(
+    () => buildExpertEditPromptHighlightSegments(promptTextValue, promptTokenAnalysis.diagnostics),
+    [promptTextValue, promptTokenAnalysis.diagnostics]
+  );
+  const promptTokenInlineError = showPromptTokenInlineError
+    ? promptTokenAnalysis.inlineError
+    : null;
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
-  const hasPromptText = (referenceText ?? "").trim().length > 0;
+  const hasPromptText = promptTextValue.trim().length > 0;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
@@ -1107,6 +1132,69 @@ export function ExpertEditPanelView({
     },
     []
   );
+  const handleInvalidPromptReferenceToken = React.useCallback(
+    (message: string) => {
+      setShowPromptTokenInlineError(true);
+      showStatusToast(message, "warning");
+    },
+    [showStatusToast]
+  );
+
+  const syncPromptHighlightScroll = React.useCallback(() => {
+    const textarea = promptTextareaRef.current;
+    const highlightLayer = promptHighlightRef.current;
+    if (!textarea || !highlightLayer) return;
+    highlightLayer.scrollTop = textarea.scrollTop;
+    highlightLayer.scrollLeft = textarea.scrollLeft;
+  }, []);
+
+  const handlePromptScroll = React.useCallback(() => {
+    syncPromptHighlightScroll();
+  }, [syncPromptHighlightScroll]);
+
+  const handlePromptDropWithTokenInsert = React.useCallback(
+    (event: React.DragEvent<HTMLTextAreaElement>) => {
+      event.preventDefault();
+      const droppedToken = extractExpertEditPromptTokenFromTransfer(event.dataTransfer);
+      if (!droppedToken) {
+        handlePromptDrop(event);
+        return;
+      }
+      const textarea = promptTextareaRef.current;
+      const selectionStart = textarea?.selectionStart ?? promptTextValue.length;
+      const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+      const insertedPrompt = insertExpertEditPromptTokenAtSelection({
+        prompt: promptTextValue,
+        token: droppedToken,
+        selectionStart,
+        selectionEnd,
+      });
+      pendingPromptCaretRef.current = insertedPrompt.caret;
+      handlePromptTextChange(insertedPrompt.prompt);
+    },
+    [handlePromptDrop, handlePromptTextChange, promptTextValue]
+  );
+
+  React.useEffect(() => {
+    const caretPosition = pendingPromptCaretRef.current;
+    if (caretPosition == null) return;
+    const textarea = promptTextareaRef.current;
+    if (!textarea) return;
+    const maxCaret = Math.max(0, Math.min(promptTextValue.length, caretPosition));
+    textarea.focus();
+    textarea.setSelectionRange(maxCaret, maxCaret);
+    pendingPromptCaretRef.current = null;
+  }, [promptTextValue]);
+
+  React.useEffect(() => {
+    syncPromptHighlightScroll();
+  }, [promptTextValue, syncPromptHighlightScroll]);
+
+  React.useEffect(() => {
+    if (!promptTokenAnalysis.inlineError && showPromptTokenInlineError) {
+      setShowPromptTokenInlineError(false);
+    }
+  }, [promptTokenAnalysis.inlineError, showPromptTokenInlineError]);
 
   React.useEffect(() => {
     return () => {
@@ -1170,13 +1258,13 @@ export function ExpertEditPanelView({
     (presetId: ExpertEditPresetId) => {
       const presetPrompt = resolveExpertEditPresetPromptById(presetId, customPresetOverrides);
       if (!presetPrompt) return;
-      onPromptTextChange(presetPrompt);
+      handlePromptTextChange(presetPrompt);
     },
-    [customPresetOverrides, onPromptTextChange]
+    [customPresetOverrides, handlePromptTextChange]
   );
   const handleCompositeRegeneratePromptInsert = React.useCallback(() => {
-    onPromptTextChange(COMPOSITE_REGENERATE_COHESION_PROMPT);
-  }, [onPromptTextChange]);
+    handlePromptTextChange(COMPOSITE_REGENERATE_COHESION_PROMPT);
+  }, [handlePromptTextChange]);
 
   const handleCustomPresetSave = React.useCallback(
     (presetId: ExpertEditCustomPresetId, override: ExpertEditCustomPresetOverride) => {
@@ -1383,11 +1471,37 @@ export function ExpertEditPanelView({
     shouldShowInpaintBrushReticle,
     shouldShowInpaintLassoCursor,
   ]);
+  const primaryDropzoneAspectRatio = React.useMemo(
+    () => selectedFrameAspect.replace(":", " / "),
+    [selectedFrameAspect]
+  );
+  const primaryDropzoneAspectRatioValue = React.useMemo(
+    () => parseAspectRatioToken(selectedFrameAspect) ?? 1,
+    [selectedFrameAspect]
+  );
+  const primaryDropzoneFrameSize = React.useMemo(() => {
+    if (primaryDropzoneAspectRatioValue >= 1) {
+      return { widthPercent: 100, heightPercent: 100 / primaryDropzoneAspectRatioValue };
+    }
+    return { widthPercent: primaryDropzoneAspectRatioValue * 100, heightPercent: 100 };
+  }, [primaryDropzoneAspectRatioValue]);
   const primaryDropzoneStyle = React.useMemo(() => {
-    if (isMorePresetsSurfaceOpen) return undefined;
-    if (!primaryDropzoneCursor) return undefined;
-    return { cursor: primaryDropzoneCursor };
-  }, [isMorePresetsSurfaceOpen, primaryDropzoneCursor]);
+    const style: React.CSSProperties = {
+      aspectRatio: primaryDropzoneAspectRatio,
+      width: `${primaryDropzoneFrameSize.widthPercent}%`,
+      height: `${primaryDropzoneFrameSize.heightPercent}%`,
+    };
+    if (!isMorePresetsSurfaceOpen && primaryDropzoneCursor) {
+      style.cursor = primaryDropzoneCursor;
+    }
+    return style;
+  }, [
+    isMorePresetsSurfaceOpen,
+    primaryDropzoneAspectRatio,
+    primaryDropzoneCursor,
+    primaryDropzoneFrameSize.heightPercent,
+    primaryDropzoneFrameSize.widthPercent,
+  ]);
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
     if (typeof document === "undefined") return;
@@ -1497,11 +1611,6 @@ export function ExpertEditPanelView({
     [createLayer, foundationLayerId, layers, selectedLayerIndex, showStatusToast]
   );
 
-  const selectedCropAspectRatio = React.useMemo(
-    () => parseAspectRatioToken(selectedCropAspect),
-    [selectedCropAspect]
-  );
-
   const handleManualFlatten = React.useCallback(async () => {
     if (populatedLayerCount <= 0) {
       showStatusToast("Add at least one layer image before flattening.");
@@ -1513,14 +1622,14 @@ export function ExpertEditPanelView({
         mimeType: "image/png",
       });
       let exportBlob = flattenedStageBlob;
-      if (isCropToolSelected && selectedCropAspectRatio) {
+      if (Math.abs(primaryDropzoneAspectRatioValue - 1) > Number.EPSILON) {
         const flattenedStageUrl = URL.createObjectURL(flattenedStageBlob);
         try {
           const flattenedStageDimensions = await resolveBlobDimensions(flattenedStageBlob);
           const cropRect = resolveCenteredAspectCropRect({
             stageWidth: flattenedStageDimensions.width,
             stageHeight: flattenedStageDimensions.height,
-            aspectRatio: selectedCropAspectRatio,
+            aspectRatio: primaryDropzoneAspectRatioValue,
           });
           if (!cropRect) {
             throw new Error("Unable to resolve crop bounds for flattened export.");
@@ -1562,80 +1671,9 @@ export function ExpertEditPanelView({
     foundationLayerId,
     layers,
     populatedLayerCount,
+    primaryDropzoneAspectRatioValue,
     showStatusToast,
-    isCropToolSelected,
-    selectedCropAspectRatio,
   ]);
-
-  const handleCropAspectToggle = React.useCallback((nextAspect: string) => {
-    setSelectedCropAspect((previousAspect) => (previousAspect === nextAspect ? null : nextAspect));
-  }, []);
-
-  const stageCropGuidePercentRect = React.useMemo(() => {
-    if (!selectedCropAspectRatio) return null;
-    return resolveCenteredAspectCropRect({
-      stageWidth: 100,
-      stageHeight: 100,
-      aspectRatio: selectedCropAspectRatio,
-    });
-  }, [selectedCropAspectRatio]);
-
-  const handleApplyCrop = React.useCallback(async () => {
-    if (!selectedCropAspectRatio) {
-      showStatusToast("Choose a crop ratio before applying crop.", "warning");
-      return;
-    }
-    const targetLayer = selectedLayer;
-    const targetImageUrl = targetLayer?.imageUrl?.trim() ?? "";
-    if (!targetLayer || !targetImageUrl) {
-      showStatusToast("Select a layer image before applying crop.", "warning");
-      return;
-    }
-    const dropzone = primaryDropzoneRef.current;
-    if (!dropzone) {
-      showStatusToast("Crop stage is unavailable.", "warning");
-      return;
-    }
-    const rect = dropzone.getBoundingClientRect();
-    const stageWidth = Math.max(1, Math.round(rect.width));
-    const stageHeight = Math.max(1, Math.round(rect.height));
-    const cropRect = resolveCenteredAspectCropRect({
-      stageWidth,
-      stageHeight,
-      aspectRatio: selectedCropAspectRatio,
-    });
-    if (!cropRect) {
-      showStatusToast("Unable to resolve crop bounds.", "warning");
-      return;
-    }
-
-    try {
-      const croppedBlob = await composeExpertEditLayerCropToBlob({
-        imageUrl: targetImageUrl,
-        stageWidth,
-        stageHeight,
-        cropRect,
-        transform: targetLayer.transform,
-        mimeType: "image/png",
-      });
-      const croppedImageUrl = URL.createObjectURL(croppedBlob);
-      setLayers((previousLayers) =>
-        previousLayers.map((layer) =>
-          layer.id === targetLayer.id
-            ? {
-                ...layer,
-                imageUrl: croppedImageUrl,
-                ownsImageUrl: true,
-                transform: defaultLayerTransform(),
-              }
-            : layer
-        )
-      );
-      showStatusToast("Crop applied.");
-    } catch {
-      showStatusToast("Unable to apply crop.", "warning");
-    }
-  }, [selectedCropAspectRatio, selectedLayer, showStatusToast]);
 
   const handleRemoveBackground = React.useCallback(() => {
     const run = async () => {
@@ -1673,6 +1711,7 @@ export function ExpertEditPanelView({
 
   const { handleInlineGenerate } = useExpertEditInlineGenerate({
     layers,
+    promptText: promptTextValue,
     extraImageUrls,
     populatedLayerCount,
     isInpaintToolSelected,
@@ -1684,6 +1723,7 @@ export function ExpertEditPanelView({
     revokeObjectUrlSafe,
     resolveBlobDimensions,
     showStatusToast,
+    onInvalidPromptReferenceToken: handleInvalidPromptReferenceToken,
   });
 
   const handlePrimaryFileSelection = React.useCallback(
@@ -1704,6 +1744,22 @@ export function ExpertEditPanelView({
     }
     return false;
   }, []);
+
+  const handleSecondaryPromptTokenDragStart = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>, index: number) => {
+      if (!extraImageUrls[index]) {
+        event.preventDefault();
+        return;
+      }
+      const token = setExpertEditPromptTokenDragData(event.dataTransfer, index);
+      if (!token) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = "copy";
+    },
+    [extraImageUrls]
+  );
 
   const handlePrimaryDragEnter = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -2689,127 +2745,137 @@ export function ExpertEditPanelView({
           ) : null}
         </div>
 
-        <div
-          ref={primaryDropzoneRef}
-          className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
-            isMorePresetsSurfaceOpen ? "is-presets-open" : ""
-          } ${primaryDragActive ? "is-dragging" : ""}`}
-          style={primaryDropzoneStyle}
-          onDrop={handlePrimaryDrop}
-          onDragEnter={handlePrimaryDragEnter}
-          onDragOver={handlePrimaryDragOver}
-          onDragLeave={handlePrimaryDragLeave}
-          onPointerDown={handlePrimaryPointerDown}
-          onPointerMove={handlePrimaryPointerMove}
-          onPointerUp={handlePrimaryPointerUp}
-          onPointerCancel={handlePrimaryPointerCancel}
-          onPointerLeave={handlePrimaryPointerLeave}
-          onClick={handlePrimaryDropzoneClick}
-          aria-label="Primary edit image"
-          aria-busy={isPrimaryStageBusy || undefined}
-        >
-          {hasPrimaryCompositePreview ? (
-            <div
-              className="edit-expert-primary-layer-canvas"
-              style={{
-                transform: `scale(${sceneZoomScale})`,
-                transformOrigin: "center center",
-              }}
-              aria-hidden="true"
-            >
-              {layers.map((layer, index) =>
-                layer.imageUrl ? (
-                  <div
-                    key={layer.id}
-                    className="edit-expert-primary-layer-frame"
-                    style={{
-                      backgroundImage: `url(${layer.imageUrl})`,
-                      zIndex: layers.length - index,
-                      opacity: clampLayerOpacity(layer.opacity),
-                      transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
-                      transformOrigin: "center center",
-                    }}
-                  />
-                ) : null
-              )}
-              <canvas
-                ref={overlayCanvasRef}
-                className="edit-expert-inpaint-overlay-canvas"
-                aria-hidden="true"
-              />
-              {isRemoveBackgroundPending ? (
-                <div
-                  className="edit-expert-primary-layer-loading-overlay"
-                  data-testid="edit-expert-remove-background-loading-overlay"
+        <div className="edit-expert-frame-controls" role="group" aria-label="Primary frame ratio">
+          <span className="edit-expert-frame-label">Frame:</span>
+          <div className="edit-expert-frame-chip-row">
+            {frameAspectRatioPresets.map((preset) => {
+              const isSelected = selectedFrameAspect === preset.value;
+              return (
+                <button
+                  key={preset.value}
+                  type="button"
+                  className={`edit-expert-frame-chip ${isSelected ? "is-selected" : ""}`.trim()}
+                  aria-label={`${preset.value} ${preset.label}`}
+                  aria-pressed={isSelected}
+                  onClick={() => setSelectedFrameAspect(preset.value)}
                 >
-                  <div
-                    className="edit-expert-primary-layer-loading"
-                    role="status"
-                    aria-label="Removing background"
-                    aria-live="polite"
-                  >
-                    <span
-                      className="edit-expert-primary-layer-loading-spinner"
-                      aria-hidden="true"
-                    />
-                    <span className="edit-expert-primary-layer-loading-text">
-                      Removing background...
-                    </span>
-                  </div>
-                </div>
-              ) : isPrimaryStageGenerating ? (
-                <div
-                  className="edit-expert-primary-layer-loading-overlay"
-                  data-testid="edit-expert-inline-generate-loading-overlay"
-                >
-                  <div
-                    className="edit-expert-primary-layer-loading"
-                    role="status"
-                    aria-label="Generating image"
-                    aria-live="polite"
-                  >
-                    <span
-                      className="edit-expert-primary-layer-loading-spinner"
-                      aria-hidden="true"
-                    />
-                    <span className="edit-expert-primary-layer-loading-text">Generating...</span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {hasPrimaryCompositePreview ? null : (
-            <div className="reference-drop-content image-drop-content">
-              <UploadSimple size={28} weight="regular" />
-              <p className="reference-drop-title">Click to upload an image</p>
-            </div>
-          )}
-          {stageCropGuidePercentRect ? (
-            <div className="edit-expert-crop-guide-overlay" aria-hidden="true">
+                  {preset.value}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="edit-expert-primary-stage-shell">
+          <div
+            ref={primaryDropzoneRef}
+            className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
+              isMorePresetsSurfaceOpen ? "is-presets-open" : ""
+            } ${primaryDragActive ? "is-dragging" : ""}`}
+            style={primaryDropzoneStyle}
+            onDrop={handlePrimaryDrop}
+            onDragEnter={handlePrimaryDragEnter}
+            onDragOver={handlePrimaryDragOver}
+            onDragLeave={handlePrimaryDragLeave}
+            onPointerDown={handlePrimaryPointerDown}
+            onPointerMove={handlePrimaryPointerMove}
+            onPointerUp={handlePrimaryPointerUp}
+            onPointerCancel={handlePrimaryPointerCancel}
+            onPointerLeave={handlePrimaryPointerLeave}
+            onClick={handlePrimaryDropzoneClick}
+            aria-label="Primary edit image"
+            aria-busy={isPrimaryStageBusy || undefined}
+          >
+            {hasPrimaryCompositePreview ? (
               <div
-                className="edit-expert-crop-guide-rect"
+                className="edit-expert-primary-layer-canvas"
                 style={{
-                  left: `${stageCropGuidePercentRect.x}%`,
-                  top: `${stageCropGuidePercentRect.y}%`,
-                  width: `${stageCropGuidePercentRect.width}%`,
-                  height: `${stageCropGuidePercentRect.height}%`,
+                  transform: `scale(${sceneZoomScale})`,
+                  transformOrigin: "center center",
                 }}
-              />
-            </div>
-          ) : null}
-          <ExpertEditPresetsSurface
-            id={morePresetsSurfaceId}
-            isOpen={isMorePresetsSurfaceOpen}
-            presets={availablePresets}
-            onClose={closeMorePresetsSurface}
-            onPresetDragStart={handleSurfacePresetDragStart}
-            onPresetDragEnd={handlePresetDragEnd}
-            onSurfaceDragOver={handlePresetsSurfaceDragOver}
-            onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
-            onSurfaceDrop={handlePresetsSurfaceDrop}
-            onCustomPresetSave={handleCustomPresetSave}
-            isDropActive={isPresetsSurfaceDropActive}
-          />
+                aria-hidden="true"
+              >
+                {layers.map((layer, index) =>
+                  layer.imageUrl ? (
+                    <div
+                      key={layer.id}
+                      className="edit-expert-primary-layer-frame"
+                      style={{
+                        backgroundImage: `url(${layer.imageUrl})`,
+                        zIndex: layers.length - index,
+                        opacity: clampLayerOpacity(layer.opacity),
+                        transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    />
+                  ) : null
+                )}
+                <canvas
+                  ref={overlayCanvasRef}
+                  className="edit-expert-inpaint-overlay-canvas"
+                  aria-hidden="true"
+                />
+                {isRemoveBackgroundPending ? (
+                  <div
+                    className="edit-expert-primary-layer-loading-overlay"
+                    data-testid="edit-expert-remove-background-loading-overlay"
+                  >
+                    <div
+                      className="edit-expert-primary-layer-loading"
+                      role="status"
+                      aria-label="Removing background"
+                      aria-live="polite"
+                    >
+                      <span
+                        className="edit-expert-primary-layer-loading-spinner"
+                        aria-hidden="true"
+                      />
+                      <span className="edit-expert-primary-layer-loading-text">
+                        Removing background...
+                      </span>
+                    </div>
+                  </div>
+                ) : isPrimaryStageGenerating ? (
+                  <div
+                    className="edit-expert-primary-layer-loading-overlay"
+                    data-testid="edit-expert-inline-generate-loading-overlay"
+                  >
+                    <div
+                      className="edit-expert-primary-layer-loading"
+                      role="status"
+                      aria-label="Generating image"
+                      aria-live="polite"
+                    >
+                      <span
+                        className="edit-expert-primary-layer-loading-spinner"
+                        aria-hidden="true"
+                      />
+                      <span className="edit-expert-primary-layer-loading-text">Generating...</span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {hasPrimaryCompositePreview ? null : (
+              <div className="reference-drop-content image-drop-content">
+                <UploadSimple size={28} weight="regular" />
+                <p className="reference-drop-title">Click to upload an image</p>
+              </div>
+            )}
+            <ExpertEditPresetsSurface
+              id={morePresetsSurfaceId}
+              isOpen={isMorePresetsSurfaceOpen}
+              presets={availablePresets}
+              onClose={closeMorePresetsSurface}
+              onPresetDragStart={handleSurfacePresetDragStart}
+              onPresetDragEnd={handlePresetDragEnd}
+              onSurfaceDragOver={handlePresetsSurfaceDragOver}
+              onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
+              onSurfaceDrop={handlePresetsSurfaceDrop}
+              onCustomPresetSave={handleCustomPresetSave}
+              isDropActive={isPresetsSurfaceDropActive}
+            />
+          </div>
         </div>
 
         {statusToastMessage && !isLayerLimitStatusToast ? (
@@ -2887,71 +2953,11 @@ export function ExpertEditPanelView({
                 <div
                   className={`edit-expert-inpaint-controls ${
                     isInpaintToolSelected ? "is-themed-inpaint" : ""
-                  } ${isCropToolSelected ? "is-themed-crop" : ""} ${
-                    isMoveToolSelected ? "is-themed-move" : ""
-                  }`.trim()}
+                  } ${isMoveToolSelected ? "is-themed-move" : ""}`.trim()}
                   role="group"
-                  aria-label={
-                    isCropToolSelected
-                      ? "Crop tools"
-                      : isInpaintToolSelected
-                        ? "Inpaint tools"
-                        : "Move tools"
-                  }
+                  aria-label={isInpaintToolSelected ? "Inpaint tools" : "Move tools"}
                 >
-                  {isCropToolSelected ? (
-                    <div className="edit-expert-crop-controls-content">
-                      <div className="edit-expert-crop-grid" aria-label="Crop aspect ratios">
-                        {cropAspectRatioPresets.map((preset) => {
-                          const isSelected = selectedCropAspect === preset.value;
-                          return (
-                            <button
-                              key={preset.value}
-                              type="button"
-                              className={`edit-expert-crop-chip ${
-                                isSelected ? "is-selected" : ""
-                              }`.trim()}
-                              aria-label={`${preset.value} ${preset.label}`}
-                              aria-pressed={isSelected}
-                              onClick={() => handleCropAspectToggle(preset.value)}
-                            >
-                              <span className="edit-expert-crop-chip-ratio">{preset.value}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="edit-expert-crop-actions-row" aria-label="Crop actions">
-                        <button
-                          type="button"
-                          className="edit-expert-crop-history-btn"
-                          aria-label="Undo crop action"
-                          onClick={handleUndoMoveAction}
-                          disabled={!canUndoTransformHistory}
-                        >
-                          <ArrowCounterClockwise size={16} weight="regular" />
-                          Undo
-                        </button>
-                        <button
-                          type="button"
-                          className="edit-expert-crop-history-btn"
-                          aria-label="Redo crop action"
-                          onClick={handleRedoMoveAction}
-                          disabled={!canRedoTransformHistory}
-                        >
-                          <ArrowClockwise size={16} weight="regular" />
-                          Redo
-                        </button>
-                        <button
-                          type="button"
-                          className="edit-expert-crop-apply-btn"
-                          aria-label="Apply crop"
-                          onClick={() => void handleApplyCrop()}
-                        >
-                          Crop
-                        </button>
-                      </div>
-                    </div>
-                  ) : isInpaintToolSelected ? (
+                  {isInpaintToolSelected ? (
                     <div className="edit-expert-inpaint-controls-content">
                       <div className="edit-expert-inpaint-mode-row">
                         <button
@@ -2988,7 +2994,25 @@ export function ExpertEditPanelView({
                           <span>Auto</span>
                         </button>
                       </div>
-                      <div className="edit-expert-inpaint-divider" aria-hidden="true" />
+                      <div className="edit-expert-inpaint-stroke-row">
+                        <label
+                          className="edit-expert-inpaint-stroke-label"
+                          htmlFor="edit-expert-inpaint-stroke-size"
+                        >
+                          Stroke Size
+                        </label>
+                        <input
+                          id="edit-expert-inpaint-stroke-size"
+                          className="edit-expert-inpaint-stroke-slider"
+                          type="range"
+                          min={1}
+                          max={100}
+                          value={inpaintStrokeSize}
+                          onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
+                          onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
+                          aria-label="Stroke size"
+                        />
+                      </div>
                       <div className="edit-expert-inpaint-selection-row">
                         <div
                           className="edit-expert-inpaint-select-tabs"
@@ -3036,25 +3060,6 @@ export function ExpertEditPanelView({
                         >
                           <TrashSimple size={18} weight="regular" />
                         </button>
-                      </div>
-                      <div className="edit-expert-inpaint-stroke-row">
-                        <label
-                          className="edit-expert-inpaint-stroke-label"
-                          htmlFor="edit-expert-inpaint-stroke-size"
-                        >
-                          Stroke Size
-                        </label>
-                        <input
-                          id="edit-expert-inpaint-stroke-size"
-                          className="edit-expert-inpaint-stroke-slider"
-                          type="range"
-                          min={1}
-                          max={100}
-                          value={inpaintStrokeSize}
-                          onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
-                          onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
-                          aria-label="Stroke size"
-                        />
                       </div>
                     </div>
                   ) : (
@@ -3139,6 +3144,8 @@ export function ExpertEditPanelView({
                       className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
                         extraDragActive[index] ? "is-dragging" : ""
                       }`}
+                      draggable={Boolean(previewUrl)}
+                      onDragStart={(event) => handleSecondaryPromptTokenDragStart(event, index)}
                       onDrop={handleExtraDrop(index)}
                       onDragEnter={handleExtraDragEnter(index)}
                       onDragOver={handleExtraDragOver(index)}
@@ -3171,6 +3178,7 @@ export function ExpertEditPanelView({
           <StylesControl
             isOpen={isStylesPanelOpen}
             selectedStyleId={selectedStyleId}
+            styles={stylesCatalog}
             onToggle={handleStylesPanelToggle}
             onClearSelection={handleClearSelectedStyle}
           />
@@ -3180,16 +3188,46 @@ export function ExpertEditPanelView({
       <div className="edit-expert-bottom-row">
         <div className="edit-expert-prompt-shell">
           <div className="edit-expert-prompt-row">
-            <textarea
-              className="prompt-drop-input edit-expert-prompt-input"
-              value={referenceText ?? ""}
-              onChange={(event) => onPromptTextChange(event.target.value)}
-              onDrop={handlePromptDrop}
-              onDragOver={(event) => event.preventDefault()}
-              placeholder="Write your prompt..."
-              aria-label="Edit prompt"
-            />
+            <div className="edit-expert-prompt-input-shell">
+              <div
+                ref={promptHighlightRef}
+                className="edit-expert-prompt-highlight"
+                aria-hidden="true"
+              >
+                {promptHighlightSegments.map((segment, index) => (
+                  <span
+                    key={`prompt-highlight-${index}-${segment.kind}`}
+                    className={`edit-expert-prompt-highlight-segment is-${segment.kind}`}
+                  >
+                    {segment.text}
+                  </span>
+                ))}
+                <span className="edit-expert-prompt-highlight-segment edit-expert-prompt-highlight-segment--buffer">
+                  {"\n"}
+                </span>
+              </div>
+              <textarea
+                ref={promptTextareaRef}
+                className="prompt-drop-input edit-expert-prompt-input"
+                value={promptTextValue}
+                onChange={(event) => handlePromptTextChange(event.target.value)}
+                onDrop={handlePromptDropWithTokenInsert}
+                onDragOver={(event) => event.preventDefault()}
+                onScroll={handlePromptScroll}
+                placeholder="Write your prompt..."
+                aria-label="Edit prompt"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                data-gramm="false"
+              />
+            </div>
           </div>
+          {promptTokenInlineError ? (
+            <p className="edit-expert-prompt-token-error" role="alert">
+              {promptTokenInlineError}
+            </p>
+          ) : null}
         </div>
         <div className="edit-expert-inline-generate edit-expert-inline-generate--outside">
           <AgentGenerateButton

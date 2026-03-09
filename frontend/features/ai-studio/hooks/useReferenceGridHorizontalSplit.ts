@@ -225,9 +225,16 @@ export const useReferenceGridHorizontalSplit = ({
 
   const handleDividerPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!enabled || event.button !== 0) return;
+      if (!enabled) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
       const height = resolveContainerHeight();
       if (!height) return;
+      const dividerNode = event.currentTarget;
+      try {
+        dividerNode.setPointerCapture(event.pointerId);
+      } catch {
+        // Some browsers can throw if capture is unsupported for this pointer type.
+      }
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       setContainerHeightPx((prev) => (prev === height ? prev : height));
       const clampedStartRatio = clampTopRatio(topRatioRef.current, height);
@@ -243,6 +250,11 @@ export const useReferenceGridHorizontalSplit = ({
       const handlePointerStop = (nativeEvent: PointerEvent) => {
         const session = dragSessionRef.current;
         if (!session || nativeEvent.pointerId !== session.pointerId) return;
+        try {
+          dividerNode.releasePointerCapture(nativeEvent.pointerId);
+        } catch {
+          // Safe no-op when the pointer is already released.
+        }
         stopResizing();
       };
 

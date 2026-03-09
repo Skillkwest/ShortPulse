@@ -51,6 +51,40 @@ Checklist:
 Mitigation:
 - Add `images.pexels.com` to trusted image hosts in `frontend/next.config.js` and restart dev server.
 
+## Expert Edit `@img` prompt references fail or look incorrect
+Symptoms:
+- Clicking Generate with prompt tokens (`@img1..@img3`) shows warning/error and submit does not start.
+- Prompt token highlight appears misaligned or text appears visually duplicated/dim.
+- Dragging a secondary image into the prompt does not insert token text.
+
+Checklist:
+- Confirm tokens are in supported range: only `@img1`, `@img2`, `@img3`.
+- Confirm referenced secondary slots are populated (for example, `@img2` requires slot 2 image present).
+- Confirm behavior is in Expert Edit workflow (`NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI` not forcing legacy Edit).
+- Verify prompt references use the Expert Edit token logic path:
+  - `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`
+  - `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`
+  - `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts`
+- Verify prompt mirror and textarea layering/styles in:
+  - `frontend/styles/ai-studio-edit-expert.css`
+
+Mitigation:
+- Replace unsupported or incomplete tokens (`@img`, `@img4+`) with valid slot tokens.
+- Populate missing secondary slots for referenced tokens.
+- If token highlighting/caret alignment regresses, re-check prompt mirror invariants:
+  - same typography and wrapping rules on textarea + mirror,
+  - synced scroll offsets,
+  - mirror highlight layer above textarea background,
+  - transparent textarea text with visible caret.
+- Re-run targeted tests:
+  ```bash
+  cd frontend
+  npm run test -- expertEditPromptReferences.test.ts
+  npm run test -- ExpertEditPanelView.test.tsx
+  npm run test -- useAiStudioGenerationController.test.ts
+  npm run test -- useAiStudioGenerationPromptComposer.test.ts
+  ```
+
 ## Signed Supabase image requests fail with `ERR_QUIC_PROTOCOL_ERROR`
 Symptoms:
 - Browser console shows:

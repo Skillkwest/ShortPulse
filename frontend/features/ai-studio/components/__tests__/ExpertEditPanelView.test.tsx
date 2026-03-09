@@ -128,6 +128,19 @@ const createPresetDragTransferWithoutReadableData = () =>
     setDragImage: vi.fn(),
   }) as unknown as DataTransfer;
 
+const createPromptTokenTransfer = () => {
+  const store: Record<string, string> = {};
+  return {
+    effectAllowed: "copy",
+    dropEffect: "copy",
+    setData: vi.fn((type: string, value: string) => {
+      store[type] = value;
+    }),
+    getData: vi.fn((type: string) => store[type] ?? ""),
+    types: [],
+  } as unknown as DataTransfer;
+};
+
 const readFrameScale = (frame: HTMLDivElement) =>
   Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
 
@@ -223,6 +236,35 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByLabelText("Secondary edit image 3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
+  });
+
+  it("renders inline frame ratio controls and updates the primary dropzone aspect ratio", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    expect(screen.getByText("Frame:")).toBeInTheDocument();
+    const primaryDropzone = screen.getByLabelText("Primary edit image") as HTMLDivElement;
+    const verticalFrameButton = screen.getByRole("button", { name: /9:16\s*vertical/i });
+    const landscapeFrameButton = screen.getByRole("button", { name: /16:9\s*landscape/i });
+
+    expect(primaryDropzone.style.aspectRatio).toBe("1 / 1");
+    expect(primaryDropzone.style.width).toBe("100%");
+    expect(primaryDropzone.style.height).toBe("100%");
+    expect(verticalFrameButton).toHaveAttribute("aria-pressed", "false");
+    expect(landscapeFrameButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(landscapeFrameButton);
+    expect(primaryDropzone.style.aspectRatio).toBe("16 / 9");
+    expect(primaryDropzone.style.width).toBe("100%");
+    expect(primaryDropzone.style.height).toBe("56.25%");
+    expect(landscapeFrameButton).toHaveAttribute("aria-pressed", "true");
+    expect(verticalFrameButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(verticalFrameButton);
+    expect(primaryDropzone.style.aspectRatio).toBe("9 / 16");
+    expect(primaryDropzone.style.width).toBe("56.25%");
+    expect(primaryDropzone.style.height).toBe("100%");
+    expect(verticalFrameButton).toHaveAttribute("aria-pressed", "true");
+    expect(landscapeFrameButton).toHaveAttribute("aria-pressed", "false");
   });
 
   it("toggles styles panel via callback and reflects aria-expanded state", () => {
@@ -339,6 +381,86 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: /^generate$/i })).toBeDisabled();
     uploadPrimaryFile(container, "layer-1.png");
     expect(screen.getByRole("button", { name: /^generate$/i })).not.toBeDisabled();
+  });
+
+  it("highlights valid @img tokens in the expert prompt input mirror", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Use @img1 in the background."
+        extraImageUrls={["https://example.com/slot-1.png", null, null]}
+      />
+    );
+
+    const tokenNode = document.querySelector(
+      ".edit-expert-prompt-highlight-segment.is-valid-token"
+    );
+    expect(tokenNode).toBeTruthy();
+    expect(tokenNode?.textContent).toBe("@img1");
+  });
+
+  it("defers invalid @img validation feedback until generate is attempted", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Use @img2 for the hair style."
+        extraImageUrls={["https://example.com/slot-1.png", null, null]}
+      />
+    );
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("blocks inline generate when prompt contains invalid @img references", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Use @img2 for the hair style."
+        extraImageUrls={["https://example.com/slot-1.png", null, null]}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).not.toHaveBeenCalled();
+    expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("slot 2");
+  });
+
+  it("inserts @img token text at caret when dragging a populated secondary slot into prompt", () => {
+    const onPromptTextChange = vi.fn();
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Blend scene"
+        extraImageUrls={["https://example.com/slot-1.png", null, null]}
+        onPromptTextChange={onPromptTextChange}
+      />
+    );
+
+    const promptInput = screen.getByLabelText("Edit prompt") as HTMLTextAreaElement;
+    promptInput.focus();
+    promptInput.setSelectionRange(5, 5);
+    const secondarySlot = screen.getByLabelText("Secondary edit image 1");
+    const transfer = createPromptTokenTransfer();
+
+    fireEvent.dragStart(secondarySlot, { dataTransfer: transfer });
+    fireEvent.drop(promptInput, { dataTransfer: transfer });
+
+    expect(onPromptTextChange).toHaveBeenCalledWith("Blend @img1 scene");
   });
 
   it("opens inline More Presets surface in the primary dropzone", () => {
@@ -809,35 +931,33 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("renders Move/Inpaint/Crop rail buttons with Move selected by default", async () => {
+  it("renders Move/Inpaint rail buttons with Move selected by default", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
     const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
     const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
-    const cropButton = await within(rail).findByRole("button", { name: /^crop$/i });
     const railOrder = within(rail)
       .getAllByRole("button")
       .map((button) => button.textContent?.trim()?.toLowerCase());
 
-    expect(railOrder).toEqual(["move", "inpaint", "crop"]);
+    expect(railOrder).toEqual(["move", "inpaint"]);
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
     expect(moveButton).toHaveAttribute("aria-pressed", "true");
-    expect(cropButton).toHaveAttribute("aria-pressed", "false");
+    expect(within(rail).queryByRole("button", { name: /^crop$/i })).toBeNull();
   });
 
-  it("toggles selected tool state between Move/Inpaint/Crop rail buttons", async () => {
+  it("toggles selected tool state between Move/Inpaint rail buttons", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
     const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
     const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
-    const cropButton = await within(rail).findByRole("button", { name: /^crop$/i });
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
     expect(moveButton).toHaveAttribute("aria-pressed", "true");
-    expect(cropButton).toHaveAttribute("aria-pressed", "false");
+    expect(within(rail).queryByRole("button", { name: /^crop$/i })).toBeNull();
     const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
     expect(moveSettingsPanel).toHaveClass("is-themed-move");
     expect(within(moveSettingsPanel).getByRole("button", { name: /^move$/i })).toBeInTheDocument();
@@ -857,55 +977,14 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(inpaintButton);
     expect(inpaintButton).toHaveAttribute("aria-pressed", "true");
     expect(moveButton).toHaveAttribute("aria-pressed", "false");
-    expect(cropButton).toHaveAttribute("aria-pressed", "false");
     const inpaintSettingsPanel = screen.getByRole("group", { name: /inpaint tools/i });
     expect(inpaintSettingsPanel).toHaveClass("is-themed-inpaint");
 
     fireEvent.click(moveButton);
     expect(moveButton).toHaveAttribute("aria-pressed", "true");
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
-    expect(cropButton).toHaveAttribute("aria-pressed", "false");
     const moveSettingsPanelAgain = screen.getByRole("group", { name: /move tools/i });
     expect(moveSettingsPanelAgain).toHaveClass("is-themed-move");
-
-    fireEvent.click(cropButton);
-    expect(cropButton).toHaveAttribute("aria-pressed", "true");
-    expect(moveButton).toHaveAttribute("aria-pressed", "false");
-    expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
-    expect(screen.queryByRole("button", { name: /^brush$/i })).not.toBeInTheDocument();
-
-    const cropSettingsPanel = screen.getByRole("group", { name: /crop tools/i });
-    const cropPanelButtons = within(cropSettingsPanel).getAllByRole("button");
-    const landscapeChip = within(cropSettingsPanel).getByRole("button", {
-      name: /16:9\s*landscape/i,
-    });
-    const verticalChip = within(cropSettingsPanel).getByRole("button", {
-      name: /9:16\s*vertical/i,
-    });
-
-    expect(cropSettingsPanel).toHaveClass("is-themed-crop");
-    expect(cropPanelButtons).toHaveLength(7);
-    expect(within(cropSettingsPanel).getByText("9:16")).toBeInTheDocument();
-    expect(within(cropSettingsPanel).getByText("5:4")).toBeInTheDocument();
-    expect(
-      within(cropSettingsPanel).queryByRole("button", { name: /1:1\s*square/i })
-    ).not.toBeInTheDocument();
-    expect(
-      within(cropSettingsPanel).getByRole("button", { name: /apply crop/i })
-    ).toBeInTheDocument();
-    expect(
-      within(cropSettingsPanel).getByRole("button", { name: /undo crop action/i })
-    ).toBeInTheDocument();
-    expect(
-      within(cropSettingsPanel).getByRole("button", { name: /redo crop action/i })
-    ).toBeInTheDocument();
-    expect(landscapeChip).toHaveAttribute("aria-pressed", "false");
-    expect(verticalChip).toHaveAttribute("aria-pressed", "false");
-
-    fireEvent.click(landscapeChip);
-    expect(landscapeChip).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(landscapeChip);
-    expect(landscapeChip).toHaveAttribute("aria-pressed", "false");
   });
 
   it("locks the model picker to FLUX Pro Fill while Inpaint is selected", async () => {
@@ -950,20 +1029,6 @@ describe("ExpertEditPanelView", () => {
       expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveClass(
         "is-active-inpaint"
       );
-
-      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-      fireEvent.click(
-        within(screen.getByLabelText("Inpaint action tools")).getByRole("button", {
-          name: /^crop$/i,
-        })
-      );
-      fireEvent.click(screen.getByRole("button", { name: /collapse inpaint controls/i }));
-      act(() => {
-        vi.advanceTimersByTime(180);
-      });
-      expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveClass(
-        "is-active-crop"
-      );
     } finally {
       vi.useRealTimers();
     }
@@ -979,7 +1044,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("slider", { name: /zoom image/i })).not.toBeInTheDocument();
   });
 
-  it("renders crop guide only when a crop aspect is selected", async () => {
+  it("does not render a crop guide overlay in the primary stage", async () => {
     const { container } = render(
       <ExpertEditPanelView
         {...baseProps}
@@ -988,184 +1053,7 @@ describe("ExpertEditPanelView", () => {
       />
     );
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^crop$/i }));
-
     expect(container.querySelector(".edit-expert-crop-guide-rect")).toBeNull();
-
-    const cropPanel = screen.getByRole("group", { name: /crop tools/i });
-    const portraitChip = within(cropPanel).getByRole("button", { name: /4:5\s*social post/i });
-    fireEvent.click(portraitChip);
-    expect(container.querySelector(".edit-expert-crop-guide-rect")).not.toBeNull();
-
-    fireEvent.click(portraitChip);
-    expect(container.querySelector(".edit-expert-crop-guide-rect")).toBeNull();
-  });
-
-  it("renders crop guide in the primary stage even without a primary image preview", async () => {
-    const { container } = render(
-      <ExpertEditPanelView {...baseProps} referenceImageUrl={null} referenceText="prompt text" />
-    );
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^crop$/i }));
-
-    const cropPanel = screen.getByRole("group", { name: /crop tools/i });
-    const portraitChip = within(cropPanel).getByRole("button", { name: /4:5\s*social post/i });
-    fireEvent.click(portraitChip);
-
-    expect(container.querySelector(".edit-expert-crop-guide-rect")).not.toBeNull();
-  });
-
-  it("shows a warning when applying crop without a selected ratio", async () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/crop-guard-layer.png"
-        referenceText="prompt text"
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^crop$/i }));
-
-    const cropPanel = screen.getByRole("group", { name: /crop tools/i });
-    const applyCropButton = within(cropPanel).getByRole("button", { name: /apply crop/i });
-    fireEvent.click(applyCropButton);
-    expect(screen.getByText("Choose a crop ratio before applying crop.")).toBeInTheDocument();
-    expect(composeExpertEditLayerCropToBlobMock).not.toHaveBeenCalled();
-  });
-
-  it("shows a warning when applying crop without a selected layer image", async () => {
-    render(
-      <ExpertEditPanelView {...baseProps} referenceImageUrl={null} referenceText="prompt text" />
-    );
-    const inpaintToggle = screen.getByRole("button", { name: /inpaint controls/i });
-    if (inpaintToggle.getAttribute("aria-expanded") === "false") {
-      fireEvent.click(inpaintToggle);
-    }
-    fireEvent.click(
-      await within(screen.getByLabelText("Inpaint action tools")).findByRole("button", {
-        name: /^crop$/i,
-      })
-    );
-    const cropPanelNoImage = screen.getByRole("group", { name: /crop tools/i });
-    fireEvent.click(within(cropPanelNoImage).getByRole("button", { name: /16:9\s*landscape/i }));
-    fireEvent.click(within(cropPanelNoImage).getByRole("button", { name: /apply crop/i }));
-    expect(screen.getByText("Select a layer image before applying crop.")).toBeInTheDocument();
-    expect(composeExpertEditLayerCropToBlobMock).not.toHaveBeenCalled();
-  });
-
-  it("applies crop to the active layer and resets that layer transform", async () => {
-    const onAspectChange = vi.fn();
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        onAspectChange={onAspectChange}
-        referenceImageUrl="https://example.com/crop-apply-layer.png"
-        referenceText="prompt text"
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
-    const rect = {
-      left: 0,
-      top: 0,
-      width: 200,
-      height: 200,
-      right: 200,
-      bottom: 200,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    } satisfies DOMRect;
-    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
-      configurable: true,
-      value: () => rect,
-    });
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 93,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 30,
-      clientY: 30,
-    });
-    fireEvent.pointerMove(primaryDropzone, {
-      pointerId: 93,
-      pointerType: "mouse",
-      clientX: 90,
-      clientY: 80,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 93,
-      pointerType: "mouse",
-      clientX: 90,
-      clientY: 80,
-    });
-
-    fireEvent.click(await within(rail).findByRole("button", { name: /^crop$/i }));
-    const cropPanel = screen.getByRole("group", { name: /crop tools/i });
-    fireEvent.click(within(cropPanel).getByRole("button", { name: /16:9\s*landscape/i }));
-
-    await act(async () => {
-      fireEvent.click(within(cropPanel).getByRole("button", { name: /apply crop/i }));
-    });
-
-    expect(composeExpertEditLayerCropToBlobMock).toHaveBeenCalledTimes(1);
-    expect(composeExpertEditLayerCropToBlobMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        imageUrl: "https://example.com/crop-apply-layer.png",
-        stageWidth: 200,
-        stageHeight: 200,
-        mimeType: "image/png",
-        cropRect: expect.objectContaining({
-          x: 0,
-          width: 200,
-        }),
-        transform: expect.objectContaining({
-          translateXRatio: expect.any(Number),
-          translateYRatio: expect.any(Number),
-        }),
-      })
-    );
-    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    expect(frame.style.transform).toContain("translate(0%, 0%)");
-    expect(frame.style.transform).toContain("scale(1)");
-    expect(frame.style.transform).toContain("rotate(0deg)");
-    expect(onAspectChange).not.toHaveBeenCalled();
-  });
-
-  it("keeps layer state unchanged when crop export fails", async () => {
-    composeExpertEditLayerCropToBlobMock.mockRejectedValueOnce(new Error("crop failed"));
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/crop-fail-layer.png"
-        referenceText="prompt text"
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^crop$/i }));
-    const cropPanel = screen.getByRole("group", { name: /crop tools/i });
-    fireEvent.click(within(cropPanel).getByRole("button", { name: /16:9\s*landscape/i }));
-    const frameBefore = document.querySelector(
-      ".edit-expert-primary-layer-frame"
-    ) as HTMLDivElement;
-    const beforeTransform = frameBefore.style.transform;
-
-    await act(async () => {
-      fireEvent.click(within(cropPanel).getByRole("button", { name: /apply crop/i }));
-    });
-
-    expect(composeExpertEditLayerCropToBlobMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Unable to apply crop.")).toBeInTheDocument();
-    const frameAfter = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    expect(frameAfter.style.transform).toBe(beforeTransform);
   });
 
   it("moves the selected layer inside the primary dropzone when dragging in move mode", async () => {
@@ -2223,7 +2111,7 @@ describe("ExpertEditPanelView", () => {
     expect(onAddSessionMediaReference).not.toHaveBeenCalled();
   });
 
-  it("manual flatten applies active crop ratio without exporting to reference grid", async () => {
+  it("manual flatten applies selected frame ratio without exporting to reference grid", async () => {
     const originalCreateImageBitmap = window.createImageBitmap;
     const closeBitmap = vi.fn();
     Object.defineProperty(window, "createImageBitmap", {
@@ -2247,11 +2135,7 @@ describe("ExpertEditPanelView", () => {
       uploadPrimaryFile(container, "layer-1.png");
       uploadPrimaryFile(container, "layer-2.png");
 
-      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-      const rail = screen.getByLabelText("Inpaint action tools");
-      fireEvent.click(await within(rail).findByRole("button", { name: /^crop$/i }));
-      const cropPanel = screen.getByRole("group", { name: /crop tools/i });
-      fireEvent.click(within(cropPanel).getByRole("button", { name: /16:9\s*landscape/i }));
+      fireEvent.click(screen.getByRole("button", { name: /16:9\s*landscape/i }));
 
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /flatten/i }));
@@ -2411,6 +2295,51 @@ describe("ExpertEditPanelView", () => {
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(referenceInputs).toContain("https://example.com/extra.png");
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
+  });
+
+  it("auto-flatten generate passes display/submission prompt overrides when @img tokens are used", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Put @img1 in the background."
+        extraImageUrls={["https://example.com/extra-token.png", null, null]}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [
+              string[],
+              {
+                displayPromptOverride?: string | null;
+                submissionPromptOverride?: string | null;
+              }?,
+            ]
+          >;
+        };
+      }
+    ).mock.calls;
+    const submitOptions = submissionCalls[0]?.[1];
+    expect(submitOptions?.displayPromptOverride).toBe("Put @img1 in the background.");
+    expect(submitOptions?.submissionPromptOverride).toContain("Put Figure 2 in the background.");
+    expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
   });
 
   it("submits remove background for the active layer image without flattening", async () => {

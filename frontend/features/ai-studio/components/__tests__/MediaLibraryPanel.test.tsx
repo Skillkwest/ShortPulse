@@ -170,12 +170,12 @@ describe("MediaLibraryPanel", () => {
       nextCursor: null,
       hasMore: false,
     });
-    createMediaFolderMock.mockResolvedValue({
+    createMediaFolderMock.mockImplementation(async (name: string) => ({
       id: "folder-created",
-      name: "Mood Board",
+      name,
       createdAt: "2026-03-03T00:00:00.000Z",
       updatedAt: "2026-03-03T00:00:00.000Z",
-    });
+    }));
     renameMediaFolderMock.mockImplementation(
       async ({ folderId, name }: { folderId: string; name: string }) => ({
         id: folderId,
@@ -253,15 +253,73 @@ describe("MediaLibraryPanel", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
-    fireEvent.change(screen.getByPlaceholderText("Folder name"), {
-      target: { value: "Mood Board" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Create folder" }));
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("Mood Board");
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder");
     });
-    expect(screen.getByRole("button", { name: "Mood Board folder" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New Folder folder" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
+  });
+
+  it("retries with an incremented folder name when the default collides", async () => {
+    createMediaFolderMock
+      .mockRejectedValueOnce(new Error("Folder name already exists"))
+      .mockImplementationOnce(async (name: string) => ({
+        id: "folder-created-2",
+        name,
+        createdAt: "2026-03-03T00:00:00.000Z",
+        updatedAt: "2026-03-03T00:00:00.000Z",
+      }));
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
+
+    await waitFor(() => {
+      expect(createMediaFolderMock).toHaveBeenNthCalledWith(1, "New Folder");
+      expect(createMediaFolderMock).toHaveBeenNthCalledWith(2, "New Folder 2");
+    });
+    expect(screen.getByRole("button", { name: "New Folder 2 folder" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("New Folder 2")).toBeInTheDocument();
+  });
+
+  it("renders a new folder tile immediately before create resolves", async () => {
+    let resolveCreate:
+      | ((value: { id: string; name: string; createdAt: string; updatedAt: string }) => void)
+      | null = null;
+    createMediaFolderMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        })
+    );
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
+
+    expect(screen.getByRole("button", { name: "New Folder folder" })).toBeInTheDocument();
+
+    act(() => {
+      resolveCreate?.({
+        id: "folder-created-3",
+        name: "New Folder",
+        createdAt: "2026-03-03T00:00:00.000Z",
+        updatedAt: "2026-03-03T00:00:00.000Z",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "New Folder folder" })).toBeInTheDocument();
+    });
   });
 
   it("renames the active custom folder button", async () => {
@@ -271,12 +329,15 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
-    fireEvent.click(screen.getByRole("button", { name: "Rename active folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign name" }));
     fireEvent.change(screen.getByDisplayValue("Campaign"), {
       target: { value: "Campaign Assets" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save folder name" }));
+    fireEvent.keyDown(screen.getByDisplayValue("Campaign Assets"), {
+      key: "Enter",
+      code: "Enter",
+      charCode: 13,
+    });
 
     await waitFor(() => {
       expect(renameMediaFolderMock).toHaveBeenCalledWith({
@@ -285,6 +346,53 @@ describe("MediaLibraryPanel", () => {
       });
     });
     expect(screen.getByRole("button", { name: "Campaign Assets folder" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rename active folder" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete active folder" })).not.toBeInTheDocument();
+  });
+
+  it("resizes folders/content sections when dragging the horizontal divider", async () => {
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const divider = screen.getByRole("separator", {
+      name: "Resize folders and references sections",
+    });
+    const splitContainer = container.querySelector(".media-library-panel-split") as HTMLElement;
+    expect(splitContainer).toBeTruthy();
+    Object.defineProperty(splitContainer, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 700,
+        height: 900,
+        right: 700,
+        bottom: 900,
+        toJSON: () => ({}),
+      }),
+    });
+
+    const before = Number(divider.getAttribute("aria-valuenow"));
+    expect(Number.isFinite(before)).toBe(true);
+
+    fireEvent.pointerDown(divider, {
+      pointerId: 101,
+      button: 0,
+      clientY: 300,
+      pointerType: "mouse",
+    });
+    fireEvent.pointerMove(window, { pointerId: 101, clientY: 420 });
+    fireEvent.pointerUp(window, { pointerId: 101, clientY: 420 });
+
+    const after = Number(divider.getAttribute("aria-valuenow"));
+    expect(after).toBeGreaterThan(before);
   });
 
   it("shows a folder error when folder request times out", async () => {

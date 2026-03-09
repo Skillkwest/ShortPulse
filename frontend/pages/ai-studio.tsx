@@ -208,6 +208,7 @@ export default function AiStudioPage() {
   const [optimisticDebitEntries, setOptimisticDebitEntries] = useState<OptimisticDebitEntry[]>([]);
   const [isCharacterBundleLoading, setIsCharacterBundleLoading] = useState(false);
   const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(false);
+  const [selectedStylePrompt, setSelectedStylePrompt] = useState<string | null>(null);
   const [characterModeInjectionBundle, setCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
 
@@ -323,6 +324,7 @@ export default function AiStudioPage() {
     getOutputSnapshot,
   } = useAiStudioState({
     isCharacterModeEnabled,
+    selectedStylePrompt,
   });
   const resolveSavedMediaIdFromOutput = useCallback(
     (output: StudioOutput | null, imageIndex: number) => {
@@ -1700,6 +1702,7 @@ export default function AiStudioPage() {
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}
+        onSelectedStylePromptChange={setSelectedStylePrompt}
       />
       {!isMediaLibraryPanelEnabled ? (
         <MediaLibraryModal

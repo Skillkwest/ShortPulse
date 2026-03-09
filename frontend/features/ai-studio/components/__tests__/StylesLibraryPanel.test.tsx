@@ -8,10 +8,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import { postExtractStyle, prepareStyleImageUrl } from "../../logic/styleExtraction";
+import { reportAppError } from "../../../../lib/appErrorReporter";
 
 vi.mock("../../logic/styleExtraction", () => ({
   prepareStyleImageUrl: vi.fn(),
   postExtractStyle: vi.fn(),
+}));
+
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: vi.fn().mockResolvedValue(undefined),
 }));
 
 const createStyles = (): ExpertEditStyleTile[] => [
@@ -45,6 +50,7 @@ describe("StylesLibraryPanel", () => {
     vi.mocked(prepareStyleImageUrl).mockImplementation(async (url: string) => url);
     vi.mocked(postExtractStyle).mockResolvedValue({
       stylePrompt: "cinematic lighting, shallow depth of field, balanced dynamic range",
+      styleTitle: "Noir Bloom",
     });
   });
 
@@ -189,14 +195,29 @@ describe("StylesLibraryPanel", () => {
         },
       ];
       expect(savedStyleId).toMatch(/^style-library-custom-/);
-      expect(savedDetails.style).toBe("Custom Style 1");
-      expect(savedDetails.title).toBe("Custom Style 1");
-      expect(savedDetails.referenceImageName).toBe("Custom Style 1");
+      expect(savedDetails.style).toBe("Noir Bloom");
+      expect(savedDetails.title).toBe("Noir Bloom");
+      expect(savedDetails.referenceImageName).toBe("Noir Bloom");
       expect(savedDetails.stylePrompt).toBe(
         "cinematic lighting, shallow depth of field, balanced dynamic range"
       );
       expect(savedDetails.previewImageUrl).toBe("data:image/jpeg;base64,mock-cropped-style");
       expect(onSelectStyle).toHaveBeenCalledWith(savedStyleId);
+      expect(prepareStyleImageUrl).not.toHaveBeenCalledWith(
+        "data:image/jpeg;base64,mock-cropped-style"
+      );
+      await waitFor(() => {
+        expect(reportAppError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            source: "telemetry.ai_studio.style_extraction",
+            message: "style_extraction.success",
+            metadata: expect.objectContaining({
+              outcome: "success",
+              flow: "library_drop",
+            }),
+          })
+        );
+      });
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,
@@ -213,6 +234,168 @@ describe("StylesLibraryPanel", () => {
         writable: true,
         value: originalCanvasToDataUrl,
       });
+    }
+  });
+
+  it("creates a fallback style when drop extraction fails and shows recovery guidance", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    vi.mocked(postExtractStyle).mockRejectedValue(new Error("Style extraction failed."));
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,mock-cropped-style",
+    });
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const imageFile = new File(["mock-image-bytes"], "desktop-image.png", { type: "image/png" });
+      const transfer = {
+        files: [imageFile],
+        types: ["Files"],
+        getData: vi.fn(() => ""),
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+      });
+      expect(onSaveStyleDetails).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          style: "Custom Style 1",
+          title: "Custom Style 1",
+          referenceImageName: "Custom Style 1",
+          stylePrompt: "",
+        })
+      );
+      expect(
+        screen.getByText("Style extraction failed. Style created anyway; you can edit the prompt.")
+      ).toBeInTheDocument();
+      await waitFor(() => {
+        expect(reportAppError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            source: "telemetry.ai_studio.style_extraction",
+            message: "style_extraction.fallback",
+            metadata: expect.objectContaining({
+              outcome: "fallback",
+              flow: "library_drop",
+            }),
+          })
+        );
+      });
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
+  });
+
+  it("shows deterministic guidance when external URL drop is blocked by browser fetch", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const transfer = {
+        files: [],
+        types: ["text/reference-url", "text/plain"],
+        getData: vi.fn((type: string) => {
+          if (type === "text/reference-url" || type === "text/plain") {
+            return "https://external.example.com/style.jpg";
+          }
+          return "";
+        }),
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "This image source blocks browser access. Download the image and drop the file directly."
+          )
+        ).toBeInTheDocument();
+      });
+      expect(onSaveStyleDetails).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(reportAppError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            source: "telemetry.ai_studio.style_extraction",
+            message: "style_extraction.blocked_source",
+            metadata: expect.objectContaining({
+              outcome: "blocked_source",
+              flow: "library_drop",
+            }),
+          })
+        );
+      });
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 
@@ -268,6 +451,7 @@ describe("StylesLibraryPanel", () => {
           "cinematic lighting, shallow depth of field, balanced dynamic range"
         );
       });
+      expect(screen.getByLabelText("Style")).toHaveValue("Noir Bloom");
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,
@@ -291,10 +475,11 @@ describe("StylesLibraryPanel", () => {
     const originalImage = globalThis.Image;
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
     const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
-    let resolveExtraction: ((value: { stylePrompt: string }) => void) | null = null;
+    let resolveExtraction: ((value: { stylePrompt: string; styleTitle: string }) => void) | null =
+      null;
     vi.mocked(postExtractStyle).mockImplementation(
       () =>
-        new Promise<{ stylePrompt: string }>((resolve) => {
+        new Promise<{ stylePrompt: string; styleTitle: string }>((resolve) => {
           resolveExtraction = resolve;
         })
     );
@@ -345,13 +530,14 @@ describe("StylesLibraryPanel", () => {
       });
 
       const finishExtraction = resolveExtraction as
-        | ((value: { stylePrompt: string }) => void)
+        | ((value: { stylePrompt: string; styleTitle: string }) => void)
         | null;
       if (typeof finishExtraction !== "function") {
         throw new Error("Expected extraction resolver to be initialized.");
       }
       finishExtraction({
         stylePrompt: "clean digital illustration, soft gradient shading, polished finish",
+        styleTitle: "Cel Bloom",
       });
 
       await waitFor(() => {

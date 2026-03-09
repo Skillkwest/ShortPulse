@@ -28,6 +28,7 @@ import {
   type CreateCharacterOption,
   useCreateCharacterModeController,
 } from "./create/useCreateCharacterModeController";
+import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 
 export type CreatePropertiesPanelProps = {
   mode: StudioMode;
@@ -104,6 +105,7 @@ export type CreatePropertiesPanelProps = {
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
+  stylesCatalog?: readonly ExpertEditStyleTile[];
   onClearSelectedStyle?: () => void;
 };
 
@@ -293,6 +295,7 @@ export function CreatePropertiesPanel({
   isStylesPanelOpen = false,
   onStylesPanelToggle,
   selectedStyleId = null,
+  stylesCatalog,
   onClearSelectedStyle,
   onGenerate,
   onChatOffInlineGenerate,
@@ -493,6 +496,7 @@ export function CreatePropertiesPanel({
       <StylesControl
         isOpen={isStylesPanelOpen}
         selectedStyleId={selectedStyleId}
+        styles={stylesCatalog}
         onToggle={onStylesPanelToggle}
         onClearSelection={onClearSelectedStyle}
       />

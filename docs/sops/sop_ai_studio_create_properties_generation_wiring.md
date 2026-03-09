@@ -87,6 +87,7 @@ sequenceDiagram
 - Run character-mode preflight with 10s deadline and enforce reference invariants when character mode is active.
 4. Prompt/reference composition:
 - `useAiStudioGenerationPromptComposer.generateOutput` resolves tool-specific prompt + reference pool and calls `submitTask`.
+- For Create/Edit workflows with a selected style, the composer appends the selected style prompt to the hidden submission prompt while preserving `displayPrompt` in UI/history.
 5. Submission lifecycle in `useAiStudioTaskSubmission`:
 - Re-check submit invariants (`submitInvariants.ts`).
 - Create/reconcile optimistic placeholder output.
@@ -109,7 +110,7 @@ sequenceDiagram
 3. Legacy helper routes still used by Create UX fallbacks:
 - `/api/ai/generate-prompt` -> `agentRuntimeService.generatePrompt` (`legacyPromptGenerationService`).
 - `/api/ai/describe-image` -> `agentRuntimeService.describeImage` (`legacyImageDescribeService`).
-- `/api/ai/extract-style` -> `agentRuntimeService.extractStyle` (`legacyStyleExtractionService`) for Styles Library new-style image intake.
+- `/api/ai/extract-style` -> `agentRuntimeService.extractStyle` (`legacyStyleExtractionService`) for Styles Library new-style image intake (returns `stylePrompt` + normalized `styleTitle`).
 4. Admin control plane routes (policy operations):
 - `GET /api/admin/agent-safety-policy/active`
 - `POST /api/admin/agent-safety-policy/activate`
@@ -124,6 +125,7 @@ When changing Create panel behavior or generation wiring, update all relevant la
 4. Agent/control layer: bridge hooks and API routes if prompt ownership or safety paths changed.
 5. Docs/indexes: this SOP, `sop_ai_studio_index.md`, and vertical SOPs (`text/image/video/agent`) for any behavior delta.
 6. Expert Edit action wiring: keep `Remove Background` on the same regenerate pipeline using `modelIdOverride` (no parallel submit stack) and keep it free (`costOverrideCredits: 0` + Bria submit `skipBilling: true`).
+7. Expert Edit token workflow changes (`@img1..@img3`) must also update `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
 
 ## Verification checklist
 - `npm -C frontend run test -- CreatePropertiesPanel useAiStudioGenerationController submitInvariants submissionPayloadMatrix`

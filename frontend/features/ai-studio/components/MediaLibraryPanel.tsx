@@ -3,16 +3,7 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Check,
-  FolderSimple,
-  Folders,
-  MagnifyingGlass,
-  PencilSimple,
-  Plus,
-  TrashSimple,
-  X,
-} from "phosphor-react";
+import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
@@ -55,7 +46,6 @@ import {
 import {
   applyMediaFolderMembershipBatch,
   createMediaFolder,
-  deleteMediaFolder,
   fetchMediaPromptListPage,
   listMediaFolders,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
@@ -96,12 +86,39 @@ const MEDIA_PAGE_SIZE = 36;
 const PROMPT_PAGE_SIZE = 36;
 const FOLDERS_REQUEST_TIMEOUT_MS = 12_000;
 const ROOT_FOLDER_LABEL = "All Media";
+const NEW_FOLDER_BASE_NAME = "New Folder";
+const MAX_FOLDER_NAME_COLLISION_RETRIES = 1;
+const TEMP_FOLDER_ID_PREFIX = "__pending_new_folder__";
 const ROOT_FOLDER: MediaFolder = {
   id: MEDIA_LIBRARY_ROOT_FOLDER_ID,
   name: ROOT_FOLDER_LABEL,
   createdAt: "",
   updatedAt: "",
 };
+
+const resolveNextFolderNameFromNames = (existingNames: Set<string>): string => {
+  if (!existingNames.has(NEW_FOLDER_BASE_NAME.toLocaleLowerCase())) {
+    return NEW_FOLDER_BASE_NAME;
+  }
+  let nextIndex = 2;
+  while (existingNames.has(`${NEW_FOLDER_BASE_NAME} ${nextIndex}`.toLocaleLowerCase())) {
+    nextIndex += 1;
+  }
+  return `${NEW_FOLDER_BASE_NAME} ${nextIndex}`;
+};
+
+const toNormalizedFolderNames = (rows: MediaFolder[]): Set<string> => {
+  const names = new Set<string>();
+  for (const row of rows) {
+    const normalized = row.name.trim().toLocaleLowerCase();
+    if (!normalized) continue;
+    names.add(normalized);
+  }
+  return names;
+};
+
+const buildPendingFolderId = () =>
+  `${TEMP_FOLDER_ID_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKind => {
   if (itemType === "images") return "images";
@@ -159,8 +176,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [folderError, setFolderError] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
 
-  const [newFolderName, setNewFolderName] = useState("");
-  const [showCreateFolderInput, setShowCreateFolderInput] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
@@ -180,6 +195,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const mediaRequestTokenRef = useRef(0);
   const promptRequestTokenRef = useRef(0);
   const foldersRequestTokenRef = useRef(0);
+  const creatingFolderInFlightRef = useRef(false);
   const activeTabRef = useRef<MediaTab>("uploaded_images");
   const activeMediaQueryRef = useRef("");
   const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
@@ -223,10 +239,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
   const orderedFolders = useMemo(() => [ROOT_FOLDER, ...customFolders], [customFolders]);
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
-  const activeCustomFolder = useMemo(
-    () => customFolders.find((folder) => folder.id === activeFolderId) ?? null,
-    [activeFolderId, customFolders]
-  );
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
@@ -761,24 +773,74 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const handleCreateFolder = useCallback(async () => {
-    const name = newFolderName.trim();
-    if (!name || creatingFolder) return;
+    if (creatingFolderInFlightRef.current) return;
+    creatingFolderInFlightRef.current = true;
+    const pendingFolderId = buildPendingFolderId();
+    const knownFolderNames = toNormalizedFolderNames(folders);
+    let nextName = resolveNextFolderNameFromNames(knownFolderNames);
+
+    setFolders((previous) => [
+      ...previous,
+      {
+        id: pendingFolderId,
+        name: nextName,
+        createdAt: "",
+        updatedAt: "",
+      },
+    ]);
     setCreatingFolder(true);
     setFolderError(null);
     try {
-      const folder = await createMediaFolder(name);
-      setFolders((previous) => [...previous, folder]);
-      setNewFolderName("");
-      setShowCreateFolderInput(false);
-      setActiveFolderId(folder.id);
+      try {
+        const latestFolders = await listMediaFolders();
+        for (const name of toNormalizedFolderNames(latestFolders)) {
+          knownFolderNames.add(name);
+        }
+        nextName = resolveNextFolderNameFromNames(knownFolderNames);
+        setFolders((previous) =>
+          previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
+        );
+      } catch {
+        // Keep optimistic create path responsive if preflight refresh fails.
+      }
+
+      for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
+        try {
+          const folder = await createMediaFolder(nextName);
+          setFolders((previous) => {
+            const withoutPending = previous.filter(
+              (row) => row.id !== pendingFolderId && row.id !== folder.id
+            );
+            return [...withoutPending, folder];
+          });
+          setActiveFolderId(folder.id);
+          setEditingFolderId(folder.id);
+          setEditingFolderName(folder.name);
+          return;
+        } catch (createError) {
+          const isNameCollision =
+            createError instanceof Error && createError.message === "Folder name already exists";
+          if (!isNameCollision) {
+            throw createError;
+          }
+          knownFolderNames.add(nextName.toLocaleLowerCase());
+          nextName = resolveNextFolderNameFromNames(knownFolderNames);
+          setFolders((previous) =>
+            previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
+          );
+        }
+      }
+      throw new Error("Unable to allocate an available folder name.");
     } catch (createError) {
+      setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
       setFolderError(
         createError instanceof Error ? createError.message : "Unable to create folder."
       );
     } finally {
       setCreatingFolder(false);
+      creatingFolderInFlightRef.current = false;
     }
-  }, [creatingFolder, newFolderName]);
+  }, [folders]);
 
   const handleCommitFolderRename = useCallback(async () => {
     const folderId = editingFolderId;
@@ -803,30 +865,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setSavingFolderEdit(false);
     }
   }, [editingFolderId, editingFolderName, savingFolderEdit]);
-
-  const handleDeleteFolder = useCallback(
-    async (folderId: string) => {
-      const target = folders.find((folder) => folder.id === folderId);
-      if (!target) return;
-      const confirmed = window.confirm(
-        `Delete folder "${target.name}"? Items will stay in your library.`
-      );
-      if (!confirmed) return;
-      setFolderError(null);
-      try {
-        await deleteMediaFolder(folderId);
-        setFolders((previous) => previous.filter((folder) => folder.id !== folderId));
-        if (activeFolderId === folderId) {
-          setActiveFolderId(MEDIA_LIBRARY_ROOT_FOLDER_ID);
-        }
-      } catch (deleteError) {
-        setFolderError(
-          deleteError instanceof Error ? deleteError.message : "Unable to delete folder."
-        );
-      }
-    },
-    [activeFolderId, folders]
-  );
 
   const handleAssignLastPicked = useCallback(async () => {
     if (!lastPickedItem) return;
@@ -994,170 +1032,93 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 return (
                   <div
                     key={folder.id}
-                    className={`media-library-panel-folder-strip-item ${isEditing ? "is-editing" : ""}`}
+                    className="media-library-panel-folder-strip-item"
                     role="listitem"
                   >
                     {isEditing ? (
-                      <div className="media-library-panel-folder-chip-edit">
-                        <input
-                          className="media-library-panel-folder-chip-input"
-                          type="text"
-                          value={editingFolderName}
-                          maxLength={64}
-                          autoFocus
-                          onChange={(event) => setEditingFolderName(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              void handleCommitFolderRename();
-                            }
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              setEditingFolderId(null);
-                              setEditingFolderName("");
-                            }
-                          }}
-                        />
-                        <div className="media-library-panel-folder-chip-actions">
-                          <button
-                            type="button"
-                            aria-label="Save folder name"
-                            onClick={() => {
-                              void handleCommitFolderRename();
+                      <>
+                        <button
+                          type="button"
+                          className="media-library-panel-folder-chip is-active is-editing"
+                          onClick={() => setActiveFolderId(folder.id)}
+                          aria-label={`${folder.name} folder`}
+                        >
+                          <FolderSimple
+                            size={32}
+                            weight={isRoot ? "fill" : "regular"}
+                            aria-hidden
+                          />
+                        </button>
+                        <div className="media-library-panel-folder-chip-edit">
+                          <input
+                            className="media-library-panel-folder-chip-input"
+                            type="text"
+                            value={editingFolderName}
+                            maxLength={64}
+                            autoFocus
+                            onChange={(event) => setEditingFolderName(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitFolderRename();
+                              }
+                              if (event.key === "Escape") {
+                                event.preventDefault();
+                                setEditingFolderId(null);
+                                setEditingFolderName("");
+                              }
                             }}
-                            disabled={savingFolderEdit}
-                          >
-                            <Check size={12} weight="bold" />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="Cancel folder rename"
-                            onClick={() => {
-                              setEditingFolderId(null);
-                              setEditingFolderName("");
-                            }}
-                            disabled={savingFolderEdit}
-                          >
-                            <X size={12} weight="bold" />
-                          </button>
+                          />
                         </div>
-                      </div>
+                      </>
                     ) : (
                       <>
                         <button
                           type="button"
                           className={`media-library-panel-folder-chip ${isActive ? "is-active" : ""}`}
                           onClick={() => setActiveFolderId(folder.id)}
-                          onDoubleClick={() => {
-                            if (isRoot) return;
-                            setEditingFolderId(folder.id);
-                            setEditingFolderName(folder.name);
-                          }}
                           aria-label={`${folder.name} folder`}
                         >
                           <FolderSimple
                             size={32}
-                            weight={isActive ? "fill" : "regular"}
+                            weight={isRoot ? "fill" : "regular"}
                             aria-hidden
                           />
                         </button>
-                        <p className="media-library-panel-folder-chip-name tiny">{folder.name}</p>
+                        <button
+                          type="button"
+                          className="media-library-panel-folder-chip-name tiny"
+                          onClick={() => setActiveFolderId(folder.id)}
+                          onDoubleClick={() => {
+                            if (isRoot) return;
+                            setActiveFolderId(folder.id);
+                            setEditingFolderId(folder.id);
+                            setEditingFolderName(folder.name);
+                          }}
+                          aria-label={`${folder.name} name`}
+                        >
+                          {folder.name}
+                        </button>
                       </>
                     )}
                   </div>
                 );
               })}
-              <div
-                className={`media-library-panel-folder-strip-item ${showCreateFolderInput ? "is-editing" : ""}`}
-                role="listitem"
-              >
-                {showCreateFolderInput ? (
-                  <div className="media-library-panel-folder-chip-edit">
-                    <input
-                      type="text"
-                      className="media-library-panel-folder-chip-input"
-                      placeholder="Folder name"
-                      value={newFolderName}
-                      maxLength={64}
-                      autoFocus
-                      onChange={(event) => setNewFolderName(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          void handleCreateFolder();
-                        }
-                        if (event.key === "Escape") {
-                          event.preventDefault();
-                          setShowCreateFolderInput(false);
-                          setNewFolderName("");
-                        }
-                      }}
-                    />
-                    <div className="media-library-panel-folder-chip-actions">
-                      <button
-                        type="button"
-                        className="media-library-panel-folder-create-btn"
-                        onClick={() => {
-                          void handleCreateFolder();
-                        }}
-                        disabled={creatingFolder}
-                        aria-label="Create folder"
-                      >
-                        <Check size={12} weight="bold" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Cancel folder create"
-                        onClick={() => {
-                          setShowCreateFolderInput(false);
-                          setNewFolderName("");
-                        }}
-                        disabled={creatingFolder}
-                      >
-                        <X size={12} weight="bold" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="media-library-panel-folder-chip is-create"
-                      aria-label="Create new folder"
-                      onClick={() => setShowCreateFolderInput(true)}
-                    >
-                      <Plus size={30} weight="bold" aria-hidden />
-                    </button>
-                    <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
-                  </>
-                )}
+              <div className="media-library-panel-folder-strip-item" role="listitem">
+                <button
+                  type="button"
+                  className="media-library-panel-folder-chip is-create"
+                  aria-label="Create new folder"
+                  onClick={() => {
+                    void handleCreateFolder();
+                  }}
+                  disabled={creatingFolder}
+                >
+                  <Plus size={30} weight="bold" aria-hidden />
+                </button>
+                <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
               </div>
             </div>
-            {activeCustomFolder && !editingFolderId ? (
-              <div className="media-library-panel-folder-active-actions">
-                <button
-                  type="button"
-                  aria-label="Rename active folder"
-                  onClick={() => {
-                    setEditingFolderId(activeCustomFolder.id);
-                    setEditingFolderName(activeCustomFolder.name);
-                  }}
-                >
-                  <PencilSimple size={13} weight="bold" />
-                  Rename
-                </button>
-                <button
-                  type="button"
-                  aria-label="Delete active folder"
-                  onClick={() => {
-                    void handleDeleteFolder(activeCustomFolder.id);
-                  }}
-                >
-                  <TrashSimple size={13} weight="bold" />
-                  Delete
-                </button>
-              </div>
-            ) : null}
           </div>
           {folderError ? <p className="tiny subdued">{folderError}</p> : null}
         </div>

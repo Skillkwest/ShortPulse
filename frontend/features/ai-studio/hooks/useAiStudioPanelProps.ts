@@ -131,6 +131,8 @@ export type UseAiStudioPanelPropsParams = {
     modelIdOverride?: string | null;
     costOverrideCredits?: number | null;
     hideOutputFromReferenceGrid?: boolean;
+    displayPromptOverride?: string | null;
+    submissionPromptOverride?: string | null;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;

@@ -59,8 +59,10 @@ const REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT = Number(
  */
 export const useAiStudioState = ({
   isCharacterModeEnabled = false,
+  selectedStylePrompt = null,
 }: {
   isCharacterModeEnabled?: boolean;
+  selectedStylePrompt?: string | null;
 } = {}) => {
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -491,6 +493,7 @@ export const useAiStudioState = ({
     prompt,
     editReferenceText,
     videoReferenceText,
+    selectedStylePrompt,
     selectedTool,
     videoReferenceMode,
     useReferenceImageIndicator,

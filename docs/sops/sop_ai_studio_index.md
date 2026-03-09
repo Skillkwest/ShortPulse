@@ -12,6 +12,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Agent safety control plane: `docs/sops/sop_ai_studio_agent_safety_control_plane.md` — profile tuning knobs, admin control routes, rollback/cooldown workflow, and SQL validation gates.
 - Agent rollout ops: `docs/sops/sop_ai_studio_agent_rollout_operations.md` — progressive ring rollout, freeze/rollback triggers, and evidence capture workflow.
 - Create panel + generation wiring: `docs/sops/sop_ai_studio_create_properties_generation_wiring.md` — end-to-end wiring map for Create properties UI, model selectors, submit pipeline, and agent/control integration.
+- Expert Edit prompt references: `docs/sops/sop_ai_studio_expert_edit_prompt_references.md` — `@img1..@img3` token grammar, drag insertion, generate preflight blocking, and submit-time Figure mapping.
 - Session persistence (reference-only): `docs/sops/sop_ai_studio_session_persistence_reference_only.md` — staged restore/write enablement and rollback runbook for reference-only session continuity.
 
 ## Reference Grid Foundation Program Docs
@@ -48,6 +49,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - `Libraries -> Media Library` is a first-class left-panel tool (`media-library`) in AI Studio and no longer modal-only by default. Runtime fallback: set `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` to restore the legacy modal open path during rollback.
 - `Shortcuts -> Presets` opens a primary left-panel Presets Library sourced from the Expert Edit preset catalog with `Custom 1`, `Custom 2`, and `Custom 3` placeholder tiles (including overrides) plus a full-size `Create New Preset` tile, keeps the right rail visible, supports modal create/edit for preset name + prompt text, and provides per-tile delete confirmation for permanent preset removal.
 - Expert Edit generation behavior contracts (submit-scoped model overrides, Bria-only hidden replacement semantics, shared Flux Fill inpaint constants) are documented in `docs/sops/sop_image_generation.md` under `Expert Edit properties panel behavior`.
+- Expert Edit prompt token behavior (`@img1..@img3`, deferred invalid warning on Generate, and submission compile mapping) is documented in `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
 
 ## Canvas interaction guardrails
 - Dual-canvas layout (main + right-rail) shares scene data but keeps viewport camera state independent per instance.

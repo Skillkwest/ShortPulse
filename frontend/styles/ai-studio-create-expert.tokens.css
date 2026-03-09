@@ -15,8 +15,9 @@
 
 .create-expert-panel {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 8px;
-  min-height: 420px;
   --create-expert-selector-width: 175px;
   --create-expert-model-selector-width: 170px;
   --create-expert-character-selector-width: 155px;
@@ -41,8 +42,19 @@
   margin-bottom: 0;
 }
 
-.create-expert-panel--no-history .create-expert-empty-top-spacer {
-  min-height: clamp(88px, 14vh, 170px);
+.create-expert-panel .create-expert-flow-shell {
+  width: 100%;
+}
+
+.create-expert-panel--no-history .create-expert-empty-state-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  padding-block-start: clamp(56px, 9vh, 124px);
+  padding-block-end: clamp(20px, 4vh, 52px);
 }
 
 .create-expert-ready-text {
@@ -55,6 +67,6 @@
 }
 
 .create-expert-panel--no-history .create-expert-ready-text {
-  margin-top: -10px;
+  transform: translateY(-24px);
   margin-bottom: 14px;
 }

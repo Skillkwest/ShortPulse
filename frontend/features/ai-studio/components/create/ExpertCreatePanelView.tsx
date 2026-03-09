@@ -74,19 +74,8 @@ export function ExpertCreatePanelView({
     hideEmptyAgentChatState: true,
     emptyAgentChatSpacerClassName: hasChatHistory ? "" : "create-expert-chat-spacer",
   };
-
-  return (
-    <div
-      className={`tool-properties text-properties-panel create-expert-panel ${!hasChatHistory ? "create-expert-panel--no-history" : ""}`.trim()}
-      role="group"
-      aria-label="Expert create composer"
-    >
-      <div className="tool-header">
-        <p className="eyebrow">Create</p>
-      </div>
-      {!hasChatHistory ? (
-        <div className="create-expert-empty-top-spacer" aria-hidden="true" />
-      ) : null}
+  const promptAndControls = (
+    <>
       {!hasChatHistory ? (
         <p className="create-expert-ready-text">What do you want to make?</p>
       ) : null}
@@ -199,6 +188,23 @@ export function ExpertCreatePanelView({
           />
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <div
+      className={`tool-properties text-properties-panel create-expert-panel ${!hasChatHistory ? "create-expert-panel--no-history" : ""}`.trim()}
+      role="group"
+      aria-label="Expert create composer"
+    >
+      <div className="tool-header">
+        <p className="eyebrow">Create</p>
+      </div>
+      {!hasChatHistory ? (
+        <div className="create-expert-empty-state-shell">{promptAndControls}</div>
+      ) : (
+        <div className="create-expert-flow-shell">{promptAndControls}</div>
+      )}
     </div>
   );
 }

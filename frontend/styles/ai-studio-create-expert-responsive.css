@@ -1,10 +1,7 @@
 @media (max-width: 900px) {
-  .create-expert-panel {
-    min-height: 360px;
-  }
-
-  .create-expert-panel--no-history .create-expert-empty-top-spacer {
-    min-height: clamp(80px, 15vh, 150px);
+  .create-expert-panel--no-history .create-expert-empty-state-shell {
+    padding-block-start: clamp(34px, 8vh, 84px);
+    padding-block-end: clamp(14px, 4vh, 36px);
   }
 
   .create-expert-ready-text {

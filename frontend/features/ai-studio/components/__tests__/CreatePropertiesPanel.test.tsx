@@ -139,7 +139,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
   });
 
-  it("uses explicit no-history spacer layout in expert create mode", () => {
+  it("uses explicit no-history centered layout in expert create mode", () => {
     const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -150,7 +150,8 @@ describe("CreatePropertiesPanel", () => {
       stagedPrompt: null,
     });
 
-    expect(container.querySelector(".create-expert-empty-top-spacer")).toBeTruthy();
+    expect(container.querySelector(".create-expert-empty-state-shell")).toBeTruthy();
+    expect(container.querySelector(".create-expert-empty-top-spacer")).toBeFalsy();
     expect(container.querySelector(".create-expert-chat-spacer")).toBeTruthy();
     expect(screen.queryByText("References attach from the message bar.")).not.toBeInTheDocument();
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();

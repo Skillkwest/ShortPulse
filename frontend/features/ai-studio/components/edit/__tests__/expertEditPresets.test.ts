@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EDIT_PRESET_SURFACE_PRESET_IDS,
+  createDeletedPresetOverride,
   resolveExpertEditPresetCatalog,
   normalizePresetPanelPresetIds,
   normalizeExpertEditCustomPresetOverrides,
@@ -54,5 +55,18 @@ describe("expertEditPresets overrides", () => {
         custom_4: { label: "Saved Custom 4", prompt: "Saved prompt" },
       }).some((preset) => preset.presetId === "custom_4")
     ).toBe(true);
+  });
+
+  it("hides presets that are marked deleted by tombstone overrides", () => {
+    expect(
+      resolveExpertEditPresetCatalog({
+        selfie: createDeletedPresetOverride(),
+      }).some((preset) => preset.presetId === "selfie")
+    ).toBe(false);
+    expect(
+      resolveExpertEditPresetCatalog({
+        custom_1: createDeletedPresetOverride(),
+      }).some((preset) => preset.presetId === "custom_1")
+    ).toBe(false);
   });
 });

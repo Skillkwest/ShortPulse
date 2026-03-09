@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PresetsLibraryPanel } from "../PresetsLibraryPanel";
 import {
   EDIT_PRESET_CUSTOM_PRESET_IDS,
+  createDeletedPresetOverride,
   type ExpertEditResolvedPreset,
 } from "../edit/expertEditPresets";
 
@@ -81,6 +82,38 @@ describe("PresetsLibraryPanel", () => {
     expect(screen.getByRole("dialog", { name: "Edit Selfie preset" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("Selfie")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Use a selfie perspective.")).toBeInTheDocument();
+  });
+
+  it("opens and closes delete confirmation modal from the tile delete action", () => {
+    render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset: Selfie" }));
+    expect(screen.getByRole("dialog", { name: "Delete preset?" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "No" }));
+    expect(screen.queryByRole("dialog", { name: "Delete preset?" })).not.toBeInTheDocument();
+  });
+
+  it("confirms delete and saves deleted tombstone override", async () => {
+    const onSavePresetOverride = vi.fn().mockResolvedValue(true);
+    const onSelectPreset = vi.fn();
+
+    render(
+      <PresetsLibraryPanel
+        presets={PRESETS}
+        selectedPresetId="selfie"
+        onSelectPreset={onSelectPreset}
+        onSavePresetOverride={onSavePresetOverride}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset: Selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+
+    await waitFor(() => {
+      expect(onSavePresetOverride).toHaveBeenCalledWith("selfie", createDeletedPresetOverride());
+    });
+    expect(onSelectPreset).toHaveBeenCalledWith(null);
   });
 
   it("opens create modal from the Create New Preset tile and saves to the next custom preset", async () => {

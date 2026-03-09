@@ -213,6 +213,23 @@ describe("CreatePropertiesPanel", () => {
     expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
   });
 
+  it("clears selected style from the expert create styles button", () => {
+    const onClearSelectedStyle = vi.fn();
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      selectedStyleId: "cinematic",
+      onClearSelectedStyle,
+    });
+
+    const clearButton = screen.getByRole("button", { name: "Clear selected style" });
+    fireEvent.click(clearButton);
+    expect(onClearSelectedStyle).toHaveBeenCalledTimes(1);
+  });
+
   it("hides input-bar attachment guidance in expert mode once chat history exists", () => {
     renderPanel({
       beginnerMode: false,

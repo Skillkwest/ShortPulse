@@ -64,6 +64,7 @@ const createParams = (
     handleManualPromptChange: vi.fn(),
     toggleReferenceIndicator: vi.fn(),
     isPromptGenerating: false,
+    isPrimaryEditStageGenerating: false,
     isPromptRefining: false,
     describeInFlightCount: 0,
     currentCostCredits: 2,
@@ -242,6 +243,20 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesImage.agentIsSending).toBe(true);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(true);
     expect(result.current.propertiesVideo.agentIsSending).toBe(true);
+  });
+
+  it("forwards primary-stage generation state into expert edit props", () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI", "true");
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          isPrimaryEditStageGenerating: true,
+          beginnerMode: false,
+        })
+      )
+    );
+
+    expect(result.current.propertiesEditExpert.isPrimaryStageGenerating).toBe(true);
   });
 
   it("accepts nullable output ids when resolving image/video preview links", () => {

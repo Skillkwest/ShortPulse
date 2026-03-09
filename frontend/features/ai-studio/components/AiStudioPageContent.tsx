@@ -755,14 +755,24 @@ export function AiStudioPageContent({
   const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
     setSelectedStyleId(styleId);
   }, []);
+  const handleClearSelectedStyle = React.useCallback(() => {
+    setSelectedStyleId(null);
+  }, []);
   const resolvedExpertEditProperties = React.useMemo(
     () => ({
       ...propertiesEditExpert,
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
+      onClearSelectedStyle: handleClearSelectedStyle,
     }),
-    [handleStylesPanelToggle, isStylesPanelOpen, propertiesEditExpert, selectedStyleId]
+    [
+      handleClearSelectedStyle,
+      handleStylesPanelToggle,
+      isStylesPanelOpen,
+      propertiesEditExpert,
+      selectedStyleId,
+    ]
   );
   const resolvedCreatePropertiesWithStyles = React.useMemo(
     () => ({
@@ -770,8 +780,15 @@ export function AiStudioPageContent({
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
+      onClearSelectedStyle: handleClearSelectedStyle,
     }),
-    [handleStylesPanelToggle, isStylesPanelOpen, resolvedCreateProperties, selectedStyleId]
+    [
+      handleClearSelectedStyle,
+      handleStylesPanelToggle,
+      isStylesPanelOpen,
+      resolvedCreateProperties,
+      selectedStyleId,
+    ]
   );
   const resolvedReferenceGridPropsWithStylesPanel = React.useMemo(
     () => ({

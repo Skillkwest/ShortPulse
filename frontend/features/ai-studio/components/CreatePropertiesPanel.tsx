@@ -104,6 +104,7 @@ export type CreatePropertiesPanelProps = {
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
+  onClearSelectedStyle?: () => void;
 };
 
 /**
@@ -292,6 +293,7 @@ export function CreatePropertiesPanel({
   isStylesPanelOpen = false,
   onStylesPanelToggle,
   selectedStyleId = null,
+  onClearSelectedStyle,
   onGenerate,
   onChatOffInlineGenerate,
 }: CreatePropertiesPanelProps) {
@@ -492,6 +494,7 @@ export function CreatePropertiesPanel({
         isOpen={isStylesPanelOpen}
         selectedStyleId={selectedStyleId}
         onToggle={onStylesPanelToggle}
+        onClearSelection={onClearSelectedStyle}
       />
     ),
   };

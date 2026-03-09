@@ -1207,7 +1207,7 @@
   gap: var(--edit-expert-tools-title-to-control-gap);
   min-height: calc(var(--edit-expert-secondary-width) + 28px);
   padding: 10px 0;
-  margin-inline: 0;
+  margin-inline: 16px;
   will-change: transform, opacity;
 }
 

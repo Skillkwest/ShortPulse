@@ -165,7 +165,32 @@ export function ReferenceGridSections({
   const showQuickSlotTitleInHeader = !showCanvasInventoryDivider;
   const showReferenceGridTitleInHeader =
     !showQuickSlotReferenceDivider && !showCanvasInventoryDivider;
-  const showStylesTitleInHeader = !showStylesInventoryDivider;
+  const isStylesDirectlyUnderCanvasDivider =
+    showCanvasInventoryDivider &&
+    showStylesSection &&
+    !showQuickSlotSection &&
+    !showReferenceGridSection;
+  const showStylesTitleInHeader =
+    !showStylesInventoryDivider && !isStylesDirectlyUnderCanvasDivider;
+  const topVisiblePanel = showRailCanvasSection
+    ? "canvas"
+    : showQuickSlotSection
+      ? "quick-slot"
+      : showReferenceGridSection
+        ? "reference-grid"
+        : showStylesSection
+          ? "styles"
+          : null;
+  const showTopHeaderDivider =
+    topVisiblePanel === "canvas" ||
+    topVisiblePanel === "quick-slot" ||
+    topVisiblePanel === "reference-grid" ||
+    topVisiblePanel === "styles";
+  const showTopCanvasHeaderDivider = showTopHeaderDivider && topVisiblePanel === "canvas";
+  const showTopQuickSlotHeaderDivider = showTopHeaderDivider && topVisiblePanel === "quick-slot";
+  const showTopReferenceHeaderDivider =
+    showTopHeaderDivider && topVisiblePanel === "reference-grid";
+  const showTopStylesHeaderDivider = showTopHeaderDivider && topVisiblePanel === "styles";
   const hideReferenceGridUploadActions =
     allRefsInventoryExpanded || isReferenceGridCollapsedForStyles;
   const showEmptyState = !showRailCanvasSection && !hasInventorySections;
@@ -179,8 +204,16 @@ export function ReferenceGridSections({
               className={`reference-rail-canvas-section${showCanvasInventoryDivider && railCanvasSplit.isAllRefsExpanded ? " is-inventory-expanded" : ""}`}
               style={showCanvasInventoryDivider ? railCanvasSplit.topSectionStyle : undefined}
             >
-              <div ref={railCanvasHeaderRef} className="reference-rail-canvas-header">
+              <div
+                ref={railCanvasHeaderRef}
+                className={`reference-rail-canvas-header${
+                  showTopCanvasHeaderDivider ? " is-top-section-header" : ""
+                }`}
+              >
                 <p className="eyebrow">Canvas</p>
+                {showTopCanvasHeaderDivider ? (
+                  <span className="reference-section-title-divider" aria-hidden="true" />
+                ) : null}
               </div>
               <div className="reference-rail-canvas-body">
                 <CanvasPropertiesPanel {...railCanvasProps} />
@@ -260,9 +293,19 @@ export function ReferenceGridSections({
                   onDragEnter={handleCuratedSectionDragEnter}
                   onDragLeave={handleCuratedSectionDragLeave}
                 >
-                  <div ref={curatedHeaderRef} className="reference-curated-header">
+                  <div
+                    ref={curatedHeaderRef}
+                    className={`reference-curated-header${
+                      showTopQuickSlotHeaderDivider ? " is-top-section-header" : ""
+                    }${!showQuickSlotTitleInHeader ? " is-title-hidden" : ""}`}
+                  >
                     {showQuickSlotTitleInHeader ? (
-                      <p className="eyebrow">Quick Slot Inventory</p>
+                      <>
+                        <p className="eyebrow">Quick Slot Inventory</p>
+                        {showTopQuickSlotHeaderDivider ? (
+                          <span className="reference-section-title-divider" aria-hidden="true" />
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                   <div
@@ -365,6 +408,7 @@ export function ReferenceGridSections({
                     archiveCount={archiveCount}
                     showHeader={showHeader}
                     showTitle={showReferenceGridTitleInHeader}
+                    showTopTitleDivider={showTopReferenceHeaderDivider}
                     isArchivePanelOpen={isArchivePanelOpen}
                     archivedOutputs={archivedOutputs}
                     hideUploadActions={hideReferenceGridUploadActions}
@@ -434,6 +478,7 @@ export function ReferenceGridSections({
                       archiveCount={archiveCount}
                       showHeader={showHeader}
                       showTitle={showReferenceGridTitleInHeader}
+                      showTopTitleDivider={showTopReferenceHeaderDivider}
                       isArchivePanelOpen={isArchivePanelOpen}
                       archivedOutputs={archivedOutputs}
                       hideUploadActions={hideReferenceGridUploadActions}
@@ -538,8 +583,24 @@ export function ReferenceGridSections({
                   style={showStylesInventoryDivider ? stylesSplit.bottomSectionStyle : undefined}
                   aria-label="Styles"
                 >
-                  <div ref={stylesHeaderRef} className="reference-styles-header">
-                    {showStylesTitleInHeader ? <p className="eyebrow">Styles</p> : null}
+                  <div
+                    ref={stylesHeaderRef}
+                    className={`reference-styles-header${
+                      !showStylesTitleInHeader ? " is-title-hidden" : ""
+                    }`}
+                  >
+                    {showStylesTitleInHeader ? (
+                      <div
+                        className={`reference-section-title-row${
+                          showTopStylesHeaderDivider ? " is-top-section-header" : ""
+                        }`}
+                      >
+                        <p className="eyebrow">Styles</p>
+                        {showTopStylesHeaderDivider ? (
+                          <span className="reference-section-title-divider" aria-hidden="true" />
+                        ) : null}
+                      </div>
+                    ) : null}
                     <p className="tiny subdued helper-text">
                       Choose a style preset now. Drag-and-drop workflow support is coming soon.
                     </p>
@@ -651,8 +712,24 @@ export function ReferenceGridSections({
                   style={showStylesInventoryDivider ? stylesSplit.bottomSectionStyle : undefined}
                   aria-label="Styles"
                 >
-                  <div ref={stylesHeaderRef} className="reference-styles-header">
-                    {showStylesTitleInHeader ? <p className="eyebrow">Styles</p> : null}
+                  <div
+                    ref={stylesHeaderRef}
+                    className={`reference-styles-header${
+                      !showStylesTitleInHeader ? " is-title-hidden" : ""
+                    }`}
+                  >
+                    {showStylesTitleInHeader ? (
+                      <div
+                        className={`reference-section-title-row${
+                          showTopStylesHeaderDivider ? " is-top-section-header" : ""
+                        }`}
+                      >
+                        <p className="eyebrow">Styles</p>
+                        {showTopStylesHeaderDivider ? (
+                          <span className="reference-section-title-divider" aria-hidden="true" />
+                        ) : null}
+                      </div>
+                    ) : null}
                     <p className="tiny subdued helper-text">
                       Choose a style preset now. Drag-and-drop workflow support is coming soon.
                     </p>

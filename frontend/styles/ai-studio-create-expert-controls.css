@@ -7,7 +7,7 @@
 }
 
 .create-expert-controls-row {
-  margin-top: 4px;
+  margin-top: 2px;
   justify-content: center;
   padding-inline: clamp(6px, 2vw);
   box-sizing: border-box;

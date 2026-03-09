@@ -328,7 +328,7 @@ describe("AiStudioPageContent right column drop router", () => {
     const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
     const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
 
-    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
     expect(referenceGridButton).toHaveAttribute("aria-pressed", "true");
 
@@ -336,10 +336,10 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.click(quickSlotButton);
     fireEvent.click(referenceGridButton);
 
-    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
     expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "hidden");
     expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "hidden");
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "false");
     expect(referenceGridButton).toHaveAttribute("aria-pressed", "false");
   });
@@ -358,15 +358,15 @@ describe("AiStudioPageContent right column drop router", () => {
     const getShortcutButtons = () => within(screen.getByLabelText("AI Studio header shortcuts"));
 
     fireEvent.click(getShortcutButtons().getByRole("button", { name: "Canvas" }));
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
 
     rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "edit" })} />);
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
     fireEvent.click(getShortcutButtons().getByRole("button", { name: "Quick Slot Inventory" }));
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
 
     rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "create" })} />);
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute(
       "data-panel-quick-slot",
       "visible"
@@ -582,10 +582,10 @@ describe("AiStudioPageContent right column drop router", () => {
 
     expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("open");
     expect(headerStylesButton).toHaveAttribute("aria-pressed", "true");
-    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute(
       "data-panel-quick-slot",
       "visible"

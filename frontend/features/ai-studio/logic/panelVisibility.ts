@@ -34,9 +34,10 @@ export type HeaderShortcutState = {
 export type HeaderShortcutStateMap = Record<HeaderShortcutId, HeaderShortcutState>;
 
 const DEFAULT_WORKFLOW_PANEL_VISIBILITY_TEMPLATE: WorkflowPanelVisibilityByWorkflow = {
-  create: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
-  edit: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
-  video: { canvas: true, quickSlot: true, referenceGrid: true, styles: false },
+  // Canvas rail panel starts hidden by default for non-canvas workflows on fresh loads/sessions.
+  create: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
+  edit: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
+  video: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
   canvas: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
 };
 

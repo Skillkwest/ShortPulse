@@ -1556,6 +1556,11 @@ describe("ReferenceGrid curated split", () => {
     ).toBeInTheDocument();
     expect(container.querySelector(".reference-rail-canvas-section")).toBeTruthy();
     expect(container.querySelector(".reference-grid-inventory-stack")).toBeTruthy();
+    expect(
+      container.querySelector(
+        ".reference-rail-canvas-header.is-top-section-header .reference-section-title-divider"
+      )
+    ).toBeTruthy();
   });
 
   it("hides the rail canvas section when the main canvas tool is active", () => {
@@ -1574,10 +1579,15 @@ describe("ReferenceGrid curated split", () => {
     ).toBeNull();
     expect(getByText("Quick Slot Inventory")).toBeInTheDocument();
     expect(getByText("Reference Grid")).toBeInTheDocument();
+    expect(
+      container.querySelector(
+        ".reference-curated-header.is-top-section-header .reference-section-title-divider"
+      )
+    ).toBeTruthy();
   });
 
   it("renders both resizable dividers when Quick Slot, Reference Grid, and Styles are visible", () => {
-    const { queryByText, getByText, getByRole } = render(
+    const { container, queryByText, getByText, getByRole } = render(
       <ReferenceGrid
         {...createProps({
           selectedTool: "edit",
@@ -1602,6 +1612,9 @@ describe("ReferenceGrid curated split", () => {
     expect(
       getByRole("separator", { name: "Resize Reference Grid and Styles sections" })
     ).toBeInTheDocument();
+    expect(container.querySelector(".reference-curated-header.is-title-hidden")).toBeTruthy();
+    expect(container.querySelector(".reference-all-refs-header.is-title-hidden")).toBeTruthy();
+    expect(container.querySelector(".reference-styles-header.is-title-hidden")).toBeTruthy();
   });
 
   it("respects panel visibility toggles for Canvas, Quick Slot, and Reference Grid sections", () => {
@@ -1673,6 +1686,36 @@ describe("ReferenceGrid curated split", () => {
     expect(
       queryByRole("separator", { name: "Resize Reference Grid and Styles sections" })
     ).toBeNull();
+  });
+
+  it("does not duplicate Styles title when styles are directly under the canvas divider", () => {
+    const { getByRole, queryByText, getAllByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          panelVisibility: {
+            canvas: true,
+            quickSlot: false,
+            referenceGrid: false,
+            styles: true,
+          },
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    expect(
+      getByRole("separator", { name: "Resize Canvas and Quick Slot Inventory sections" })
+    ).toBeInTheDocument();
+    expect(getAllByText("Styles")).toHaveLength(1);
+    expect(queryByText("Reference Grid")).toBeNull();
+    expect(queryByText("Quick Slot Inventory")).toBeNull();
   });
 
   it("renders a resizable divider between Quick Slot Inventory and Styles when Reference Grid is hidden", () => {

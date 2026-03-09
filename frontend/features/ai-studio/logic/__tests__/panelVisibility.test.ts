@@ -27,9 +27,9 @@ describe("panelVisibility", () => {
     const first = createInitialWorkflowPanelVisibility();
     const second = createInitialWorkflowPanelVisibility();
 
-    first.create.canvas = false;
+    first.create.canvas = true;
 
-    expect(second.create.canvas).toBe(true);
+    expect(second.create.canvas).toBe(false);
   });
 
   it("resolves effective visibility using availability gates", () => {
@@ -82,8 +82,8 @@ describe("panelVisibility", () => {
       shortcutId: "canvas",
       availability,
     });
-    expect(toggledCanvas.edit.canvas).toBe(false);
-    expect(toggledCanvas.create.canvas).toBe(true);
+    expect(toggledCanvas.edit.canvas).toBe(true);
+    expect(toggledCanvas.create.canvas).toBe(false);
 
     const noQuickSlotChange = toggleWorkflowPanelVisibilityByShortcut({
       byWorkflow: toggledCanvas,

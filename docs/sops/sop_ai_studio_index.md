@@ -49,6 +49,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 
 ## Canvas interaction guardrails
 - Dual-canvas layout (main + right-rail) shares scene data but keeps viewport camera state independent per instance.
+- For non-canvas workflows, right-rail Canvas visibility defaults to hidden on refresh/new session.
 - Draft-text and text-edit ownership are instance-scoped so double-click draft creation cannot be auto-cleared by the mirrored canvas instance.
 - Empty-space text draft creation must remain single-create per gesture (native `dblclick` plus pointer/click fallbacks are deduped).
 

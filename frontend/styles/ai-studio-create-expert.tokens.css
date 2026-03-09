@@ -42,7 +42,7 @@
 }
 
 .create-expert-panel--no-history .create-expert-empty-top-spacer {
-  min-height: clamp(180px, 24vh, 300px);
+  min-height: clamp(88px, 14vh, 170px);
 }
 
 .create-expert-ready-text {

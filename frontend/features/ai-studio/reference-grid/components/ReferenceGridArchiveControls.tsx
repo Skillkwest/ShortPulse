@@ -7,6 +7,7 @@ type ReferenceGridArchiveControlsProps = {
   archiveCount: number;
   showHeader: boolean;
   showTitle?: boolean;
+  showTopTitleDivider?: boolean;
   isArchivePanelOpen: boolean;
   archivedOutputs: StudioOutput[];
   hideUploadActions?: boolean;
@@ -24,6 +25,7 @@ export function ReferenceGridArchiveControls({
   archiveCount,
   showHeader,
   showTitle = true,
+  showTopTitleDivider = false,
   isArchivePanelOpen,
   archivedOutputs,
   hideUploadActions = false,
@@ -36,8 +38,21 @@ export function ReferenceGridArchiveControls({
   return (
     <>
       {showHeader ? (
-        <div className="panel-header preview-header reference-all-refs-header">
-          <div>{showTitle ? <p className="eyebrow">Reference Grid</p> : null}</div>
+        <div
+          className={`panel-header preview-header reference-all-refs-header${
+            !showTitle ? " is-title-hidden" : ""
+          }`}
+        >
+          <div
+            className={`reference-all-refs-title-wrap${
+              showTopTitleDivider && showTitle ? " is-top-section-header" : ""
+            }`}
+          >
+            {showTitle ? <p className="eyebrow">Reference Grid</p> : null}
+            {showTopTitleDivider && showTitle ? (
+              <span className="reference-section-title-divider" aria-hidden="true" />
+            ) : null}
+          </div>
           <div className="preview-header-actions">
             {!hideUploadActions ? (
               <>

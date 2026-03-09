@@ -19,6 +19,8 @@ describe("MediaLibraryWorkspaceContent", () => {
           activeMediaQuery: "",
           activeMediaTab: "uploaded_images",
           activeTab: "uploaded_images",
+          adaptivePressureLevel: 0,
+          adaptivePreviewQualityEnabled: false,
           allVisibleSelected: false,
           aspectMap: {},
           bulkDeleting: false,

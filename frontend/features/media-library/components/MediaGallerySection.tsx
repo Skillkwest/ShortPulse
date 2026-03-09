@@ -48,6 +48,8 @@ export type MediaGallerySectionProps<
   activeMediaQuery: string;
   activeMediaTab: MediaDataTab | null;
   activeTab: MediaGalleryTab;
+  adaptivePressureLevel: 0 | 1 | 2;
+  adaptivePreviewQualityEnabled: boolean;
   allVisibleSelected: boolean;
   aspectMap: Record<string, number>;
   bulkDeleting: boolean;
@@ -113,6 +115,8 @@ export function MediaGallerySection<
   activeMediaQuery,
   activeMediaTab,
   activeTab,
+  adaptivePressureLevel,
+  adaptivePreviewQualityEnabled,
   allVisibleSelected,
   aspectMap,
   bulkDeleting,
@@ -200,6 +204,8 @@ export function MediaGallerySection<
         <MediaAssetGallery
           activeMediaQuery={activeMediaQuery}
           activeMediaTab={activeMediaTab}
+          adaptivePressureLevel={adaptivePressureLevel}
+          adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
           aspectMap={aspectMap}
           downloadFile={onDownloadFile}
           fetchMediaTabPage={onFetchMediaTabPage}

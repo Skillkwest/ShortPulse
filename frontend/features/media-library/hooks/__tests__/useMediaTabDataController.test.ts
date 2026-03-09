@@ -116,6 +116,7 @@ const createDeferred = <T>() => {
 describe("useMediaTabDataController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     resolveMediaSigningStoragePathsMock.mockImplementation(
       (row: { storage_path?: string | null }) => [row.storage_path ?? ""]
     );
@@ -158,6 +159,7 @@ describe("useMediaTabDataController", () => {
         activeTab: "saved_prompts",
         activeTabRef,
         cacheTtlMs: 30_000,
+        surface: "media-library-route",
         currentUserIdRef,
         loadMoreSentinelRef,
         mediaTabCache,
@@ -241,6 +243,7 @@ describe("useMediaTabDataController", () => {
         activeTab: "saved_prompts",
         activeTabRef,
         cacheTtlMs: 30_000,
+        surface: "media-library-route",
         currentUserIdRef,
         loadMoreSentinelRef,
         mediaTabCache,
@@ -316,6 +319,7 @@ describe("useMediaTabDataController", () => {
         activeTab: "uploaded_images",
         activeTabRef,
         cacheTtlMs: 30_000,
+        surface: "media-library-route",
         currentUserIdRef,
         loadMoreSentinelRef,
         mediaTabCache,
@@ -441,6 +445,7 @@ describe("useMediaTabDataController", () => {
         activeTab: "uploaded_images",
         activeTabRef,
         cacheTtlMs: 1,
+        surface: "media-library-route",
         currentUserIdRef,
         loadMoreSentinelRef,
         mediaTabCache,
@@ -572,6 +577,7 @@ describe("useMediaTabDataController", () => {
         activeTab: "uploaded_images",
         activeTabRef,
         cacheTtlMs: 30_000,
+        surface: "media-library-route",
         currentUserIdRef,
         loadMoreSentinelRef,
         mediaTabCache,
@@ -609,5 +615,474 @@ describe("useMediaTabDataController", () => {
       rowTwo.id,
     ]);
     expect(result.current.mediaTabCache.uploaded_images.pagesLoaded).toBe(2);
+  });
+
+  it("ignores overlapping same-tab fetch calls while one request is in-flight", async () => {
+    const sessionDeferred = createDeferred<{
+      data: { session: { user: { id: string } } };
+      error: null;
+    }>();
+    const queryBuilder = {
+      eq: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      limit: vi.fn(async () => ({ data: [makeRow({ id: "row-overlap-1" })], error: null })),
+      lt: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+    };
+    const getSessionMock = vi.fn(() => sessionDeferred.promise);
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: getSessionMock,
+      },
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => queryBuilder),
+          };
+        }
+        if (table === "media_prompts") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  order: vi.fn(async () => ({ data: [], error: null })),
+                }),
+              }),
+            })),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => createMediaTabCacheState<Row>());
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-route",
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+        tabData,
+      };
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.tabData.fetchMediaTabPage("uploaded_images", {
+        reason: "load_more",
+      });
+    });
+
+    expect(getSessionMock).toHaveBeenCalledTimes(1);
+
+    sessionDeferred.resolve({
+      data: {
+        session: {
+          user: { id: "user-1" },
+        },
+      },
+      error: null,
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
+    });
+  });
+
+  it("requires load-more sentinel exit before next auto-pagination trigger", async () => {
+    type IoCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
+    let callback: IoCallback | null = null;
+    const observeMock = vi.fn();
+    const disconnectMock = vi.fn();
+    const previousObserver = globalThis.IntersectionObserver;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class MockIntersectionObserver {
+        constructor(nextCallback: IoCallback) {
+          callback = nextCallback;
+        }
+        observe = observeMock;
+        unobserve = vi.fn();
+        disconnect = disconnectMock;
+      }
+    );
+
+    try {
+      const getSessionMock = vi.fn(async () => ({
+        data: {
+          session: {
+            user: { id: "user-1" },
+          },
+        },
+      }));
+      const queryBuilder = {
+        eq: vi.fn().mockReturnThis(),
+        ilike: vi.fn().mockReturnThis(),
+        limit: vi.fn(async () => ({ data: [makeRow({ id: "row-auto-1" })], error: null })),
+        lt: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+      };
+      ensureSupabaseClientMock.mockReturnValue({
+        auth: {
+          getSession: getSessionMock,
+        },
+        from: vi.fn((table: string) => {
+          if (table === "media_files") {
+            return {
+              select: vi.fn(() => queryBuilder),
+            };
+          }
+          if (table === "media_prompts") {
+            return {
+              select: vi.fn(() => ({
+                eq: vi.fn().mockReturnValue({
+                  order: vi.fn().mockReturnValue({
+                    order: vi.fn(async () => ({ data: [], error: null })),
+                  }),
+                }),
+              })),
+            };
+          }
+          throw new Error(`Unexpected table: ${table}`);
+        }),
+      } as never);
+
+      renderHook(() => {
+        const [files, setFiles] = useState<Row[]>([]);
+        const [prompts, setPrompts] = useState<Prompt[]>([]);
+        const [promptsLoaded, setPromptsLoaded] = useState(true);
+        const [loading, setLoading] = useState(false);
+        const [error, setError] = useState<string | null>(null);
+        const [mediaTabCache, setMediaTabCache] = useState(() => {
+          const cache = createMediaTabCacheState<Row>();
+          cache.uploaded_images = {
+            ...cache.uploaded_images,
+            loaded: true,
+            loadedAtMs: Date.now(),
+            hasMore: true,
+            query: "",
+          };
+          return cache;
+        });
+        const activeTabRef = useRef<
+          "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+        >("uploaded_images");
+        const mediaTabRequestRef = useRef(createMediaTabRequestState());
+        const currentUserIdRef = useRef<string | null>(null);
+        const loadMoreSentinelRef = useRef<HTMLDivElement | null>(document.createElement("div"));
+        const loadMoreObserverRootRef = useRef<HTMLElement | null>(document.createElement("div"));
+
+        useMediaTabDataController<Row, Prompt>({
+          activeMediaCache: mediaTabCache.uploaded_images,
+          activeMediaQuery: "",
+          activeMediaTab: "uploaded_images",
+          activeTab: "uploaded_images",
+          activeTabRef,
+          cacheTtlMs: 30_000,
+          surface: "media-library-route",
+          currentUserIdRef,
+          loadMoreSentinelRef,
+          loadMoreObserverRootRef,
+          mediaTabCache,
+          mediaTabRequestRef,
+          pageSize: 60,
+          promptsLoaded,
+          setError,
+          setFiles,
+          setLoading,
+          setMediaTabCache,
+          setPrompts,
+          setPromptsLoaded,
+        });
+
+        return {
+          error,
+          files,
+          loading,
+          mediaTabCache,
+          prompts,
+        };
+      });
+
+      await waitFor(() => {
+        expect(callback).toBeTruthy();
+      });
+
+      await act(async () => {
+        callback?.([{ isIntersecting: true }]);
+      });
+      await waitFor(() => {
+        expect(getSessionMock).toHaveBeenCalledTimes(1);
+      });
+
+      await act(async () => {
+        callback?.([{ isIntersecting: true }]);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(getSessionMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        callback?.([{ isIntersecting: false }]);
+        callback?.([{ isIntersecting: true }]);
+      });
+      await waitFor(() => {
+        expect(getSessionMock).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      if (previousObserver) {
+        vi.stubGlobal("IntersectionObserver", previousObserver);
+      } else {
+        vi.unstubAllGlobals();
+      }
+    }
+  });
+
+  it("does not fetch when controller is disabled", async () => {
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => createMediaTabCacheState<Row>());
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-route",
+        currentUserIdRef,
+        fetchEnabled: false,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+        tabData,
+      };
+    });
+
+    await act(async () => {
+      await result.current.tabData.fetchMediaTabPage("uploaded_images", {
+        reason: "initial",
+      });
+    });
+
+    expect(ensureSupabaseClientMock).not.toHaveBeenCalled();
+    expect(result.current.mediaTabCache.uploaded_images.rows).toEqual([]);
+  });
+
+  it("unblocks loading and surfaces timeout error when fetch hangs", async () => {
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(
+          () =>
+            new Promise(() => {
+              // Intentionally unresolved to simulate a hanging request.
+            })
+        ),
+      },
+      from: vi.fn(),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => createMediaTabCacheState<Row>());
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-route",
+        currentUserIdRef,
+        fetchTimeoutMs: 50,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+        tabData,
+      };
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
+    });
+    await waitFor(
+      () => {
+        expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
+        expect(result.current.error).toBe("Media refresh timed out. Showing cached media.");
+      },
+      { timeout: 2_500 }
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
+
+  it("clears in-flight loading state when controller is disabled", async () => {
+    const pendingSession = new Promise(() => {
+      // Intentionally unresolved to keep the request in-flight.
+    });
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(() => pendingSession),
+      },
+      from: vi.fn(),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [fetchEnabled, setFetchEnabled] = useState(true);
+      const [mediaTabCache, setMediaTabCache] = useState(() => createMediaTabCacheState<Row>());
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-route",
+        currentUserIdRef,
+        fetchEnabled,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        fetchEnabled,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+        setFetchEnabled,
+      };
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
+    });
+
+    act(() => {
+      result.current.setFetchEnabled(false);
+    });
+
+    expect(result.current.fetchEnabled).toBe(false);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
   });
 });

@@ -1,12 +1,8 @@
 import React, { type MutableRefObject } from "react";
 import { CheckCircle } from "phosphor-react";
-import {
-  isAdaptiveSurfaceEnabled,
-  resolveAdaptiveMedia,
-  resolveAdaptiveSourceKind,
-} from "../../../../lib/adaptive-media";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
+import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
   MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
@@ -22,6 +18,8 @@ type MediaLibraryMediaGridProps = {
   activeMedia: MediaFileRow[];
   selectedIds: Set<string>;
   optimizerFallbackMediaIds: Set<string>;
+  adaptivePressureLevel: 0 | 1 | 2;
+  adaptivePreviewQualityEnabled: boolean;
   scrollContainerRef?: MutableRefObject<HTMLElement | null>;
   getMediaCardRef: (fileId: string) => MediaCardRefCallback;
   onSelectMediaFile: (file: MediaFileRow) => void;
@@ -34,6 +32,8 @@ export function MediaLibraryMediaGrid({
   activeMedia,
   selectedIds,
   optimizerFallbackMediaIds,
+  adaptivePressureLevel,
+  adaptivePreviewQualityEnabled,
   scrollContainerRef,
   getMediaCardRef,
   onSelectMediaFile,
@@ -101,28 +101,16 @@ export function MediaLibraryMediaGrid({
             fileType: file.file_type,
             metadata: file.metadata,
           });
-          const adaptiveCardPreview =
-            file.signedUrl && !shouldBypassAdaptivePreview
-              ? resolveAdaptiveMedia({
-                  surface: "media-library-modal-grid",
-                  mediaKind: isVideoFile(file.file_type) ? "video" : "image",
-                  source: resolveAdaptiveSourceKind(file.signedUrl),
-                  urls: {
-                    previewUrl: file.signedUrl,
-                    fullUrl: file.signedUrl,
-                  },
-                  storage: {},
-                  pressureLevel: 0,
-                  cardLongEdgePx: 320,
-                  devicePixelRatio:
-                    typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-                  strictPreviewLadder: true,
-                  adaptivePreviewQuality: isAdaptiveSurfaceEnabled("media-library-modal-grid"),
-                })
-              : null;
-          const cardPreviewUrl = shouldBypassAdaptivePreview
-            ? file.signedUrl
-            : (adaptiveCardPreview?.previewUrl ?? file.signedUrl);
+          const cardPreviewUrl = resolveMediaLibraryAdaptiveCardPreviewUrl({
+            surface: "media-library-modal-grid",
+            signedUrl: file.signedUrl,
+            fileType: file.file_type,
+            pressureLevel: adaptivePressureLevel,
+            adaptivePreviewQualityEnabled,
+            shouldBypassAdaptivePreview,
+            cardLongEdgePx: 320,
+            devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+          });
           const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
           const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";

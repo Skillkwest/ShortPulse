@@ -37,6 +37,7 @@ const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const MIN_SIGNED_URL_TTL_SECONDS = 60;
 const MAX_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_MEDIA_IDS = 40;
+const MAX_BASENAME_LOOKUP_CONCURRENCY = 6;
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 
 const isUserScopedStoragePath = (path: string, userId: string): boolean => {
@@ -78,6 +79,8 @@ const basenameOf = (value: string | null | undefined): string | null => {
   return base.trim() || null;
 };
 
+const basenameLookupKey = (basename: string): string => basename.trim().toLowerCase();
+
 const resolveObjectByBasename = async (
   userId: string,
   basename: string
@@ -104,6 +107,43 @@ const resolveObjectByBasename = async (
   const match = ((data ?? []) as Array<{ name?: string | null }>)[0];
   const name = typeof match?.name === "string" ? match.name.trim() : "";
   return name || null;
+};
+
+const resolveBasenameMatchesBounded = async ({
+  userId,
+  basenames,
+}: {
+  userId: string;
+  basenames: string[];
+}): Promise<Map<string, string | null>> => {
+  const dedupedByKey = new Map<string, string>();
+  for (const rawBasename of basenames) {
+    const basename = rawBasename.trim();
+    if (!basename) continue;
+    const key = basenameLookupKey(basename);
+    if (!key || dedupedByKey.has(key)) continue;
+    dedupedByKey.set(key, basename);
+  }
+  const jobs = Array.from(dedupedByKey.entries());
+  const results = new Map<string, string | null>();
+  if (!jobs.length) return results;
+
+  const workerCount = Math.max(1, Math.min(MAX_BASENAME_LOOKUP_CONCURRENCY, jobs.length));
+  let cursor = 0;
+  const runWorker = async () => {
+    while (true) {
+      const nextIndex = cursor;
+      cursor += 1;
+      const entry = jobs[nextIndex];
+      if (!entry) return;
+      const [key, basename] = entry;
+      const matchedObject = await resolveObjectByBasename(userId, basename).catch(() => null);
+      results.set(key, matchedObject);
+    }
+  };
+
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+  return results;
 };
 
 /**
@@ -174,18 +214,8 @@ export default async function handler(
     }
 
     const resolvedPathById = new Map<string, string>();
-    const basenameLookupPromiseByName = new Map<string, Promise<string | null>>();
-    let fallbackLookupCount = 0;
-    const resolveObjectByBasenameCached = (basename: string): Promise<string | null> => {
-      const key = basename.trim().toLowerCase();
-      if (!key) return Promise.resolve(null);
-      const existing = basenameLookupPromiseByName.get(key);
-      if (existing) return existing;
-      fallbackLookupCount += 1;
-      const task = resolveObjectByBasename(user.id, basename).catch(() => null);
-      basenameLookupPromiseByName.set(key, task);
-      return task;
-    };
+    const basenameCandidatesById = new Map<string, string[]>();
+    const fallbackBasenames: string[] = [];
 
     for (const row of rows) {
       const candidates = candidatesById.get(row.id) ?? [];
@@ -200,8 +230,22 @@ export default async function handler(
           [basenameOf(row.filename), basenameOf(row.storage_path)].filter(Boolean) as string[]
         )
       );
+      if (!basenameCandidates.length) continue;
+      basenameCandidatesById.set(row.id, basenameCandidates);
+      fallbackBasenames.push(...basenameCandidates);
+    }
+
+    const basenameMatchByKey = await resolveBasenameMatchesBounded({
+      userId: user.id,
+      basenames: fallbackBasenames,
+    });
+    const fallbackLookupCount = basenameMatchByKey.size;
+
+    for (const row of rows) {
+      if (resolvedPathById.has(row.id)) continue;
+      const basenameCandidates = basenameCandidatesById.get(row.id) ?? [];
       for (const basename of basenameCandidates) {
-        const matchedObject = await resolveObjectByBasenameCached(basename);
+        const matchedObject = basenameMatchByKey.get(basenameLookupKey(basename)) ?? null;
         if (!matchedObject || !isUserScopedStoragePath(matchedObject, user.id)) continue;
         resolvedPathById.set(row.id, matchedObject);
         break;

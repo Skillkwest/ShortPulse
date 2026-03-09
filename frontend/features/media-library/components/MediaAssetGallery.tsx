@@ -5,13 +5,9 @@
 import { CheckCircle, DownloadSimple, Trash } from "phosphor-react";
 import { useCallback, useMemo, type Ref, type SyntheticEvent } from "react";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
-import {
-  isAdaptiveSurfaceEnabled,
-  resolveAdaptiveMedia,
-  resolveAdaptiveSourceKind,
-} from "../../../lib/adaptive-media";
 import { useMediaGridVideoBudgetController } from "../hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../hooks/useMediaMasonryVirtualization";
+import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../logic/mediaLibraryAdaptivePreview";
 import {
   MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
@@ -30,6 +26,8 @@ type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
 type MediaAssetGalleryProps<TRow extends MediaAssetRow> = {
   activeMediaQuery: string;
   activeMediaTab: MediaDataTab | null;
+  adaptivePressureLevel: 0 | 1 | 2;
+  adaptivePreviewQualityEnabled: boolean;
   aspectMap: Record<string, number>;
   downloadFile: (row: TRow) => Promise<void>;
   files: TRow[];
@@ -60,6 +58,8 @@ type MediaAssetGalleryProps<TRow extends MediaAssetRow> = {
 export function MediaAssetGallery<TRow extends MediaAssetRow>({
   activeMediaQuery,
   activeMediaTab,
+  adaptivePressureLevel,
+  adaptivePreviewQualityEnabled,
   aspectMap,
   downloadFile,
   files,
@@ -129,24 +129,16 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
           const file = renderItem.item;
           const aspectRatio =
             aspectMap[file.id] || (isVideoFileType(file.file_type) ? 9 / 16 : 4 / 5);
-          const adaptiveCardPreview = file.signedUrl
-            ? resolveAdaptiveMedia({
-                surface: "media-library-grid",
-                mediaKind: isVideoFileType(file.file_type) ? "video" : "image",
-                source: resolveAdaptiveSourceKind(file.signedUrl),
-                urls: {
-                  previewUrl: file.signedUrl,
-                  fullUrl: file.signedUrl,
-                },
-                storage: {},
-                pressureLevel: 0,
-                cardLongEdgePx: 320,
-                devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-                strictPreviewLadder: true,
-                adaptivePreviewQuality: isAdaptiveSurfaceEnabled("media-library-grid"),
-              })
-            : null;
-          const cardPreviewUrl = adaptiveCardPreview?.previewUrl ?? file.signedUrl;
+          const cardPreviewUrl =
+            resolveMediaLibraryAdaptiveCardPreviewUrl({
+              surface: "media-library-grid",
+              signedUrl: file.signedUrl,
+              fileType: file.file_type,
+              pressureLevel: adaptivePressureLevel,
+              adaptivePreviewQualityEnabled,
+              cardLongEdgePx: 320,
+              devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+            }) ?? undefined;
           const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
           const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
@@ -176,7 +168,7 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
                 <div className="media-thumb placeholder" style={{ aspectRatio }}>
                   <div className="loader-spin" />
                 </div>
-              ) : file.signedUrl ? (
+              ) : cardPreviewUrl ? (
                 isVideoFileType(file.file_type) ? (
                   <video
                     className="media-thumb"

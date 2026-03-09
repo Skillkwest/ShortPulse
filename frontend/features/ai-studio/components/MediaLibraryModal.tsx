@@ -3,12 +3,12 @@
  * Loads user media/prompts and lets creators add them to the reference grid.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
@@ -18,12 +18,10 @@ import {
   createMediaTabBooleanState,
   createMediaTabCacheState,
   createMediaTabRequestState,
-  getErrorMessage,
   getMediaDataTabForRow,
   isMediaDataTab,
   isNextImageOptimizerUrl,
   isVideoFile,
-  mergePageRows,
   normalizeMediaSearchTerm,
   resolveMediaMetadataPromptText,
   resolveModalSignBudget,
@@ -38,25 +36,15 @@ import {
   type MediaTabRequestState,
   type NavigatorWithConnection,
   type PromptRow,
-  withMediaSearchFilter,
-  withUserScopedPromptQuery,
-  withMediaTabFilter,
-  buildCursorFromRows,
 } from "../logic/mediaLibraryModalModel";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryModalControls } from "./media-library-modal/MediaLibraryModalControls";
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
-import {
-  MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
-  MEDIA_LIST_API_ENABLED,
-} from "../../media-library/logic/mediaLibraryFeatureFlags";
-import { fetchMediaListPage } from "../../media-library/logic/mediaListApi";
-import {
-  resolveMediaFetchTransition,
-  type MediaFetchReason,
-} from "../../media-library/logic/mediaFetchTransition";
+import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
+import { useMediaTabDataController } from "../../media-library/hooks/useMediaTabDataController";
+import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryFeatureFlags";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
   hydrateMediaPreviewViaStorageDownload,
@@ -128,6 +116,11 @@ export function MediaLibraryModal({
   const isMountedRef = useRef(true);
   const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
   const activeMediaCache = activeMediaTab ? mediaTabCache[activeMediaTab] : null;
+  const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-modal-grid");
+  const mediaAdaptivePressure = useMediaAdaptivePressure({
+    surface: "media-library-modal",
+    enabled: isOpen && adaptivePreviewQualityEnabled,
+  });
   const activeMediaQuery = useMemo(
     () => normalizeMediaSearchTerm(debouncedSearch),
     [debouncedSearch]
@@ -402,262 +395,30 @@ export function MediaLibraryModal({
     [activeMediaQuery, activeTab]
   );
 
-  const fetchMediaTabPage = useCallback(
-    async (
-      tab: MediaDataTab,
-      options?: { reset?: boolean; query?: string; reason?: MediaFetchReason }
-    ) => {
-      if (!isOpen) return;
-      const cache = mediaTabCache[tab];
-      const normalizedQuery = normalizeMediaSearchTerm(options?.query ?? cache.query);
-      const transition = resolveMediaFetchTransition({
-        reason: options?.reason,
-        explicitReset: options?.reset ?? false,
-        queryChanged: cache.query !== normalizedQuery,
-        cacheLoaded: cache.loaded,
-        hasRows: cache.rows.length > 0,
-      });
-      const { preserveRowsDuringFetch, shouldReset, shouldShowBlockingLoading } = transition;
-      if (cache.loading) return;
-      if (!shouldReset && !cache.hasMore) return;
-      const requestId = mediaTabRequestRef.current[tab] + 1;
-      mediaTabRequestRef.current[tab] = requestId;
-      const isStaleRequest = () => mediaTabRequestRef.current[tab] !== requestId;
-
-      const pageToLoad = shouldReset ? 0 : cache.pagesLoaded;
-      const cursor = shouldReset ? null : cache.nextCursor;
-      setError(null);
-      setMediaTabCache((prev) => ({
-        ...prev,
-        [tab]: {
-          ...prev[tab],
-          rows: shouldReset && !preserveRowsDuringFetch ? [] : prev[tab].rows,
-          nextCursor: shouldReset ? null : prev[tab].nextCursor,
-          pagesLoaded: shouldReset ? 0 : prev[tab].pagesLoaded,
-          query: normalizedQuery,
-          hasMore: shouldReset ? true : prev[tab].hasMore,
-          loading: true,
-          error: null,
-        },
-      }));
-      if (activeTabRef.current === tab && shouldShowBlockingLoading) {
-        setLoading(true);
-      }
-
-      try {
-        const supabase = ensureSupabaseClient();
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user?.id;
-        if (!userId) throw new Error("Not signed in.");
-        currentUserIdRef.current = userId;
-
-        let fetchedRows: MediaFileRow[] = [];
-        let derivedCursor = cursor;
-        let hasMore = false;
-        let apiSignedById = new Map<string, string>();
-        let usedListApi = false;
-
-        if (MEDIA_LIST_API_ENABLED) {
-          const apiResult = await fetchMediaListPage<MediaFileRow>({
-            tab,
-            query: normalizedQuery,
-            cursor,
-            limit: MEDIA_MODAL_PAGE_SIZE,
-            surface: "media-library-modal",
-          });
-          if (apiResult) {
-            usedListApi = true;
-            fetchedRows = mergePageRows([], apiResult.rows).slice(0, MEDIA_MODAL_PAGE_SIZE);
-            derivedCursor = apiResult.nextCursor;
-            hasMore = apiResult.hasMore;
-            apiSignedById = apiResult.signedById;
-          }
-        }
-
-        if (!usedListApi) {
-          const selectColumns =
-            "id, filename, storage_path, file_type, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path";
-          const buildBaseQuery = () => {
-            let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
-            query = withMediaTabFilter(query, tab);
-            query = withMediaSearchFilter(query, normalizedQuery);
-            return query
-              .order("created_at", { ascending: false })
-              .order("id", { ascending: false });
-          };
-
-          if (!cursor) {
-            const firstPageResponse = await buildBaseQuery().limit(MEDIA_MODAL_PAGE_SIZE);
-            if (firstPageResponse.error) throw firstPageResponse.error;
-            fetchedRows = (firstPageResponse.data ?? []) as MediaFileRow[];
-          } else {
-            const sameTimestampResponse = await buildBaseQuery()
-              .eq("created_at", cursor.createdAt)
-              .lt("id", cursor.id)
-              .limit(MEDIA_MODAL_PAGE_SIZE);
-            if (sameTimestampResponse.error) throw sameTimestampResponse.error;
-            const sameTimestampRows = (sameTimestampResponse.data ?? []) as MediaFileRow[];
-            fetchedRows = [...sameTimestampRows];
-
-            const remaining = MEDIA_MODAL_PAGE_SIZE - sameTimestampRows.length;
-            if (remaining > 0) {
-              const olderRowsResponse = await buildBaseQuery()
-                .lt("created_at", cursor.createdAt)
-                .limit(remaining);
-              if (olderRowsResponse.error) throw olderRowsResponse.error;
-              fetchedRows.push(...((olderRowsResponse.data ?? []) as MediaFileRow[]));
-            }
-          }
-          fetchedRows = mergePageRows([], fetchedRows).slice(0, MEDIA_MODAL_PAGE_SIZE);
-          derivedCursor = buildCursorFromRows(fetchedRows);
-          hasMore = fetchedRows.length === MEDIA_MODAL_PAGE_SIZE && Boolean(derivedCursor);
-        }
-        if (isStaleRequest()) return;
-
-        const existingById = new Map(cache.rows.map((row) => [row.id, row]));
-        const normalizedRows = fetchedRows.map((row) => {
-          const previewStoragePath =
-            resolveMediaSigningStoragePaths(row, userId)[0] ?? row.storage_path;
-          const cachedRow = existingById.get(row.id);
-          const signedFromApi = apiSignedById.get(row.id);
-          return {
-            ...row,
-            source: row.source ?? "upload",
-            preview_storage_path: previewStoragePath,
-            signedUrl: cachedRow?.signedUrl ?? signedFromApi ?? null,
-          } as MediaFileRow;
-        });
-
-        const nextRows = shouldReset ? normalizedRows : mergePageRows(cache.rows, normalizedRows);
-        setMediaTabCache((prev) => ({
-          ...prev,
-          [tab]: {
-            ...prev[tab],
-            rows: nextRows,
-            nextCursor: hasMore && derivedCursor ? derivedCursor : null,
-            pagesLoaded: pageToLoad + 1,
-            query: normalizedQuery,
-            loadedAtMs: Date.now(),
-            hasMore,
-            loading: false,
-            loaded: true,
-            error: null,
-          },
-        }));
-        if (isOpenRef.current && activeTabRef.current === tab) {
-          setFiles(nextRows);
-          setLoading(false);
-        }
-      } catch (err: unknown) {
-        if (isStaleRequest()) return;
-        const message = getErrorMessage(err, "Unable to load media library.");
-        setMediaTabCache((prev) => ({
-          ...prev,
-          [tab]: {
-            ...prev[tab],
-            loading: false,
-            loaded: true,
-            query: normalizedQuery,
-            error: message,
-          },
-        }));
-        if (isOpenRef.current && activeTabRef.current === tab) {
-          setError(message);
-          setLoading(false);
-        }
-      }
-    },
-    [isOpen, mediaTabCache]
-  );
-
-  const loadPrompts = useCallback(async () => {
-    if (!isOpen) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
-      if (!userId) throw new Error("Not signed in.");
-      const promptQuery = supabase
-        .from("media_prompts")
-        .select("id, title, prompt_text, mode, model_id, source, created_at");
-      const promptResponse = await withUserScopedPromptQuery(promptQuery, userId);
-      if (promptResponse.error) throw promptResponse.error;
-      setPrompts((promptResponse.data ?? []) as PromptRow[]);
-      setPromptsLoaded(true);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to load media library."));
-    } finally {
-      setLoading(false);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    if (activeTab === "saved_prompts") {
-      if (!promptsLoaded) {
-        void loadPrompts();
-      } else {
-        setLoading(false);
-      }
-      return;
-    }
-    const cache = mediaTabCache[activeTab];
-    const queryChanged = cache.query !== activeMediaQuery;
-    const isStale =
-      cache.loadedAtMs == null || Date.now() - cache.loadedAtMs > MEDIA_MODAL_CACHE_TTL_MS;
-    if (cache.loaded && !queryChanged && !isStale) {
-      setFiles(cache.rows);
-      setError(cache.error);
-      setLoading(cache.loading);
-      return;
-    }
-    if (cache.loaded && !queryChanged && isStale) {
-      setFiles(cache.rows);
-      setLoading(cache.rows.length === 0);
-    }
-    const fetchReason: MediaFetchReason =
-      cache.loaded && !queryChanged && isStale
-        ? "stale_refresh"
-        : cache.loaded
-          ? "tab_or_query_reset"
-          : "initial";
-    void fetchMediaTabPage(activeTab, { query: activeMediaQuery, reason: fetchReason });
-  }, [
-    activeMediaQuery,
-    activeTab,
-    fetchMediaTabPage,
-    isOpen,
-    loadPrompts,
-    mediaTabCache,
-    promptsLoaded,
-  ]);
-
-  useEffect(() => {
-    if (!isOpen || !activeMediaTab) return;
-    if (!activeMediaCache?.loaded || activeMediaCache.loading || !activeMediaCache.hasMore) return;
-    const node = loadMoreSentinelRef.current;
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery, reason: "load_more" });
-      },
-      { rootMargin: "500px 0px" }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [
-    activeMediaCache?.hasMore,
-    activeMediaCache?.loaded,
-    activeMediaCache?.loading,
+  const { fetchMediaTabPage } = useMediaTabDataController<MediaFileRow, PromptRow>({
+    activeMediaCache,
     activeMediaQuery,
     activeMediaTab,
-    fetchMediaTabPage,
-    isOpen,
-  ]);
+    activeTab,
+    activeTabRef,
+    cacheTtlMs: MEDIA_MODAL_CACHE_TTL_MS,
+    surface: "media-library-modal",
+    currentUserIdRef,
+    fetchEnabled: isOpen,
+    loadMoreSentinelRef,
+    loadMoreObserverRootRef: modalBodyRef as React.MutableRefObject<HTMLElement | null>,
+    loadMoreRootMargin: "500px 0px",
+    mediaTabCache,
+    mediaTabRequestRef,
+    pageSize: MEDIA_MODAL_PAGE_SIZE,
+    promptsLoaded,
+    setError,
+    setFiles,
+    setLoading,
+    setMediaTabCache,
+    setPrompts,
+    setPromptsLoaded,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -840,6 +601,8 @@ export function MediaLibraryModal({
                 activeMedia={activeMedia}
                 selectedIds={selectedIds}
                 optimizerFallbackMediaIds={optimizerFallbackMediaIds}
+                adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+                adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
                 scrollContainerRef={modalBodyRef as React.MutableRefObject<HTMLElement | null>}
                 getMediaCardRef={getMediaCardRef}
                 onSelectMediaFile={(file) => {

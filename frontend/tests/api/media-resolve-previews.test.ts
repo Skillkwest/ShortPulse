@@ -60,6 +60,7 @@ const setupSupabaseAdmin = ({
   signedUrlsByPath?: Record<string, string>;
 }) => {
   let capturedInNames: string[] = [];
+  const ilikePatterns: string[] = [];
   const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
     data: paths.map((path) => ({
       path,
@@ -80,6 +81,19 @@ const setupSupabaseAdmin = ({
     })),
   };
 
+  const ilikeMock = vi.fn((_column: string, pattern: string) => {
+    ilikePatterns.push(pattern);
+    return {
+      limit: vi.fn(async () => ({
+        data: (() => {
+          const match = basenameMatches?.[pattern] ?? null;
+          return match ? [{ name: match }] : [];
+        })(),
+        error: null,
+      })),
+    };
+  });
+
   const storageObjectsFromMock = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -92,15 +106,7 @@ const setupSupabaseAdmin = ({
             error: null,
           };
         }),
-        ilike: vi.fn((_column: string, pattern: string) => ({
-          limit: vi.fn(async () => ({
-            data: (() => {
-              const match = basenameMatches?.[pattern] ?? null;
-              return match ? [{ name: match }] : [];
-            })(),
-            error: null,
-          })),
-        })),
+        ilike: ilikeMock,
       })),
     })),
   };
@@ -129,6 +135,7 @@ const setupSupabaseAdmin = ({
   return {
     createSignedUrlsMock,
     getCapturedInNames: () => capturedInNames,
+    getIlikePatterns: () => ilikePatterns,
   };
 };
 
@@ -265,5 +272,48 @@ describe("POST /api/media/resolve-previews", () => {
         [row.id]: directUrl,
       },
     });
+  });
+
+  it("dedupes basename fallback lookups and reports unique lookup count", async () => {
+    const rowA = createRow({
+      id: "media-a",
+      filename: "shared.jpg",
+      storage_path: "user-1/images/shared.jpg",
+    });
+    const rowB = createRow({
+      id: "media-b",
+      filename: "shared.jpg",
+      storage_path: "user-1/private/shared.jpg",
+    });
+    const rowC = createRow({
+      id: "media-c",
+      filename: "second.jpg",
+      storage_path: "user-1/images/second.jpg",
+    });
+    const { createSignedUrlsMock, getIlikePatterns } = setupSupabaseAdmin({
+      rows: [rowA, rowB, rowC],
+      existingObjectNames: [],
+      basenameMatches: {
+        "user-1/%/shared.jpg": "user-1/recovered/shared.jpg",
+        "user-1/%/second.jpg": "user-1/recovered/second.jpg",
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [rowA.id, rowB.id, rowC.id],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getIlikePatterns().sort()).toEqual(["user-1/%/second.jpg", "user-1/%/shared.jpg"]);
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      ["user-1/recovered/shared.jpg", "user-1/recovered/second.jpg"],
+      3600
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "2");
   });
 });

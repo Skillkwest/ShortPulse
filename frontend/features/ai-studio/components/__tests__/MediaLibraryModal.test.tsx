@@ -228,6 +228,68 @@ describe("MediaLibraryModal", () => {
     });
   });
 
+  it("does not stay stuck loading after close/reopen while initial fetch is unresolved", async () => {
+    const firstDeferred = createDeferred<{ data: MediaRow[]; error: null }>();
+    const reopenRow: MediaRow = {
+      id: "media-reopen-1",
+      filename: "reopen.png",
+      storage_path: "user-1/upload/reopen.png",
+      file_type: "image/png",
+      source: "upload",
+      created_at: "2026-02-14T00:00:00.000Z",
+      metadata: {
+        dimensions: { width: "1200", height: "800" },
+      },
+    };
+    let mediaFetchCount = 0;
+    ensureSupabaseClientMock.mockImplementation(
+      () =>
+        createSupabaseClientMock({
+          mediaLimitImpl: async () => {
+            mediaFetchCount += 1;
+            if (mediaFetchCount === 1) return firstDeferred.promise;
+            return { data: [reopenRow], error: null };
+          },
+        }) as never
+    );
+
+    const { container, rerender } = render(
+      <MediaLibraryModal
+        isOpen
+        onClose={() => undefined}
+        onSelectMedia={() => undefined}
+        onSelectPrompt={() => undefined}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Loading media library…")).toBeTruthy();
+    });
+
+    rerender(
+      <MediaLibraryModal
+        isOpen={false}
+        onClose={() => undefined}
+        onSelectMedia={() => undefined}
+        onSelectPrompt={() => undefined}
+      />
+    );
+    rerender(
+      <MediaLibraryModal
+        isOpen
+        onClose={() => undefined}
+        onSelectMedia={() => undefined}
+        onSelectPrompt={() => undefined}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("[data-media-id='media-reopen-1']")).toBeTruthy();
+    });
+    expect(mediaFetchCount).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("Loading media library…")).toBeNull();
+  });
+
   it("keeps media cards visible during unresolved stale refresh without blocking loader", async () => {
     let nowMs = Date.parse("2026-03-02T00:00:00.000Z");
     const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => nowMs);

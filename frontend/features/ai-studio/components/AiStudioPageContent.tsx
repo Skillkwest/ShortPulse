@@ -900,6 +900,7 @@ export function AiStudioPageContent({
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
       showBeginnerModeToggle={showBeginnerModeToggle}
+      onOpenMediaLibrary={onOpenMediaLibrary}
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onBeginnerModeChange={onBeginnerModeChange}
@@ -910,6 +911,7 @@ export function AiStudioPageContent({
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
       showBeginnerModeToggle={showBeginnerModeToggle}
+      onOpenMediaLibrary={onOpenMediaLibrary}
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onToggleBeginnerMode={onBeginnerModeChange}

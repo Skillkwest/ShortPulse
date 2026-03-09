@@ -23,6 +23,8 @@ const buildBaseProps = () => ({
   activeMediaQuery: "",
   activeMediaTab: "uploaded_images" as const,
   activeTab: "uploaded_images" as const,
+  adaptivePressureLevel: 0 as const,
+  adaptivePreviewQualityEnabled: false,
   allVisibleSelected: false,
   aspectMap: {},
   bulkDeleting: false,

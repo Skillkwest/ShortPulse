@@ -4,6 +4,7 @@
  */
 import Head from "next/head";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isAdaptiveSurfaceEnabled } from "../lib/adaptive-media";
 import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 import {
@@ -25,6 +26,7 @@ import { useMediaPromptModalCrud } from "../features/media-library/hooks/useMedi
 import { useMediaPreviewRuntime } from "../features/media-library/hooks/useMediaPreviewRuntime";
 import { useMediaPreviewSigningController } from "../features/media-library/hooks/useMediaPreviewSigningController";
 import { useMediaSingleMoveController } from "../features/media-library/hooks/useMediaSingleMoveController";
+import { useMediaAdaptivePressure } from "../features/media-library/hooks/useMediaAdaptivePressure";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
 import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
 import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../features/media-library/logic/mediaLibraryFeatureFlags";
@@ -142,6 +144,11 @@ export default function MediaLibrary() {
   }, [planLimitMb, totalBytes]);
   const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
   const activeMediaCache = activeMediaTab ? mediaTabCache[activeMediaTab] : null;
+  const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-grid");
+  const mediaAdaptivePressure = useMediaAdaptivePressure({
+    surface: "media-library-route",
+    enabled: adaptivePreviewQualityEnabled,
+  });
   const activeMediaQuery = useMemo(
     () => normalizeMediaSearchTerm(debouncedSearch),
     [debouncedSearch]
@@ -270,6 +277,7 @@ export default function MediaLibrary() {
       activeTab,
       activeTabRef,
       cacheTtlMs: MEDIA_LIBRARY_CACHE_TTL_MS,
+      surface: "media-library-route",
       currentUserIdRef,
       loadMoreSentinelRef,
       mediaTabCache,
@@ -648,6 +656,8 @@ export default function MediaLibrary() {
             activeMediaQuery,
             activeMediaTab,
             activeTab,
+            adaptivePressureLevel: mediaAdaptivePressure.previewPressureLevel,
+            adaptivePreviewQualityEnabled,
             allVisibleSelected,
             aspectMap,
             bulkDeleting,

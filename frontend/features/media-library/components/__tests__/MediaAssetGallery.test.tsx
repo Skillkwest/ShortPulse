@@ -30,6 +30,8 @@ describe("MediaAssetGallery", () => {
       <MediaAssetGallery
         activeMediaQuery="cat"
         activeMediaTab="uploaded_images"
+        adaptivePressureLevel={0}
+        adaptivePreviewQualityEnabled={false}
         aspectMap={{}}
         downloadFile={downloadFile}
         fetchMediaTabPage={fetchMediaTabPage}

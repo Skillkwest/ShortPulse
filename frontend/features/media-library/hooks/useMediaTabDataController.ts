@@ -5,6 +5,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -18,6 +19,7 @@ import { resolveMediaFetchTransition, type MediaFetchReason } from "../logic/med
 import {
   MEDIA_DATA_TABS,
   buildCursorFromRows,
+  createMediaTabBooleanState,
   getMediaDataTabForRow,
   mergePageRows,
   normalizeMediaSearchTerm,
@@ -26,6 +28,7 @@ import {
   withMediaTabFilter,
   type MediaDataTab,
   type MediaTabCache,
+  type MediaTabBooleanState,
   type MediaTabRequestState,
 } from "../logic/mediaLibraryPageHelpers";
 
@@ -35,8 +38,8 @@ type TabDataMediaRowBase = {
   storage_path: string;
   source?: string | null;
   file_type?: string | null;
-  created_at: string;
-  signedUrl?: string;
+  created_at?: string | null;
+  signedUrl?: string | null;
   preview_storage_path?: string;
 };
 
@@ -44,10 +47,10 @@ type TabDataPromptRowBase = {
   id: string;
   title: string | null;
   prompt_text: string;
-  mode: string;
-  source: string;
-  created_at: string;
-  updated_at: string;
+  mode?: string | null;
+  source?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 type UseMediaTabDataControllerArgs<
@@ -60,8 +63,13 @@ type UseMediaTabDataControllerArgs<
   activeTab: MediaTab;
   activeTabRef: MutableRefObject<MediaTab>;
   cacheTtlMs: number;
+  surface: "media-library-route" | "media-library-modal";
   currentUserIdRef: MutableRefObject<string | null>;
+  fetchEnabled?: boolean;
+  fetchTimeoutMs?: number;
   loadMoreSentinelRef: MutableRefObject<HTMLDivElement | null>;
+  loadMoreObserverRootRef?: MutableRefObject<HTMLElement | null>;
+  loadMoreRootMargin?: string;
   mediaTabCache: Record<MediaDataTab, MediaTabCache<TRow>>;
   mediaTabRequestRef: MutableRefObject<MediaTabRequestState>;
   pageSize: number;
@@ -91,7 +99,11 @@ export const useMediaTabDataController = <
   activeTabRef,
   cacheTtlMs,
   currentUserIdRef,
+  fetchEnabled = true,
+  fetchTimeoutMs = 12_000,
   loadMoreSentinelRef,
+  loadMoreObserverRootRef,
+  loadMoreRootMargin = "600px 0px",
   mediaTabCache,
   mediaTabRequestRef,
   pageSize,
@@ -102,7 +114,34 @@ export const useMediaTabDataController = <
   setMediaTabCache,
   setPrompts,
   setPromptsLoaded,
+  surface,
 }: UseMediaTabDataControllerArgs<TRow, TPrompt>) => {
+  const tabFetchInFlightRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
+  const tabLoadMoreAwaitExitRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
+
+  useEffect(() => {
+    if (fetchEnabled) return;
+    for (const tab of MEDIA_DATA_TABS) {
+      mediaTabRequestRef.current[tab] += 1;
+      tabFetchInFlightRef.current[tab] = false;
+      tabLoadMoreAwaitExitRef.current[tab] = false;
+    }
+    setLoading(false);
+    setMediaTabCache((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const tab of MEDIA_DATA_TABS) {
+        if (!next[tab].loading) continue;
+        next[tab] = {
+          ...next[tab],
+          loading: false,
+        };
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [fetchEnabled, mediaTabRequestRef, setLoading, setMediaTabCache]);
+
   const syncActiveMediaCacheRows = useCallback(
     (rows: TRow[]) => {
       if (!activeMediaTab) return;
@@ -162,6 +201,8 @@ export const useMediaTabDataController = <
       tab: MediaDataTab,
       options?: { reset?: boolean; query?: string; reason?: MediaFetchReason }
     ) => {
+      if (!fetchEnabled) return;
+      if (tabFetchInFlightRef.current[tab]) return;
       const cache = mediaTabCache[tab];
       const normalizedQuery = normalizeMediaSearchTerm(options?.query ?? cache.query);
       const transition = resolveMediaFetchTransition({
@@ -174,6 +215,11 @@ export const useMediaTabDataController = <
       const { preserveRowsDuringFetch, shouldReset, shouldShowBlockingLoading } = transition;
       if (cache.loading) return;
       if (!shouldReset && !cache.hasMore) return;
+      if (options?.reason === "load_more") {
+        // Prevent repeated auto-pagination while sentinel remains intersecting.
+        tabLoadMoreAwaitExitRef.current[tab] = true;
+      }
+      tabFetchInFlightRef.current[tab] = true;
       const requestId = mediaTabRequestRef.current[tab] + 1;
       mediaTabRequestRef.current[tab] = requestId;
       const isStaleRequest = () => mediaTabRequestRef.current[tab] !== requestId;
@@ -197,6 +243,33 @@ export const useMediaTabDataController = <
       if (activeTabRef.current === tab && shouldShowBlockingLoading) {
         setLoading(true);
       }
+      let didTimeout = false;
+      const timeoutId =
+        typeof window !== "undefined"
+          ? window.setTimeout(
+              () => {
+                if (isStaleRequest()) return;
+                didTimeout = true;
+                const timeoutMessage = "Media refresh timed out. Showing cached media.";
+                setMediaTabCache((prev) => ({
+                  ...prev,
+                  [tab]: {
+                    ...prev[tab],
+                    loading: false,
+                    loaded: true,
+                    loadedAtMs: Date.now(),
+                    query: normalizedQuery,
+                    error: timeoutMessage,
+                  },
+                }));
+                if (activeTabRef.current === tab) {
+                  setError(timeoutMessage);
+                  setLoading(false);
+                }
+              },
+              Math.max(1000, fetchTimeoutMs)
+            )
+          : null;
 
       try {
         const supabase = ensureSupabaseClient();
@@ -217,7 +290,7 @@ export const useMediaTabDataController = <
             query: normalizedQuery,
             cursor,
             limit: pageSize,
-            surface: "media-library-route",
+            surface,
           });
           if (apiResult) {
             usedListApi = true;
@@ -319,11 +392,22 @@ export const useMediaTabDataController = <
           setError(message);
           setLoading(false);
         }
+      } finally {
+        tabFetchInFlightRef.current[tab] = false;
+        if (timeoutId != null && typeof window !== "undefined") {
+          window.clearTimeout(timeoutId);
+        }
+        if (didTimeout && activeTabRef.current === tab) {
+          // Keep controller state coherent after timeout fallback already unblocked UI.
+          setLoading(false);
+        }
       }
     },
     [
       activeTabRef,
       currentUserIdRef,
+      fetchEnabled,
+      fetchTimeoutMs,
       mediaTabCache,
       mediaTabRequestRef,
       pageSize,
@@ -331,10 +415,13 @@ export const useMediaTabDataController = <
       setFiles,
       setLoading,
       setMediaTabCache,
+      surface,
+      tabFetchInFlightRef,
     ]
   );
 
   const loadPrompts = useCallback(async () => {
+    if (!fetchEnabled) return;
     setLoading(true);
     setError(null);
     try {
@@ -354,9 +441,10 @@ export const useMediaTabDataController = <
     } finally {
       setLoading(false);
     }
-  }, [setError, setLoading, setPrompts, setPromptsLoaded]);
+  }, [fetchEnabled, setError, setLoading, setPrompts, setPromptsLoaded]);
 
   useEffect(() => {
+    if (!fetchEnabled) return;
     if (activeTab === "saved_prompts") {
       if (!promptsLoaded) {
         void loadPrompts();
@@ -396,9 +484,11 @@ export const useMediaTabDataController = <
     setError,
     setFiles,
     setLoading,
+    fetchEnabled,
   ]);
 
   useEffect(() => {
+    if (!fetchEnabled) return;
     if (!activeMediaTab) return;
     if (!activeMediaCache?.loaded || activeMediaCache.loading || !activeMediaCache.hasMore) return;
     if (typeof IntersectionObserver === "undefined") return;
@@ -407,10 +497,17 @@ export const useMediaTabDataController = <
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (!entry?.isIntersecting) return;
+        if (!entry?.isIntersecting) {
+          tabLoadMoreAwaitExitRef.current[activeMediaTab] = false;
+          return;
+        }
+        if (tabLoadMoreAwaitExitRef.current[activeMediaTab]) return;
         void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery, reason: "load_more" });
       },
-      { rootMargin: "600px 0px" }
+      {
+        root: loadMoreObserverRootRef?.current ?? null,
+        rootMargin: loadMoreRootMargin,
+      }
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -420,8 +517,12 @@ export const useMediaTabDataController = <
     activeMediaCache?.loading,
     activeMediaQuery,
     activeMediaTab,
+    fetchEnabled,
     fetchMediaTabPage,
+    loadMoreObserverRootRef,
+    loadMoreRootMargin,
     loadMoreSentinelRef,
+    tabLoadMoreAwaitExitRef,
   ]);
 
   return {

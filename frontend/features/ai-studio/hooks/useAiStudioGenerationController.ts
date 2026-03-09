@@ -548,7 +548,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         options?.inpaintOverride?.modelId ??
         options?.modelIdOverride ??
         resolveEffectiveSubmitModelId(selectedTool);
-      const hasSubmitModelOverride = Boolean(options?.inpaintOverride || options?.modelIdOverride);
+      const hasSubmitModelOverride = Boolean(
+        options?.inpaintOverride?.modelId ?? options?.modelIdOverride
+      );
       const resolvedModelOverrideCredits =
         hasSubmitModelOverride && effectiveSubmitModelId
           ? (resolveCostCreditsForModel?.(effectiveSubmitModelId) ?? null)
@@ -678,7 +680,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       const effectiveModelId = effectiveSubmitModelId;
       const wasSubmitModelCoerced =
         effectiveModelId != null && model != null && effectiveModelId !== model;
-      if (wasSubmitModelCoerced) {
+      const shouldPersistSubmitModelCoercion = wasSubmitModelCoerced && !hasSubmitModelOverride;
+      if (shouldPersistSubmitModelCoercion) {
         setModel(effectiveModelId);
         trackCharacterModeEvent?.("character_mode_submit_invariant_coerced", {
           trigger: "regenerate",

@@ -146,7 +146,7 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(updateOutputById).not.toHaveBeenCalled();
   });
 
-  it("applies hidden non-Bria image success to primary reference and clears output", async () => {
+  it("does not treat hidden non-Bria image success as primary-reference replacement", async () => {
     let outputs = [
       createOutput({
         id: "out-1",
@@ -209,11 +209,74 @@ describe("useAiStudioTaskOrchestration", () => {
       });
     });
 
-    expect(setPrimaryEditReferenceImageUrl).toHaveBeenCalledWith(
-      "https://cdn.test/edit-result.png"
-    );
-    expect(outputs).toEqual([]);
+    expect(setPrimaryEditReferenceImageUrl).not.toHaveBeenCalled();
+    expect(outputs).toHaveLength(1);
     expect(updateOutputById).not.toHaveBeenCalled();
+  });
+
+  it("does not clear hidden non-Bria outputs on generation failure", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-1",
+        taskId: "task-1",
+        modelId: "fal-ai/nano-banana-pro/edit",
+        hiddenInReferenceGrid: true,
+      }),
+    ];
+    const setPrimaryEditReferenceImageUrl = vi.fn();
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "edit",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(setOutputs),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById: vi.fn(),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        setPrimaryEditReferenceImageUrl,
+      })
+    );
+
+    await act(async () => {
+      capturedTaskCallbacks?.onGenerationFailure?.({
+        outputId: "out-1",
+        provider: "fal",
+        message: "Generation failed",
+      });
+    });
+
+    expect(setPrimaryEditReferenceImageUrl).not.toHaveBeenCalled();
+    expect(outputs).toHaveLength(1);
   });
 
   it("ignores success callbacks for outputs that are not hidden replacement runs", async () => {

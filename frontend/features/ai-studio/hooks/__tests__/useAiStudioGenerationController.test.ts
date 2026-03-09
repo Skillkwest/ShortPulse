@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
+import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
@@ -704,7 +705,7 @@ describe("useAiStudioGenerationController", () => {
     const setUiError = vi.fn();
     const setOptimisticDebitEntries = vi.fn();
     const resolveCostCreditsForModel = vi.fn((modelId: string) =>
-      modelId === "fal-ai/flux-pro/v1/fill" ? 5 : null
+      modelId === INPAINT_FLUX_FILL_MODEL_ID ? 5 : null
     );
     const params = createParams({
       selectedTool: "edit",
@@ -727,9 +728,9 @@ describe("useAiStudioGenerationController", () => {
 
     await act(async () => {
       await result.current.handleImageRegenerateWithDebit({
-        modelIdOverride: "fal-ai/flux-pro/v1/fill",
+        modelIdOverride: INPAINT_FLUX_FILL_MODEL_ID,
         inpaintOverride: {
-          modelId: "fal-ai/flux-pro/v1/fill",
+          modelId: INPAINT_FLUX_FILL_MODEL_ID,
           baseImageInput: "https://cdn.test/inpaint-base.png",
           maskInput: "https://cdn.test/inpaint-mask.png",
           outputFormat: "png",
@@ -737,10 +738,10 @@ describe("useAiStudioGenerationController", () => {
       });
     });
 
-    expect(resolveCostCreditsForModel).toHaveBeenCalledWith("fal-ai/flux-pro/v1/fill");
+    expect(resolveCostCreditsForModel).toHaveBeenCalledWith(INPAINT_FLUX_FILL_MODEL_ID);
     expect(regenerateOutput).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelIdOverride: "fal-ai/flux-pro/v1/fill",
+        modelIdOverride: INPAINT_FLUX_FILL_MODEL_ID,
       })
     );
     expect(setUiError).not.toHaveBeenCalled();
@@ -755,6 +756,65 @@ describe("useAiStudioGenerationController", () => {
     expect(updater?.([])).toEqual([
       expect.objectContaining({ credits: 5, outputId: null, createdAtMs: expect.any(Number) }),
     ]);
+  });
+
+  it("does not persist selected model when regenerate submit uses explicit modelIdOverride", async () => {
+    const regenerateOutput = vi.fn();
+    const setModel = vi.fn();
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      setModel,
+      regenerateOutput,
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        referenceInputsOverride: ["blob:flatten-primary"],
+        modelIdOverride: "fal-ai/bria/background/remove",
+        costOverrideCredits: 0,
+      });
+    });
+
+    expect(setModel).not.toHaveBeenCalled();
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelIdOverride: "fal-ai/bria/background/remove",
+      })
+    );
+  });
+
+  it("does not persist selected model when regenerate submit uses inpaint model override", async () => {
+    const regenerateOutput = vi.fn();
+    const setModel = vi.fn();
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      setModel,
+      regenerateOutput,
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        inpaintOverride: {
+          modelId: INPAINT_FLUX_FILL_MODEL_ID,
+          baseImageInput: "https://cdn.test/inpaint-base.png",
+          maskInput: "https://cdn.test/inpaint-mask.png",
+          outputFormat: "png",
+        },
+      });
+    });
+
+    expect(setModel).not.toHaveBeenCalled();
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelIdOverride: INPAINT_FLUX_FILL_MODEL_ID,
+      })
+    );
   });
 
   it("allows regenerate submissions while agent send is in flight", async () => {

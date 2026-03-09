@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef } from "react";
 import { fetchFalQueueStatus } from "../../../lib/falClient";
+import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { normalizeProviderForPolling, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
@@ -120,7 +121,11 @@ export const useAiStudioTaskOrchestration = ({
 
   const isPrimaryReferenceReplacementOutput = useCallback((output: StudioOutput | null) => {
     if (!output) return false;
-    return output.mode === "image" && output.hiddenInReferenceGrid === true;
+    return (
+      output.mode === "image" &&
+      output.hiddenInReferenceGrid === true &&
+      output.modelId === BRIA_BACKGROUND_REMOVE_MODEL_ID
+    );
   }, []);
 
   const clearPrimaryReferenceReplacementOutput = useCallback(

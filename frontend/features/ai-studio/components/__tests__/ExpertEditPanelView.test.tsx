@@ -1,7 +1,10 @@
 import React from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ExpertEditPanelView } from "../edit/ExpertEditPanelView";
+import {
+  COMPOSITE_REGENERATE_COHESION_PROMPT,
+  ExpertEditPanelView,
+} from "../edit/ExpertEditPanelView";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_SURFACE_PRESET_IDS,
@@ -13,6 +16,10 @@ import {
   type ExpertEditPresetDragPayload,
   type ExpertEditPresetId,
 } from "../edit/expertEditPresets";
+import {
+  INPAINT_FLUX_FILL_MODEL_ID,
+  INPAINT_FLUX_FILL_MODEL_LABEL,
+} from "../../logic/inpaintSubmission";
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
 
 const {
@@ -275,7 +282,7 @@ describe("ExpertEditPanelView", () => {
   it("disables flatten action until at least one layer image exists", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
 
-    const flattenButton = screen.getByRole("button", { name: /flatten & add to grid/i });
+    const flattenButton = screen.getByRole("button", { name: /flatten layers/i });
     expect(flattenButton).toBeDisabled();
 
     uploadPrimaryFile(container, "layer-1.png");
@@ -549,6 +556,15 @@ describe("ExpertEditPanelView", () => {
     expect(
       screen.queryByRole("button", { name: /apply composite & generate preset/i })
     ).not.toBeInTheDocument();
+  });
+
+  it("inserts the cohesion prompt when clicking Composite & Regenerate", () => {
+    const onPromptTextChange = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onPromptTextChange={onPromptTextChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /composite & regenerate/i }));
+
+    expect(onPromptTextChange).toHaveBeenCalledWith(COMPOSITE_REGENERATE_COHESION_PROMPT);
   });
 
   it("resolves prompt copy for every canonical preset id", () => {
@@ -889,7 +905,7 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(inpaintButton);
     expect(modelPickerButton).toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("FLUX Pro Fill");
+    expect(modelPickerButton).toHaveTextContent(INPAINT_FLUX_FILL_MODEL_LABEL);
     fireEvent.click(modelPickerButton);
     expect(onModelPickerOpen).not.toHaveBeenCalled();
 
@@ -1867,24 +1883,15 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
   });
 
-  it("opens picker on add layer and only creates layers after file selection", () => {
+  it("keeps the add-layer button hidden while primary uploads can still create layers", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
-    const primaryInput = getPrimaryFileInput(container);
-    const inputClickSpy = vi.spyOn(primaryInput, "click");
 
+    expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
-    expect(inputClickSpy).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
 
     uploadPrimaryFile(container, "added-layer-1.png");
     expect(screen.getByRole("button", { name: "layer 1" })).toHaveClass("is-selected");
-    expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /add layer/i }));
-    expect(inputClickSpy).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
 
     uploadPrimaryFile(container, "added-layer-2.png");
@@ -2099,7 +2106,9 @@ describe("ExpertEditPanelView", () => {
 
       uploadPrimaryFile(container, "layer-9-over-limit.png");
       expect(screen.queryByRole("button", { name: "layer 9" })).not.toBeInTheDocument();
-      expect(screen.getByText("Layer limit reached (8).")).toBeInTheDocument();
+      const layerLimitToast = screen.getByText("Layer limit reached (8).");
+      expect(layerLimitToast).toBeInTheDocument();
+      expect(layerLimitToast.closest(".edit-expert-layers-toolbar")).toBeInTheDocument();
 
       act(() => {
         vi.advanceTimersByTime(1_400);
@@ -2121,7 +2130,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("button", { name: /remove primary image/i })).not.toBeInTheDocument();
   });
 
-  it("manual flatten collapses to layer 1 and emits a session media reference", async () => {
+  it("manual flatten collapses to layer 1 without emitting a session media reference", async () => {
     const onAddSessionMediaReference = vi.fn();
     const { container } = render(
       <ExpertEditPanelView {...baseProps} onAddSessionMediaReference={onAddSessionMediaReference} />
@@ -2140,13 +2149,10 @@ describe("ExpertEditPanelView", () => {
     expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
-    expect(onAddSessionMediaReference).toHaveBeenCalledWith({
-      url: expect.stringMatching(/^blob:flatten-/),
-      mimeType: "image/png",
-    });
+    expect(onAddSessionMediaReference).not.toHaveBeenCalled();
   });
 
-  it("manual flatten applies active crop ratio before exporting to grid", async () => {
+  it("manual flatten applies active crop ratio without exporting to reference grid", async () => {
     const originalCreateImageBitmap = window.createImageBitmap;
     const closeBitmap = vi.fn();
     Object.defineProperty(window, "createImageBitmap", {
@@ -2199,10 +2205,7 @@ describe("ExpertEditPanelView", () => {
         })
       );
       expect(closeBitmap).toHaveBeenCalledTimes(1);
-      expect(onAddSessionMediaReference).toHaveBeenCalledWith({
-        url: expect.stringMatching(/^blob:flatten-/),
-        mimeType: "image/png",
-      });
+      expect(onAddSessionMediaReference).not.toHaveBeenCalled();
     } finally {
       Object.defineProperty(window, "createImageBitmap", {
         configurable: true,
@@ -2666,7 +2669,7 @@ describe("ExpertEditPanelView", () => {
         }
       ).mock.calls[0]?.[1];
       expect(inpaintOptions?.inpaintOverride).toEqual({
-        modelId: "fal-ai/flux-pro/v1/fill",
+        modelId: INPAINT_FLUX_FILL_MODEL_ID,
         baseImageInput: expect.stringMatching(/^blob:flatten-/),
         maskInput: expect.stringMatching(/^blob:flatten-/),
         outputFormat: "png",

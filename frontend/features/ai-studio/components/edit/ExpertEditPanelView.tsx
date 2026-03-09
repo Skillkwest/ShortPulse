@@ -29,14 +29,16 @@ import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
-import { composePrimaryLayersToBlob } from "../../logic/expertEditLayerCompose";
 import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
 import {
   composeExpertEditLayerCropToBlob,
   parseAspectRatioToken,
   resolveCenteredAspectCropRect,
 } from "../../logic/expertEditLayerCrop";
-import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import {
+  INPAINT_FLUX_FILL_MODEL_LABEL,
+  type InpaintSubmissionOverride,
+} from "../../logic/inpaintSubmission";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
@@ -47,6 +49,7 @@ import {
   useCreateCharacterModeController,
 } from "../create/useCreateCharacterModeController";
 import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
+import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { StylesControl } from "../StylesControl";
 import {
@@ -231,6 +234,15 @@ const CharacterPickerModal = ({
 };
 
 const secondaries = [0, 1, 2] as const;
+export const COMPOSITE_REGENERATE_COHESION_PROMPT = [
+  "Integrate all visible layers into one cohesive scene with consistent spatial logic.",
+  "Match lighting direction, intensity, and color temperature across all elements.",
+  "Add believable contact shadows, ambient occlusion, reflected light, and clean edge integration (no cutout outlines or haloing).",
+  "Align perspective, scale, depth, lens/scene continuity, and texture treatment so every element feels captured in the same environment.",
+  "If subjects interact with surfaces or objects, make overlaps, occlusion, and grounding physically plausible.",
+  "Harmonize global color and contrast while preserving the original subject identity, facial features, pose, and key design details.",
+  "Keep the existing creative style intact; only improve cohesion and integration.",
+].join(" ");
 const editPresetUtilityActions = [
   {
     id: "composite-regenerate",
@@ -252,7 +264,7 @@ const editLayerUtilityActions = [
   },
   {
     id: "flatten-image",
-    label: "Flatten & Add to Grid →",
+    label: "Flatten Layers",
     icon: StackSimple,
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
   },
@@ -300,8 +312,6 @@ const STATUS_TOAST_VISIBLE_MS = 1_000;
 const STATUS_TOAST_FADE_MS = 220;
 const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
-const INPAINT_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
-const INPAINT_FILL_MODEL_LABEL = "FLUX Pro Fill";
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const TRANSFORM_HISTORY_LIMIT = 80;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
@@ -744,7 +754,6 @@ export function ExpertEditPanelView({
   onPromptTextChange,
   onRegenerate,
   onRegenerateWithReferenceInputs,
-  onAddSessionMediaReference,
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
@@ -892,6 +901,7 @@ export function ExpertEditPanelView({
   const hasPrimaryCompositePreview = populatedLayerCount > 0;
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
   const isPrimaryStageBusy = isRemoveBackgroundPending || isPrimaryStageGenerating;
+  const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
   const hostPrimaryImageUrl = React.useMemo(
     () =>
       selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
@@ -977,7 +987,7 @@ export function ExpertEditPanelView({
   const isMoveToolSelected = selectedRailTool === "move";
   const isModelPickerLocked = isInpaintToolSelected;
   const effectiveModelPickerLabel = isModelPickerLocked
-    ? INPAINT_FILL_MODEL_LABEL
+    ? INPAINT_FLUX_FILL_MODEL_LABEL
     : stripEditLabel(modelLabel);
   const effectiveModelPickerLogoSrc = isModelPickerLocked ? undefined : modelLogoSrc;
   const collapsedToolsThemeClass = isMoveToolSelected
@@ -1152,6 +1162,9 @@ export function ExpertEditPanelView({
     },
     [customPresetOverrides, onPromptTextChange]
   );
+  const handleCompositeRegeneratePromptInsert = React.useCallback(() => {
+    onPromptTextChange(COMPOSITE_REGENERATE_COHESION_PROMPT);
+  }, [onPromptTextChange]);
 
   const handleCustomPresetSave = React.useCallback(
     (presetId: ExpertEditCustomPresetId, override: ExpertEditCustomPresetOverride) => {
@@ -1472,17 +1485,6 @@ export function ExpertEditPanelView({
     [createLayer, foundationLayerId, layers, selectedLayerIndex, showStatusToast]
   );
 
-  const buildFlattenReferenceInputs = React.useCallback(
-    (flattenedPrimaryUrl: string) => {
-      const candidates = [
-        flattenedPrimaryUrl,
-        ...extraImageUrls.map((value) => value?.trim() ?? "").filter((value) => value.length > 0),
-      ];
-      const deduped = Array.from(new Set(candidates));
-      return deduped.slice(0, 8);
-    },
-    [extraImageUrls]
-  );
   const selectedCropAspectRatio = React.useMemo(
     () => parseAspectRatioToken(selectedCropAspect),
     [selectedCropAspect]
@@ -1523,7 +1525,6 @@ export function ExpertEditPanelView({
         }
       }
       const flattenedLayerUrl = URL.createObjectURL(exportBlob);
-      const flattenedReferenceUrl = URL.createObjectURL(exportBlob);
       const layerOne =
         layers.find((layer) => layer.id === foundationLayerId) ??
         layers[0] ??
@@ -1541,14 +1542,6 @@ export function ExpertEditPanelView({
       setSelectedLayerIndex(0);
       setEditingLayerIndex(null);
       setEditingLayerValue("");
-      if (onAddSessionMediaReference) {
-        onAddSessionMediaReference({
-          url: flattenedReferenceUrl,
-          mimeType: "image/png",
-        });
-      } else {
-        scheduleTransientObjectUrlRevoke(flattenedReferenceUrl);
-      }
     } catch {
       showStatusToast("Unable to flatten layers.");
     }
@@ -1556,9 +1549,7 @@ export function ExpertEditPanelView({
     createLayer,
     foundationLayerId,
     layers,
-    onAddSessionMediaReference,
     populatedLayerCount,
-    scheduleTransientObjectUrlRevoke,
     showStatusToast,
     isCropToolSelected,
     selectedCropAspectRatio,
@@ -1668,96 +1659,20 @@ export function ExpertEditPanelView({
     showStatusToast,
   ]);
 
-  const handleInlineGenerate = React.useCallback(() => {
-    const run = async () => {
-      if (populatedLayerCount <= 0) {
-        showStatusToast("Add at least one layer image before generating.");
-        return;
-      }
-
-      let flattenedUrl: string | null = null;
-      let inpaintMaskUrl: string | null = null;
-      try {
-        const flattenedBlob = await composePrimaryLayersToBlob(layers, { mimeType: "image/png" });
-        flattenedUrl = URL.createObjectURL(flattenedBlob);
-        const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
-
-        if (isInpaintToolSelected) {
-          if (!onRegenerateWithReferenceInputs) {
-            showStatusToast("Inpaint generate is unavailable in this session.");
-            return;
-          }
-          if (!hasSelectedLayerMask) {
-            showStatusToast("Mask selection is required for inpaint.");
-            return;
-          }
-          const flattenedDimensions = await resolveBlobDimensions(flattenedBlob);
-          const inpaintMaskBlob = await exportSelectedLayerMaskBlob({
-            targetWidth: flattenedDimensions.width,
-            targetHeight: flattenedDimensions.height,
-            mimeType: "image/png",
-          });
-          if (!inpaintMaskBlob) {
-            showStatusToast("Mask selection is required for inpaint.");
-            return;
-          }
-          inpaintMaskUrl = URL.createObjectURL(inpaintMaskBlob);
-          await onRegenerateWithReferenceInputs(referenceInputs, {
-            inpaintOverride: {
-              modelId: INPAINT_FILL_MODEL_ID,
-              baseImageInput: flattenedUrl,
-              maskInput: inpaintMaskUrl,
-              outputFormat: "png",
-            },
-          });
-          return;
-        }
-
-        if (!onRegenerateWithReferenceInputs) {
-          onRegenerate();
-          return;
-        }
-        await onRegenerateWithReferenceInputs(referenceInputs);
-      } catch {
-        if (flattenedUrl) {
-          revokeObjectUrlSafe(flattenedUrl);
-          flattenedUrl = null;
-        }
-        if (inpaintMaskUrl) {
-          revokeObjectUrlSafe(inpaintMaskUrl);
-          inpaintMaskUrl = null;
-        }
-        showStatusToast("Unable to flatten layers.");
-      } finally {
-        if (flattenedUrl) {
-          if (onRegenerateWithReferenceInputs) {
-            scheduleTransientObjectUrlRevoke(flattenedUrl);
-          } else {
-            revokeObjectUrlSafe(flattenedUrl);
-          }
-        }
-        if (inpaintMaskUrl) {
-          if (onRegenerateWithReferenceInputs) {
-            scheduleTransientObjectUrlRevoke(inpaintMaskUrl);
-          } else {
-            revokeObjectUrlSafe(inpaintMaskUrl);
-          }
-        }
-      }
-    };
-    void run();
-  }, [
-    buildFlattenReferenceInputs,
-    exportSelectedLayerMaskBlob,
-    hasSelectedLayerMask,
-    isInpaintToolSelected,
+  const { handleInlineGenerate } = useExpertEditInlineGenerate({
     layers,
+    extraImageUrls,
+    populatedLayerCount,
+    isInpaintToolSelected,
+    hasSelectedLayerMask,
+    exportSelectedLayerMaskBlob,
     onRegenerate,
     onRegenerateWithReferenceInputs,
-    populatedLayerCount,
     scheduleTransientObjectUrlRevoke,
+    revokeObjectUrlSafe,
+    resolveBlobDimensions,
     showStatusToast,
-  ]);
+  });
 
   const handlePrimaryFileSelection = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2166,14 +2081,6 @@ export function ExpertEditPanelView({
   const handleClearSelectedStyle = React.useCallback(() => {
     onClearSelectedStyle?.();
   }, [onClearSelectedStyle]);
-
-  const handleAddLayer = React.useCallback(() => {
-    if (layers.length >= MAX_LAYERS) {
-      showStatusToast(LAYER_LIMIT_REACHED_TOAST);
-      return;
-    }
-    primaryInputRef.current?.click();
-  }, [layers.length, showStatusToast]);
 
   const handleReorderLayers = React.useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -2620,7 +2527,11 @@ export function ExpertEditPanelView({
                   className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
                   aria-label={action.label}
                   disabled={isActionDisabled}
-                  onClick={undefined}
+                  onClick={
+                    action.id === "composite-regenerate"
+                      ? handleCompositeRegeneratePromptInsert
+                      : undefined
+                  }
                 >
                   {!action.hideIcon ? (
                     <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
@@ -2714,16 +2625,6 @@ export function ExpertEditPanelView({
               )}
             </div>
           </div>
-          {layers.length < MAX_LAYERS ? (
-            <button
-              type="button"
-              className="edit-expert-layers-add-btn"
-              aria-label="Add layer"
-              onClick={handleAddLayer}
-            >
-              <Plus size={12} weight="bold" />
-            </button>
-          ) : null}
           <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
             {editLayerUtilityActions.map((action) => {
               const Icon = action.icon;
@@ -2753,6 +2654,17 @@ export function ExpertEditPanelView({
               );
             })}
           </div>
+          {statusToastMessage && isLayerLimitStatusToast ? (
+            <div
+              className={`edit-expert-stage-status-toast edit-expert-stage-status-toast--layers ${
+                statusToastTone === "warning" ? "is-warning" : "is-info"
+              } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
+              role="status"
+              aria-live="polite"
+            >
+              {statusToastMessage}
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -2878,7 +2790,7 @@ export function ExpertEditPanelView({
           />
         </div>
 
-        {statusToastMessage ? (
+        {statusToastMessage && !isLayerLimitStatusToast ? (
           <div
             className={`edit-expert-stage-status-toast ${
               statusToastTone === "warning" ? "is-warning" : "is-info"

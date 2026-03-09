@@ -728,11 +728,13 @@ describe("useMediaTabDataController", () => {
     });
   });
 
-  it("requires load-more sentinel exit before next auto-pagination trigger", async () => {
+  it("requires scroll intent plus sentinel exit before next auto-pagination trigger", async () => {
     type IoCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
     let callback: IoCallback | null = null;
     const observeMock = vi.fn();
     const disconnectMock = vi.fn();
+    const observerRoot = document.createElement("div");
+    observerRoot.scrollTop = 0;
     const previousObserver = globalThis.IntersectionObserver;
     vi.stubGlobal(
       "IntersectionObserver",
@@ -810,7 +812,7 @@ describe("useMediaTabDataController", () => {
         const mediaTabRequestRef = useRef(createMediaTabRequestState());
         const currentUserIdRef = useRef<string | null>(null);
         const loadMoreSentinelRef = useRef<HTMLDivElement | null>(document.createElement("div"));
-        const loadMoreObserverRootRef = useRef<HTMLElement | null>(document.createElement("div"));
+        const loadMoreObserverRootRef = useRef<HTMLElement | null>(observerRoot);
 
         useMediaTabDataController<Row, Prompt>({
           activeMediaCache: mediaTabCache.uploaded_images,
@@ -825,7 +827,7 @@ describe("useMediaTabDataController", () => {
           loadMoreObserverRootRef,
           mediaTabCache,
           mediaTabRequestRef,
-          pageSize: 60,
+          pageSize: 1,
           promptsLoaded,
           setError,
           setFiles,
@@ -851,6 +853,16 @@ describe("useMediaTabDataController", () => {
       await act(async () => {
         callback?.([{ isIntersecting: true }]);
       });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(getSessionMock).toHaveBeenCalledTimes(0);
+
+      await act(async () => {
+        observerRoot.scrollTop = 80;
+        observerRoot.dispatchEvent(new Event("scroll"));
+        callback?.([{ isIntersecting: true }]);
+      });
       await waitFor(() => {
         expect(getSessionMock).toHaveBeenCalledTimes(1);
       });
@@ -867,6 +879,17 @@ describe("useMediaTabDataController", () => {
         callback?.([{ isIntersecting: false }]);
         callback?.([{ isIntersecting: true }]);
       });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(getSessionMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        observerRoot.scrollTop = 160;
+        observerRoot.dispatchEvent(new Event("scroll"));
+        callback?.([{ isIntersecting: true }]);
+      });
       await waitFor(() => {
         expect(getSessionMock).toHaveBeenCalledTimes(2);
       });
@@ -877,6 +900,134 @@ describe("useMediaTabDataController", () => {
         vi.unstubAllGlobals();
       }
     }
+  });
+
+  it("clamps hasMore to false after consecutive no-progress load-more pages", async () => {
+    const rowOne = makeRow({
+      id: "row-no-progress-1",
+      filename: "steady.png",
+      storage_path: "user-1/images/steady.png",
+      created_at: "2026-02-14T00:00:00.000Z",
+    });
+    const queryBuilder = {
+      eq: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      limit: vi.fn(async () => ({ data: [rowOne], error: null })),
+      lt: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+    };
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: {
+            session: {
+              user: {
+                id: "user-1",
+              },
+            },
+          },
+        })),
+      },
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => queryBuilder),
+          };
+        }
+        if (table === "media_prompts") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  order: vi.fn(async () => ({ data: [], error: null })),
+                }),
+              }),
+            })),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([rowOne]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => {
+        const cache = createMediaTabCacheState<Row>();
+        cache.uploaded_images = {
+          ...cache.uploaded_images,
+          rows: [rowOne],
+          query: "",
+          loaded: true,
+          loadedAtMs: Date.now(),
+          pagesLoaded: 1,
+          hasMore: true,
+          nextCursor: {
+            createdAt: rowOne.created_at,
+            id: rowOne.id,
+          },
+        };
+        return cache;
+      });
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-route",
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 1,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+        tabData,
+      };
+    });
+
+    await act(async () => {
+      await result.current.tabData.fetchMediaTabPage("uploaded_images", {
+        query: "",
+        reason: "load_more",
+      });
+    });
+    expect(result.current.mediaTabCache.uploaded_images.hasMore).toBe(true);
+
+    await act(async () => {
+      await result.current.tabData.fetchMediaTabPage("uploaded_images", {
+        query: "",
+        reason: "load_more",
+      });
+    });
+    expect(result.current.mediaTabCache.uploaded_images.hasMore).toBe(false);
+    expect(result.current.mediaTabCache.uploaded_images.nextCursor).toBeNull();
   });
 
   it("does not fetch when controller is disabled", async () => {

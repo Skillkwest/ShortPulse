@@ -5,22 +5,24 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  evaluateAdaptivePressureCandidateLevel,
   logAdaptiveRecoveryLevelChanged,
+  resolveAdaptiveHeapUsageRatio,
+  resolveAdaptivePercentile,
+  resolveAdaptivePressureDelayedRecoveryTransition,
   resolveAdaptivePressureTransition,
+  type AdaptivePressureLevel,
+  type AdaptivePressureRecoveryCandidate,
 } from "../../../lib/adaptive-media";
 
-type MediaAdaptiveSurface = "media-library-route" | "media-library-modal";
+type MediaAdaptiveSurface = "media-library-route" | "media-library-modal" | "character-grid";
 
-type MediaAdaptivePressureLevel = 0 | 1 | 2;
 type MediaPreviewPressureLevel = 0 | 1;
 
-type RecoveryCandidate = {
-  level: MediaPreviewPressureLevel;
-  sinceMs: number;
-};
+type RecoveryCandidate = AdaptivePressureRecoveryCandidate<MediaPreviewPressureLevel>;
 
 export type MediaAdaptivePressureState = {
-  rawPressureLevel: MediaAdaptivePressureLevel;
+  rawPressureLevel: AdaptivePressureLevel;
   previewPressureLevel: MediaPreviewPressureLevel;
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
@@ -39,24 +41,6 @@ type UseMediaAdaptivePressureArgs = {
 
 const STALL_SAMPLE_INTERVAL_MS = 120;
 
-const percentile = (values: number[], ratio: number): number | null => {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.floor(sorted.length * ratio));
-  return Math.round((sorted[index] ?? 0) * 100) / 100;
-};
-
-const resolveHeapUsageRatio = (): number | null => {
-  if (typeof performance === "undefined") return null;
-  const runtimePerformance = performance as Performance & {
-    memory?: { usedJSHeapSize?: number; totalJSHeapSize?: number };
-  };
-  const used = runtimePerformance.memory?.usedJSHeapSize;
-  const total = runtimePerformance.memory?.totalJSHeapSize;
-  if (typeof used !== "number" || typeof total !== "number" || total <= 0) return null;
-  return Math.round((used / total) * 1000) / 1000;
-};
-
 /**
  * Resolves a pressure candidate level from runtime signals.
  */
@@ -70,24 +54,16 @@ export const evaluateMediaAdaptiveCandidateLevel = ({
   maxInputStallMs: number;
   heapUsageRatio: number | null;
   memoryGuardEnabled: boolean;
-}): MediaAdaptivePressureLevel => {
-  const heapLevel2 =
-    memoryGuardEnabled && typeof heapUsageRatio === "number" && heapUsageRatio >= 0.86;
-  const heapLevel1 =
-    memoryGuardEnabled && typeof heapUsageRatio === "number" && heapUsageRatio >= 0.75;
-  const longTaskLevel2 = typeof longTaskP95Ms === "number" && longTaskP95Ms >= 100;
-  const longTaskLevel1 = typeof longTaskP95Ms === "number" && longTaskP95Ms >= 60;
-  const stallLevel2 = maxInputStallMs >= 800;
-  const stallLevel1 = maxInputStallMs >= 450;
+}): AdaptivePressureLevel =>
+  evaluateAdaptivePressureCandidateLevel({
+    longTaskP95Ms,
+    maxInputStallMs,
+    heapUsageRatio,
+    memoryGuardEnabled,
+  });
 
-  if (heapLevel2 || longTaskLevel2 || stallLevel2) return 2;
-  if (heapLevel1 || longTaskLevel1 || stallLevel1) return 1;
-  return 0;
-};
-
-const toMediaPreviewPressureLevel = (
-  level: MediaAdaptivePressureLevel
-): MediaPreviewPressureLevel => (level >= 1 ? 1 : 0);
+const toMediaPreviewPressureLevel = (level: AdaptivePressureLevel): MediaPreviewPressureLevel =>
+  level >= 1 ? 1 : 0;
 
 /**
  * Resolves preview-pressure transition with delayed recovery guardrails.
@@ -102,68 +78,22 @@ export const resolveMediaPreviewPressureTransition = ({
   minChangeIntervalMs,
 }: {
   currentLevel: MediaPreviewPressureLevel;
-  nextRawLevel: MediaAdaptivePressureLevel;
+  nextRawLevel: AdaptivePressureLevel;
   recoveryCandidate: RecoveryCandidate | null;
   nowMs: number;
   lastChangeAtMs: number;
   recoveryStableMs: number;
   minChangeIntervalMs: number;
-}): {
-  nextLevel: MediaPreviewPressureLevel;
-  nextRecoveryCandidate: RecoveryCandidate | null;
-  nextLastChangeAtMs: number;
-  changed: boolean;
-} => {
-  const nextLevelCandidate = toMediaPreviewPressureLevel(nextRawLevel);
-  if (nextLevelCandidate === currentLevel) {
-    return {
-      nextLevel: currentLevel,
-      nextRecoveryCandidate: null,
-      nextLastChangeAtMs: lastChangeAtMs,
-      changed: false,
-    };
-  }
-
-  if (nextLevelCandidate > currentLevel) {
-    return {
-      nextLevel: nextLevelCandidate,
-      nextRecoveryCandidate: null,
-      nextLastChangeAtMs: nowMs,
-      changed: true,
-    };
-  }
-
-  const candidate = recoveryCandidate;
-  if (!candidate || candidate.level !== nextLevelCandidate) {
-    return {
-      nextLevel: currentLevel,
-      nextRecoveryCandidate: {
-        level: nextLevelCandidate,
-        sinceMs: nowMs,
-      },
-      nextLastChangeAtMs: lastChangeAtMs,
-      changed: false,
-    };
-  }
-
-  const recoveryStableDurationMs = nowMs - candidate.sinceMs;
-  const sinceLastChangeMs = nowMs - lastChangeAtMs;
-  if (recoveryStableDurationMs < recoveryStableMs || sinceLastChangeMs < minChangeIntervalMs) {
-    return {
-      nextLevel: currentLevel,
-      nextRecoveryCandidate: candidate,
-      nextLastChangeAtMs: lastChangeAtMs,
-      changed: false,
-    };
-  }
-
-  return {
-    nextLevel: nextLevelCandidate,
-    nextRecoveryCandidate: null,
-    nextLastChangeAtMs: nowMs,
-    changed: true,
-  };
-};
+}) =>
+  resolveAdaptivePressureDelayedRecoveryTransition<MediaPreviewPressureLevel>({
+    currentLevel,
+    nextLevelCandidate: toMediaPreviewPressureLevel(nextRawLevel),
+    recoveryCandidate,
+    nowMs,
+    lastChangeAtMs,
+    recoveryStableMs,
+    minChangeIntervalMs,
+  });
 
 const initialState = (): MediaAdaptivePressureState => ({
   rawPressureLevel: 0,
@@ -194,7 +124,7 @@ export const useMediaAdaptivePressure = ({
   const longTaskDurationsRef = useRef<number[]>([]);
   const maxInputStallMsRef = useRef(0);
   const stallTickAtRef = useRef<number | null>(null);
-  const rawPressureLevelRef = useRef<MediaAdaptivePressureLevel>(0);
+  const rawPressureLevelRef = useRef<AdaptivePressureLevel>(0);
   const previewPressureLevelRef = useRef<MediaPreviewPressureLevel>(0);
   const promoteStreakRef = useRef(0);
   const recoverStreakRef = useRef(0);
@@ -231,9 +161,9 @@ export const useMediaAdaptivePressure = ({
 
     const evaluationIntervalId = window.setInterval(
       () => {
-        const longTaskP95Ms = percentile(longTaskDurationsRef.current, 0.95);
+        const longTaskP95Ms = resolveAdaptivePercentile(longTaskDurationsRef.current, 0.95);
         const maxInputStallMs = Math.round(maxInputStallMsRef.current * 100) / 100;
-        const heapUsageRatio = resolveHeapUsageRatio();
+        const heapUsageRatio = resolveAdaptiveHeapUsageRatio();
         const candidateLevel = evaluateMediaAdaptiveCandidateLevel({
           longTaskP95Ms,
           maxInputStallMs,

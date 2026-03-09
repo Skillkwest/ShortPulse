@@ -17,6 +17,16 @@ vi.mock("../supabaseClient", () => ({
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("getSignedMediaUrlsBatch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,11 +66,51 @@ describe("getSignedMediaUrlsBatch", () => {
     });
 
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(3);
-    expect(capturedBatches.map((batch) => batch.length)).toEqual([60, 60, 10]);
+    expect(capturedBatches.map((batch) => batch.length).sort((a, b) => a - b)).toEqual([
+      10, 60, 60,
+    ]);
     expect(signedByPath.size).toBe(130);
     for (const path of storagePaths) {
       expect(signedByPath.get(path)).toBe(`https://signed.test/${encodeURIComponent(path)}`);
     }
     expect(ensureSupabaseClientMock).not.toHaveBeenCalled();
+  });
+
+  it("coalesces concurrent batch callers for the same unresolved path", async () => {
+    const path = "user/shared-path.png";
+    const deferred = createDeferred<Response>();
+    fetchWithAuthMock.mockImplementation(async () => deferred.promise);
+
+    const firstBatchPromise = getSignedMediaUrlsBatch({
+      bucket: "media_library",
+      storagePaths: [path],
+    });
+    await Promise.resolve();
+    const secondBatchPromise = getSignedMediaUrlsBatch({
+      bucket: "media_library",
+      storagePaths: [path],
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    deferred.resolve(
+      new Response(
+        JSON.stringify({
+          urls: {
+            [path]: "https://signed.test/shared-path",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    const [firstBatch, secondBatch] = await Promise.all([firstBatchPromise, secondBatchPromise]);
+    expect(firstBatch.get(path)).toBe("https://signed.test/shared-path");
+    expect(secondBatch.get(path)).toBe("https://signed.test/shared-path");
   });
 });

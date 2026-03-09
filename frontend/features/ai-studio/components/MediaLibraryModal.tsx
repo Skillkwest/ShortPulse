@@ -463,6 +463,14 @@ export function MediaLibraryModal({
       return name.includes(mediaSearchTerm) || path.includes(mediaSearchTerm);
     });
   }, [activeMediaTab, files, mediaSearchTerm]);
+  const effectiveSignBudget = useMemo(() => {
+    if (activeMediaTab !== "private") return signBudget;
+    return {
+      ...signBudget,
+      prefetchWindow: Math.min(signBudget.prefetchWindow, 8),
+      signBatchSize: Math.min(signBudget.signBatchSize, 3),
+    };
+  }, [activeMediaTab, signBudget]);
 
   useMediaPreviewSigningController({
     activeMediaTab,
@@ -479,7 +487,7 @@ export function MediaLibraryModal({
     resolveSignedUrlsByMediaIds,
     setSignPassNonce,
     signAttemptRef,
-    signBudget,
+    signBudget: effectiveSignBudget,
     signPassNonce,
     visibleMediaIdsRef,
     visibleMediaVersion,
@@ -487,6 +495,7 @@ export function MediaLibraryModal({
     surface: "media-library-modal",
     unresolvedWarningPrefix: "[media-library-modal]",
     maxSignAttemptsPerItem: MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
+    maxSignCandidatesPerRow: activeMediaTab === "private" ? 2 : 4,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
     isResultStillRelevant: ({ tab, query }) =>
       isOpenRef.current && activeTabRef.current === tab && activeMediaQueryRef.current === query,

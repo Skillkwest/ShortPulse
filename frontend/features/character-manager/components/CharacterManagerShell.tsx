@@ -29,6 +29,7 @@ import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { isTrustedMediaDirectPreviewUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
+import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import {
   CHARACTER_QUICK_SWAP_ACTIVE_LIMIT,
   CHARACTER_SHEET_DROP_ZONES,
@@ -641,6 +642,11 @@ export function CharacterManagerShell({
     () => characterSheetPresetAssignments ?? createEmptyCharacterSheetPresetAssignments(),
     [characterSheetPresetAssignments]
   );
+  const characterGridAdaptivePreviewEnabled = isAdaptiveSurfaceEnabled("character-grid");
+  const characterGridAdaptivePressure = useMediaAdaptivePressure({
+    surface: "character-grid",
+    enabled: characterGridAdaptivePreviewEnabled,
+  });
   const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
   const quickSwapRemainingActiveCapacity = useMemo(
     () => Math.max(0, CHARACTER_QUICK_SWAP_ACTIVE_LIMIT - quickSwapActiveItems.length),
@@ -654,7 +660,7 @@ export function CharacterManagerShell({
     (url: string | null | undefined, cardLongEdgePx: number): string | null => {
       const trimmed = url?.trim();
       if (!trimmed) return null;
-      if (!isAdaptiveSurfaceEnabled("character-grid")) return trimmed;
+      if (!characterGridAdaptivePreviewEnabled) return trimmed;
       const resolved = resolveAdaptiveMedia({
         surface: "character-grid",
         mediaKind: "image",
@@ -664,7 +670,7 @@ export function CharacterManagerShell({
           fullUrl: trimmed,
         },
         storage: {},
-        pressureLevel: 0,
+        pressureLevel: characterGridAdaptivePressure.previewPressureLevel,
         cardLongEdgePx,
         devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
         strictPreviewLadder: true,
@@ -672,7 +678,7 @@ export function CharacterManagerShell({
       });
       return resolved.previewUrl ?? trimmed;
     },
-    []
+    [characterGridAdaptivePressure.previewPressureLevel, characterGridAdaptivePreviewEnabled]
   );
   const quickSwapItemById = useMemo(
     () => new Map(quickSwapActiveItems.map((item) => [item.id, item])),

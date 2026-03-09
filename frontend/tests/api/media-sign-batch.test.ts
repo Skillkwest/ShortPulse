@@ -96,4 +96,36 @@ describe("POST /api/media/sign-batch", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ urls: {} });
   });
+
+  it("accepts reference-grid telemetry surface labels for cross-surface signing", async () => {
+    const path = "user-1/upload/reference-card.png";
+    const createSignedUrlsMock = vi.fn(async () => ({
+      data: [{ path, signedUrl: "https://example.test/reference-signed" }],
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrls: createSignedUrlsMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: [path],
+        surface: "reference-grid",
+        queryMode: "default",
+        tab: "uploaded_images",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-sign-surface", "reference-grid");
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
 });

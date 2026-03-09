@@ -22,7 +22,14 @@ const MIN_SIGNED_URL_TTL_SECONDS = 60;
 const MAX_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_SIGN_PATHS = 60;
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
-const ALLOWED_SURFACE_VALUES = new Set(["media-library-route", "media-library-modal"]);
+const ALLOWED_SURFACE_VALUES = new Set([
+  "media-library-route",
+  "media-library-modal",
+  "reference-grid",
+  "quick-slot",
+  "character-grid",
+  "detail-modal",
+]);
 const ALLOWED_QUERY_MODE_VALUES = new Set(["default", "search"]);
 
 const toSafePath = (value: unknown): string | null => {

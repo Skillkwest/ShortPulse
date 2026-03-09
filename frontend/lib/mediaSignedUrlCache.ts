@@ -22,7 +22,13 @@ type SignedMediaUrlBatchOptions = {
   storagePaths: string[];
   expiresInSeconds?: number;
   forceRefresh?: boolean;
-  surface?: "media-library-route" | "media-library-modal" | "reference-grid";
+  surface?:
+    | "media-library-route"
+    | "media-library-modal"
+    | "reference-grid"
+    | "quick-slot"
+    | "character-grid"
+    | "detail-modal";
   queryMode?: "default" | "search";
   tab?: string;
 };
@@ -31,6 +37,12 @@ const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const SIGNED_URL_REFRESH_BUFFER_MS = 20_000;
 const MAX_SIGNED_URL_CACHE_ENTRIES = 1200;
 const MAX_BATCH_SIGN_PATHS = 60;
+const DEFAULT_BATCH_SIGN_CHUNK_CONCURRENCY = 2;
+const MAX_BATCH_SIGN_CHUNK_CONCURRENCY = 3;
+const BATCH_SIGN_CHUNK_CONCURRENCY = Math.min(
+  MAX_BATCH_SIGN_CHUNK_CONCURRENCY,
+  DEFAULT_BATCH_SIGN_CHUNK_CONCURRENCY
+);
 
 const signedUrlCache = new Map<string, SignedMediaUrlCacheEntry>();
 const inFlightSignedUrlRequests = new Map<string, Promise<string | null>>();
@@ -43,6 +55,40 @@ const chunkStoragePaths = (storagePaths: string[], chunkSize: number): string[][
     chunks.push(storagePaths.slice(index, index + chunkSize));
   }
   return chunks;
+};
+
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+};
+
+const runWithConcurrency = async <T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> => {
+  if (!items.length) return;
+  const workerCount = Math.min(items.length, Math.max(1, concurrency));
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const nextIndex = cursor;
+        cursor += 1;
+        if (nextIndex >= items.length) return;
+        await worker(items[nextIndex] as T);
+      }
+    })
+  );
 };
 
 const pruneSignedUrlCache = () => {
@@ -193,40 +239,97 @@ export const getSignedMediaUrlsBatch = async ({
 
   if (!unresolvedPaths.length) return result;
 
-  for (const unresolvedChunk of chunkStoragePaths(unresolvedPaths, MAX_BATCH_SIGN_PATHS)) {
-    const apiResults = await signStoragePathsViaApi(bucket, unresolvedChunk, expiresInSeconds, {
-      surface,
-      queryMode,
-      tab,
-    });
-    if (apiResults) {
-      for (const path of unresolvedChunk) {
-        const signedUrl = apiResults[path] ?? null;
-        if (signedUrl) {
-          setCachedUrl(bucket, path, signedUrl, expiresInSeconds);
-        } else {
-          signedUrlCache.delete(cacheKeyFor(bucket, path));
-        }
-        result.set(path, signedUrl);
-      }
+  const pendingSharedByPath = new Map<string, Promise<string | null>>();
+  const ownedPaths: string[] = [];
+  const ownedDeferredByPath = new Map<string, ReturnType<typeof createDeferred<string | null>>>();
+  const resolvedOwnedByPath = new Map<string, string | null>();
+  for (const path of unresolvedPaths) {
+    const key = cacheKeyFor(bucket, path);
+    const inFlight = !forceRefresh ? inFlightSignedUrlRequests.get(key) : undefined;
+    if (inFlight && !forceRefresh) {
+      pendingSharedByPath.set(path, inFlight);
       continue;
     }
-
-    const directResults = await Promise.all(
-      unresolvedChunk.map((path) =>
-        getSignedMediaUrl({
-          bucket,
-          storagePath: path,
-          expiresInSeconds,
-          forceRefresh,
-        }).then((signedUrl) => ({ path, signedUrl }))
-      )
+    ownedPaths.push(path);
+    if (forceRefresh) continue;
+    const deferred = createDeferred<string | null>();
+    ownedDeferredByPath.set(path, deferred);
+    inFlightSignedUrlRequests.set(
+      key,
+      deferred.promise.finally(() => {
+        inFlightSignedUrlRequests.delete(key);
+      })
     );
-    for (const { path, signedUrl } of directResults) {
+  }
+
+  await Promise.all(
+    Array.from(pendingSharedByPath.entries()).map(async ([path, pending]) => {
+      const signedUrl = await pending.catch(() => null);
       result.set(path, signedUrl ?? null);
+    })
+  );
+  if (!ownedPaths.length) return result;
+
+  const settleOwnedPath = (path: string, signedUrl: string | null) => {
+    if (signedUrl) {
+      setCachedUrl(bucket, path, signedUrl, expiresInSeconds);
+    } else {
+      signedUrlCache.delete(cacheKeyFor(bucket, path));
+    }
+    resolvedOwnedByPath.set(path, signedUrl);
+    const deferred = ownedDeferredByPath.get(path);
+    if (!deferred) return;
+    deferred.resolve(signedUrl);
+    ownedDeferredByPath.delete(path);
+  };
+
+  const ownedChunks = chunkStoragePaths(ownedPaths, MAX_BATCH_SIGN_PATHS);
+  try {
+    await runWithConcurrency(
+      ownedChunks,
+      BATCH_SIGN_CHUNK_CONCURRENCY,
+      async (unresolvedChunk: string[]) => {
+        try {
+          const apiResults = await signStoragePathsViaApi(
+            bucket,
+            unresolvedChunk,
+            expiresInSeconds,
+            {
+              surface,
+              queryMode,
+              tab,
+            }
+          );
+          if (apiResults) {
+            for (const path of unresolvedChunk) {
+              settleOwnedPath(path, apiResults[path] ?? null);
+            }
+            return;
+          }
+        } catch {
+          // Fall through to direct sign fallback below.
+        }
+
+        await Promise.all(
+          unresolvedChunk.map(async (path) => {
+            const signedUrl = await signStoragePathDirect(bucket, path, expiresInSeconds).catch(
+              () => null
+            );
+            settleOwnedPath(path, signedUrl ?? null);
+          })
+        );
+      }
+    );
+  } finally {
+    for (const [path, deferred] of ownedDeferredByPath.entries()) {
+      deferred.resolve(resolvedOwnedByPath.get(path) ?? null);
+      ownedDeferredByPath.delete(path);
     }
   }
 
+  for (const path of ownedPaths) {
+    result.set(path, resolvedOwnedByPath.get(path) ?? null);
+  }
   return result;
 };
 

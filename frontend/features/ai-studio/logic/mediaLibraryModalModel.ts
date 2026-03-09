@@ -75,22 +75,22 @@ export const BUCKET = "media_library";
 export const PRIVATE_MEDIA_SOURCE = "private_upload";
 export const PRIVATE_MEDIA_FOLDER = "private";
 export const MEDIA_MODAL_PAGE_SIZE = 36;
-export const MEDIA_MODAL_CACHE_TTL_MS = 20_000;
+export const MEDIA_MODAL_CACHE_TTL_MS = 60_000;
 const MEDIA_MODAL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 const MEDIA_MODAL_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 10,
-  prefetchWindow: 18,
-  signBatchSize: 8,
+  initialSignLimit: 6,
+  prefetchWindow: 10,
+  signBatchSize: 4,
 };
 const MEDIA_MODAL_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 6,
-  prefetchWindow: 12,
-  signBatchSize: 5,
+  initialSignLimit: 5,
+  prefetchWindow: 8,
+  signBatchSize: 3,
 };
 const MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
   initialSignLimit: 4,
-  prefetchWindow: 8,
-  signBatchSize: 3,
+  prefetchWindow: 6,
+  signBatchSize: 2,
 };
 const NEXT_IMAGE_OPTIMIZER_PATH_PATTERN = /(?:^|\/)_next\/image\?/i;
 

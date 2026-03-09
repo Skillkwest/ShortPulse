@@ -3,52 +3,30 @@
  * Samples long tasks/input-stall/heap pressure and emits a hysteresis-based degrade level.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { resolveAdaptivePressureTransition } from "../../../lib/adaptive-media";
+import {
+  evaluateAdaptivePressureCandidateLevel,
+  logAdaptiveRecoveryLevelChanged,
+  resolveAdaptiveHeapUsageRatio,
+  resolveAdaptivePercentile,
+  resolveAdaptivePressureDelayedRecoveryTransition,
+  resolveAdaptivePressureTransition,
+} from "../../../lib/adaptive-media";
 
 type UseReferenceGridPerfWatchdogParams = {
   enabled?: boolean;
   memoryGuardEnabled?: boolean;
   evaluationWindowMs?: number;
+  previewRecoveryStableMs?: number;
+  previewMinChangeIntervalMs?: number;
 };
 
 export type ReferenceGridPerfWatchdogState = {
   degradeLevel: 0 | 1 | 2;
+  previewQualityPressureLevel: 0 | 1 | 2;
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
   heapUsageRatio: number | null;
   sampleCount: number;
-};
-
-const percentile = (values: number[], ratio: number): number | null => {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.floor(sorted.length * ratio));
-  return Math.round((sorted[index] ?? 0) * 100) / 100;
-};
-
-const evaluateCandidateLevel = ({
-  longTaskP95Ms,
-  maxInputStallMs,
-  heapUsageRatio,
-  memoryGuardEnabled,
-}: {
-  longTaskP95Ms: number | null;
-  maxInputStallMs: number;
-  heapUsageRatio: number | null;
-  memoryGuardEnabled: boolean;
-}): 0 | 1 | 2 => {
-  const heapLevel2 =
-    memoryGuardEnabled && typeof heapUsageRatio === "number" && heapUsageRatio >= 0.86;
-  const heapLevel1 =
-    memoryGuardEnabled && typeof heapUsageRatio === "number" && heapUsageRatio >= 0.75;
-  const longTaskLevel2 = typeof longTaskP95Ms === "number" && longTaskP95Ms >= 100;
-  const longTaskLevel1 = typeof longTaskP95Ms === "number" && longTaskP95Ms >= 60;
-  const stallLevel2 = maxInputStallMs >= 800;
-  const stallLevel1 = maxInputStallMs >= 450;
-
-  if (heapLevel2 || longTaskLevel2 || stallLevel2) return 2;
-  if (heapLevel1 || longTaskLevel1 || stallLevel1) return 1;
-  return 0;
 };
 
 /**
@@ -58,9 +36,12 @@ export const useReferenceGridPerfWatchdog = ({
   enabled = false,
   memoryGuardEnabled = false,
   evaluationWindowMs = 2500,
+  previewRecoveryStableMs = 15_000,
+  previewMinChangeIntervalMs = 4_000,
 }: UseReferenceGridPerfWatchdogParams): ReferenceGridPerfWatchdogState => {
   const initialState: ReferenceGridPerfWatchdogState = {
     degradeLevel: 0,
+    previewQualityPressureLevel: 0,
     longTaskP95Ms: null,
     maxInputStallMs: 0,
     heapUsageRatio: null,
@@ -72,6 +53,9 @@ export const useReferenceGridPerfWatchdog = ({
   const maxInputStallMsRef = useRef(0);
   const stallTickAtRef = useRef<number | null>(null);
   const degradeLevelRef = useRef<0 | 1 | 2>(0);
+  const previewQualityPressureLevelRef = useRef<0 | 1 | 2>(0);
+  const previewRecoveryCandidateRef = useRef<{ level: 0 | 1 | 2; sinceMs: number } | null>(null);
+  const previewLastChangeAtMsRef = useRef(0);
   const promoteStreakRef = useRef(0);
   const recoverStreakRef = useRef(0);
 
@@ -107,19 +91,11 @@ export const useReferenceGridPerfWatchdog = ({
 
     const evaluationIntervalId = window.setInterval(
       () => {
-        const longTaskP95Ms = percentile(longTaskDurationsRef.current, 0.95);
+        const longTaskP95Ms = resolveAdaptivePercentile(longTaskDurationsRef.current, 0.95);
         const maxInputStallMs = Math.round(maxInputStallMsRef.current * 100) / 100;
-        const heapUsageRatio = (() => {
-          const runtimePerformance = performance as Performance & {
-            memory?: { usedJSHeapSize?: number; totalJSHeapSize?: number };
-          };
-          const used = runtimePerformance.memory?.usedJSHeapSize;
-          const total = runtimePerformance.memory?.totalJSHeapSize;
-          if (typeof used !== "number" || typeof total !== "number" || total <= 0) return null;
-          return Math.round((used / total) * 1000) / 1000;
-        })();
+        const heapUsageRatio = resolveAdaptiveHeapUsageRatio(performance);
 
-        const candidateLevel = evaluateCandidateLevel({
+        const candidateLevel = evaluateAdaptivePressureCandidateLevel({
           longTaskP95Ms,
           maxInputStallMs,
           heapUsageRatio,
@@ -138,16 +114,43 @@ export const useReferenceGridPerfWatchdog = ({
         promoteStreakRef.current = transition.nextPromoteStreak;
         recoverStreakRef.current = transition.nextRecoverStreak;
 
+        const now =
+          typeof performance !== "undefined" && typeof performance.now === "function"
+            ? performance.now()
+            : Date.now();
+        const currentPreviewLevel = previewQualityPressureLevelRef.current;
+        const previewTransition = resolveAdaptivePressureDelayedRecoveryTransition({
+          currentLevel: currentPreviewLevel,
+          nextLevelCandidate: nextLevel,
+          recoveryCandidate: previewRecoveryCandidateRef.current,
+          nowMs: now,
+          lastChangeAtMs: previewLastChangeAtMsRef.current,
+          recoveryStableMs: previewRecoveryStableMs,
+          minChangeIntervalMs: previewMinChangeIntervalMs,
+        });
+        previewRecoveryCandidateRef.current = previewTransition.nextRecoveryCandidate;
+        previewLastChangeAtMsRef.current = previewTransition.nextLastChangeAtMs;
+        if (previewTransition.changed && previewTransition.nextLevel !== currentPreviewLevel) {
+          previewQualityPressureLevelRef.current = previewTransition.nextLevel;
+          logAdaptiveRecoveryLevelChanged({
+            surface: "reference-grid",
+            prevLevel: currentPreviewLevel,
+            nextLevel: previewTransition.nextLevel,
+          });
+        }
+
         degradeLevelRef.current = nextLevel;
         const previous = stateRef.current;
         const hasChanged =
           previous.degradeLevel !== nextLevel ||
+          previous.previewQualityPressureLevel !== previewQualityPressureLevelRef.current ||
           previous.longTaskP95Ms !== longTaskP95Ms ||
           previous.maxInputStallMs !== maxInputStallMs ||
           previous.heapUsageRatio !== heapUsageRatio;
         if (hasChanged) {
           const nextState: ReferenceGridPerfWatchdogState = {
             degradeLevel: nextLevel,
+            previewQualityPressureLevel: previewQualityPressureLevelRef.current,
             longTaskP95Ms,
             maxInputStallMs,
             heapUsageRatio,
@@ -169,12 +172,19 @@ export const useReferenceGridPerfWatchdog = ({
       window.clearInterval(stallIntervalId);
       window.clearInterval(evaluationIntervalId);
     };
-  }, [enabled, evaluationWindowMs, memoryGuardEnabled]);
+  }, [
+    enabled,
+    evaluationWindowMs,
+    memoryGuardEnabled,
+    previewMinChangeIntervalMs,
+    previewRecoveryStableMs,
+  ]);
 
   return useMemo(() => {
     if (!enabled) {
       return {
         degradeLevel: 0,
+        previewQualityPressureLevel: 0,
         longTaskP95Ms: null,
         maxInputStallMs: 0,
         heapUsageRatio: null,

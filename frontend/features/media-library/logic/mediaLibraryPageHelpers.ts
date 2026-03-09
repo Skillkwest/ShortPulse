@@ -42,18 +42,18 @@ export type MediaTabRequestState = Record<MediaDataTab, number>;
 export type MediaTabBooleanState = Record<MediaDataTab, boolean>;
 
 const MEDIA_ROUTE_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 12,
-  prefetchWindow: 24,
-  signBatchSize: 10,
+  initialSignLimit: 10,
+  prefetchWindow: 18,
+  signBatchSize: 8,
 };
 const MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 8,
-  prefetchWindow: 16,
+  initialSignLimit: 7,
+  prefetchWindow: 13,
   signBatchSize: 6,
 };
 const MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
   initialSignLimit: 5,
-  prefetchWindow: 10,
+  prefetchWindow: 9,
   signBatchSize: 4,
 };
 

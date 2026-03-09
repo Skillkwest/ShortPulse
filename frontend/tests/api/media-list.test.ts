@@ -382,6 +382,48 @@ describe("POST /api/media/list", () => {
     expect(secondPayload.rows.map((row: { id: string }) => row.id)).toEqual(["a"]);
   });
 
+  it("uses elevated modal private initial sign seeding", async () => {
+    const rows = Array.from({ length: 12 }, (_, index) => {
+      const n = String(index + 1).padStart(2, "0");
+      return {
+        id: `private-${n}`,
+        user_id: "user-1",
+        filename: `private-${n}.png`,
+        storage_path: `user-1/private/images/private-${n}.png`,
+        file_type: "image/png",
+        file_size: 1,
+        source: "private_upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: `2026-02-${n}T10:00:00.000Z`,
+        updated_at: null,
+      } satisfies MediaRow;
+    });
+    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "private",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const signedPaths = createSignedUrlsMock.mock.calls[0]?.[0] as string[] | undefined;
+    expect(signedPaths).toBeDefined();
+    expect(signedPaths).toHaveLength(10);
+  });
+
   it("returns 503 when list API flag is disabled", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_LIST_API_ENABLED", "false");
     createSupabaseAdminMock([]);

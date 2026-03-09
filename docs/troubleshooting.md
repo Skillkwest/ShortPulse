@@ -19,6 +19,56 @@ This happens when the repo has `eslint-config-next` installed but no ESLint conf
 
 Fix: ensure `frontend/eslint.config.mjs` is present and valid (flat ESLint config in this repo).
 
+## `next dev` lock error (`.next/dev/lock`)
+Symptoms:
+- `Unable to acquire lock .../.next/dev/lock`
+- Port conflict messages (`Port 3000 is in use ... using 3001`) followed by lock failure.
+
+Checklist:
+- Ensure only one dev server is running.
+- Do not run `npm run dev` in multiple terminals for the same repo.
+- Verify active listener:
+  ```bash
+  lsof -nP -iTCP:3000 -sTCP:LISTEN
+  ```
+
+Mitigation:
+- Stop duplicate Next dev processes, then start exactly one:
+  ```bash
+  cd frontend
+  npm run dev
+  ```
+
+## Next image host not configured (`images.pexels.com`)
+Symptoms:
+- Runtime error:
+  - `Invalid src prop (...) hostname "images.pexels.com" is not configured under images in your next.config.js`
+
+Checklist:
+- Confirm `frontend/next.config.js` `images.remotePatterns` includes `images.pexels.com`.
+- Restart `npm run dev` after any `next.config.js` updates.
+
+Mitigation:
+- Add `images.pexels.com` to trusted image hosts in `frontend/next.config.js` and restart dev server.
+
+## Signed Supabase image requests fail with `ERR_QUIC_PROTOCOL_ERROR`
+Symptoms:
+- Browser console shows:
+  - `net::ERR_QUIC_PROTOCOL_ERROR 200 (OK)`
+- Media cards may remain blank despite successful sign telemetry.
+
+Checklist:
+- Verify sign telemetry is healthy first:
+  - `window.__shortpulseMediaPerf?.signStats()` shows low/zero failure ratio.
+- Confirm issue is transport/browser-lane (request returns `200` but fails at QUIC).
+
+Mitigation (local debugging):
+- Launch Chrome with QUIC disabled:
+  ```bash
+  open -na "Google Chrome" --args --disable-quic --disable-features=UseDnsHttpsSvcbAlpn
+  ```
+- Hard refresh and re-test.
+
 ## Supabase auth redirects not working
 Checklist:
 - `frontend/.env.local` contains `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.

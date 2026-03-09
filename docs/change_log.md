@@ -218,6 +218,23 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated `docs/sops/sop_video_generation.md` to reflect the first/last frame workflow requirement for image-to-video.
 - Temporarily hid the AI Studio toolbar “Creations” section (My Generations/Community); the toolbar file still contains the buttons and this note should be the reminder to revert once they need to be visible again.
 
+## 2026-03-09
+- Media-library adaptive performance hardening:
+  - unified adaptive pressure/watchdog behavior across media surfaces,
+  - replaced static pressure wiring (`pressureLevel: 0`) with runtime pressure inputs,
+  - strengthened signing runtime with bounded chunk concurrency + in-flight coalescing,
+  - tuned route/modal sign budgets and modal cache TTL for faster reopen behavior,
+  - added pagination guardrails to stop pinned-bottom auto-load churn,
+  - optimized `/api/media/resolve-previews` fallback execution and kept auth/path constraints intact.
+- Cross-surface signing telemetry rollout:
+  - expanded sign-batch telemetry surface labels (reference-grid, quick-slot, character-grid, detail-modal).
+- Reliability fixes discovered during local perf triage:
+  - added `images.pexels.com` to Next image trusted host list (`frontend/next.config.js`) to prevent `next/image` host-config runtime failures,
+  - cleaned stale Character Manager profile-path metadata rows that referenced missing storage objects.
+- Updated operational docs:
+  - `docs/sops/sop_media_performance_operations.md` (private-tab sign-latency tuning guidance),
+  - `docs/troubleshooting.md` (Next dev lock conflicts, Next image host config, QUIC transport troubleshooting).
+
 ## 2026-02-06
 - Added Kling 3.0 Pro image-to-video (Fal) with per-second pricing, new Fal proxy routes, and AI Studio wiring for defaults and submissions.
 - Documented Kling 3.0 Pro API usage and updated AI Studio pricing + SOP tables to include the new model.

@@ -137,7 +137,7 @@ describe("useMediaPreviewSigningController", () => {
     expect(result.current.signPassNonce).toBeGreaterThan(0);
   });
 
-  it("falls back to resolver + hydrate flow when batch signing fails for a row", async () => {
+  it("does not run proactive hydrate fallback during routine signing passes", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));
     const hydrateViaStorageDownload = vi.fn(async () => "blob://row-1");
@@ -177,10 +177,109 @@ describe("useMediaPreviewSigningController", () => {
     });
 
     await waitFor(() => expect(resolveSignedUrlsByMediaIds).toHaveBeenCalled());
-    await waitFor(() => expect(hydrateViaStorageDownload).toHaveBeenCalled());
+    await waitFor(() => expect(hydrateViaStorageDownload).not.toHaveBeenCalled());
     expect(logMediaPerfMock).toHaveBeenCalledWith(
       "media.sign.batch.failed",
       expect.objectContaining({ failed_count: 1 })
+    );
+  });
+
+  it("runs hydrate fallback when explicitly enabled for the signing pass", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));
+    const hydrateViaStorageDownload = vi.fn(async () => "blob://row-1");
+
+    renderHook(() => {
+      const rows = [makeRow()];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(false);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 2,
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 1, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 0,
+        backgroundHydrateFallbackEnabled: true,
+      });
+    });
+
+    await waitFor(() => expect(hydrateViaStorageDownload).toHaveBeenCalledTimes(1));
+  });
+
+  it("caps signing candidates per row when the caller provides a limit", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/images/primary.png", "https://signed/primary"]])
+    );
+    resolveMediaSigningStoragePathsMock.mockReturnValue([
+      "user/images/primary.png",
+      "user/images/fallback-a.png",
+      "user/images/fallback-b.png",
+      "user/images/fallback-c.png",
+    ]);
+
+    renderHook(() => {
+      const rows = [makeRow()];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+      const hydrateViaStorageDownload = vi.fn(async () => null);
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 1, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 0,
+        maxSignCandidatesPerRow: 2,
+      });
+    });
+
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalled());
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storagePaths: ["user/images/primary.png", "user/images/fallback-a.png"],
+      })
     );
   });
 

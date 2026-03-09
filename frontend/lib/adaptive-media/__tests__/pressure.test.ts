@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveAdaptivePressureTransition } from "../pressure";
+import {
+  evaluateAdaptivePressureCandidateLevel,
+  resolveAdaptivePressureDelayedRecoveryTransition,
+  resolveAdaptivePressureTransition,
+} from "../pressure";
 
 describe("adaptive-media pressure transitions", () => {
   it("promotes pressure level after threshold streak", () => {
@@ -47,5 +51,62 @@ describe("adaptive-media pressure transitions", () => {
 
     expect(finalStep.nextLevel).toBe(1);
     expect(finalStep.changed).toBe(true);
+  });
+
+  it("scores candidate levels from long-task and stall signals", () => {
+    expect(
+      evaluateAdaptivePressureCandidateLevel({
+        longTaskP95Ms: 110,
+        maxInputStallMs: 120,
+        heapUsageRatio: 0.5,
+        memoryGuardEnabled: true,
+      })
+    ).toBe(2);
+    expect(
+      evaluateAdaptivePressureCandidateLevel({
+        longTaskP95Ms: 72,
+        maxInputStallMs: 120,
+        heapUsageRatio: 0.5,
+        memoryGuardEnabled: true,
+      })
+    ).toBe(1);
+  });
+
+  it("delays recovery transitions until stable duration and min interval pass", () => {
+    const first = resolveAdaptivePressureDelayedRecoveryTransition({
+      currentLevel: 2 as const,
+      nextLevelCandidate: 1 as const,
+      recoveryCandidate: null,
+      nowMs: 1_000,
+      lastChangeAtMs: 800,
+      recoveryStableMs: 1_500,
+      minChangeIntervalMs: 500,
+    });
+    expect(first.nextLevel).toBe(2);
+    expect(first.changed).toBe(false);
+
+    const stillPending = resolveAdaptivePressureDelayedRecoveryTransition({
+      currentLevel: 2 as const,
+      nextLevelCandidate: 1 as const,
+      recoveryCandidate: first.nextRecoveryCandidate,
+      nowMs: 2_000,
+      lastChangeAtMs: 800,
+      recoveryStableMs: 1_500,
+      minChangeIntervalMs: 500,
+    });
+    expect(stillPending.nextLevel).toBe(2);
+    expect(stillPending.changed).toBe(false);
+
+    const recovered = resolveAdaptivePressureDelayedRecoveryTransition({
+      currentLevel: 2 as const,
+      nextLevelCandidate: 1 as const,
+      recoveryCandidate: first.nextRecoveryCandidate,
+      nowMs: 2_700,
+      lastChangeAtMs: 800,
+      recoveryStableMs: 1_500,
+      minChangeIntervalMs: 500,
+    });
+    expect(recovered.nextLevel).toBe(1);
+    expect(recovered.changed).toBe(true);
   });
 });

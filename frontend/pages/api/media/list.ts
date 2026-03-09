@@ -60,8 +60,11 @@ const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
 };
 
 const INITIAL_SIGN_BUDGET_BY_SURFACE: Record<MediaListSurface, number> = {
-  "media-library-modal": 10,
-  "media-library-route": 12,
+  "media-library-modal": 6,
+  "media-library-route": 10,
+};
+const INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL: Partial<Record<MediaQueryDataTab, number>> = {
+  private: 10,
 };
 
 const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
@@ -173,12 +176,17 @@ const resolveInitialSignedById = async ({
   rows,
   userId,
   surface,
+  tab,
 }: {
   rows: MediaListRow[];
   userId: string;
   surface: MediaListSurface;
+  tab: MediaQueryDataTab;
 }): Promise<Record<string, string | null>> => {
-  const signBudget = INITIAL_SIGN_BUDGET_BY_SURFACE[surface];
+  const signBudget =
+    surface === "media-library-modal"
+      ? (INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL[tab] ?? INITIAL_SIGN_BUDGET_BY_SURFACE[surface])
+      : INITIAL_SIGN_BUDGET_BY_SURFACE[surface];
   const seedRows = rows.slice(0, signBudget);
   if (!seedRows.length) return {};
 
@@ -324,6 +332,7 @@ export default async function handler(
       rows,
       userId: user.id,
       surface,
+      tab,
     });
 
     res.setHeader("x-shortpulse-media-list-surface", surface);

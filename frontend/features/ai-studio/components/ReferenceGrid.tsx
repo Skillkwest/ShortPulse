@@ -29,10 +29,7 @@ import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatch
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { selectAllRefsProjectionWithLegacyFallback } from "../reference-projections";
-import {
-  isAdaptiveSurfaceEnabled,
-  logAdaptiveRecoveryLevelChanged,
-} from "../../../lib/adaptive-media";
+import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { type PastedMediaReference } from "../reference-grid/controllers/referenceGridClipboard";
 import { ReferenceGridSections } from "../reference-grid/components/ReferenceGridSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
@@ -80,8 +77,6 @@ const REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 const REFERENCE_AUTOPLAY_DETACH_DELAY_MS = 1400;
 const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
 const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
-const REFERENCE_PREVIEW_QUALITY_RECOVERY_STABLE_MS = 15_000;
-const REFERENCE_PREVIEW_QUALITY_MIN_CHANGE_INTERVAL_MS = 4_000;
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
 const REFERENCE_GRID_FLAG_CURATED_SPLIT = PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT;
 const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER = PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER;
@@ -285,15 +280,7 @@ export function ReferenceGrid({
     enabled: REFERENCE_GRID_FLAG_PERF_WATCHDOG,
     memoryGuardEnabled: REFERENCE_GRID_FLAG_MEMORY_GUARD,
   });
-  const [previewQualityPressureLevel, setPreviewQualityPressureLevel] = useState<0 | 1 | 2>(
-    perfWatchdog.degradeLevel
-  );
-  const previewQualityPressureLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
-  const previewQualityLastChangeAtMsRef = React.useRef<number>(0);
-  const previewQualityRecoveryCandidateRef = React.useRef<{
-    level: 0 | 1 | 2;
-    sinceMs: number;
-  } | null>(null);
+  const previewQualityPressureLevel = perfWatchdog.previewQualityPressureLevel;
   const liveWatchdogDegradeLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
   const hydrationBudget = useReferenceGridHydrationBudget({
     enabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
@@ -349,10 +336,8 @@ export function ReferenceGrid({
     isStylesPanelOpen && (stylesSplitShowsReferenceGridTop || stylesSplitShowsQuickSlotTop);
   const stylesSplitTopHeaderHeightPx = stylesSplitShowsQuickSlotTop
     ? curatedHeaderHeightPx
-    : STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX;
-  const stylesSplitMinTopSectionHeightPx = stylesSplitShowsQuickSlotTop
-    ? curatedHeaderHeightPx
-    : STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX;
+    : Math.max(STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX, allRefsHeaderHeightPx);
+  const stylesSplitMinTopSectionHeightPx = stylesSplitTopHeaderHeightPx;
   const stylesSplitAriaLabel = stylesSplitShowsQuickSlotTop
     ? "Resize Quick Slot Inventory and Styles sections"
     : "Resize Reference Grid and Styles sections";
@@ -523,56 +508,6 @@ export function ReferenceGrid({
   }, []);
   React.useEffect(() => {
     liveWatchdogDegradeLevelRef.current = perfWatchdog.degradeLevel;
-  }, [perfWatchdog.degradeLevel]);
-  React.useEffect(() => {
-    previewQualityPressureLevelRef.current = previewQualityPressureLevel;
-  }, [previewQualityPressureLevel]);
-  React.useEffect(() => {
-    const currentLevel = previewQualityPressureLevelRef.current;
-    const nextLevel = perfWatchdog.degradeLevel;
-    if (nextLevel === currentLevel) return;
-    const now =
-      typeof performance !== "undefined" && typeof performance.now === "function"
-        ? performance.now()
-        : Date.now();
-
-    // Increase pressure quickly to protect responsiveness under real load.
-    if (nextLevel > currentLevel) {
-      previewQualityRecoveryCandidateRef.current = null;
-      previewQualityPressureLevelRef.current = nextLevel;
-      previewQualityLastChangeAtMsRef.current = now;
-      setPreviewQualityPressureLevel((prev) => (prev === nextLevel ? prev : nextLevel));
-      logAdaptiveRecoveryLevelChanged({
-        surface: "reference-grid",
-        prevLevel: currentLevel,
-        nextLevel,
-      });
-      return;
-    }
-
-    // Recover quality slowly to avoid periodic URL churn that causes visible flicker.
-    const candidate = previewQualityRecoveryCandidateRef.current;
-    if (!candidate || candidate.level !== nextLevel) {
-      previewQualityRecoveryCandidateRef.current = {
-        level: nextLevel,
-        sinceMs: now,
-      };
-      return;
-    }
-    const recoveryStableMs = now - candidate.sinceMs;
-    const sinceLastChangeMs = now - previewQualityLastChangeAtMsRef.current;
-    if (recoveryStableMs < REFERENCE_PREVIEW_QUALITY_RECOVERY_STABLE_MS) return;
-    if (sinceLastChangeMs < REFERENCE_PREVIEW_QUALITY_MIN_CHANGE_INTERVAL_MS) return;
-
-    previewQualityRecoveryCandidateRef.current = null;
-    previewQualityPressureLevelRef.current = nextLevel;
-    previewQualityLastChangeAtMsRef.current = now;
-    setPreviewQualityPressureLevel((prev) => (prev === nextLevel ? prev : nextLevel));
-    logAdaptiveRecoveryLevelChanged({
-      surface: "reference-grid",
-      prevLevel: currentLevel,
-      nextLevel,
-    });
   }, [perfWatchdog.degradeLevel]);
   const mediaWorkBudget = useReferenceGridMediaWorkBudget({
     enabled: REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET,

@@ -334,7 +334,7 @@ describe("MediaLibraryModal", () => {
         expect(container.querySelector("[data-media-id='media-stale-1']")).toBeTruthy();
       });
 
-      nowMs = Date.parse("2026-03-02T00:00:25.000Z");
+      nowMs = Date.parse("2026-03-02T00:01:05.000Z");
       rerender(
         <MediaLibraryModal
           isOpen={false}

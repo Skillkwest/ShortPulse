@@ -52,6 +52,8 @@ type UseMediaPreviewSigningControllerArgs<TRow extends PreviewSigningRowBase> = 
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
   maxSignAttemptsPerItem?: number;
+  maxSignCandidatesPerRow?: number;
+  backgroundHydrateFallbackEnabled?: boolean;
 };
 
 /**
@@ -85,6 +87,8 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
   unresolvedWarningPrefix = "[media-library]",
   isResultStillRelevant,
   maxSignAttemptsPerItem,
+  maxSignCandidatesPerRow = 4,
+  backgroundHydrateFallbackEnabled = false,
 }: UseMediaPreviewSigningControllerArgs<TRow>) => {
   useEffect(() => {
     if (!isSigningPassEnabled) return;
@@ -167,8 +171,14 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       sign_prefetch_enabled: isSignPrefetchEnabled,
     });
 
+    const signCandidateCap = Number.isFinite(maxSignCandidatesPerRow)
+      ? Math.max(1, Math.trunc(maxSignCandidatesPerRow))
+      : 4;
     const signCandidatesByRow = signBatch.map((row) => {
-      const candidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current);
+      const candidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current).slice(
+        0,
+        signCandidateCap
+      );
       return {
         id: row.id,
         primaryPath: candidates[0] ?? null,
@@ -204,7 +214,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
             id: entry.id,
             signedUrl,
             usedFallback,
-            attemptedPaths: entry.candidates.slice(0, 4),
+            attemptedPaths: entry.candidates,
           };
         })
       )
@@ -231,9 +241,11 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
           ? await resolveSignedUrlsByMediaIds(tabForBatch, unresolvedRows)
           : new Set<string>();
         const unresolvedAfterResolverCount = unresolvedAfterResolver.size;
-        for (const unresolvedRow of unresolvedRows.slice(0, 4)) {
-          if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
-          void hydrateViaStorageDownload(unresolvedRow);
+        if (backgroundHydrateFallbackEnabled) {
+          for (const unresolvedRow of unresolvedRows.slice(0, 4)) {
+            if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
+            void hydrateViaStorageDownload(unresolvedRow);
+          }
         }
         const failedCount = results.length - signedById.size;
         const fallbackCount = results.reduce(
@@ -294,6 +306,8 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
     isSigningPassEnabled,
     mediaSignInFlightRef,
     maxSignAttemptsPerItem,
+    maxSignCandidatesPerRow,
+    backgroundHydrateFallbackEnabled,
     resolveSignedUrlsByMediaIds,
     setSignPassNonce,
     signAttemptRef,

@@ -328,6 +328,14 @@ export default function MediaLibrary() {
       return name.includes(mediaSearchTerm) || path.includes(mediaSearchTerm);
     });
   }, [activeMediaTab, files, mediaSearchTerm]);
+  const effectiveSignBudget = useMemo(() => {
+    if (activeMediaTab !== "private") return signBudget;
+    return {
+      ...signBudget,
+      prefetchWindow: Math.min(signBudget.prefetchWindow, 12),
+      signBatchSize: Math.min(signBudget.signBatchSize, 5),
+    };
+  }, [activeMediaTab, signBudget]);
 
   useMediaPreviewSigningController({
     activeMediaTab,
@@ -344,11 +352,12 @@ export default function MediaLibrary() {
     resolveSignedUrlsByMediaIds,
     setSignPassNonce,
     signAttemptRef,
-    signBudget,
+    signBudget: effectiveSignBudget,
     signPassNonce,
     visibleMediaIdsRef,
     visibleMediaVersion,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
+    maxSignCandidatesPerRow: activeMediaTab === "private" ? 2 : 4,
   });
 
   const filteredPrompts = useMemo(() => {

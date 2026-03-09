@@ -257,6 +257,11 @@ Monitor these events during rollout:
 - Symptom: slow p95 sign duration.
   - Confirm batched signing calls are used (not per-item direct signing fallback).
   - Reduce batch/prefetch budgets for constrained profiles.
+  - For `private` tab specifically, prefer narrower per-pass signing fanout:
+    - lower `signBatchSize`
+    - lower `prefetchWindow`
+    - cap signing-candidate paths per row before batch signing
+  - Increase modal initial sign seeding for `private` rows on `/api/media/list` before broad budget increases.
 - Symptom: autoplay decode storms.
   - Verify autoplay budget constants and viewport gating behavior.
   - Confirm constrained profile budget is active when expected.

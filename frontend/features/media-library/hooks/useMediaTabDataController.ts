@@ -20,6 +20,7 @@ import {
   MEDIA_DATA_TABS,
   buildCursorFromRows,
   createMediaTabBooleanState,
+  createMediaTabRequestState,
   getMediaDataTabForRow,
   mergePageRows,
   normalizeMediaSearchTerm,
@@ -31,6 +32,10 @@ import {
   type MediaTabBooleanState,
   type MediaTabRequestState,
 } from "../logic/mediaLibraryPageHelpers";
+
+const LOAD_MORE_SCROLL_INTENT_DELTA_PX = 36;
+const LOAD_MORE_COOLDOWN_MS = 450;
+const LOAD_MORE_NO_PROGRESS_CLAMP_THRESHOLD = 2;
 
 type TabDataMediaRowBase = {
   id: string;
@@ -52,6 +57,29 @@ type TabDataPromptRowBase = {
   created_at?: string | null;
   updated_at?: string | null;
 };
+
+type MediaTabNullableNumberState = Record<MediaDataTab, number | null>;
+type MediaTabLoadMoreNoProgressState = Record<
+  MediaDataTab,
+  {
+    query: string;
+    streak: number;
+  }
+>;
+
+const createMediaTabNullableNumberState = (): MediaTabNullableNumberState => ({
+  uploaded_images: null,
+  uploaded_videos: null,
+  private: null,
+  ai_generations: null,
+});
+
+const createMediaTabNoProgressState = (): MediaTabLoadMoreNoProgressState => ({
+  uploaded_images: { query: "", streak: 0 },
+  uploaded_videos: { query: "", streak: 0 },
+  private: { query: "", streak: 0 },
+  ai_generations: { query: "", streak: 0 },
+});
 
 type UseMediaTabDataControllerArgs<
   TRow extends TabDataMediaRowBase,
@@ -118,6 +146,16 @@ export const useMediaTabDataController = <
 }: UseMediaTabDataControllerArgs<TRow, TPrompt>) => {
   const tabFetchInFlightRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
   const tabLoadMoreAwaitExitRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
+  const tabLoadMoreScrollIntentArmedRef = useRef<MediaTabBooleanState>(
+    createMediaTabBooleanState()
+  );
+  const tabLoadMoreLastScrollTopRef = useRef<MediaTabNullableNumberState>(
+    createMediaTabNullableNumberState()
+  );
+  const tabLoadMoreLastAutoLoadAtMsRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
+  const tabNoProgressStateRef = useRef<MediaTabLoadMoreNoProgressState>(
+    createMediaTabNoProgressState()
+  );
 
   useEffect(() => {
     if (fetchEnabled) return;
@@ -125,6 +163,10 @@ export const useMediaTabDataController = <
       mediaTabRequestRef.current[tab] += 1;
       tabFetchInFlightRef.current[tab] = false;
       tabLoadMoreAwaitExitRef.current[tab] = false;
+      tabLoadMoreScrollIntentArmedRef.current[tab] = false;
+      tabLoadMoreLastScrollTopRef.current[tab] = null;
+      tabLoadMoreLastAutoLoadAtMsRef.current[tab] = 0;
+      tabNoProgressStateRef.current[tab] = { query: "", streak: 0 };
     }
     setLoading(false);
     setMediaTabCache((prev) => {
@@ -178,6 +220,10 @@ export const useMediaTabDataController = <
 
   const markInactiveMediaCachesStale = useCallback(
     (currentTab: MediaDataTab | null) => {
+      for (const tab of MEDIA_DATA_TABS) {
+        if (tab === currentTab) continue;
+        tabNoProgressStateRef.current[tab] = { query: "", streak: 0 };
+      }
       setMediaTabCache((prev) => {
         let changed = false;
         const next = { ...prev };
@@ -199,7 +245,12 @@ export const useMediaTabDataController = <
   const fetchMediaTabPage = useCallback(
     async (
       tab: MediaDataTab,
-      options?: { reset?: boolean; query?: string; reason?: MediaFetchReason }
+      options?: {
+        reset?: boolean;
+        query?: string;
+        reason?: MediaFetchReason;
+        autoTriggered?: boolean;
+      }
     ) => {
       if (!fetchEnabled) return;
       if (tabFetchInFlightRef.current[tab]) return;
@@ -218,6 +269,10 @@ export const useMediaTabDataController = <
       if (options?.reason === "load_more") {
         // Prevent repeated auto-pagination while sentinel remains intersecting.
         tabLoadMoreAwaitExitRef.current[tab] = true;
+        tabLoadMoreScrollIntentArmedRef.current[tab] = false;
+        if (options.autoTriggered) {
+          tabLoadMoreLastAutoLoadAtMsRef.current[tab] = Date.now();
+        }
       }
       tabFetchInFlightRef.current[tab] = true;
       const requestId = mediaTabRequestRef.current[tab] + 1;
@@ -356,16 +411,29 @@ export const useMediaTabDataController = <
         });
 
         const nextRows = shouldReset ? normalizedRows : mergePageRows(cache.rows, normalizedRows);
+        const noProgressState = tabNoProgressStateRef.current[tab];
+        const isLoadMore = options?.reason === "load_more";
+        if (!isLoadMore || shouldReset || noProgressState.query !== normalizedQuery) {
+          noProgressState.query = normalizedQuery;
+          noProgressState.streak = 0;
+        }
+        if (isLoadMore) {
+          const netNewCount = Math.max(0, nextRows.length - cache.rows.length);
+          noProgressState.streak = netNewCount > 0 ? 0 : noProgressState.streak + 1;
+        }
+        const noProgressClampActive =
+          isLoadMore && noProgressState.streak >= LOAD_MORE_NO_PROGRESS_CLAMP_THRESHOLD;
+        const hasMoreAfterClamp = noProgressClampActive ? false : hasMore;
         setMediaTabCache((prev) => ({
           ...prev,
           [tab]: {
             ...prev[tab],
             rows: nextRows,
-            nextCursor: hasMore && derivedCursor ? derivedCursor : null,
+            nextCursor: hasMoreAfterClamp && derivedCursor ? derivedCursor : null,
             pagesLoaded: pageToLoad + 1,
             query: normalizedQuery,
             loadedAtMs: Date.now(),
-            hasMore,
+            hasMore: hasMoreAfterClamp,
             loading: false,
             loaded: true,
             error: null,
@@ -444,6 +512,18 @@ export const useMediaTabDataController = <
   }, [fetchEnabled, setError, setLoading, setPrompts, setPromptsLoaded]);
 
   useEffect(() => {
+    if (!activeMediaTab) return;
+    tabLoadMoreAwaitExitRef.current[activeMediaTab] = false;
+    tabLoadMoreScrollIntentArmedRef.current[activeMediaTab] = false;
+    tabLoadMoreLastAutoLoadAtMsRef.current[activeMediaTab] = 0;
+    tabLoadMoreLastScrollTopRef.current[activeMediaTab] = null;
+    tabNoProgressStateRef.current[activeMediaTab] = {
+      query: activeMediaQuery,
+      streak: 0,
+    };
+  }, [activeMediaQuery, activeMediaTab]);
+
+  useEffect(() => {
     if (!fetchEnabled) return;
     if (activeTab === "saved_prompts") {
       if (!promptsLoaded) {
@@ -494,6 +574,25 @@ export const useMediaTabDataController = <
     if (typeof IntersectionObserver === "undefined") return;
     const node = loadMoreSentinelRef.current;
     if (!node) return;
+    const rootNode = loadMoreObserverRootRef?.current ?? null;
+    const readCurrentScrollTop = (): number => {
+      if (rootNode) return rootNode.scrollTop ?? 0;
+      if (typeof window === "undefined") return 0;
+      return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    };
+    tabLoadMoreLastScrollTopRef.current[activeMediaTab] = readCurrentScrollTop();
+    const scrollTarget = rootNode ?? window;
+    const handleScroll = () => {
+      const previousTop = tabLoadMoreLastScrollTopRef.current[activeMediaTab];
+      const nextTop = readCurrentScrollTop();
+      tabLoadMoreLastScrollTopRef.current[activeMediaTab] = nextTop;
+      if (previousTop == null) return;
+      const scrollDelta = nextTop - previousTop;
+      if (scrollDelta >= LOAD_MORE_SCROLL_INTENT_DELTA_PX) {
+        tabLoadMoreScrollIntentArmedRef.current[activeMediaTab] = true;
+      }
+    };
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
@@ -502,15 +601,28 @@ export const useMediaTabDataController = <
           return;
         }
         if (tabLoadMoreAwaitExitRef.current[activeMediaTab]) return;
-        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery, reason: "load_more" });
+        if (!tabLoadMoreScrollIntentArmedRef.current[activeMediaTab]) return;
+        const now = Date.now();
+        const lastAutoLoadAtMs = tabLoadMoreLastAutoLoadAtMsRef.current[activeMediaTab];
+        if (now - lastAutoLoadAtMs < LOAD_MORE_COOLDOWN_MS) return;
+        tabLoadMoreLastAutoLoadAtMsRef.current[activeMediaTab] = now;
+        tabLoadMoreScrollIntentArmedRef.current[activeMediaTab] = false;
+        void fetchMediaTabPage(activeMediaTab, {
+          query: activeMediaQuery,
+          reason: "load_more",
+          autoTriggered: true,
+        });
       },
       {
-        root: loadMoreObserverRootRef?.current ?? null,
+        root: rootNode,
         rootMargin: loadMoreRootMargin,
       }
     );
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      scrollTarget.removeEventListener("scroll", handleScroll);
+    };
   }, [
     activeMediaCache?.hasMore,
     activeMediaCache?.loaded,
@@ -523,6 +635,9 @@ export const useMediaTabDataController = <
     loadMoreRootMargin,
     loadMoreSentinelRef,
     tabLoadMoreAwaitExitRef,
+    tabLoadMoreLastAutoLoadAtMsRef,
+    tabLoadMoreLastScrollTopRef,
+    tabLoadMoreScrollIntentArmedRef,
   ]);
 
   return {

@@ -1,11 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
-const createFalSubmitHandlerMock = vi.fn((..._args: unknown[]) => vi.fn());
-const validateFalPayloadForModelMock = vi.fn((..._args: unknown[]) => undefined);
-const getFalSubmitUrlRequiredMock = vi.fn(
-  (..._args: unknown[]) => "https://queue.fal.run/fal-ai/bria/background/remove"
-);
-const getFalTimeoutMsOrDefaultMock = vi.fn((..._args: unknown[]) => 20000);
+const createFalSubmitHandlerMock = vi.fn((...args: unknown[]) => {
+  void args;
+  return vi.fn();
+});
+const validateFalPayloadForModelMock = vi.fn((...args: unknown[]) => {
+  void args;
+  return undefined;
+});
+const getFalSubmitUrlRequiredMock = vi.fn((...args: unknown[]) => {
+  void args;
+  return "https://queue.fal.run/fal-ai/bria/background/remove";
+});
+const getFalTimeoutMsOrDefaultMock = vi.fn((...args: unknown[]) => {
+  void args;
+  return 20000;
+});
 
 vi.mock("../../lib/server/api/falSubmitProxy", () => ({
   createFalSubmitHandler: (config: Record<string, unknown>) => createFalSubmitHandlerMock(config),

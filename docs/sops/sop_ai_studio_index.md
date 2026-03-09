@@ -45,7 +45,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Beginner Edit remains legacy and intact as fallback behavior.
 - Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` forces legacy Edit panel.
 - Chat mode control is hidden/off in Expert Edit; inline Generate remains the primary action.
-- `Shortcuts -> Presets` opens a primary left-panel Presets Library sourced from the full Expert Edit preset catalog (including custom overrides), keeps the right rail visible, and remains browse-only in v1 (no prompt-apply side effects).
+- `Shortcuts -> Presets` opens a primary left-panel Presets Library sourced from the Expert Edit preset catalog with `Custom 1`, `Custom 2`, and `Custom 3` placeholder tiles (including overrides), keeps the right rail visible, and supports modal editing for preset name + prompt text.
 
 ## Canvas interaction guardrails
 - Dual-canvas layout (main + right-rail) shares scene data but keeps viewport camera state independent per instance.

@@ -20,12 +20,20 @@ type UseStylesLibraryStyleDetailsPreferenceResult = {
 
 const MAX_STYLE_FIELD_LENGTH = 120;
 const MAX_STYLE_PROMPT_LENGTH = 4000;
+const MAX_STYLE_PREVIEW_URL_LENGTH = 2_000_000;
 
 const clampString = (value: unknown, limit: number): string => {
   if (typeof value !== "string") return "";
   const normalized = value.trim();
   if (normalized.length <= limit) return normalized;
   return normalized.slice(0, limit).trim();
+};
+
+const normalizePreviewImageUrl = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  if (!normalized) return "";
+  return normalized.length <= MAX_STYLE_PREVIEW_URL_LENGTH ? normalized : "";
 };
 
 const normalizeStyleDetails = (value: unknown): StylesLibraryStyleDetails => {
@@ -35,6 +43,7 @@ const normalizeStyleDetails = (value: unknown): StylesLibraryStyleDetails => {
     title: clampString(details?.title, MAX_STYLE_FIELD_LENGTH),
     referenceImageName: clampString(details?.referenceImageName, MAX_STYLE_FIELD_LENGTH),
     stylePrompt: clampString(details?.stylePrompt, MAX_STYLE_PROMPT_LENGTH),
+    previewImageUrl: normalizePreviewImageUrl(details?.previewImageUrl),
   };
 };
 
@@ -67,7 +76,8 @@ const areStyleDetailMapsEqual = (
       leftValue.style !== rightValue.style ||
       leftValue.title !== rightValue.title ||
       leftValue.referenceImageName !== rightValue.referenceImageName ||
-      leftValue.stylePrompt !== rightValue.stylePrompt
+      leftValue.stylePrompt !== rightValue.stylePrompt ||
+      leftValue.previewImageUrl !== rightValue.previewImageUrl
     ) {
       return false;
     }

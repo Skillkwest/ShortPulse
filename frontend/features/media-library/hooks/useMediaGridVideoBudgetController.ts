@@ -98,6 +98,14 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
     enabledVideoIdsRef.current = enabledVideoIds;
   }, [enabledVideoIds]);
 
+  const commitEnabledVideoIds = useCallback((nextEnabledIds: string[]) => {
+    if (areOrderedStringArraysEqual(enabledVideoIdsRef.current, nextEnabledIds)) {
+      return;
+    }
+    enabledVideoIdsRef.current = nextEnabledIds;
+    setEnabledVideoIds(nextEnabledIds);
+  }, []);
+
   const commitAttachedVideoIds = useCallback((nextAttachedIds: Set<string>) => {
     if (areStringSetsEqual(attachedVideoIdsRef.current, nextAttachedIds)) {
       return;
@@ -146,12 +154,8 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       visibleVideoIdsRef.current.has(id)
     );
     const nextEnabled = visibleInOrder.slice(0, Math.max(0, videoAttachBudget));
-    if (areOrderedStringArraysEqual(enabledVideoIdsRef.current, nextEnabled)) {
-      return;
-    }
-    enabledVideoIdsRef.current = nextEnabled;
-    setEnabledVideoIds(nextEnabled);
-  }, [enabled, videoAttachBudget]);
+    commitEnabledVideoIds(nextEnabled);
+  }, [commitEnabledVideoIds, enabled, videoAttachBudget]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -202,19 +206,31 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
 
   useEffect(() => {
     if (!enabled) {
+      let resetEnabledVideoIdsTimeoutId: number | null = null;
+      let resetAttachedVideoIdsTimeoutId: number | null = null;
       for (const timeoutId of detachTimeoutByIdRef.current.values()) {
         window.clearTimeout(timeoutId);
       }
       detachTimeoutByIdRef.current.clear();
       previousEnabledIdsRef.current = new Set();
       if (enabledVideoIdsRef.current.length > 0) {
-        enabledVideoIdsRef.current = [];
-        setEnabledVideoIds([]);
+        resetEnabledVideoIdsTimeoutId = window.setTimeout(() => {
+          commitEnabledVideoIds([]);
+        }, 0);
       }
       if (attachedVideoIdsRef.current.size > 0) {
-        commitAttachedVideoIds(new Set());
+        resetAttachedVideoIdsTimeoutId = window.setTimeout(() => {
+          commitAttachedVideoIds(new Set());
+        }, 0);
       }
-      return;
+      return () => {
+        if (resetEnabledVideoIdsTimeoutId != null) {
+          window.clearTimeout(resetEnabledVideoIdsTimeoutId);
+        }
+        if (resetAttachedVideoIdsTimeoutId != null) {
+          window.clearTimeout(resetAttachedVideoIdsTimeoutId);
+        }
+      };
     }
 
     const nextEnabledSet = new Set(enabledVideoIds);
@@ -275,6 +291,7 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       detachTimeoutByIdRef.current.set(id, timeoutId);
     }
   }, [
+    commitEnabledVideoIds,
     commitAttachedVideoIds,
     detachDelayMs,
     enabled,

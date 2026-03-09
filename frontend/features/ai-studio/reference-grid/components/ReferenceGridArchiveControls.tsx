@@ -1,6 +1,5 @@
 import React from "react";
-import { CloudArrowUp, UploadSimple } from "phosphor-react";
-import { PromptLibraryButton } from "../../components/PromptLibraryButton";
+import { UploadSimple } from "phosphor-react";
 import type { StudioOutput } from "../../types";
 
 type ReferenceGridArchiveControlsProps = {
@@ -31,7 +30,6 @@ export function ReferenceGridArchiveControls({
   hideUploadActions = false,
   onToggleArchivePanel,
   onTriggerFileSelect,
-  onOpenMediaLibrary,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
 }: ReferenceGridArchiveControlsProps) {
@@ -64,17 +62,6 @@ export function ReferenceGridArchiveControls({
                   <UploadSimple size={14} weight="regular" />
                   <span>Add files</span>
                 </button>
-                <PromptLibraryButton
-                  onClick={(event) => {
-                    event.preventDefault();
-                    onOpenMediaLibrary?.();
-                  }}
-                  className="prompt-media-btn preview-media-btn reference-grid-media-library-btn"
-                  aria-label="Open media library"
-                  label="Media Library"
-                  icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
-                  tone="library"
-                />
               </>
             ) : null}
             {archiveCount > 0 ? (

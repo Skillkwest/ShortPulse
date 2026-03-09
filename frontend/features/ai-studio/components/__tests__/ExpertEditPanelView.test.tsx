@@ -305,7 +305,8 @@ describe("ExpertEditPanelView", () => {
     expect(within(surface).queryByText("Enhance Realism")).not.toBeInTheDocument();
     expect(within(surface).getByText("Over Shoulder")).toBeInTheDocument();
     expect(within(surface).getByText("Custom 1")).toBeInTheDocument();
-    expect(within(surface).getByText("Custom 18")).toBeInTheDocument();
+    expect(within(surface).getByText("Custom 3")).toBeInTheDocument();
+    expect(within(surface).queryByText("Custom 4")).not.toBeInTheDocument();
     expect(within(surface).getAllByRole("listitem")).toHaveLength(
       EDIT_PRESET_SURFACE_PRESET_IDS.length - EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS.length
     );
@@ -392,7 +393,7 @@ describe("ExpertEditPanelView", () => {
       "Zoom In",
       "Zoom Out",
       "Enhance Realism",
-      ...Array.from({ length: 18 }, (_, index) => `Custom ${index + 1}`),
+      ...Array.from({ length: 3 }, (_, index) => `Custom ${index + 1}`),
     ].filter((label) => !["Selfie", "Side Profile", "Enhance Realism"].includes(label));
 
     expect(renderedLabels).toEqual(expectedLabels);
@@ -564,7 +565,7 @@ describe("ExpertEditPanelView", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
     const panelList = screen.getByLabelText("Preset panel list");
 
-    (["custom_12", "selfie", "low_angle"] as ExpertEditPresetId[]).forEach((presetId) => {
+    (["custom_3", "selfie", "low_angle"] as ExpertEditPresetId[]).forEach((presetId) => {
       const transfer = createPresetDragTransfer({ presetId, source: "surface" });
       fireEvent.dragOver(panelList, { dataTransfer: transfer });
       fireEvent.drop(panelList, { dataTransfer: transfer });
@@ -578,7 +579,7 @@ describe("ExpertEditPanelView", () => {
       "Side Profile",
       "Low Angle",
       "Enhance Realism",
-      "Custom 12",
+      "Custom 3",
     ]);
   });
 
@@ -603,7 +604,7 @@ describe("ExpertEditPanelView", () => {
       );
 
       const overflowTransfer = createPresetDragTransfer({
-        presetId: "custom_18",
+        presetId: "custom_3",
         source: "surface",
       });
       fireEvent.dragOver(panelList, { dataTransfer: overflowTransfer });

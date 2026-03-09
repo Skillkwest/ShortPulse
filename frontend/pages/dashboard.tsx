@@ -330,6 +330,7 @@ export default function DashboardPage() {
               className="brand-logo"
               width={203}
               height={64}
+              style={{ height: "auto" }}
             />
           </Link>
           <div className="app-bar-right">

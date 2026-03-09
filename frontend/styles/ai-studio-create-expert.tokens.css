@@ -53,8 +53,8 @@
   justify-content: center;
   width: 100%;
   min-height: 0;
-  padding-block-start: clamp(56px, 9vh, 124px);
-  padding-block-end: clamp(20px, 4vh, 52px);
+  padding-block-start: clamp(48px, 116px);
+  padding-block-end: clamp(28px, 4.5vh, 60px);
 }
 
 .create-expert-ready-text {
@@ -67,6 +67,6 @@
 }
 
 .create-expert-panel--no-history .create-expert-ready-text {
-  transform: translateY(-24px);
+  transform: translateY(-32px);
   margin-bottom: 14px;
 }

@@ -132,8 +132,9 @@ describe("StylesLibraryPanel", () => {
 
     expect(screen.getByRole("dialog", { name: "Edit style" })).toBeInTheDocument();
     expect(screen.getByLabelText("Style")).toHaveValue("Cinematic");
-    expect(screen.getByLabelText("Title")).toHaveValue("Cinematic");
-    expect(screen.getByLabelText("Reference Image Name")).toHaveValue("Cinematic");
+    expect(
+      screen.getByRole("button", { name: "Drop reference image or click to upload" })
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Style Prompt")).toHaveValue("");
   });
 
@@ -149,10 +150,6 @@ describe("StylesLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Style tile: Cinematic" }));
     fireEvent.change(screen.getByLabelText("Style"), { target: { value: "Neo Noir" } });
-    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Neo Noir Title" } });
-    fireEvent.change(screen.getByLabelText("Reference Image Name"), {
-      target: { value: "Night Alley Ref" },
-    });
     fireEvent.change(screen.getByLabelText("Style Prompt"), {
       target: { value: "high contrast, cinematic street lighting" },
     });
@@ -162,9 +159,10 @@ describe("StylesLibraryPanel", () => {
     await waitFor(() => {
       expect(onSaveStyleDetails).toHaveBeenCalledWith("cinematic", {
         style: "Neo Noir",
-        title: "Neo Noir Title",
-        referenceImageName: "Night Alley Ref",
+        title: "Neo Noir",
+        referenceImageName: "Neo Noir",
         stylePrompt: "high contrast, cinematic street lighting",
+        previewImageUrl: "/Styles/Cinematic.png",
       });
     });
     await waitFor(() => {

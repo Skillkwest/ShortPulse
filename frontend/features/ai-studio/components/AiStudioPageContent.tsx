@@ -13,7 +13,7 @@ import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { EditPropertiesPanel } from "./EditPropertiesPanel";
 import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
-import { EXPERT_EDIT_STYLE_CATALOG } from "./edit/expertEditStyles";
+import { EXPERT_EDIT_STYLE_CATALOG, type ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
@@ -67,7 +67,11 @@ import {
   type HeaderShortcutId,
   type WorkflowPanelVisibilityByWorkflow,
 } from "../logic/panelVisibility";
-import { resolveExpertEditPresetCatalog, type ExpertEditPresetId } from "./edit/expertEditPresets";
+import {
+  resolveExpertEditPresetCatalog,
+  type ExpertEditPresetId,
+  type ExpertEditPresetOverride,
+} from "./edit/expertEditPresets";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -565,20 +569,53 @@ export function AiStudioPageContent({
     deleteStyleId,
   } = useStylesLibraryDeletedStyleIdsPreference();
   const stylesCatalogWithOverrides = React.useMemo(() => {
-    if (Object.keys(styleDetailsById).length === 0) return EXPERT_EDIT_STYLE_CATALOG;
-    return EXPERT_EDIT_STYLE_CATALOG.map((style) => {
+    const resolveStyleName = (style: {
+      style?: string;
+      title?: string;
+      referenceImageName?: string;
+    }): string => {
+      return (
+        style.style?.trim() ||
+        style.title?.trim() ||
+        style.referenceImageName?.trim() ||
+        "Custom Style"
+      );
+    };
+    const baseStyleIds = new Set(EXPERT_EDIT_STYLE_CATALOG.map((style) => style.id));
+    const overrideEntries = Object.entries(styleDetailsById);
+
+    const overriddenBaseStyles = EXPERT_EDIT_STYLE_CATALOG.map((style) => {
       if (style.placeholder) return style;
       const styleDetails = styleDetailsById[style.id];
       if (!styleDetails) return style;
-      const resolvedTitle = styleDetails.title.trim() || style.title;
+      const resolvedStyleName = resolveStyleName(styleDetails);
+      const resolvedPreviewUrl = styleDetails.previewImageUrl.trim() || style.previewUrl;
       return {
         ...style,
-        style: styleDetails.style.trim() || resolvedTitle,
-        title: resolvedTitle,
-        referenceImageName: styleDetails.referenceImageName.trim() || resolvedTitle,
+        style: resolvedStyleName,
+        title: resolvedStyleName,
+        referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
         stylePrompt: styleDetails.stylePrompt.trim(),
+        previewUrl: resolvedPreviewUrl,
       };
     });
+
+    const customStyleTiles: ExpertEditStyleTile[] = overrideEntries
+      .filter(([styleId]) => !baseStyleIds.has(styleId))
+      .map(([styleId, styleDetails]) => {
+        const resolvedStyleName = resolveStyleName(styleDetails);
+        return {
+          id: styleId,
+          style: resolvedStyleName,
+          title: resolvedStyleName,
+          referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
+          stylePrompt: styleDetails.stylePrompt.trim(),
+          previewUrl: styleDetails.previewImageUrl.trim() || null,
+          placeholder: false,
+        };
+      });
+
+    return [...overriddenBaseStyles, ...customStyleTiles];
   }, [styleDetailsById]);
   const visibleStylesCatalog = React.useMemo(() => {
     if (deletedStyleIds.length === 0) return stylesCatalogWithOverrides;
@@ -763,6 +800,22 @@ export function AiStudioPageContent({
   const handleSelectedPresetIdChange = React.useCallback((presetId: ExpertEditPresetId | null) => {
     setSelectedPresetId(presetId);
   }, []);
+  const handlePresetOverrideSave = React.useCallback(
+    (presetId: ExpertEditPresetId, override: ExpertEditPresetOverride): boolean => {
+      const onCustomPresetOverridesChange = propertiesEditExpert.onCustomPresetOverridesChange;
+      if (!onCustomPresetOverridesChange) return false;
+      const currentOverrides = propertiesEditExpert.customPresetOverrides ?? {};
+      onCustomPresetOverridesChange({
+        ...currentOverrides,
+        [presetId]: {
+          label: override.label,
+          prompt: override.prompt,
+        },
+      });
+      return true;
+    },
+    [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.onCustomPresetOverridesChange]
+  );
   const isTargetInsideRailCanvas = React.useCallback((target: EventTarget | null): boolean => {
     const rightColumnNode = rightColumnRef.current;
     if (!rightColumnNode || !(target instanceof Node)) return false;
@@ -845,6 +898,7 @@ export function AiStudioPageContent({
           presets={presetsLibraryCatalog}
           selectedPresetId={selectedPresetId}
           onSelectPreset={handleSelectedPresetIdChange}
+          onSavePresetOverride={handlePresetOverrideSave}
         />
       ),
       styles: (
@@ -874,6 +928,7 @@ export function AiStudioPageContent({
       presetsLibraryCatalog,
       selectedPresetId,
       handleSelectedPresetIdChange,
+      handlePresetOverrideSave,
       selectedStyleId,
       handleSelectedStyleIdChange,
       upsertStyleDetails,

@@ -66,26 +66,14 @@ const EDIT_PRESET_NON_CUSTOM_DEFINITIONS = [
   },
 ] as const;
 
-const EDIT_PRESET_CUSTOM_PROMPTS = [
-  "Create a cinematic portrait framing with balanced key and fill light, keeping the subject centered and highly detailed.",
-  "Create an editorial fashion composition with confident pose, refined lighting contrast, and polished high-end styling.",
-  "Create a dramatic rim-lit look with stronger edge separation and controlled shadow depth while preserving facial detail.",
-  "Create a soft natural-window-light look with gentle falloff, realistic skin texture, and clean background separation.",
-  "Create a dynamic action-leaning pose with directional movement cues and a camera angle that adds energy to the frame.",
-  "Create a studio beauty setup with even skin rendering, controlled highlights, and clean, minimal background styling.",
-  "Create a moody low-key portrait with deeper shadows, selective highlights, and a cinematic atmosphere.",
-  "Create a bright lifestyle look with airy lighting, natural color tones, and an approachable candid expression.",
-  "Create a premium product-style composition where the subject is crisp, centered, and lit with high commercial clarity.",
-  "Create a street-style candid framing with slight asymmetry, realistic environment context, and natural motion feel.",
-  "Create a close-up character portrait focused on expression and eyes, with subtle depth-of-field and realistic detail.",
-  "Create a full-body hero composition with strong posture, clear silhouette separation, and balanced scene geometry.",
-  "Create a symmetrical centered composition with clean alignment, intentional negative space, and stable visual weight.",
-  "Create a three-quarter angle portrait that flatters facial structure while preserving natural body proportions.",
-  "Create a warm golden-hour aesthetic with realistic directional sunlight and soft ambient bounce light.",
-  "Create a cool overcast aesthetic with diffused light, muted contrast, and natural tonal consistency.",
-  "Create a high-contrast monochrome-inspired look while preserving fine texture and dimensional lighting.",
-  "Create a polished social-media-ready portrait with flattering framing, clean lighting, and realistic finish.",
-] as const;
+const EDIT_PRESET_CUSTOM_PROMPT_PLACEHOLDER =
+  "Edit this custom preset text to create your own reusable prompt.";
+
+const EDIT_PRESET_CUSTOM_PROMPTS = Array.from(
+  { length: 18 },
+  () => EDIT_PRESET_CUSTOM_PROMPT_PLACEHOLDER
+) as readonly string[];
+const EDIT_PRESET_VISIBLE_CUSTOM_COUNT = 3;
 
 const EDIT_PRESET_CUSTOM_DEFINITIONS = EDIT_PRESET_CUSTOM_PROMPTS.map((prompt, index) => {
   const customNumber = index + 1;
@@ -104,20 +92,31 @@ const EDIT_PRESET_BASE_DEFINITIONS = [
 export type ExpertEditPresetId = (typeof EDIT_PRESET_BASE_DEFINITIONS)[number]["presetId"];
 export type ExpertEditCustomPresetId = Extract<ExpertEditPresetId, `custom_${number}`>;
 
-export type ExpertEditCustomPresetOverride = {
+export type ExpertEditPresetOverride = {
   label: string;
   prompt: string;
 };
 
-export type ExpertEditCustomPresetOverrides = Partial<
-  Record<ExpertEditCustomPresetId, ExpertEditCustomPresetOverride>
+export type ExpertEditPresetOverrides = Partial<
+  Record<ExpertEditPresetId, ExpertEditPresetOverride>
 >;
+
+/**
+ * Backward-compatible alias kept while callsites migrate from custom-only naming.
+ */
+export type ExpertEditCustomPresetOverride = ExpertEditPresetOverride;
+
+/**
+ * Backward-compatible alias kept while callsites migrate from custom-only naming.
+ */
+export type ExpertEditCustomPresetOverrides = ExpertEditPresetOverrides;
 
 export type ExpertEditResolvedPreset = {
   presetId: ExpertEditPresetId;
   label: string;
   prompt: string;
   isCustom: boolean;
+  hasOverride: boolean;
 };
 
 export type ExpertEditPresetDragSource = "surface" | "panel";
@@ -144,15 +143,24 @@ const LEGACY_LABEL_TO_ID = new Map(
 const isValidPresetDragSource = (value: string): value is ExpertEditPresetDragSource =>
   value === "surface" || value === "panel";
 
-const normalizeCustomOverrideLabel = (value: string) => value.trim();
-const normalizeCustomOverridePrompt = (value: string) => value.trim();
+const normalizePresetOverrideLabel = (value: string) => value.trim();
+const normalizePresetOverridePrompt = (value: string) => value.trim();
+const isPresetVisibleInUi = (presetId: ExpertEditPresetId): boolean => {
+  if (!presetId.startsWith("custom_")) return true;
+  const customNumber = Number.parseInt(presetId.slice("custom_".length), 10);
+  return (
+    Number.isFinite(customNumber) &&
+    customNumber >= 1 &&
+    customNumber <= EDIT_PRESET_VISIBLE_CUSTOM_COUNT
+  );
+};
 
 /**
  * Ordered canonical list of all Expert Edit preset IDs.
  */
 export const EDIT_PRESET_SURFACE_PRESET_IDS = EDIT_PRESET_BASE_DEFINITIONS.map(
   (definition) => definition.presetId
-) as readonly ExpertEditPresetId[];
+).filter((presetId) => isPresetVisibleInUi(presetId)) as readonly ExpertEditPresetId[];
 
 /**
  * Ordered canonical list of editable custom preset IDs.
@@ -212,7 +220,10 @@ export const mapLegacyPresetLabelToId = (label: string): ExpertEditPresetId | nu
 export const mapLegacyPresetLabelsToIds = (labels: readonly string[]): ExpertEditPresetId[] => {
   const resolvedPresetIds = labels
     .map((label) => mapLegacyPresetLabelToId(label))
-    .filter((presetId): presetId is ExpertEditPresetId => presetId != null);
+    .filter(
+      (presetId): presetId is ExpertEditPresetId =>
+        presetId != null && isPresetVisibleInUi(presetId)
+    );
   return sortPresetIdsByCanonicalOrder(resolvedPresetIds);
 };
 
@@ -237,7 +248,9 @@ export const sortPresetIdsByCanonicalOrder = (
  * Normalizes panel preset IDs to known, deduped, canonical ordered IDs and applies max capacity.
  */
 export const normalizePresetPanelPresetIds = (presetIds: readonly string[]): ExpertEditPresetId[] =>
-  sortPresetIdsByCanonicalOrder(presetIds).slice(0, EDIT_PRESET_PANEL_MAX);
+  sortPresetIdsByCanonicalOrder(presetIds)
+    .filter((presetId) => isPresetVisibleInUi(presetId))
+    .slice(0, EDIT_PRESET_PANEL_MAX);
 
 /**
  * Legacy helper kept for compatibility in fallback tests/paths.
@@ -248,7 +261,7 @@ export const sortPresetLabelsByCanonicalOrder = (labels: readonly string[]) =>
   );
 
 /**
- * Normalizes custom preset overrides to known custom preset IDs with non-empty label/prompt.
+ * Normalizes preset overrides to known preset IDs with non-empty label/prompt.
  */
 export const normalizeExpertEditCustomPresetOverrides = (
   value: unknown
@@ -257,18 +270,18 @@ export const normalizeExpertEditCustomPresetOverrides = (
   const entries = Object.entries(value as Record<string, unknown>);
   const normalized: ExpertEditCustomPresetOverrides = {};
   entries.forEach(([rawPresetId, rawOverride]) => {
-    if (!isExpertEditCustomPresetId(rawPresetId)) return;
+    if (!isExpertEditPresetId(rawPresetId)) return;
     if (!rawOverride || typeof rawOverride !== "object") return;
     const candidateLabel =
       typeof (rawOverride as { label?: unknown }).label === "string"
-        ? normalizeCustomOverrideLabel((rawOverride as { label: string }).label)
+        ? normalizePresetOverrideLabel((rawOverride as { label: string }).label)
         : "";
     const candidatePrompt =
       typeof (rawOverride as { prompt?: unknown }).prompt === "string"
-        ? normalizeCustomOverridePrompt((rawOverride as { prompt: string }).prompt)
+        ? normalizePresetOverridePrompt((rawOverride as { prompt: string }).prompt)
         : "";
     if (!candidateLabel || !candidatePrompt) return;
-    normalized[rawPresetId] = {
+    normalized[rawPresetId as ExpertEditPresetId] = {
       label: candidateLabel,
       prompt: candidatePrompt,
     };
@@ -290,16 +303,18 @@ export const resolveExpertEditPresetById = (
       label: presetId,
       prompt: "",
       isCustom: false,
+      hasOverride: false,
     };
   }
 
   const isCustom = isExpertEditCustomPresetId(presetId);
-  const override = isCustom ? customOverrides?.[presetId] : undefined;
+  const override = customOverrides?.[presetId];
   return {
     presetId,
     label: override?.label ?? baseDefinition.label,
     prompt: override?.prompt ?? baseDefinition.prompt,
     isCustom,
+    hasOverride: Boolean(override),
   };
 };
 

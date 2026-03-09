@@ -274,7 +274,6 @@ export const useAiStudioViewModel = ({
     isModelSelected,
     model,
     motionReferenceVideoUrl,
-    prompt,
     referenceImageUrl,
     requiresModelSelection,
     mode,

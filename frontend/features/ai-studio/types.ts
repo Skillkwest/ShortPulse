@@ -110,6 +110,7 @@ export type StylesLibraryStyleDetails = {
   title: string;
   referenceImageName: string;
   stylePrompt: string;
+  previewImageUrl: string;
 };
 
 export type StylesLibraryStyleDetailsMap = Record<string, StylesLibraryStyleDetails>;

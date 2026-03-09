@@ -221,8 +221,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page {
+  --ai-page-pad-top: 44px;
+  --ai-page-pad-bottom: 24px;
   max-width: 2000px;
-  padding: 52px 24px 24px;
+  padding: var(--ai-page-pad-top) 24px var(--ai-page-pad-bottom);
   /* Adjust the the gap between the left sidebar and the main body. */
   padding-left: calc(var(--ai-rail-width) + 8px);
   color: var(--ai-card-text);
@@ -717,7 +719,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   --ai-shell-sticky-top: 56px;
   --ai-shell-bottom-gutter: 12px;
   --ai-shell-column-max-height: calc(
-    var(--app-fixed-height) - var(--ai-shell-sticky-top) - var(--ai-shell-bottom-gutter)
+    var(--app-fixed-height) - var(--ai-page-pad-top) - var(--ai-page-pad-bottom)
   );
   display: grid;
   /* Adjust the relative widths of the two main columns. */
@@ -726,7 +728,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   gap: var(--ai-gutter);
   align-items: start;
   grid-auto-rows: auto;
-  margin-bottom: 5px;
+  margin-bottom: 0;
   flex: 1;
   /* Keep the splitter track spanning the full desktop workspace even with short content. */
   min-height: var(--ai-shell-column-max-height);

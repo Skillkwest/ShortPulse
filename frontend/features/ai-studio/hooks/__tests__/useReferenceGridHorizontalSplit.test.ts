@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useReferenceGridHorizontalSplit } from "../useReferenceGridHorizontalSplit";
 
@@ -141,11 +142,12 @@ describe("useReferenceGridHorizontalSplit", () => {
 
     const beforeRatio = result.current.topRatio;
     act(() => {
-      result.current.dividerProps.onKeyDown?.({
+      const keyDownEvent = {
         key: "ArrowDown",
         shiftKey: false,
         preventDefault: vi.fn(),
-      } as any);
+      } as unknown as ReactKeyboardEvent<HTMLDivElement>;
+      result.current.dividerProps.onKeyDown?.(keyDownEvent);
     });
 
     expect(result.current.topRatio).toBeCloseTo(beforeRatio, 3);

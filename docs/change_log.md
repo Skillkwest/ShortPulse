@@ -2806,3 +2806,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Removed generated placeholder style cards from the shared style catalog so both the primary Styles Library and right-rail Styles panel now show only loaded, selectable styles.
 - Added a persistent trailing `+` card in the primary Styles Library; clicking it appends a new placeholder style card directly before the `+` card.
 - Added drag-and-drop reordering for primary Styles Library cards so users can rearrange style-card positions directly in the grid.
+
+## 2026-03-09 (AI Studio primary Presets Library modal editing)
+- Updated primary Presets Library cards so clicking a preset opens a modal editor for preset name + prompt text.
+- Added save/cancel modal workflow with required-field validation, Escape/outside-close handling, and save error feedback.
+- Wired Presets Library save actions into shared preset overrides so renamed/edited presets immediately reflect across the resolved preset catalog.
+- Expanded preset override normalization to accept canonical preset IDs (not only `custom_*`), enabling edits for both base and custom preset cards with existing per-user preference persistence.
+- Added focused tests for Presets Library modal editing and preset override normalization behavior.
+- Re-seeded all default `Custom 1..18` preset prompt bodies to a shared editable placeholder so new/unaltered custom presets start as blank cookie-cutter templates.
+- Updated primary Presets Library tile chrome so the `CUSTOM` pill hides once a custom preset has any saved override state.

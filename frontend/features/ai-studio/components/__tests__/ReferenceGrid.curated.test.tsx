@@ -237,8 +237,8 @@ describe("ReferenceGrid curated split", () => {
       within(allRefsSection as HTMLElement).getByRole("button", { name: /add files/i })
     ).toBeInTheDocument();
     expect(
-      within(allRefsSection as HTMLElement).getByRole("button", { name: /media library/i })
-    ).toBeInTheDocument();
+      within(allRefsSection as HTMLElement).queryByRole("button", { name: /media library/i })
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the primary pending output on spinner visuals after timeout fallback kicks in", () => {
@@ -1444,7 +1444,7 @@ describe("ReferenceGrid curated split", () => {
     expect(allRefsSection.classList.contains("is-inventory-expanded")).toBe(true);
   });
 
-  it("hides add-files and media-library actions when lower divider is at inventory-expanded bottom", () => {
+  it("hides add-files action when lower divider is at inventory-expanded bottom", () => {
     const { container, getByText } = render(<ReferenceGrid {...createProps()} />);
     const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
     expect(panel).toBeTruthy();
@@ -1463,13 +1463,10 @@ describe("ReferenceGrid curated split", () => {
     });
 
     expect(container.querySelector(".reference-grid-add-files-btn")).toBeTruthy();
-    expect(container.querySelector(".reference-grid-media-library-btn")).toBeTruthy();
-
     fireEvent.pointerDown(getByText("Inventory ↓"));
     fireEvent.click(getByText("Inventory ↓"));
 
     expect(container.querySelector(".reference-grid-add-files-btn")).toBeNull();
-    expect(container.querySelector(".reference-grid-media-library-btn")).toBeNull();
   });
 
   it("snaps split toward all refs when clicking the all-refs divider pill", () => {
@@ -1541,6 +1538,93 @@ describe("ReferenceGrid curated split", () => {
     expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(true);
   });
 
+  it("hides quick slot internals when the top and middle dividers are near-collapsed", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    const divider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(panel).toBeTruthy();
+    expect(curatedSection).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.keyDown(divider, { key: "Home" });
+    expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(true);
+
+    fireEvent.keyDown(divider, { key: "ArrowDown" });
+    expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(false);
+    expect(curatedSection.classList.contains("is-divider-near-collapsed")).toBe(true);
+  });
+
+  it("hides quick slot internals when quick-slot/styles divider is near-collapsed", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          panelVisibility: {
+            canvas: true,
+            quickSlot: true,
+            referenceGrid: false,
+            styles: true,
+          },
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    const divider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Styles sections",
+    });
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(panel).toBeTruthy();
+    expect(curatedSection).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.keyDown(divider, { key: "Home" });
+    expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(true);
+
+    fireEvent.keyDown(divider, { key: "ArrowDown" });
+    expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(false);
+    expect(curatedSection.classList.contains("is-divider-near-collapsed")).toBe(true);
+  });
+
   it("renders a rail canvas section with a dedicated top divider", () => {
     const { container, getByRole, getByText } = render(
       <ReferenceGrid
@@ -1609,9 +1693,11 @@ describe("ReferenceGrid curated split", () => {
     expect(
       getByRole("separator", { name: "Resize Quick Slot Inventory and Reference Grid sections" })
     ).toBeInTheDocument();
-    expect(
-      getByRole("separator", { name: "Resize Reference Grid and Styles sections" })
-    ).toBeInTheDocument();
+    const stylesDivider = getByRole("separator", {
+      name: "Resize Reference Grid and Styles sections",
+    });
+    expect(stylesDivider).toBeInTheDocument();
+    expect(stylesDivider).toHaveAttribute("aria-valuenow", "30");
     expect(container.querySelector(".reference-curated-header.is-title-hidden")).toBeTruthy();
     expect(container.querySelector(".reference-all-refs-header.is-title-hidden")).toBeTruthy();
     expect(container.querySelector(".reference-styles-header.is-title-hidden")).toBeTruthy();
@@ -1881,6 +1967,43 @@ describe("ReferenceGrid curated split", () => {
       Number(divider.getAttribute("aria-valuemax"))
     );
     expect(railSection.classList.contains("is-inventory-expanded")).toBe(true);
+  });
+
+  it("hides canvas internals when the top canvas divider is near-collapsed", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const divider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    const railSection = container.querySelector(".reference-rail-canvas-section") as HTMLElement;
+    expect(panel).toBeTruthy();
+    expect(railSection).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.keyDown(divider, { key: "Home" });
+    expect(railSection.classList.contains("is-inventory-expanded")).toBe(true);
+
+    fireEvent.keyDown(divider, { key: "ArrowDown" });
+    expect(railSection.classList.contains("is-inventory-expanded")).toBe(false);
+    expect(railSection.classList.contains("is-divider-near-collapsed")).toBe(true);
   });
 
   it("keeps lower divider clamped to its bounds while dragging top divider downward", () => {
@@ -2467,7 +2590,6 @@ describe("ReferenceGrid curated split", () => {
     fireEvent.click(getByText("Styles ↑"));
 
     expect(queryByText("Add files")).toBeNull();
-    expect(queryByText("Media Library")).toBeNull();
     expect(getByText("Photorealistic")).toBeInTheDocument();
     expect(getByText("Cinematic")).toBeInTheDocument();
   });

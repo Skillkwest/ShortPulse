@@ -2,6 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent, type AiStudioPageContentProps } from "../AiStudioPageContent";
+import { EDIT_PRESET_SURFACE_PRESET_IDS } from "../edit/expertEditPresets";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -477,13 +478,15 @@ describe("AiStudioPageContent right column drop router", () => {
     render(<AiStudioPageContent {...createProps({ selectedTool: "presets" })} />);
 
     expect(screen.getByTestId("presets-library-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("presets-library-count")).toHaveTextContent("27");
+    expect(screen.getByTestId("presets-library-count")).toHaveTextContent(
+      String(EDIT_PRESET_SURFACE_PRESET_IDS.length)
+    );
     expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
     expect(screen.getByTestId("reference-grid")).toBeInTheDocument();
     expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
   });
 
-  it("hydrates the presets library from expert edit custom overrides and stays browse-only", () => {
+  it("hydrates the presets library from expert edit custom overrides without mutating prompt on card click", () => {
     const onPromptTextChange = vi.fn();
     render(
       <AiStudioPageContent

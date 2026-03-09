@@ -301,7 +301,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `media_autosave_enabled` (boolean, default `true`): AI Studio autosave policy toggle used by client autosave orchestration and server recovery enforcement.
 - `expert_edit_preset_panel_labels` (text[], default `{'Selfie','Side Profile','Enhance Realism'}`): Persistent per-user Expert Edit preset panel chip allocation (max 11 labels enforced by client normalization).
 - `expert_edit_preset_panel_ids` (text[], default `{'selfie','side_profile','enhance_realism'}`): Canonical per-user Expert Edit preset panel allocation stored by preset ID (max 11 IDs enforced by client normalization).
-- `expert_edit_custom_presets` (jsonb, default `{}`): Per-user override map for editable custom presets (`custom_1..custom_18`) storing `{ label, prompt }` values.
+- `expert_edit_custom_presets` (jsonb, default `{}`): Per-user preset override map keyed by canonical preset id (`selfie`, `side_profile`, `custom_1..custom_18`, etc.) storing `{ label, prompt }` values.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
 - `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing editable `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - `created_at` (timestamptz, default now)

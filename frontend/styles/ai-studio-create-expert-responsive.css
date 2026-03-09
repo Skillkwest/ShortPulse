@@ -1,7 +1,7 @@
 @media (max-width: 900px) {
   .create-expert-panel--no-history .create-expert-empty-state-shell {
-    padding-block-start: clamp(34px, 8vh, 84px);
-    padding-block-end: clamp(14px, 4vh, 36px);
+    padding-block-start: clamp(30px, 7.5vh, 78px);
+    padding-block-end: clamp(18px, 4.5vh, 42px);
   }
 
   .create-expert-ready-text {

@@ -18,6 +18,10 @@ type HorizontalSplitViewModel = {
 };
 const STYLES_REFERENCE_GRID_UPLOAD_HIDE_BUFFER_PX = 120;
 const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 24;
+const QUICK_SLOT_COLLAPSE_TOP_HEIGHT_PX = 24;
+const QUICK_SLOT_HIDE_CONTENT_BUFFER_PX = 44;
+const CANVAS_COLLAPSE_TOP_HEIGHT_PX = 24;
+const CANVAS_HIDE_CONTENT_BUFFER_PX = 44;
 
 type ReferenceGridSectionsProps = {
   isCuratedSplitEnabled: boolean;
@@ -139,6 +143,21 @@ export function ReferenceGridSections({
   const showQuickSlotStylesDivider =
     showStylesSection && showQuickSlotSection && !showReferenceGridSection;
   const showStylesInventoryDivider = showStylesReferenceDivider || showQuickSlotStylesDivider;
+  const isQuickSlotNearCollapsedForReferenceGrid =
+    showQuickSlotReferenceDivider &&
+    horizontalSplit.topSectionHeightPx > 0 &&
+    horizontalSplit.topSectionHeightPx <=
+      QUICK_SLOT_COLLAPSE_TOP_HEIGHT_PX + QUICK_SLOT_HIDE_CONTENT_BUFFER_PX;
+  const isQuickSlotNearCollapsedForStyles =
+    showQuickSlotStylesDivider &&
+    stylesSplit.topSectionHeightPx > 0 &&
+    stylesSplit.topSectionHeightPx <=
+      QUICK_SLOT_COLLAPSE_TOP_HEIGHT_PX + QUICK_SLOT_HIDE_CONTENT_BUFFER_PX;
+  const isQuickSlotNearCollapsed =
+    isQuickSlotNearCollapsedForReferenceGrid || isQuickSlotNearCollapsedForStyles;
+  const isQuickSlotAllRefsExpanded =
+    (showQuickSlotReferenceDivider && horizontalSplit.isAllRefsExpanded) ||
+    (showQuickSlotStylesDivider && stylesSplit.isAllRefsExpanded);
   const isReferenceGridNearCollapsedForStyles =
     showStylesReferenceDivider &&
     stylesSplit.topSectionHeightPx > 0 &&
@@ -193,6 +212,12 @@ export function ReferenceGridSections({
   const showTopStylesHeaderDivider = showTopHeaderDivider && topVisiblePanel === "styles";
   const hideReferenceGridUploadActions =
     allRefsInventoryExpanded || isReferenceGridCollapsedForStyles;
+  const isCanvasNearCollapsedForInventory =
+    showCanvasInventoryDivider &&
+    railCanvasSplit.topSectionHeightPx > 0 &&
+    railCanvasSplit.topSectionHeightPx <=
+      CANVAS_COLLAPSE_TOP_HEIGHT_PX + CANVAS_HIDE_CONTENT_BUFFER_PX;
+  const isCanvasInventoryExpanded = showCanvasInventoryDivider && railCanvasSplit.isAllRefsExpanded;
   const showEmptyState = !showRailCanvasSection && !hasInventorySections;
   return (
     <>
@@ -201,7 +226,13 @@ export function ReferenceGridSections({
           <>
             <div
               ref={railCanvasSectionRef}
-              className={`reference-rail-canvas-section${showCanvasInventoryDivider && railCanvasSplit.isAllRefsExpanded ? " is-inventory-expanded" : ""}`}
+              className={`reference-rail-canvas-section${
+                isCanvasInventoryExpanded ? " is-inventory-expanded" : ""
+              }${
+                isCanvasNearCollapsedForInventory && !isCanvasInventoryExpanded
+                  ? " is-divider-near-collapsed"
+                  : ""
+              }`}
               style={showCanvasInventoryDivider ? railCanvasSplit.topSectionStyle : undefined}
             >
               <div
@@ -275,10 +306,11 @@ export function ReferenceGridSections({
               <>
                 <div
                   ref={curatedSectionRef}
-                  className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}${
-                    (showQuickSlotReferenceDivider && horizontalSplit.isAllRefsExpanded) ||
-                    (showQuickSlotStylesDivider && stylesSplit.isAllRefsExpanded)
-                      ? " is-all-refs-expanded"
+                  className={`reference-curated-section${
+                    isCuratedDropActive ? " is-drop-active" : ""
+                  }${isQuickSlotAllRefsExpanded ? " is-all-refs-expanded" : ""}${
+                    isQuickSlotNearCollapsed && !isQuickSlotAllRefsExpanded
+                      ? " is-divider-near-collapsed"
                       : ""
                   }`}
                   style={

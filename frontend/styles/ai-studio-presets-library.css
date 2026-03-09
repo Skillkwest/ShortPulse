@@ -50,8 +50,8 @@
 
 .presets-library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 12px;
   padding-top: 10px;
 }
 
@@ -59,11 +59,12 @@
   border: 1px solid rgba(201, 205, 214, 0.18);
   border-radius: 12px;
   background: rgba(201, 205, 214, 0.04);
-  padding: 10px;
+  min-height: 126px;
+  padding: 12px;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
   text-align: left;
   cursor: pointer;
   transition:
@@ -95,32 +96,118 @@
 
 .presets-library-tile-title {
   color: rgba(238, 242, 248, 0.94);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .presets-library-custom-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 6px;
+  padding: 3px 7px;
   border-radius: 999px;
   border: 1px solid rgba(201, 205, 214, 0.22);
   background: rgba(201, 205, 214, 0.08);
   color: rgba(215, 222, 235, 0.86);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .presets-library-tile-prompt {
   color: rgba(201, 205, 214, 0.9);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 1.46;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.presets-library-edit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 12, 0.58);
+}
+
+.presets-library-edit-modal {
+  width: min(580px, calc(100vw - 20px));
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: #131518;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: inherit;
+}
+
+.presets-library-edit-title {
+  margin: 0;
+  color: rgba(235, 241, 248, 0.96);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.presets-library-edit-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.presets-library-edit-label {
+  color: rgba(229, 234, 242, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.presets-library-edit-input,
+.presets-library-edit-textarea {
+  width: 100%;
+  border-radius: 9px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: #101215;
+  color: rgba(238, 242, 248, 0.95);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 11px 12px;
+  font-family: inherit;
+}
+
+.presets-library-edit-input:focus-visible,
+.presets-library-edit-textarea:focus-visible {
+  outline: 2px solid rgba(105, 198, 255, 0.7);
+  outline-offset: 1px;
+}
+
+.presets-library-edit-textarea {
+  min-height: 156px;
+  resize: vertical;
+}
+
+.presets-library-edit-error {
+  margin: 0;
+  color: rgba(255, 142, 142, 0.94);
+}
+
+.presets-library-edit-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.presets-library-edit-action-btn {
+  min-width: 106px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
 }

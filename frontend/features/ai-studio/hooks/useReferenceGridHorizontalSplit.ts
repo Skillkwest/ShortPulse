@@ -325,6 +325,8 @@ export const useReferenceGridHorizontalSplit = ({
     if (!enabled) return;
     const height = resolveContainerHeight();
     if (!height) return;
+    // Keep this synchronous so ratio/height state is settled before first paint and resize tests.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     reconcileTopRatioForContainerHeight(height);
   }, [enabled, reconcileTopRatioForContainerHeight, resolveContainerHeight]);
 

@@ -165,6 +165,10 @@ vi.mock("../PresetsLibraryPanel", () => ({
   ),
 }));
 
+vi.mock("../MediaLibraryPanel", () => ({
+  MediaLibraryPanel: () => <div data-testid="media-library-panel" />,
+}));
+
 vi.mock("../VideoPropertiesPanel", () => ({
   VideoPropertiesPanel: () => <div data-testid="video-properties" />,
 }));
@@ -249,6 +253,8 @@ const createProps = (
   onDetailClose: vi.fn(),
   onUpdateOutputPrompt: vi.fn(),
   onDeleteOutput: vi.fn(),
+  onAddLibraryMediaReference: vi.fn(),
+  onAddLibraryPromptReference: vi.fn(),
   modelModalState: {
     isOpen: false,
     position: null,
@@ -496,6 +502,9 @@ describe("AiStudioPageContent right column drop router", () => {
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "presets" })} />);
     expect(screen.getByTestId("presets-library-panel")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "media-library" })} />);
+    expect(screen.getByTestId("media-library-panel")).toBeInTheDocument();
   });
 
   it("renders the primary styles panel for styles tool without coming-soon card", () => {

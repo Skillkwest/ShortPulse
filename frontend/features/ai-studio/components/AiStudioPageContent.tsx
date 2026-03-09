@@ -21,6 +21,7 @@ import { CanvasPropertiesPanel } from "./canvas/CanvasPropertiesPanel";
 import { StylesLibraryPanel } from "./StylesLibraryPanel";
 import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
+import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
@@ -72,6 +73,10 @@ import {
   type ExpertEditPresetId,
   type ExpertEditPresetOverride,
 } from "./edit/expertEditPresets";
+import {
+  readMediaLibraryDragPayload,
+  getMediaLibraryDragTypes,
+} from "../logic/mediaLibraryDragPayload";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -123,11 +128,30 @@ const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
+type LibraryMediaReferencePayload = {
+  id: string;
+  url: string;
+  fileType: "image" | "video";
+  filename?: string | null;
+  promptText?: string | null;
+  source?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  previewUrl?: string | null;
+  fullUrl?: string | null;
+};
+type LibraryPromptReferencePayload = {
+  id: string;
+  promptText: string;
+  title?: string | null;
+};
 type RightColumnDropPayload =
   | { kind: "none" }
   | { kind: "internal" }
   | { kind: "files"; files: FileList }
   | { kind: "media"; reference: PastedMediaReference }
+  | { kind: "libraryMedia"; payload: LibraryMediaReferencePayload }
+  | { kind: "libraryPrompt"; payload: LibraryPromptReferencePayload }
   | { kind: "text"; text: string };
 
 const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
@@ -223,8 +247,10 @@ const resolveRightColumnDropMode = (
 ): RightColumnDropMode => {
   if (!transfer) return "none";
   const types = Array.from(transfer.types || []).map((type) => type.toLowerCase());
+  const libraryDragTypes = getMediaLibraryDragTypes().map((type) => type.toLowerCase());
   const fileCount = transfer.files?.length ?? 0;
   const hasFileType = types.includes("files");
+  const hasLibraryDragType = libraryDragTypes.some((type) => types.includes(type));
   const hasMediaUrlHints =
     types.includes("text/reference-url") ||
     types.includes("text/uri-list") ||
@@ -237,6 +263,7 @@ const resolveRightColumnDropMode = (
       type.includes("utf8")
   );
   if (types.includes("text/reference-id")) return "none";
+  if (hasLibraryDragType) return "media";
   if (fileCount > 0) return "media";
   if (hasMediaUrlHints) return "media";
   if (hasTextLikeType) return "text";
@@ -249,6 +276,13 @@ const resolveRightColumnDropMode = (
 
 const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropPayload => {
   if (transfer.getData("text/reference-id")) return { kind: "internal" };
+  const mediaLibraryDragPayload = readMediaLibraryDragPayload(transfer);
+  if (mediaLibraryDragPayload?.kind === "libraryMedia") {
+    return { kind: "libraryMedia", payload: mediaLibraryDragPayload.payload };
+  }
+  if (mediaLibraryDragPayload?.kind === "libraryPrompt") {
+    return { kind: "libraryPrompt", payload: mediaLibraryDragPayload.payload };
+  }
   const droppedFiles = transfer.files;
   if (droppedFiles && droppedFiles.length > 0) {
     return { kind: "files", files: droppedFiles };
@@ -467,6 +501,8 @@ export type AiStudioPageContentProps = {
   onDeleteOutput: (id: string) => void;
   onDetailDownload?: (id: string) => void;
   onDetailSavePrompt?: (promptText: string) => void;
+  onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
+  onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   onOpenMediaLibrary?: () => void;
   modelModalState: {
     isOpen: boolean;
@@ -526,6 +562,8 @@ export function AiStudioPageContent({
   onDeleteOutput,
   onDetailDownload,
   onDetailSavePrompt,
+  onAddLibraryMediaReference,
+  onAddLibraryPromptReference,
   onOpenMediaLibrary,
   modelModalState,
   agentChat,
@@ -944,6 +982,15 @@ export function AiStudioPageContent({
           deleteError={stylesDeleteError}
         />
       ),
+      "media-library":
+        onAddLibraryMediaReference && onAddLibraryPromptReference ? (
+          <MediaLibraryPanel
+            onSelectMedia={onAddLibraryMediaReference}
+            onSelectPrompt={onAddLibraryPromptReference}
+          />
+        ) : (
+          <p className="tiny subdued">Media Library panel is unavailable.</p>
+        ),
       none: null,
     }),
     [
@@ -968,6 +1015,8 @@ export function AiStudioPageContent({
       deleteStyleId,
       stylesDeleteError,
       visibleStylesCatalog,
+      onAddLibraryMediaReference,
+      onAddLibraryPromptReference,
     ]
   );
   const resolvePanelFromRegistry = React.useCallback(
@@ -987,7 +1036,6 @@ export function AiStudioPageContent({
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
       showBeginnerModeToggle={showBeginnerModeToggle}
-      onOpenMediaLibrary={onOpenMediaLibrary}
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onBeginnerModeChange={onBeginnerModeChange}
@@ -998,7 +1046,6 @@ export function AiStudioPageContent({
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
       showBeginnerModeToggle={showBeginnerModeToggle}
-      onOpenMediaLibrary={onOpenMediaLibrary}
       onSelectTool={onSelectTool}
       onToggleCreateTools={onToggleCreateTools}
       onToggleBeginnerMode={onBeginnerModeChange}
@@ -1020,6 +1067,8 @@ export function AiStudioPageContent({
     resolveDropPayload: (transfer) => resolveRightColumnDropPayload(transfer),
     onDropFiles: resolvedHandleReferenceGridFiles,
     onDropMediaReference: resolvedReferenceGridPropsWithStylesPanel.onPasteMediaReference,
+    onDropLibraryMediaReference: onAddLibraryMediaReference,
+    onDropLibraryPromptReference: onAddLibraryPromptReference,
     onDropTextReference: resolvedReferenceGridPropsWithStylesPanel.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
     shouldBypassCapture: (event, context) => {

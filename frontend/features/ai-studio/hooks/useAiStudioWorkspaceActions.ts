@@ -10,6 +10,9 @@ import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isCreateWorkflow, normalizeToolId } from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
 
+const MEDIA_LIBRARY_PANEL_ENABLED =
+  process.env.NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED !== "false";
+
 type UseAiStudioWorkspaceActionsParams = {
   selectedTool: ToolId | null;
   setSelectedTool: (tool: ToolId | null) => void;
@@ -101,9 +104,17 @@ export const useAiStudioWorkspaceActions = ({
 
   const handleToolSelect = useCallback(
     (tool: ToolId | null) => {
+      if (tool === "media-library" && !MEDIA_LIBRARY_PANEL_ENABLED) {
+        setShowCreateTools(false);
+        setIsMediaLibraryOpen(true);
+        return;
+      }
       const normalizedTool = normalizeToolId(tool);
       const nextTool = normalizedTool ?? tool ?? null;
       setSelectedTool(nextTool);
+      if (isMediaLibraryOpen) {
+        setIsMediaLibraryOpen(false);
+      }
       if (isCreateWorkflow(nextTool) || nextTool === "edit") {
         setMode("image");
       }
@@ -111,12 +122,12 @@ export const useAiStudioWorkspaceActions = ({
         setShowCreateTools(false);
       }
     },
-    [setMode, setSelectedTool, setShowCreateTools]
+    [isMediaLibraryOpen, setMode, setSelectedTool, setShowCreateTools]
   );
 
   const handleOpenMediaLibrary = useCallback(() => {
-    setIsMediaLibraryOpen(true);
-  }, []);
+    handleToolSelect("media-library");
+  }, [handleToolSelect]);
 
   const handleCloseMediaLibrary = useCallback(() => {
     setIsMediaLibraryOpen(false);
@@ -153,6 +164,7 @@ export const useAiStudioWorkspaceActions = ({
 
   return {
     isMediaLibraryOpen,
+    isMediaLibraryPanelEnabled: MEDIA_LIBRARY_PANEL_ENABLED,
     handleOpenModelModal,
     handleSelectModelFromModal,
     handleManualPromptChange,

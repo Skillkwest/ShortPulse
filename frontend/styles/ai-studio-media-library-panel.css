@@ -1,0 +1,200 @@
+.media-library-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 10px;
+}
+
+.media-library-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.media-library-panel-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media-library-panel-type-filter {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.media-library-panel-filter-pill {
+  border: 1px solid rgba(90, 130, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(7, 16, 44, 0.55);
+  color: rgba(229, 238, 255, 0.9);
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 10px;
+}
+
+.media-library-panel-filter-pill.is-active {
+  border-color: rgba(96, 221, 255, 0.7);
+  background: linear-gradient(135deg, rgba(21, 125, 255, 0.42), rgba(35, 218, 255, 0.34));
+  color: #f4f8ff;
+}
+
+.media-library-panel-search .search-input {
+  width: 100%;
+}
+
+.media-library-panel-folders {
+  border: 1px solid rgba(116, 164, 255, 0.2);
+  background: rgba(8, 14, 37, 0.5);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media-library-panel-folders-head {
+  display: flex;
+  align-items: center;
+}
+
+.media-library-panel-folders-head .tiny {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.media-library-panel-folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.media-library-panel-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.media-library-panel-folder-btn {
+  flex: 1;
+  border: 1px solid rgba(109, 150, 238, 0.2);
+  border-radius: 9px;
+  background: rgba(14, 23, 58, 0.6);
+  color: rgba(234, 241, 255, 0.9);
+  font-size: 12px;
+  line-height: 1;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.media-library-panel-folder-btn.is-active {
+  border-color: rgba(93, 229, 255, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(93, 229, 255, 0.32);
+  background: linear-gradient(120deg, rgba(14, 60, 162, 0.56), rgba(13, 99, 132, 0.54));
+}
+
+.media-library-panel-folder-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.media-library-panel-folder-actions button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(106, 145, 228, 0.26);
+  border-radius: 8px;
+  background: rgba(8, 15, 42, 0.64);
+  color: rgba(222, 234, 255, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-library-panel-folder-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(104, 145, 235, 0.28);
+  border-radius: 8px;
+  background: rgba(6, 12, 32, 0.72);
+  color: #edf4ff;
+  font-size: 12px;
+  line-height: 1;
+  padding: 7px 9px;
+}
+
+.media-library-panel-folder-create-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.media-library-panel-folder-create-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(98, 210, 255, 0.38);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(14, 84, 214, 0.55), rgba(14, 145, 176, 0.5));
+  color: #f2f8ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-library-panel-membership-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.media-library-panel-folder-select {
+  border: 1px solid rgba(104, 145, 232, 0.25);
+  border-radius: 8px;
+  background: rgba(8, 14, 34, 0.7);
+  color: rgba(228, 237, 255, 0.92);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 9px;
+}
+
+.media-library-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 2px;
+}
+
+.media-library-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media-library-panel-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.media-library-panel-section .media-library-prompt-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.media-library-panel-section .media-library-modal-grid.media-library-modal-grid-packed {
+  --media-library-modal-preview-width: 188px;
+}
+
+.media-library-panel-footer {
+  border-top: 1px solid rgba(103, 147, 234, 0.16);
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}

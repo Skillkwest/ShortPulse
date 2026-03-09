@@ -20,7 +20,13 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
 | `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
-| `/api/media/list` | `POST` | Bearer (proxy + route) | Server-authoritative media listing with tab filtering, keyset pagination, and optional first-slice signed-preview hydration. | `frontend/pages/api/media/list.ts`, `frontend/features/media-library/logic/mediaQueryModel.ts` |
+| `/api/media/list` | `POST` | Bearer (proxy + route) | Server-authoritative media listing with tab or media-kind filtering, optional folder filter, keyset pagination, and optional first-slice signed-preview hydration. | `frontend/pages/api/media/list.ts`, `frontend/features/media-library/logic/mediaQueryModel.ts` |
+| `/api/media/prompts/list` | `POST` | Bearer (proxy + route) | Server-authoritative prompt listing for AI Studio Media Library panel with folder-aware keyset pagination and search. | `frontend/pages/api/media/prompts/list.ts` |
+| `/api/media/folders/list` | `GET` | Bearer (proxy + route) | List authenticated user custom Media Library folders. | `frontend/pages/api/media/folders/list.ts`, `frontend/lib/server/mediaFoldersService.ts` |
+| `/api/media/folders/create` | `POST` | Bearer (proxy + route) | Create a custom Media Library folder (trimmed, bounded name validation, per-user uniqueness). | `frontend/pages/api/media/folders/create.ts`, `frontend/lib/server/mediaFoldersService.ts` |
+| `/api/media/folders/rename` | `POST` | Bearer (proxy + route) | Rename a user-owned custom Media Library folder. | `frontend/pages/api/media/folders/rename.ts`, `frontend/lib/server/mediaFoldersService.ts` |
+| `/api/media/folders/delete` | `POST` | Bearer (proxy + route) | Delete a user-owned custom Media Library folder; media/prompt memberships are removed, media rows remain intact. | `frontend/pages/api/media/folders/delete.ts`, `frontend/lib/server/mediaFoldersService.ts` |
+| `/api/media/folders/membership-batch` | `POST` | Bearer (proxy + route) | Batch assign/unassign user-owned media/prompt ids for one custom folder. Rejects cross-user ids. | `frontend/pages/api/media/folders/membership-batch.ts`, `frontend/lib/server/mediaFoldersService.ts` |
 | `/api/media/upload` | `POST` multipart/raw | Bearer (proxy + route) | Server-authoritative Media Library upload path. Validates destination + file signature, stores scoped object, inserts `media_files`, and returns signed preview metadata. | `frontend/pages/api/media/upload.ts`, `frontend/lib/server/mediaUploadService.ts` |
 | `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
@@ -115,6 +121,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - Media list/runtime rollout flags:
   - `SHORTPULSE_MEDIA_LIST_API_ENABLED` (`true` by default; disables `/api/media/list` when `false`)
   - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED` (client migration gate for route/modal list API usage)
+  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED` (`true` by default; set `false` to fallback AI Studio media-library opens to the legacy modal path instead of the left-panel tool)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED` (client virtualization gate for route/modal media grids)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED` (client autoplay budget gate for route/modal media grids)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED` (client sign-prefetch gate for route/modal signing passes)

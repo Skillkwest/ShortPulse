@@ -4,12 +4,13 @@
 import type { ToolId, WorkflowId } from "../types";
 import { resolveWorkflowId } from "./workflowIdentity";
 
-export type PropertiesPanelKind = WorkflowId | "styles" | "presets";
+export type PropertiesPanelKind = WorkflowId | "styles" | "presets" | "media-library";
 
 /**
  * Resolves which left-side properties panel should be rendered for a given tool.
  */
 export const resolvePropertiesPanelKind = (selectedTool: ToolId | null): PropertiesPanelKind => {
+  if (selectedTool === "media-library") return "media-library";
   if (selectedTool === "styles") return "styles";
   if (selectedTool === "presets") return "presets";
   return resolveWorkflowId(selectedTool);

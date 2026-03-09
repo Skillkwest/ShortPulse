@@ -18,6 +18,7 @@ const FALLBACK_PROMPT_ORIGIN = "manual" as const;
 
 const TOOL_IDS = new Set<ToolId>([
   "create",
+  "media-library",
   "workflows",
   "presets",
   "styles",

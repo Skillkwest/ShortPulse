@@ -45,6 +45,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Beginner Edit remains legacy and intact as fallback behavior.
 - Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` forces legacy Edit panel.
 - Chat mode control is hidden/off in Expert Edit; inline Generate remains the primary action.
+- `Libraries -> Media Library` is a first-class left-panel tool (`media-library`) in AI Studio and no longer modal-only by default. Runtime fallback: set `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` to restore the legacy modal open path during rollback.
 - `Shortcuts -> Presets` opens a primary left-panel Presets Library sourced from the Expert Edit preset catalog with `Custom 1`, `Custom 2`, and `Custom 3` placeholder tiles (including overrides) plus a full-size `Create New Preset` tile, keeps the right rail visible, supports modal create/edit for preset name + prompt text, and provides per-tile delete confirmation for permanent preset removal.
 
 ## Canvas interaction guardrails

@@ -1265,6 +1265,7 @@ export default function AiStudioPage() {
   const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
   const {
     isMediaLibraryOpen,
+    isMediaLibraryPanelEnabled,
     handleOpenModelModal,
     handleSelectModelFromModal,
     handleManualPromptChange,
@@ -1292,6 +1293,12 @@ export default function AiStudioPage() {
     addOutputsFromFiles,
     setActiveOutputId,
   });
+
+  useEffect(() => {
+    if (isMediaLibraryPanelEnabled) return;
+    if (selectedTool !== "media-library") return;
+    setSelectedTool(null);
+  }, [isMediaLibraryPanelEnabled, selectedTool, setSelectedTool]);
 
   const {
     isGenerateClickLocked,
@@ -1648,6 +1655,8 @@ export default function AiStudioPage() {
         onDeleteOutput={onDeleteOutput}
         onDetailDownload={onDetailDownload}
         onDetailSavePrompt={onDetailSavePrompt}
+        onAddLibraryMediaReference={addLibraryMediaReference}
+        onAddLibraryPromptReference={addLibraryPromptReference}
         onOpenMediaLibrary={onOpenMediaLibrary}
         modelModalState={{
           isOpen: isModelModalOpen,
@@ -1692,12 +1701,14 @@ export default function AiStudioPage() {
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}
       />
-      <MediaLibraryModal
-        isOpen={isMediaLibraryOpen}
-        onClose={handleCloseMediaLibrary}
-        onSelectMedia={(payload) => addLibraryMediaReference(payload)}
-        onSelectPrompt={(payload) => addLibraryPromptReference(payload)}
-      />
+      {!isMediaLibraryPanelEnabled ? (
+        <MediaLibraryModal
+          isOpen={isMediaLibraryOpen}
+          onClose={handleCloseMediaLibrary}
+          onSelectMedia={(payload) => addLibraryMediaReference(payload)}
+          onSelectPrompt={(payload) => addLibraryPromptReference(payload)}
+        />
+      ) : null}
     </>
   );
 }

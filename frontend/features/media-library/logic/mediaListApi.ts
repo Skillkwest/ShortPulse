@@ -2,6 +2,7 @@ import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { normalizeMediaSearchTerm } from "./mediaQueryModel";
 
 export type MediaListTab = "uploaded_images" | "uploaded_videos" | "private" | "ai_generations";
+export type MediaListMediaKind = "all" | "images" | "videos";
 
 export type MediaListSurface = "media-library-route" | "media-library-modal";
 
@@ -18,11 +19,13 @@ type MediaListResponse<TRow> = {
 };
 
 type FetchMediaListPageArgs = {
-  tab: MediaListTab;
+  tab?: MediaListTab | null;
   query: string;
   cursor: MediaListCursor | null;
   limit: number;
   surface: MediaListSurface;
+  folderId?: string | null;
+  mediaKind?: MediaListMediaKind | null;
   fetcher?: typeof fetchWithAuth;
 };
 
@@ -67,6 +70,8 @@ export const fetchMediaListPage = async <TRow>({
   cursor,
   limit,
   surface,
+  folderId,
+  mediaKind,
   fetcher = fetchWithAuth,
 }: FetchMediaListPageArgs): Promise<FetchMediaListPageResult<TRow>> => {
   try {
@@ -76,11 +81,13 @@ export const fetchMediaListPage = async <TRow>({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        tab,
+        tab: tab ?? undefined,
         query: normalizeMediaSearchTerm(query),
         cursor,
         limit: clampLimit(surface, limit),
         surface,
+        folderId: typeof folderId === "string" && folderId.trim() ? folderId.trim() : undefined,
+        mediaKind: mediaKind ?? undefined,
       }),
       shortpulseLogScope: "app",
     }).catch(() => null);

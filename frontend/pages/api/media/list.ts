@@ -13,8 +13,13 @@ import {
   withMediaTabFilter,
   type MediaQueryDataTab,
 } from "../../../features/media-library/logic/mediaQueryModel";
+import {
+  isCustomMediaFolderId,
+  MEDIA_LIBRARY_ROOT_FOLDER_ID,
+} from "../../../lib/server/mediaFoldersService";
 
 type MediaListSurface = "media-library-route" | "media-library-modal";
+type MediaListMediaKind = "all" | "images" | "videos";
 
 type MediaListCursor = {
   createdAt: string;
@@ -114,6 +119,19 @@ const toTab = (value: unknown): MediaQueryDataTab | null => {
   return null;
 };
 
+const toMediaKind = (value: unknown): MediaListMediaKind | null => {
+  if (value === "all" || value === "images" || value === "videos") {
+    return value;
+  }
+  return null;
+};
+
+const toFolderId = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized || null;
+};
+
 const toCursor = (value: unknown): MediaListCursor | null => {
   if (!value || typeof value !== "object") return null;
   const raw = value as { createdAt?: unknown; id?: unknown };
@@ -121,6 +139,19 @@ const toCursor = (value: unknown): MediaListCursor | null => {
   const id = typeof raw.id === "string" ? raw.id.trim() : "";
   if (!createdAt || !id) return null;
   return { createdAt, id };
+};
+
+const withMediaKindFilter = <
+  T extends {
+    ilike: (column: string, pattern: string) => T;
+  },
+>(
+  query: T,
+  mediaKind: MediaListMediaKind
+): T => {
+  if (mediaKind === "images") return query.ilike("file_type", "image%");
+  if (mediaKind === "videos") return query.ilike("file_type", "video%");
+  return query;
 };
 
 const clampLimit = (surface: MediaListSurface, value: unknown): number => {
@@ -181,11 +212,12 @@ const resolveInitialSignedById = async ({
   rows: MediaListRow[];
   userId: string;
   surface: MediaListSurface;
-  tab: MediaQueryDataTab;
+  tab: MediaQueryDataTab | null;
 }): Promise<Record<string, string | null>> => {
   const signBudget =
     surface === "media-library-modal"
-      ? (INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL[tab] ?? INITIAL_SIGN_BUDGET_BY_SURFACE[surface])
+      ? ((tab ? INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL[tab] : undefined) ??
+        INITIAL_SIGN_BUDGET_BY_SURFACE[surface])
       : INITIAL_SIGN_BUDGET_BY_SURFACE[surface];
   const seedRows = rows.slice(0, signBudget);
   if (!seedRows.length) return {};
@@ -236,6 +268,53 @@ const resolveInitialSignedById = async ({
   return signedById;
 };
 
+const resolveFolderMediaIds = async ({
+  userId,
+  folderId,
+}: {
+  userId: string;
+  folderId: string;
+}): Promise<string[] | null> => {
+  if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return null;
+  if (!isCustomMediaFolderId(folderId)) {
+    throw new Error("Invalid folder id");
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data: folderRow, error: folderError } = await supabaseAdmin
+    .from("media_folders")
+    .select("id")
+    .eq("id", folderId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (folderError) {
+    throw new Error(folderError.message || "Failed to load folder");
+  }
+  if (!folderRow) {
+    throw new Error("Folder not found");
+  }
+
+  const { data: membershipRows, error: membershipError } = await supabaseAdmin
+    .from("media_folder_media_items")
+    .select("media_file_id")
+    .eq("user_id", userId)
+    .eq("folder_id", folderId);
+  if (membershipError) {
+    throw new Error(membershipError.message || "Failed to load folder memberships");
+  }
+
+  const ids = new Set<string>();
+  for (const row of membershipRows ?? []) {
+    const mediaFileId =
+      typeof (row as { media_file_id?: unknown }).media_file_id === "string"
+        ? ((row as { media_file_id: string }).media_file_id || "").trim()
+        : "";
+    if (!mediaFileId) continue;
+    ids.add(mediaFileId);
+  }
+  return Array.from(ids);
+};
+
 /**
  * Handles user-scoped media-list pagination and optional first-slice signing.
  */
@@ -260,8 +339,10 @@ export default async function handler(
   try {
     const requestBody = asRecord(req.body);
     const tab = toTab(requestBody.tab);
+    const mediaKind = toMediaKind(requestBody.mediaKind);
     const surface = toSurface(requestBody.surface);
-    if (!tab || !surface) {
+    const folderId = toFolderId(requestBody.folderId) ?? MEDIA_LIBRARY_ROOT_FOLDER_ID;
+    if (!surface || (!tab && !mediaKind)) {
       return res.status(400).json({ error: "Invalid tab or surface" });
     }
 
@@ -270,6 +351,36 @@ export default async function handler(
     );
     const cursor = toCursor(requestBody.cursor);
     const limit = clampLimit(surface, requestBody.limit);
+    let folderMediaIds: string[] | null = null;
+    try {
+      folderMediaIds = await resolveFolderMediaIds({
+        userId: user.id,
+        folderId,
+      });
+    } catch (folderError) {
+      if (folderError instanceof Error) {
+        if (folderError.message === "Invalid folder id") {
+          return res.status(400).json({ error: "Invalid folder id" });
+        }
+        if (folderError.message === "Folder not found") {
+          return res.status(404).json({ error: "Folder not found" });
+        }
+      }
+      throw folderError;
+    }
+    if (Array.isArray(folderMediaIds) && folderMediaIds.length === 0) {
+      res.setHeader("x-shortpulse-media-list-surface", surface);
+      res.setHeader("x-shortpulse-media-list-tab", tab ?? mediaKind ?? "unknown");
+      res.setHeader("x-shortpulse-media-list-folder-id", folderId);
+      res.setHeader("x-shortpulse-media-list-row-count", "0");
+      res.setHeader("x-shortpulse-media-list-query-mode", query ? "search" : "default");
+      res.setHeader("x-shortpulse-media-list-initial-signed-count", "0");
+      return res.status(200).json({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+      });
+    }
 
     const selectColumns =
       "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
@@ -279,7 +390,14 @@ export default async function handler(
         .from("media_files")
         .select(selectColumns)
         .eq("user_id", user.id);
-      queryBuilder = withMediaTabFilter(queryBuilder, tab);
+      if (folderMediaIds) {
+        queryBuilder = queryBuilder.in("id", folderMediaIds);
+      }
+      if (mediaKind) {
+        queryBuilder = withMediaKindFilter(queryBuilder, mediaKind);
+      } else if (tab) {
+        queryBuilder = withMediaTabFilter(queryBuilder, tab);
+      }
       queryBuilder = withMediaSearchFilter(queryBuilder, query);
       return queryBuilder
         .order("created_at", { ascending: false })
@@ -336,7 +454,8 @@ export default async function handler(
     });
 
     res.setHeader("x-shortpulse-media-list-surface", surface);
-    res.setHeader("x-shortpulse-media-list-tab", tab);
+    res.setHeader("x-shortpulse-media-list-tab", tab ?? mediaKind ?? "unknown");
+    res.setHeader("x-shortpulse-media-list-folder-id", folderId);
     res.setHeader("x-shortpulse-media-list-row-count", String(rows.length));
     res.setHeader("x-shortpulse-media-list-query-mode", query ? "search" : "default");
     res.setHeader(

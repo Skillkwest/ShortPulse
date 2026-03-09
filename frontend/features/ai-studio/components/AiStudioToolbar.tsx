@@ -41,7 +41,6 @@ type AiStudioToolbarProps = {
   showCreateTools: boolean;
   beginnerMode: boolean;
   showBeginnerModeToggle?: boolean;
-  onOpenMediaLibrary?: () => void;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (show: boolean) => void;
   onToggleBeginnerMode: (enabled: boolean) => void;
@@ -51,6 +50,7 @@ type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGE
 
 const toolIcons: Record<ToolId, IconComponent> = {
   create: Sparkle,
+  "media-library": ImageSquare,
   workflows: FlowArrow,
   presets: Sliders,
   styles: Sparkle,
@@ -73,7 +73,6 @@ function AiStudioToolbarComponent({
   selectedTool,
   beginnerMode,
   showBeginnerModeToggle = true,
-  onOpenMediaLibrary,
   onSelectTool,
   onToggleCreateTools,
   onToggleBeginnerMode,
@@ -183,23 +182,15 @@ function AiStudioToolbarComponent({
         <div className="toolbar-divider" aria-hidden="true" />
         <div className="toolbar-lower">
           <p className="toolbar-section-label">Libraries</p>
-          <button
-            type="button"
-            className="toolbar-item toolbar-item-secondary"
-            onClick={() => {
-              onToggleCreateTools(false);
-              onOpenMediaLibrary?.();
-            }}
-          >
-            <ImageSquare size={18} weight="regular" />
-            <div className="toolbar-copy">
-              <span className="toolbar-label">Media Library</span>
-            </div>
-          </button>
           {librariesToolList.map((tool) => {
             const IconComponent = toolIcons[tool.id];
             const isCharacterShortcut = tool.id === "character";
-            const isActive = isCharacterShortcut ? isCharacterSelected : selectedTool === tool.id;
+            const isMediaLibraryTool = tool.id === "media-library";
+            const isActive = isCharacterShortcut
+              ? isCharacterSelected
+              : isMediaLibraryTool
+                ? selectedTool === "media-library"
+                : selectedTool === tool.id;
             return (
               <button
                 key={tool.id}
@@ -207,6 +198,11 @@ function AiStudioToolbarComponent({
                 className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
                 onClick={() => {
                   if (isCharacterShortcut && isCharacterSelected) {
+                    onToggleCreateTools(false);
+                    onSelectTool(null);
+                    return;
+                  }
+                  if (isMediaLibraryTool && isActive) {
                     onToggleCreateTools(false);
                     onSelectTool(null);
                     return;

@@ -133,8 +133,7 @@ describe("AiStudioToolbar", () => {
     expect(shortcutButtons.map((button) => button.textContent?.trim())).toEqual(["Templates"]);
   });
 
-  it("opens Media Library from the Libraries section without selecting a tool", () => {
-    const onOpenMediaLibrary = vi.fn();
+  it("routes Media Library to tool selection and closes create tools", () => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
 
@@ -143,7 +142,6 @@ describe("AiStudioToolbar", () => {
         selectedTool={null}
         showCreateTools={false}
         beginnerMode={false}
-        onOpenMediaLibrary={onOpenMediaLibrary}
         onSelectTool={onSelectTool}
         onToggleCreateTools={onToggleCreateTools}
         onToggleBeginnerMode={vi.fn()}
@@ -153,8 +151,7 @@ describe("AiStudioToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Media Library" }));
 
     expect(onToggleCreateTools).toHaveBeenCalledWith(false);
-    expect(onOpenMediaLibrary).toHaveBeenCalledTimes(1);
-    expect(onSelectTool).not.toHaveBeenCalled();
+    expect(onSelectTool).toHaveBeenCalledWith("media-library");
   });
 
   it("routes Characters clicks to canonical character selection and closes create tools", () => {

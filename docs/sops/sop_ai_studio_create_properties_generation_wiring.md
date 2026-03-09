@@ -18,7 +18,7 @@ Purpose: document how the Create properties panel is wired to model selection, g
 | Submit orchestration | `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts` + `useAiStudioGenerationPromptComposer.ts` + `useAiStudioTaskSubmission.ts` | Applies guardrails/preflight, composes prompt/reference inputs, starts provider submit + polling lifecycle. |
 | Submit handler routing | `frontend/features/ai-studio/hooks/taskSubmission/routing.ts` + `taskSubmission/{defaultHandlers,imageHandlers,videoHandlers}.ts` | Routes model ids to handler families and performs provider-specific payload submit logic. |
 | Agent client bridge | `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts` + `useAiStudioAgentOrchestration.ts` + `../../ai-agent/useAiAgent.ts` | Owns chat state, attachment prep, prompt application, and agent-output-to-generate handoff. |
-| Agent runtime + control plane | `frontend/pages/api/ai/studio-agent.ts`, `frontend/pages/api/ai/{generate-prompt,describe-image}.ts`, `frontend/lib/server/api/agentSafetyPolicyControlPlane.ts`, `frontend/pages/api/admin/agent-safety-policy/*` | Server-authoritative agent execution, safety precheck/profile resolution, and admin activation/rollback/version controls. |
+| Agent runtime + control plane | `frontend/pages/api/ai/studio-agent.ts`, `frontend/pages/api/ai/{generate-prompt,describe-image,extract-style}.ts`, `frontend/lib/server/api/agentSafetyPolicyControlPlane.ts`, `frontend/pages/api/admin/agent-safety-policy/*` | Server-authoritative agent execution, safety precheck/profile resolution, and admin activation/rollback/version controls. |
 
 ## Architecture diagrams
 
@@ -109,6 +109,7 @@ sequenceDiagram
 3. Legacy helper routes still used by Create UX fallbacks:
 - `/api/ai/generate-prompt` -> `agentRuntimeService.generatePrompt` (`legacyPromptGenerationService`).
 - `/api/ai/describe-image` -> `agentRuntimeService.describeImage` (`legacyImageDescribeService`).
+- `/api/ai/extract-style` -> `agentRuntimeService.extractStyle` (`legacyStyleExtractionService`) for Styles Library new-style image intake.
 4. Admin control plane routes (policy operations):
 - `GET /api/admin/agent-safety-policy/active`
 - `POST /api/admin/agent-safety-policy/activate`

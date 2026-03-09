@@ -7,6 +7,29 @@ export type ShellDropPayload =
   | { kind: "internal" }
   | { kind: "files"; files: FileList }
   | { kind: "media"; reference: { url: string; mimeType?: string | null } }
+  | {
+      kind: "libraryMedia";
+      payload: {
+        id: string;
+        url: string;
+        fileType: "image" | "video";
+        filename?: string | null;
+        promptText?: string | null;
+        source?: string | null;
+        previewStoragePath?: string | null;
+        fullStoragePath?: string | null;
+        previewUrl?: string | null;
+        fullUrl?: string | null;
+      };
+    }
+  | {
+      kind: "libraryPrompt";
+      payload: {
+        id: string;
+        promptText: string;
+        title?: string | null;
+      };
+    }
   | { kind: "text"; text: string };
 
 type UseAiStudioShellDndControllerParams = {
@@ -16,6 +39,23 @@ type UseAiStudioShellDndControllerParams = {
   resolveDropPayload: (transfer: DataTransfer) => ShellDropPayload;
   onDropFiles: (files: FileList) => void;
   onDropMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
+  onDropLibraryMediaReference?: (payload: {
+    id: string;
+    url: string;
+    fileType: "image" | "video";
+    filename?: string | null;
+    promptText?: string | null;
+    source?: string | null;
+    previewStoragePath?: string | null;
+    fullStoragePath?: string | null;
+    previewUrl?: string | null;
+    fullUrl?: string | null;
+  }) => void;
+  onDropLibraryPromptReference?: (payload: {
+    id: string;
+    promptText: string;
+    title?: string | null;
+  }) => void;
   onDropTextReference?: (text: string) => void;
   useRafBackpressure?: boolean;
   shouldBypassCapture?: (
@@ -37,6 +77,8 @@ export const useAiStudioShellDndController = ({
   resolveDropPayload,
   onDropFiles,
   onDropMediaReference,
+  onDropLibraryMediaReference,
+  onDropLibraryPromptReference,
   onDropTextReference,
   useRafBackpressure = true,
   shouldBypassCapture,
@@ -152,6 +194,20 @@ export const useAiStudioShellDndController = ({
         clearDropState();
         return;
       }
+      if (payload.kind === "libraryMedia" && onDropLibraryMediaReference) {
+        event.preventDefault();
+        event.stopPropagation();
+        onDropLibraryMediaReference(payload.payload);
+        clearDropState();
+        return;
+      }
+      if (payload.kind === "libraryPrompt" && onDropLibraryPromptReference) {
+        event.preventDefault();
+        event.stopPropagation();
+        onDropLibraryPromptReference(payload.payload);
+        clearDropState();
+        return;
+      }
       if (payload.kind === "text" && onDropTextReference) {
         event.preventDefault();
         event.stopPropagation();
@@ -165,6 +221,8 @@ export const useAiStudioShellDndController = ({
       clearDropState,
       onDropFiles,
       onDropMediaReference,
+      onDropLibraryMediaReference,
+      onDropLibraryPromptReference,
       onDropTextReference,
       resolveDropPayload,
       shouldBypassCapture,

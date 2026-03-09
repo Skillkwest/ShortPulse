@@ -23,6 +23,8 @@ type MediaLibraryMediaGridProps = {
   scrollContainerRef?: MutableRefObject<HTMLElement | null>;
   getMediaCardRef: (fileId: string) => MediaCardRefCallback;
   onSelectMediaFile: (file: MediaFileRow) => void;
+  onMediaDragStart?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
+  onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
@@ -37,6 +39,8 @@ export function MediaLibraryMediaGrid({
   scrollContainerRef,
   getMediaCardRef,
   onSelectMediaFile,
+  onMediaDragStart,
+  onMediaDragEnd,
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
@@ -123,7 +127,10 @@ export function MediaLibraryMediaGrid({
               ref={getMediaCardRef(file.id)}
               style={renderItem.style}
               aria-pressed={isSelected}
+              draggable={Boolean(onMediaDragStart)}
               onClick={() => onSelectMediaFile(file)}
+              onDragStart={(event) => onMediaDragStart?.(event, file)}
+              onDragEnd={(event) => onMediaDragEnd?.(event, file)}
             >
               {isSelected ? (
                 <span className="media-library-select-indicator" aria-hidden>

@@ -95,6 +95,8 @@ describe("useAiStudioShellDndController", () => {
   it("routes payload handlers by payload kind", () => {
     const onDropFiles = vi.fn();
     const onDropMediaReference = vi.fn();
+    const onDropLibraryMediaReference = vi.fn();
+    const onDropLibraryPromptReference = vi.fn();
     const onDropTextReference = vi.fn();
     const shellRef = { current: document.createElement("section") };
     const rightRef = { current: document.createElement("div") };
@@ -110,6 +112,8 @@ describe("useAiStudioShellDndController", () => {
         resolveDropPayload: () => payloadRef.current,
         onDropFiles,
         onDropMediaReference,
+        onDropLibraryMediaReference,
+        onDropLibraryPromptReference,
         onDropTextReference,
         useRafBackpressure: false,
       })
@@ -134,6 +138,40 @@ describe("useAiStudioShellDndController", () => {
       result.current.handleDropCapture(createDragEvent(createTransfer(["text/plain"])));
     });
     expect(onDropMediaReference).toHaveBeenCalledWith({ url: "https://example.com/a.png" });
+
+    payloadRef.current = {
+      kind: "libraryMedia",
+      payload: {
+        id: "media-1",
+        url: "https://example.com/media-1.png",
+        fileType: "image",
+      },
+    };
+    act(() => {
+      result.current.handleDropCapture(createDragEvent(createTransfer(["text/plain"])));
+    });
+    expect(onDropLibraryMediaReference).toHaveBeenCalledWith({
+      id: "media-1",
+      url: "https://example.com/media-1.png",
+      fileType: "image",
+    });
+
+    payloadRef.current = {
+      kind: "libraryPrompt",
+      payload: {
+        id: "prompt-1",
+        promptText: "prompt text",
+        title: "Prompt title",
+      },
+    };
+    act(() => {
+      result.current.handleDropCapture(createDragEvent(createTransfer(["text/plain"])));
+    });
+    expect(onDropLibraryPromptReference).toHaveBeenCalledWith({
+      id: "prompt-1",
+      promptText: "prompt text",
+      title: "Prompt title",
+    });
 
     payloadRef.current = { kind: "text", text: "hello" };
     act(() => {

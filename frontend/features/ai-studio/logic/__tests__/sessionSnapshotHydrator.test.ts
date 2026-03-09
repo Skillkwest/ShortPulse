@@ -109,6 +109,19 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.selectedTool).toBe("presets");
   });
 
+  it("keeps media-library as a valid restored selected tool", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedTool: "media-library",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedTool).toBe("media-library");
+  });
+
   it("falls back for malformed workspace values", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

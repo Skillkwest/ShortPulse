@@ -23,6 +23,7 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("canvas")).toBe("canvas");
     expect(resolvePropertiesPanelKind("presets")).toBe("presets");
     expect(resolvePropertiesPanelKind("styles")).toBe("styles");
+    expect(resolvePropertiesPanelKind("media-library")).toBe("media-library");
   });
 
   it("falls back to none for null", () => {

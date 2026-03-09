@@ -444,4 +444,130 @@ describe("POST /api/media/list", () => {
 
     expect(res.status).toHaveBeenCalledWith(503);
   });
+
+  it("supports panel mediaKind queries without tab", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "media-image-1",
+        user_id: "user-1",
+        filename: "frame.png",
+        storage_path: "user-1/upload/frame.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "media-video-1",
+        user_id: "user-1",
+        filename: "clip.mp4",
+        storage_path: "user-1/upload/clip.mp4",
+        file_type: "video/mp4",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-19T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        folderId: "all_items",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0];
+    expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-image-1"]);
+  });
+
+  it("returns 400 for invalid folder id", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        folderId: "not-a-uuid",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Invalid folder id",
+      })
+    );
+  });
+
+  it("returns 404 when a custom folder is not found", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "media_folders") throw new Error(`Unexpected table: ${table}`);
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+              })),
+            })),
+          })),
+        };
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrls: vi.fn(),
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Folder not found",
+      })
+    );
+  });
 });

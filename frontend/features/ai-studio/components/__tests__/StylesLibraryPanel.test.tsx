@@ -344,7 +344,13 @@ describe("StylesLibraryPanel", () => {
         expect(saveButton).toBeDisabled();
       });
 
-      resolveExtraction?.({
+      const finishExtraction = resolveExtraction as
+        | ((value: { stylePrompt: string }) => void)
+        | null;
+      if (typeof finishExtraction !== "function") {
+        throw new Error("Expected extraction resolver to be initialized.");
+      }
+      finishExtraction({
         stylePrompt: "clean digital illustration, soft gradient shading, polished finish",
       });
 

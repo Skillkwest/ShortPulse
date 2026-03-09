@@ -137,6 +137,36 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `updated_at` (timestamptz, default now)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
+### media_folders
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid, references `auth.users.id`): Owner for RLS scoping.
+- `name` (text): Custom folder display name (`btrim(name)`, length `1..64`).
+- `created_at` / `updated_at` (timestamptz, default now)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Integrity:
+  - Per-user case-insensitive uniqueness on folder name (`unique (user_id, lower(name))`).
+  - `(id, user_id)` unique index is used by scoped membership foreign keys.
+
+### media_folder_media_items
+- `folder_id` (uuid, pk segment): References `media_folders.id` with cascade delete.
+- `media_file_id` (uuid, pk segment): References `media_files.id` with cascade delete.
+- `user_id` (uuid, references `auth.users.id`): Owner for RLS scoping.
+- `created_at` (timestamptz, default now)
+- RLS: select/insert/delete allowed only when `user_id = auth.uid()`.
+- Integrity:
+  - Composite scoped FKs enforce same-user ownership for both folder and media row via `(folder_id, user_id)` and `(media_file_id, user_id)`.
+  - Supports multi-folder membership without deleting `media_files` on unassign.
+
+### media_folder_prompt_items
+- `folder_id` (uuid, pk segment): References `media_folders.id` with cascade delete.
+- `prompt_id` (uuid, pk segment): References `media_prompts.id` with cascade delete.
+- `user_id` (uuid, references `auth.users.id`): Owner for RLS scoping.
+- `created_at` (timestamptz, default now)
+- RLS: select/insert/delete allowed only when `user_id = auth.uid()`.
+- Integrity:
+  - Composite scoped FKs enforce same-user ownership for both folder and prompt row via `(folder_id, user_id)` and `(prompt_id, user_id)`.
+  - Supports multi-folder membership without deleting `media_prompts` on unassign.
+
 ### ai_generations
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.

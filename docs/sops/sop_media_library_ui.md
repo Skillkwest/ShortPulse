@@ -73,3 +73,18 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
   - Upload/delete/rename/move operations should invalidate stale tab views.
 
 For operational runbooks and tuning procedures, see `docs/sops/sop_media_performance_operations.md`.
+
+## AI Studio Media Library Panel Contract
+- AI Studio uses a first-class left-panel `media-library` tool surface (not modal-only by default).
+- Runtime fallback: `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` restores legacy modal open behavior.
+- Folder model:
+  - Virtual root folder id `all_items` is immutable and always first.
+  - Custom folders are user-owned and case-insensitive unique per user.
+  - Folder delete removes membership links only; underlying `media_files` and `media_prompts` rows remain.
+- API surfaces:
+  - Folder CRUD + membership: `/api/media/folders/list|create|rename|delete|membership-batch`
+  - Prompt listing: `/api/media/prompts/list`
+  - Media listing now accepts optional folder and media-kind filters via `/api/media/list`.
+- Performance/adaptive parity:
+  - Keep `surface: "media-library-modal"` and adaptive/signing budgets unchanged for panel parity in this phase.
+  - Preserve stale-refresh non-blocking behavior and placeholder-first rendering.

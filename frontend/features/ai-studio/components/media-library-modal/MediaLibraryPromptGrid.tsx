@@ -7,6 +7,8 @@ type MediaLibraryPromptGridProps = {
   sortedPrompts: PromptRow[];
   selectedIds: Set<string>;
   onSelectPromptCard: (prompt: PromptRow) => void;
+  onPromptDragStart?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
+  onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
 };
 
 export function MediaLibraryPromptGrid({
@@ -14,6 +16,8 @@ export function MediaLibraryPromptGrid({
   sortedPrompts,
   selectedIds,
   onSelectPromptCard,
+  onPromptDragStart,
+  onPromptDragEnd,
 }: MediaLibraryPromptGridProps) {
   return (
     <div className="prompt-grid media-library-prompt-grid">
@@ -28,7 +32,10 @@ export function MediaLibraryPromptGrid({
               type="button"
               className={`prompt-card media-library-prompt-card${isSelected ? " is-selected" : ""}`}
               aria-pressed={isSelected}
+              draggable={Boolean(onPromptDragStart)}
               onClick={() => onSelectPromptCard(prompt)}
+              onDragStart={(event) => onPromptDragStart?.(event, prompt)}
+              onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
             >
               {isSelected ? (
                 <span className="media-library-select-indicator" aria-hidden>

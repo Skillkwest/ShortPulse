@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
+  FolderSimple,
   Folders,
   MagnifyingGlass,
   PencilSimple,
@@ -64,6 +65,7 @@ import {
   type PromptListCursor,
 } from "../logic/mediaLibraryPanelApi";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 
@@ -92,6 +94,7 @@ type MediaLibraryPanelProps = {
 
 const MEDIA_PAGE_SIZE = 36;
 const PROMPT_PAGE_SIZE = 36;
+const FOLDERS_REQUEST_TIMEOUT_MS = 12_000;
 const ROOT_FOLDER_LABEL = "All Media";
 const ROOT_FOLDER: MediaFolder = {
   id: MEDIA_LIBRARY_ROOT_FOLDER_ID,
@@ -117,13 +120,29 @@ const createdAtTime = (value: string | null | undefined): number => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, message: string) =>
+  await new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
 }: MediaLibraryPanelProps) {
   const [folders, setFolders] = useState<MediaFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<MediaFolderId>(MEDIA_LIBRARY_ROOT_FOLDER_ID);
-  const [itemType, setItemType] = useState<MediaLibraryPanelItemType>("all");
+  const [itemType] = useState<MediaLibraryPanelItemType>("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -135,13 +154,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [promptHasMore, setPromptHasMore] = useState(false);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
-  const [foldersLoading, setFoldersLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [folderError, setFolderError] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
 
   const [newFolderName, setNewFolderName] = useState("");
+  const [showCreateFolderInput, setShowCreateFolderInput] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
@@ -160,11 +179,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const mediaRequestTokenRef = useRef(0);
   const promptRequestTokenRef = useRef(0);
+  const foldersRequestTokenRef = useRef(0);
   const activeTabRef = useRef<MediaTab>("uploaded_images");
   const activeMediaQueryRef = useRef("");
   const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
 
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
+  const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const mediaCardNodesRef = useRef<Map<string, HTMLButtonElement>>(new Map());
   const mediaCardRefCallbacksRef = useRef<Record<string, (node: HTMLButtonElement | null) => void>>(
     {}
@@ -202,12 +223,26 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
   const orderedFolders = useMemo(() => [ROOT_FOLDER, ...customFolders], [customFolders]);
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
+  const activeCustomFolder = useMemo(
+    () => customFolders.find((folder) => folder.id === activeFolderId) ?? null,
+    [activeFolderId, customFolders]
+  );
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);
   }, [itemType, mediaRows.length, shouldShowMedia]);
+  const foldersSplit = useReferenceGridHorizontalSplit({
+    enabled: true,
+    containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
+    defaultTopRatio: 0.3,
+    minTopSectionHeightPx: 128,
+    minBottomSectionHeightPx: 240,
+    allRefsSnapTopHeightPx: 120,
+    collapseTopHeightPx: 86,
+    ariaLabel: "Resize folders and references sections",
+  });
 
   useVisibleErrorTelemetry({
     source: "client.ai_studio.media_library_panel_error",
@@ -304,10 +339,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const loadFolders = useCallback(async () => {
-    setFoldersLoading(true);
+    const requestToken = foldersRequestTokenRef.current + 1;
+    foldersRequestTokenRef.current = requestToken;
     setFolderError(null);
     try {
-      const nextFolders = await listMediaFolders();
+      const nextFolders = await withTimeout(
+        listMediaFolders(),
+        FOLDERS_REQUEST_TIMEOUT_MS,
+        "Unable to load folders."
+      );
+      if (foldersRequestTokenRef.current !== requestToken) return;
       if (!isMountedRef.current) return;
       setFolders(nextFolders);
       setActiveFolderId((previous) => {
@@ -317,12 +358,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           : MEDIA_LIBRARY_ROOT_FOLDER_ID;
       });
     } catch (loadError) {
+      if (foldersRequestTokenRef.current !== requestToken) return;
       if (!isMountedRef.current) return;
       setFolderError(loadError instanceof Error ? loadError.message : "Unable to load folders.");
-    } finally {
-      if (isMountedRef.current) {
-        setFoldersLoading(false);
-      }
     }
   }, []);
 
@@ -731,6 +769,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       const folder = await createMediaFolder(name);
       setFolders((previous) => [...previous, folder]);
       setNewFolderName("");
+      setShowCreateFolderInput(false);
       setActiveFolderId(folder.id);
     } catch (createError) {
       setFolderError(
@@ -923,322 +962,368 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         </div>
       </header>
 
-      <div className="media-library-panel-controls">
-        <div
-          className="media-library-panel-type-filter"
-          role="tablist"
-          aria-label="Item type filter"
-        >
-          {(
-            [
-              { id: "all", label: "All" },
-              { id: "images", label: "Images" },
-              { id: "videos", label: "Videos" },
-              { id: "prompts", label: "Prompts" },
-            ] as Array<{ id: MediaLibraryPanelItemType; label: string }>
-          ).map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              role="tab"
-              className={`media-library-panel-filter-pill ${itemType === filter.id ? "is-active" : ""}`}
-              aria-selected={itemType === filter.id}
-              onClick={() => setItemType(filter.id)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-        <div className="search-input media-library-panel-search">
-          <MagnifyingGlass size={15} weight="bold" aria-hidden />
-          <input
-            type="text"
-            value={search}
-            placeholder="Search media and prompts"
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-      </div>
+      <div ref={splitContainerRef} className="media-library-panel-split">
+        <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
+          <div className="media-library-panel-controls">
+            <div className="search-input media-library-panel-search">
+              <MagnifyingGlass size={15} weight="bold" aria-hidden />
+              <input
+                type="text"
+                value={search}
+                placeholder="Search media and prompts"
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+          </div>
 
-      <div className="media-library-panel-folders">
-        <div className="media-library-panel-folders-head">
-          <span className="tiny subdued">
-            <Folders size={14} weight="bold" aria-hidden /> Folders
-          </span>
-        </div>
-        <div className="media-library-panel-folder-list" role="list" aria-label="Media folders">
-          {orderedFolders.map((folder) => {
-            const isRoot = folder.id === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-            const isActive = activeFolderId === folder.id;
-            const isEditing = editingFolderId === folder.id;
-            return (
-              <div key={folder.id} className="media-library-panel-folder-row" role="listitem">
-                {isEditing ? (
-                  <input
-                    className="media-library-panel-folder-input"
-                    type="text"
-                    value={editingFolderName}
-                    maxLength={64}
-                    autoFocus
-                    onChange={(event) => setEditingFolderName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void handleCommitFolderRename();
-                      }
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        setEditingFolderId(null);
-                        setEditingFolderName("");
-                      }
-                    }}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    className={`media-library-panel-folder-btn ${isActive ? "is-active" : ""}`}
-                    onClick={() => setActiveFolderId(folder.id)}
+          <div className="media-library-panel-folders">
+            <div className="media-library-panel-folders-head">
+              <span className="tiny subdued">
+                <Folders size={14} weight="bold" aria-hidden /> Folders
+              </span>
+            </div>
+            <div
+              className="media-library-panel-folder-strip"
+              role="list"
+              aria-label="Media folders"
+            >
+              {orderedFolders.map((folder) => {
+                const isRoot = folder.id === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+                const isActive = activeFolderId === folder.id;
+                const isEditing = editingFolderId === folder.id;
+                return (
+                  <div
+                    key={folder.id}
+                    className={`media-library-panel-folder-strip-item ${isEditing ? "is-editing" : ""}`}
+                    role="listitem"
                   >
-                    {folder.name}
-                  </button>
-                )}
-                {!isRoot ? (
-                  <div className="media-library-panel-folder-actions">
                     {isEditing ? (
-                      <>
-                        <button
-                          type="button"
-                          aria-label="Save folder name"
-                          onClick={() => {
-                            void handleCommitFolderRename();
+                      <div className="media-library-panel-folder-chip-edit">
+                        <input
+                          className="media-library-panel-folder-chip-input"
+                          type="text"
+                          value={editingFolderName}
+                          maxLength={64}
+                          autoFocus
+                          onChange={(event) => setEditingFolderName(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void handleCommitFolderRename();
+                            }
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setEditingFolderId(null);
+                              setEditingFolderName("");
+                            }
                           }}
-                          disabled={savingFolderEdit}
-                        >
-                          <Check size={13} weight="bold" />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Cancel folder rename"
-                          onClick={() => {
-                            setEditingFolderId(null);
-                            setEditingFolderName("");
-                          }}
-                          disabled={savingFolderEdit}
-                        >
-                          <X size={13} weight="bold" />
-                        </button>
-                      </>
+                        />
+                        <div className="media-library-panel-folder-chip-actions">
+                          <button
+                            type="button"
+                            aria-label="Save folder name"
+                            onClick={() => {
+                              void handleCommitFolderRename();
+                            }}
+                            disabled={savingFolderEdit}
+                          >
+                            <Check size={12} weight="bold" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Cancel folder rename"
+                            onClick={() => {
+                              setEditingFolderId(null);
+                              setEditingFolderName("");
+                            }}
+                            disabled={savingFolderEdit}
+                          >
+                            <X size={12} weight="bold" />
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <button
                           type="button"
-                          aria-label={`Rename ${folder.name}`}
-                          onClick={() => {
+                          className={`media-library-panel-folder-chip ${isActive ? "is-active" : ""}`}
+                          onClick={() => setActiveFolderId(folder.id)}
+                          onDoubleClick={() => {
+                            if (isRoot) return;
                             setEditingFolderId(folder.id);
                             setEditingFolderName(folder.name);
                           }}
+                          aria-label={`${folder.name} folder`}
                         >
-                          <PencilSimple size={13} weight="bold" />
+                          <FolderSimple
+                            size={32}
+                            weight={isActive ? "fill" : "regular"}
+                            aria-hidden
+                          />
                         </button>
-                        <button
-                          type="button"
-                          aria-label={`Delete ${folder.name}`}
-                          onClick={() => {
-                            void handleDeleteFolder(folder.id);
-                          }}
-                        >
-                          <TrashSimple size={13} weight="bold" />
-                        </button>
+                        <p className="media-library-panel-folder-chip-name tiny">{folder.name}</p>
                       </>
                     )}
                   </div>
-                ) : null}
+                );
+              })}
+              <div
+                className={`media-library-panel-folder-strip-item ${showCreateFolderInput ? "is-editing" : ""}`}
+                role="listitem"
+              >
+                {showCreateFolderInput ? (
+                  <div className="media-library-panel-folder-chip-edit">
+                    <input
+                      type="text"
+                      className="media-library-panel-folder-chip-input"
+                      placeholder="Folder name"
+                      value={newFolderName}
+                      maxLength={64}
+                      autoFocus
+                      onChange={(event) => setNewFolderName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleCreateFolder();
+                        }
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setShowCreateFolderInput(false);
+                          setNewFolderName("");
+                        }
+                      }}
+                    />
+                    <div className="media-library-panel-folder-chip-actions">
+                      <button
+                        type="button"
+                        className="media-library-panel-folder-create-btn"
+                        onClick={() => {
+                          void handleCreateFolder();
+                        }}
+                        disabled={creatingFolder}
+                        aria-label="Create folder"
+                      >
+                        <Check size={12} weight="bold" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Cancel folder create"
+                        onClick={() => {
+                          setShowCreateFolderInput(false);
+                          setNewFolderName("");
+                        }}
+                        disabled={creatingFolder}
+                      >
+                        <X size={12} weight="bold" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="media-library-panel-folder-chip is-create"
+                      aria-label="Create new folder"
+                      onClick={() => setShowCreateFolderInput(true)}
+                    >
+                      <Plus size={30} weight="bold" aria-hidden />
+                    </button>
+                    <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
+                  </>
+                )}
               </div>
-            );
-          })}
-          <div className="media-library-panel-folder-create-row">
-            <input
-              type="text"
-              className="media-library-panel-folder-input"
-              placeholder="New folder"
-              value={newFolderName}
-              maxLength={64}
-              onChange={(event) => setNewFolderName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void handleCreateFolder();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="media-library-panel-folder-create-btn"
-              onClick={() => {
-                void handleCreateFolder();
-              }}
-              disabled={creatingFolder}
-              aria-label="Create folder"
-            >
-              <Plus size={14} weight="bold" />
-            </button>
+            </div>
+            {activeCustomFolder && !editingFolderId ? (
+              <div className="media-library-panel-folder-active-actions">
+                <button
+                  type="button"
+                  aria-label="Rename active folder"
+                  onClick={() => {
+                    setEditingFolderId(activeCustomFolder.id);
+                    setEditingFolderName(activeCustomFolder.name);
+                  }}
+                >
+                  <PencilSimple size={13} weight="bold" />
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  aria-label="Delete active folder"
+                  onClick={() => {
+                    void handleDeleteFolder(activeCustomFolder.id);
+                  }}
+                >
+                  <TrashSimple size={13} weight="bold" />
+                  Delete
+                </button>
+              </div>
+            ) : null}
           </div>
+          {folderError ? <p className="tiny subdued">{folderError}</p> : null}
+        </div>
+
+        <div
+          className="reference-grid-horizontal-divider-wrap media-library-panel-horizontal-divider-wrap"
+          {...foldersSplit.dividerProps}
+        >
+          <div className="reference-grid-horizontal-divider" />
+        </div>
+
+        <div className="media-library-panel-content-panel" style={foldersSplit.bottomSectionStyle}>
+          <div className="media-library-panel-membership-controls">
+            {canAssignPickedItem ? (
+              <>
+                <select
+                  className="media-library-panel-folder-select"
+                  value={assignTargetFolderId}
+                  onChange={(event) => setAssignTargetFolderId(event.target.value)}
+                >
+                  {customFolders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => {
+                    void handleAssignLastPicked();
+                  }}
+                >
+                  Add Picked Item To Folder
+                </button>
+              </>
+            ) : null}
+            {canUnassignPickedItem ? (
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => {
+                  void handleUnassignLastPicked();
+                }}
+              >
+                Remove Picked Item From Folder
+              </button>
+            ) : null}
+          </div>
+          {membershipMessage ? <p className="tiny subdued">{membershipMessage}</p> : null}
+
+          <div className="media-library-panel-body" ref={panelBodyRef}>
+            {error ? <p className="tiny subdued">{error}</p> : null}
+
+            {shouldShowPrompts ? (
+              <section className="media-library-panel-section">
+                <div className="media-library-panel-section-head">
+                  <p className="tiny subdued">
+                    Prompts ({visiblePromptRows.length})
+                    {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+                  </p>
+                </div>
+                {promptLoading && visiblePromptRows.length === 0 ? (
+                  <p className="tiny subdued">Loading prompts…</p>
+                ) : null}
+                {!promptLoading && visiblePromptRows.length === 0 ? (
+                  <p className="tiny subdued">No prompts found for this folder.</p>
+                ) : null}
+                {visiblePromptRows.length > 0 ? (
+                  <MediaLibraryPromptGrid
+                    prompts={visiblePromptRows}
+                    sortedPrompts={visiblePromptRows}
+                    selectedIds={selectedIds}
+                    onSelectPromptCard={handleSelectPromptCard}
+                    onPromptDragStart={handlePromptCardDragStart}
+                    onPromptDragEnd={handleCardDragEnd}
+                    variant="reference-card"
+                  />
+                ) : null}
+                {promptHasMore ? (
+                  <div className="media-load-more">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        void loadPromptPage({ reset: false });
+                      }}
+                      disabled={promptLoading}
+                    >
+                      {promptLoading ? "Loading more..." : "Load more prompts"}
+                    </button>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            {shouldShowMedia ? (
+              <section className="media-library-panel-section">
+                <div className="media-library-panel-section-head">
+                  <p className="tiny subdued">
+                    Media ({mediaRows.length})
+                    {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                  </p>
+                </div>
+                {mediaLoading && mediaRows.length === 0 ? (
+                  <p className="tiny subdued">Loading media…</p>
+                ) : null}
+                {!mediaLoading && mediaRows.length === 0 ? (
+                  <p className="tiny subdued">No media found for this folder.</p>
+                ) : null}
+                {mediaRows.length > 0 ? (
+                  <MediaLibraryMediaGrid
+                    activeMedia={mediaRows}
+                    selectedIds={selectedIds}
+                    optimizerFallbackMediaIds={optimizerFallbackMediaIds}
+                    adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+                    adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
+                    scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
+                    getMediaCardRef={getMediaCardRef}
+                    onSelectMediaFile={(file) => {
+                      void handleSelectMediaFile(file);
+                    }}
+                    onMediaDragStart={handleMediaCardDragStart}
+                    onMediaDragEnd={handleCardDragEnd}
+                    onMediaPreviewError={handleMediaPreviewError}
+                    onMediaPaint={() => undefined}
+                    onSignedUrlLoaded={(id) => {
+                      signedUrlRetryRef.current[id] = 0;
+                    }}
+                  />
+                ) : null}
+                {mediaHasMore ? (
+                  <div className="media-load-more">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        void loadMediaPage({ reset: false });
+                      }}
+                      disabled={mediaLoading}
+                    >
+                      {mediaLoading ? "Loading more..." : "Load more media"}
+                    </button>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+          </div>
+
+          <footer className="media-library-panel-footer">
+            <p className="tiny subdued">
+              Active folder:{" "}
+              {orderedFolders.find((folder) => folder.id === activeFolderId)?.name ||
+                ROOT_FOLDER_LABEL}
+            </p>
+            {lastPickedItem ? (
+              <p className="tiny subdued">
+                Picked:{" "}
+                {lastPickedItem.kind === "media"
+                  ? lastPickedItem.row.filename
+                  : lastPickedItem.row.title || formatDate(lastPickedItem.row.created_at)}
+              </p>
+            ) : null}
+          </footer>
         </div>
       </div>
-
-      <div className="media-library-panel-membership-controls">
-        {canAssignPickedItem ? (
-          <>
-            <select
-              className="media-library-panel-folder-select"
-              value={assignTargetFolderId}
-              onChange={(event) => setAssignTargetFolderId(event.target.value)}
-            >
-              {customFolders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="ghost-btn mini"
-              onClick={() => {
-                void handleAssignLastPicked();
-              }}
-            >
-              Add Picked Item To Folder
-            </button>
-          </>
-        ) : null}
-        {canUnassignPickedItem ? (
-          <button
-            type="button"
-            className="ghost-btn mini"
-            onClick={() => {
-              void handleUnassignLastPicked();
-            }}
-          >
-            Remove Picked Item From Folder
-          </button>
-        ) : null}
-      </div>
-
-      {foldersLoading ? <p className="tiny subdued">Loading folders…</p> : null}
-      {membershipMessage ? <p className="tiny subdued">{membershipMessage}</p> : null}
-      {folderError ? <p className="tiny subdued">{folderError}</p> : null}
-
-      <div className="media-library-panel-body" ref={panelBodyRef}>
-        {error ? <p className="tiny subdued">{error}</p> : null}
-
-        {shouldShowPrompts ? (
-          <section className="media-library-panel-section">
-            <div className="media-library-panel-section-head">
-              <p className="tiny subdued">
-                Prompts ({visiblePromptRows.length})
-                {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-              </p>
-            </div>
-            {promptLoading && visiblePromptRows.length === 0 ? (
-              <p className="tiny subdued">Loading prompts…</p>
-            ) : null}
-            {!promptLoading && visiblePromptRows.length === 0 ? (
-              <p className="tiny subdued">No prompts found for this folder.</p>
-            ) : null}
-            {visiblePromptRows.length > 0 ? (
-              <MediaLibraryPromptGrid
-                prompts={visiblePromptRows}
-                sortedPrompts={visiblePromptRows}
-                selectedIds={selectedIds}
-                onSelectPromptCard={handleSelectPromptCard}
-                onPromptDragStart={handlePromptCardDragStart}
-                onPromptDragEnd={handleCardDragEnd}
-              />
-            ) : null}
-            {promptHasMore ? (
-              <div className="media-load-more">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    void loadPromptPage({ reset: false });
-                  }}
-                  disabled={promptLoading}
-                >
-                  {promptLoading ? "Loading more..." : "Load more prompts"}
-                </button>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {shouldShowMedia ? (
-          <section className="media-library-panel-section">
-            <div className="media-library-panel-section-head">
-              <p className="tiny subdued">
-                Media ({mediaRows.length})
-                {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-              </p>
-            </div>
-            {mediaLoading && mediaRows.length === 0 ? (
-              <p className="tiny subdued">Loading media…</p>
-            ) : null}
-            {!mediaLoading && mediaRows.length === 0 ? (
-              <p className="tiny subdued">No media found for this folder.</p>
-            ) : null}
-            {mediaRows.length > 0 ? (
-              <MediaLibraryMediaGrid
-                activeMedia={mediaRows}
-                selectedIds={selectedIds}
-                optimizerFallbackMediaIds={optimizerFallbackMediaIds}
-                adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
-                adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
-                scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
-                getMediaCardRef={getMediaCardRef}
-                onSelectMediaFile={(file) => {
-                  void handleSelectMediaFile(file);
-                }}
-                onMediaDragStart={handleMediaCardDragStart}
-                onMediaDragEnd={handleCardDragEnd}
-                onMediaPreviewError={handleMediaPreviewError}
-                onMediaPaint={() => undefined}
-                onSignedUrlLoaded={(id) => {
-                  signedUrlRetryRef.current[id] = 0;
-                }}
-              />
-            ) : null}
-            {mediaHasMore ? (
-              <div className="media-load-more">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    void loadMediaPage({ reset: false });
-                  }}
-                  disabled={mediaLoading}
-                >
-                  {mediaLoading ? "Loading more..." : "Load more media"}
-                </button>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-      </div>
-
-      <footer className="media-library-panel-footer">
-        <p className="tiny subdued">
-          Active folder:{" "}
-          {orderedFolders.find((folder) => folder.id === activeFolderId)?.name || ROOT_FOLDER_LABEL}
-        </p>
-        {lastPickedItem ? (
-          <p className="tiny subdued">
-            Picked:{" "}
-            {lastPickedItem.kind === "media"
-              ? lastPickedItem.row.filename
-              : lastPickedItem.row.title || formatDate(lastPickedItem.row.created_at)}
-          </p>
-        ) : null}
-      </footer>
     </section>
   );
 });

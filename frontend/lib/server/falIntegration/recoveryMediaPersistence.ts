@@ -6,9 +6,11 @@
  */
 
 import { randomUUID } from "crypto";
+import { withCanonicalImageDimensions } from "../../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { asString } from "./falAdapter";
+import { extractImageDimensionsFromBuffer } from "../imageDimensions";
 import {
   clampPrompt,
   resolveExtension,
@@ -141,6 +143,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
     const { buffer, contentType } = await fetchBufferWithRetry(mediaUrl);
     const fileType = resolveFileType(contentType, mediaUrl);
     const extension = resolveExtension(contentType, mediaUrl);
+    const imageDimensions = fileType === "image" ? extractImageDimensionsFromBuffer(buffer) : null;
     const storagePath = assertUserScopedMediaStoragePath({
       path: `${generation.user_id}/generations/${fileType === "video" ? "videos" : "images"}/${randomUUID()}-${index}.${extension}`,
       userId: generation.user_id,
@@ -158,6 +161,20 @@ export const persistRecoveryMediaFilesForGeneration = async ({
     }
 
     const filename = sanitizeFilename(`${promptBase}-${index + 1}.${extension}`);
+    const metadata = withCanonicalImageDimensions(
+      {
+        provider: generation.provider,
+        model_id: generation.model_id,
+        prompt: generation.prompt_text,
+        generation_output_index: index,
+        task_id: generation.request_id,
+        generation_trace_id: generationTraceId,
+        submission_trace_id: submissionTraceId,
+        recovery_execution: true,
+      },
+      imageDimensions
+    );
+
     const { data, error: insertError } = await supabaseAdmin
       .from("media_files")
       .insert({
@@ -169,16 +186,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
         source: "ai_studio",
         source_ref: generation.id,
         prompt_id: null,
-        metadata: {
-          provider: generation.provider,
-          model_id: generation.model_id,
-          prompt: generation.prompt_text,
-          generation_output_index: index,
-          task_id: generation.request_id,
-          generation_trace_id: generationTraceId,
-          submission_trace_id: submissionTraceId,
-          recovery_execution: true,
-        },
+        metadata,
       })
       .select("id")
       .single();

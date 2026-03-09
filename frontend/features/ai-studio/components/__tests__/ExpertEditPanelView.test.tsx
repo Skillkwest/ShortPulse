@@ -85,6 +85,24 @@ const createImageDropTransfer = (url: string) =>
     getData: vi.fn((type: string) => (type === "text/plain" ? url : "")),
   }) as unknown as DataTransfer;
 
+const createReferenceImageDropTransfer = ({
+  url,
+  referenceId,
+}: {
+  url: string;
+  referenceId: string;
+}) =>
+  ({
+    files: [],
+    types: ["text/reference-url", "text/reference-id"],
+    setData: vi.fn(),
+    getData: vi.fn((type: string) => {
+      if (type === "text/reference-url") return url;
+      if (type === "text/reference-id") return referenceId;
+      return "";
+    }),
+  }) as unknown as DataTransfer;
+
 const createPresetDragTransfer = (payload?: ExpertEditPresetDragPayload) => {
   const store: Record<string, string> = {};
   if (payload) {
@@ -1881,6 +1899,59 @@ describe("ExpertEditPanelView", () => {
 
     expect(primaryDropzone).not.toHaveClass("is-dragging");
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+  });
+
+  it("clones blob references from drag payload so layer flattening is not tied to output URL lifecycle", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(new Blob(["cloned-image"], { type: "image/png" }), {
+          status: 200,
+        })
+    );
+    const previousFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      writable: true,
+      value: fetchMock,
+    });
+    const onPrimaryImageChange = vi.fn();
+    const resolvePreviewUrlById = vi.fn(() => "blob:reference-grid-source");
+
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          onPrimaryImageChange={onPrimaryImageChange}
+          resolvePreviewUrlById={resolvePreviewUrlById}
+        />
+      );
+
+      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const transfer = createReferenceImageDropTransfer({
+        url: "blob:reference-grid-source",
+        referenceId: "out-1",
+      });
+
+      await act(async () => {
+        fireEvent.drop(primaryDropzone, { dataTransfer: transfer });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(resolvePreviewUrlById).toHaveBeenCalledWith("out-1");
+      expect(fetchMock).toHaveBeenCalledWith("blob:reference-grid-source");
+      expect(onPrimaryImageChange).toHaveBeenCalledWith(expect.stringMatching(/^blob:flatten-/));
+      const layerFrame = document.querySelector(
+        ".edit-expert-primary-layer-frame"
+      ) as HTMLDivElement;
+      expect(layerFrame.style.backgroundImage).toContain("blob:flatten-");
+    } finally {
+      Object.defineProperty(globalThis, "fetch", {
+        configurable: true,
+        writable: true,
+        value: previousFetch,
+      });
+    }
   });
 
   it("keeps the add-layer button hidden while primary uploads can still create layers", () => {

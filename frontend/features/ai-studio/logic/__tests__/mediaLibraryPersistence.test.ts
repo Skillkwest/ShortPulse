@@ -84,6 +84,14 @@ describe("saveMediaUrlToLibrary", () => {
 
   it("maps duplicate ai_studio insert to existing row and returns success semantics", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("uuid-1");
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({
+        width: 1024,
+        height: 576,
+        close: vi.fn(),
+      }))
+    );
     const maybeSingle = vi
       .fn()
       .mockResolvedValueOnce({ data: null, error: null })
@@ -152,5 +160,93 @@ describe("saveMediaUrlToLibrary", () => {
     expect(upload).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(insert).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists canonical image dimensions in metadata when saving new image media", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("uuid-2");
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({
+        width: 1600,
+        height: 900,
+        close: vi.fn(),
+      }))
+    );
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const single = vi.fn().mockResolvedValue({
+      data: { id: "media-new" },
+      error: null,
+    });
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single,
+      })),
+    }));
+    const upload = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
+        return {
+          select: vi.fn(() => selectBuilder),
+          insert,
+        };
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Blob(["img"], { type: "image/png" }), {
+          status: 200,
+          headers: { "content-type": "image/png" },
+        })
+      )
+    );
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.png",
+      mode: "image",
+      source: "ai_studio",
+      generationId: "gen-2",
+      index: 1,
+      metadata: {
+        custom_flag: true,
+      },
+    });
+
+    expect(result.mediaFileId).toBe("media-new");
+    const insertCalls = insert.mock.calls as unknown[][];
+    expect(insertCalls.at(0)).toBeTruthy();
+    const insertPayload = (insertCalls.at(0)?.at(0) ?? {}) as {
+      metadata?: Record<string, unknown>;
+    };
+    expect(insertPayload.metadata).toEqual(
+      expect.objectContaining({
+        width: 1600,
+        height: 900,
+        aspect_ratio: 1.777778,
+        generation_output_index: 1,
+        index: 1,
+        custom_flag: true,
+      })
+    );
   });
 });

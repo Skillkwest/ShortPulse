@@ -9,6 +9,7 @@ type MediaLibraryPromptGridProps = {
   onSelectPromptCard: (prompt: PromptRow) => void;
   onPromptDragStart?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
+  variant?: "default" | "reference-card";
 };
 
 export function MediaLibraryPromptGrid({
@@ -18,7 +19,38 @@ export function MediaLibraryPromptGrid({
   onSelectPromptCard,
   onPromptDragStart,
   onPromptDragEnd,
+  variant = "default",
 }: MediaLibraryPromptGridProps) {
+  if (variant === "reference-card") {
+    return (
+      <div className="prompt-grid media-library-prompt-grid media-library-prompt-grid--reference-cards">
+        {prompts.length === 0 ? (
+          <p className="tiny subdued">No saved prompts yet.</p>
+        ) : (
+          sortedPrompts.map((prompt) => {
+            const isSelected = selectedIds.has(prompt.id);
+            return (
+              <button
+                key={prompt.id}
+                type="button"
+                className={`reference-card has-text media-library-panel-prompt-reference-card${isSelected ? " is-active" : ""}`}
+                aria-pressed={isSelected}
+                draggable={Boolean(onPromptDragStart)}
+                onClick={() => onSelectPromptCard(prompt)}
+                onDragStart={(event) => onPromptDragStart?.(event, prompt)}
+                onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
+              >
+                <div className="reference-card-text media-library-panel-prompt-reference-text">
+                  {prompt.prompt_text}
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="prompt-grid media-library-prompt-grid">
       {prompts.length === 0 ? (

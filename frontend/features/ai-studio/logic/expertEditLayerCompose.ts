@@ -2,6 +2,8 @@
  * Composition helpers for Expert Edit primary layer stacks.
  * Produces a flattened PNG blob from ordered layer image URLs.
  */
+import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
+
 export type ExpertEditCompositingLayer = {
   imageUrl: string | null;
   opacity?: number;
@@ -28,6 +30,21 @@ const loadImage = (url: string): Promise<HTMLImageElement> =>
     image.onerror = () => reject(new Error(`Failed to load layer image: ${url}`));
     image.src = url;
   });
+
+const loadImageWithSignedUrlRefresh = async (url: string): Promise<HTMLImageElement> => {
+  try {
+    return await loadImage(url);
+  } catch (initialError) {
+    if (!isCrossOriginCandidate(url)) {
+      throw initialError;
+    }
+    const refreshedUrl = await refreshSupabaseSignedUrlIfNeeded(url).catch(() => null);
+    if (!refreshedUrl || refreshedUrl === url) {
+      throw initialError;
+    }
+    return loadImage(refreshedUrl);
+  }
+};
 
 const canvasToBlob = (canvas: HTMLCanvasElement, mimeType: string): Promise<Blob> =>
   new Promise((resolve, reject) => {
@@ -68,7 +85,7 @@ export const composePrimaryLayersToBlob = async (
   const drawOrder = [...populatedLayers].reverse();
   const decodedLayers = await Promise.all(
     drawOrder.map(async (layer) => ({
-      image: await loadImage(layer.imageUrl),
+      image: await loadImageWithSignedUrlRefresh(layer.imageUrl),
       opacity: clampOpacity(layer.opacity ?? 1),
       transform: layer.transform ?? null,
     }))

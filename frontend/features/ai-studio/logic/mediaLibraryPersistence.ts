@@ -4,6 +4,11 @@
  */
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
+import {
+  resolveImageDimensionsFromMetadata,
+  withCanonicalImageDimensions,
+  type ImageDimensions,
+} from "../../../lib/mediaDimensionMetadata";
 import type { StudioMode } from "../types";
 
 const BUCKET = "media_library";
@@ -106,6 +111,44 @@ const fetchBlobWithTimeout = async (url: string) => {
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Failed to fetch media.");
+};
+
+const readImageDimensionsFromBlob = async (blob: Blob): Promise<ImageDimensions | null> => {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      const width = Math.max(1, Math.round(bitmap.width));
+      const height = Math.max(1, Math.round(bitmap.height));
+      bitmap.close();
+      if (width > 0 && height > 0) {
+        return { width, height };
+      }
+    } catch {
+      // fallback to HTMLImageElement path below
+    }
+  }
+  if (typeof document === "undefined" || typeof URL === "undefined") {
+    return null;
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    return await new Promise<ImageDimensions | null>((resolve) => {
+      const image = new Image();
+      image.onload = () => {
+        const width = Math.max(1, Math.round(image.naturalWidth || image.width || 0));
+        const height = Math.max(1, Math.round(image.naturalHeight || image.height || 0));
+        if (width > 0 && height > 0) {
+          resolve({ width, height });
+          return;
+        }
+        resolve(null);
+      };
+      image.onerror = () => resolve(null);
+      image.src = objectUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 };
 
 export type PromptRecordInput = {
@@ -264,6 +307,19 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   }
   const { blob, contentType } = await fetchBlobWithTimeout(input.url);
   const fileType = resolveFileType(contentType, input.mode, input.fileTypeHint);
+  const metadataDimensions = resolveImageDimensionsFromMetadata(input.metadata ?? null);
+  const decodedDimensions = fileType === "image" ? await readImageDimensionsFromBlob(blob) : null;
+  const canonicalMetadata = withCanonicalImageDimensions(
+    {
+      provider: input.provider ?? null,
+      model_id: input.modelId ?? null,
+      prompt: input.promptText ?? null,
+      generation_output_index: input.index,
+      index: input.index,
+      ...input.metadata,
+    },
+    decodedDimensions ?? metadataDimensions
+  );
   const extension = resolveExtension(contentType, input.url);
   const typeFolder = fileType === "video" ? "videos" : "images";
   const rootFolder = input.source === "ai_studio" ? "generations" : "uploads";
@@ -294,14 +350,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       source: input.source,
       source_ref: input.generationId ?? null,
       prompt_id: input.promptId ?? null,
-      metadata: {
-        provider: input.provider ?? null,
-        model_id: input.modelId ?? null,
-        prompt: input.promptText ?? null,
-        generation_output_index: input.index,
-        index: input.index,
-        ...input.metadata,
-      },
+      metadata: canonicalMetadata,
     })
     .select("id")
     .single();

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
 
@@ -170,6 +170,21 @@ describe("MediaLibraryPanel", () => {
       nextCursor: null,
       hasMore: false,
     });
+    createMediaFolderMock.mockResolvedValue({
+      id: "folder-created",
+      name: "Mood Board",
+      createdAt: "2026-03-03T00:00:00.000Z",
+      updatedAt: "2026-03-03T00:00:00.000Z",
+    });
+    renameMediaFolderMock.mockImplementation(
+      async ({ folderId, name }: { folderId: string; name: string }) => ({
+        id: folderId,
+        name,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-04T00:00:00.000Z",
+      })
+    );
+    deleteMediaFolderMock.mockResolvedValue(undefined);
   });
 
   it("loads folders + media data and supports click-to-add", async () => {
@@ -178,8 +193,12 @@ describe("MediaLibraryPanel", () => {
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={onSelectPrompt} />);
 
     await waitFor(() => {
+      expect(screen.getByRole("button", { name: "All Media folder" })).toBeInTheDocument();
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
+    expect(
+      screen.getByRole("separator", { name: "Resize folders and references sections" })
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
     await waitFor(() => {
@@ -224,5 +243,64 @@ describe("MediaLibraryPanel", () => {
         promptIds: ["prompt-1"],
       });
     });
+  });
+
+  it("creates a new folder button from the folder strip", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
+    fireEvent.change(screen.getByPlaceholderText("Folder name"), {
+      target: { value: "Mood Board" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create folder" }));
+
+    await waitFor(() => {
+      expect(createMediaFolderMock).toHaveBeenCalledWith("Mood Board");
+    });
+    expect(screen.getByRole("button", { name: "Mood Board folder" })).toBeInTheDocument();
+  });
+
+  it("renames the active custom folder button", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rename active folder" }));
+    fireEvent.change(screen.getByDisplayValue("Campaign"), {
+      target: { value: "Campaign Assets" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save folder name" }));
+
+    await waitFor(() => {
+      expect(renameMediaFolderMock).toHaveBeenCalledWith({
+        folderId: "folder-1",
+        name: "Campaign Assets",
+      });
+    });
+    expect(screen.getByRole("button", { name: "Campaign Assets folder" })).toBeInTheDocument();
+  });
+
+  it("shows a folder error when folder request times out", async () => {
+    vi.useFakeTimers();
+    listMediaFoldersMock.mockImplementation(() => new Promise<never>(() => undefined));
+    try {
+      await act(async () => {
+        render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(12_100);
+      });
+      expect(screen.getByText("Unable to load folders.")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

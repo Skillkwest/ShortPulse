@@ -37,6 +37,20 @@ type UseExpertEditInlineGenerateParams = {
 };
 
 const MAX_REFERENCE_INPUTS = 8;
+const LAYER_IMAGE_LOAD_FAILURE_PREFIX = "Failed to load layer image:";
+const EXPIRED_REFERENCE_FRAGMENT = "Reference URL expired";
+
+const resolveFlattenFailureToastMessage = (error: unknown): string => {
+  if (!(error instanceof Error)) return "Unable to flatten layers.";
+  const errorMessage = error.message ?? "";
+  if (errorMessage.includes(EXPIRED_REFERENCE_FRAGMENT)) {
+    return "One or more layer images expired. Re-add the image and try again.";
+  }
+  if (errorMessage.includes(LAYER_IMAGE_LOAD_FAILURE_PREFIX)) {
+    return "One or more layer images are unavailable. Re-add the image and try again.";
+  }
+  return "Unable to flatten layers.";
+};
 
 export const useExpertEditInlineGenerate = ({
   layers,
@@ -114,7 +128,7 @@ export const useExpertEditInlineGenerate = ({
           return;
         }
         await onRegenerateWithReferenceInputs(referenceInputs);
-      } catch {
+      } catch (error) {
         if (flattenedUrl) {
           revokeObjectUrlSafe(flattenedUrl);
           flattenedUrl = null;
@@ -123,7 +137,7 @@ export const useExpertEditInlineGenerate = ({
           revokeObjectUrlSafe(inpaintMaskUrl);
           inpaintMaskUrl = null;
         }
-        showStatusToast("Unable to flatten layers.");
+        showStatusToast(resolveFlattenFailureToastMessage(error));
       } finally {
         if (flattenedUrl) {
           if (onRegenerateWithReferenceInputs) {

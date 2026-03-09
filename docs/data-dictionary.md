@@ -23,6 +23,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `source_ref` (uuid, nullable): References `ai_generations.id` when source is `ai_studio`.
 - `prompt_id` (uuid, nullable): References `media_prompts.id` when saved from a prompt.
 - `metadata` (jsonb, default `{}`): Provider/model metadata and any generation context.
+  - Canonical image dimension keys for masonry surfaces: `width` (px), `height` (px), `aspect_ratio` (`width/height`).
+  - Legacy dimension keys may still appear (`image_width`, `image_height`, `pixel_width`, `pixel_height`, nested `dimensions.width/height`) and are normalized by migration `061_backfill_media_image_dimensions_metadata.sql`.
   - Character profile uploads store `character_id` and `role = character_profile` for traceability.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `created_at` (timestamptz, default now)

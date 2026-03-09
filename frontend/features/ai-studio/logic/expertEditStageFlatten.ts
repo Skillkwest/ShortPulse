@@ -2,6 +2,8 @@
  * Stage-faithful flatten helpers for Expert Edit manual flatten action.
  * Produces a square PNG that matches primary-stage framing semantics.
  */
+import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
+
 export type ExpertEditStageFlattenLayer = {
   imageUrl: string | null;
   opacity?: number;
@@ -64,6 +66,21 @@ const loadImage = (url: string): Promise<HTMLImageElement> =>
     image.onerror = () => reject(new Error(`Failed to load layer image: ${url}`));
     image.src = url;
   });
+
+const loadImageWithSignedUrlRefresh = async (url: string): Promise<HTMLImageElement> => {
+  try {
+    return await loadImage(url);
+  } catch (initialError) {
+    if (!isCrossOriginCandidate(url)) {
+      throw initialError;
+    }
+    const refreshedUrl = await refreshSupabaseSignedUrlIfNeeded(url).catch(() => null);
+    if (!refreshedUrl || refreshedUrl === url) {
+      throw initialError;
+    }
+    return loadImage(refreshedUrl);
+  }
+};
 
 const canvasToBlob = (canvas: HTMLCanvasElement, mimeType: string): Promise<Blob> =>
   new Promise((resolve, reject) => {
@@ -166,7 +183,7 @@ export const composePrimaryStageLayersToBlob = async (
   const drawOrder = [...populatedLayers].reverse();
   const decodedLayers: DecodedStageLayer[] = await Promise.all(
     drawOrder.map(async (layer) => {
-      const image = await loadImage(layer.imageUrl);
+      const image = await loadImageWithSignedUrlRefresh(layer.imageUrl);
       return {
         image,
         opacity: clampOpacity(layer.opacity ?? 1),

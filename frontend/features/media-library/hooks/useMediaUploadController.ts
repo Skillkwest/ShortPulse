@@ -12,6 +12,10 @@ import {
   type SetStateAction,
 } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  withCanonicalImageDimensions,
+  type ImageDimensions,
+} from "../../../lib/mediaDimensionMetadata";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
@@ -118,6 +122,42 @@ const uploadViaServerApi = async ({
   return payload.file;
 };
 
+const readImageDimensionsFromFile = async (file: File): Promise<ImageDimensions | null> => {
+  if (!file.type.toLowerCase().startsWith("image/")) return null;
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const width = Math.max(1, Math.round(bitmap.width));
+      const height = Math.max(1, Math.round(bitmap.height));
+      bitmap.close();
+      if (width > 0 && height > 0) {
+        return { width, height };
+      }
+    } catch {
+      // fallback below
+    }
+  }
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    return await new Promise<ImageDimensions | null>((resolve) => {
+      const image = new Image();
+      image.onload = () => {
+        const width = Math.max(1, Math.round(image.naturalWidth || image.width || 0));
+        const height = Math.max(1, Math.round(image.naturalHeight || image.height || 0));
+        if (width > 0 && height > 0) {
+          resolve({ width, height });
+          return;
+        }
+        resolve(null);
+      };
+      image.onerror = () => resolve(null);
+      image.src = objectUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
 /**
  * Creates upload handlers and upload-state flags for the Media Library page.
  * Inputs: active tab metadata, row reconciliation callbacks, and signing/event helpers.
@@ -189,6 +229,7 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
           const file = filesToProcess[idx];
           const placeholderId = placeholders[idx]?.id;
           const mimeType = file.type || "application/octet-stream";
+          const resolvedFileType = fileTypeFromMime(mimeType);
           const destinationTab = resolveUploadDestinationTab(file, isPrivateUpload);
 
           let inserted: UploadMediaRowBase;
@@ -203,7 +244,9 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
             previewStoragePath = inserted.preview_storage_path ?? inserted.storage_path;
             signedUrl = inserted.signedUrl ?? null;
           } else {
-            const typeFolder = fileTypeFromMime(mimeType) === "video" ? "videos" : "images";
+            const imageDimensions =
+              resolvedFileType === "image" ? await readImageDimensionsFromFile(file) : null;
+            const typeFolder = resolvedFileType === "video" ? "videos" : "images";
             const extension = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
             const storedName = `${crypto.randomUUID()}-${sanitizeFileName(file.name.replace(extension, ""))}${extension}`;
             const path = assertUserScopedMediaStoragePath({
@@ -228,9 +271,10 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
                 user_id: userId,
                 filename: file.name,
                 storage_path: path,
-                file_type: fileTypeFromMime(mimeType),
+                file_type: resolvedFileType,
                 file_size: file.size,
                 source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
+                metadata: withCanonicalImageDimensions(null, imageDimensions),
               })
               .select("*")
               .single();

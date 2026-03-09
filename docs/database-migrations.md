@@ -147,7 +147,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 58. `sql/migrations/058_add_user_preferences_ai_studio_style_details_overrides.sql`
 59. `sql/migrations/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql`
 60. `sql/migrations/060_add_media_folders_and_membership.sql`
-61. Rollback files:
+61. `sql/migrations/061_backfill_media_image_dimensions_metadata.sql`
+62. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -173,6 +174,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/058_add_user_preferences_ai_studio_style_details_overrides_rollback.sql`
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
+    - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -221,6 +223,7 @@ Billing safety note:
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` adds durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) so high-density deck users do not repeatedly see the same embedded tip bubble.
 - Migration `060_add_media_folders_and_membership.sql` adds user-owned Media Library folders (`media_folders`) and scoped media/prompt membership junctions (`media_folder_media_items`, `media_folder_prompt_items`) for AI Studio folder-based organization.
+- Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 
 ## Media storage scope verification (post-017)
 

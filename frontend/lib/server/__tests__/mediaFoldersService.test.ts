@@ -125,7 +125,9 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
     }),
   };
 
-  getSupabaseAdminMock.mockReturnValue(supabaseMock as ReturnType<typeof getSupabaseAdmin>);
+  getSupabaseAdminMock.mockReturnValue(
+    supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+  );
 
   return {
     mediaAssignSelectMock,

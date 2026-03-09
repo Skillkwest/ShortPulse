@@ -126,7 +126,7 @@ const shouldRefreshSupabaseSignedUrl = (expiresAtSeconds: number | null): boolea
   return expiresAtSeconds - nowSeconds <= SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS;
 };
 
-const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> => {
+export const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> => {
   const objectRef = parseSupabaseSignedObjectRef(url);
   if (!objectRef) return url;
   if (!shouldRefreshSupabaseSignedUrl(objectRef.expiresAtSeconds)) return url;

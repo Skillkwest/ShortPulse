@@ -7,6 +7,7 @@ import { X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
 import { postExtractStyle, prepareStyleImageUrl } from "../logic/styleExtraction";
 import { extractDragDropPayload } from "../utils/dragDrop";
+import { prepareImageUrlForSubmission } from "../utils/imageUpload";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { resolveStylePreviewBackgroundImage } from "./edit/expertEditStyles";
 
@@ -339,8 +340,10 @@ export function StylesLibraryPanel({
       if (!droppedImageUrl) {
         throw new Error("missing-dropped-style-image");
       }
+      const preparedDroppedImageUrl =
+        (await prepareImageUrlForSubmission(droppedImageUrl)) ?? droppedImageUrl;
       return {
-        previewImageUrl: await cropImageUrlToSquareDataUrl(droppedImageUrl),
+        previewImageUrl: await cropImageUrlToSquareDataUrl(preparedDroppedImageUrl),
         promptText: dragPayload.promptText?.trim() ?? "",
       };
     },
@@ -766,17 +769,26 @@ export function StylesLibraryPanel({
               </article>
             );
           })}
-          <article role="listitem" className="styles-library-add-tile">
+          <article role="listitem" className="styles-library-tile styles-library-add-tile">
             <button
               type="button"
-              className="styles-library-add-button"
+              className="styles-library-tile-select styles-library-add-button"
               aria-label="Add style"
               onClick={openCreateStyleModal}
             >
-              <span className="styles-library-add-plus" aria-hidden="true">
-                +
+              <span
+                className="styles-library-tile-title styles-library-add-title"
+                aria-hidden="true"
+              >
+                Add style
               </span>
-              <span className="styles-library-add-label tiny">Add style</span>
+              <span
+                className="styles-library-tile-preview styles-library-add-preview"
+                aria-hidden="true"
+              >
+                <span className="styles-library-add-plus">+</span>
+                <span className="styles-library-add-label tiny">Add style</span>
+              </span>
             </button>
           </article>
         </div>

@@ -116,7 +116,14 @@ describe("POST /api/media/prompts/list", () => {
         if (table !== "media_prompts") {
           throw new Error(`Unexpected table: ${table}`);
         }
-        const builder = {
+        type PromptQueryBuilder = {
+          eq: (column: string, value: string) => PromptQueryBuilder;
+          in: (column: string, values: string[]) => PromptQueryBuilder;
+          or: (clause: string) => PromptQueryBuilder;
+          order: (column: string, options: { ascending: boolean }) => PromptQueryBuilder;
+          limit: (value: number) => Promise<{ data: typeof rows; error: null }>;
+        };
+        const builder: PromptQueryBuilder = {
           eq: vi.fn(() => builder),
           in: vi.fn(() => builder),
           or: vi.fn(() => builder),

@@ -73,7 +73,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 0;
   padding: 10px 0 6px;
   z-index: 103;
 }
@@ -818,7 +818,7 @@
 
 .edit-expert-layer-btn {
   width: 100%;
-  min-height: 34.5px;
+  min-height: 38px;
   padding-right: 28px;
   min-width: 0;
   cursor: inherit;
@@ -841,7 +841,7 @@
 
 .edit-expert-layer-input {
   width: 100%;
-  min-height: 36px;
+  min-height: 38px;
   border-radius: 5px;
   border: 1px solid rgba(37, 41, 47, 0.64);
   background: rgba(37, 41, 47, 0.64);
@@ -905,45 +905,13 @@
   pointer-events: auto;
 }
 
-.edit-expert-layers-add-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  border: 1px solid rgba(201, 205, 214, 0.2);
-  background: rgba(37, 41, 47, 0.64);
-  color: #c9cdd685;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: center;
-  padding: 0;
-  cursor: pointer;
-  transition:
-    border-color 0.16s ease,
-    background 0.16s ease,
-    color 0.16s ease,
-    transform 0.16s ease;
-}
-
-.edit-expert-layers-add-btn:hover {
-  border-color: rgba(37, 41, 47, 0.64);
-  background: rgba(37, 41, 47, 0.8);
-  transform: translateY(-1px);
-}
-
-.edit-expert-layers-add-btn:focus-visible {
-  outline: none;
-  border-color: rgba(37, 41, 47, 0.64);
-  background: rgba(37, 41, 47, 0.8);
-}
-
 .edit-expert-layers-actions {
   position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 0;
   padding: 10px 0 6px;
   z-index: 103;
 }
@@ -973,6 +941,15 @@
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
+}
+
+.edit-expert-stage-status-toast--layers {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  width: 100%;
+  max-width: none;
+  margin-top: 6px;
 }
 
 .edit-expert-stage-status-toast.is-info {
@@ -2585,7 +2562,7 @@
   width: 100%;
   flex: 1 1 auto;
   color: #f5f9ff;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.55;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -2598,7 +2575,7 @@
 
 .edit-expert-prompt-shell .edit-expert-prompt-input::placeholder {
   color: rgba(245, 249, 255, 0.6);
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .edit-expert-prompt-shell .edit-expert-prompt-input::-webkit-scrollbar {

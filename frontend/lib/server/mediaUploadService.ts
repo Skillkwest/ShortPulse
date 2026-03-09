@@ -7,7 +7,9 @@ import formidable from "formidable";
 import fs from "fs";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { resolveMediaSigningStoragePaths } from "../mediaPreviewPath";
+import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import { extractImageDimensionsFromBuffer } from "./imageDimensions";
 import {
   areCompatibleMimeTypes,
   detectImageMimeType,
@@ -387,6 +389,10 @@ export const uploadMediaForUser = async ({
       userId,
       label: "Media upload storage path",
     });
+    const imageDimensions = destinationExpectsVideo(parsedUpload.destinationTab)
+      ? null
+      : extractImageDimensionsFromBuffer(parsedUpload.buffer);
+    const metadata = withCanonicalImageDimensions(null, imageDimensions);
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -410,6 +416,7 @@ export const uploadMediaForUser = async ({
         file_type: destinationExpectsVideo(parsedUpload.destinationTab) ? "video" : "image",
         file_size: parsedUpload.size,
         source: resolveUploadSource(parsedUpload.destinationTab),
+        metadata,
       })
       .select(
         "id, user_id, filename, storage_path, file_type, file_size, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"

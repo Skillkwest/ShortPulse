@@ -684,6 +684,18 @@ const revokeObjectUrlSafe = (url: string) => {
   }
 };
 
+const cloneBlobObjectUrl = async (sourceUrl: string): Promise<string | null> => {
+  if (!sourceUrl.startsWith("blob:")) return null;
+  try {
+    const response = await fetch(sourceUrl);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+};
+
 const resolveBlobDimensions = async (blob: Blob): Promise<{ width: number; height: number }> => {
   if (typeof window !== "undefined" && typeof window.createImageBitmap === "function") {
     const bitmap = await window.createImageBitmap(blob);
@@ -1735,15 +1747,25 @@ export function ExpertEditPanelView({
       event.preventDefault();
       setPrimaryDragActive(false);
       const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
-      let nextUrl = imageUrl;
-      if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
-        nextUrl = resolvePreviewUrlById(referenceId);
-      }
-      if (!nextUrl) return;
-      const isBlobUrl = nextUrl.startsWith("blob:");
-      const canAcceptBlob = fromFile || Boolean(referenceId);
-      if (isBlobUrl && !canAcceptBlob) return;
-      applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl: Boolean(fromFile && isBlobUrl) });
+      void (async () => {
+        let nextUrl = imageUrl;
+        if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
+          nextUrl = resolvePreviewUrlById(referenceId);
+        }
+        if (!nextUrl) return;
+        const isBlobUrl = nextUrl.startsWith("blob:");
+        const canAcceptBlob = fromFile || Boolean(referenceId);
+        if (isBlobUrl && !canAcceptBlob) return;
+        let ownsImageUrl = Boolean(fromFile && isBlobUrl);
+        if (isBlobUrl && !ownsImageUrl) {
+          const clonedBlobUrl = await cloneBlobObjectUrl(nextUrl);
+          if (clonedBlobUrl) {
+            nextUrl = clonedBlobUrl;
+            ownsImageUrl = true;
+          }
+        }
+        applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl });
+      })();
     },
     [applyPrimaryImageIngress, isMorePresetsSurfaceOpen, resolvePreviewUrlById]
   );

@@ -236,27 +236,31 @@
   border: 1px dashed rgba(118, 199, 255, 0.35);
   border-radius: 12px;
   background: rgba(44, 80, 108, 0.18);
-  min-height: 100%;
+  cursor: default;
 }
 
 .styles-library-add-button {
-  width: 100%;
-  height: 100%;
-  min-height: 188px;
-  border: none;
-  border-radius: 12px;
-  background: transparent;
   color: rgba(211, 240, 255, 0.9);
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
   cursor: pointer;
   transition:
     background 0.16s ease,
     border-color 0.16s ease,
     transform 0.16s ease;
+}
+
+.styles-library-add-title {
+  visibility: hidden;
+  user-select: none;
+}
+
+.styles-library-add-preview {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed rgba(118, 199, 255, 0.35);
+  background: rgba(44, 80, 108, 0.18);
 }
 
 .styles-library-add-button:hover {

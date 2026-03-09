@@ -1,0 +1,2 @@
+-- Rollback for migration 061 is intentionally a no-op.
+-- This migration only normalizes existing JSON metadata keys and is safe to keep applied.

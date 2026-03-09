@@ -26,6 +26,19 @@ describe("resolveMediaCardAspectRatio", () => {
     );
   });
 
+  it("prefers canonical width/height over explicit aspect ratio when both exist", () => {
+    expect(
+      resolveMediaCardAspectRatio({
+        fileType: "image/png",
+        metadata: {
+          width: 1200,
+          height: 800,
+          aspect_ratio: 0.5,
+        },
+      })
+    ).toBeCloseTo(1.5, 4);
+  });
+
   it("derives aspect ratio from width and height metadata", () => {
     expect(
       resolveMediaCardAspectRatio({

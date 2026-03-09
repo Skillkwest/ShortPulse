@@ -41,12 +41,14 @@ type UseAiStudioEditExpertPanelPropsParams = {
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
     costOverrideCredits?: number | null;
+    hideOutputFromReferenceGrid?: boolean;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
   isPromptGenerating: boolean;
+  isPrimaryStageGenerating: boolean;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   imageResolution: string;
@@ -87,6 +89,7 @@ export const useAiStudioEditExpertPanelProps = ({
   isGenerateDisabled,
   isGenerateClickLocked,
   isPromptGenerating,
+  isPrimaryStageGenerating,
   referenceImageWarning,
   resolveOutputPreviewUrl,
   imageResolution,
@@ -126,6 +129,7 @@ export const useAiStudioEditExpertPanelProps = ({
           inpaintOverride?: InpaintSubmissionOverride | null;
           modelIdOverride?: string | null;
           costOverrideCredits?: number | null;
+          hideOutputFromReferenceGrid?: boolean;
         }
       ) =>
         handleImageRegenerateWithDebit({
@@ -133,11 +137,13 @@ export const useAiStudioEditExpertPanelProps = ({
           inpaintOverride: options?.inpaintOverride,
           modelIdOverride: options?.modelIdOverride,
           costOverrideCredits: options?.costOverrideCredits,
+          hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
         }),
       onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
       isGenerateBusy: isPromptGenerating,
+      isPrimaryStageGenerating,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       imageResolution,
@@ -169,6 +175,7 @@ export const useAiStudioEditExpertPanelProps = ({
       isCharacterOptionsLoading,
       isGenerateClickLocked,
       isGenerateDisabled,
+      isPrimaryStageGenerating,
       isModelModalOpen,
       isPromptGenerating,
       model,

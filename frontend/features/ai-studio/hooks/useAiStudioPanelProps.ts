@@ -83,6 +83,7 @@ export type UseAiStudioPanelPropsParams = {
   handleManualPromptChange: (value: string) => void;
   toggleReferenceIndicator: () => void;
   isPromptGenerating: boolean;
+  isPrimaryEditStageGenerating: boolean;
   isPromptRefining: boolean;
   describeInFlightCount: number;
   currentCostCredits: number | null;
@@ -129,6 +130,7 @@ export type UseAiStudioPanelPropsParams = {
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
     costOverrideCredits?: number | null;
+    hideOutputFromReferenceGrid?: boolean;
   }) => void | Promise<void>;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;
@@ -216,6 +218,7 @@ export const useAiStudioPanelProps = ({
   handleManualPromptChange,
   toggleReferenceIndicator,
   isPromptGenerating,
+  isPrimaryEditStageGenerating,
   isPromptRefining,
   describeInFlightCount,
   currentCostCredits,
@@ -418,6 +421,7 @@ export const useAiStudioPanelProps = ({
     isGenerateDisabled,
     isGenerateClickLocked,
     isPromptGenerating,
+    isPrimaryStageGenerating: isPrimaryEditStageGenerating,
     referenceImageWarning,
     resolveOutputPreviewUrl,
     isReferencePromptEnhancing,

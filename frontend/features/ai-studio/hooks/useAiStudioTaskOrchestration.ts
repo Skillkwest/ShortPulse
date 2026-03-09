@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { fetchFalQueueStatus } from "../../../lib/falClient";
 import { normalizeProviderForPolling, type Provider } from "../logic/stateParsers";
-import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
@@ -119,14 +118,12 @@ export const useAiStudioTaskOrchestration = ({
     []
   );
 
-  const isBriaPrimaryReferenceReplacementOutput = useCallback((output: StudioOutput | null) => {
+  const isPrimaryReferenceReplacementOutput = useCallback((output: StudioOutput | null) => {
     if (!output) return false;
-    return (
-      output.modelId === BRIA_BACKGROUND_REMOVE_MODEL_ID && output.hiddenInReferenceGrid === true
-    );
+    return output.mode === "image" && output.hiddenInReferenceGrid === true;
   }, []);
 
-  const clearBriaReferenceReplacementOutput = useCallback(
+  const clearPrimaryReferenceReplacementOutput = useCallback(
     (outputId: string) => {
       if (!setPrimaryEditReferenceImageUrl) return;
       setOutputs((prev) => prev.filter((item) => item.id !== outputId));
@@ -137,16 +134,16 @@ export const useAiStudioTaskOrchestration = ({
   const handleGenerationSuccess = useCallback(
     (payload: { outputId: string; resultUrls: string[] }) => {
       const output = findOutputById(payload.outputId);
-      if (!isBriaPrimaryReferenceReplacementOutput(output)) return;
+      if (!isPrimaryReferenceReplacementOutput(output)) return;
       const primaryResultUrl = payload.resultUrls[0] ?? null;
       if (!primaryResultUrl || !setPrimaryEditReferenceImageUrl) return;
       setPrimaryEditReferenceImageUrl(primaryResultUrl);
-      clearBriaReferenceReplacementOutput(payload.outputId);
+      clearPrimaryReferenceReplacementOutput(payload.outputId);
     },
     [
-      clearBriaReferenceReplacementOutput,
+      clearPrimaryReferenceReplacementOutput,
       findOutputById,
-      isBriaPrimaryReferenceReplacementOutput,
+      isPrimaryReferenceReplacementOutput,
       setPrimaryEditReferenceImageUrl,
     ]
   );
@@ -154,10 +151,10 @@ export const useAiStudioTaskOrchestration = ({
   const handleGenerationFailure = useCallback(
     (payload: { outputId: string }) => {
       const output = findOutputById(payload.outputId);
-      if (!isBriaPrimaryReferenceReplacementOutput(output)) return;
-      clearBriaReferenceReplacementOutput(payload.outputId);
+      if (!isPrimaryReferenceReplacementOutput(output)) return;
+      clearPrimaryReferenceReplacementOutput(payload.outputId);
     },
-    [clearBriaReferenceReplacementOutput, findOutputById, isBriaPrimaryReferenceReplacementOutput]
+    [clearPrimaryReferenceReplacementOutput, findOutputById, isPrimaryReferenceReplacementOutput]
   );
 
   const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({

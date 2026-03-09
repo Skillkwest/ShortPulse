@@ -9,6 +9,7 @@ import { StudioMode, StudioOutput } from "../types";
 import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
 import { resolvePreviewUrlById, resolveModelLabel } from "../logic/stateParsers";
 import { canRerollOutput, isGenerationReplayConfigV1 } from "../logic/generationReplay";
+import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioOutputObjectUrlLifecycle } from "./useAiStudioOutputObjectUrlLifecycle";
@@ -97,6 +98,18 @@ export const useAiStudioState = ({
   const activeOutput = useMemo(
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
+  );
+  const isPrimaryEditStageGenerating = useMemo(
+    () =>
+      outputs.some(
+        (output) =>
+          output.mode === "image" &&
+          output.hiddenInReferenceGrid === true &&
+          output.modelId !== BRIA_BACKGROUND_REMOVE_MODEL_ID &&
+          output.taskState !== "success" &&
+          output.taskState !== "fail"
+      ),
+    [outputs]
   );
 
   // UI selections and references (tracked per workflow)
@@ -707,6 +720,7 @@ export const useAiStudioState = ({
 
   return {
     isPromptGenerating,
+    isPrimaryEditStageGenerating,
     promptRef,
     mode,
     setMode,

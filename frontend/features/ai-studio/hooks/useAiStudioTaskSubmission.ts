@@ -188,6 +188,7 @@ export const useAiStudioTaskSubmission = ({
         aspectOverride?: string;
         imageResolutionOverride?: string;
         inpaintOverride?: InpaintSubmissionOverride | null;
+        hideOutputFromReferenceGrid?: boolean;
       }
     ) => {
       setUiError(null);
@@ -317,7 +318,10 @@ export const useAiStudioTaskSubmission = ({
           saveError: null,
           characterContext: options?.characterContextOverride,
           submissionTraceId,
-          hiddenInReferenceGrid: finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID ? true : undefined,
+          hiddenInReferenceGrid:
+            finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid
+              ? true
+              : undefined,
         };
 
         // Render or reconcile the spinner placeholder before URL prep/submission work begins.

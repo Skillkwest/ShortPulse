@@ -19,6 +19,7 @@ export type AiStudioGenerateSubmissionOverrides = {
   outputIdOverride?: string;
   modelIdOverride?: string | null;
   inpaintOverride?: InpaintSubmissionOverride | null;
+  hideOutputFromReferenceGrid?: boolean;
 };
 
 type GenerateOutputOptions = {
@@ -49,6 +50,7 @@ type UseAiStudioGenerationPromptComposerParams = {
       outputIdOverride?: string;
       modelIdOverride?: string | null;
       inpaintOverride?: InpaintSubmissionOverride | null;
+      hideOutputFromReferenceGrid?: boolean;
     }
   ) => void;
 };
@@ -138,6 +140,7 @@ export const useAiStudioGenerationPromptComposer = ({
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
         inpaintOverride: options?.inpaintOverride,
+        hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
         ...(typeof options?.outputIdOverride === "string"
           ? { outputIdOverride: options.outputIdOverride }
           : {}),
@@ -190,6 +193,7 @@ export const useAiStudioGenerationPromptComposer = ({
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
         inpaintOverride: options?.inpaintOverride,
+        hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
       });
     },
     [

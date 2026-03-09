@@ -145,7 +145,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 56. `sql/migrations/056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql`
 57. `sql/migrations/057_add_user_preferences_ai_studio_deleted_style_ids.sql`
 58. `sql/migrations/058_add_user_preferences_ai_studio_style_details_overrides.sql`
-59. Rollback files:
+59. `sql/migrations/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql`
+60. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -169,6 +170,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/056_add_user_preferences_expert_edit_preset_ids_and_custom_presets_rollback.sql`
     - `sql/migrations/rollback/057_add_user_preferences_ai_studio_deleted_style_ids_rollback.sql`
     - `sql/migrations/rollback/058_add_user_preferences_ai_studio_style_details_overrides_rollback.sql`
+    - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -215,6 +217,7 @@ Billing safety note:
 - Migration `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql` adds canonical Expert Edit preset ID allocation persistence (`user_preferences.expert_edit_preset_panel_ids`) plus preset override persistence (`user_preferences.expert_edit_custom_presets`) while preserving legacy label fallback compatibility.
 - Migration `057_add_user_preferences_ai_studio_deleted_style_ids.sql` adds durable per-user Styles Library deletion persistence (`user_preferences.ai_studio_deleted_style_ids`) so deleted styles stay hidden across sessions/devices.
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
+- Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` adds durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) so high-density deck users do not repeatedly see the same embedded tip bubble.
 
 ## Media storage scope verification (post-017)
 

@@ -123,6 +123,12 @@ export const DEFAULT_CHARACTER_SHEET_PRESET_ID: CharacterSheetPresetId = "1";
 export const DEFAULT_CHARACTER_SHEET_PRESET_TAB_ORDER = [
   DEFAULT_CHARACTER_SHEET_PRESET_ID,
 ] as const satisfies ReadonlyArray<CharacterSheetPresetId>;
+export const DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL = "Double click me";
+
+export const getDefaultCharacterSheetPresetTabLabel = (presetId: CharacterSheetPresetId): string =>
+  presetId === DEFAULT_CHARACTER_SHEET_PRESET_ID
+    ? DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL
+    : presetId;
 
 export const createEmptyCharacterSheetAssignments = (): CharacterSheetAssignments =>
   CHARACTER_SHEET_DROP_ZONES.reduce((acc, slot) => {
@@ -144,7 +150,7 @@ export const createEmptyCharacterSheetPresetMap = (): CharacterSheetPresetMap =>
 
 export const createDefaultCharacterSheetPresetLabels = (): CharacterSheetPresetLabelMap =>
   CHARACTER_SHEET_PRESET_IDS.reduce((acc, presetId) => {
-    acc[presetId] = presetId;
+    acc[presetId] = getDefaultCharacterSheetPresetTabLabel(presetId);
     return acc;
   }, {} as CharacterSheetPresetLabelMap);
 

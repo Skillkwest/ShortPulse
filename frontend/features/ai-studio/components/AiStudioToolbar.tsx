@@ -24,8 +24,9 @@ import {
   AI_STUDIO_TOOLBAR_LOGO_SRC,
   creationsToolList,
   editToolList,
-  lowerToolList,
+  librariesToolList,
   primaryToolList,
+  shortcutsToolList,
 } from "../constants";
 import { ToolId } from "../types";
 import {
@@ -181,7 +182,7 @@ function AiStudioToolbarComponent({
         })}
         <div className="toolbar-divider" aria-hidden="true" />
         <div className="toolbar-lower">
-          <p className="toolbar-section-label">Shortcuts</p>
+          <p className="toolbar-section-label">Libraries</p>
           <button
             type="button"
             className="toolbar-item toolbar-item-secondary"
@@ -195,7 +196,7 @@ function AiStudioToolbarComponent({
               <span className="toolbar-label">Media Library</span>
             </div>
           </button>
-          {lowerToolList.map((tool) => {
+          {librariesToolList.map((tool) => {
             const IconComponent = toolIcons[tool.id];
             const isCharacterShortcut = tool.id === "character";
             const isActive = isCharacterShortcut ? isCharacterSelected : selectedTool === tool.id;
@@ -210,6 +211,29 @@ function AiStudioToolbarComponent({
                     onSelectTool(null);
                     return;
                   }
+                  onToggleCreateTools(false);
+                  onSelectTool(tool.id);
+                }}
+              >
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                <div className="toolbar-copy">
+                  <span className="toolbar-label">{tool.label}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div className="toolbar-lower">
+          <p className="toolbar-section-label">Shortcuts</p>
+          {shortcutsToolList.map((tool) => {
+            const IconComponent = toolIcons[tool.id];
+            const isActive = selectedTool === tool.id;
+            return (
+              <button
+                key={tool.id}
+                type="button"
+                className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
+                onClick={() => {
                   onToggleCreateTools(false);
                   onSelectTool(tool.id);
                 }}

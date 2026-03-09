@@ -37,6 +37,7 @@ import {
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
+import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
 import {
   CHARACTER_LIBRARY_EXPAND_STEP,
   CHARACTER_LIBRARY_SMOOTH_TARGET,
@@ -88,6 +89,8 @@ const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const CHARACTER_DESCRIPTION_HELPER_TEXT =
   "Tip: Character description will be used as part of consistency generation.";
+const CHARACTER_REFERENCES_HELPER_TEXT =
+  "These are the exact reference images sent to the model for character training and consistency generation.";
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
@@ -102,6 +105,7 @@ const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
 const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 const MEDIA_BUCKET = "media_library";
 const DROPPED_REFERENCE_TELEMETRY_SOURCE = "client.character_manager.drop_reference";
+const QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD = 4;
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -145,6 +149,12 @@ const resolveInitialBeginnerMode = (): boolean => {
   } catch {
     return true;
   }
+};
+
+const resolveInitialQuickSwapGridColumnCount = (): number => {
+  if (typeof window === "undefined") return 3;
+  if (typeof window.matchMedia !== "function") return 3;
+  return window.matchMedia("(max-width: 860px)").matches ? 2 : 3;
 };
 
 type DroppedImageReference = {
@@ -545,6 +555,9 @@ export function CharacterManagerShell({
     CHARACTER_LIBRARY_SMOOTH_TARGET
   );
   const [beginnerMode, setBeginnerMode] = useState(resolveInitialBeginnerMode);
+  const [quickSwapGridColumnCount, setQuickSwapGridColumnCount] = useState(
+    resolveInitialQuickSwapGridColumnCount
+  );
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
@@ -648,10 +661,17 @@ export function CharacterManagerShell({
     enabled: characterGridAdaptivePreviewEnabled,
   });
   const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
+  const { isQuickSwapTipHidden, markQuickSwapTipHidden } = useCharacterQuickSwapTipPreference();
   const quickSwapRemainingActiveCapacity = useMemo(
     () => Math.max(0, CHARACTER_QUICK_SWAP_ACTIVE_LIMIT - quickSwapActiveItems.length),
     [quickSwapActiveItems.length]
   );
+  const quickSwapVisibleRowCount = useMemo(() => {
+    const columnCount = Math.max(1, quickSwapGridColumnCount);
+    // Include the upload placeholder card in row-density calculation.
+    const renderedCardCount = quickSwapActiveItems.length + 1;
+    return Math.max(1, Math.ceil(renderedCardCount / columnCount));
+  }, [quickSwapActiveItems.length, quickSwapGridColumnCount]);
   const referencePreviewEntry =
     referencePreview && quickSwapActiveItems[referencePreview.index]
       ? quickSwapActiveItems[referencePreview.index]
@@ -877,6 +897,34 @@ export function CharacterManagerShell({
     if (typeof window === "undefined") return;
     window.localStorage.setItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY, String(beginnerMode));
   }, [beginnerMode, isBeginnerModeControlled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (typeof window.matchMedia !== "function") return;
+    const mediaQuery = window.matchMedia("(max-width: 860px)");
+    const applyColumnCount = () => {
+      setQuickSwapGridColumnCount(mediaQuery.matches ? 2 : 3);
+    };
+    applyColumnCount();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", applyColumnCount);
+      return () => {
+        mediaQuery.removeEventListener("change", applyColumnCount);
+      };
+    }
+
+    mediaQuery.addListener(applyColumnCount);
+    return () => {
+      mediaQuery.removeListener(applyColumnCount);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isQuickSwapTipHidden) return;
+    if (quickSwapVisibleRowCount < QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD) return;
+    void markQuickSwapTipHidden();
+  }, [isQuickSwapTipHidden, markQuickSwapTipHidden, quickSwapVisibleRowCount]);
 
   useEffect(() => {
     let active = true;
@@ -2354,6 +2402,9 @@ export function CharacterManagerShell({
                   />
                   <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
                     <p className="input-label">Character References:</p>
+                    <p className="character-sheet-references-helper tiny subdued">
+                      {CHARACTER_REFERENCES_HELPER_TEXT}
+                    </p>
                   </div>
                   <div className="character-reference-empty-grid">
                     {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
@@ -2449,7 +2500,7 @@ export function CharacterManagerShell({
               </section>
             }
             embeddedGuidance={
-              isEmbeddedSurface ? (
+              isEmbeddedSurface && !isQuickSwapTipHidden ? (
                 <p className="character-mode-guidance character-mode-guidance--sheet" role="note">
                   <span className="character-mode-guidance-label">Tip:</span>
                   Swap out your character&apos;s style on the fly by dragging and dropping

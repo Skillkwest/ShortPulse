@@ -16,6 +16,7 @@ import {
   createEmptyCharacterSheetPresetAssignments,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSlotMap,
+  getDefaultCharacterSheetPresetTabLabel,
 } from "../constants";
 import {
   createNormalizedCharacterSheetPresetTabDescriptions,
@@ -443,7 +444,10 @@ export const serializeCharacterSheetPresetState = (
   active_preset_id: state.activePresetId,
   tab_order: state.tabOrder,
   tab_labels: Object.fromEntries(
-    CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, state.tabLabels[presetId] ?? presetId])
+    CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+      presetId,
+      state.tabLabels[presetId] ?? getDefaultCharacterSheetPresetTabLabel(presetId),
+    ])
   ) as CharacterSheetPresetLabelMap,
   tab_descriptions: Object.fromEntries(
     CHARACTER_SHEET_PRESET_IDS.map((presetId) => [

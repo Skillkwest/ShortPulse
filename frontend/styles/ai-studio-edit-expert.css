@@ -169,6 +169,14 @@
   box-shadow: none;
   color: #eef2f8;
   font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-expert-preset-action-btn--compose-image,
+.edit-expert-preset-action-btn--compose-image *,
+.edit-expert-preset-action-btn--compose-image:disabled,
+.edit-expert-preset-action-btn--compose-image:disabled * {
+  cursor: pointer;
 }
 
 .edit-expert-preset-action-btn--compose-image span,
@@ -2608,6 +2616,8 @@
 .edit-expert-selector-row {
   width: 100%;
   margin: 6px auto 0;
+  position: relative;
+  z-index: 8;
   display: flex;
   justify-content: center;
   align-items: center;

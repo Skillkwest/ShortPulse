@@ -292,29 +292,30 @@
 }
 
 .styles-library-edit-modal {
-  width: min(640px, calc(100vw - 24px));
+  width: min(720px, calc(100vw - 24px));
   border-radius: 12px;
   border: 1px solid rgba(201, 205, 214, 0.24);
-  background: rgba(16, 18, 24, 0.98);
+  background: #131518;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
-  padding: 20px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  font-family: inherit;
 }
 
 .styles-library-edit-title {
   margin: 0;
   color: rgba(235, 241, 248, 0.96);
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
 .styles-library-edit-copy {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .styles-library-edit-field {
@@ -325,38 +326,39 @@
 
 .styles-library-edit-label {
   color: rgba(229, 234, 242, 0.9);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
 }
 
 .styles-library-edit-input,
 .styles-library-edit-textarea {
   width: 100%;
-  border-radius: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.22);
-  background: rgba(10, 13, 19, 0.88);
-  color: rgba(235, 241, 248, 0.94);
-  font-size: 14px;
-  line-height: 1.5;
-  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: #101215;
+  color: rgba(238, 242, 248, 0.95);
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 13px 14px;
+  font-family: inherit;
 }
 
 .styles-library-edit-textarea {
   resize: vertical;
-  min-height: 170px;
+  min-height: 220px;
 }
 
 .styles-library-edit-input:focus-visible,
 .styles-library-edit-textarea:focus-visible {
-  outline: 2px solid rgba(72, 195, 255, 0.72);
+  outline: 2px solid rgba(105, 198, 255, 0.7);
   outline-offset: 1px;
 }
 
 .styles-library-edit-dropzone {
-  border: 1px dashed rgba(118, 199, 255, 0.44);
+  border: 1px dashed rgba(201, 205, 214, 0.24);
   border-radius: 12px;
-  background: rgba(20, 36, 49, 0.25);
+  background: #101215;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -371,15 +373,15 @@
 }
 
 .styles-library-edit-dropzone:hover {
-  border-color: rgba(118, 199, 255, 0.72);
-  background: rgba(26, 48, 66, 0.34);
+  border-color: rgba(205, 210, 220, 0.36);
+  background: rgba(201, 205, 214, 0.08);
 }
 
 .styles-library-edit-dropzone:focus-visible,
 .styles-library-edit-dropzone.is-drop-active {
-  border-color: rgba(132, 210, 255, 0.86);
-  background: rgba(33, 65, 88, 0.45);
-  box-shadow: 0 0 0 2px rgba(98, 210, 255, 0.2);
+  border-color: rgba(105, 198, 255, 0.7);
+  background: #101215;
+  box-shadow: 0 0 0 2px rgba(105, 198, 255, 0.2);
 }
 
 .styles-library-edit-dropzone:focus-visible {
@@ -388,7 +390,7 @@
 
 .styles-library-edit-dropzone.has-preview {
   border-style: solid;
-  background: rgba(18, 31, 42, 0.46);
+  background: #101215;
 }
 
 .styles-library-edit-dropzone-input {
@@ -399,7 +401,6 @@
   width: min(220px, 100%);
   aspect-ratio: 1 / 1;
   border-radius: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.2);
   background:
     linear-gradient(140deg, rgba(201, 205, 214, 0.12), rgba(201, 205, 214, 0.04)),
     rgba(10, 13, 19, 0.82);
@@ -409,31 +410,37 @@
 
 .styles-library-edit-dropzone-copy {
   color: rgba(220, 233, 245, 0.95);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.5;
   text-align: center;
 }
 
 .styles-library-edit-dropzone-hint {
   margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
   text-align: center;
 }
 
 .styles-library-edit-error {
   margin: 0;
   color: rgba(255, 132, 132, 0.95);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .styles-library-edit-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .styles-library-edit-action-btn {
+  min-width: 120px;
+  border-radius: 8px;
   min-height: 34px;
-  font-size: 13px;
+  font-size: 15px;
+  font-family: inherit;
   padding-inline: 14px;
 }
 

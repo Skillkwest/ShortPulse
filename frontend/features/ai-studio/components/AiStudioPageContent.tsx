@@ -554,6 +554,7 @@ export function AiStudioPageContent({
   const showExpertEditPanel =
     propertiesPanelKind === "edit" && propertiesEditExpert.expertEditEligible;
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
+  const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const [panelVisibilityByWorkflow, setPanelVisibilityByWorkflow] =
     React.useState<WorkflowPanelVisibilityByWorkflow>(createInitialWorkflowPanelVisibility);
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
@@ -636,8 +637,9 @@ export function AiStudioPageContent({
     resolvedReferenceGridProps.onRemoveCuratedReference &&
     resolvedReferenceGridProps.onReorderCuratedReference
   );
-  const isCanvasToggleAvailable = Boolean(railCanvasProps) && selectedTool !== "canvas";
-  const isStylesToggleAvailable = showStylesPanelEligible;
+  const isCanvasToggleAvailable =
+    !isPrimaryCharacterPanelOpen && Boolean(railCanvasProps) && selectedTool !== "canvas";
+  const isStylesToggleAvailable = !isPrimaryCharacterPanelOpen && showStylesPanelEligible;
   const panelToggleAvailability = React.useMemo(
     () => ({
       canvas: isCanvasToggleAvailable,
@@ -647,6 +649,14 @@ export function AiStudioPageContent({
     [isCanvasToggleAvailable, isQuickSlotToggleAvailable, isStylesToggleAvailable]
   );
   const effectivePanelVisibility = React.useMemo(() => {
+    if (isPrimaryCharacterPanelOpen) {
+      return {
+        canvas: false,
+        quickSlot: isQuickSlotToggleAvailable,
+        referenceGrid: true,
+        styles: false,
+      };
+    }
     const baseVisibility = resolveEffectivePanelVisibility({
       workflowVisibility: workflowPanelVisibility,
       availability: panelToggleAvailability,
@@ -660,7 +670,13 @@ export function AiStudioPageContent({
       };
     }
     return baseVisibility;
-  }, [panelToggleAvailability, selectedTool, workflowPanelVisibility]);
+  }, [
+    isPrimaryCharacterPanelOpen,
+    isQuickSlotToggleAvailable,
+    panelToggleAvailability,
+    selectedTool,
+    workflowPanelVisibility,
+  ]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
   const headerShortcutStates = React.useMemo(
     () =>
@@ -684,7 +700,6 @@ export function AiStudioPageContent({
     [panelToggleAvailability, workflowPanelVisibilityKey]
   );
   const { activeCount } = useOutputCounts();
-  const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isPerformanceDenseSession =
     FLAG_HIGH_DENSITY_SHELL_MODE && activeCount >= PERFORMANCE_DENSE_REFERENCE_COUNT;
   const minLeftWidthPx = isPrimaryCharacterPanelOpen

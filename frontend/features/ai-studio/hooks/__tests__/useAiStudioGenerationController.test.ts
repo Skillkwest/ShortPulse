@@ -20,6 +20,7 @@ const createParams = (
   agentBusy: false,
   chatModeEnabled: true,
   currentCostCredits: 3,
+  resolveCostCreditsForModel: vi.fn(() => null),
   isGenerateDisabled: false,
   isCreditGuardrail: false,
   generationGuardrail: null,
@@ -695,6 +696,64 @@ describe("useAiStudioGenerationController", () => {
     expect(typeof updater).toBe("function");
     expect(updater?.([])).toEqual([
       expect.objectContaining({ credits: 1, outputId: null, createdAtMs: expect.any(Number) }),
+    ]);
+  });
+
+  it("uses resolved model-override cost for inpaint regenerates when explicit cost override is absent", async () => {
+    const regenerateOutput = vi.fn();
+    const setUiError = vi.fn();
+    const setOptimisticDebitEntries = vi.fn();
+    const resolveCostCreditsForModel = vi.fn((modelId: string) =>
+      modelId === "fal-ai/flux-pro/v1/fill" ? 5 : null
+    );
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      currentCostCredits: 15,
+      effectiveBalanceCredits: 2,
+      balanceCredits: 2,
+      isGenerateDisabled: true,
+      isCreditGuardrail: true,
+      generationGuardrail: "You do not have enough credits for this run.",
+      refreshBalance: vi.fn(async () => 5),
+      regenerateOutput,
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+      resolveCostCreditsForModel,
+      setUiError: asDispatch<string | null>(setUiError),
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        modelIdOverride: "fal-ai/flux-pro/v1/fill",
+        inpaintOverride: {
+          modelId: "fal-ai/flux-pro/v1/fill",
+          baseImageInput: "https://cdn.test/inpaint-base.png",
+          maskInput: "https://cdn.test/inpaint-mask.png",
+          outputFormat: "png",
+        },
+      });
+    });
+
+    expect(resolveCostCreditsForModel).toHaveBeenCalledWith("fal-ai/flux-pro/v1/fill");
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelIdOverride: "fal-ai/flux-pro/v1/fill",
+      })
+    );
+    expect(setUiError).not.toHaveBeenCalled();
+    const updater = setOptimisticDebitEntries.mock.calls[0]?.[0] as
+      | ((prev: { credits: number; outputId: string | null }[]) => {
+          credits: number;
+          outputId: string | null;
+          createdAtMs?: number;
+        }[])
+      | undefined;
+    expect(typeof updater).toBe("function");
+    expect(updater?.([])).toEqual([
+      expect.objectContaining({ credits: 5, outputId: null, createdAtMs: expect.any(Number) }),
     ]);
   });
 

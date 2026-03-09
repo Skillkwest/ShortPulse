@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL } from "../../constants";
 import {
   cleanupOrphanedMedia,
   getCharacterSheetPresetState,
@@ -186,6 +187,7 @@ describe("characterSheetPresets metadata helpers", () => {
     });
 
     expect(parsed?.tabOrder).toEqual(["1", "2", "4", "3"]);
+    expect(parsed?.tabLabels["1"]).toBe(DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL);
   });
 
   it("normalizes malformed tab order and labels to safe defaults", () => {

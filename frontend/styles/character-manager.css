@@ -37,7 +37,7 @@ body.character-manager-body {
 
 .character-manager-page--embedded .character-mode-panel {
   margin-top: 0;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   padding: 0;
 }
 
@@ -553,6 +553,10 @@ body.character-manager-body {
   width: 100%;
   max-width: 520px;
   background: #17191d;
+}
+
+.character-section--references .character-section-helper {
+  max-width: none;
 }
 
 .character-section--references .character-reference-empty-grid,
@@ -1613,11 +1617,19 @@ body.character-manager-body {
 }
 
 .character-sheet-references-title-row {
+  display: grid;
+  gap: 4px;
   margin: 8px 0 12px;
 }
 
 .character-sheet-references-title-row .input-label {
   margin-bottom: 0;
+}
+
+.character-sheet-references-helper {
+  margin: 0;
+  color: rgba(206, 216, 227, 0.5);
+  line-height: 1.45;
 }
 
 .character-character-sheet-card {

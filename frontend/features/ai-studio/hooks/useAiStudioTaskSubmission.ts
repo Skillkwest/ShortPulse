@@ -446,7 +446,9 @@ export const useAiStudioTaskSubmission = ({
             return;
           }
         }
-        const generationReplay = buildReplaySnapshot(preparedImageInputs.slice(0, 8));
+        const generationReplay = options?.inpaintOverride
+          ? null
+          : buildReplaySnapshot(preparedImageInputs.slice(0, 8));
         if (generationReplay) {
           setOutputs((prev) =>
             prev.map((item) =>

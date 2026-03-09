@@ -256,6 +256,9 @@ describe("characterManagerPersistence preset preview hydration", () => {
     });
 
     expect(result.tabLabels["2"]).toBe("Hero Closeups");
+    expect(selectQuery.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(updateQuery.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(updateSecondEq).toHaveBeenCalledWith("id", "char-1");
   });
 
   it("hydrates preset previews when persisting tab labels", async () => {

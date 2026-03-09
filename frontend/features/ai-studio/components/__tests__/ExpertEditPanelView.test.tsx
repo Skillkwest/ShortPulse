@@ -272,6 +272,16 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).not.toBeDisabled();
   });
 
+  it("disables flatten action until at least one layer image exists", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
+
+    const flattenButton = screen.getByRole("button", { name: /flatten & add to grid/i });
+    expect(flattenButton).toBeDisabled();
+
+    uploadPrimaryFile(container, "layer-1.png");
+    expect(flattenButton).not.toBeDisabled();
+  });
+
   it("keeps Remove Background disabled when generate is globally disabled", () => {
     const { container } = render(
       <ExpertEditPanelView {...baseProps} referenceImageUrl={null} isGenerateDisabled />
@@ -862,6 +872,30 @@ describe("ExpertEditPanelView", () => {
     expect(landscapeChip).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(landscapeChip);
     expect(landscapeChip).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("locks the model picker to FLUX Pro Fill while Inpaint is selected", async () => {
+    const onModelPickerOpen = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onModelPickerOpen={onModelPickerOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
+    const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
+    const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
+
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+
+    fireEvent.click(inpaintButton);
+    expect(modelPickerButton).toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("FLUX Pro Fill");
+    fireEvent.click(modelPickerButton);
+    expect(onModelPickerOpen).not.toHaveBeenCalled();
+
+    fireEvent.click(moveButton);
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
   });
 
   it("applies active tool theme classes to the collapsed tools button", () => {
@@ -2112,6 +2146,72 @@ describe("ExpertEditPanelView", () => {
     });
   });
 
+  it("manual flatten applies active crop ratio before exporting to grid", async () => {
+    const originalCreateImageBitmap = window.createImageBitmap;
+    const closeBitmap = vi.fn();
+    Object.defineProperty(window, "createImageBitmap", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(async () => ({
+        width: 1440,
+        height: 1440,
+        close: closeBitmap,
+      })),
+    });
+    try {
+      const onAddSessionMediaReference = vi.fn();
+      const { container } = render(
+        <ExpertEditPanelView
+          {...baseProps}
+          onAddSessionMediaReference={onAddSessionMediaReference}
+        />
+      );
+
+      uploadPrimaryFile(container, "layer-1.png");
+      uploadPrimaryFile(container, "layer-2.png");
+
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^crop$/i }));
+      const cropPanel = screen.getByRole("group", { name: /crop tools/i });
+      fireEvent.click(within(cropPanel).getByRole("button", { name: /16:9\s*landscape/i }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /flatten/i }));
+        await Promise.resolve();
+      });
+
+      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+      expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
+      expect(composeExpertEditLayerCropToBlobMock).toHaveBeenCalledTimes(1);
+      expect(composeExpertEditLayerCropToBlobMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageUrl: expect.stringMatching(/^blob:flatten-/),
+          stageWidth: 1440,
+          stageHeight: 1440,
+          cropRect: expect.objectContaining({
+            x: 0,
+            y: 315,
+            width: 1440,
+            height: 810,
+          }),
+          mimeType: "image/png",
+        })
+      );
+      expect(closeBitmap).toHaveBeenCalledTimes(1);
+      expect(onAddSessionMediaReference).toHaveBeenCalledWith({
+        url: expect.stringMatching(/^blob:flatten-/),
+        mimeType: "image/png",
+      });
+    } finally {
+      Object.defineProperty(window, "createImageBitmap", {
+        configurable: true,
+        writable: true,
+        value: originalCreateImageBitmap,
+      });
+    }
+  });
+
   it("manual flatten forwards current layer transforms to stage flatten helper", async () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
@@ -2187,8 +2287,11 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("auto-flattens on generate and forwards flattened refs with primary first", async () => {
-    const onRegenerateWithReferenceInputs = vi.fn(async (referenceInputs: string[]) => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
       void referenceInputs;
+      void options;
     });
     const { container } = render(
       <ExpertEditPanelView
@@ -2209,18 +2312,31 @@ describe("ExpertEditPanelView", () => {
 
     expect(composePrimaryLayersToBlobMock).toHaveBeenCalled();
     expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
-    const referenceInputs = onRegenerateWithReferenceInputs.mock.calls[0]?.[0];
-    const submitOptions = onRegenerateWithReferenceInputs.mock.calls[0]?.[1];
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [
+              string[],
+              {
+                inpaintOverride?: unknown;
+                modelIdOverride?: string | null;
+                costOverrideCredits?: number | null;
+                hideOutputFromReferenceGrid?: boolean;
+              }?,
+            ]
+          >;
+        };
+      }
+    ).mock.calls;
+    const referenceInputs = submissionCalls[0]?.[0];
+    const submitOptions = submissionCalls[0]?.[1];
     if (!referenceInputs) {
       throw new Error("Expected flattened reference inputs.");
     }
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(referenceInputs).toContain("https://example.com/extra.png");
-    expect(submitOptions).toEqual(
-      expect.objectContaining({
-        hideOutputFromReferenceGrid: true,
-      })
-    );
+    expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
   });
 
   it("submits remove background for the active layer image without flattening", async () => {
@@ -2484,7 +2600,7 @@ describe("ExpertEditPanelView", () => {
     });
   });
 
-  it("submits FLUX Fill override with base and mask urls when a mask is present", async () => {
+  it("submits FLUX Fill override with base and mask urls when Inpaint is selected and a mask is present", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
@@ -2531,6 +2647,9 @@ describe("ExpertEditPanelView", () => {
         />
       );
       uploadPrimaryFile(container, "layer-1.png");
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
         await Promise.resolve();
@@ -2552,7 +2671,7 @@ describe("ExpertEditPanelView", () => {
         maskInput: expect.stringMatching(/^blob:flatten-/),
         outputFormat: "png",
       });
-      expect(inpaintOptions?.hideOutputFromReferenceGrid).toBe(true);
+      expect(inpaintOptions?.hideOutputFromReferenceGrid).toBeUndefined();
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
       Object.defineProperty(globalThis, "Image", {
@@ -2560,6 +2679,49 @@ describe("ExpertEditPanelView", () => {
         writable: true,
         value: previousImage,
       });
+    }
+  });
+
+  it("blocks generate when Inpaint is selected without an inpaint mask", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        hasSelectedLayerMask: false,
+        imageHasInteractiveMask: true,
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    try {
+      const { container } = render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceText="prompt text"
+          onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+        />
+      );
+      uploadPrimaryFile(container, "layer-1.png");
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+        await Promise.resolve();
+      });
+
+      expect(onRegenerateWithReferenceInputs).not.toHaveBeenCalled();
+      expect(screen.getByText("Mask selection is required for inpaint.")).toBeInTheDocument();
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
     }
   });
 });

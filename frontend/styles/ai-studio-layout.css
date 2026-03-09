@@ -453,6 +453,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   color: rgb(193, 101, 255);
 }
 
+.ai-studio-page[data-selected-tool="character"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgba(74, 224, 116, 0.96);
+}
+
 .ai-studio-page[data-selected-tool="canvas"] .ai-hero-shortcut-button[aria-pressed="true"] {
   color: rgba(247, 239, 224, 0.96);
 }

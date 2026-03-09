@@ -506,3 +506,64 @@
   .create-expert-resolution-option-label {
   color: #f7fafc;
 }
+
+/* Expert Edit dropdown styling aligns with left rail + warm accent states. */
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-trigger,
+.ai-studio-page .edit-expert-panel.create-expert-panel .create-expert-resolution-trigger {
+  background-color: #131518;
+}
+
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-trigger:hover:not(:disabled),
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-trigger[aria-expanded="true"],
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .create-expert-resolution-trigger:hover:not(:disabled),
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .create-expert-resolution-trigger:focus-visible,
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .create-expert-resolution-trigger[aria-expanded="true"] {
+  border-color: rgba(245, 185, 66, 0.62);
+  background-color: #131518;
+}
+
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-menu,
+.ai-studio-page .edit-expert-panel.create-expert-panel .create-expert-resolution-menu {
+  background: #131518;
+  border-color: rgba(245, 185, 66, 0.35);
+}
+
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-menu-item:hover,
+.ai-studio-page .edit-expert-panel.create-expert-panel .create-expert-resolution-option:hover {
+  background: rgba(245, 185, 66, 0.12);
+  border-color: rgba(245, 185, 66, 0.45);
+  color: #f7fafc;
+}
+
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-menu-item.is-active,
+.ai-studio-page .edit-expert-panel.create-expert-panel .create-expert-resolution-option.is-active {
+  background: rgba(245, 185, 66, 0.18);
+  border-color: rgba(245, 185, 66, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(245, 185, 66, 0.3);
+  color: #f7fafc;
+}
+
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-menu-item:hover .aspect-shape,
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-menu-item.is-active .aspect-shape {
+  border-color: rgba(245, 185, 66, 0.88);
+  background: rgba(245, 185, 66, 0.1);
+}
+
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-menu-item:hover .aspect-name,
+.ai-studio-page .edit-expert-panel.create-expert-panel .aspect-menu-item.is-active .aspect-name,
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .create-expert-resolution-option:hover
+  .create-expert-resolution-option-label,
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .create-expert-resolution-option.is-active
+  .create-expert-resolution-option-label {
+  color: #f7fafc;
+}

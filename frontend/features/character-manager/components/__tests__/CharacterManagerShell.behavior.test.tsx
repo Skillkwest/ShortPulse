@@ -12,6 +12,7 @@ import {
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSheetPresetAssignments,
+  getDefaultCharacterSheetPresetTabLabel,
 } from "../../constants";
 import { getNextCharacterSheetPresetId } from "../../logic/characterSheetPresetTabs";
 import type {
@@ -88,6 +89,7 @@ const MOCK_SLOT_KEYS: MockCharacterReferenceSlotKey[] = [
 ];
 const TEST_SUPABASE_URL = "https://jwmcytzyhcvacjwqtynn.supabase.co";
 const ORIGINAL_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const TAB_ONE_DEFAULT_LABEL = getDefaultCharacterSheetPresetTabLabel("1");
 
 const buildEmptySlots = (): MockCharacterSlotFileMap =>
   MOCK_SLOT_KEYS.reduce((acc, slotKey) => {
@@ -160,6 +162,18 @@ const createInitialQuickSwapItems = (): MockQuickSwapItem[] => [
   },
 ];
 
+const createQuickSwapItems = (count: number): MockQuickSwapItem[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: `qs-${index + 1}`,
+    mediaFileId: `media-qs-${index + 1}`,
+    storagePath: `quick/qs-${index + 1}.png`,
+    previewUrl: `https://example.com/qs-${index + 1}.png`,
+    status: "active",
+    createdAt: new Date(2026, 0, 1, 0, 0, index).toISOString(),
+    archivedAt: null,
+    legacySlotKey: null,
+  }));
+
 const createInitialPresetMap = (): CharacterSheetPresetMap =>
   createDefaultCharacterSheetPresetState().presets;
 
@@ -227,7 +241,13 @@ const characterManagerMockState = vi.hoisted(() => ({
 }));
 
 const quickSwapDeckMockState = vi.hoisted(() => ({
+  initialActiveItems: null as MockQuickSwapItem[] | null,
   appendExistingMediaReferenceImpl: null as null | ((mediaFileId: string) => Promise<boolean>),
+}));
+
+const quickSwapTipPreferenceMockState = vi.hoisted(() => ({
+  hidden: false,
+  markQuickSwapTipHidden: vi.fn(async () => true),
 }));
 
 const getReferenceCard = (index: number): HTMLElement => {
@@ -340,7 +360,10 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
       >(
         () =>
           Object.fromEntries(
-            CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, presetId])
+            CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+              presetId,
+              getDefaultCharacterSheetPresetTabLabel(presetId),
+            ])
           ) as Record<CharacterSheetPresetId, string>
       );
       const [characterSheetPresetAssignments, setCharacterSheetPresetAssignments] =
@@ -526,7 +549,9 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
   return {
     useCharacterQuickSwapDeck: () => {
       const [activeItems, setActiveItems] = React.useState<MockQuickSwapItem[]>(() =>
-        createInitialQuickSwapItems()
+        quickSwapDeckMockState.initialActiveItems
+          ? [...quickSwapDeckMockState.initialActiveItems]
+          : createInitialQuickSwapItems()
       );
       const [error, setError] = React.useState<string | null>(null);
       const uploadCounterRef = React.useRef(0);
@@ -597,6 +622,16 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
   };
 });
 
+vi.mock("../../hooks/useCharacterQuickSwapTipPreference", () => ({
+  useCharacterQuickSwapTipPreference: () => ({
+    isQuickSwapTipHidden: quickSwapTipPreferenceMockState.hidden,
+    loading: false,
+    error: null,
+    syncState: "ready" as const,
+    markQuickSwapTipHidden: quickSwapTipPreferenceMockState.markQuickSwapTipHidden,
+  }),
+}));
+
 describe("CharacterManagerShell behavior", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = TEST_SUPABASE_URL;
@@ -609,7 +644,11 @@ describe("CharacterManagerShell behavior", () => {
       data: null,
       error: { message: "not found" },
     });
+    quickSwapDeckMockState.initialActiveItems = null;
     quickSwapDeckMockState.appendExistingMediaReferenceImpl = null;
+    quickSwapTipPreferenceMockState.hidden = false;
+    quickSwapTipPreferenceMockState.markQuickSwapTipHidden.mockReset();
+    quickSwapTipPreferenceMockState.markQuickSwapTipHidden.mockResolvedValue(true);
   });
 
   afterAll(() => {
@@ -743,7 +782,7 @@ describe("CharacterManagerShell behavior", () => {
   it("defaults to one visible preset tab and shows add-tab control", () => {
     render(<CharacterManagerShell />);
 
-    expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Add character sheet preset tab" })
@@ -753,7 +792,7 @@ describe("CharacterManagerShell behavior", () => {
   it("supports renaming preset tabs with Enter", () => {
     render(<CharacterManagerShell />);
 
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
     fireEvent.doubleClick(tabOne);
     const renameInput = screen.getByLabelText("Rename preset 1");
     fireEvent.change(renameInput, { target: { value: "Hero Look" } });
@@ -799,7 +838,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     });
     const tabPanelAfterActiveDelete = screen.getByRole("tabpanel");
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
     expect(tabOne).toHaveAttribute("aria-selected", "true");
     expect(tabPanelAfterActiveDelete).toHaveAttribute("aria-labelledby", tabOne.id);
 
@@ -821,7 +860,7 @@ describe("CharacterManagerShell behavior", () => {
       tabThreeAfterNonActiveDelete.id
     );
 
-    expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
   });
 
@@ -835,7 +874,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
     });
 
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
     const tabThree = screen.getByRole("tab", { name: "3" });
     const panel = screen.getByRole("tabpanel");
 
@@ -863,7 +902,7 @@ describe("CharacterManagerShell behavior", () => {
     fireEvent.click(addButton);
     fireEvent.click(addButton);
 
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
     const tabTwo = screen.getByRole("tab", { name: "2" });
     const tabThree = screen.getByRole("tab", { name: "3" });
     const tabFour = screen.getByRole("tab", { name: "4" });
@@ -912,7 +951,7 @@ describe("CharacterManagerShell behavior", () => {
   it("isolates character sheet assignments per active preset tab", async () => {
     render(<CharacterManagerShell />);
     fireEvent.click(screen.getByRole("button", { name: "Add character sheet preset tab" }));
-    fireEvent.click(screen.getByRole("tab", { name: "1" }));
+    fireEvent.click(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL }));
 
     const portraitZone = getCharacterSheetZone("Portrait");
     const firstReferenceCard = getReferenceCard(1);
@@ -944,7 +983,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(getZoneImageSrc("Portrait")).toBe("https://example.com/side-profile-initial.png");
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "1" }));
+    fireEvent.click(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL }));
 
     await waitFor(() => {
       expect(getZoneImageSrc("Portrait")).toBe("https://example.com/front-full-initial.png");
@@ -1619,6 +1658,24 @@ describe("CharacterManagerShell behavior", () => {
         name: /Uploaded references/i,
       })
     ).toBeInTheDocument();
+  });
+
+  it("hides embedded QuickSwap guidance when the tip preference is already hidden", () => {
+    quickSwapTipPreferenceMockState.hidden = true;
+
+    render(<CharacterManagerShell surface="panel" beginnerModeOverride={false} />);
+
+    expect(document.querySelector(".character-mode-guidance--sheet")).toBeNull();
+  });
+
+  it("persists hidden QuickSwap guidance once the deck reaches four rows", async () => {
+    quickSwapDeckMockState.initialActiveItems = createQuickSwapItems(11);
+
+    render(<CharacterManagerShell surface="panel" beginnerModeOverride={false} />);
+
+    await waitFor(() => {
+      expect(quickSwapTipPreferenceMockState.markQuickSwapTipHidden).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("loads full-quality signed media for the reference preview overlay", async () => {

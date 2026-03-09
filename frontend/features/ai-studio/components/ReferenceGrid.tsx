@@ -100,6 +100,11 @@ const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.28;
 const DEFAULT_CANVAS_SECTION_TOP_RATIO = 0.3;
 const DEFAULT_STYLES_SPLIT_TOP_RATIO = 0.3;
 const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 22;
+const STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_REFERENCE_GRID = 132;
+const STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_QUICK_SLOT = 96;
+const STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_REFERENCE_GRID = 84;
+const STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_QUICK_SLOT = 52;
+const HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX = 14;
 const RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 const CURATED_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 
@@ -338,6 +343,61 @@ export function ReferenceGrid({
     ? curatedHeaderHeightPx
     : Math.max(STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX, allRefsHeaderHeightPx);
   const stylesSplitMinTopSectionHeightPx = stylesSplitTopHeaderHeightPx;
+  const stylesSplitMinBottomBasePx = stylesSplitShowsQuickSlotTop
+    ? STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_QUICK_SLOT
+    : STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_REFERENCE_GRID;
+  const stylesSplitMinBottomHeaderBufferPx = stylesSplitShowsQuickSlotTop
+    ? STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_QUICK_SLOT
+    : STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_REFERENCE_GRID;
+  const stylesSplitMinBottomSectionHeightPx = Math.max(
+    stylesSplitMinBottomBasePx,
+    stylesHeaderHeightPx + stylesSplitMinBottomHeaderBufferPx
+  );
+  const allRefsSectionMinHeaderHeightPx = Math.max(
+    STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX,
+    allRefsHeaderHeightPx
+  );
+  const stylesSplitUsesNestedContainer =
+    isStylesPanelOpen && showQuickSlotSection && showReferenceGridSection;
+  const horizontalSplitMinBottomSectionHeightPx = stylesSplitUsesNestedContainer
+    ? stylesSplitMinTopSectionHeightPx +
+      stylesSplitMinBottomSectionHeightPx +
+      HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX
+    : CURATED_MIN_BOTTOM_STACK_HEIGHT_PX;
+  const railCanvasMinBottomSectionHeightPx = (() => {
+    if (showQuickSlotSection && showReferenceGridSection && isStylesPanelOpen) {
+      return (
+        curatedHeaderHeightPx +
+        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
+        horizontalSplitMinBottomSectionHeightPx
+      );
+    }
+    if (showQuickSlotSection && showReferenceGridSection) {
+      return (
+        curatedHeaderHeightPx +
+        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
+        allRefsSectionMinHeaderHeightPx
+      );
+    }
+    if (showQuickSlotSection && isStylesPanelOpen) {
+      return (
+        curatedHeaderHeightPx +
+        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
+        stylesSplitMinBottomSectionHeightPx
+      );
+    }
+    if (showReferenceGridSection && isStylesPanelOpen) {
+      return (
+        stylesSplitMinTopSectionHeightPx +
+        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
+        stylesSplitMinBottomSectionHeightPx
+      );
+    }
+    if (showQuickSlotSection) return curatedHeaderHeightPx;
+    if (showReferenceGridSection) return allRefsSectionMinHeaderHeightPx;
+    if (isStylesPanelOpen) return Math.max(24, stylesHeaderHeightPx);
+    return RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX;
+  })();
   const stylesSplitAriaLabel = stylesSplitShowsQuickSlotTop
     ? "Resize Quick Slot Inventory and Styles sections"
     : "Resize Reference Grid and Styles sections";
@@ -388,7 +448,10 @@ export function ReferenceGrid({
     containerRef: panelRef,
     defaultTopRatio: DEFAULT_CANVAS_SECTION_TOP_RATIO,
     minTopSectionHeightPx: railCanvasHeaderHeightPx,
-    minBottomSectionHeightPx: RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX,
+    minBottomSectionHeightPx: Math.max(
+      RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX,
+      railCanvasMinBottomSectionHeightPx
+    ),
     allRefsSnapTopHeightPx: railCanvasHeaderHeightPx,
     collapseTopHeightPx: railCanvasHeaderHeightPx,
     ariaLabel: "Resize Canvas and Quick Slot Inventory sections",
@@ -398,12 +461,10 @@ export function ReferenceGrid({
     containerRef: inventoryStackRef,
     defaultTopRatio: DEFAULT_CURATED_SPLIT_TOP_RATIO,
     minTopSectionHeightPx: curatedHeaderHeightPx,
-    minBottomSectionHeightPx: CURATED_MIN_BOTTOM_STACK_HEIGHT_PX,
+    minBottomSectionHeightPx: horizontalSplitMinBottomSectionHeightPx,
     allRefsSnapTopHeightPx: curatedHeaderHeightPx,
     collapseTopHeightPx: curatedHeaderHeightPx,
   });
-  const stylesSplitUsesNestedContainer =
-    isStylesPanelOpen && showQuickSlotSection && showReferenceGridSection;
   const stylesSplitContainerRef = stylesSplitUsesNestedContainer
     ? referenceGridStylesStackRef
     : inventoryStackRef;
@@ -412,7 +473,7 @@ export function ReferenceGrid({
     containerRef: stylesSplitContainerRef,
     defaultTopRatio: DEFAULT_STYLES_SPLIT_TOP_RATIO,
     minTopSectionHeightPx: stylesSplitMinTopSectionHeightPx,
-    minBottomSectionHeightPx: Math.max(132, stylesHeaderHeightPx + 84),
+    minBottomSectionHeightPx: stylesSplitMinBottomSectionHeightPx,
     allRefsSnapTopHeightPx: stylesSplitTopHeaderHeightPx,
     collapseTopHeightPx: stylesSplitTopHeaderHeightPx,
     ariaLabel: stylesSplitAriaLabel,

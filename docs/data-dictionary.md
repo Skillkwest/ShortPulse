@@ -304,6 +304,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `expert_edit_custom_presets` (jsonb, default `{}`): Per-user preset override map keyed by canonical preset id (`selfie`, `side_profile`, `custom_1..custom_18`, etc.) storing `{ label, prompt }` values.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
 - `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing editable `style`, `title`, `referenceImageName`, and `stylePrompt` values.
+- `ai_studio_character_quickswap_tip_hidden` (boolean, default `false`): Per-user flag that hides the embedded Character QuickSwap guidance bubble after high-density deck usage.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.

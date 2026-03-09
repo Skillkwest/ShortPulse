@@ -11,6 +11,7 @@ import {
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSheetPresetAssignments,
+  getDefaultCharacterSheetPresetTabLabel,
 } from "../../constants";
 
 vi.mock("next/image", () => ({
@@ -45,7 +46,10 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
     visibleCharacterSheetPresetIds: ["1"],
     characterSheetPresetLabels: Object.fromEntries(
-      CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, presetId])
+      CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+        presetId,
+        getDefaultCharacterSheetPresetTabLabel(presetId),
+      ])
     ),
     characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
     profileImageUrl: null,
@@ -99,6 +103,16 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", () => ({
     loadMoreArchived: async () => undefined,
     refresh: async () => undefined,
     clearError: () => undefined,
+  }),
+}));
+
+vi.mock("../../hooks/useCharacterQuickSwapTipPreference", () => ({
+  useCharacterQuickSwapTipPreference: () => ({
+    isQuickSwapTipHidden: false,
+    loading: false,
+    error: null,
+    syncState: "ready",
+    markQuickSwapTipHidden: async () => true,
   }),
 }));
 

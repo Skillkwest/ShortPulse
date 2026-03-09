@@ -73,6 +73,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   agentBusy: boolean;
   chatModeEnabled: boolean;
   currentCostCredits: number | null;
+  resolveCostCreditsForModel?: (modelId: string) => number | null;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
   generationGuardrail: string | null;
@@ -172,6 +173,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   agentInput,
   chatModeEnabled,
   currentCostCredits,
+  resolveCostCreditsForModel,
   isGenerateDisabled,
   isCreditGuardrail,
   generationGuardrail,
@@ -542,15 +544,25 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   const runRegenerateWithDebit = useCallback(
     async (options?: RegenerateWithDebitOptions) => {
       if (!tryAcquireGenerateClickLock()) return;
-      const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
+      const effectiveSubmitModelId =
+        options?.inpaintOverride?.modelId ??
+        options?.modelIdOverride ??
+        resolveEffectiveSubmitModelId(selectedTool);
+      const hasSubmitModelOverride = Boolean(options?.inpaintOverride || options?.modelIdOverride);
+      const resolvedModelOverrideCredits =
+        hasSubmitModelOverride && effectiveSubmitModelId
+          ? (resolveCostCreditsForModel?.(effectiveSubmitModelId) ?? null)
+          : null;
+      const resolvedRunCostCredits = options?.costOverrideCredits ?? resolvedModelOverrideCredits;
+      const requiredCredits = resolvedRunCostCredits ?? currentCostCredits;
       let checkedFreshCredits = false;
 
       if (
-        options?.costOverrideCredits != null &&
+        resolvedRunCostCredits != null &&
         effectiveBalanceCredits != null &&
-        effectiveBalanceCredits < options.costOverrideCredits
+        effectiveBalanceCredits < resolvedRunCostCredits
       ) {
-        const hasFreshCredits = await ensureFreshCreditsForRun(options.costOverrideCredits);
+        const hasFreshCredits = await ensureFreshCreditsForRun(resolvedRunCostCredits);
         checkedFreshCredits = true;
         if (!hasFreshCredits) {
           setUiError("You do not have enough credits for this run.");
@@ -573,10 +585,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
 
       const promptToUse = resolveDefaultPromptForTool(selectedTool);
-      const effectiveSubmitModelId =
-        options?.inpaintOverride?.modelId ??
-        options?.modelIdOverride ??
-        resolveEffectiveSubmitModelId(selectedTool);
       const regenerateStartDecision = resolveGenerationStartDecision({
         tool: selectedTool,
         mode,
@@ -714,6 +722,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
+      resolveCostCreditsForModel,
       resolveUserReferenceInputsForTool,
       selectedTool,
       setModel,

@@ -89,7 +89,33 @@ describe("AiStudioToolbar", () => {
     expect(onSelectTool).toHaveBeenCalledWith(expected);
   });
 
-  it("shows Media Library as the first Shortcuts button with secondary styling", () => {
+  it("shows Media Library as the first Libraries button with secondary styling", () => {
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        beginnerMode={false}
+        onSelectTool={vi.fn()}
+        onToggleCreateTools={vi.fn()}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    const librariesSection = screen.getByText("Libraries").closest(".toolbar-lower");
+    expect(librariesSection).not.toBeNull();
+    const libraryButtons = within(librariesSection as HTMLElement).getAllByRole("button");
+    expect(libraryButtons.map((button) => button.textContent?.trim())).toEqual([
+      "Media Library",
+      "Characters",
+      "Presets",
+      "Styles",
+    ]);
+    expect(
+      within(librariesSection as HTMLElement).getByRole("button", { name: "Media Library" })
+    ).toHaveClass("toolbar-item-secondary");
+  });
+
+  it("renders Templates in the Shortcuts section", () => {
     render(
       <AiStudioToolbar
         selectedTool={null}
@@ -104,19 +130,10 @@ describe("AiStudioToolbar", () => {
     const shortcutsSection = screen.getByText("Shortcuts").closest(".toolbar-lower");
     expect(shortcutsSection).not.toBeNull();
     const shortcutButtons = within(shortcutsSection as HTMLElement).getAllByRole("button");
-    expect(shortcutButtons.map((button) => button.textContent?.trim())).toEqual([
-      "Media Library",
-      "Characters",
-      "Presets",
-      "Styles",
-      "Templates",
-    ]);
-    expect(
-      within(shortcutsSection as HTMLElement).getByRole("button", { name: "Media Library" })
-    ).toHaveClass("toolbar-item-secondary");
+    expect(shortcutButtons.map((button) => button.textContent?.trim())).toEqual(["Templates"]);
   });
 
-  it("opens Media Library from the Shortcuts section without selecting a tool", () => {
+  it("opens Media Library from the Libraries section without selecting a tool", () => {
     const onOpenMediaLibrary = vi.fn();
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();

@@ -214,10 +214,13 @@ export const editToolList: ToolConfig[] = [
   { id: "canvas", label: "Canvas", desc: "Canvas workspace (coming soon)" },
 ];
 
-export const lowerToolList: ToolConfig[] = [
+export const librariesToolList: ToolConfig[] = [
   { id: "character", label: "Characters", desc: "Create and manage character references" },
   { id: "presets", label: "Presets", desc: "Browse reusable presets" },
   { id: "styles", label: "Styles", desc: "Browse reusable styles" },
+];
+
+export const shortcutsToolList: ToolConfig[] = [
   { id: "templates", label: "Templates", desc: "Browse AI templates" },
 ];
 

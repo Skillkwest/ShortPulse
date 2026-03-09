@@ -434,6 +434,7 @@ export const useReferenceGridHorizontalSplit = ({
     topRatio,
     bottomRatio: 1 - topRatio,
     topSectionHeightPx: containerHeightPx > 0 ? topRatio * containerHeightPx : 0,
+    bottomSectionHeightPx: containerHeightPx > 0 ? (1 - topRatio) * containerHeightPx : 0,
     topSectionStyle,
     bottomSectionStyle,
     isAllRefsExpanded,

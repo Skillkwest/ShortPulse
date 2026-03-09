@@ -2,7 +2,7 @@
  * Character-sheet preset tab helper functions.
  * Centralizes tab-capacity, label normalization, and legacy tab-order fallback behavior.
  */
-import { CHARACTER_SHEET_PRESET_IDS } from "../constants";
+import { CHARACTER_SHEET_PRESET_IDS, getDefaultCharacterSheetPresetTabLabel } from "../constants";
 import type {
   CharacterSheetPresetDescriptionMap,
   CharacterSheetPresetId,
@@ -40,7 +40,7 @@ export const sanitizeCharacterSheetPresetTabLabel = ({
     0,
     CHARACTER_SHEET_PRESET_TAB_LABEL_MAX_LENGTH
   );
-  return normalized.length > 0 ? normalized : presetId;
+  return normalized.length > 0 ? normalized : getDefaultCharacterSheetPresetTabLabel(presetId);
 };
 
 export const sanitizeCharacterSheetPresetDescription = (description: string | null | undefined) =>

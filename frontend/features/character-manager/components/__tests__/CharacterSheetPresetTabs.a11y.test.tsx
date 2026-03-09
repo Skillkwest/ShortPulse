@@ -5,7 +5,10 @@
 import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CHARACTER_SHEET_PRESET_IDS } from "../../constants";
+import {
+  CHARACTER_SHEET_PRESET_IDS,
+  getDefaultCharacterSheetPresetTabLabel,
+} from "../../constants";
 import type { CharacterSheetPresetId } from "../../types";
 import { getNextCharacterSheetPresetId } from "../../logic/characterSheetPresetTabs";
 import {
@@ -23,7 +26,10 @@ function PresetTabsHarness({
   const [presetLabels, setPresetLabels] = React.useState<Record<CharacterSheetPresetId, string>>(
     () =>
       Object.fromEntries(
-        CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, presetId])
+        CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+          presetId,
+          getDefaultCharacterSheetPresetTabLabel(presetId),
+        ])
       ) as Record<CharacterSheetPresetId, string>
   );
   const idBase = "character-sheet-preset-test";
@@ -45,11 +51,13 @@ function PresetTabsHarness({
           setActivePresetId(nextPresetId);
           setPresetLabels((previous) => ({
             ...previous,
-            [nextPresetId]: previous[nextPresetId] ?? nextPresetId,
+            [nextPresetId]:
+              previous[nextPresetId] ?? getDefaultCharacterSheetPresetTabLabel(nextPresetId),
           }));
         }}
         onRenamePreset={(presetId, nextLabel) => {
-          const normalizedLabel = nextLabel.trim() || presetId;
+          const normalizedLabel =
+            nextLabel.trim() || getDefaultCharacterSheetPresetTabLabel(presetId);
           setPresetLabels((previous) => ({
             ...previous,
             [presetId]: normalizedLabel,
@@ -70,7 +78,7 @@ function PresetTabsHarness({
           });
           setPresetLabels((previous) => ({
             ...previous,
-            [presetId]: presetId,
+            [presetId]: getDefaultCharacterSheetPresetTabLabel(presetId),
           }));
         }}
         panelId={panelId}
@@ -86,11 +94,13 @@ function PresetTabsHarness({
 }
 
 describe("CharacterSheetPresetTabs accessibility", () => {
+  const tabOneDefaultLabel = getDefaultCharacterSheetPresetTabLabel("1");
+
   it("renders tab semantics with roving tabindex and panel linkage", () => {
     render(<PresetTabsHarness />);
 
     const tabList = screen.getByRole("tablist", { name: "Character sheet style presets" });
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: tabOneDefaultLabel });
     const panel = screen.getByRole("tabpanel");
 
     expect(tabList).toHaveAttribute("aria-orientation", "horizontal");
@@ -110,7 +120,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     fireEvent.click(addButton);
     fireEvent.click(addButton);
 
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: tabOneDefaultLabel });
     fireEvent.keyDown(tabOne, { key: "ArrowLeft" });
 
     const tabFour = screen.getByRole("tab", { name: "4" });
@@ -137,7 +147,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     fireEvent.click(addButton);
     fireEvent.click(addButton);
 
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: tabOneDefaultLabel });
     fireEvent.keyDown(tabOne, { key: "ArrowRight" });
     const tabTwo = screen.getByRole("tab", { name: "2" });
     expect(tabTwo).toHaveAttribute("aria-selected", "true");
@@ -160,7 +170,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
   it("supports inline rename with Enter and Escape", () => {
     render(<PresetTabsHarness />);
 
-    const tabOne = screen.getByRole("tab", { name: "1" });
+    const tabOne = screen.getByRole("tab", { name: tabOneDefaultLabel });
     fireEvent.doubleClick(tabOne);
     const renameInput = screen.getByLabelText("Rename preset 1");
     fireEvent.change(renameInput, { target: { value: "Hero Look" } });
@@ -198,7 +208,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
 
     expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: tabOneDefaultLabel })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
   });
 

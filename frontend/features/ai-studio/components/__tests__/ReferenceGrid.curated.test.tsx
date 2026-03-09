@@ -2006,6 +2006,50 @@ describe("ReferenceGrid curated split", () => {
     expect(railSection.classList.contains("is-divider-near-collapsed")).toBe(true);
   });
 
+  it("hides add-files when the reference grid is near the lower range under canvas split", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: createRailCanvasProps(),
+        })}
+      />
+    );
+    const topDivider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    expect(container.querySelector(".reference-grid-add-files-btn")).toBeTruthy();
+    fireEvent.pointerDown(topDivider, {
+      button: 0,
+      pointerId: 30,
+      clientY: 220,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 30,
+      clientY: 980,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 30,
+      clientY: 980,
+    });
+    expect(container.querySelector(".reference-grid-add-files-btn")).toBeNull();
+  });
+
   it("keeps lower divider clamped to its bounds while dragging top divider downward", () => {
     const { container, getByRole, getByText } = render(
       <ReferenceGrid
@@ -2382,8 +2426,126 @@ describe("ReferenceGrid curated split", () => {
       clientY: 980,
     });
 
+    const middleAfter = Number(middleDivider.getAttribute("aria-valuenow"));
+    const middleMax = Number(middleDivider.getAttribute("aria-valuemax"));
     const bottomAfter = Number(bottomDivider.getAttribute("aria-valuenow"));
+    expect(middleAfter).toBeLessThanOrEqual(75);
+    expect(middleAfter).toBe(middleMax);
     expect(bottomAfter).toBe(bottomBefore);
+  });
+
+  it("clamps the canvas divider before nested inventory dividers can collide", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    const topDivider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(topDivider, {
+      button: 0,
+      pointerId: 45,
+      clientY: 220,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 45,
+      clientY: 980,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 45,
+      clientY: 980,
+    });
+
+    const topAfter = Number(topDivider.getAttribute("aria-valuenow"));
+    const topMax = Number(topDivider.getAttribute("aria-valuemax"));
+    expect(topAfter).toBe(topMax);
+    expect(topAfter).toBeLessThanOrEqual(66);
+  });
+
+  it("allows a deeper canvas divider max when styles are open without reference grid", () => {
+    const { container, getByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          panelVisibility: {
+            canvas: true,
+            quickSlot: true,
+            referenceGrid: false,
+            styles: true,
+          },
+          stylesPanel: {
+            isOpen: true,
+            selectedStyleId: null,
+            styles: EXPERT_EDIT_STYLE_CATALOG,
+            onSelectStyle: vi.fn(),
+          },
+        })}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    const topDivider = getByRole("separator", {
+      name: "Resize Canvas and Quick Slot Inventory sections",
+    });
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(topDivider, {
+      button: 0,
+      pointerId: 46,
+      clientY: 220,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 46,
+      clientY: 980,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 46,
+      clientY: 980,
+    });
+
+    const topAfter = Number(topDivider.getAttribute("aria-valuenow"));
+    const topMax = Number(topDivider.getAttribute("aria-valuemax"));
+    expect(topAfter).toBe(topMax);
+    expect(topAfter).toBeGreaterThanOrEqual(77);
   });
 
   it("does not propagate keyboard overflow from middle divider to adjacent dividers", () => {

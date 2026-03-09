@@ -989,6 +989,76 @@ describe("useAiStudioTaskSubmission", () => {
     expect(typeof outputs[0]?.generationReplay?.capturedAt).toBe("string");
   });
 
+  it("does not capture replay snapshots for inpaint override submissions", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "1:1",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Inpaint submit prompt", ["https://cdn.test/ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+        modelIdOverride: "fal-ai/flux-pro/v1/fill",
+        inpaintOverride: {
+          modelId: "fal-ai/flux-pro/v1/fill",
+          baseImageInput: "https://cdn.test/inpaint-base.png",
+          maskInput: "https://cdn.test/inpaint-mask.png",
+          outputFormat: "png",
+        },
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe("fal-ai/flux-pro/v1/fill");
+    expect(outputs[0]?.generationReplay).toBeUndefined();
+  });
+
   it("applies aspect and image resolution overrides during image submission", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

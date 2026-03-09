@@ -9,6 +9,7 @@ import { ReferenceGridArchiveControls } from "./ReferenceGridArchiveControls";
 type HorizontalSplitViewModel = {
   isAllRefsExpanded: boolean;
   topSectionHeightPx: number;
+  bottomSectionHeightPx: number;
   topSectionStyle?: React.CSSProperties;
   dividerProps: React.HTMLAttributes<HTMLDivElement>;
   snapToInventoryExpanded: () => void;
@@ -22,6 +23,7 @@ const QUICK_SLOT_COLLAPSE_TOP_HEIGHT_PX = 24;
 const QUICK_SLOT_HIDE_CONTENT_BUFFER_PX = 44;
 const CANVAS_COLLAPSE_TOP_HEIGHT_PX = 24;
 const CANVAS_HIDE_CONTENT_BUFFER_PX = 44;
+const REFERENCE_GRID_UPLOAD_HIDE_NEAR_LOWER_RANGE_PX = 124;
 
 type ReferenceGridSectionsProps = {
   isCuratedSplitEnabled: boolean;
@@ -210,7 +212,7 @@ export function ReferenceGridSections({
   const showTopReferenceHeaderDivider =
     showTopHeaderDivider && topVisiblePanel === "reference-grid";
   const showTopStylesHeaderDivider = showTopHeaderDivider && topVisiblePanel === "styles";
-  const hideReferenceGridUploadActions =
+  const hideReferenceGridUploadActionsBase =
     allRefsInventoryExpanded || isReferenceGridCollapsedForStyles;
   const isCanvasNearCollapsedForInventory =
     showCanvasInventoryDivider &&
@@ -218,6 +220,13 @@ export function ReferenceGridSections({
     railCanvasSplit.topSectionHeightPx <=
       CANVAS_COLLAPSE_TOP_HEIGHT_PX + CANVAS_HIDE_CONTENT_BUFFER_PX;
   const isCanvasInventoryExpanded = showCanvasInventoryDivider && railCanvasSplit.isAllRefsExpanded;
+  const isReferenceGridNearLowerRangeFromCanvasSplit =
+    showCanvasInventoryDivider &&
+    showReferenceGridSection &&
+    railCanvasSplit.bottomSectionHeightPx > 0 &&
+    railCanvasSplit.bottomSectionHeightPx <= REFERENCE_GRID_UPLOAD_HIDE_NEAR_LOWER_RANGE_PX;
+  const hideReferenceGridUploadActions =
+    hideReferenceGridUploadActionsBase || isReferenceGridNearLowerRangeFromCanvasSplit;
   const showEmptyState = !showRailCanvasSection && !hasInventorySections;
   return (
     <>

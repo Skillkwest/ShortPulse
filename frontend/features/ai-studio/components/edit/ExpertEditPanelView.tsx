@@ -301,6 +301,7 @@ const STATUS_TOAST_FADE_MS = 220;
 const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 const INPAINT_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
+const INPAINT_FILL_MODEL_LABEL = "FLUX Pro Fill";
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const TRANSFORM_HISTORY_LIMIT = 80;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
@@ -974,6 +975,11 @@ export function ExpertEditPanelView({
   const isCropToolSelected = selectedRailTool === "crop";
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isMoveToolSelected = selectedRailTool === "move";
+  const isModelPickerLocked = isInpaintToolSelected;
+  const effectiveModelPickerLabel = isModelPickerLocked
+    ? INPAINT_FILL_MODEL_LABEL
+    : stripEditLabel(modelLabel);
+  const effectiveModelPickerLogoSrc = isModelPickerLocked ? undefined : modelLogoSrc;
   const collapsedToolsThemeClass = isMoveToolSelected
     ? "is-active-move"
     : isInpaintToolSelected
@@ -1477,6 +1483,10 @@ export function ExpertEditPanelView({
     },
     [extraImageUrls]
   );
+  const selectedCropAspectRatio = React.useMemo(
+    () => parseAspectRatioToken(selectedCropAspect),
+    [selectedCropAspect]
+  );
 
   const handleManualFlatten = React.useCallback(async () => {
     if (populatedLayerCount <= 0) {
@@ -1485,11 +1495,35 @@ export function ExpertEditPanelView({
     }
 
     try {
-      const flattenedBlob = await composePrimaryStageLayersToBlob(layers, {
+      const flattenedStageBlob = await composePrimaryStageLayersToBlob(layers, {
         mimeType: "image/png",
       });
-      const flattenedLayerUrl = URL.createObjectURL(flattenedBlob);
-      const flattenedReferenceUrl = URL.createObjectURL(flattenedBlob);
+      let exportBlob = flattenedStageBlob;
+      if (isCropToolSelected && selectedCropAspectRatio) {
+        const flattenedStageUrl = URL.createObjectURL(flattenedStageBlob);
+        try {
+          const flattenedStageDimensions = await resolveBlobDimensions(flattenedStageBlob);
+          const cropRect = resolveCenteredAspectCropRect({
+            stageWidth: flattenedStageDimensions.width,
+            stageHeight: flattenedStageDimensions.height,
+            aspectRatio: selectedCropAspectRatio,
+          });
+          if (!cropRect) {
+            throw new Error("Unable to resolve crop bounds for flattened export.");
+          }
+          exportBlob = await composeExpertEditLayerCropToBlob({
+            imageUrl: flattenedStageUrl,
+            stageWidth: flattenedStageDimensions.width,
+            stageHeight: flattenedStageDimensions.height,
+            cropRect,
+            mimeType: "image/png",
+          });
+        } finally {
+          revokeObjectUrlSafe(flattenedStageUrl);
+        }
+      }
+      const flattenedLayerUrl = URL.createObjectURL(exportBlob);
+      const flattenedReferenceUrl = URL.createObjectURL(exportBlob);
       const layerOne =
         layers.find((layer) => layer.id === foundationLayerId) ??
         layers[0] ??
@@ -1526,16 +1560,14 @@ export function ExpertEditPanelView({
     populatedLayerCount,
     scheduleTransientObjectUrlRevoke,
     showStatusToast,
+    isCropToolSelected,
+    selectedCropAspectRatio,
   ]);
 
   const handleCropAspectToggle = React.useCallback((nextAspect: string) => {
     setSelectedCropAspect((previousAspect) => (previousAspect === nextAspect ? null : nextAspect));
   }, []);
 
-  const selectedCropAspectRatio = React.useMemo(
-    () => parseAspectRatioToken(selectedCropAspect),
-    [selectedCropAspect]
-  );
   const stageCropGuidePercentRect = React.useMemo(() => {
     if (!selectedCropAspectRatio) return null;
     return resolveCenteredAspectCropRect({
@@ -1650,9 +1682,13 @@ export function ExpertEditPanelView({
         flattenedUrl = URL.createObjectURL(flattenedBlob);
         const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
 
-        if (hasSelectedLayerMask) {
+        if (isInpaintToolSelected) {
           if (!onRegenerateWithReferenceInputs) {
             showStatusToast("Inpaint generate is unavailable in this session.");
+            return;
+          }
+          if (!hasSelectedLayerMask) {
+            showStatusToast("Mask selection is required for inpaint.");
             return;
           }
           const flattenedDimensions = await resolveBlobDimensions(flattenedBlob);
@@ -1673,7 +1709,6 @@ export function ExpertEditPanelView({
               maskInput: inpaintMaskUrl,
               outputFormat: "png",
             },
-            hideOutputFromReferenceGrid: true,
           });
           return;
         }
@@ -1682,9 +1717,7 @@ export function ExpertEditPanelView({
           onRegenerate();
           return;
         }
-        await onRegenerateWithReferenceInputs(referenceInputs, {
-          hideOutputFromReferenceGrid: true,
-        });
+        await onRegenerateWithReferenceInputs(referenceInputs);
       } catch {
         if (flattenedUrl) {
           revokeObjectUrlSafe(flattenedUrl);
@@ -1717,6 +1750,7 @@ export function ExpertEditPanelView({
     buildFlattenReferenceInputs,
     exportSelectedLayerMaskBlob,
     hasSelectedLayerMask,
+    isInpaintToolSelected,
     layers,
     onRegenerate,
     onRegenerateWithReferenceInputs,
@@ -2694,8 +2728,9 @@ export function ExpertEditPanelView({
             {editLayerUtilityActions.map((action) => {
               const Icon = action.icon;
               const isActionDisabled = Boolean(
-                action.id === REMOVE_BACKGROUND_ACTION_ID &&
-                (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)
+                (action.id === REMOVE_BACKGROUND_ACTION_ID &&
+                  (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
+                (action.id === "flatten-image" && populatedLayerCount <= 0)
               );
               return (
                 <button
@@ -3292,17 +3327,20 @@ export function ExpertEditPanelView({
               type="button"
               className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
                 !modelId ? "is-empty" : ""
-              } ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
+              } ${isModelPickerLocked ? "is-locked" : ""} ${
+                isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""
+              }`}
               data-model-anchor="reference-model"
               aria-label="Open model picker"
+              disabled={isModelPickerLocked}
               onClick={(event) =>
                 onModelPickerOpen("reference-model", event.currentTarget, "reference-image")
               }
             >
-              {modelLogoSrc ? (
+              {effectiveModelPickerLogoSrc ? (
                 <Image
                   className="model-chip-logo-img"
-                  src={modelLogoSrc}
+                  src={effectiveModelPickerLogoSrc}
                   alt=""
                   aria-hidden
                   width={74}
@@ -3310,7 +3348,7 @@ export function ExpertEditPanelView({
                   unoptimized={false}
                 />
               ) : null}
-              <span className="model-picker-name">{stripEditLabel(modelLabel)}</span>
+              <span className="model-picker-name">{effectiveModelPickerLabel}</span>
             </button>
           </div>
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL } from "../../constants";
 import {
   CHARACTER_SHEET_PRESET_TAB_LABEL_MAX_LENGTH,
   createNormalizedCharacterSheetPresetTabDescriptions,
@@ -31,6 +32,12 @@ describe("characterSheetPresetTabs helpers", () => {
         label: "   ",
       })
     ).toBe("3");
+    expect(
+      sanitizeCharacterSheetPresetTabLabel({
+        presetId: "1",
+        label: "   ",
+      })
+    ).toBe(DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL);
     expect(
       sanitizeCharacterSheetPresetTabLabel({
         presetId: "3",

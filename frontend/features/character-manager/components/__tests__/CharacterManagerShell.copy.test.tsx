@@ -11,6 +11,7 @@ import {
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSheetPresetAssignments,
+  getDefaultCharacterSheetPresetTabLabel,
 } from "../../constants";
 
 vi.mock("next/image", () => ({
@@ -45,7 +46,10 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
     visibleCharacterSheetPresetIds: ["1"],
     characterSheetPresetLabels: Object.fromEntries(
-      CHARACTER_SHEET_PRESET_IDS.map((presetId) => [presetId, presetId])
+      CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+        presetId,
+        getDefaultCharacterSheetPresetTabLabel(presetId),
+      ])
     ),
     characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
     profileImageUrl: null,
@@ -102,10 +106,25 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", () => ({
   }),
 }));
 
+vi.mock("../../hooks/useCharacterQuickSwapTipPreference", () => ({
+  useCharacterQuickSwapTipPreference: () => ({
+    isQuickSwapTipHidden: false,
+    loading: false,
+    error: null,
+    syncState: "ready",
+    markQuickSwapTipHidden: async () => true,
+  }),
+}));
+
 describe("CharacterManagerShell copy", () => {
   it("renders Character Sheet heading in create mode", () => {
     render(<CharacterManagerShell />);
 
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "These are the exact reference images sent to the model for character training and consistency generation."
+      )
+    ).toBeInTheDocument();
   });
 });

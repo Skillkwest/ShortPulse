@@ -396,6 +396,47 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(canvasButton).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("locks character workflow header toggles to quick slot + reference grid", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "character",
+          referenceGridProps: {
+            ...createProps().referenceGridProps,
+            onAddCuratedReference: vi.fn(),
+            onRemoveCuratedReference: vi.fn(),
+            onReorderCuratedReference: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
+    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
+    const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
+    const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
+    const stylesButton = shortcutButtons.getByRole("button", { name: "Styles" });
+
+    expect(canvasButton).toBeDisabled();
+    expect(stylesButton).toBeDisabled();
+    expect(quickSlotButton).not.toBeDisabled();
+    expect(referenceGridButton).not.toBeDisabled();
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+    expect(stylesButton).toHaveAttribute("aria-pressed", "false");
+    expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
+    expect(referenceGridButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-quick-slot",
+      "visible"
+    );
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-reference-grid",
+      "visible"
+    );
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
+  });
+
   it("does not collapse to minimum when canvas is selected on initial hydration", () => {
     collapseToMinMock.mockClear();
     const { rerender } = render(<AiStudioPageContent {...createProps({ selectedTool: null })} />);

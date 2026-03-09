@@ -15,7 +15,7 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Overflow references are auto-archived (restorable).
 3. Uploaded references persist to Supabase per character in `character_quick_swap_items`.
 4. Character Sheet drop zones are persisted per character with dynamic preset tabs (`1`..`10`):
-   - New users start with one visible preset tab (`1`).
+   - New users start with one visible preset tab (`1`) labeled `Double click me` to prompt rename.
    - A `+` control at the end of the tab rail appends the next preset id and activates it.
    - Double-clicking a tab enters rename mode; `Enter`/blur autosaves and `Escape` cancels.
    - Tabs after `1` expose a delete (`X`) control.
@@ -159,6 +159,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Uploading beyond 500 active references archives oldest active references.
 - Archived references can be restored back into active deck.
 - New users start with one visible preset tab (`1`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.
+- New users see preset tab `1` labeled `Double click me` until renamed.
 - Double-click tab rename autosaves on `Enter`/blur and cancels on `Escape`.
 - Editing Character Profile description on one preset tab does not mutate descriptions on other preset tabs.
 - Deleting a tab (`X`) shows confirmation; selecting `Yes` removes the tab and its saved preset references.

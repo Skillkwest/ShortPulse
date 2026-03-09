@@ -2195,11 +2195,17 @@ describe("ExpertEditPanelView", () => {
     expect(composePrimaryLayersToBlobMock).toHaveBeenCalled();
     expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     const referenceInputs = onRegenerateWithReferenceInputs.mock.calls[0]?.[0];
+    const submitOptions = onRegenerateWithReferenceInputs.mock.calls[0]?.[1];
     if (!referenceInputs) {
       throw new Error("Expected flattened reference inputs.");
     }
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(referenceInputs).toContain("https://example.com/extra.png");
+    expect(submitOptions).toEqual(
+      expect.objectContaining({
+        hideOutputFromReferenceGrid: true,
+      })
+    );
   });
 
   it("submits remove background for the active layer image without flattening", async () => {
@@ -2295,6 +2301,20 @@ describe("ExpertEditPanelView", () => {
     await act(async () => {
       await Promise.resolve();
     });
+  });
+
+  it("shows a generating placeholder overlay on the primary stage while inline generation is pending", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/primary-image.png"
+        isPrimaryStageGenerating
+      />
+    );
+
+    expect(screen.getByTestId("edit-expert-inline-generate-loading-overlay")).toBeInTheDocument();
+    expect(screen.getByText("Generating...")).toBeInTheDocument();
+    expect(screen.getByLabelText("Primary edit image")).toHaveAttribute("aria-busy", "true");
   });
 
   it("keeps the moved layer position after remove background completes", async () => {
@@ -2504,7 +2524,11 @@ describe("ExpertEditPanelView", () => {
       expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
       const inpaintOptions = (
         onRegenerateWithReferenceInputs as unknown as {
-          mock: { calls: Array<[string[], { inpaintOverride?: unknown }?]> };
+          mock: {
+            calls: Array<
+              [string[], { inpaintOverride?: unknown; hideOutputFromReferenceGrid?: boolean }?]
+            >;
+          };
         }
       ).mock.calls[0]?.[1];
       expect(inpaintOptions?.inpaintOverride).toEqual({
@@ -2513,6 +2537,7 @@ describe("ExpertEditPanelView", () => {
         maskInput: expect.stringMatching(/^blob:flatten-/),
         outputFormat: "png",
       });
+      expect(inpaintOptions?.hideOutputFromReferenceGrid).toBe(true);
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
       Object.defineProperty(globalThis, "Image", {

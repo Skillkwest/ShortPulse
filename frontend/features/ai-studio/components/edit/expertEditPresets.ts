@@ -6,6 +6,8 @@ export const EDIT_PRESET_MORE_LABEL = "More presets" as const;
 export const EDIT_PRESET_COMPOSITE_GENERATE_LABEL = "Composite & Generate" as const;
 export const EDIT_PRESET_PANEL_MAX = 11;
 export const EXPERT_EDIT_PRESET_DRAG_MIME = "application/x-shortpulse-expert-edit-preset";
+export const EDIT_PRESET_DELETED_OVERRIDE_LABEL = "__shortpulse_preset_deleted__";
+export const EDIT_PRESET_DELETED_OVERRIDE_PROMPT = "__shortpulse_preset_deleted__";
 export const EDIT_PRESET_COMPOSITE_GENERATE_PROMPT =
   "Using the flattened composite from the primary staging viewport (all visible layers) as reference, regenerate one cohesive final image where every subject and element naturally belongs in the same scene. Preserve core identities and intended placement, but remove collage/cutout artifacts, mismatched edges, and layering seams. Unify perspective, scale, color temperature, lighting direction, exposure, and shadow behavior so the result reads as one realistic photograph. Add believable depth, contact shadows, and natural character-to-character/environment interaction for a seamless, photoreal final composition.";
 
@@ -145,10 +147,24 @@ const isValidPresetDragSource = (value: string): value is ExpertEditPresetDragSo
 
 const normalizePresetOverrideLabel = (value: string) => value.trim();
 const normalizePresetOverridePrompt = (value: string) => value.trim();
+const isDeletedPresetOverride = (override: ExpertEditPresetOverride | null | undefined): boolean =>
+  Boolean(
+    override &&
+    override.label === EDIT_PRESET_DELETED_OVERRIDE_LABEL &&
+    override.prompt === EDIT_PRESET_DELETED_OVERRIDE_PROMPT
+  );
+
+export const createDeletedPresetOverride = (): ExpertEditPresetOverride => ({
+  label: EDIT_PRESET_DELETED_OVERRIDE_LABEL,
+  prompt: EDIT_PRESET_DELETED_OVERRIDE_PROMPT,
+});
+
 const isPresetVisibleInUi = (
   presetId: ExpertEditPresetId,
   customOverrides?: ExpertEditCustomPresetOverrides | null
 ): boolean => {
+  const override = customOverrides?.[presetId];
+  if (isDeletedPresetOverride(override)) return false;
   if (!presetId.startsWith("custom_")) return true;
   const customNumber = Number.parseInt(presetId.slice("custom_".length), 10);
   const isVisibleDefaultCustomPreset =
@@ -156,7 +172,7 @@ const isPresetVisibleInUi = (
     customNumber >= 1 &&
     customNumber <= EDIT_PRESET_VISIBLE_CUSTOM_COUNT;
   if (isVisibleDefaultCustomPreset) return true;
-  return Boolean(customOverrides?.[presetId]);
+  return Boolean(override);
 };
 const resolveVisibleSurfacePresetIds = (
   customOverrides?: ExpertEditCustomPresetOverrides | null

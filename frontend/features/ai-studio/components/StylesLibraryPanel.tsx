@@ -23,6 +23,7 @@ export type StylesLibraryPanelProps = {
 };
 
 type PendingStyleEditState = {
+  mode: "edit" | "create";
   styleId: string;
   styleTitle: string;
   details: StylesLibraryStyleDetails;
@@ -30,8 +31,10 @@ type PendingStyleEditState = {
 
 const STYLE_PREVIEW_OUTPUT_SIZE_PX = 512;
 const CUSTOM_STYLE_NAME_PREFIX = "Custom Style";
+const IMAGE_FILE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
 const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
   "Files",
+  "text/plain",
   "text/reference-url",
   "text/reference-id",
   "text/reference-origin",
@@ -42,6 +45,11 @@ const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
 type ResolvedDroppedStylePreview = {
   previewImageUrl: string;
   promptText: string;
+};
+
+const isImageFileCandidate = (file: File): boolean => {
+  if (file.type.startsWith("image/")) return true;
+  return !file.type && IMAGE_FILE_EXTENSION_PATTERN.test(file.name);
 };
 
 const reorderById = (ids: readonly string[], sourceId: string, targetId: string): string[] => {
@@ -67,6 +75,14 @@ const buildInitialStyleDetails = (style: ExpertEditStyleTile): StylesLibraryStyl
     previewImageUrl: style.previewUrl?.trim() ?? "",
   };
 };
+
+const buildNewStyleDetails = (styleName: string): StylesLibraryStyleDetails => ({
+  style: styleName,
+  title: styleName,
+  referenceImageName: styleName,
+  stylePrompt: "",
+  previewImageUrl: "",
+});
 
 const normalizeStyleDetailsDraft = (
   value: StylesLibraryStyleDetails
@@ -160,7 +176,7 @@ const cropImageUrlToSquareDataUrl = async (sourceUrl: string): Promise<string> =
 
 const findDroppedImageFile = (transfer: DataTransfer): File | null => {
   const droppedFiles = Array.from(transfer.files ?? []);
-  return droppedFiles.find((file) => file.type.startsWith("image/")) ?? null;
+  return droppedFiles.find((file) => isImageFileCandidate(file)) ?? null;
 };
 
 const hasStyleReorderTransfer = (transfer: DataTransfer | null | undefined): boolean => {
@@ -200,9 +216,6 @@ export function StylesLibraryPanel({
   const stylePreviewFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const stylesLibraryDropDepthRef = React.useRef(0);
   const customStyleIdCounterRef = React.useRef(0);
-  const [generatedPlaceholderStyles, setGeneratedPlaceholderStyles] = React.useState<
-    ExpertEditStyleTile[]
-  >([]);
   const [orderedStyleIds, setOrderedStyleIds] = React.useState<string[]>([]);
   const [draggedStyleId, setDraggedStyleId] = React.useState<string | null>(null);
   const [dropTargetStyleId, setDropTargetStyleId] = React.useState<string | null>(null);
@@ -220,14 +233,7 @@ export function StylesLibraryPanel({
   const [localDeleteError, setLocalDeleteError] = React.useState<string | null>(null);
   const [localSaveError, setLocalSaveError] = React.useState<string | null>(null);
   const [stylesLibraryDropError, setStylesLibraryDropError] = React.useState<string | null>(null);
-  const basePlaceholderCount = React.useMemo(
-    () => styles.filter((style) => style.placeholder).length,
-    [styles]
-  );
-  const allStyles = React.useMemo(
-    () => [...styles, ...generatedPlaceholderStyles],
-    [generatedPlaceholderStyles, styles]
-  );
+  const allStyles = styles;
   const renderedStyles = React.useMemo(() => {
     if (allStyles.length === 0) return allStyles;
     if (orderedStyleIds.length === 0) return allStyles;
@@ -306,7 +312,7 @@ export function StylesLibraryPanel({
 
   const applyStylePreviewFile = React.useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) {
+      if (!isImageFileCandidate(file)) {
         setLocalSaveError("Please drop an image file.");
         return;
       }
@@ -349,7 +355,9 @@ export function StylesLibraryPanel({
         onSelectStyle?.(customStyleId);
       } catch (error) {
         if (error instanceof Error && error.message === "missing-dropped-style-image") {
-          setStylesLibraryDropError("Drop an image from Reference Grid or Quick Slot Inventory.");
+          setStylesLibraryDropError(
+            "Drop an image from your computer, Reference Grid, or Quick Slot Inventory."
+          );
           return;
         }
         setStylesLibraryDropError("Unable to process that dropped image.");
@@ -444,6 +452,9 @@ export function StylesLibraryPanel({
       }
       const saved = await onSaveStyleDetails(pendingStyleEdit.styleId, normalizedSavePayload);
       if (saved) {
+        if (pendingStyleEdit.mode === "create") {
+          onSelectStyle?.(pendingStyleEdit.styleId);
+        }
         setPendingStyleEdit(null);
       } else {
         setLocalSaveError("Unable to save this style right now.");
@@ -453,31 +464,30 @@ export function StylesLibraryPanel({
     } finally {
       setEditSubmitting(false);
     }
-  }, [editSubmitting, onSaveStyleDetails, pendingStyleEdit]);
+  }, [editSubmitting, onSaveStyleDetails, onSelectStyle, pendingStyleEdit]);
 
   const openStyleEditModal = React.useCallback((style: ExpertEditStyleTile) => {
     const styleDisplayName = style.style?.trim() || style.title;
     setLocalSaveError(null);
     setPendingStyleEdit({
+      mode: "edit",
       styleId: style.id,
       styleTitle: styleDisplayName,
       details: buildInitialStyleDetails(style),
     });
   }, []);
-  const handleAddPlaceholderStyle = React.useCallback(() => {
-    setGeneratedPlaceholderStyles((previous) => {
-      const nextPlaceholderIndex = basePlaceholderCount + previous.length + 1;
-      return [
-        ...previous,
-        {
-          id: `style-library-placeholder-${nextPlaceholderIndex}-${Date.now()}`,
-          title: `Placeholder ${nextPlaceholderIndex}`,
-          previewUrl: null,
-          placeholder: true,
-        },
-      ];
+  const openCreateStyleModal = React.useCallback(() => {
+    const nextStyleName = buildNextCustomStyleName(allStyles);
+    customStyleIdCounterRef.current += 1;
+    const nextStyleId = `style-library-custom-${Date.now()}-${customStyleIdCounterRef.current}`;
+    setLocalSaveError(null);
+    setPendingStyleEdit({
+      mode: "create",
+      styleId: nextStyleId,
+      styleTitle: nextStyleName,
+      details: buildNewStyleDetails(nextStyleName),
     });
-  }, [basePlaceholderCount]);
+  }, [allStyles]);
   const handleStyleDragStart = React.useCallback(
     (styleId: string, event: React.DragEvent<HTMLElement>) => {
       setDraggedStyleId(styleId);
@@ -579,8 +589,8 @@ export function StylesLibraryPanel({
       <header className="styles-library-header">
         <p className="eyebrow">Styles Library</p>
         <p className="tiny subdued helper-text">
-          Browse all loaded styles. Drag an image from Reference Grid or Quick Slot to create a
-          style.
+          Browse all loaded styles. Drag an image from your computer, Reference Grid, or Quick Slot
+          to create a style.
         </p>
         {stylesLibraryDropActive ? (
           <p className="styles-library-drop-status tiny">Drop image to create a new style.</p>
@@ -664,8 +674,8 @@ export function StylesLibraryPanel({
             <button
               type="button"
               className="styles-library-add-button"
-              aria-label="Add placeholder style"
-              onClick={handleAddPlaceholderStyle}
+              aria-label="Add style"
+              onClick={openCreateStyleModal}
             >
               <span className="styles-library-add-plus" aria-hidden="true">
                 +
@@ -689,10 +699,18 @@ export function StylesLibraryPanel({
             onClick={(event) => event.stopPropagation()}
           >
             <p id="styles-edit-title" className="styles-library-edit-title">
-              Edit style
+              {pendingStyleEdit.mode === "create" ? "Add style" : "Edit style"}
             </p>
             <p className="styles-library-edit-copy tiny subdued">
-              Update <strong>{pendingStyleEdit.styleTitle}</strong> details.
+              {pendingStyleEdit.mode === "create" ? (
+                <>
+                  Enter details for <strong>{pendingStyleEdit.styleTitle}</strong>.
+                </>
+              ) : (
+                <>
+                  Update <strong>{pendingStyleEdit.styleTitle}</strong> details.
+                </>
+              )}
             </p>
             <label className="styles-library-edit-field">
               <span className="styles-library-edit-label">Style</span>
@@ -833,7 +851,11 @@ export function StylesLibraryPanel({
                   void handleSaveStyleDetails();
                 }}
               >
-                {editSubmitting ? "Saving..." : "Save changes"}
+                {editSubmitting
+                  ? "Saving..."
+                  : pendingStyleEdit.mode === "create"
+                    ? "Save style"
+                    : "Save changes"}
               </button>
             </div>
           </div>

@@ -43,26 +43,161 @@ describe("StylesLibraryPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("adds placeholder cards with the trailing plus button", () => {
-    const { container } = render(
-      <StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />
+  it("opens create modal with the trailing add style button", () => {
+    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+
+    expect(screen.getByRole("dialog", { name: "Add style" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Style")).toHaveValue("Custom Style 1");
+    expect(
+      screen.getByRole("button", { name: "Drop reference image or click to upload" })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Style Prompt")).toHaveValue("");
+  });
+
+  it("saves a new style from the add style modal", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const onSelectStyle = vi.fn();
+    render(
+      <StylesLibraryPanel
+        styles={createStyles()}
+        selectedStyleId={null}
+        onSaveStyleDetails={onSaveStyleDetails}
+        onSelectStyle={onSelectStyle}
+      />
     );
 
-    const addButton = screen.getByRole("button", { name: "Add placeholder style" });
-    expect(addButton).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "Dream Glow" } });
+    fireEvent.change(screen.getByLabelText("Style Prompt"), {
+      target: { value: "ethereal highlights and dreamy bloom" },
+    });
 
-    fireEvent.click(addButton);
-    expect(
-      screen.getByRole("button", { name: "Style tile: Placeholder 1 (coming soon)" })
-    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save style" }));
 
-    fireEvent.click(addButton);
-    expect(
-      screen.getByRole("button", { name: "Style tile: Placeholder 2 (coming soon)" })
-    ).toBeDisabled();
+    await waitFor(() => {
+      expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+    });
+    const [savedStyleId, savedDetails] = onSaveStyleDetails.mock.calls[0] as [
+      string,
+      {
+        style: string;
+        title: string;
+        referenceImageName: string;
+        stylePrompt: string;
+        previewImageUrl: string;
+      },
+    ];
+    expect(savedStyleId).toMatch(/^style-library-custom-/);
+    expect(savedDetails).toEqual({
+      style: "Dream Glow",
+      title: "Dream Glow",
+      referenceImageName: "Dream Glow",
+      stylePrompt: "ethereal highlights and dreamy bloom",
+      previewImageUrl: "",
+    });
+    expect(onSelectStyle).toHaveBeenCalledWith(savedStyleId);
+  });
 
-    const listItems = container.querySelectorAll('.styles-library-grid > [role="listitem"]');
-    expect(listItems.item(listItems.length - 1)).toContainElement(addButton);
+  it("creates a new style when dropping a desktop image onto the styles library", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const onSelectStyle = vi.fn();
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,mock-cropped-style",
+    });
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+          onSelectStyle={onSelectStyle}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const imageFile = new File(["mock-image-bytes"], "desktop-image.png", { type: "image/png" });
+      const transfer = {
+        files: [imageFile],
+        types: ["Files"],
+        getData: vi.fn(() => ""),
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+      });
+      const [savedStyleId, savedDetails] = onSaveStyleDetails.mock.calls[0] as [
+        string,
+        {
+          style: string;
+          title: string;
+          referenceImageName: string;
+          stylePrompt: string;
+          previewImageUrl: string;
+        },
+      ];
+      expect(savedStyleId).toMatch(/^style-library-custom-/);
+      expect(savedDetails.style).toBe("Custom Style 1");
+      expect(savedDetails.title).toBe("Custom Style 1");
+      expect(savedDetails.referenceImageName).toBe("Custom Style 1");
+      expect(savedDetails.stylePrompt).toBe("");
+      expect(savedDetails.previewImageUrl).toBe("data:image/jpeg;base64,mock-cropped-style");
+      expect(onSelectStyle).toHaveBeenCalledWith(savedStyleId);
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
   });
 
   it("reorders style cards via drag and drop", () => {

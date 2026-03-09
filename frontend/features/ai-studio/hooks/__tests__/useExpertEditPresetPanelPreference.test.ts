@@ -180,11 +180,11 @@ describe("useExpertEditPresetPanelPreference", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.presetPanelIds).toEqual(["selfie", "custom_18"]);
+    expect(result.current.presetPanelIds).toEqual(["selfie"]);
     expect(upsert).toHaveBeenCalledWith(
       {
         user_id: "user-2",
-        expert_edit_preset_panel_ids: ["selfie", "custom_18"],
+        expert_edit_preset_panel_ids: ["selfie"],
         expert_edit_custom_presets: {},
       },
       { onConflict: "user_id" }

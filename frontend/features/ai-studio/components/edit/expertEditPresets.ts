@@ -145,22 +145,30 @@ const isValidPresetDragSource = (value: string): value is ExpertEditPresetDragSo
 
 const normalizePresetOverrideLabel = (value: string) => value.trim();
 const normalizePresetOverridePrompt = (value: string) => value.trim();
-const isPresetVisibleInUi = (presetId: ExpertEditPresetId): boolean => {
+const isPresetVisibleInUi = (
+  presetId: ExpertEditPresetId,
+  customOverrides?: ExpertEditCustomPresetOverrides | null
+): boolean => {
   if (!presetId.startsWith("custom_")) return true;
   const customNumber = Number.parseInt(presetId.slice("custom_".length), 10);
-  return (
+  const isVisibleDefaultCustomPreset =
     Number.isFinite(customNumber) &&
     customNumber >= 1 &&
-    customNumber <= EDIT_PRESET_VISIBLE_CUSTOM_COUNT
-  );
+    customNumber <= EDIT_PRESET_VISIBLE_CUSTOM_COUNT;
+  if (isVisibleDefaultCustomPreset) return true;
+  return Boolean(customOverrides?.[presetId]);
 };
+const resolveVisibleSurfacePresetIds = (
+  customOverrides?: ExpertEditCustomPresetOverrides | null
+): ExpertEditPresetId[] =>
+  EDIT_PRESET_BASE_DEFINITIONS.map((definition) => definition.presetId).filter((presetId) =>
+    isPresetVisibleInUi(presetId, customOverrides)
+  ) as ExpertEditPresetId[];
 
 /**
  * Ordered canonical list of all Expert Edit preset IDs.
  */
-export const EDIT_PRESET_SURFACE_PRESET_IDS = EDIT_PRESET_BASE_DEFINITIONS.map(
-  (definition) => definition.presetId
-).filter((presetId) => isPresetVisibleInUi(presetId)) as readonly ExpertEditPresetId[];
+export const EDIT_PRESET_SURFACE_PRESET_IDS = resolveVisibleSurfacePresetIds();
 
 /**
  * Ordered canonical list of editable custom preset IDs.
@@ -217,12 +225,15 @@ export const mapLegacyPresetLabelToId = (label: string): ExpertEditPresetId | nu
 /**
  * Maps legacy preset labels to canonical ordered preset IDs.
  */
-export const mapLegacyPresetLabelsToIds = (labels: readonly string[]): ExpertEditPresetId[] => {
+export const mapLegacyPresetLabelsToIds = (
+  labels: readonly string[],
+  customOverrides?: ExpertEditCustomPresetOverrides | null
+): ExpertEditPresetId[] => {
   const resolvedPresetIds = labels
     .map((label) => mapLegacyPresetLabelToId(label))
     .filter(
       (presetId): presetId is ExpertEditPresetId =>
-        presetId != null && isPresetVisibleInUi(presetId)
+        presetId != null && isPresetVisibleInUi(presetId, customOverrides)
     );
   return sortPresetIdsByCanonicalOrder(resolvedPresetIds);
 };
@@ -247,16 +258,22 @@ export const sortPresetIdsByCanonicalOrder = (
 /**
  * Normalizes panel preset IDs to known, deduped, canonical ordered IDs and applies max capacity.
  */
-export const normalizePresetPanelPresetIds = (presetIds: readonly string[]): ExpertEditPresetId[] =>
+export const normalizePresetPanelPresetIds = (
+  presetIds: readonly string[],
+  customOverrides?: ExpertEditCustomPresetOverrides | null
+): ExpertEditPresetId[] =>
   sortPresetIdsByCanonicalOrder(presetIds)
-    .filter((presetId) => isPresetVisibleInUi(presetId))
+    .filter((presetId) => isPresetVisibleInUi(presetId, customOverrides))
     .slice(0, EDIT_PRESET_PANEL_MAX);
 
 /**
  * Legacy helper kept for compatibility in fallback tests/paths.
  */
-export const sortPresetLabelsByCanonicalOrder = (labels: readonly string[]) =>
-  mapLegacyPresetLabelsToIds(labels).map(
+export const sortPresetLabelsByCanonicalOrder = (
+  labels: readonly string[],
+  customOverrides?: ExpertEditCustomPresetOverrides | null
+) =>
+  mapLegacyPresetLabelsToIds(labels, customOverrides).map(
     (presetId) => EDIT_PRESET_BASE_BY_ID.get(presetId)?.label ?? presetId
   );
 
@@ -360,7 +377,7 @@ export const resolveExpertEditPresetPrompt = (
 export const resolveExpertEditPresetCatalog = (
   customOverrides?: ExpertEditCustomPresetOverrides | null
 ): ExpertEditResolvedPreset[] =>
-  EDIT_PRESET_SURFACE_PRESET_IDS.map((presetId) =>
+  resolveVisibleSurfacePresetIds(customOverrides).map((presetId) =>
     resolveExpertEditPresetById(presetId, customOverrides)
   );
 

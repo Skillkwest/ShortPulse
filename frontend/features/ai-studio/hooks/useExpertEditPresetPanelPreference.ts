@@ -62,28 +62,31 @@ const isMissingPresetPreferenceStorageError = (error: unknown): boolean => {
   );
 };
 
-const normalizePresetPanelIdsFromUnknown = (value: unknown): ExpertEditPresetId[] | null => {
-  if (!Array.isArray(value)) return null;
-  const candidatePresetIds = value.filter((entry): entry is string => typeof entry === "string");
-  return normalizePresetPanelPresetIds(candidatePresetIds).slice(0, EDIT_PRESET_PANEL_MAX);
-};
-
 const normalizePresetPreferenceValue = (value: {
   presetPanelIds?: unknown;
   customPresetOverrides?: unknown;
   legacyPanelLabels?: unknown;
 }): ExpertEditPresetPreferenceValue => {
-  const panelIdsFromNew = normalizePresetPanelIdsFromUnknown(value.presetPanelIds);
+  const customPresetOverrides = normalizeExpertEditCustomPresetOverrides(
+    value.customPresetOverrides
+  );
+  const panelIdsFromNew = Array.isArray(value.presetPanelIds)
+    ? normalizePresetPanelPresetIds(
+        value.presetPanelIds.filter((entry): entry is string => typeof entry === "string"),
+        customPresetOverrides
+      ).slice(0, EDIT_PRESET_PANEL_MAX)
+    : null;
   const panelIdsFromLegacyLabels = Array.isArray(value.legacyPanelLabels)
     ? mapLegacyPresetLabelsToIds(
-        value.legacyPanelLabels.filter((entry): entry is string => typeof entry === "string")
+        value.legacyPanelLabels.filter((entry): entry is string => typeof entry === "string"),
+        customPresetOverrides
       ).slice(0, EDIT_PRESET_PANEL_MAX)
     : null;
   const presetPanelIds =
     panelIdsFromNew ?? panelIdsFromLegacyLabels ?? DEFAULT_PRESET_PREFERENCE_VALUE.presetPanelIds;
   return {
     presetPanelIds,
-    customPresetOverrides: normalizeExpertEditCustomPresetOverrides(value.customPresetOverrides),
+    customPresetOverrides,
   };
 };
 
@@ -305,7 +308,10 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
     (presetIds: readonly ExpertEditPresetId[]) => {
       void persistPreference({
         ...latestValueRef.current,
-        presetPanelIds: normalizePresetPanelPresetIds(presetIds),
+        presetPanelIds: normalizePresetPanelPresetIds(
+          presetIds,
+          latestValueRef.current.customPresetOverrides
+        ),
       });
     },
     [persistPreference]

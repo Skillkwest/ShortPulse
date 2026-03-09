@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PresetsLibraryPanel } from "../PresetsLibraryPanel";
-import type { ExpertEditResolvedPreset } from "../edit/expertEditPresets";
+import {
+  EDIT_PRESET_CUSTOM_PRESET_IDS,
+  type ExpertEditResolvedPreset,
+} from "../edit/expertEditPresets";
 
 const PRESETS: ExpertEditResolvedPreset[] = [
   {
@@ -14,6 +17,20 @@ const PRESETS: ExpertEditResolvedPreset[] = [
   {
     presetId: "custom_1",
     label: "Custom 1",
+    prompt: "Use the custom prompt.",
+    isCustom: true,
+    hasOverride: false,
+  },
+  {
+    presetId: "custom_2",
+    label: "Custom 2",
+    prompt: "Use the custom prompt.",
+    isCustom: true,
+    hasOverride: false,
+  },
+  {
+    presetId: "custom_3",
+    label: "Custom 3",
     prompt: "Use the custom prompt.",
     isCustom: true,
     hasOverride: false,
@@ -66,6 +83,36 @@ describe("PresetsLibraryPanel", () => {
     expect(screen.getByDisplayValue("Use a selfie perspective.")).toBeInTheDocument();
   });
 
+  it("opens create modal from the Create New Preset tile and saves to the next custom preset", async () => {
+    const onSavePresetOverride = vi.fn().mockResolvedValue(true);
+
+    render(
+      <PresetsLibraryPanel
+        presets={PRESETS}
+        selectedPresetId={null}
+        onSavePresetOverride={onSavePresetOverride}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Create new preset" }));
+    expect(screen.getByRole("dialog", { name: "Create Custom 4 preset" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Preset Name"), {
+      target: { value: "Action Detail" },
+    });
+    fireEvent.change(screen.getByLabelText("Preset Prompt"), {
+      target: { value: "Create an energetic action portrait with directional motion." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(onSavePresetOverride).toHaveBeenCalledWith("custom_4", {
+        label: "Action Detail",
+        prompt: "Create an energetic action portrait with directional motion.",
+      });
+    });
+  });
+
   it("saves edited preset name + prompt and closes modal", async () => {
     const onSavePresetOverride = vi.fn().mockResolvedValue(true);
 
@@ -115,5 +162,21 @@ describe("PresetsLibraryPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Preset name and prompt are required.")).toBeInTheDocument();
     });
+  });
+
+  it("hides the create tile when all custom preset slots are already visible", () => {
+    const presetsWithAllCustomSlots: ExpertEditResolvedPreset[] = EDIT_PRESET_CUSTOM_PRESET_IDS.map(
+      (presetId, index) => ({
+        presetId,
+        label: `Custom ${index + 1}`,
+        prompt: "Saved custom preset prompt.",
+        isCustom: true,
+        hasOverride: true,
+      })
+    );
+
+    render(<PresetsLibraryPanel presets={presetsWithAllCustomSlots} selectedPresetId={null} />);
+
+    expect(screen.queryByRole("button", { name: "Create new preset" })).not.toBeInTheDocument();
   });
 });

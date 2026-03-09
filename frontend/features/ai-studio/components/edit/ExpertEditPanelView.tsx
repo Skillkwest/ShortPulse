@@ -97,6 +97,7 @@ export type ExpertEditPanelViewProps = {
       inpaintOverride?: InpaintSubmissionOverride | null;
       modelIdOverride?: string | null;
       costOverrideCredits?: number | null;
+      hideOutputFromReferenceGrid?: boolean;
     }
   ) => void | Promise<void>;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
@@ -104,6 +105,7 @@ export type ExpertEditPanelViewProps = {
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   isGenerateBusy?: boolean;
+  isPrimaryStageGenerating?: boolean;
   referenceImageWarning?: string | null;
   onImageResolutionChange?: (value: string) => void;
   characterOptions?: CreateCharacterOption[];
@@ -745,6 +747,7 @@ export function ExpertEditPanelView({
   costCredits,
   isGenerateDisabled = false,
   isGenerateBusy = false,
+  isPrimaryStageGenerating = false,
   onImageResolutionChange,
   characterOptions = [],
   selectedCharacterId = "",
@@ -885,31 +888,11 @@ export function ExpertEditPanelView({
   );
   const hasPrimaryCompositePreview = populatedLayerCount > 0;
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
+  const isPrimaryStageBusy = isRemoveBackgroundPending || isPrimaryStageGenerating;
   const hostPrimaryImageUrl = React.useMemo(
     () =>
       selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
     [layers, selectedLayerImageUrl]
-  );
-  const normalizedControlledPresetIds = React.useMemo(
-    () => (controlledPresetIds == null ? null : normalizePresetPanelPresetIds(controlledPresetIds)),
-    [controlledPresetIds]
-  );
-  const controlledPresetChangeHandler = onSelectedPresetIdsChange ?? null;
-  const isPresetPanelControlled =
-    normalizedControlledPresetIds != null && controlledPresetChangeHandler != null;
-  const selectedPresetIds = isPresetPanelControlled
-    ? normalizedControlledPresetIds
-    : internalSelectedPresetIds;
-  const updateSelectedPresetIds = React.useCallback(
-    (updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]) => {
-      if (isPresetPanelControlled) {
-        const next = normalizePresetPanelPresetIds(updater(normalizedControlledPresetIds));
-        controlledPresetChangeHandler(next);
-        return;
-      }
-      setInternalSelectedPresetIds((previous) => normalizePresetPanelPresetIds(updater(previous)));
-    },
-    [controlledPresetChangeHandler, isPresetPanelControlled, normalizedControlledPresetIds]
   );
   const isCustomOverridesControlled =
     controlledCustomPresetOverrides != null && onCustomPresetOverridesChange != null;
@@ -921,6 +904,40 @@ export function ExpertEditPanelView({
           : internalCustomPresetOverrides
       ),
     [controlledCustomPresetOverrides, internalCustomPresetOverrides, isCustomOverridesControlled]
+  );
+  const normalizedControlledPresetIds = React.useMemo(
+    () =>
+      controlledPresetIds == null
+        ? null
+        : normalizePresetPanelPresetIds(controlledPresetIds, customPresetOverrides),
+    [controlledPresetIds, customPresetOverrides]
+  );
+  const controlledPresetChangeHandler = onSelectedPresetIdsChange ?? null;
+  const isPresetPanelControlled =
+    normalizedControlledPresetIds != null && controlledPresetChangeHandler != null;
+  const selectedPresetIds = isPresetPanelControlled
+    ? normalizedControlledPresetIds
+    : internalSelectedPresetIds;
+  const updateSelectedPresetIds = React.useCallback(
+    (updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]) => {
+      if (isPresetPanelControlled) {
+        const next = normalizePresetPanelPresetIds(
+          updater(normalizedControlledPresetIds),
+          customPresetOverrides
+        );
+        controlledPresetChangeHandler(next);
+        return;
+      }
+      setInternalSelectedPresetIds((previous) =>
+        normalizePresetPanelPresetIds(updater(previous), customPresetOverrides)
+      );
+    },
+    [
+      controlledPresetChangeHandler,
+      customPresetOverrides,
+      isPresetPanelControlled,
+      normalizedControlledPresetIds,
+    ]
   );
   const updateCustomPresetOverrides = React.useCallback(
     (updater: (previous: ExpertEditCustomPresetOverrides) => ExpertEditCustomPresetOverrides) => {
@@ -1654,6 +1671,7 @@ export function ExpertEditPanelView({
               maskInput: inpaintMaskUrl,
               outputFormat: "png",
             },
+            hideOutputFromReferenceGrid: true,
           });
           return;
         }
@@ -1662,7 +1680,9 @@ export function ExpertEditPanelView({
           onRegenerate();
           return;
         }
-        await onRegenerateWithReferenceInputs(referenceInputs);
+        await onRegenerateWithReferenceInputs(referenceInputs, {
+          hideOutputFromReferenceGrid: true,
+        });
       } catch {
         if (flattenedUrl) {
           revokeObjectUrlSafe(flattenedUrl);
@@ -2712,7 +2732,7 @@ export function ExpertEditPanelView({
           onPointerLeave={handlePrimaryPointerLeave}
           onClick={handlePrimaryDropzoneClick}
           aria-label="Primary edit image"
-          aria-busy={isRemoveBackgroundPending || undefined}
+          aria-busy={isPrimaryStageBusy || undefined}
         >
           {hasPrimaryCompositePreview ? (
             <div
@@ -2761,6 +2781,24 @@ export function ExpertEditPanelView({
                     <span className="edit-expert-primary-layer-loading-text">
                       Removing background...
                     </span>
+                  </div>
+                </div>
+              ) : isPrimaryStageGenerating ? (
+                <div
+                  className="edit-expert-primary-layer-loading-overlay"
+                  data-testid="edit-expert-inline-generate-loading-overlay"
+                >
+                  <div
+                    className="edit-expert-primary-layer-loading"
+                    role="status"
+                    aria-label="Generating image"
+                    aria-live="polite"
+                  >
+                    <span
+                      className="edit-expert-primary-layer-loading-spinner"
+                      aria-hidden="true"
+                    />
+                    <span className="edit-expert-primary-layer-loading-text">Generating...</span>
                   </div>
                 </div>
               ) : null}

@@ -3,10 +3,15 @@
  * Renders the full preset catalog and supports inline modal editing for preset name + prompt.
  */
 import React from "react";
-import type {
-  ExpertEditPresetId,
-  ExpertEditPresetOverride,
-  ExpertEditResolvedPreset,
+import {
+  EDIT_PRESET_CUSTOM_PRESET_IDS,
+  resolveExpertEditPresetLabelById,
+  resolveExpertEditPresetPromptById,
+  type ExpertEditCustomPresetId,
+  type ExpertEditCustomPresetOverrides,
+  type ExpertEditPresetId,
+  type ExpertEditPresetOverride,
+  type ExpertEditResolvedPreset,
 } from "./edit/expertEditPresets";
 
 export type PresetsLibraryPanelProps = {
@@ -25,6 +30,7 @@ type PendingPresetEditState = {
   presetLabel: string;
   label: string;
   prompt: string;
+  mode: "create" | "edit";
 };
 
 export function PresetsLibraryPanel({
@@ -34,6 +40,24 @@ export function PresetsLibraryPanel({
   onSavePresetOverride,
   saveError = null,
 }: PresetsLibraryPanelProps) {
+  const customPresetOverrides = React.useMemo(
+    () =>
+      presets.reduce<ExpertEditCustomPresetOverrides>((accumulator, preset) => {
+        if (!preset.hasOverride) return accumulator;
+        accumulator[preset.presetId] = {
+          label: preset.label,
+          prompt: preset.prompt,
+        };
+        return accumulator;
+      }, {}),
+    [presets]
+  );
+  const nextCreatableCustomPresetId = React.useMemo((): ExpertEditCustomPresetId | null => {
+    const visiblePresetIdSet = new Set(presets.map((preset) => preset.presetId));
+    return (
+      EDIT_PRESET_CUSTOM_PRESET_IDS.find((presetId) => !visiblePresetIdSet.has(presetId)) ?? null
+    );
+  }, [presets]);
   const [pendingPresetEdit, setPendingPresetEdit] = React.useState<PendingPresetEditState | null>(
     null
   );
@@ -119,6 +143,7 @@ export function PresetsLibraryPanel({
                     presetLabel: preset.label,
                     label: preset.label,
                     prompt: preset.prompt,
+                    mode: "edit",
                   });
                 }}
               >
@@ -134,6 +159,39 @@ export function PresetsLibraryPanel({
               </button>
             );
           })}
+          {nextCreatableCustomPresetId ? (
+            <button
+              type="button"
+              className="presets-library-tile presets-library-create-tile"
+              aria-label="Create new preset"
+              onClick={() => {
+                onSelectPreset?.(nextCreatableCustomPresetId);
+                setLocalSaveError(null);
+                const defaultLabel = resolveExpertEditPresetLabelById(nextCreatableCustomPresetId);
+                setPendingPresetEdit({
+                  presetId: nextCreatableCustomPresetId,
+                  presetLabel: defaultLabel,
+                  label: defaultLabel,
+                  prompt:
+                    resolveExpertEditPresetPromptById(
+                      nextCreatableCustomPresetId,
+                      customPresetOverrides
+                    ) ?? "",
+                  mode: "create",
+                });
+              }}
+            >
+              <span className="presets-library-create-plus" aria-hidden="true">
+                +
+              </span>
+              <span className="presets-library-tile-head">
+                <span className="presets-library-tile-title">Create New Preset</span>
+              </span>
+              <span className="presets-library-tile-prompt">
+                Add another custom preset to your library.
+              </span>
+            </button>
+          ) : null}
         </div>
       </div>
       {pendingPresetEdit ? (
@@ -142,12 +200,18 @@ export function PresetsLibraryPanel({
             className="presets-library-edit-modal"
             role="dialog"
             aria-modal="true"
-            aria-label={`Edit ${pendingPresetEdit.presetLabel} preset`}
+            aria-label={`${
+              pendingPresetEdit.mode === "create" ? "Create" : "Edit"
+            } ${pendingPresetEdit.presetLabel} preset`}
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className="presets-library-edit-title">Edit Preset</h3>
+            <h3 className="presets-library-edit-title">
+              {pendingPresetEdit.mode === "create" ? "Create New Preset" : "Edit Preset"}
+            </h3>
             <p className="tiny subdued presets-library-edit-copy">
-              Update preset name and prompt text.
+              {pendingPresetEdit.mode === "create"
+                ? "Set the preset name and prompt text."
+                : "Update preset name and prompt text."}
             </p>
             <label className="presets-library-edit-label" htmlFor="preset-library-name-input">
               Preset Name
@@ -208,7 +272,11 @@ export function PresetsLibraryPanel({
                 onClick={() => void handleSavePreset()}
                 disabled={editSubmitting}
               >
-                {editSubmitting ? "Saving..." : "Save"}
+                {editSubmitting
+                  ? "Saving..."
+                  : pendingPresetEdit.mode === "create"
+                    ? "Create"
+                    : "Save"}
               </button>
             </div>
           </div>

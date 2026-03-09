@@ -5,6 +5,7 @@
 import React from "react";
 import { X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
+import { postExtractStyle, prepareStyleImageUrl } from "../logic/styleExtraction";
 import { extractDragDropPayload } from "../utils/dragDrop";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { resolveStylePreviewBackgroundImage } from "./edit/expertEditStyles";
@@ -216,6 +217,7 @@ export function StylesLibraryPanel({
   const stylePreviewFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const stylesLibraryDropDepthRef = React.useRef(0);
   const customStyleIdCounterRef = React.useRef(0);
+  const stylePromptExtractionRequestIdRef = React.useRef(0);
   const [orderedStyleIds, setOrderedStyleIds] = React.useState<string[]>([]);
   const [draggedStyleId, setDraggedStyleId] = React.useState<string | null>(null);
   const [dropTargetStyleId, setDropTargetStyleId] = React.useState<string | null>(null);
@@ -233,6 +235,11 @@ export function StylesLibraryPanel({
   const [localDeleteError, setLocalDeleteError] = React.useState<string | null>(null);
   const [localSaveError, setLocalSaveError] = React.useState<string | null>(null);
   const [stylesLibraryDropError, setStylesLibraryDropError] = React.useState<string | null>(null);
+  const [stylePromptExtractionSubmitting, setStylePromptExtractionSubmitting] =
+    React.useState(false);
+  const [stylePromptExtractionError, setStylePromptExtractionError] = React.useState<string | null>(
+    null
+  );
   const allStyles = styles;
   const renderedStyles = React.useMemo(() => {
     if (allStyles.length === 0) return allStyles;
@@ -253,10 +260,57 @@ export function StylesLibraryPanel({
 
   const closeEditModal = React.useCallback(() => {
     if (editSubmitting) return;
+    stylePromptExtractionRequestIdRef.current += 1;
     setPendingStyleEdit(null);
     setStylePreviewDropActive(false);
     setLocalSaveError(null);
+    setStylePromptExtractionSubmitting(false);
+    setStylePromptExtractionError(null);
   }, [editSubmitting]);
+
+  const applyExtractedStylePromptToCreateDraft = React.useCallback((stylePrompt: string) => {
+    setPendingStyleEdit((previous) => {
+      if (!previous || previous.mode !== "create") return previous;
+      return {
+        ...previous,
+        details: {
+          ...previous.details,
+          stylePrompt,
+        },
+      };
+    });
+  }, []);
+
+  const extractStylePromptForCreateDraft = React.useCallback(
+    async (previewImageUrl: string) => {
+      const requestId = ++stylePromptExtractionRequestIdRef.current;
+      setStylePromptExtractionSubmitting(true);
+      setStylePromptExtractionError(null);
+      try {
+        const safeImageUrl = await prepareStyleImageUrl(previewImageUrl);
+        if (!safeImageUrl) {
+          throw new Error(
+            "Unable to prepare image for style extraction. You can still enter the style prompt manually."
+          );
+        }
+        const extracted = await postExtractStyle(safeImageUrl);
+        if (stylePromptExtractionRequestIdRef.current !== requestId) return;
+        applyExtractedStylePromptToCreateDraft(extracted.stylePrompt);
+      } catch (error) {
+        if (stylePromptExtractionRequestIdRef.current !== requestId) return;
+        setStylePromptExtractionError(
+          error instanceof Error
+            ? error.message
+            : "Style extraction failed. You can still enter the style prompt manually."
+        );
+      } finally {
+        if (stylePromptExtractionRequestIdRef.current === requestId) {
+          setStylePromptExtractionSubmitting(false);
+        }
+      }
+    },
+    [applyExtractedStylePromptToCreateDraft]
+  );
 
   const applyStylePreviewToPendingEdit = React.useCallback((previewImageUrl: string) => {
     setPendingStyleEdit((previous) => {
@@ -299,6 +353,10 @@ export function StylesLibraryPanel({
       try {
         const { previewImageUrl } = await resolveDroppedStylePreview(transfer);
         applyStylePreviewToPendingEdit(previewImageUrl);
+        const shouldExtract = pendingStyleEdit?.mode === "create";
+        if (shouldExtract) {
+          void extractStylePromptForCreateDraft(previewImageUrl);
+        }
       } catch (error) {
         if (error instanceof Error && error.message === "missing-dropped-style-image") {
           setLocalSaveError("Please drop an image reference.");
@@ -307,7 +365,12 @@ export function StylesLibraryPanel({
         setLocalSaveError("Unable to process that image.");
       }
     },
-    [applyStylePreviewToPendingEdit, resolveDroppedStylePreview]
+    [
+      applyStylePreviewToPendingEdit,
+      extractStylePromptForCreateDraft,
+      pendingStyleEdit?.mode,
+      resolveDroppedStylePreview,
+    ]
   );
 
   const applyStylePreviewFile = React.useCallback(
@@ -320,11 +383,15 @@ export function StylesLibraryPanel({
       try {
         const croppedPreview = await cropImageFileToSquareDataUrl(file);
         applyStylePreviewToPendingEdit(croppedPreview);
+        const shouldExtract = pendingStyleEdit?.mode === "create";
+        if (shouldExtract) {
+          void extractStylePromptForCreateDraft(croppedPreview);
+        }
       } catch {
         setLocalSaveError("Unable to process that image.");
       }
     },
-    [applyStylePreviewToPendingEdit]
+    [applyStylePreviewToPendingEdit, extractStylePromptForCreateDraft, pendingStyleEdit?.mode]
   );
 
   const createStyleFromDrop = React.useCallback(
@@ -334,6 +401,19 @@ export function StylesLibraryPanel({
       setStylesLibraryDropError(null);
       try {
         const { previewImageUrl, promptText } = await resolveDroppedStylePreview(transfer);
+        let extractedStylePrompt = promptText;
+        try {
+          const safeImageUrl = await prepareStyleImageUrl(previewImageUrl);
+          if (!safeImageUrl) {
+            throw new Error("Unable to prepare dropped image for style extraction.");
+          }
+          const extracted = await postExtractStyle(safeImageUrl);
+          extractedStylePrompt = extracted.stylePrompt;
+        } catch {
+          setStylesLibraryDropError(
+            "Style prompt extraction failed. Style created anyway - you can edit the prompt manually."
+          );
+        }
         if (!onSaveStyleDetails) {
           setStylesLibraryDropError("Style saving is unavailable right now.");
           return;
@@ -345,7 +425,7 @@ export function StylesLibraryPanel({
           style: customStyleName,
           title: customStyleName,
           referenceImageName: customStyleName,
-          stylePrompt: promptText,
+          stylePrompt: extractedStylePrompt,
           previewImageUrl,
         });
         if (!saved) {
@@ -429,6 +509,10 @@ export function StylesLibraryPanel({
 
   const handleSaveStyleDetails = React.useCallback(async () => {
     if (!pendingStyleEdit || editSubmitting) return;
+    if (pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting) {
+      setLocalSaveError("Style analysis is still running. Please wait.");
+      return;
+    }
     const normalizedDetails = normalizeStyleDetailsDraft(pendingStyleEdit.details);
     const canonicalStyleName = normalizedDetails.style;
     if (!canonicalStyleName) {
@@ -464,11 +548,20 @@ export function StylesLibraryPanel({
     } finally {
       setEditSubmitting(false);
     }
-  }, [editSubmitting, onSaveStyleDetails, onSelectStyle, pendingStyleEdit]);
+  }, [
+    editSubmitting,
+    onSaveStyleDetails,
+    onSelectStyle,
+    pendingStyleEdit,
+    stylePromptExtractionSubmitting,
+  ]);
 
   const openStyleEditModal = React.useCallback((style: ExpertEditStyleTile) => {
     const styleDisplayName = style.style?.trim() || style.title;
     setLocalSaveError(null);
+    stylePromptExtractionRequestIdRef.current += 1;
+    setStylePromptExtractionSubmitting(false);
+    setStylePromptExtractionError(null);
     setPendingStyleEdit({
       mode: "edit",
       styleId: style.id,
@@ -481,6 +574,9 @@ export function StylesLibraryPanel({
     customStyleIdCounterRef.current += 1;
     const nextStyleId = `style-library-custom-${Date.now()}-${customStyleIdCounterRef.current}`;
     setLocalSaveError(null);
+    stylePromptExtractionRequestIdRef.current += 1;
+    setStylePromptExtractionSubmitting(false);
+    setStylePromptExtractionError(null);
     setPendingStyleEdit({
       mode: "create",
       styleId: nextStyleId,
@@ -831,6 +927,12 @@ export function StylesLibraryPanel({
                 }}
               />
             </label>
+            {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting ? (
+              <p className="styles-library-edit-copy tiny subdued">Analyzing style...</p>
+            ) : null}
+            {pendingStyleEdit.mode === "create" && stylePromptExtractionError ? (
+              <p className="styles-library-edit-error tiny">{stylePromptExtractionError}</p>
+            ) : null}
             {saveError ? <p className="styles-library-edit-error tiny">{saveError}</p> : null}
             {localSaveError ? (
               <p className="styles-library-edit-error tiny">{localSaveError}</p>
@@ -846,16 +948,21 @@ export function StylesLibraryPanel({
               <button
                 type="button"
                 className="ghost-btn mini styles-library-edit-action-btn styles-library-edit-save"
-                disabled={editSubmitting}
+                disabled={
+                  editSubmitting ||
+                  (pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting)
+                }
                 onClick={() => {
                   void handleSaveStyleDetails();
                 }}
               >
-                {editSubmitting
-                  ? "Saving..."
-                  : pendingStyleEdit.mode === "create"
-                    ? "Save style"
-                    : "Save changes"}
+                {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting
+                  ? "Analyzing style..."
+                  : editSubmitting
+                    ? "Saving..."
+                    : pendingStyleEdit.mode === "create"
+                      ? "Save style"
+                      : "Save changes"}
               </button>
             </div>
           </div>

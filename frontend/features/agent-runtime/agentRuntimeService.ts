@@ -8,6 +8,10 @@ import {
   executeLegacyImageDescribe,
   type LegacyImageDescribeResult,
 } from "./legacyImageDescribeService";
+import {
+  executeLegacyStyleExtraction,
+  type LegacyStyleExtractionResult,
+} from "./legacyStyleExtractionService";
 
 export type AgentRuntimeService = {
   generatePrompt(input: {
@@ -22,6 +26,12 @@ export type AgentRuntimeService = {
     imageUrl: unknown;
     routeLabel?: string;
   }): Promise<LegacyImageDescribeResult>;
+  extractStyle(input: {
+    req: NextApiRequest;
+    user: AuthenticatedApiUser;
+    imageUrl: unknown;
+    routeLabel?: string;
+  }): Promise<LegacyStyleExtractionResult>;
 };
 
 export const agentRuntimeService: AgentRuntimeService = {
@@ -30,5 +40,8 @@ export const agentRuntimeService: AgentRuntimeService = {
   },
   describeImage(input) {
     return executeLegacyImageDescribe(input);
+  },
+  extractStyle(input) {
+    return executeLegacyStyleExtraction(input);
   },
 };

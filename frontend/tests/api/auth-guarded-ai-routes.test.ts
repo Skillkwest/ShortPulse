@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import generatePromptHandler from "../../pages/api/ai/generate-prompt";
 import describeImageHandler from "../../pages/api/ai/describe-image";
+import extractStyleHandler from "../../pages/api/ai/extract-style";
 import studioAgentHandler from "../../pages/api/ai/studio-agent";
 import saveSessionHandler from "../../pages/api/ai/sessions/save";
 import getSessionHandler from "../../pages/api/ai/sessions/[sid]";
@@ -57,6 +58,19 @@ describe("API auth guards: AI routes", () => {
     const res = createMockResponse();
 
     await describeImageHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(requireApiUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unauthenticated extract-style requests", async () => {
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/image.png" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);

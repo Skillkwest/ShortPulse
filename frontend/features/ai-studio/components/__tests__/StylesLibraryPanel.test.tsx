@@ -4,9 +4,15 @@
  */
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
+import { postExtractStyle, prepareStyleImageUrl } from "../../logic/styleExtraction";
+
+vi.mock("../../logic/styleExtraction", () => ({
+  prepareStyleImageUrl: vi.fn(),
+  postExtractStyle: vi.fn(),
+}));
 
 const createStyles = (): ExpertEditStyleTile[] => [
   {
@@ -34,6 +40,14 @@ const createStylesWithPlaceholder = (): ExpertEditStyleTile[] => [
 ];
 
 describe("StylesLibraryPanel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prepareStyleImageUrl).mockImplementation(async (url: string) => url);
+    vi.mocked(postExtractStyle).mockResolvedValue({
+      stylePrompt: "cinematic lighting, shallow depth of field, balanced dynamic range",
+    });
+  });
+
   it("renders delete action only for non-placeholder styles", () => {
     render(<StylesLibraryPanel styles={createStylesWithPlaceholder()} selectedStyleId={null} />);
 
@@ -178,9 +192,255 @@ describe("StylesLibraryPanel", () => {
       expect(savedDetails.style).toBe("Custom Style 1");
       expect(savedDetails.title).toBe("Custom Style 1");
       expect(savedDetails.referenceImageName).toBe("Custom Style 1");
-      expect(savedDetails.stylePrompt).toBe("");
+      expect(savedDetails.stylePrompt).toBe(
+        "cinematic lighting, shallow depth of field, balanced dynamic range"
+      );
       expect(savedDetails.previewImageUrl).toBe("data:image/jpeg;base64,mock-cropped-style");
       expect(onSelectStyle).toHaveBeenCalledWith(savedStyleId);
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
+  });
+
+  it("auto-fills style prompt from extraction after uploading create modal image", async () => {
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,mock-create-preview",
+    });
+    try {
+      render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+      fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+      const dialog = screen.getByRole("dialog", { name: "Add style" });
+      const uploadInput = dialog.querySelector(
+        ".styles-library-edit-dropzone-input"
+      ) as HTMLInputElement | null;
+      expect(uploadInput).toBeTruthy();
+
+      const imageFile = new File(["mock-image-bytes"], "style-image.png", { type: "image/png" });
+      fireEvent.change(uploadInput as HTMLInputElement, { target: { files: [imageFile] } });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Style Prompt")).toHaveValue(
+          "cinematic lighting, shallow depth of field, balanced dynamic range"
+        );
+      });
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
+  });
+
+  it("disables create save while style extraction is in-flight", async () => {
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    let resolveExtraction: ((value: { stylePrompt: string }) => void) | null = null;
+    vi.mocked(postExtractStyle).mockImplementation(
+      () =>
+        new Promise<{ stylePrompt: string }>((resolve) => {
+          resolveExtraction = resolve;
+        })
+    );
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,mock-create-preview",
+    });
+    try {
+      render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+      fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+      const dialog = screen.getByRole("dialog", { name: "Add style" });
+      const uploadInput = dialog.querySelector(
+        ".styles-library-edit-dropzone-input"
+      ) as HTMLInputElement | null;
+      const imageFile = new File(["mock-image-bytes"], "style-image.png", { type: "image/png" });
+      fireEvent.change(uploadInput as HTMLInputElement, { target: { files: [imageFile] } });
+
+      await waitFor(() => {
+        const saveButton = screen.getByRole("button", { name: "Analyzing style..." });
+        expect(saveButton).toBeDisabled();
+      });
+
+      resolveExtraction?.({
+        stylePrompt: "clean digital illustration, soft gradient shading, polished finish",
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Save style" })).not.toBeDisabled();
+      });
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
+  });
+
+  it("allows manual prompt save when create extraction fails", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    vi.mocked(postExtractStyle).mockRejectedValue(new Error("Style extraction failed."));
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,mock-create-preview",
+    });
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+      const dialog = screen.getByRole("dialog", { name: "Add style" });
+      const uploadInput = dialog.querySelector(
+        ".styles-library-edit-dropzone-input"
+      ) as HTMLInputElement | null;
+      const imageFile = new File(["mock-image-bytes"], "style-image.png", { type: "image/png" });
+      fireEvent.change(uploadInput as HTMLInputElement, { target: { files: [imageFile] } });
+
+      await waitFor(() => {
+        expect(screen.getByText("Style extraction failed.")).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText("Style Prompt"), {
+        target: { value: "manual fallback style prompt" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Save style" }));
+
+      await waitFor(() => {
+        expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+      });
+      const [, payload] = onSaveStyleDetails.mock.calls[0] as [
+        string,
+        { stylePrompt: string; previewImageUrl: string },
+      ];
+      expect(payload.stylePrompt).toBe("manual fallback style prompt");
+      expect(payload.previewImageUrl).toBe("data:image/jpeg;base64,mock-create-preview");
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,

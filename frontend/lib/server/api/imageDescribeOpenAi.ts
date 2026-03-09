@@ -51,11 +51,13 @@ const requestOpenAiImageDescribe = async ({
   model,
   systemPrompt,
   imageUrl,
+  userText = "Describe the image exactly as you see it.",
 }: {
   apiKey: string;
   model: string;
   systemPrompt: string;
   imageUrl: string;
+  userText?: string;
 }): Promise<OpenAiDescribeAttemptResult> => {
   try {
     const response = await fetchOpenAiCompatibleChatCompletion({
@@ -68,7 +70,7 @@ const requestOpenAiImageDescribe = async ({
         {
           role: "user",
           content: [
-            { type: "text", text: "Describe the image exactly as you see it." },
+            { type: "text", text: userText },
             { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
           ],
         },
@@ -123,6 +125,7 @@ export const requestOpenAiImageDescribeWithRetry = async (params: {
   model: string;
   systemPrompt: string;
   imageUrl: string;
+  userText?: string;
 }): Promise<OpenAiDescribeAttemptResult> => {
   let attempt = await requestOpenAiImageDescribe(params);
   for (

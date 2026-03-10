@@ -828,12 +828,23 @@ export function AiStudioPageContent({
       });
     });
   }, [panelToggleAvailability, workflowPanelVisibilityKey]);
-  const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
-    setSelectedStyleId(styleId);
-  }, []);
-  const handleClearSelectedStyle = React.useCallback(() => {
-    setSelectedStyleId(null);
-  }, []);
+  const handleSelectedStyleIdChange = React.useCallback(
+    (styleId: string | null) => {
+      setSelectedStyleId(styleId);
+      setPanelVisibilityByWorkflow((previous) => {
+        const workflowState = previous[workflowPanelVisibilityKey];
+        if (!workflowState?.styles) return previous;
+        return {
+          ...previous,
+          [workflowPanelVisibilityKey]: {
+            ...workflowState,
+            styles: false,
+          },
+        };
+      });
+    },
+    [workflowPanelVisibilityKey]
+  );
   const resolvedExpertEditProperties = React.useMemo(
     () => ({
       ...propertiesEditExpert,
@@ -841,10 +852,8 @@ export function AiStudioPageContent({
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
       stylesCatalog: visibleStylesCatalog,
-      onClearSelectedStyle: handleClearSelectedStyle,
     }),
     [
-      handleClearSelectedStyle,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       propertiesEditExpert,
@@ -859,10 +868,8 @@ export function AiStudioPageContent({
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
       stylesCatalog: visibleStylesCatalog,
-      onClearSelectedStyle: handleClearSelectedStyle,
     }),
     [
-      handleClearSelectedStyle,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       resolvedCreateProperties,

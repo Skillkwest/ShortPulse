@@ -600,11 +600,12 @@ describe("AiStudioPageContent right column drop router", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Select cinematic style" }));
     expect(screen.getByTestId("expert-edit-selected-style")).toHaveTextContent("cinematic");
-    expect(screen.getByTestId("reference-grid-selected-style")).toHaveTextContent("cinematic");
-
-    fireEvent.click(within(expertPanel).getByRole("button", { name: "Styles" }));
     expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("closed");
     expect(screen.queryByTestId("reference-grid-styles-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(within(expertPanel).getByRole("button", { name: "Styles" }));
+    expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("open");
+    expect(screen.getByTestId("reference-grid-selected-style")).toHaveTextContent("cinematic");
   });
 
   it("keeps header styles toggle synced with expert edit styles state", () => {
@@ -677,7 +678,8 @@ describe("AiStudioPageContent right column drop router", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Select cinematic style" }));
     expect(screen.getByTestId("create-selected-style")).toHaveTextContent("cinematic");
-    expect(screen.getByTestId("reference-grid-selected-style")).toHaveTextContent("cinematic");
+    expect(screen.getByTestId("create-styles-open")).toHaveTextContent("closed");
+    expect(screen.queryByTestId("reference-grid-styles-panel")).not.toBeInTheDocument();
   });
 
   it("keeps selected style synchronized between styles tool and expert create/edit surfaces", () => {

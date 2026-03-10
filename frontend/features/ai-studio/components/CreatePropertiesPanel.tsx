@@ -106,7 +106,6 @@ export type CreatePropertiesPanelProps = {
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
-  onClearSelectedStyle?: () => void;
 };
 
 /**
@@ -296,7 +295,6 @@ export function CreatePropertiesPanel({
   onStylesPanelToggle,
   selectedStyleId = null,
   stylesCatalog,
-  onClearSelectedStyle,
   onGenerate,
   onChatOffInlineGenerate,
 }: CreatePropertiesPanelProps) {
@@ -498,7 +496,6 @@ export function CreatePropertiesPanel({
         selectedStyleId={selectedStyleId}
         styles={stylesCatalog}
         onToggle={onStylesPanelToggle}
-        onClearSelection={onClearSelectedStyle}
       />
     ),
   };

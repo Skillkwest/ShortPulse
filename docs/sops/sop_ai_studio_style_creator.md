@@ -45,7 +45,7 @@ Rules:
 6. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
 7. The first tile in Styles Library is a fixed `None` slot (system tile); it is never persisted, edited, deleted, or reordered.
 8. Styles Library tile clicks are edit-only (open/create/update/delete workflows) and do not mutate active Create/Edit style selection.
-9. Right-rail Styles tile clicks own Create/Edit style selection state; submit-path style append behavior remains unchanged.
+9. Right-rail Styles tile clicks own Create/Edit style selection state and auto-close the right-rail Styles panel after selection; submit-path style append behavior remains unchanged.
 
 ## Submission-time style behavior and prompting guidance
 1. Submission behavior:

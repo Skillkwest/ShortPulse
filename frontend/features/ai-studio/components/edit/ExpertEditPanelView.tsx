@@ -134,7 +134,6 @@ export type ExpertEditPanelViewProps = {
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
-  onClearSelectedStyle?: () => void;
 };
 
 type CharacterPickerModalProps = {
@@ -791,7 +790,6 @@ export function ExpertEditPanelView({
   onStylesPanelToggle,
   selectedStyleId: controlledSelectedStyleId,
   stylesCatalog,
-  onClearSelectedStyle,
 }: ExpertEditPanelViewProps) {
   const layerIdCounterRef = React.useRef(1);
   const foundationLayerIdRef = React.useRef<string | null>(null);
@@ -2190,9 +2188,6 @@ export function ExpertEditPanelView({
   const handleStylesPanelToggle = React.useCallback(() => {
     onStylesPanelToggle?.();
   }, [onStylesPanelToggle]);
-  const handleClearSelectedStyle = React.useCallback(() => {
-    onClearSelectedStyle?.();
-  }, [onClearSelectedStyle]);
 
   const handleReorderLayers = React.useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -3201,7 +3196,6 @@ export function ExpertEditPanelView({
             selectedStyleId={selectedStyleId}
             styles={stylesCatalog}
             onToggle={handleStylesPanelToggle}
-            onClearSelection={handleClearSelectedStyle}
           />
         </div>
       </div>

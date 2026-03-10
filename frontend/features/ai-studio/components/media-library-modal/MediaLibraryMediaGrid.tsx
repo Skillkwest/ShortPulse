@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { CheckCircle, DownloadSimple, X } from "phosphor-react";
+import { DownloadSimple, X } from "phosphor-react";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
@@ -105,7 +105,6 @@ export function MediaLibraryMediaGrid({
       ) : (
         virtualRenderItems.map((renderItem) => {
           const file = renderItem.item;
-          const isSelected = selectedIds.has(file.id);
           const supportsRemoveAction = Boolean(onRemoveMediaFromFolder);
           const canShowRemoveAction = showRemoveAction && supportsRemoveAction;
           const canShowDownloadAction = Boolean(
@@ -134,26 +133,18 @@ export function MediaLibraryMediaGrid({
           return (
             <div
               key={file.id}
-              className={`media-library-modal-card media-library-panel-media-card-shell${
-                isSelected ? " is-selected is-active" : ""
-              }`}
+              className="media-library-modal-card media-library-panel-media-card-shell"
               style={renderItem.style}
             >
               <button
                 type="button"
                 className="media-card media-library-panel-media-card-button"
                 ref={getMediaCardRef(file.id)}
-                aria-pressed={isSelected}
                 draggable={Boolean(onMediaDragStart)}
                 onClick={() => onSelectMediaFile(file)}
                 onDragStart={(event) => onMediaDragStart?.(event, file)}
                 onDragEnd={(event) => onMediaDragEnd?.(event, file)}
               >
-                {isSelected ? (
-                  <span className="media-library-select-indicator" aria-hidden>
-                    <CheckCircle size={16} weight="fill" />
-                  </span>
-                ) : null}
                 {cardPreviewUrl ? (
                   isVideoFile(file.file_type) ? (
                     <video

@@ -87,6 +87,7 @@ type MediaLibraryPanelProps = {
 const MEDIA_PAGE_SIZE = 36;
 const PROMPT_PAGE_SIZE = 36;
 const ROOT_FOLDER_LABEL = "All Media";
+const EMPTY_SELECTED_IDS = new Set<string>();
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
@@ -153,7 +154,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [error, setError] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectedIds = EMPTY_SELECTED_IDS;
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
 
   const signedUrlRetryRef = useRef<Record<string, number>>({});
@@ -650,7 +651,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   useEffect(() => {
     setMembershipMessage(null);
-    setSelectedIds(new Set());
     if (shouldShowMedia) {
       void loadMediaPage({ reset: true });
     } else {
@@ -677,11 +677,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const handleSelectPromptCard = useCallback(
     (prompt: PromptRow) => {
-      setSelectedIds((previous) => {
-        const next = new Set(previous);
-        next.add(prompt.id);
-        return next;
-      });
       onSelectPrompt({
         id: prompt.id,
         promptText: prompt.prompt_text,
@@ -691,13 +686,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [onSelectPrompt]
   );
 
-  const handleSelectMediaFile = useCallback((file: MediaFileRow) => {
-    setSelectedIds((previous) => {
-      const next = new Set(previous);
-      next.add(file.id);
-      return next;
-    });
-  }, []);
+  const handleSelectMediaFile = useCallback(() => undefined, []);
 
   const refreshActiveRows = useCallback(async () => {
     if (shouldShowMedia) {
@@ -726,12 +715,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         } else {
           setPromptRows((previous) => previous.filter((row) => row.id !== item.id));
         }
-        setSelectedIds((previous) => {
-          if (!previous.has(item.id)) return previous;
-          const next = new Set(previous);
-          next.delete(item.id);
-          return next;
-        });
         await refreshActiveRows();
       } catch (membershipError) {
         setFolderError(

@@ -245,6 +245,21 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   overflow: visible;
   display: flex;
   flex-direction: column;
+  animation: ai-studio-startup-fade 100ms linear;
+}
+
+@keyframes ai-studio-startup-fade {
+  0% {
+    opacity: 0;
+  }
+
+  66% {
+    opacity: 0.22;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .ai-studio-page[data-selected-tool="create"],
@@ -831,6 +846,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ai-studio-page {
+    animation: none;
+  }
+
   .ai-shell.ai-shell-resizable {
     transition: none;
   }

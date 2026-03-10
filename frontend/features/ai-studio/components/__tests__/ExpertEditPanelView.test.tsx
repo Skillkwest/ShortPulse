@@ -304,19 +304,10 @@ describe("ExpertEditPanelView", () => {
     expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
   });
 
-  it("clears selected style from the expert edit styles button", () => {
-    const onClearSelectedStyle = vi.fn();
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        selectedStyleId="cinematic"
-        onClearSelectedStyle={onClearSelectedStyle}
-      />
-    );
+  it("does not render a clear-style hover button in expert edit styles control", () => {
+    render(<ExpertEditPanelView {...baseProps} selectedStyleId="cinematic" />);
 
-    const clearButton = screen.getByRole("button", { name: "Clear selected style" });
-    fireEvent.click(clearButton);
-    expect(onClearSelectedStyle).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Clear selected style" })).not.toBeInTheDocument();
   });
 
   it("keeps existing expert edit interactions available with styles panel wiring", () => {

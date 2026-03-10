@@ -243,8 +243,7 @@ describe("CreatePropertiesPanel", () => {
     expect(preview?.style.backgroundImage).toContain("https://demo.supabase.co/storage");
   });
 
-  it("clears selected style from the expert create styles button", () => {
-    const onClearSelectedStyle = vi.fn();
+  it("does not render a clear-style hover button in expert create styles control", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -252,12 +251,9 @@ describe("CreatePropertiesPanel", () => {
       onAgentInputChange: vi.fn(),
       onAgentSend: vi.fn(),
       selectedStyleId: "cinematic",
-      onClearSelectedStyle,
     });
 
-    const clearButton = screen.getByRole("button", { name: "Clear selected style" });
-    fireEvent.click(clearButton);
-    expect(onClearSelectedStyle).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Clear selected style" })).not.toBeInTheDocument();
   });
 
   it("hides input-bar attachment guidance in expert mode once chat history exists", () => {

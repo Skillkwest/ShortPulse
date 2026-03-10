@@ -407,23 +407,32 @@ export default function DashboardPage() {
             </div>
             <div className="hero-quick-row">
               {DASHBOARD_HIDE_LEGACY_SECTIONS ? (
-                <Link
-                  href="/ai-studio"
-                  className="hero-onboarding hero-new-project-card"
-                  aria-label="New Project: Start a new project in AI Studio"
-                >
-                  <div>
-                    <p className="eyebrow tiny">Quick start</p>
-                    <h3>New Project</h3>
-                    <p className="subdued tiny">
-                      Start a new project in AI Studio and begin generating content.
-                    </p>
-                  </div>
-                  <span className="hero-new-project-cta">
-                    <Plus size={15} weight="bold" aria-hidden="true" />
-                    New Project
-                  </span>
-                </Link>
+                <>
+                  <Link
+                    href="/ai-studio"
+                    className="hero-onboarding hero-new-project-card"
+                    aria-label="New Project: Start a new project in AI Studio"
+                  >
+                    <span className="hero-new-project-content">
+                      <span className="hero-new-project-icon-column" aria-hidden="true">
+                        <Plus size={30} weight="bold" className="hero-new-project-icon" />
+                      </span>
+                      <span className="hero-new-project-text-column">
+                        <span className="hero-new-project-label">New Project</span>
+                        <p className="hero-new-project-helper">Open the AI Studio.</p>
+                      </span>
+                    </span>
+                  </Link>
+                  <section className="hero-sessions-group" aria-label="Sessions placeholders">
+                    <p className="hero-sessions-title">Sessions</p>
+                    <div className="hero-sessions-wrapper" aria-hidden="true">
+                      <div className="hero-session-square" />
+                      <div className="hero-session-square" />
+                      <div className="hero-session-square" />
+                    </div>
+                    <p className="hero-sessions-note">Session persistence coming soon.</p>
+                  </section>
+                </>
               ) : (
                 <>
                   <Link

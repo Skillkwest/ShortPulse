@@ -3,7 +3,7 @@
  * Renders the wrapper/title/button chrome and mirrors selected-style preview state.
  */
 import React from "react";
-import { Sticker, X } from "phosphor-react";
+import { Sticker } from "phosphor-react";
 import {
   type ExpertEditStyleTile,
   resolveExpertEditStyleById,
@@ -15,7 +15,6 @@ export type StylesControlProps = {
   selectedStyleId?: string | null;
   styles?: readonly ExpertEditStyleTile[];
   onToggle?: () => void;
-  onClearSelection?: () => void;
   controlsId?: string;
   className?: string;
 };
@@ -25,7 +24,6 @@ export function StylesControl({
   selectedStyleId = null,
   styles,
   onToggle,
-  onClearSelection,
   controlsId = "reference-rail-styles-section",
   className = "",
 }: StylesControlProps) {
@@ -64,19 +62,6 @@ export function StylesControl({
               <Sticker size={22} weight="regular" />
             )}
           </button>
-          {selectedStyleTile ? (
-            <button
-              type="button"
-              className="edit-expert-styles-clear-btn"
-              aria-label="Clear selected style"
-              onClick={(event) => {
-                event.stopPropagation();
-                onClearSelection?.();
-              }}
-            >
-              <X size={10} weight="bold" />
-            </button>
-          ) : null}
         </div>
       </div>
     </div>

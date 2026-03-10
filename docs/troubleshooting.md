@@ -60,7 +60,13 @@ Checklist:
 - Confirm style prompt is actually selected and non-empty in the active Create/Edit workflow.
 - Confirm style append path is active:
   - `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`
-  - appended line should be `Visual style reference: <style prompt>`.
+  - `frontend/features/ai-studio/logic/stylePromptAdapter.ts`
+  - expected appended line depends on model family:
+    - Nano Banana: `Visual style reference (treatment only): ... Preserve subject identity and base composition.`
+    - Seedream: `Visual style reference: ... Emphasize cohesive palette, lighting mood, and surface texture.`
+    - Generic/adapter disabled: `Visual style reference: <style prompt>`
+- Confirm adapter flag state:
+  - `NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED` (enabled unless explicitly `false`).
 - Confirm visible prompt differences are not mistaken for submit prompt differences:
   - display prompt intentionally does not include the appended style line.
 - Compare behavior across at least one non-Google image model and one Nano Banana family model with identical inputs.
@@ -71,6 +77,7 @@ Mitigation:
 - For edit-heavy/fidelity-heavy runs, add explicit scoping:
   - `Treat style as visual treatment only; preserve identity and composition.`
 - If style append is present in payload and behavior is consistently weaker only on one model family, treat as expected model characteristic.
+- If style adherence regresses after enabling family adaptation, set `NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED=false` to force legacy phrasing and re-compare outputs.
 - If style adherence regresses on a model family that previously performed well under unchanged setup, capture payload/output evidence and open a runtime regression investigation.
 
 ## Styles Library shows `AbortError` or style extraction timeout/fallback

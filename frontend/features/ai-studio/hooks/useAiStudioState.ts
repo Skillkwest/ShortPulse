@@ -490,6 +490,7 @@ export const useAiStudioState = ({
       setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
     });
   const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
+    model,
     prompt,
     editReferenceText,
     videoReferenceText,

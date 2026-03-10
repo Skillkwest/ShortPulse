@@ -6,6 +6,7 @@ import { useAiStudioGenerationPromptComposer } from "../useAiStudioGenerationPro
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioGenerationPromptComposer>[0]> = {}
 ): Parameters<typeof useAiStudioGenerationPromptComposer>[0] => ({
+  model: "fal/flux-2",
   prompt: "base prompt",
   editReferenceText: "edit prompt",
   videoReferenceText: "video prompt",
@@ -255,6 +256,97 @@ describe("useAiStudioGenerationPromptComposer", () => {
       ],
       expect.objectContaining({ displayPromptOverride: "Visible user prompt" })
     );
+  });
+
+  it("uses Nano Banana family style phrasing when effective model is Nano Banana", () => {
+    const submitTask = vi.fn();
+    const params = createParams({
+      model: "fal-ai/nano-banana-pro/edit",
+      selectedTool: "edit",
+      selectedStylePrompt: "sun-washed editorial look",
+      submitTask,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("Tune style");
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "Tune style\n\nVisual style reference (treatment only): sun-washed editorial look. Preserve subject identity and base composition.",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({ displayPromptOverride: "Tune style" })
+    );
+  });
+
+  it("uses Seedream family phrasing when regenerate model override targets Seedream", () => {
+    const submitTask = vi.fn();
+    const params = createParams({
+      model: "fal-ai/nano-banana-pro/edit",
+      selectedTool: "edit",
+      selectedStylePrompt: "cool cinematic grade",
+      submitTask,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.regenerateOutput({
+        displayPromptOverride: "Refine this frame",
+        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "Refine this frame\n\nVisual style reference: cool cinematic grade. Emphasize cohesive palette, lighting mood, and surface texture.",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({
+        displayPromptOverride: "Refine this frame",
+        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
+      })
+    );
+  });
+
+  it("keeps legacy style line when family adapter flag is disabled", () => {
+    const previousFlag = process.env.NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED;
+    process.env.NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED = "false";
+    try {
+      const submitTask = vi.fn();
+      const params = createParams({
+        model: "fal-ai/nano-banana/edit",
+        selectedTool: "edit",
+        selectedStylePrompt: "moody studio lighting",
+        submitTask,
+      });
+      const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+      act(() => {
+        result.current.generateOutput("Refine scene");
+      });
+
+      expect(submitTask).toHaveBeenCalledWith(
+        "Refine scene\n\nVisual style reference: moody studio lighting",
+        [
+          "https://example.com/ref.png",
+          "https://example.com/extra-1.png",
+          "https://example.com/extra-2.png",
+        ],
+        expect.objectContaining({ displayPromptOverride: "Refine scene" })
+      );
+    } finally {
+      if (previousFlag === undefined) {
+        delete process.env.NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED;
+      } else {
+        process.env.NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED = previousFlag;
+      }
+    }
   });
 
   it("does not append selected style prompt for video submissions", () => {

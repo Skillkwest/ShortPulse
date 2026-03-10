@@ -101,12 +101,18 @@ sequenceDiagram
 
 ## Style prompt append semantics and adherence expectations
 1. Style behavior contract:
-- Selected style prompt is appended as plain text to the hidden submission prompt:
-  - `Visual style reference: <style prompt>`
+- Selected style prompt is appended as plain text to the hidden submission prompt, with model-family adaptation in the composer:
+  - Nano Banana family: `Visual style reference (treatment only): <style>. Preserve subject identity and base composition.`
+  - Seedream family: `Visual style reference: <style>. Emphasize cohesive palette, lighting mood, and surface texture.`
+  - Generic fallback and adapter-disabled mode: `Visual style reference: <style prompt>`
 - Visible prompt shown to the user remains unchanged (`displayPromptOverride` path).
 - Source of truth:
   - `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`
+  - `frontend/features/ai-studio/logic/stylePromptAdapter.ts`
   - `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
+- Runtime kill switch:
+  - `NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED`
+  - Adapter is enabled unless env is explicitly `false`.
 2. Important implication:
 - Style is not currently submitted as a dedicated provider control field (for example, strength/weight/style id).
 - Adherence therefore depends on each model family's prompt-following behavior for appended instruction text.

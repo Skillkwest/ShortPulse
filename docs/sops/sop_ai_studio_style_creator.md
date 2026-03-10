@@ -49,8 +49,13 @@ Rules:
 
 ## Submission-time style behavior and prompting guidance
 1. Submission behavior:
-- Active style is applied by appending the selected style prompt text to the hidden submission prompt.
+- Active style is applied by appending selected style prompt text to the hidden submission prompt via model-family adapter logic.
+- Current adapter families:
+  - Nano Banana: treatment-scoped style line with explicit identity/composition preservation language.
+  - Seedream: style line emphasizing cohesive palette, lighting mood, and surface texture.
+  - Generic fallback: legacy `Visual style reference: <style prompt>` line.
 - Current lane does not use per-provider style-weight controls; adherence is model-dependent.
+- Runtime kill switch: set `NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED=false` to force legacy style-line output.
 2. Prompt-writing guidance for stronger adherence:
 - Keep user prompt task-oriented, then add style intent in style prompt fields with explicit visual dimensions:
   - palette,

@@ -39,7 +39,7 @@ Rules:
 ## Workflow
 1. User creates style via Add Style modal or library drop.
 2. Intake resolves preview image and extraction source URL.
-3. Extraction calls `/api/ai/extract-style` through client helper.
+3. Extraction calls `/api/ai/extract-style` through client helper with bounded per-attempt timeout, overall deadline cap, and transient-only retries.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
 5. Create/save path persists normalized details; optional metadata is attached when available.
 6. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
@@ -89,8 +89,22 @@ Required metadata keys:
 - `flow`
 - `stage`
 - `source_url_kind`
+- `failure_class`
+- `attempt_count`
+- `probe_ms`
+- `openai_ms`
+- `total_ms`
+- `model_used`
 - `error_class`
 - `error`
+
+Failure class mapping:
+- `timeout`: deadline exceeded.
+- `canceled`: local abort/navigation interruption.
+- `network_transient`: retryable network transport failure.
+- `upstream_http`: non-retryable HTTP failure from extraction route.
+- `blocked_source`: trusted-host/CORS blocked source.
+- `fallback`/`unknown`: normalized residual classes for deterministic reporting.
 
 ## Verification checklist
 - `npm -C frontend run test -- features/ai-studio/components/style-creator/__tests__/extraction.test.ts`

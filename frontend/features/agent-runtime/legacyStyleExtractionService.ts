@@ -195,6 +195,7 @@ type LegacyStyleExtractionSuccess = {
       outputTokens?: number;
     };
   };
+  diagnostics?: StyleExtractionDiagnostics;
 };
 
 type LegacyStyleExtractionFailure = {
@@ -205,11 +206,23 @@ type LegacyStyleExtractionFailure = {
     detail?: string;
     model?: string;
   };
+  diagnostics?: StyleExtractionDiagnostics;
 };
 
 export type LegacyStyleExtractionResult =
   | LegacyStyleExtractionSuccess
   | LegacyStyleExtractionFailure;
+
+export type StyleExtractionDiagnostics = {
+  attemptCount: number | null;
+  probeMs: number | null;
+  openAiMs: number | null;
+  parseMs: number | null;
+  totalMs: number;
+  modelUsed: string | null;
+};
+
+const normalizeDuration = (value: number): number => Math.max(0, Math.trunc(value));
 
 export const executeLegacyStyleExtraction = async ({
   req,
@@ -269,8 +282,17 @@ export const executeLegacyStyleExtraction = async ({
   }
 
   try {
+    const extractionStartedAt = Date.now();
+    let probeMs: number | null = null;
+    let openAiMs = 0;
+    let parseMs: number | null = null;
+    let attemptCount = 0;
+    let modelUsed: string | null = null;
+
     const normalizedImageUrl = imageUrl.trim();
+    const probeStartedAt = Date.now();
     const imageProbe = await probeImageUrlForDescribe(normalizedImageUrl);
+    probeMs = normalizeDuration(Date.now() - probeStartedAt);
     if (!imageProbe.ok) {
       await logGenerationFailure({
         req,
@@ -282,12 +304,22 @@ export const executeLegacyStyleExtraction = async ({
         userEmail: user.email ?? null,
         metadata: {
           detail: imageProbe.detail,
+          probe_ms: probeMs,
+          total_ms: normalizeDuration(Date.now() - extractionStartedAt),
         },
       });
       return {
         ok: false,
         status: imageProbe.statusCode,
         payload: { error: imageProbe.message, detail: imageProbe.detail },
+        diagnostics: {
+          attemptCount: null,
+          probeMs,
+          openAiMs: null,
+          parseMs: null,
+          totalMs: normalizeDuration(Date.now() - extractionStartedAt),
+          modelUsed: null,
+        },
       };
     }
 
@@ -305,6 +337,9 @@ export const executeLegacyStyleExtraction = async ({
       userText:
         "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
     });
+    openAiMs += extractionAttempt.elapsedMs;
+    attemptCount += extractionAttempt.attemptCount;
+    modelUsed = extractionAttempt.model;
 
     if (
       !extractionAttempt.ok &&
@@ -324,11 +359,14 @@ export const executeLegacyStyleExtraction = async ({
         userText:
           "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
       });
+      openAiMs += extractionAttempt.elapsedMs;
+      attemptCount += extractionAttempt.attemptCount;
+      modelUsed = extractionAttempt.model;
     }
 
     if (!extractionAttempt.ok) {
       const detail = extractionAttempt.detail;
-      const modelUsed = extractionAttempt.model;
+      const modelUsedForFailure = extractionAttempt.model;
       await logGenerationFailure({
         req,
         routeLabel,
@@ -339,8 +377,13 @@ export const executeLegacyStyleExtraction = async ({
         userEmail: user.email ?? null,
         metadata: {
           detail,
-          model: modelUsed,
+          model: modelUsedForFailure,
           attempted_models: attemptedModels,
+          failure_class: "upstream_http",
+          attempt_count: attemptCount,
+          probe_ms: probeMs,
+          openai_ms: normalizeDuration(openAiMs),
+          total_ms: normalizeDuration(Date.now() - extractionStartedAt),
         },
       });
       return {
@@ -349,16 +392,28 @@ export const executeLegacyStyleExtraction = async ({
         payload: {
           error: "Upstream error",
           detail,
-          ...(extractionAttempt.status < 500 && modelUsed ? { model: modelUsed } : {}),
+          ...(extractionAttempt.status < 500 && modelUsedForFailure
+            ? { model: modelUsedForFailure }
+            : {}),
+        },
+        diagnostics: {
+          attemptCount,
+          probeMs,
+          openAiMs: normalizeDuration(openAiMs),
+          parseMs: null,
+          totalMs: normalizeDuration(Date.now() - extractionStartedAt),
+          modelUsed,
         },
       };
     }
 
+    const parseStartedAt = Date.now();
     const data = extractionAttempt.data;
     const extractedText = extractImageDescriptionText(data);
     const parsedExtraction = extractedText
       ? parseStyleExtractionText(extractedText)
       : { stylePrompt: null, styleTitle: DEFAULT_STYLE_TITLE_FALLBACK };
+    parseMs = normalizeDuration(Date.now() - parseStartedAt);
     const stylePrompt = parsedExtraction.stylePrompt;
     const styleTitle = parsedExtraction.styleTitle;
 
@@ -371,6 +426,15 @@ export const executeLegacyStyleExtraction = async ({
         statusCode: 502,
         userId: user.id,
         userEmail: user.email ?? null,
+        metadata: {
+          failure_class: "empty_response",
+          attempt_count: attemptCount,
+          probe_ms: probeMs,
+          openai_ms: normalizeDuration(openAiMs),
+          parse_ms: parseMs,
+          total_ms: normalizeDuration(Date.now() - extractionStartedAt),
+          model: modelUsed,
+        },
       });
       return {
         ok: false,
@@ -378,6 +442,14 @@ export const executeLegacyStyleExtraction = async ({
         payload: {
           error: "No style prompt returned",
           detail: "Unable to extract style descriptors from the provided image.",
+        },
+        diagnostics: {
+          attemptCount,
+          probeMs,
+          openAiMs: normalizeDuration(openAiMs),
+          parseMs,
+          totalMs: normalizeDuration(Date.now() - extractionStartedAt),
+          modelUsed,
         },
       };
     }
@@ -398,6 +470,14 @@ export const executeLegacyStyleExtraction = async ({
           inputTokens: typeof promptTokens === "number" ? promptTokens : undefined,
           outputTokens: typeof completionTokens === "number" ? completionTokens : undefined,
         },
+      },
+      diagnostics: {
+        attemptCount,
+        probeMs,
+        openAiMs: normalizeDuration(openAiMs),
+        parseMs,
+        totalMs: normalizeDuration(Date.now() - extractionStartedAt),
+        modelUsed,
       },
     };
   } catch (error) {

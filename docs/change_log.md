@@ -2815,3 +2815,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added focused tests for Presets Library modal editing and preset override normalization behavior.
 - Re-seeded all default `Custom 1..18` preset prompt bodies to a shared editable placeholder so new/unaltered custom presets start as blank cookie-cutter templates.
 - Updated primary Presets Library tile chrome so the `CUSTOM` pill hides once a custom preset has any saved override state.
+
+## 2026-03-10 (dashboard simplification toggle + new project CTA)
+- Added a temporary dashboard client flag `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS` (default `true`) to keep legacy quick-start/workflow cards, tools grid, Searches header metric, and footer helper text hidden during redesign.
+- Restored legacy dashboard sections behind the flag so setting `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` re-enables the prior launchpad blocks without code restoration.
+- Added and polished a single `New Project` quick-start card in the welcome row that opens `/ai-studio`, including refined CTA chip styling and responsive behavior for mobile layouts.
+- Updated docs and env example to advertise the flag and current `/dashboard` behavior (`README.md`, `docs/routes.md`, `frontend/.env.example`).

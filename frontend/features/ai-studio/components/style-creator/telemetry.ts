@@ -24,6 +24,7 @@ export const trackStyleExtractionOutcome = (
   flow: StyleExtractionFlow,
   metadata?: StyleExtractionTelemetryMetadata
 ): void => {
+  const failureClass = metadata?.failureClass ?? (outcome === "success" ? null : "unknown");
   void reportAppError({
     source: STYLE_EXTRACTION_TELEMETRY_SOURCE,
     scope: "app",
@@ -36,7 +37,28 @@ export const trackStyleExtractionOutcome = (
       flow,
       stage: metadata?.stage ?? "extract",
       source_url_kind: metadata?.sourceUrlKind ?? "unknown",
-      error_class: metadata?.errorClass ?? (outcome === "success" ? null : "unknown"),
+      failure_class: failureClass,
+      error_class: failureClass,
+      attempt_count:
+        typeof metadata?.attemptCount === "number" && Number.isFinite(metadata.attemptCount)
+          ? Math.max(0, Math.trunc(metadata.attemptCount))
+          : null,
+      probe_ms:
+        typeof metadata?.probeMs === "number" && Number.isFinite(metadata.probeMs)
+          ? Math.max(0, Math.trunc(metadata.probeMs))
+          : null,
+      openai_ms:
+        typeof metadata?.openAiMs === "number" && Number.isFinite(metadata.openAiMs)
+          ? Math.max(0, Math.trunc(metadata.openAiMs))
+          : null,
+      total_ms:
+        typeof metadata?.totalMs === "number" && Number.isFinite(metadata.totalMs)
+          ? Math.max(0, Math.trunc(metadata.totalMs))
+          : null,
+      model_used:
+        typeof metadata?.modelUsed === "string" && metadata.modelUsed.trim().length
+          ? metadata.modelUsed.trim().slice(0, 120)
+          : null,
       error: normalizeTelemetryError(metadata?.errorMessage) ?? null,
     },
   });

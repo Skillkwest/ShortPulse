@@ -73,6 +73,29 @@ Mitigation:
 - If style append is present in payload and behavior is consistently weaker only on one model family, treat as expected model characteristic.
 - If style adherence regresses on a model family that previously performed well under unchanged setup, capture payload/output evidence and open a runtime regression investigation.
 
+## Styles Library shows `AbortError` or style extraction timeout/fallback
+Symptoms:
+- Styles Library shows timeout/interrupted extraction guidance and still creates a fallback style card.
+- Legacy runs previously surfaced raw `AbortError` strings in the red warning line.
+
+Checklist:
+- Confirm user-facing message is normalized and does not expose raw browser exception text.
+- Confirm extraction telemetry records failure class and timing metadata:
+  - `failure_class`, `attempt_count`, `probe_ms`, `openai_ms`, `total_ms`, `model_used`.
+- Confirm route diagnostics headers are present on `/api/ai/extract-style` responses when available:
+  - `x-shortpulse-style-attempt-count`
+  - `x-shortpulse-style-probe-ms`
+  - `x-shortpulse-style-openai-ms`
+  - `x-shortpulse-style-total-ms`
+  - `x-shortpulse-style-model-used`
+
+Mitigation:
+- Re-run with the same image and verify failure class:
+  - `timeout`: increase timeout budget only if telemetry shows consistent near-cap completions.
+  - `network_transient`: inspect browser/network instability and retry behavior.
+  - `upstream_http`: inspect extraction-route payload detail and trusted-host validation.
+- If failures cluster by one model, compare with an alternate vision model using the same input and prompt contract.
+
 ## Expert Edit `@img` prompt references fail or look incorrect
 Symptoms:
 - Clicking Generate with prompt tokens (`@img1..@img3`) shows warning/error and submit does not start.

@@ -23,11 +23,25 @@ export type ResolvedDroppedStylePreview = {
   promptText: string;
 };
 
+export type StyleExtractionFailureClass =
+  | "blocked_source"
+  | "timeout"
+  | "canceled"
+  | "network_transient"
+  | "upstream_http"
+  | "fallback"
+  | "unknown";
+
 export type StyleExtractionTelemetryMetadata = {
   stage?: "prepare" | "extract" | "preview_source";
   sourceUrlKind?: "data" | "url" | "unknown";
-  errorClass?: "blocked_source" | "fallback" | "unknown";
+  failureClass?: StyleExtractionFailureClass;
   errorMessage?: string;
+  attemptCount?: number | null;
+  probeMs?: number | null;
+  openAiMs?: number | null;
+  totalMs?: number | null;
+  modelUsed?: string | null;
 };
 
 export type StyleExtractionRuntimeResult = {
@@ -36,4 +50,10 @@ export type StyleExtractionRuntimeResult = {
   stylePrompt?: string;
   styleTitle?: string;
   errorMessage?: string;
+  failureClass?: StyleExtractionFailureClass;
+  attemptCount?: number | null;
+  probeMs?: number | null;
+  openAiMs?: number | null;
+  totalMs?: number | null;
+  modelUsed?: string | null;
 };

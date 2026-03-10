@@ -15,12 +15,16 @@ export type OpenAiDescribeAttemptResult =
       ok: true;
       data: Record<string, unknown>;
       model: string;
+      attemptCount: number;
+      elapsedMs: number;
     }
   | {
       ok: false;
       status: number;
       detail: string;
       model: string;
+      attemptCount: number;
+      elapsedMs: number;
     };
 
 const toRecord = (value: unknown): Record<string, unknown> =>
@@ -59,6 +63,7 @@ const requestOpenAiImageDescribe = async ({
   imageUrl: string;
   userText?: string;
 }): Promise<OpenAiDescribeAttemptResult> => {
+  const startedAt = Date.now();
   try {
     const response = await fetchOpenAiCompatibleChatCompletion({
       apiKey,
@@ -84,11 +89,19 @@ const requestOpenAiImageDescribe = async ({
         status: response.status,
         detail,
         model,
+        attemptCount: 1,
+        elapsedMs: Date.now() - startedAt,
       };
     }
 
     const parsed = toRecord(await response.json());
-    return { ok: true, data: parsed, model };
+    return {
+      ok: true,
+      data: parsed,
+      model,
+      attemptCount: 1,
+      elapsedMs: Date.now() - startedAt,
+    };
   } catch (error) {
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
     return {
@@ -96,6 +109,8 @@ const requestOpenAiImageDescribe = async ({
       status: 500,
       detail: trimDetail(detail),
       model,
+      attemptCount: 1,
+      elapsedMs: Date.now() - startedAt,
     };
   }
 };
@@ -127,7 +142,9 @@ export const requestOpenAiImageDescribeWithRetry = async (params: {
   imageUrl: string;
   userText?: string;
 }): Promise<OpenAiDescribeAttemptResult> => {
+  const startedAt = Date.now();
   let attempt = await requestOpenAiImageDescribe(params);
+  let attemptCount = 1;
   for (
     let retry = 1;
     retry < OPENAI_UPSTREAM_MAX_ATTEMPTS && isTransientOpenAiFailure(attempt);
@@ -135,8 +152,20 @@ export const requestOpenAiImageDescribeWithRetry = async (params: {
   ) {
     await sleep(OPENAI_UPSTREAM_RETRY_DELAY_MS * retry);
     attempt = await requestOpenAiImageDescribe(params);
+    attemptCount += 1;
   }
-  return attempt;
+  if (attempt.ok) {
+    return {
+      ...attempt,
+      attemptCount,
+      elapsedMs: Date.now() - startedAt,
+    };
+  }
+  return {
+    ...attempt,
+    attemptCount,
+    elapsedMs: Date.now() - startedAt,
+  };
 };
 
 export const shouldRetryWithFallbackVisionModel = ({

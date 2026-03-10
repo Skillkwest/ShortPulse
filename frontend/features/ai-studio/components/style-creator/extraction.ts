@@ -3,6 +3,7 @@
  */
 import { BLOCKED_STYLE_IMAGE_SOURCE_ERROR } from "./constants";
 import type { StyleExtractionOutcome, StyleExtractionRuntimeResult } from "./types";
+import { isStyleExtractionError } from "../../logic/styleExtraction";
 
 const normalizeErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
@@ -37,4 +38,14 @@ export const buildExtractionFailureResult = (error: unknown): StyleExtractionRun
   outcome: classifyStyleExtractionOutcome(error),
   sourceUrlKind: "unknown",
   errorMessage: normalizeErrorMessage(error),
+  failureClass: isBlockedStyleSourceError(error)
+    ? "blocked_source"
+    : isStyleExtractionError(error)
+      ? error.failureClass
+      : "unknown",
+  attemptCount: isStyleExtractionError(error) ? error.attemptCount : null,
+  probeMs: isStyleExtractionError(error) ? (error.probeMs ?? null) : null,
+  openAiMs: isStyleExtractionError(error) ? (error.openAiMs ?? null) : null,
+  totalMs: isStyleExtractionError(error) ? error.totalMs : null,
+  modelUsed: isStyleExtractionError(error) ? (error.modelUsed ?? null) : null,
 });

@@ -6,6 +6,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 const URL_PROBE_TIMEOUT_MS = 8000;
+const DNS_LOOKUP_TIMEOUT_MS = 2500;
 const MAX_URL_PROBE_REDIRECTS = 4;
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const MAX_PROBE_DETAIL_LENGTH = 3000;
@@ -139,7 +140,12 @@ const isBlockedPrivateAddress = (address: string): boolean => {
 
 const resolveHostAddresses = async (hostname: string): Promise<string[] | null> => {
   try {
-    const records = await dnsLookup(hostname, { all: true });
+    const records = await Promise.race([
+      dnsLookup(hostname, { all: true }),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("dns_lookup_timeout")), DNS_LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
     if (!Array.isArray(records)) {
       const singleAddress = (records as { address?: string }).address;
       return singleAddress ? [singleAddress] : [];

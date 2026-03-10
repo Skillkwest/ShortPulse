@@ -519,6 +519,33 @@ body.dashboard-body {
   text-align: right;
 }
 
+.hero-new-project-card {
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(37, 169, 191, 0.12), transparent 58%), #131518;
+  border-color: rgba(37, 169, 191, 0.3);
+}
+
+.hero-new-project-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  align-self: flex-end;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 169, 191, 0.45);
+  background: rgba(37, 169, 191, 0.12);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hero-new-project-card:hover .hero-new-project-cta {
+  border-color: rgba(37, 169, 191, 0.66);
+  background: rgba(37, 169, 191, 0.22);
+}
+
 /* This block is the dripping image*/
 .hero-visual {
   display: none; /* Temporarily hide welcome-row background artwork */
@@ -1095,5 +1122,9 @@ body.dashboard-body {
 
   .hero-quick-row .hero-onboarding {
     width: 100%;
+  }
+
+  .hero-new-project-cta {
+    align-self: flex-start;
   }
 }

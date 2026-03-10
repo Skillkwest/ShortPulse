@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { CheckCircle, X } from "phosphor-react";
+import { CheckCircle, DownloadSimple, X } from "phosphor-react";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
@@ -27,6 +27,7 @@ type MediaLibraryMediaGridProps = {
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   showRemoveAction?: boolean;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
+  onDownloadMediaFile?: (file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
@@ -45,6 +46,7 @@ export function MediaLibraryMediaGrid({
   onMediaDragEnd,
   showRemoveAction = false,
   onRemoveMediaFromFolder,
+  onDownloadMediaFile,
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
@@ -104,7 +106,12 @@ export function MediaLibraryMediaGrid({
         virtualRenderItems.map((renderItem) => {
           const file = renderItem.item;
           const isSelected = selectedIds.has(file.id);
-          const canShowRemoveAction = showRemoveAction && Boolean(onRemoveMediaFromFolder);
+          const supportsRemoveAction = Boolean(onRemoveMediaFromFolder);
+          const canShowRemoveAction = showRemoveAction && supportsRemoveAction;
+          const canShowDownloadAction = Boolean(
+            onDownloadMediaFile && (file.signedUrl ?? "").trim().length > 0
+          );
+          const shouldShowCardActions = supportsRemoveAction || canShowDownloadAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
           const previewAspectRatio = resolveMediaCardAspectRatio({
             fileType: file.file_type,
@@ -195,15 +202,35 @@ export function MediaLibraryMediaGrid({
                   />
                 )}
               </button>
-              {canShowRemoveAction ? (
+              {shouldShowCardActions ? (
                 <div className="media-library-panel-card-actions" aria-label="Folder actions">
+                  {canShowDownloadAction ? (
+                    <button
+                      type="button"
+                      className="reference-card-action-btn media-library-panel-card-download-btn"
+                      aria-label={`Download ${file.filename || "media"}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onDownloadMediaFile?.(file);
+                      }}
+                    >
+                      <DownloadSimple size={16} weight="bold" aria-hidden />
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-                    aria-label={`Remove ${file.filename || "media"} from this folder`}
+                    aria-label={
+                      canShowRemoveAction
+                        ? `Remove ${file.filename || "media"} from this folder`
+                        : "Remove unavailable in All Media"
+                    }
+                    disabled={!canShowRemoveAction}
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
+                      if (!canShowRemoveAction) return;
                       onRemoveMediaFromFolder?.(file);
                     }}
                   >

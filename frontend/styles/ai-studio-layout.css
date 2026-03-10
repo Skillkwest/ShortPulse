@@ -44,7 +44,7 @@
   --ai-dropzone-bg: rgb(14, 16, 19);
   --ai-dropzone-bg-hover: rgba(22, 26, 30, 0.95);
   /* Toolbar font settings */
-  --ai-toolbar-secondary-fg: rgba(201, 209, 222, 0.62);
+  --ai-toolbar-secondary-fg: rgba(201, 209, 222, 0.69);
   --ai-toolbar-font-size: 12px;
   --ai-toolbar-font-weight: 100;
   --ai-toolbar-label-size: 14px;
@@ -1083,8 +1083,8 @@ body.ai-shell-resizing * {
     rgba(255, 255, 255, 0.2),
     rgba(255, 255, 255, 0)
   );
-  margin: 12px 0;
-  opacity: 0.5;
+  margin: 9px 0;
+  opacity: 0.38;
 }
 
 .toolbar-divider-children {
@@ -1144,8 +1144,8 @@ body.ai-shell-resizing * {
 .toolbar-lower {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding-top: 2px;
+  gap: 2px;
+  padding-top: 1px;
 }
 
 .toolbar-creations {
@@ -1160,7 +1160,7 @@ body.ai-shell-resizing * {
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.45);
   padding: 0 2px;
-  margin: 0 0 2px;
+  margin: 0 0 1px;
 }
 
 .toolbar-divider-secondary {
@@ -1334,36 +1334,36 @@ body.ai-shell-resizing * {
 
 /* Canvas button - cream gradient with dark foreground */
 .toolbar-item[data-tool-id="canvas"] {
-  background: linear-gradient(135deg, #f8f0de 0%, #f0e2c3 55%, #e8d2a8 100%);
+  background: linear-gradient(135deg, #f7ecd5 0%, #efe2c3 54%, #e7d0a2 100%);
   margin: 4px 0;
   padding: 10px 14px;
-  border: none;
+  border: 1px solid rgba(245, 221, 174, 0.5);
   border-radius: 24px;
   position: relative;
   min-height: 40px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow:
-    0 6px 14px rgba(29, 24, 16, 0.2),
+    0 6px 14px rgba(34, 27, 18, 0.22),
     0 1px 0 rgba(255, 255, 255, 0.45) inset;
 }
 
 /* Canvas button hover */
 .toolbar-item[data-tool-id="canvas"]:hover {
-  background: linear-gradient(135deg, #fcf6e8 0%, #f5e9d0 55%, #efdcb9 100%);
+  background: linear-gradient(135deg, #fbf3e1 0%, #f4e8cd 54%, #edd9b2 100%);
   transform: translateY(-2px);
   box-shadow:
-    0 10px 22px rgba(50, 38, 21, 0.26),
-    0 4px 12px rgba(235, 211, 168, 0.3),
-    0 0 0 1px rgba(245, 219, 173, 0.45);
+    0 9px 20px rgba(46, 34, 18, 0.24),
+    0 4px 12px rgba(235, 211, 168, 0.28),
+    0 0 0 1px rgba(245, 219, 173, 0.4);
 }
 
 /* Canvas button active - warm ring with high-contrast text */
 .toolbar-item[data-tool-id="canvas"].is-active {
-  background: linear-gradient(135deg, #f4e7ca 0%, #eddcb7 55%, #e3cb9c 100%);
+  background: linear-gradient(135deg, #f3e5c8 0%, #ebdab4 54%, #e2c896 100%);
   transform: scale(1);
   box-shadow:
-    0 0 0 3px #f5ddae,
-    0 6px 14px rgba(29, 24, 16, 0.22),
+    0 0 0 2px rgba(245, 221, 174, 0.95),
+    0 6px 14px rgba(29, 24, 16, 0.2),
     inset 0 0 0 2px rgba(70, 51, 23, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
   padding: 10px 14px;
@@ -1749,9 +1749,9 @@ body.ai-shell-resizing * {
 }
 
 .toolbar-item.toolbar-item-secondary.is-active {
-  background: rgba(201, 205, 214, 0.11);
-  border-color: rgba(201, 205, 214, 0.26);
-  color: rgba(244, 248, 255, 0.96);
+  background: rgba(201, 205, 214, 0.09);
+  border-color: rgba(201, 205, 214, 0.2);
+  color: rgba(240, 246, 255, 0.95);
 }
 
 .toolbar-item.toolbar-item-secondary:hover svg,

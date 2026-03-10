@@ -28,6 +28,7 @@ import { runDeleteStyleCommand, runSaveStyleDetailsCommand } from "./persistence
 import { trackStyleExtractionOutcome } from "./telemetry";
 import type {
   PendingStyleEditState,
+  StyleExtractionFailureClass,
   StyleExtractionOutcome,
   StyleExtractionRuntimeResult,
 } from "./types";
@@ -70,11 +71,12 @@ const normalizeResultErrorMessage = (errorMessage: string | undefined): string =
   return errorMessage;
 };
 
-const resolveTelemetryErrorClass = (
-  outcome: StyleExtractionOutcome
-): "blocked_source" | "fallback" | "unknown" => {
-  if (outcome === "blocked_source" || outcome === "fallback") {
-    return outcome;
+const resolveTelemetryFailureClass = (
+  result: Pick<StyleExtractionRuntimeResult, "outcome" | "failureClass">
+): StyleExtractionFailureClass => {
+  if (result.failureClass) return result.failureClass;
+  if (result.outcome === "blocked_source" || result.outcome === "fallback") {
+    return result.outcome;
   }
   return "unknown";
 };
@@ -200,6 +202,11 @@ export const useStyleCreatorController = ({
           sourceUrlKind: resolveSourceUrlKind(safeImageUrl),
           stylePrompt: extracted.stylePrompt,
           styleTitle: extracted.styleTitle,
+          attemptCount: extracted.attemptCount,
+          probeMs: extracted.probeMs,
+          openAiMs: extracted.openAiMs,
+          totalMs: extracted.totalMs,
+          modelUsed: extracted.modelUsed,
         };
       } catch (error) {
         return buildExtractionFailureResult(error);
@@ -221,6 +228,11 @@ export const useStyleCreatorController = ({
         trackStyleExtractionOutcome("success", "create_modal", {
           stage: "extract",
           sourceUrlKind: result.sourceUrlKind,
+          attemptCount: result.attemptCount ?? null,
+          probeMs: result.probeMs ?? null,
+          openAiMs: result.openAiMs ?? null,
+          totalMs: result.totalMs ?? null,
+          modelUsed: result.modelUsed ?? null,
         });
         applyExtractedStyleToCreateDraft({
           stylePrompt: result.stylePrompt,
@@ -233,8 +245,13 @@ export const useStyleCreatorController = ({
         trackStyleExtractionOutcome(result.outcome, "create_modal", {
           stage: "extract",
           sourceUrlKind: result.sourceUrlKind,
-          errorClass: resolveTelemetryErrorClass(result.outcome),
+          failureClass: resolveTelemetryFailureClass(result),
           errorMessage: result.errorMessage,
+          attemptCount: result.attemptCount ?? null,
+          probeMs: result.probeMs ?? null,
+          openAiMs: result.openAiMs ?? null,
+          totalMs: result.totalMs ?? null,
+          modelUsed: result.modelUsed ?? null,
         });
         setStylePromptExtractionError(normalizeResultErrorMessage(result.errorMessage));
       }
@@ -266,7 +283,7 @@ export const useStyleCreatorController = ({
         if (error instanceof Error && error.message === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
           trackStyleExtractionOutcome("blocked_source", "create_modal", {
             stage: "preview_source",
-            errorClass: "blocked_source",
+            failureClass: "blocked_source",
             errorMessage: error.message,
           });
           setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
@@ -330,13 +347,23 @@ export const useStyleCreatorController = ({
           trackStyleExtractionOutcome("success", "library_drop", {
             stage: "extract",
             sourceUrlKind: extractionSourceUrlKind,
+            attemptCount: extractionResult.attemptCount ?? null,
+            probeMs: extractionResult.probeMs ?? null,
+            openAiMs: extractionResult.openAiMs ?? null,
+            totalMs: extractionResult.totalMs ?? null,
+            modelUsed: extractionResult.modelUsed ?? null,
           });
         } else {
           trackStyleExtractionOutcome(extractionResult.outcome, "library_drop", {
             stage: "extract",
             sourceUrlKind: extractionSourceUrlKind,
-            errorClass: resolveTelemetryErrorClass(extractionResult.outcome),
+            failureClass: resolveTelemetryFailureClass(extractionResult),
             errorMessage: extractionResult.errorMessage,
+            attemptCount: extractionResult.attemptCount ?? null,
+            probeMs: extractionResult.probeMs ?? null,
+            openAiMs: extractionResult.openAiMs ?? null,
+            totalMs: extractionResult.totalMs ?? null,
+            modelUsed: extractionResult.modelUsed ?? null,
           });
           const detail =
             extractionResult.errorMessage?.trim() ||
@@ -383,7 +410,7 @@ export const useStyleCreatorController = ({
         if (isBlockedStyleSourceError(error)) {
           trackStyleExtractionOutcome("blocked_source", "library_drop", {
             stage: "preview_source",
-            errorClass: "blocked_source",
+            failureClass: "blocked_source",
             errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);

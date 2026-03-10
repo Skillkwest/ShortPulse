@@ -13,6 +13,7 @@ import { reportAppError } from "../../../../lib/appErrorReporter";
 vi.mock("../../logic/styleExtraction", () => ({
   prepareStyleImageUrl: vi.fn(),
   postExtractStyle: vi.fn(),
+  isStyleExtractionError: vi.fn(() => false),
 }));
 
 vi.mock("../../../../lib/appErrorReporter", () => ({

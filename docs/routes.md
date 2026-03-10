@@ -6,7 +6,7 @@ Reference for pages, auth expectations, and ownership.
 | --- | --- | --- | --- |
 | `/landing` | No | Marketing landing page | Root redirects here. |
 | `/auth` | No | Email/password auth via Supabase | Redirects to `/dashboard` on session. |
-| `/dashboard` | Yes | Workspace hub with plan/status chips and tool cards | Uses `useProtectedRoute`. |
+| `/dashboard` | Yes | Workspace hub with plan/status chips and launch actions | Uses `useProtectedRoute`. Default UI shows `New Project` CTA into `/ai-studio`; set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign. |
 | `/performance` | Yes | Performance analytics | Authenticated demo analytics route; dashboard entry remains staged through `/performance-soon`. |
 | `/performance-soon` | Yes | Temporary placeholder for the analytics workspace | Explains that the Performance surface is still under construction. |
 | `/saved-creators` | Yes | Saved creators list | Post‑MVP (Coming Soon). |

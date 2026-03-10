@@ -57,7 +57,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 
 ## Frontend surfaces
 
-- **Dashboard (`/dashboard`)**: Launchpad with plan/status chips and tool cards.
+- **Dashboard (`/dashboard`)**: Launchpad with plan/status chips and a `New Project` quick action into AI Studio. Set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to temporarily restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign work.
 - **Performance Analytics (`/performance`)**: Authenticated demo analytics surface (staged rollout; dashboard currently points to `/performance-soon`).
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.

@@ -253,6 +253,35 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
+  it("includes private-tab uploads inside All Media", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "media-private-1",
+          filename: "private-ref-1.png",
+          storage_path: "user-1/private/images/private-ref-1.png",
+          preview_storage_path: "user-1/private/images/private-ref-1.png",
+          file_type: "image/png",
+          source: "private_upload",
+          created_at: "2026-03-03T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/private-ref-1.png",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+    });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select media private-ref-1.png" })
+      ).toBeInTheDocument();
+    });
+  });
+
   it("shows remove actions only in custom folders and unassigns dropped items", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 

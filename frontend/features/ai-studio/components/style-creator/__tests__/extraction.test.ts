@@ -32,6 +32,12 @@ describe("style-creator extraction helpers", () => {
       outcome: "fallback",
       sourceUrlKind: "unknown",
       errorMessage: "Timeout",
+      failureClass: "unknown",
+      attemptCount: null,
+      probeMs: null,
+      openAiMs: null,
+      totalMs: null,
+      modelUsed: null,
     });
   });
 });

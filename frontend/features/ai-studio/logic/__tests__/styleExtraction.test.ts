@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
-import { postExtractStyle, prepareStyleImageUrl } from "../styleExtraction";
+import { isStyleExtractionError, postExtractStyle, prepareStyleImageUrl } from "../styleExtraction";
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
@@ -22,6 +22,7 @@ describe("styleExtraction helpers", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -82,13 +83,24 @@ describe("styleExtraction helpers", () => {
   });
 
   it("postExtractStyle falls back to deterministic title when API omits styleTitle", async () => {
-    vi.mocked(fetchWithAuth).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        stylePrompt: "cinematic editorial photography style, dramatic moody lighting",
-        usage: { inputTokens: 4, outputTokens: 5 },
-      }),
-    } as Response);
+    vi.mocked(fetchWithAuth).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          stylePrompt: "cinematic editorial photography style, dramatic moody lighting",
+          usage: { inputTokens: 4, outputTokens: 5 },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "x-shortpulse-style-attempt-count": "2",
+            "x-shortpulse-style-probe-ms": "71",
+            "x-shortpulse-style-openai-ms": "513",
+            "x-shortpulse-style-model-used": "gpt-5-nano",
+          },
+        }
+      )
+    );
 
     const result = await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
 
@@ -97,32 +109,117 @@ describe("styleExtraction helpers", () => {
     );
     expect(result.styleTitle).toBe("Cinematic Editorial Photography Dramatic Moody");
     expect(result.usage).toEqual({ inputTokens: 4, outputTokens: 5 });
+    expect(result.attemptCount).toBe(2);
+    expect(result.probeMs).toBe(71);
+    expect(result.openAiMs).toBe(513);
+    expect(result.modelUsed).toBe("gpt-5-nano");
   });
 
-  it("retries once when style extraction request times out and then succeeds", async () => {
-    vi.mocked(fetchWithAuth)
-      .mockRejectedValueOnce(new DOMException("Timed out", "AbortError"))
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+  it("retries on timeout abort and succeeds on the next attempt", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    let requestCount = 0;
+    vi.mocked(fetchWithAuth).mockImplementation(async (_input, init) => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        const signal = init?.signal;
+        return await new Promise<Response>((_, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Aborted", "AbortError")),
+            { once: true }
+          );
+        });
+      }
+      return new Response(
+        JSON.stringify({
           stylePrompt: "editorial portrait, cool highlights, soft diffusion",
           styleTitle: "Cool Diffusion Editorial",
         }),
-      } as Response);
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    });
 
-    const result = await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    const resultPromise = postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    await vi.advanceTimersByTimeAsync(36000);
+    const result = await resultPromise;
 
     expect(fetchWithAuth).toHaveBeenCalledTimes(2);
     expect(result.stylePrompt).toBe("editorial portrait, cool highlights, soft diffusion");
     expect(result.styleTitle).toBe("Cool Diffusion Editorial");
   });
 
-  it("returns timeout guidance after retry budget is exhausted", async () => {
-    vi.mocked(fetchWithAuth).mockRejectedValue(new DOMException("Timed out", "AbortError"));
+  it("returns timeout guidance after deadline exhaustion", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.mocked(fetchWithAuth).mockImplementation(async (_input, init) => {
+      const signal = init?.signal;
+      return await new Promise<Response>((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
+          once: true,
+        });
+      });
+    });
+
+    const resultPromise = postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    const rejection = expect(resultPromise).rejects.toThrow(
+      "Style extraction timed out. Please retry."
+    );
+    await vi.advanceTimersByTimeAsync(80000);
+    await rejection;
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+  });
+
+  it("classifies immediate aborts as canceled and does not retry", async () => {
+    vi.mocked(fetchWithAuth).mockRejectedValue(new DOMException("Aborted", "AbortError"));
+
+    try {
+      await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+      throw new Error("Expected postExtractStyle to reject.");
+    } catch (error) {
+      expect(isStyleExtractionError(error)).toBe(true);
+      if (!isStyleExtractionError(error)) return;
+      expect(error.failureClass).toBe("canceled");
+      expect(error.message).toBe("Style extraction was interrupted. Please retry.");
+      expect(error.attemptCount).toBe(1);
+    }
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries transient network errors and then succeeds", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.mocked(fetchWithAuth)
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            stylePrompt: "painterly texture, muted palette, smooth tonal gradients",
+            styleTitle: "Muted Painterly",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+    const result = await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(result.styleTitle).toBe("Muted Painterly");
+  });
+
+  it("does not retry upstream HTTP failures", async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue(
+      new Response(JSON.stringify({ detail: "Image URL host is not in the trusted allowlist." }), {
+        status: 422,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
 
     await expect(
       postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg")
-    ).rejects.toThrow("Style extraction timed out. Please retry.");
-    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    ).rejects.toThrow("Image URL host is not in the trusted allowlist.");
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
   });
 });

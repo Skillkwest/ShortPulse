@@ -14,6 +14,7 @@ import {
   CloudArrowUp,
   FolderSimple,
   Person,
+  Plus,
   ShieldCheck,
   Sparkle,
   type IconProps,
@@ -27,6 +28,8 @@ import {
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
 const DEFAULT_PLAN_TIER = "business";
+const DASHBOARD_HIDE_LEGACY_SECTIONS =
+  process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
 
 const PLAN_MAP: Record<string, { label: string; className: string }> = {
   free: { label: "Free", className: "plan-free" },
@@ -269,11 +272,15 @@ export default function DashboardPage() {
       value: storageUsageValue,
       icon: CloudArrowUp,
     },
-    {
-      label: "Searches",
-      value: "0 / 100",
-      icon: ChartBar,
-    },
+    ...(DASHBOARD_HIDE_LEGACY_SECTIONS
+      ? []
+      : [
+          {
+            label: "Searches",
+            value: "0 / 100",
+            icon: ChartBar,
+          },
+        ]),
     {
       label: "AI credits",
       value: aiCreditsValue,
@@ -399,85 +406,111 @@ export default function DashboardPage() {
               />
             </div>
             <div className="hero-quick-row">
-              <Link
-                href="/onboarding"
-                className="hero-onboarding"
-                aria-label="Onboarding Courses: Guided walkthroughs for Creator Studio workflows"
-              >
-                <div>
-                  <p className="eyebrow tiny">Quick start</p>
-                  <h3>Onboarding Courses</h3>
-                  <p className="subdued tiny">Guided walkthroughs for Creator Studio workflows.</p>
-                </div>
-                <span>Enter →</span>
-              </Link>
-              <Link
-                href="/onboarding?section=workflows"
-                className="hero-onboarding hero-workflow-card"
-                aria-label="AI Workflow Lessons: Deep dives on creation playbooks and applied prompts"
-              >
-                <div>
-                  <p className="eyebrow tiny">Workflows</p>
-                  <h3>AI Workflow Lessons</h3>
-                  <p className="subdued tiny">
-                    Deep dives on creation playbooks and applied prompts.
-                  </p>
-                </div>
-                <span>Explore →</span>
-              </Link>
+              {DASHBOARD_HIDE_LEGACY_SECTIONS ? (
+                <Link
+                  href="/ai-studio"
+                  className="hero-onboarding hero-new-project-card"
+                  aria-label="New Project: Start a new project in AI Studio"
+                >
+                  <div>
+                    <p className="eyebrow tiny">Quick start</p>
+                    <h3>New Project</h3>
+                    <p className="subdued tiny">
+                      Start a new project in AI Studio and begin generating content.
+                    </p>
+                  </div>
+                  <span className="hero-new-project-cta">
+                    <Plus size={15} weight="bold" aria-hidden="true" />
+                    New Project
+                  </span>
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/onboarding"
+                    className="hero-onboarding"
+                    aria-label="Onboarding Courses: Guided walkthroughs for Creator Studio workflows"
+                  >
+                    <div>
+                      <p className="eyebrow tiny">Quick start</p>
+                      <h3>Onboarding Courses</h3>
+                      <p className="subdued tiny">
+                        Guided walkthroughs for Creator Studio workflows.
+                      </p>
+                    </div>
+                    <span>Enter →</span>
+                  </Link>
+                  <Link
+                    href="/onboarding?section=workflows"
+                    className="hero-onboarding hero-workflow-card"
+                    aria-label="AI Workflow Lessons: Deep dives on creation playbooks and applied prompts"
+                  >
+                    <div>
+                      <p className="eyebrow tiny">Workflows</p>
+                      <h3>AI Workflow Lessons</h3>
+                      <p className="subdued tiny">
+                        Deep dives on creation playbooks and applied prompts.
+                      </p>
+                    </div>
+                    <span>Explore →</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </section>
-
-        <section className="tools-section" aria-labelledby="tools-heading">
-          <h2 id="tools-heading" className="eyebrow">
-            Tools
-          </h2>
-          <div className="tool-card-grid">
-            {toolCards.map((tool) => {
-              return (
-                <Link
-                  href={tool.href}
-                  key={tool.title}
-                  className={`tool-card ${tool.variant ?? ""} ${tool.disabled ? "is-disabled" : ""}`}
-                  aria-disabled={tool.disabled}
-                  tabIndex={tool.disabled ? -1 : undefined}
-                  role="article"
-                  aria-label={`${tool.title}: ${tool.description}`}
-                >
-                  {tool.image ? (
-                    <div className="tool-card-hero">
-                      <Image
-                        src={tool.image}
-                        alt={`${tool.title} visual`}
-                        width={1200}
-                        height={300}
-                        unoptimized
-                      />
+        {!DASHBOARD_HIDE_LEGACY_SECTIONS ? (
+          <section className="tools-section" aria-labelledby="tools-heading">
+            <h2 id="tools-heading" className="eyebrow">
+              Tools
+            </h2>
+            <div className="tool-card-grid">
+              {toolCards.map((tool) => {
+                return (
+                  <Link
+                    href={tool.href}
+                    key={tool.title}
+                    className={`tool-card ${tool.variant ?? ""} ${tool.disabled ? "is-disabled" : ""}`}
+                    aria-disabled={tool.disabled}
+                    tabIndex={tool.disabled ? -1 : undefined}
+                    role="article"
+                    aria-label={`${tool.title}: ${tool.description}`}
+                  >
+                    {tool.image ? (
+                      <div className="tool-card-hero">
+                        <Image
+                          src={tool.image}
+                          alt={`${tool.title} visual`}
+                          width={1200}
+                          height={300}
+                          unoptimized
+                        />
+                      </div>
+                    ) : null}
+                    <div className="tool-card-body">
+                      {tool.eyebrow ? <p className="tool-card-eyebrow">{tool.eyebrow}</p> : null}
+                      <div className="tool-card-title-row">
+                        <h3>{tool.title}</h3>
+                        {tool.icon ? (
+                          <span className="tool-card-title-icon" aria-hidden="true">
+                            <tool.icon size={19} weight="duotone" />
+                          </span>
+                        ) : null}
+                      </div>
+                      <p>{tool.description}</p>
                     </div>
-                  ) : null}
-                  <div className="tool-card-body">
-                    {tool.eyebrow ? <p className="tool-card-eyebrow">{tool.eyebrow}</p> : null}
-                    <div className="tool-card-title-row">
-                      <h3>{tool.title}</h3>
-                      {tool.icon ? (
-                        <span className="tool-card-title-icon" aria-hidden="true">
-                          <tool.icon size={19} weight="duotone" />
-                        </span>
-                      ) : null}
-                    </div>
-                    <p>{tool.description}</p>
-                  </div>
-                  <div className="tool-card-footer">{tool.cta}</div>
-                </Link>
-              );
-            })}
+                    <div className="tool-card-footer">{tool.cta}</div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+        {!DASHBOARD_HIDE_LEGACY_SECTIONS ? (
+          <div className="footer">
+            ShortPulse keeps your performance data and media private to your account.
           </div>
-        </section>
-
-        <div className="footer">
-          ShortPulse keeps your performance data and media private to your account.
-        </div>
+        ) : null}
       </main>
       {showLogoutConfirm && (
         <div

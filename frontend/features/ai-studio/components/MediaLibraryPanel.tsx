@@ -820,6 +820,18 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     event.currentTarget.classList.remove("is-dragging");
   }, []);
 
+  const handleDownloadMediaFile = useCallback((file: MediaFileRow) => {
+    const signedUrl = (file.signedUrl ?? "").trim();
+    if (!signedUrl) return;
+    const anchor = document.createElement("a");
+    anchor.href = signedUrl;
+    anchor.download = (file.filename ?? "media").trim() || "media";
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }, []);
+
   const openFolderContextMenu = useCallback(
     (
       event: React.MouseEvent<HTMLElement>,
@@ -889,6 +901,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onRemoveMediaFromFolder={(file) => {
           void handleRemoveItemFromActiveFolder({ kind: "media", id: file.id });
         }}
+        onDownloadMediaFile={handleDownloadMediaFile}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -902,6 +915,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       getMediaCardRef,
       handleCardDragEnd,
       handleMediaCardDragStart,
+      handleDownloadMediaFile,
       handleMediaPreviewError,
       handleRemoveItemFromActiveFolder,
       handleSelectMediaFile,

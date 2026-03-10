@@ -77,6 +77,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/reference-grid-modularization/phase-report-template.md`: standardized phase closeout template for scope/tests/perf/regression/rollback evidence.
 - `evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`: standardized naming-canonicalization evidence template for every execution slice.
 - `evidence/ai-studio-expert-edit/README.md`: evidence index for Expert Edit rollout capability and validation artifacts.
+- `evidence/style-adherence/README.md`: evidence index for model-family style adherence evaluations.
+- `evidence/style-adherence/style-adherence-run-template.md`: reusable run packet template for style adherence diagnostics and regression decisions.
 
 ## Maintenance
 - Keep plans actionable and current.

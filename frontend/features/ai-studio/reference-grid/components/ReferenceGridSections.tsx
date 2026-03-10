@@ -1,4 +1,5 @@
 import React from "react";
+import { Prohibit } from "phosphor-react";
 import type { StudioOutput } from "../../types";
 import { CanvasPropertiesPanel } from "../../components/canvas/CanvasPropertiesPanel";
 import type { CanvasPropertiesPanelProps } from "../../components/canvas/useAiStudioCanvasWorkspaceState";
@@ -17,13 +18,23 @@ type HorizontalSplitViewModel = {
   isInventoryExpanded: boolean;
   bottomSectionStyle?: React.CSSProperties;
 };
-const STYLES_REFERENCE_GRID_UPLOAD_HIDE_BUFFER_PX = 120;
+const STYLES_REFERENCE_GRID_UPLOAD_HIDE_BUFFER_PX = 44;
 const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 24;
 const QUICK_SLOT_COLLAPSE_TOP_HEIGHT_PX = 24;
 const QUICK_SLOT_HIDE_CONTENT_BUFFER_PX = 44;
 const CANVAS_COLLAPSE_TOP_HEIGHT_PX = 24;
 const CANVAS_HIDE_CONTENT_BUFFER_PX = 44;
 const REFERENCE_GRID_UPLOAD_HIDE_NEAR_LOWER_RANGE_PX = 124;
+const NONE_STYLE_ID = "__none_style__";
+const NONE_STYLE_TILE: ExpertEditStyleTile = {
+  id: NONE_STYLE_ID,
+  title: "None",
+  style: "None",
+  referenceImageName: "None",
+  stylePrompt: "",
+  previewUrl: null,
+  placeholder: false,
+};
 
 type ReferenceGridSectionsProps = {
   isCuratedSplitEnabled: boolean;
@@ -137,6 +148,7 @@ export function ReferenceGridSections({
   allRefsCardNodes,
 }: ReferenceGridSectionsProps) {
   const styleTiles = stylesPanel?.styles ?? [];
+  const styleTilesWithNone = [NONE_STYLE_TILE, ...styleTiles];
   const hasInventorySections =
     showQuickSlotSection || showReferenceGridSection || showStylesSection;
   const showCanvasInventoryDivider = showRailCanvasSection && hasInventorySections;
@@ -648,9 +660,11 @@ export function ReferenceGridSections({
                   </div>
                   <div className="reference-styles-scroll">
                     <div className="reference-styles-grid" role="list" aria-label="Style options">
-                      {styleTiles.map((style) => {
-                        const isSelected =
-                          !style.placeholder && stylesPanel?.selectedStyleId === style.id;
+                      {styleTilesWithNone.map((style) => {
+                        const isNoneStyle = style.id === NONE_STYLE_ID;
+                        const isSelected = isNoneStyle
+                          ? stylesPanel?.selectedStyleId == null
+                          : !style.placeholder && stylesPanel?.selectedStyleId === style.id;
                         return (
                           <button
                             key={style.id}
@@ -665,7 +679,7 @@ export function ReferenceGridSections({
                             disabled={style.placeholder}
                             onClick={() => {
                               if (style.placeholder) return;
-                              stylesPanel?.onSelectStyle?.(style.id);
+                              stylesPanel?.onSelectStyle?.(isNoneStyle ? null : style.id);
                             }}
                           >
                             <span className="reference-styles-tile-title">{style.title}</span>
@@ -685,6 +699,10 @@ export function ReferenceGridSections({
                               {style.placeholder ? (
                                 <span className="reference-styles-tile-coming-soon">
                                   Coming soon
+                                </span>
+                              ) : isNoneStyle ? (
+                                <span className="reference-styles-none-icon" aria-hidden="true">
+                                  <Prohibit size={28} weight="duotone" />
                                 </span>
                               ) : null}
                             </span>
@@ -777,9 +795,11 @@ export function ReferenceGridSections({
                   </div>
                   <div className="reference-styles-scroll">
                     <div className="reference-styles-grid" role="list" aria-label="Style options">
-                      {styleTiles.map((style) => {
-                        const isSelected =
-                          !style.placeholder && stylesPanel?.selectedStyleId === style.id;
+                      {styleTilesWithNone.map((style) => {
+                        const isNoneStyle = style.id === NONE_STYLE_ID;
+                        const isSelected = isNoneStyle
+                          ? stylesPanel?.selectedStyleId == null
+                          : !style.placeholder && stylesPanel?.selectedStyleId === style.id;
                         return (
                           <button
                             key={style.id}
@@ -794,7 +814,7 @@ export function ReferenceGridSections({
                             disabled={style.placeholder}
                             onClick={() => {
                               if (style.placeholder) return;
-                              stylesPanel?.onSelectStyle?.(style.id);
+                              stylesPanel?.onSelectStyle?.(isNoneStyle ? null : style.id);
                             }}
                           >
                             <span className="reference-styles-tile-title">{style.title}</span>
@@ -814,6 +834,10 @@ export function ReferenceGridSections({
                               {style.placeholder ? (
                                 <span className="reference-styles-tile-coming-soon">
                                   Coming soon
+                                </span>
+                              ) : isNoneStyle ? (
+                                <span className="reference-styles-none-icon" aria-hidden="true">
+                                  <Prohibit size={28} weight="duotone" />
                                 </span>
                               ) : null}
                             </span>

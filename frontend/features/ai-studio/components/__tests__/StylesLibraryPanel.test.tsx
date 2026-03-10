@@ -58,9 +58,24 @@ describe("StylesLibraryPanel", () => {
     render(<StylesLibraryPanel styles={createStylesWithPlaceholder()} selectedStyleId={null} />);
 
     expect(screen.getByRole("button", { name: "Delete style: Cinematic" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete style: None" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Delete style: Placeholder 1" })
     ).not.toBeInTheDocument();
+  });
+
+  it("pins none as the first immutable style tile", () => {
+    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+
+    const styleButtons = screen.getAllByRole("button", { name: /Style tile:/i });
+    expect(styleButtons[0]).toHaveAccessibleName("Style tile: None");
+
+    const noneTile = styleButtons[0].closest("article");
+    expect(noneTile).toHaveAttribute("draggable", "false");
+    expect(screen.queryByRole("button", { name: "Delete style: None" })).not.toBeInTheDocument();
+
+    fireEvent.click(styleButtons[0]);
+    expect(screen.queryByRole("dialog", { name: "Edit style" })).not.toBeInTheDocument();
   });
 
   it("opens create modal with the trailing add style button", () => {
@@ -78,13 +93,11 @@ describe("StylesLibraryPanel", () => {
 
   it("saves a new style from the add style modal", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
-    const onSelectStyle = vi.fn();
     render(
       <StylesLibraryPanel
         styles={createStyles()}
         selectedStyleId={null}
         onSaveStyleDetails={onSaveStyleDetails}
-        onSelectStyle={onSelectStyle}
       />
     );
 
@@ -117,12 +130,10 @@ describe("StylesLibraryPanel", () => {
       stylePrompt: "ethereal highlights and dreamy bloom",
       previewImageUrl: "",
     });
-    expect(onSelectStyle).toHaveBeenCalledWith(savedStyleId);
   });
 
   it("creates a new style when dropping a desktop image onto the styles library", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
-    const onSelectStyle = vi.fn();
     const originalImage = globalThis.Image;
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
     const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
@@ -163,7 +174,6 @@ describe("StylesLibraryPanel", () => {
           styles={createStyles()}
           selectedStyleId={null}
           onSaveStyleDetails={onSaveStyleDetails}
-          onSelectStyle={onSelectStyle}
         />
       );
 
@@ -202,7 +212,6 @@ describe("StylesLibraryPanel", () => {
         "cinematic lighting, shallow depth of field, balanced dynamic range"
       );
       expect(savedDetails.previewImageUrl).toBe("data:image/jpeg;base64,mock-cropped-style");
-      expect(onSelectStyle).toHaveBeenCalledWith(savedStyleId);
       expect(prepareStyleImageUrl).not.toHaveBeenCalledWith(
         "data:image/jpeg;base64,mock-cropped-style"
       );
@@ -325,6 +334,114 @@ describe("StylesLibraryPanel", () => {
         );
       });
     } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
+  });
+
+  it("ignores filename-like drag payload text when extraction times out", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    vi.mocked(postExtractStyle).mockRejectedValue(
+      new Error("Style extraction timed out. Please retry.")
+    );
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["mock-image-bytes"], { type: "image/png" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,mock-cropped-style",
+    });
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const transfer = {
+        files: [],
+        types: ["text/reference-url", "text/plain"],
+        getData: vi.fn((type: string) => {
+          if (type === "text/reference-url") {
+            return "https://external.example.com/style.png";
+          }
+          if (type === "text/plain") {
+            return "Screenshot 2026-03-10 at 11.49.19 AM.png";
+          }
+          return "";
+        }),
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+      });
+      expect(onSaveStyleDetails).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          stylePrompt: "",
+        })
+      );
+      expect(
+        screen.getByText(
+          "Style extraction timed out. Please retry. Style created anyway; you can edit the prompt."
+        )
+      ).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
       Object.defineProperty(globalThis, "Image", {
         configurable: true,
         writable: true,
@@ -677,8 +794,9 @@ describe("StylesLibraryPanel", () => {
     const titles = screen
       .getAllByRole("button", { name: /Style tile:/i })
       .map((button) => button.textContent?.trim());
-    expect(titles[0]).toContain("Anime");
-    expect(titles[1]).toContain("Cinematic");
+    expect(titles[0]).toContain("None");
+    expect(titles[1]).toContain("Anime");
+    expect(titles[2]).toContain("Cinematic");
   });
 
   it("opens and closes the delete confirmation modal", () => {

@@ -75,6 +75,7 @@ export type ResolveCharacterDropReference = (
 ) => Promise<ResolvedCharacterDropReference | null>;
 type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
+  initialWorkflowTab?: CharacterWorkflowTab;
   beginnerModeOverride?: boolean;
   showBeginnerModeToggle?: boolean;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -91,6 +92,8 @@ const CHARACTER_DESCRIPTION_HELPER_TEXT =
   "Tip: Character description will be used as part of consistency generation.";
 const CHARACTER_REFERENCES_HELPER_TEXT =
   "These are the exact reference images sent to the model for character training and consistency generation.";
+const CHARACTER_LIBRARY_PANEL_TITLE = "Characters Library";
+const CHARACTER_LIBRARY_PANEL_HELPER_TEXT = "Create and manage character references.";
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
@@ -479,6 +482,7 @@ const toDroppedReferenceFile = async (reference: DroppedImageReference): Promise
  */
 export function CharacterManagerShell({
   surface = "page",
+  initialWorkflowTab,
   beginnerModeOverride,
   showBeginnerModeToggle = true,
   resolveCharacterDropReference,
@@ -519,7 +523,7 @@ export function CharacterManagerShell({
     clearMessages,
   } = useCharacterManagerDraft();
 
-  const [activeTab, setActiveTab] = useState<CharacterWorkflowTab>("create");
+  const [activeTab, setActiveTab] = useState<CharacterWorkflowTab>(initialWorkflowTab ?? "create");
   const [isDropActive, setIsDropActive] = useState(false);
   const [isQuickSwapCollapsed, setIsQuickSwapCollapsed] = useState(false);
   const [draggedQuickSwapItemId, setDraggedQuickSwapItemId] = useState<string | null>(null);
@@ -1832,6 +1836,12 @@ export function CharacterManagerShell({
         className="panel media-panel character-mode-panel"
         aria-label="Character workflow tabs"
       >
+        {isEmbeddedSurface ? (
+          <header className="character-library-panel-header">
+            <p className="eyebrow">{CHARACTER_LIBRARY_PANEL_TITLE}</p>
+            <p className="tiny subdued helper-text">{CHARACTER_LIBRARY_PANEL_HELPER_TEXT}</p>
+          </header>
+        ) : null}
         <div className="character-mode-row">
           {!isEmbeddedSurface ? (
             <DashboardNavPrefab variant="inline" className="character-mode-dashboard-link" />
@@ -1844,17 +1854,6 @@ export function CharacterManagerShell({
             <button
               type="button"
               role="tab"
-              aria-selected={activeTab === "create"}
-              className={`character-mode-tab character-mode-tab--profile ${
-                activeTab === "create" ? "is-active" : ""
-              }`}
-              onClick={() => setActiveTab("create")}
-            >
-              Character Profile
-            </button>
-            <button
-              type="button"
-              role="tab"
               aria-selected={activeTab === "manage"}
               className={`character-mode-tab character-mode-tab--manage ${
                 activeTab === "manage" ? "is-active" : ""
@@ -1862,6 +1861,17 @@ export function CharacterManagerShell({
               onClick={() => setActiveTab("manage")}
             >
               Manage Characters
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "create"}
+              className={`character-mode-tab character-mode-tab--profile ${
+                activeTab === "create" ? "is-active" : ""
+              }`}
+              onClick={() => setActiveTab("create")}
+            >
+              Character Profile
             </button>
           </div>
           {activeTab === "create" && !isEmbeddedSurface && showBeginnerModeToggle ? (
@@ -1888,7 +1898,7 @@ export function CharacterManagerShell({
             <p className="character-mode-guidance" role="note">
               <span className="character-mode-guidance-label">Tip:</span>
               Swap out your character&apos;s style on the fly by dragging and dropping references
-              from the QuickSwap Deck.
+              from the QuickSwap Deck into the Character References.
             </p>
           ) : null}
           {activeTab === "manage" && !isEmbeddedSurface ? (
@@ -2504,7 +2514,7 @@ export function CharacterManagerShell({
                 <p className="character-mode-guidance character-mode-guidance--sheet" role="note">
                   <span className="character-mode-guidance-label">Tip:</span>
                   Swap out your character&apos;s style on the fly by dragging and dropping
-                  references from the QuickSwap Deck.
+                  references from the QuickSwap Deck into the Character References.
                 </p>
               ) : undefined
             }

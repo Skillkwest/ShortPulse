@@ -20,6 +20,7 @@ export function CharacterPanel({
   return (
     <CharacterManagerShell
       surface="panel"
+      initialWorkflowTab="manage"
       beginnerModeOverride={beginnerMode}
       resolveCharacterDropReference={resolveCharacterDropReference}
     />

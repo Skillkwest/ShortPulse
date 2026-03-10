@@ -44,7 +44,7 @@
   --ai-dropzone-bg: rgb(14, 16, 19);
   --ai-dropzone-bg-hover: rgba(22, 26, 30, 0.95);
   /* Toolbar font settings */
-  --ai-toolbar-secondary-fg: #8c95a390;
+  --ai-toolbar-secondary-fg: rgba(201, 209, 222, 0.62);
   --ai-toolbar-font-size: 12px;
   --ai-toolbar-font-weight: 100;
   --ai-toolbar-label-size: 14px;
@@ -635,7 +635,42 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .toolbar-back-link {
-  margin: 12px auto 6px;
+  margin: 10px auto 4px;
+}
+
+.ai-toolbar .toolbar-back-link.dashboard-nav-prefab {
+  width: 100%;
+  min-height: 42px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ai-toolbar-secondary-fg);
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.ai-toolbar .toolbar-back-link.dashboard-nav-prefab svg {
+  color: inherit;
+}
+
+.ai-toolbar .toolbar-back-link.dashboard-nav-prefab:hover {
+  background: rgba(201, 205, 214, 0.06);
+  border-color: rgba(201, 205, 214, 0.18);
+  color: rgba(233, 240, 249, 0.92);
+}
+
+.ai-toolbar .toolbar-back-link.dashboard-nav-prefab:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
 }
 
 .toolbar-back-link-secondary {
@@ -1048,7 +1083,7 @@ body.ai-shell-resizing * {
     rgba(255, 255, 255, 0.2),
     rgba(255, 255, 255, 0)
   );
-  margin: 18px 0;
+  margin: 12px 0;
   opacity: 0.5;
 }
 
@@ -1109,8 +1144,8 @@ body.ai-shell-resizing * {
 .toolbar-lower {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-top: 4px;
+  gap: 3px;
+  padding-top: 2px;
 }
 
 .toolbar-creations {
@@ -1125,6 +1160,7 @@ body.ai-shell-resizing * {
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.45);
   padding: 0 2px;
+  margin: 0 0 2px;
 }
 
 .toolbar-divider-secondary {
@@ -1556,26 +1592,6 @@ body.ai-shell-resizing * {
   font-weight: 600;
 }
 
-/* Match sub-button hover/active styling for secondary toolbar items */
-.toolbar-item.toolbar-item-secondary:hover {
-  background: rgba(11, 161, 199, 0.08);
-  border-color: transparent;
-}
-
-.toolbar-item.toolbar-item-secondary.is-active {
-  background: linear-gradient(135deg, rgba(30, 64, 175, 0.15), rgba(6, 182, 212, 0.15));
-  border-color: rgba(6, 182, 212, 0.3);
-}
-
-.toolbar-item.toolbar-item-secondary.is-active svg {
-  color: var(--ai-accent);
-}
-
-.toolbar-item.toolbar-item-secondary.is-active .toolbar-label {
-  color: #f5f9ff;
-  font-weight: 600;
-}
-
 /* Focus state for sub-buttons */
 .toolbar-item.toolbar-item-child:focus-visible {
   outline: 2px solid #22d3ee;
@@ -1704,15 +1720,42 @@ body.ai-shell-resizing * {
 
 .toolbar-item.toolbar-item-secondary .toolbar-label {
   font-size: var(--ai-toolbar-label-size);
-  font-weight: var(--ai-toolbar-font-weight);
+  font-weight: 500;
   color: inherit;
 }
 
 .toolbar-item.toolbar-item-secondary {
+  position: relative;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--ai-toolbar-secondary-fg);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .toolbar-item.toolbar-item-secondary svg {
+  color: inherit;
+}
+
+.toolbar-item.toolbar-item-secondary:hover {
+  background: rgba(201, 205, 214, 0.06);
+  border-color: rgba(201, 205, 214, 0.18);
+  color: rgba(233, 240, 249, 0.92);
+}
+
+.toolbar-item.toolbar-item-secondary.is-active {
+  background: rgba(201, 205, 214, 0.11);
+  border-color: rgba(201, 205, 214, 0.26);
+  color: rgba(244, 248, 255, 0.96);
+}
+
+.toolbar-item.toolbar-item-secondary:hover svg,
+.toolbar-item.toolbar-item-secondary.is-active svg {
   color: inherit;
 }
 
@@ -1734,14 +1777,18 @@ body.ai-shell-resizing * {
   background: transparent;
 }
 
-.toolbar-item:hover svg,
-.toolbar-item.is-active svg {
+.toolbar-item:not(.toolbar-item-secondary):hover svg,
+.toolbar-item:not(.toolbar-item-secondary).is-active svg {
   color: var(--ai-accent);
 }
 
-.toolbar-item:hover::before,
-.toolbar-item.is-active::before {
+.toolbar-item:not(.toolbar-item-secondary):hover::before,
+.toolbar-item:not(.toolbar-item-secondary).is-active::before {
   opacity: 1;
+}
+
+.toolbar-item.toolbar-item-secondary::before {
+  display: none;
 }
 
 .toolbar-copy {

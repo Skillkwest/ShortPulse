@@ -1002,7 +1002,6 @@ export function AiStudioPageContent({
         <StylesLibraryPanel
           styles={visibleStylesCatalog}
           selectedStyleId={selectedStyleId}
-          onSelectStyle={handleSelectedStyleIdChange}
           onSaveStyleDetails={upsertStyleDetails}
           saveError={styleDetailsSaveError}
           onDeleteStyle={deleteStyleId}
@@ -1037,7 +1036,6 @@ export function AiStudioPageContent({
       handleSelectedPresetIdChange,
       handlePresetOverrideSave,
       selectedStyleId,
-      handleSelectedStyleIdChange,
       upsertStyleDetails,
       styleDetailsSaveError,
       deleteStyleId,

@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { CheckCircle } from "phosphor-react";
+import { CheckCircle, X } from "phosphor-react";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
@@ -25,6 +25,8 @@ type MediaLibraryMediaGridProps = {
   onSelectMediaFile: (file: MediaFileRow) => void;
   onMediaDragStart?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
+  showRemoveAction?: boolean;
+  onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
@@ -41,6 +43,8 @@ export function MediaLibraryMediaGrid({
   onSelectMediaFile,
   onMediaDragStart,
   onMediaDragEnd,
+  showRemoveAction = false,
+  onRemoveMediaFromFolder,
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
@@ -100,6 +104,7 @@ export function MediaLibraryMediaGrid({
         virtualRenderItems.map((renderItem) => {
           const file = renderItem.item;
           const isSelected = selectedIds.has(file.id);
+          const canShowRemoveAction = showRemoveAction && Boolean(onRemoveMediaFromFolder);
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
           const previewAspectRatio = resolveMediaCardAspectRatio({
             fileType: file.file_type,
@@ -120,71 +125,93 @@ export function MediaLibraryMediaGrid({
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
 
           return (
-            <button
+            <div
               key={file.id}
-              type="button"
-              className={`media-card media-library-modal-card${isSelected ? " is-selected" : ""}`}
-              ref={getMediaCardRef(file.id)}
+              className={`media-library-modal-card media-library-panel-media-card-shell${
+                isSelected ? " is-selected is-active" : ""
+              }`}
               style={renderItem.style}
-              aria-pressed={isSelected}
-              draggable={Boolean(onMediaDragStart)}
-              onClick={() => onSelectMediaFile(file)}
-              onDragStart={(event) => onMediaDragStart?.(event, file)}
-              onDragEnd={(event) => onMediaDragEnd?.(event, file)}
             >
-              {isSelected ? (
-                <span className="media-library-select-indicator" aria-hidden>
-                  <CheckCircle size={16} weight="fill" />
-                </span>
-              ) : null}
-              {cardPreviewUrl ? (
-                isVideoFile(file.file_type) ? (
-                  <video
-                    className="media-thumb"
-                    ref={getVideoNodeRef(file.id)}
-                    src={managedVideoSrc}
-                    muted
-                    playsInline
-                    loop
-                    autoPlay={autoPlayEnabled}
-                    preload={autoPlayEnabled ? "metadata" : "none"}
-                    style={{ aspectRatio: previewAspectRatio }}
-                    onLoadedMetadata={() => {
-                      onSignedUrlLoaded(file.id);
-                    }}
-                    onLoadedData={() => {
-                      onMediaPaint("video");
-                    }}
-                    onError={() => onMediaPreviewError(file, cardPreviewUrl)}
-                  />
-                ) : (
-                  <>
-                    {/* Signed URLs are generated dynamically at runtime. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      {...({ fetchpriority: fetchPriorityAttr } as Record<string, string>)}
+              <button
+                type="button"
+                className="media-card media-library-panel-media-card-button"
+                ref={getMediaCardRef(file.id)}
+                aria-pressed={isSelected}
+                draggable={Boolean(onMediaDragStart)}
+                onClick={() => onSelectMediaFile(file)}
+                onDragStart={(event) => onMediaDragStart?.(event, file)}
+                onDragEnd={(event) => onMediaDragEnd?.(event, file)}
+              >
+                {isSelected ? (
+                  <span className="media-library-select-indicator" aria-hidden>
+                    <CheckCircle size={16} weight="fill" />
+                  </span>
+                ) : null}
+                {cardPreviewUrl ? (
+                  isVideoFile(file.file_type) ? (
+                    <video
                       className="media-thumb"
-                      src={cardPreviewUrl}
-                      alt={file.filename}
-                      loading="lazy"
-                      decoding="async"
+                      ref={getVideoNodeRef(file.id)}
+                      src={managedVideoSrc}
+                      muted
+                      playsInline
+                      loop
+                      autoPlay={autoPlayEnabled}
+                      preload={autoPlayEnabled ? "metadata" : "none"}
                       style={{ aspectRatio: previewAspectRatio }}
-                      onLoad={() => {
+                      onLoadedMetadata={() => {
                         onSignedUrlLoaded(file.id);
-                        onMediaPaint("image");
+                      }}
+                      onLoadedData={() => {
+                        onMediaPaint("video");
                       }}
                       onError={() => onMediaPreviewError(file, cardPreviewUrl)}
                     />
-                  </>
-                )
-              ) : (
-                <div
-                  className="media-thumb placeholder"
-                  style={{ aspectRatio: previewAspectRatio }}
-                  aria-hidden
-                />
-              )}
-            </button>
+                  ) : (
+                    <>
+                      {/* Signed URLs are generated dynamically at runtime. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        {...({ fetchpriority: fetchPriorityAttr } as Record<string, string>)}
+                        className="media-thumb"
+                        src={cardPreviewUrl}
+                        alt={file.filename}
+                        loading="lazy"
+                        decoding="async"
+                        style={{ aspectRatio: previewAspectRatio }}
+                        onLoad={() => {
+                          onSignedUrlLoaded(file.id);
+                          onMediaPaint("image");
+                        }}
+                        onError={() => onMediaPreviewError(file, cardPreviewUrl)}
+                      />
+                    </>
+                  )
+                ) : (
+                  <div
+                    className="media-thumb placeholder"
+                    style={{ aspectRatio: previewAspectRatio }}
+                    aria-hidden
+                  />
+                )}
+              </button>
+              {canShowRemoveAction ? (
+                <div className="media-library-panel-card-actions" aria-label="Folder actions">
+                  <button
+                    type="button"
+                    className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+                    aria-label={`Remove ${file.filename || "media"} from this folder`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onRemoveMediaFromFolder?.(file);
+                    }}
+                  >
+                    <X size={16} weight="bold" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
+            </div>
           );
         })
       )}

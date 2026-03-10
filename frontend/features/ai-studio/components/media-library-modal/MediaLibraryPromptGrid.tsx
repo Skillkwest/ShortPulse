@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle } from "phosphor-react";
+import { CheckCircle, X } from "phosphor-react";
 import { formatDate, type PromptRow } from "../../logic/mediaLibraryModalModel";
 
 type MediaLibraryPromptGridProps = {
@@ -9,6 +9,8 @@ type MediaLibraryPromptGridProps = {
   onSelectPromptCard: (prompt: PromptRow) => void;
   onPromptDragStart?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
+  showRemoveAction?: boolean;
+  onRemovePromptFromFolder?: (prompt: PromptRow) => void;
   variant?: "default" | "reference-card";
 };
 
@@ -19,6 +21,8 @@ export function MediaLibraryPromptGrid({
   onSelectPromptCard,
   onPromptDragStart,
   onPromptDragEnd,
+  showRemoveAction = false,
+  onRemovePromptFromFolder,
   variant = "default",
 }: MediaLibraryPromptGridProps) {
   if (variant === "reference-card") {
@@ -30,20 +34,40 @@ export function MediaLibraryPromptGrid({
           sortedPrompts.map((prompt) => {
             const isSelected = selectedIds.has(prompt.id);
             return (
-              <button
+              <div
                 key={prompt.id}
-                type="button"
-                className={`reference-card has-text media-library-panel-prompt-reference-card${isSelected ? " is-active" : ""}`}
-                aria-pressed={isSelected}
-                draggable={Boolean(onPromptDragStart)}
-                onClick={() => onSelectPromptCard(prompt)}
-                onDragStart={(event) => onPromptDragStart?.(event, prompt)}
-                onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
+                className={`media-library-panel-prompt-reference-shell${isSelected ? " is-active" : ""}`}
               >
-                <div className="reference-card-text media-library-panel-prompt-reference-text">
-                  {prompt.prompt_text}
-                </div>
-              </button>
+                <button
+                  type="button"
+                  className={`reference-card has-text media-library-panel-prompt-reference-card${isSelected ? " is-active" : ""}`}
+                  aria-pressed={isSelected}
+                  draggable={Boolean(onPromptDragStart)}
+                  onClick={() => onSelectPromptCard(prompt)}
+                  onDragStart={(event) => onPromptDragStart?.(event, prompt)}
+                  onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
+                >
+                  <div className="reference-card-text media-library-panel-prompt-reference-text">
+                    {prompt.prompt_text}
+                  </div>
+                </button>
+                {showRemoveAction && onRemovePromptFromFolder ? (
+                  <div className="media-library-panel-card-actions" aria-label="Folder actions">
+                    <button
+                      type="button"
+                      className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+                      aria-label={`Remove ${prompt.title || "prompt"} from this folder`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onRemovePromptFromFolder(prompt);
+                      }}
+                    >
+                      <X size={16} weight="bold" aria-hidden />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             );
           })
         )}
@@ -59,30 +83,50 @@ export function MediaLibraryPromptGrid({
         sortedPrompts.map((prompt) => {
           const isSelected = selectedIds.has(prompt.id);
           return (
-            <button
+            <div
               key={prompt.id}
-              type="button"
-              className={`prompt-card media-library-prompt-card${isSelected ? " is-selected" : ""}`}
-              aria-pressed={isSelected}
-              draggable={Boolean(onPromptDragStart)}
-              onClick={() => onSelectPromptCard(prompt)}
-              onDragStart={(event) => onPromptDragStart?.(event, prompt)}
-              onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
+              className={`media-library-panel-prompt-reference-shell${isSelected ? " is-active" : ""}`}
             >
-              {isSelected ? (
-                <span className="media-library-select-indicator" aria-hidden>
-                  <CheckCircle size={16} weight="fill" />
-                </span>
-              ) : null}
-              <div className="prompt-card-header">
-                <div>
-                  <p className="metric-label">{prompt.title || "Saved prompt"}</p>
-                  <p className="metric-value tiny">{formatDate(prompt.created_at)}</p>
+              <button
+                type="button"
+                className={`prompt-card media-library-prompt-card${isSelected ? " is-selected" : ""}`}
+                aria-pressed={isSelected}
+                draggable={Boolean(onPromptDragStart)}
+                onClick={() => onSelectPromptCard(prompt)}
+                onDragStart={(event) => onPromptDragStart?.(event, prompt)}
+                onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
+              >
+                {isSelected ? (
+                  <span className="media-library-select-indicator" aria-hidden>
+                    <CheckCircle size={16} weight="fill" />
+                  </span>
+                ) : null}
+                <div className="prompt-card-header">
+                  <div>
+                    <p className="metric-label">{prompt.title || "Saved prompt"}</p>
+                    <p className="metric-value tiny">{formatDate(prompt.created_at)}</p>
+                  </div>
+                  <span className="pill tiny">Prompt</span>
                 </div>
-                <span className="pill tiny">Prompt</span>
-              </div>
-              <p className="prompt-card-body">{prompt.prompt_text}</p>
-            </button>
+                <p className="prompt-card-body">{prompt.prompt_text}</p>
+              </button>
+              {showRemoveAction && onRemovePromptFromFolder ? (
+                <div className="media-library-panel-card-actions" aria-label="Folder actions">
+                  <button
+                    type="button"
+                    className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+                    aria-label={`Remove ${prompt.title || "prompt"} from this folder`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onRemovePromptFromFolder(prompt);
+                    }}
+                  >
+                    <X size={16} weight="bold" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
+            </div>
           );
         })
       )}

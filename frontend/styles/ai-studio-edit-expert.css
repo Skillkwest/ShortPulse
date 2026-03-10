@@ -28,11 +28,11 @@
 
 .edit-expert-preset-toolbar {
   position: absolute;
-  right: calc(100% + 18px);
+  right: calc(100% + var(--edit-expert-side-rail-gap));
   top: 0;
   bottom: 0;
   transform: none;
-  width: 140px;
+  width: var(--edit-expert-side-rail-width);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -736,11 +736,11 @@
 
 .edit-expert-layers-toolbar {
   position: absolute;
-  left: calc(100% + 18px);
+  left: calc(100% + var(--edit-expert-side-rail-gap));
   top: 0;
   bottom: 0;
   transform: none;
-  width: 140px;
+  width: var(--edit-expert-side-rail-width);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -972,74 +972,10 @@
   transform: translateY(-2px);
 }
 
-.edit-expert-frame-controls {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.edit-expert-frame-label {
-  margin: 0;
-  color: rgba(214, 219, 227, 0.9);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-}
-
-.edit-expert-frame-chip-row {
-  min-width: 0;
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.edit-expert-frame-chip {
-  --edit-expert-frame-chip-height: 24px;
-  height: var(--edit-expert-frame-chip-height);
-  width: calc(var(--edit-expert-frame-chip-height) * 1.25);
-  min-width: calc(var(--edit-expert-frame-chip-height) * 1.25);
-  border-radius: 7px;
-  border: 1px solid rgba(98, 102, 110, 0.56);
-  background: rgba(34, 38, 44, 0.74);
-  color: rgba(238, 241, 248, 0.96);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
-  transition:
-    border-color 0.16s ease,
-    background 0.16s ease;
-}
-
-.edit-expert-frame-chip:hover {
-  border-color: rgba(126, 132, 143, 0.68);
-  background: rgba(39, 43, 50, 0.78);
-}
-
-.edit-expert-frame-chip:focus-visible {
-  outline: none;
-  border-color: rgba(235, 222, 195, 0.82);
-}
-
-.edit-expert-frame-chip.is-selected {
-  border-color: rgba(205, 210, 220, 0.44);
-  background: rgba(58, 62, 70, 0.84);
-}
-
-.edit-expert-frame-chip.is-selected:hover {
-  border-color: rgba(205, 210, 220, 0.5);
-}
-
 .edit-expert-primary-stage-shell {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1064,7 +1000,7 @@
 }
 
 .edit-expert-primary-dropzone:hover {
-  border-color: var(--edit-expert-accent-medium);
+  border-color: rgba(201, 205, 214, 0.44);
 }
 
 .edit-expert-primary-dropzone.is-dragging {
@@ -1456,7 +1392,7 @@
 .edit-expert-inpaint-row {
   position: absolute;
   left: 50%;
-  top: calc(100% + 8px);
+  top: calc(100% + 16px);
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
@@ -1472,22 +1408,33 @@
   justify-content: flex-start;
 }
 
+.edit-expert-inpaint-row:not(.is-collapsed) {
+  width: max-content;
+  justify-content: center;
+}
+
 .edit-expert-inpaint-wrapper {
   display: inline-flex;
   align-items: flex-start;
   justify-content: flex-start;
   gap: 6px;
-  padding: 8px;
-  min-width: 408px;
+  padding: 12px;
+  width: fit-content;
+  min-width: 0;
   min-height: 0;
   height: auto;
-  border-radius: 8px;
+  border-radius: 12px;
   background: rgba(201, 205, 214, 0.02);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
   box-sizing: border-box;
   transition:
     background 0.18s ease,
     box-shadow 0.18s ease;
+}
+
+.edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-inpaint-wrapper {
+  position: relative;
+  max-width: 100%;
 }
 
 .edit-expert-inpaint-wrapper.is-collapsed {
@@ -1503,11 +1450,16 @@
   min-width: calc(var(--edit-expert-secondary-width) + 20px);
   min-height: calc(var(--edit-expert-secondary-width) + 28px);
   height: auto;
-  padding: 8px;
-  gap: 0;
+  padding: 10px;
+  gap: var(--edit-expert-tools-title-to-control-gap);
   margin: 0;
   border-radius: 12px;
+  border: 1px solid transparent;
+  background: rgba(201, 205, 214, 0.02);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   overflow: visible;
   z-index: 2;
 }
@@ -1535,6 +1487,7 @@
 }
 
 .edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-secondary-control {
+  margin-top: -4px;
   animation: edit-expert-secondary-expand 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1555,7 +1508,8 @@
 
 .edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-inpaint-collapse-control {
   height: auto;
-  align-self: flex-start;
+  align-self: center;
+  margin-top: 0;
   animation: edit-expert-collapse-control-expand 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1574,12 +1528,12 @@
   left: auto;
   top: auto;
   transform: none;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
   justify-content: center;
   align-items: center;
   gap: var(--edit-expert-tools-title-to-control-gap);
-  align-self: stretch;
+  align-self: center;
   z-index: 1;
 }
 
@@ -1593,7 +1547,7 @@
 .edit-expert-inpaint-content {
   display: inline-flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
   transform-origin: left center;
   will-change: transform, opacity;
   animation: edit-expert-inpaint-content-enter 0.2s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1626,15 +1580,15 @@
 }
 
 .edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-inpaint-collapse-btn {
-  height: var(--edit-expert-collapse-btn-height, 108px);
+  height: var(--edit-expert-collapse-btn-height, 114px);
 }
 
 .edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-inpaint-collapse-btn.is-active-inpaint {
-  --edit-expert-collapse-btn-height: 108px;
+  --edit-expert-collapse-btn-height: 114px;
 }
 
 .edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-inpaint-collapse-btn.is-active-move {
-  --edit-expert-collapse-btn-height: 108px;
+  --edit-expert-collapse-btn-height: 114px;
 }
 
 .edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn {
@@ -1644,9 +1598,7 @@
   border-radius: 10px;
   border: 1px solid rgba(92, 96, 104, 0.9);
   background: rgba(37, 41, 47, 0.64);
-  box-shadow:
-    0 8px 16px rgba(0, 0, 0, 0.26),
-    inset 0 1px 0 rgba(233, 238, 246, 0.14);
+  box-shadow: none;
 }
 
 .edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn.is-active-move {
@@ -1688,17 +1640,13 @@
 .edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn:hover {
   border-color: rgba(137, 152, 175, 0.98);
   background: rgba(58, 64, 74, 0.98);
-  box-shadow:
-    0 10px 18px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(236, 241, 249, 0.2);
+  box-shadow: none;
 }
 
 .edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn:focus-visible {
   border-color: rgba(137, 152, 175, 1);
   background: rgba(58, 64, 74, 0.98);
-  box-shadow:
-    0 0 0 2px rgba(137, 152, 175, 0.22),
-    0 10px 18px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
 }
 
 .edit-expert-inpaint-collapse-btn:hover {
@@ -1719,13 +1667,13 @@
   display: flex;
   flex-direction: column;
   width: 96px;
-  gap: 4px;
+  gap: 5px;
   height: 108px;
   align-self: flex-start;
   justify-content: flex-start;
   position: relative;
   top: 0;
-  padding-top: 1px;
+  padding-top: 0;
   animation: edit-expert-inpaint-rail-enter 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1734,7 +1682,7 @@
 }
 
 .edit-expert-inpaint-tool-rail-title {
-  margin: 0 0 3px;
+  margin: 0 0 5px;
   color: #c9cdd685;
   font-size: 11px;
   font-weight: 600;
@@ -1748,7 +1696,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   width: 100%;
-  gap: 4px;
+  gap: 5px;
 }
 
 /* TOOL BUTTON BASE - Modify border & background colors here */
@@ -1851,8 +1799,8 @@
 
 .edit-expert-inpaint-controls.is-themed-inpaint {
   border-color: rgba(245, 185, 66, 0.42);
-  height: 108px;
-  min-height: 108px;
+  height: 114px;
+  min-height: 114px;
 }
 
 .edit-expert-inpaint-controls.is-themed-inpaint .edit-expert-inpaint-mode-btn {
@@ -1898,8 +1846,8 @@
 
 .edit-expert-inpaint-controls.is-themed-move {
   border-color: rgba(52, 200, 255, 0.34);
-  height: 108px;
-  min-height: 108px;
+  height: 114px;
+  min-height: 114px;
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn {
@@ -2166,7 +2114,7 @@
   grid-template-columns: 64px 1fr;
   align-items: center;
   column-gap: 6px;
-  padding-block: 4px;
+  padding-block: 5px;
   margin-top: 0;
 }
 
@@ -2224,7 +2172,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 5px;
+  gap: 6px;
   width: 100%;
   height: 100%;
 }
@@ -2335,8 +2283,8 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 8px;
-  padding: 1px 0;
+  gap: 6px;
+  padding: 2px 0;
   width: 100%;
   height: 100%;
 }
@@ -2348,8 +2296,8 @@
 }
 
 .edit-expert-move-mode-btn {
-  min-height: 30px;
-  border-radius: 8px;
+  min-height: 34px;
+  border-radius: 10px;
   border: 1px solid rgba(92, 96, 104, 0.275);
   background: rgba(37, 41, 47, 0.64);
   color: #eef2f8;
@@ -2379,7 +2327,7 @@
   width: 100%;
   height: 1px;
   background: rgba(126, 131, 141, 0.34);
-  margin: 1px 0;
+  margin: 2px 0;
 }
 
 .edit-expert-move-history-row {
@@ -2389,8 +2337,8 @@
 }
 
 .edit-expert-move-history-btn {
-  min-height: 30px;
-  border-radius: 8px;
+  min-height: 34px;
+  border-radius: 10px;
   border: 1px solid rgba(92, 96, 104, 0.9);
   background: rgba(52, 56, 64, 0.92);
   color: rgba(241, 244, 250, 0.94);
@@ -2556,7 +2504,7 @@
 
 .edit-expert-bottom-row {
   width: 100%;
-  margin: 32px auto 0;
+  margin: 20px auto 0;
   position: relative;
   z-index: 6;
   display: flex;
@@ -2591,7 +2539,7 @@
 .edit-expert-prompt-highlight {
   position: absolute;
   inset: 1px;
-  padding: 6px 16px;
+  padding: 8px 16px;
   border-radius: 10px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -2629,7 +2577,7 @@
   border: 1px solid rgba(37, 41, 47, 0.64);
   background: rgba(37, 41, 47, 0.64);
   border-radius: 10px;
-  padding: 6px 16px;
+  padding: 8px 16px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
   width: 100%;
   flex: 1 1 auto;
@@ -2664,8 +2612,10 @@
 
 .edit-expert-prompt-input {
   min-height: 72px;
-  height: 72px;
-  max-height: 170px;
+  height: auto;
+  max-height: 120px;
+  overflow-y: hidden;
+  resize: none;
 }
 
 .edit-expert-prompt-token-error {

@@ -194,6 +194,40 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
+  it("defaults edit workflow to square aspect on first activation, including legacy saved 9:16", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        edit: {
+          mode: "image",
+          model: "fal-ai/bytedance/seedream/v4.5/edit",
+          aspect: "9:16",
+          imageResolution: "model_default",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [
+            { id: "el-1", frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" },
+          ],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("edit"));
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
+    expect(result.current.aspect).toBe("1:1");
+  });
+
   it("persists workflow setting updates under the active tool key", async () => {
     window.sessionStorage.clear();
     const { result } = renderHook(() => useHarness("video"));

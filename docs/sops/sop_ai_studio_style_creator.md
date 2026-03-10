@@ -43,7 +43,36 @@ Rules:
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
 5. Create/save path persists normalized details; optional metadata is attached when available.
 6. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
-7. Selected style remains shared with Expert Create/Edit and submit-path style append remains unchanged.
+7. The first tile in Styles Library is a fixed `None` slot (system tile); it is never persisted, edited, deleted, or reordered.
+8. Styles Library tile clicks are edit-only (open/create/update/delete workflows) and do not mutate active Create/Edit style selection.
+9. Right-rail Styles tile clicks own Create/Edit style selection state; submit-path style append behavior remains unchanged.
+
+## Submission-time style behavior and prompting guidance
+1. Submission behavior:
+- Active style is applied by appending the selected style prompt text to the hidden submission prompt.
+- Current lane does not use per-provider style-weight controls; adherence is model-dependent.
+2. Prompt-writing guidance for stronger adherence:
+- Keep user prompt task-oriented, then add style intent in style prompt fields with explicit visual dimensions:
+  - palette,
+  - lighting,
+  - contrast,
+  - texture/material treatment,
+  - lens/grade feel.
+- Prefer concrete phrasing over abstract adjectives.
+3. Recommended style-prompt pattern:
+- `Apply a [style] treatment with [palette], [lighting direction/quality], [contrast level], and [texture/finish]. Preserve subject identity and scene geometry.`
+4. Edit-workflow guidance (especially for fidelity-heavy models):
+- When references strongly constrain structure, include language that scopes style to visual treatment only:
+  - `Treat style as a color/lighting/texture guide; do not alter identity, proportions, or composition.`
+- Avoid conflicting directives between user prompt and style prompt.
+5. Known tradeoff:
+- Strong reference-fidelity models may under-index style text when instructions conflict.
+- This is expected unless there is evidence of a new regression in the style append path.
+6. Evidence capture standard:
+- For cross-model style behavior checks, capture runs using:
+  - `docs/planning/evidence/style-adherence/style-adherence-run-template.md`
+- Store completed packets under:
+  - `docs/planning/evidence/style-adherence/`
 
 ## Telemetry contract
 Source: `telemetry.ai_studio.style_extraction`

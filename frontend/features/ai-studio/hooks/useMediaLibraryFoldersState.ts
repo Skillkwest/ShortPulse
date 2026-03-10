@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createMediaFolder,
+  deleteMediaFolder,
   listMediaFolders,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
   renameMediaFolder,
@@ -81,6 +82,7 @@ type UseMediaLibraryFoldersStateResult = {
   startFolderRename: (folderId: string, currentName: string) => void;
   cancelFolderRename: () => void;
   commitFolderRename: () => Promise<void>;
+  deleteFolder: (folderId: string) => Promise<void>;
   refreshFolders: () => Promise<void>;
 };
 
@@ -228,6 +230,30 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     }
   }, [editingFolderId, editingFolderName, savingFolderEdit]);
 
+  const deleteFolder = useCallback(
+    async (folderId: string) => {
+      const normalizedFolderId = folderId.trim();
+      if (!normalizedFolderId || normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+      setFolderError(null);
+      try {
+        await deleteMediaFolder(normalizedFolderId);
+        setFolders((previous) => previous.filter((folder) => folder.id !== normalizedFolderId));
+        setActiveFolderId((previous) =>
+          previous === normalizedFolderId ? MEDIA_LIBRARY_ROOT_FOLDER_ID : previous
+        );
+        setEditingFolderId((previous) => (previous === normalizedFolderId ? null : previous));
+        if (editingFolderId === normalizedFolderId) {
+          setEditingFolderName("");
+        }
+      } catch (deleteError) {
+        setFolderError(
+          deleteError instanceof Error ? deleteError.message : "Unable to delete folder."
+        );
+      }
+    },
+    [editingFolderId]
+  );
+
   return {
     folders,
     customFolders,
@@ -244,6 +270,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     startFolderRename,
     cancelFolderRename,
     commitFolderRename,
+    deleteFolder,
     refreshFolders,
   };
 };

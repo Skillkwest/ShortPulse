@@ -15,6 +15,7 @@ import {
 export const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
 const WORKFLOW_SETTINGS_PERSIST_ENABLED =
   process.env.NEXT_PUBLIC_AI_STUDIO_WORKFLOW_SETTINGS_PERSIST_ENABLED !== "false";
+const EDIT_WORKFLOW_DEFAULT_ASPECT = "1:1";
 
 type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
 
@@ -65,6 +66,18 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   klingElements: [{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }],
 };
 
+const resolveDefaultWorkflowSettingsForKey = (
+  key: WorkflowSettingsKey
+): WorkflowSettingsSnapshot => {
+  if (key === "edit") {
+    return {
+      ...DEFAULT_WORKFLOW_SETTINGS,
+      aspect: EDIT_WORKFLOW_DEFAULT_ASPECT,
+    };
+  }
+  return DEFAULT_WORKFLOW_SETTINGS;
+};
+
 const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | null => {
   const workflowId = resolveWorkflowId(tool);
   if (workflowId === "create") return "create";
@@ -75,61 +88,60 @@ const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | 
 };
 
 const cloneWorkflowSettingsSnapshot = (
-  snapshot: Partial<WorkflowSettingsSnapshot> | null | undefined
+  snapshot: Partial<WorkflowSettingsSnapshot> | null | undefined,
+  defaults: WorkflowSettingsSnapshot = DEFAULT_WORKFLOW_SETTINGS
 ): WorkflowSettingsSnapshot => ({
   mode:
     snapshot?.mode === "image" || snapshot?.mode === "text" || snapshot?.mode === "video"
       ? snapshot.mode
-      : DEFAULT_WORKFLOW_SETTINGS.mode,
+      : defaults.mode,
   model:
     typeof snapshot?.model === "string" || snapshot?.model === null
       ? snapshot.model
-      : DEFAULT_WORKFLOW_SETTINGS.model,
-  aspect: typeof snapshot?.aspect === "string" ? snapshot.aspect : DEFAULT_WORKFLOW_SETTINGS.aspect,
+      : defaults.model,
+  aspect: typeof snapshot?.aspect === "string" ? snapshot.aspect : defaults.aspect,
   imageResolution:
     typeof snapshot?.imageResolution === "string"
       ? snapshot.imageResolution
-      : DEFAULT_WORKFLOW_SETTINGS.imageResolution,
+      : defaults.imageResolution,
   videoReferenceMode:
     snapshot?.videoReferenceMode === "standard" ||
     snapshot?.videoReferenceMode === "keyframes" ||
     snapshot?.videoReferenceMode === "kling3" ||
     snapshot?.videoReferenceMode === "motion"
       ? snapshot.videoReferenceMode
-      : DEFAULT_WORKFLOW_SETTINGS.videoReferenceMode,
+      : defaults.videoReferenceMode,
   videoDurationSeconds:
     typeof snapshot?.videoDurationSeconds === "number" &&
     Number.isFinite(snapshot.videoDurationSeconds)
       ? snapshot.videoDurationSeconds
-      : DEFAULT_WORKFLOW_SETTINGS.videoDurationSeconds,
+      : defaults.videoDurationSeconds,
   videoResolution:
     typeof snapshot?.videoResolution === "string"
       ? snapshot.videoResolution
-      : DEFAULT_WORKFLOW_SETTINGS.videoResolution,
+      : defaults.videoResolution,
   videoGenerateAudio:
     typeof snapshot?.videoGenerateAudio === "boolean"
       ? snapshot.videoGenerateAudio
-      : DEFAULT_WORKFLOW_SETTINGS.videoGenerateAudio,
+      : defaults.videoGenerateAudio,
   videoCameraFixed:
     typeof snapshot?.videoCameraFixed === "boolean"
       ? snapshot.videoCameraFixed
-      : DEFAULT_WORKFLOW_SETTINGS.videoCameraFixed,
+      : defaults.videoCameraFixed,
   videoAutoFix:
-    typeof snapshot?.videoAutoFix === "boolean"
-      ? snapshot.videoAutoFix
-      : DEFAULT_WORKFLOW_SETTINGS.videoAutoFix,
+    typeof snapshot?.videoAutoFix === "boolean" ? snapshot.videoAutoFix : defaults.videoAutoFix,
   klingNegativePrompt:
     typeof snapshot?.klingNegativePrompt === "string"
       ? snapshot.klingNegativePrompt
-      : DEFAULT_WORKFLOW_SETTINGS.klingNegativePrompt,
+      : defaults.klingNegativePrompt,
   klingCfgScale:
     typeof snapshot?.klingCfgScale === "number" && Number.isFinite(snapshot.klingCfgScale)
       ? snapshot.klingCfgScale
-      : DEFAULT_WORKFLOW_SETTINGS.klingCfgScale,
+      : defaults.klingCfgScale,
   klingShotType:
     snapshot?.klingShotType === "intelligent" || snapshot?.klingShotType === "customize"
       ? snapshot.klingShotType
-      : DEFAULT_WORKFLOW_SETTINGS.klingShotType,
+      : defaults.klingShotType,
   klingVoiceIds: [
     Array.isArray(snapshot?.klingVoiceIds) ? String(snapshot?.klingVoiceIds?.[0] ?? "") : "",
     Array.isArray(snapshot?.klingVoiceIds) ? String(snapshot?.klingVoiceIds?.[1] ?? "") : "",
@@ -157,7 +169,7 @@ const cloneWorkflowSettingsSnapshot = (
           videoUrl: typeof element?.videoUrl === "string" ? element.videoUrl : "",
         }))
         .filter((element) => Boolean(element.id))
-    : DEFAULT_WORKFLOW_SETTINGS.klingElements.map((element) => ({ ...element })),
+    : defaults.klingElements.map((element) => ({ ...element })),
 });
 
 type UseAiStudioWorkflowSettingsParams = {
@@ -241,6 +253,7 @@ export const useAiStudioWorkflowSettings = ({
     Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>>
   >({});
   const previousWorkflowSettingsKeyRef = useRef<WorkflowSettingsKey | null>(null);
+  const visitedWorkflowSettingsKeysRef = useRef<Set<WorkflowSettingsKey>>(new Set());
   const activeWorkflowSettingsKey = useMemo(
     () => resolveWorkflowSettingsKey(selectedTool),
     [selectedTool]
@@ -262,7 +275,10 @@ export const useAiStudioWorkflowSettings = ({
       >;
       const next: Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>> = {};
       (["create", "edit", "video", "kling"] as const).forEach((key) => {
-        next[key] = cloneWorkflowSettingsSnapshot(parsed?.[key]);
+        next[key] = cloneWorkflowSettingsSnapshot(
+          parsed?.[key],
+          resolveDefaultWorkflowSettingsForKey(key)
+        );
       });
       workflowSettingsRef.current = next;
     } catch {
@@ -283,10 +299,14 @@ export const useAiStudioWorkflowSettings = ({
     const previous = previousWorkflowSettingsKeyRef.current;
     previousWorkflowSettingsKeyRef.current = activeWorkflowSettingsKey;
     if (previous === activeWorkflowSettingsKey) return;
+    const isFirstActivation =
+      !visitedWorkflowSettingsKeysRef.current.has(activeWorkflowSettingsKey);
+    visitedWorkflowSettingsKeysRef.current.add(activeWorkflowSettingsKey);
 
     let snapshot = workflowSettingsRef.current[activeWorkflowSettingsKey];
     if (!snapshot) {
-      snapshot = cloneWorkflowSettingsSnapshot(DEFAULT_WORKFLOW_SETTINGS);
+      const defaults = resolveDefaultWorkflowSettingsForKey(activeWorkflowSettingsKey);
+      snapshot = cloneWorkflowSettingsSnapshot(defaults, defaults);
       workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
     }
 
@@ -314,6 +334,13 @@ export const useAiStudioWorkflowSettings = ({
         snapshot = {
           ...snapshot,
           model: resolvedEditModel,
+        };
+        workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
+      }
+      if (isFirstActivation && snapshot.aspect !== EDIT_WORKFLOW_DEFAULT_ASPECT) {
+        snapshot = {
+          ...snapshot,
+          aspect: EDIT_WORKFLOW_DEFAULT_ASPECT,
         };
         workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
       }

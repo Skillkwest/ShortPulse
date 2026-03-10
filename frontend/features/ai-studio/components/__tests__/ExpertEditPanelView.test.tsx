@@ -238,33 +238,29 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
   });
 
-  it("renders inline frame ratio controls and updates the primary dropzone aspect ratio", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    expect(screen.getByText("Frame:")).toBeInTheDocument();
+  it("updates primary dropzone aspect ratio from the edit aspect selector value", () => {
+    const { container, rerender } = render(<ExpertEditPanelView {...baseProps} aspect="1:1" />);
     const primaryDropzone = screen.getByLabelText("Primary edit image") as HTMLDivElement;
-    const verticalFrameButton = screen.getByRole("button", { name: /9:16\s*vertical/i });
-    const landscapeFrameButton = screen.getByRole("button", { name: /16:9\s*landscape/i });
+    const mainStage = container.querySelector(".edit-expert-main-stage") as HTMLDivElement;
+    expect(mainStage).not.toBeNull();
 
     expect(primaryDropzone.style.aspectRatio).toBe("1 / 1");
     expect(primaryDropzone.style.width).toBe("100%");
-    expect(primaryDropzone.style.height).toBe("100%");
-    expect(verticalFrameButton).toHaveAttribute("aria-pressed", "false");
-    expect(landscapeFrameButton).toHaveAttribute("aria-pressed", "false");
+    expect(primaryDropzone.style.height).toBe("");
+    expect(mainStage.style.width).toContain("* 1");
+    expect(mainStage.style.height).toBe("var(--edit-expert-primary-size)");
 
-    fireEvent.click(landscapeFrameButton);
+    rerender(<ExpertEditPanelView {...baseProps} aspect="16:9" />);
     expect(primaryDropzone.style.aspectRatio).toBe("16 / 9");
     expect(primaryDropzone.style.width).toBe("100%");
-    expect(primaryDropzone.style.height).toBe("56.25%");
-    expect(landscapeFrameButton).toHaveAttribute("aria-pressed", "true");
-    expect(verticalFrameButton).toHaveAttribute("aria-pressed", "false");
+    expect(primaryDropzone.style.height).toBe("");
+    expect(mainStage.style.width).toContain("* 1.777777");
 
-    fireEvent.click(verticalFrameButton);
+    rerender(<ExpertEditPanelView {...baseProps} aspect="9:16" />);
     expect(primaryDropzone.style.aspectRatio).toBe("9 / 16");
-    expect(primaryDropzone.style.width).toBe("56.25%");
-    expect(primaryDropzone.style.height).toBe("100%");
-    expect(verticalFrameButton).toHaveAttribute("aria-pressed", "true");
-    expect(landscapeFrameButton).toHaveAttribute("aria-pressed", "false");
+    expect(primaryDropzone.style.width).toBe("100%");
+    expect(primaryDropzone.style.height).toBe("");
+    expect(mainStage.style.width).toContain("* 0.5625");
   });
 
   it("toggles styles panel via callback and reflects aria-expanded state", () => {
@@ -2125,7 +2121,7 @@ describe("ExpertEditPanelView", () => {
     });
     try {
       const onAddSessionMediaReference = vi.fn();
-      const { container } = render(
+      const { container, rerender } = render(
         <ExpertEditPanelView
           {...baseProps}
           onAddSessionMediaReference={onAddSessionMediaReference}
@@ -2135,7 +2131,13 @@ describe("ExpertEditPanelView", () => {
       uploadPrimaryFile(container, "layer-1.png");
       uploadPrimaryFile(container, "layer-2.png");
 
-      fireEvent.click(screen.getByRole("button", { name: /16:9\s*landscape/i }));
+      rerender(
+        <ExpertEditPanelView
+          {...baseProps}
+          aspect="16:9"
+          onAddSessionMediaReference={onAddSessionMediaReference}
+        />
+      );
 
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /flatten/i }));

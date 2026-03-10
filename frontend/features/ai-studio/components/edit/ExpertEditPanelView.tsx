@@ -309,7 +309,6 @@ const cropAspectRatioPresets = [
   { value: "5:4", label: "Photo", ratio: 5 / 4 },
   { value: "16:9", label: "Landscape", ratio: 16 / 9 },
 ] as const;
-const frameAspectRatioPresets = cropAspectRatioPresets;
 const MAX_LAYERS = 8;
 const LAYER_LIMIT_REACHED_TOAST = `Layer limit reached (${MAX_LAYERS}).`;
 const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
@@ -819,6 +818,7 @@ export function ExpertEditPanelView({
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
   const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const promptInputShellRef = React.useRef<HTMLDivElement | null>(null);
   const promptHighlightRef = React.useRef<HTMLDivElement | null>(null);
   const pendingPromptCaretRef = React.useRef<number | null>(null);
   const transformPointerSessionRef = React.useRef<TransformPointerSession>(
@@ -859,7 +859,6 @@ export function ExpertEditPanelView({
   const [selectedTransformMode, setSelectedTransformMode] =
     React.useState<TransformDragMode>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
-  const [selectedFrameAspect, setSelectedFrameAspect] = React.useState("1:1");
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
@@ -1148,6 +1147,19 @@ export function ExpertEditPanelView({
     highlightLayer.scrollLeft = textarea.scrollLeft;
   }, []);
 
+  const syncPromptTextareaHeight = React.useCallback(() => {
+    const textarea = promptTextareaRef.current;
+    if (!textarea) return;
+    const computedStyle = window.getComputedStyle(textarea);
+    const minHeightPx = Number.parseFloat(computedStyle.minHeight) || 72;
+    const maxHeightPx = Number.parseFloat(computedStyle.maxHeight) || minHeightPx;
+    textarea.style.height = "auto";
+    const contentHeightPx = Math.max(minHeightPx, textarea.scrollHeight);
+    const clampedHeightPx = Math.min(contentHeightPx, maxHeightPx);
+    textarea.style.height = `${clampedHeightPx}px`;
+    textarea.style.overflowY = contentHeightPx > maxHeightPx ? "auto" : "hidden";
+  }, []);
+
   const handlePromptScroll = React.useCallback(() => {
     syncPromptHighlightScroll();
   }, [syncPromptHighlightScroll]);
@@ -1185,6 +1197,23 @@ export function ExpertEditPanelView({
     textarea.setSelectionRange(maxCaret, maxCaret);
     pendingPromptCaretRef.current = null;
   }, [promptTextValue]);
+
+  React.useEffect(() => {
+    syncPromptTextareaHeight();
+  }, [promptTextValue, syncPromptTextareaHeight]);
+
+  React.useEffect(() => {
+    const promptInputShell = promptInputShellRef.current;
+    if (!promptInputShell || typeof ResizeObserver === "undefined") return;
+    const resizeObserver = new ResizeObserver(() => {
+      syncPromptTextareaHeight();
+      syncPromptHighlightScroll();
+    });
+    resizeObserver.observe(promptInputShell);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [syncPromptHighlightScroll, syncPromptTextareaHeight]);
 
   React.useEffect(() => {
     syncPromptHighlightScroll();
@@ -1471,37 +1500,42 @@ export function ExpertEditPanelView({
     shouldShowInpaintBrushReticle,
     shouldShowInpaintLassoCursor,
   ]);
-  const primaryDropzoneAspectRatio = React.useMemo(
-    () => selectedFrameAspect.replace(":", " / "),
-    [selectedFrameAspect]
-  );
-  const primaryDropzoneAspectRatioValue = React.useMemo(
-    () => parseAspectRatioToken(selectedFrameAspect) ?? 1,
-    [selectedFrameAspect]
-  );
-  const primaryDropzoneFrameSize = React.useMemo(() => {
-    if (primaryDropzoneAspectRatioValue >= 1) {
-      return { widthPercent: 100, heightPercent: 100 / primaryDropzoneAspectRatioValue };
+  const primaryDropzoneAspectRatio = React.useMemo(() => {
+    const parsedAspectRatio = parseAspectRatioToken(aspect);
+    if (
+      parsedAspectRatio == null ||
+      !Number.isFinite(parsedAspectRatio) ||
+      parsedAspectRatio <= 0
+    ) {
+      return "1 / 1";
     }
-    return { widthPercent: primaryDropzoneAspectRatioValue * 100, heightPercent: 100 };
-  }, [primaryDropzoneAspectRatioValue]);
+    return aspect.replace(":", " / ");
+  }, [aspect]);
+  const primaryDropzoneAspectRatioValue = React.useMemo(
+    () => parseAspectRatioToken(aspect) ?? 1,
+    [aspect]
+  );
+  const primaryStageWidthScale = React.useMemo(
+    () => Math.max(primaryDropzoneAspectRatioValue, 0.0001),
+    [primaryDropzoneAspectRatioValue]
+  );
+  const primaryStageStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      width: `max(0px, min(calc(100% - ((var(--edit-expert-side-rail-width) + var(--edit-expert-side-rail-gap)) * 2)), calc(var(--edit-expert-primary-size) * ${primaryStageWidthScale})))`,
+      height: "var(--edit-expert-primary-size)",
+    }),
+    [primaryStageWidthScale]
+  );
   const primaryDropzoneStyle = React.useMemo(() => {
     const style: React.CSSProperties = {
       aspectRatio: primaryDropzoneAspectRatio,
-      width: `${primaryDropzoneFrameSize.widthPercent}%`,
-      height: `${primaryDropzoneFrameSize.heightPercent}%`,
+      width: "100%",
     };
     if (!isMorePresetsSurfaceOpen && primaryDropzoneCursor) {
       style.cursor = primaryDropzoneCursor;
     }
     return style;
-  }, [
-    isMorePresetsSurfaceOpen,
-    primaryDropzoneAspectRatio,
-    primaryDropzoneCursor,
-    primaryDropzoneFrameSize.heightPercent,
-    primaryDropzoneFrameSize.widthPercent,
-  ]);
+  }, [isMorePresetsSurfaceOpen, primaryDropzoneAspectRatio, primaryDropzoneCursor]);
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
     if (typeof document === "undefined") return;
@@ -2530,7 +2564,7 @@ export function ExpertEditPanelView({
       role="group"
       aria-label="Expert edit composer"
     >
-      <div className="edit-expert-main-stage">
+      <div className="edit-expert-main-stage" style={primaryStageStyle}>
         <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
           <div className="edit-expert-preset-toolbar-title-card">
             <p className="edit-expert-preset-toolbar-title">Presets</p>
@@ -2745,27 +2779,6 @@ export function ExpertEditPanelView({
           ) : null}
         </div>
 
-        <div className="edit-expert-frame-controls" role="group" aria-label="Primary frame ratio">
-          <span className="edit-expert-frame-label">Frame:</span>
-          <div className="edit-expert-frame-chip-row">
-            {frameAspectRatioPresets.map((preset) => {
-              const isSelected = selectedFrameAspect === preset.value;
-              return (
-                <button
-                  key={preset.value}
-                  type="button"
-                  className={`edit-expert-frame-chip ${isSelected ? "is-selected" : ""}`.trim()}
-                  aria-label={`${preset.value} ${preset.label}`}
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedFrameAspect(preset.value)}
-                >
-                  {preset.value}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="edit-expert-primary-stage-shell">
           <div
             ref={primaryDropzoneRef}
@@ -2895,39 +2908,47 @@ export function ExpertEditPanelView({
             isInpaintCollapsing ? "is-collapsing" : ""
           }`.trim()}
         >
+          {!isInpaintCollapsed ? (
+            <div className="edit-expert-inpaint-collapse-control">
+              <button
+                type="button"
+                className={`edit-expert-inpaint-collapse-btn ${collapsedToolsThemeClass}`}
+                aria-label="Collapse inpaint controls"
+                aria-expanded={!isInpaintCollapsed}
+                aria-controls="edit-expert-inpaint-content"
+                onClick={handleInpaintCollapseToggle}
+              >
+                <CaretRight size={20} weight="fill" data-testid="inpaint-collapse-icon-dots" />
+              </button>
+            </div>
+          ) : null}
           <div
             className={`edit-expert-inpaint-wrapper ${isInpaintCollapsed ? "is-collapsed" : ""}`}
             role="group"
             aria-label="Inpaint controls group"
           >
-            <div className="edit-expert-inpaint-collapse-control">
-              {isInpaintCollapsed ? (
+            {isInpaintCollapsed ? (
+              <div className="edit-expert-inpaint-collapse-control">
                 <p className="edit-expert-inpaint-collapse-title">Tools</p>
-              ) : null}
-              <button
-                type="button"
-                className={`edit-expert-inpaint-collapse-btn ${collapsedToolsThemeClass}`}
-                aria-label={
-                  isInpaintCollapsed ? "Expand inpaint controls" : "Collapse inpaint controls"
-                }
-                aria-expanded={!isInpaintCollapsed}
-                aria-controls="edit-expert-inpaint-content"
-                onClick={handleInpaintCollapseToggle}
-              >
-                {isInpaintCollapsed ? (
+                <button
+                  type="button"
+                  className={`edit-expert-inpaint-collapse-btn ${collapsedToolsThemeClass}`}
+                  aria-label="Expand inpaint controls"
+                  aria-expanded={!isInpaintCollapsed}
+                  aria-controls="edit-expert-inpaint-content"
+                  onClick={handleInpaintCollapseToggle}
+                >
                   <CaretLeft size={20} weight="fill" data-testid="inpaint-collapse-icon-left" />
-                ) : (
-                  <CaretRight size={20} weight="fill" data-testid="inpaint-collapse-icon-dots" />
-                )}
-              </button>
-            </div>
+                </button>
+              </div>
+            ) : null}
             {!isInpaintCollapsed ? (
               <div
                 id="edit-expert-inpaint-content"
                 className={`edit-expert-inpaint-content ${isInpaintCollapsing ? "is-collapsing" : ""}`}
               >
                 <div className="edit-expert-inpaint-tool-rail" aria-label="Inpaint action tools">
-                  <p className="edit-expert-inpaint-tool-rail-title">Tools</p>
+                  <p className="edit-expert-inpaint-tool-rail-title">Select tool</p>
                   <div className="edit-expert-inpaint-tool-rail-buttons">
                     {inpaintRailTools.map((tool) => {
                       const Icon = tool.icon;
@@ -3188,7 +3209,7 @@ export function ExpertEditPanelView({
       <div className="edit-expert-bottom-row">
         <div className="edit-expert-prompt-shell">
           <div className="edit-expert-prompt-row">
-            <div className="edit-expert-prompt-input-shell">
+            <div className="edit-expert-prompt-input-shell" ref={promptInputShellRef}>
               <div
                 ref={promptHighlightRef}
                 className="edit-expert-prompt-highlight"

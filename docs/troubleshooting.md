@@ -51,6 +51,28 @@ Checklist:
 Mitigation:
 - Add `images.pexels.com` to trusted image hosts in `frontend/next.config.js` and restart dev server.
 
+## Style prompt appears weak on some models (especially Google/Nano Banana edit lanes)
+Symptoms:
+- Style is selected, but outputs mostly follow reference structure with limited style transfer.
+- Different model families show noticeably different style adherence for the same prompt + references.
+
+Checklist:
+- Confirm style prompt is actually selected and non-empty in the active Create/Edit workflow.
+- Confirm style append path is active:
+  - `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`
+  - appended line should be `Visual style reference: <style prompt>`.
+- Confirm visible prompt differences are not mistaken for submit prompt differences:
+  - display prompt intentionally does not include the appended style line.
+- Compare behavior across at least one non-Google image model and one Nano Banana family model with identical inputs.
+- Ensure prompt/reference constraints are not over-specifying geometry/identity in ways that suppress style transfer.
+
+Mitigation:
+- Rewrite style prompts with concrete visual directives (palette, lighting, texture, grade) instead of broad adjectives.
+- For edit-heavy/fidelity-heavy runs, add explicit scoping:
+  - `Treat style as visual treatment only; preserve identity and composition.`
+- If style append is present in payload and behavior is consistently weaker only on one model family, treat as expected model characteristic.
+- If style adherence regresses on a model family that previously performed well under unchanged setup, capture payload/output evidence and open a runtime regression investigation.
+
 ## Expert Edit `@img` prompt references fail or look incorrect
 Symptoms:
 - Clicking Generate with prompt tokens (`@img1..@img3`) shows warning/error and submit does not start.

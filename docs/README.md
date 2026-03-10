@@ -179,6 +179,8 @@ Start here for all repository documentation.
 - `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
 - `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
 - `docs/planning/evidence/ai-studio-expert-edit/README.md`
+- `docs/planning/evidence/style-adherence/README.md`
+- `docs/planning/evidence/style-adherence/style-adherence-run-template.md`
 - `docs/planning/evidence/unified-buildout/phase-13/README.md`
 - `docs/planning/evidence/unified-buildout/phase-13/research-checkpoints.md`
 - `docs/change_log.md`

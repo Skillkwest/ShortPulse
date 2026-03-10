@@ -1,7 +1,7 @@
 /**
  * Encapsulates lifecycle and synchronization effects for AI Studio state.
  */
-import { useCallback, useEffect, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import { aspectOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
@@ -18,6 +18,7 @@ import type { StudioMode, ToolId } from "../types";
 
 const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
+const EDIT_STARTUP_DEFAULT_ASPECT = "1:1";
 
 type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
 type ModelModalPosition = { top: number; left: number };
@@ -106,6 +107,7 @@ export const useAiStudioStateEffects = ({
   setModelModalPosition,
   hasPendingWorkflowRestore,
 }: UseAiStudioStateEffectsArgs) => {
+  const editStartupAspectInitializedRef = useRef(false);
   const setModelIfChanged = useCallback(
     (nextModel: string | null) => {
       if (model === nextModel) return;
@@ -135,6 +137,15 @@ export const useAiStudioStateEffects = ({
     }
     setAspect("9:16");
   }, [aspect, hasPendingWorkflowRestore, setAspect]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    if (!isEditWorkflow(selectedTool)) return;
+    if (editStartupAspectInitializedRef.current) return;
+    editStartupAspectInitializedRef.current = true;
+    if (aspect === EDIT_STARTUP_DEFAULT_ASPECT) return;
+    setAspect(EDIT_STARTUP_DEFAULT_ASPECT);
+  }, [aspect, hasPendingWorkflowRestore, selectedTool, setAspect]);
 
   useEffect(() => {
     if (!activeOutputPreviewUrl) {

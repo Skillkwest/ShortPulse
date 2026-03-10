@@ -98,4 +98,31 @@ describe("styleExtraction helpers", () => {
     expect(result.styleTitle).toBe("Cinematic Editorial Photography Dramatic Moody");
     expect(result.usage).toEqual({ inputTokens: 4, outputTokens: 5 });
   });
+
+  it("retries once when style extraction request times out and then succeeds", async () => {
+    vi.mocked(fetchWithAuth)
+      .mockRejectedValueOnce(new DOMException("Timed out", "AbortError"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          stylePrompt: "editorial portrait, cool highlights, soft diffusion",
+          styleTitle: "Cool Diffusion Editorial",
+        }),
+      } as Response);
+
+    const result = await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(result.stylePrompt).toBe("editorial portrait, cool highlights, soft diffusion");
+    expect(result.styleTitle).toBe("Cool Diffusion Editorial");
+  });
+
+  it("returns timeout guidance after retry budget is exhausted", async () => {
+    vi.mocked(fetchWithAuth).mockRejectedValue(new DOMException("Timed out", "AbortError"));
+
+    await expect(
+      postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg")
+    ).rejects.toThrow("Style extraction timed out. Please retry.");
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+  });
 });

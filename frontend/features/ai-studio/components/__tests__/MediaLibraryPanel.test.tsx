@@ -90,12 +90,21 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
   MediaLibraryMediaGrid: (props: {
     activeMedia: Array<{ id: string; filename: string }>;
     onSelectMediaFile: (row: { id: string; filename: string }) => void;
+    showRemoveAction?: boolean;
+    onRemoveMediaFromFolder?: (row: { id: string; filename: string }) => void;
   }) => (
     <div data-testid="mock-media-grid">
       {props.activeMedia.map((row) => (
-        <button key={row.id} type="button" onClick={() => props.onSelectMediaFile(row)}>
-          Select media {row.filename}
-        </button>
+        <React.Fragment key={row.id}>
+          <button type="button" onClick={() => props.onSelectMediaFile(row)}>
+            Select media {row.filename}
+          </button>
+          {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
+            <button type="button" onClick={() => props.onRemoveMediaFromFolder?.(row)}>
+              Remove media {row.filename}
+            </button>
+          ) : null}
+        </React.Fragment>
       ))}
     </div>
   ),
@@ -105,22 +114,43 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
   MediaLibraryPromptGrid: (props: {
     sortedPrompts: Array<{ id: string; title: string | null }>;
     onSelectPromptCard: (row: { id: string; title: string | null; prompt_text: string }) => void;
+    showRemoveAction?: boolean;
+    onRemovePromptFromFolder?: (row: {
+      id: string;
+      title: string | null;
+      prompt_text: string;
+    }) => void;
   }) => (
     <div data-testid="mock-prompt-grid">
       {props.sortedPrompts.map((row) => (
-        <button
-          key={row.id}
-          type="button"
-          onClick={() =>
-            props.onSelectPromptCard({
-              id: row.id,
-              title: row.title,
-              prompt_text: "Prompt text",
-            })
-          }
-        >
-          Select prompt {row.title || row.id}
-        </button>
+        <React.Fragment key={row.id}>
+          <button
+            type="button"
+            onClick={() =>
+              props.onSelectPromptCard({
+                id: row.id,
+                title: row.title,
+                prompt_text: "Prompt text",
+              })
+            }
+          >
+            Select prompt {row.title || row.id}
+          </button>
+          {props.showRemoveAction && props.onRemovePromptFromFolder ? (
+            <button
+              type="button"
+              onClick={() =>
+                props.onRemovePromptFromFolder?.({
+                  id: row.id,
+                  title: row.title,
+                  prompt_text: "Prompt text",
+                })
+              }
+            >
+              Remove prompt {row.title || row.id}
+            </button>
+          ) : null}
+        </React.Fragment>
       ))}
     </div>
   ),
@@ -149,6 +179,17 @@ describe("MediaLibraryPanel", () => {
           created_at: "2026-03-02T00:00:00.000Z",
           metadata: null,
           signedUrl: "https://cdn.example.com/ref-1.png",
+        },
+        {
+          id: "media-2",
+          filename: "clip-1.mp4",
+          storage_path: "user-1/uploads/clip-1.mp4",
+          preview_storage_path: "user-1/uploads/clip-1.mp4",
+          file_type: "video/mp4",
+          source: "upload",
+          created_at: "2026-03-01T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/clip-1.mp4",
         },
       ],
       nextCursor: null,
@@ -187,7 +228,7 @@ describe("MediaLibraryPanel", () => {
     deleteMediaFolderMock.mockResolvedValue(undefined);
   });
 
-  it("loads folders + media data and supports click-to-add", async () => {
+  it("loads folders + media data and keeps media click as selection-only", async () => {
     const onSelectMedia = vi.fn();
     const onSelectPrompt = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={onSelectPrompt} />);
@@ -201,14 +242,7 @@ describe("MediaLibraryPanel", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
-    await waitFor(() => {
-      expect(onSelectMedia).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "media-1",
-          filename: "ref-1.png",
-        })
-      );
-    });
+    expect(onSelectMedia).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Select prompt Prompt One" }));
     expect(onSelectPrompt).toHaveBeenCalledWith(
@@ -219,30 +253,64 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
-  it("assigns the picked item to a selected custom folder", async () => {
-    const onSelectMedia = vi.fn();
-    const onSelectPrompt = vi.fn();
-    render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={onSelectPrompt} />);
+  it("shows remove actions only in custom folders and unassigns dropped items", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select prompt Prompt One" }));
+    expect(
+      screen.queryByRole("button", { name: "Remove prompt Prompt One" })
+    ).not.toBeInTheDocument();
 
-    const assignButton = screen.getByRole("button", {
-      name: "Add Picked Item To Folder",
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
     });
-    fireEvent.click(assignButton);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove prompt Prompt One" }));
 
     await waitFor(() => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
         folderId: "folder-1",
-        action: "assign",
+        action: "unassign",
         mediaIds: [],
         promptIds: ["prompt-1"],
       });
     });
+  });
+
+  it("toggles prompts, images, and videos sections from subtitle rows in All Media", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Prompts (1)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Images (1)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Videos (1)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Prompts (1)" }));
+    expect(
+      screen.queryByRole("button", { name: "Select prompt Prompt One" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Images (1)" }));
+    expect(
+      screen.queryByRole("button", { name: "Select media ref-1.png" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Videos (1)" }));
+    expect(
+      screen.queryByRole("button", { name: "Select media clip-1.mp4" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Prompts (1)" }));
+    expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
   });
 
   it("creates a new folder button from the folder strip", async () => {
@@ -350,6 +418,62 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("button", { name: "Delete active folder" })).not.toBeInTheDocument();
   });
 
+  it("opens a right-click folder menu and starts rename from menu action", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.contextMenu(screen.getByRole("button", { name: "Campaign folder" }), {
+        clientX: 120,
+        clientY: 220,
+      });
+    });
+
+    expect(screen.getByRole("menu", { name: "Campaign folder actions" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Rename folder" }));
+    });
+
+    expect(screen.getByDisplayValue("Campaign")).toBeInTheDocument();
+    expect(screen.queryByRole("menu", { name: "Campaign folder actions" })).not.toBeInTheDocument();
+  });
+
+  it("deletes a custom folder from the right-click folder menu", async () => {
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.contextMenu(screen.getByRole("button", { name: "Campaign folder" }), {
+        clientX: 120,
+        clientY: 220,
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Delete folder" }));
+    });
+
+    await waitFor(() => {
+      expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-1");
+    });
+    expect(screen.queryByRole("button", { name: "Campaign folder" })).not.toBeInTheDocument();
+    const footer = container.querySelector(".media-library-panel-footer");
+    expect(footer?.textContent).toContain("All Media");
+  });
+
   it("shows folder tile drop highlight while a compatible drag is hovering", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -389,6 +513,78 @@ describe("MediaLibraryPanel", () => {
 
     fireEvent.dragLeave(folderTile, { dataTransfer: transfer });
     expect(folderTile.classList.contains("is-drop-hover")).toBe(false);
+  });
+
+  it("shows folder tile drop highlight when transfer data is unavailable during dragover", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const transfer = {
+      getData: () => "",
+      types: ["application/x-shortpulse-media-library-item"],
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+    expect(folderTile.classList.contains("is-drop-hover")).toBe(false);
+
+    fireEvent.dragOver(folderTile, { dataTransfer: transfer });
+    expect(folderTile.classList.contains("is-drop-hover")).toBe(true);
+  });
+
+  it("assigns dropped prompt references from All Media to a custom folder tile", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const payload = JSON.stringify({
+      kind: "libraryPrompt",
+      source: "mediaLibrary",
+      payload: {
+        id: "prompt-1",
+        promptText: "Prompt text",
+        originFolderId: "all_items",
+        title: "Prompt One",
+      },
+    });
+    const transfer = {
+      getData: (type: string) =>
+        type === "application/x-shortpulse-media-library-item"
+          ? payload
+          : type === "text/x-shortpulse-media-library-item"
+            ? payload
+            : "",
+      types: ["application/x-shortpulse-media-library-item"],
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+
+    fireEvent.drop(folderTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: [],
+        promptIds: ["prompt-1"],
+      });
+    });
   });
 
   it("resizes folders/content sections when dragging the horizontal divider", async () => {

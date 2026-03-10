@@ -18,6 +18,7 @@ import {
   type FolderDropFeedbackArgs,
   type FolderDropItemKind,
 } from "../logic/mediaLibraryFolderDropModel";
+import { getMediaLibraryDragTypes } from "../logic/mediaLibraryDragPayload";
 
 type ResolvedFolderDropItem =
   | { kind: "media"; id: string; sourceFolderId?: string | null }
@@ -44,6 +45,31 @@ type UseMediaLibraryFolderDropControllerResult = {
   handleFolderDragLeave: (folderId: string) => void;
   handleFolderDrop: (folderId: string, event: DragEvent<HTMLElement>) => Promise<void>;
 };
+
+const INTERNAL_REFERENCE_TRANSFER_HINT_TYPES = [
+  "text/reference-origin",
+  "text/reference-output-id",
+  "text/reference-id",
+  "text/reference-url",
+  "text/reference-media-id",
+  "text/reference-source-surface",
+] as const;
+
+const hasTransferType = (transfer: DataTransfer, type: string): boolean => {
+  const rawTypes = transfer.types as unknown;
+  if (!rawTypes) return false;
+  const typed = rawTypes as { contains?: (value: string) => boolean };
+  if (typeof typed.contains === "function") {
+    return typed.contains(type);
+  }
+  return Array.from(rawTypes as ArrayLike<string>).includes(type);
+};
+
+const hasMediaLibraryTransferHints = (transfer: DataTransfer): boolean =>
+  getMediaLibraryDragTypes().some((type) => hasTransferType(transfer, type));
+
+const hasInternalReferenceTransferHints = (transfer: DataTransfer): boolean =>
+  INTERNAL_REFERENCE_TRANSFER_HINT_TYPES.some((type) => hasTransferType(transfer, type));
 
 const buildFeedbackArgs = ({
   intentKind,
@@ -137,8 +163,10 @@ export const useMediaLibraryFolderDropController = ({
   const handleFolderDragOver = useCallback((folderId: string, event: DragEvent<HTMLElement>) => {
     const transfer = event.dataTransfer;
     if (!transfer) return;
-    const maybeLibraryPayload = readMediaLibraryDragPayload(transfer);
-    const maybeInternalPayload = extractInternalReferenceDragPayload(transfer);
+    const maybeLibraryPayload =
+      hasMediaLibraryTransferHints(transfer) || readMediaLibraryDragPayload(transfer);
+    const maybeInternalPayload =
+      hasInternalReferenceTransferHints(transfer) || extractInternalReferenceDragPayload(transfer);
     if (!maybeLibraryPayload && !maybeInternalPayload) return;
     event.preventDefault();
     event.stopPropagation();

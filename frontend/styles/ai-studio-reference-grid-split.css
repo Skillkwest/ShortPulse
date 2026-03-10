@@ -555,3 +555,16 @@
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
+.reference-styles-none-icon {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(212, 224, 238, 0.7);
+}
+
+.reference-styles-none-icon svg {
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+}

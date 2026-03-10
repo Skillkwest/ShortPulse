@@ -15,10 +15,14 @@ export type StyleExtractionResult = {
 };
 
 const STYLE_TITLE_FALLBACK = "Extracted Style";
+// Server extraction includes URL probing + upstream retries, so client timeout must exceed that budget.
+const STYLE_EXTRACTION_TIMEOUT_MS = 70000;
+const STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS = 2;
 const STYLE_EXTERNAL_FETCH_BLOCKED_MESSAGE =
   "This image source blocks browser access. Download the image and drop the file directly to analyze style.";
 const STYLE_NORMALIZE_FAILED_MESSAGE =
   "Unable to prepare image for style extraction. You can still enter the style prompt manually.";
+const STYLE_EXTRACTION_TIMEOUT_MESSAGE = "Style extraction timed out. Please retry.";
 
 const parseHostname = (value: string | undefined): string | null => {
   if (!value?.trim()) return null;
@@ -138,47 +142,55 @@ export const postExtractStyle = async (imageUrl: string): Promise<StyleExtractio
     throw new Error("Image URL is required for style extraction.");
   }
 
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 20000);
-  try {
-    const response = await fetchWithAuth("/api/ai/extract-style", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl }),
-      signal: controller.signal,
-      shortpulseLogScope: "generation",
-    });
+  for (let attempt = 1; attempt <= STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), STYLE_EXTRACTION_TIMEOUT_MS);
+    try {
+      const response = await fetchWithAuth("/api/ai/extract-style", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+        signal: controller.signal,
+        shortpulseLogScope: "generation",
+      });
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      const detail =
-        (typeof payload?.detail === "string" && payload.detail.trim()) ||
-        (typeof payload?.error === "string" && payload.error.trim()) ||
-        null;
-      throw new Error(detail ?? `Style extraction request failed (${response.status}).`);
-    }
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const detail =
+          (typeof payload?.detail === "string" && payload.detail.trim()) ||
+          (typeof payload?.error === "string" && payload.error.trim()) ||
+          null;
+        throw new Error(detail ?? `Style extraction request failed (${response.status}).`);
+      }
 
-    const data = await response.json();
-    const stylePrompt = typeof data?.stylePrompt === "string" ? data.stylePrompt.trim() : null;
-    if (!stylePrompt?.length) {
-      throw new Error("Style extraction response did not include a style prompt.");
-    }
-    const styleTitle = normalizeStyleTitle(data?.styleTitle, stylePrompt);
+      const data = await response.json();
+      const stylePrompt = typeof data?.stylePrompt === "string" ? data.stylePrompt.trim() : null;
+      if (!stylePrompt?.length) {
+        throw new Error("Style extraction response did not include a style prompt.");
+      }
+      const styleTitle = normalizeStyleTitle(data?.styleTitle, stylePrompt);
 
-    return {
-      stylePrompt,
-      styleTitle,
-      usage: data?.usage,
-    };
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("Style extraction timed out. Please retry.");
+      return {
+        stylePrompt,
+        styleTitle,
+        usage: data?.usage,
+      };
+    } catch (error) {
+      const timedOut = error instanceof DOMException && error.name === "AbortError";
+      if (timedOut && attempt < STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS) {
+        continue;
+      }
+      if (timedOut) {
+        throw new Error(STYLE_EXTRACTION_TIMEOUT_MESSAGE);
+      }
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Style extraction failed.");
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error("Style extraction failed.");
-  } finally {
-    window.clearTimeout(timeoutId);
   }
+
+  throw new Error(STYLE_EXTRACTION_TIMEOUT_MESSAGE);
 };

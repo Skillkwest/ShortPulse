@@ -18,6 +18,7 @@ import {
   cropImageDataUrlToSquareDataUrl,
   isDefaultCustomStyleName,
   isImageFileCandidate,
+  normalizeStylePromptFallbackText,
   normalizeStyleDetailsDraft,
   readFileAsDataUrl,
   reorderById,
@@ -33,7 +34,6 @@ import type {
 
 type UseStyleCreatorControllerParams = {
   styles: readonly ExpertEditStyleTile[];
-  onSelectStyle?: (styleId: string | null) => void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   onSaveStyleDetails?: (
     styleId: string,
@@ -84,7 +84,6 @@ const resolveTelemetryErrorClass = (
  */
 export const useStyleCreatorController = ({
   styles,
-  onSelectStyle,
   onDeleteStyle,
   onSaveStyleDetails,
 }: UseStyleCreatorControllerParams) => {
@@ -309,7 +308,7 @@ export const useStyleCreatorController = ({
         const { previewImageUrl, extractionSourceImageUrl, promptText } =
           await resolveDroppedStylePreview(transfer);
 
-        let extractedStylePrompt = promptText;
+        let extractedStylePrompt = normalizeStylePromptFallbackText(promptText);
         let extractedStyleTitle: string | null = null;
         let extractionOutcome: StyleExtractionOutcome = "fallback";
         let extractionSourceUrlKind: "data" | "url" | "unknown" = "unknown";
@@ -374,7 +373,6 @@ export const useStyleCreatorController = ({
           setStylesLibraryDropError("Unable to create this style right now.");
           return;
         }
-        onSelectStyle?.(customStyleId);
       } catch (error) {
         if (error instanceof Error && error.message === "missing-dropped-style-image") {
           setStylesLibraryDropError(
@@ -396,7 +394,7 @@ export const useStyleCreatorController = ({
         setCreateStyleFromDropSubmitting(false);
       }
     },
-    [createStyleFromDropSubmitting, onSaveStyleDetails, onSelectStyle, runStyleExtraction, styles]
+    [createStyleFromDropSubmitting, onSaveStyleDetails, runStyleExtraction, styles]
   );
 
   const handleStylesLibraryDragEnter = React.useCallback((event: React.DragEvent<HTMLElement>) => {
@@ -487,22 +485,13 @@ export const useStyleCreatorController = ({
     });
 
     if (saved) {
-      if (pendingStyleEdit.mode === "create") {
-        onSelectStyle?.(pendingStyleEdit.styleId);
-      }
       setPendingStyleEdit(null);
     } else {
       setLocalSaveError("Unable to save this style right now.");
     }
 
     setEditSubmitting(false);
-  }, [
-    editSubmitting,
-    onSaveStyleDetails,
-    onSelectStyle,
-    pendingStyleEdit,
-    stylePromptExtractionSubmitting,
-  ]);
+  }, [editSubmitting, onSaveStyleDetails, pendingStyleEdit, stylePromptExtractionSubmitting]);
 
   const openStyleEditModal = React.useCallback((style: ExpertEditStyleTile) => {
     const styleDisplayName = style.style?.trim() || style.title;
@@ -666,6 +655,5 @@ export const useStyleCreatorController = ({
     handleStyleDragEnd,
     applyStylePreviewFromTransfer,
     applyStylePreviewFile,
-    onSelectStyle,
   };
 };

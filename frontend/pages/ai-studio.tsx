@@ -1615,7 +1615,6 @@ export default function AiStudioPage() {
     onDeleteOutput,
     onDetailDownload,
     onDetailSavePrompt,
-    onOpenMediaLibrary,
   } = mapHookContractsToPageContentProps({
     panelProps,
     canvasProps: mainCanvasProps,
@@ -1623,6 +1622,11 @@ export default function AiStudioPage() {
     referenceGridProps: referenceGridHookProps,
     previewDetailProps,
   });
+  const handleOpenMediaLibraryPanelOnly = useCallback(() => {
+    handleCloseMediaLibrary();
+    setShowCreateTools(false);
+    setSelectedTool("media-library");
+  }, [handleCloseMediaLibrary, setSelectedTool, setShowCreateTools]);
 
   return (
     <>
@@ -1676,7 +1680,7 @@ export default function AiStudioPage() {
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
-        onOpenMediaLibrary={onOpenMediaLibrary}
+        onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
         modelModalState={{
           isOpen: isModelModalOpen,
           position: modelModalPosition,

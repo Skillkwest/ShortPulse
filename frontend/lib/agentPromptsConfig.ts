@@ -150,6 +150,8 @@ anime / manga
 3D render
 painting
 concept art
+handrawn
+cartoon
 
 Only extract descriptors that belong to the detected visual medium.
 
@@ -157,13 +159,53 @@ Do NOT mix descriptors from multiple mediums.
 
 --------------------------------------------------
 
-STEP 2 - EXTRACT STYLE CHARACTERISTICS
+STEP 2 - DEFINE STYLE THEMES
+
+Identify the core style theme of the image. This is the overarching style category that defines the visual approach.
+
+Examples:
+retro 8-bit 
+cyberpunk
+fantasy  
+solarpunk
+sci-fi concept art 
+sci-fi hard surface 
+steam punk 
+biomechanical 
+post-apocalyptic 
+space opera 
+beach 
+vaporwave 
+gothic 
+medieval 
+baroque 
+renaissance 
+film noir 
+dystopian 
+utopian
+World War II documentary
+Dark Fantasy
+Horror
+Comedy
+Romance
+Love
+Non-fiction
+
+It's very important to identify the specific theme, as this is a core part of the visual style and will guide the choice of style descriptors in other categories.
+Define this at the beginning of the style block, as it sets the foundation for the rest of the style characteristics.
+
+
+--------------------------------------------------
+
+STEP 3 - EXTRACT STYLE CHARACTERISTICS
 
 You may extract style descriptors from the following categories.
 
 LIGHTING STYLE
 
 Examples:
+foggy lighting
+atmospheric lighting
 dramatic lighting
 moody lighting
 soft lighting
@@ -194,6 +236,13 @@ portrait lens aesthetic
 wide aperture look
 telephoto compression
 soft focus
+chromatic aberration
+
+--------------------------------------------------
+
+COLOR PALETTE
+
+Analyze and extract 5-8 key colors to define a palette, along with overall palette characteristics.
 
 --------------------------------------------------
 
@@ -206,10 +255,6 @@ balanced dynamic range
 muted tonal palette
 rich contrast
 smooth tonal transitions
-
-Do NOT describe specific colors present in the image.
-
-Only describe the style of color processing.
 
 --------------------------------------------------
 
@@ -224,6 +269,40 @@ cel shading
 soft gradient shading
 3D cinematic rendering
 painterly brush texture
+cartoon style
+hand-drawn sketch style
+pen and ink style
+watercolor style
+cardboard cutout style
+woodcut style
+pixel art style
+hyperrealistic style
+productive illustration style
+flat design style
+isometric style
+line art style
+crosshatch style
+macro photography style
+street photography style
+documentary photography style
+fashion photography style
+portrait photography style
+landscape photography style
+architectural photography style
+aerial photography style
+underwater style
+astrophotography style
+food photography style
+product photography style
+vintage photography style
+impressionist 
+expressionist 
+art nouveau 
+minimalist 
+brutalist 
+abstract 
+surrealist 
+low-poly 
 
 --------------------------------------------------
 
@@ -238,6 +317,41 @@ deep contrast with preserved shadows
 polished illustration finish
 
 --------------------------------------------------
+
+MOOD / ATMOSPHERE
+
+Examples:
+ethereal atmosphere
+dreamy mood
+tense atmosphere
+melancholic mood
+whimsical atmosphere
+ominous mood
+serene atmosphere
+energetic mood
+Dark and gritty atmosphere
+Dark and moody atmosphere
+Light and airy atmosphere
+Warm and cozy atmosphere
+Cold and stark atmosphere
+Warm and vibrant atmosphere
+Cold and muted atmosphere
+Hot and deadly atmosphere
+Cold and clinical atmosphere
+Dark and foreboding atmosphere
+Bright and cheerful atmosphere
+Mysterious and enigmatic atmosphere
+Calm and peaceful atmosphere
+Tense and suspenseful atmosphere
+Romantic and passionate atmosphere
+Bleak and desolate atmosphere
+Hopeful and uplifting atmosphere
+Playful and whimsical atmosphere
+Gritty and raw atmosphere
+Elegant and sophisticated atmosphere
+Rough and rugged atmosphere
+Soft and delicate atmosphere
+Harsh and unforgiving atmosphere
 
 FORBIDDEN CONTENT
 

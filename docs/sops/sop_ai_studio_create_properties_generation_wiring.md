@@ -99,6 +99,36 @@ sequenceDiagram
 - Dispatched response (`request_id`) -> patch output as running, start polling, and call `ensureGenerationRecord`.
 - Submit-not-started/auth-timeout invariants fail fast and mark output failed with deterministic user error text.
 
+## Style prompt append semantics and adherence expectations
+1. Style behavior contract:
+- Selected style prompt is appended as plain text to the hidden submission prompt:
+  - `Visual style reference: <style prompt>`
+- Visible prompt shown to the user remains unchanged (`displayPromptOverride` path).
+- Source of truth:
+  - `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`
+  - `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
+2. Important implication:
+- Style is not currently submitted as a dedicated provider control field (for example, strength/weight/style id).
+- Adherence therefore depends on each model family's prompt-following behavior for appended instruction text.
+3. Model-family expectations (operational guidance):
+- Seedream edit/text-image families generally show stronger adherence to appended style guidance when the user prompt leaves room for style transfer.
+- Nano Banana family (including Google-backed edit lanes) can prioritize edit fidelity/reference structure over appended style text, which may appear as weaker style uptake in some scenes.
+- If prompt and references are highly specific/constraint-heavy, style influence naturally decreases across all families.
+4. QA rubric for style adherence checks:
+- Run at least three prompts per model family with the same references and style selection.
+- Compare:
+  - color palette transfer,
+  - lighting mood transfer,
+  - texture/render treatment transfer,
+  - preservation of intended geometry/identity.
+- Mark outcome as:
+  - `strong` (3+ dimensions transferred),
+  - `moderate` (2 dimensions transferred),
+  - `weak` (0-1 dimensions transferred).
+5. Escalation threshold:
+- If a model family repeatedly scores `weak` while style append is confirmed in submission payload, treat as expected model behavior unless a regression is observed versus prior baselines.
+- If the same model previously scored `strong/moderate` and drops to `weak` with unchanged setup, open a runtime regression investigation and capture payload + output evidence.
+
 ## Agent and control services wiring
 1. Client send path:
 - `useAiAgent.send` runs client pre-send safety precheck, builds request envelope, and posts `/api/ai/studio-agent`.

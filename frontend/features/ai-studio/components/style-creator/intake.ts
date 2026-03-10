@@ -14,6 +14,10 @@ import {
 import type { PendingStyleEditState, ResolvedDroppedStylePreview } from "./types";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 
+const IMAGE_FILENAME_TEXT_PATTERN =
+  /(?:^|[\\/])[^\\/\n]+\.(?:avif|bmp|gif|heic|heif|jpe?g|png|webp|tiff?)$/i;
+const CAMERA_FILENAME_STEM_PATTERN = /^(?:img|dsc|pxl|mvimg|screenshot)[-_ ]?\d[\w .:-]*$/i;
+
 /**
  * Returns true when a dropped file is a supported image candidate.
  */
@@ -207,6 +211,19 @@ export const isDefaultCustomStyleName = (value: string): boolean =>
   /^Custom Style \d+$/i.test(value.trim());
 
 /**
+ * Sanitizes drag-drop prompt fallback text used when extraction fails.
+ * Drops filename/path-like payloads so style prompts never default to image filenames.
+ */
+export const normalizeStylePromptFallbackText = (value: string | null | undefined): string => {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "";
+  if (/^file:\/\//i.test(trimmed)) return "";
+  if (IMAGE_FILENAME_TEXT_PATTERN.test(trimmed)) return "";
+  if (CAMERA_FILENAME_STEM_PATTERN.test(trimmed) && !/[,.]/.test(trimmed)) return "";
+  return trimmed;
+};
+
+/**
  * Resolves a drop payload into preview + extraction source URLs.
  */
 export const resolveDroppedStylePreview = async (
@@ -245,7 +262,7 @@ export const resolveDroppedStylePreview = async (
   return {
     previewImageUrl,
     extractionSourceImageUrl: preparedDroppedImageUrl,
-    promptText: dragPayload.promptText?.trim() ?? "",
+    promptText: normalizeStylePromptFallbackText(dragPayload.promptText),
   };
 };
 

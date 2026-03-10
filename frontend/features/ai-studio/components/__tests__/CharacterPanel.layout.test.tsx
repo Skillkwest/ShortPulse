@@ -3,7 +3,7 @@
  * Verifies embedded Character Manager region order and section presence.
  */
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CharacterPanel } from "../CharacterPanel";
 import {
@@ -117,12 +117,27 @@ vi.mock("../../../character-manager/hooks/useCharacterQuickSwapTipPreference", (
 }));
 
 describe("CharacterPanel layout", () => {
-  it("renders embedded Character Manager sections in stable layout order", () => {
+  it("defaults embedded character workflow to Manage tab and keeps create layout stable", () => {
     const { container } = render(<CharacterPanel beginnerMode />);
+    const workflowTablist = screen.getByRole("tablist", { name: "Character workflow mode" });
+    const workflowTabs = within(workflowTablist).getAllByRole("tab");
+
+    expect(workflowTabs[0]).toHaveTextContent("Manage Characters");
+    expect(workflowTabs[1]).toHaveTextContent("Character Profile");
+    expect(screen.getByRole("tab", { name: "Manage Characters" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByText("Characters Library")).toBeInTheDocument();
+    expect(screen.getByText("Create and manage character references.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Character Library" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "QuickSwap Deck" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
+
     const regions = Array.from(container.querySelectorAll("[data-layout-region]"))
       .map((node) => node.getAttribute("data-layout-region"))
       .filter((value): value is string => Boolean(value));
-
     expect(regions).toEqual(["quickswap", "sheet"]);
     expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();

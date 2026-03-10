@@ -3,7 +3,7 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
+import { CaretDown, FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
@@ -20,7 +20,6 @@ import {
   type MediaListCursor,
   type MediaListMediaKind,
 } from "../../media-library/logic/mediaListApi";
-import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
   hydrateMediaPreviewViaStorageDownload,
   resolveAndApplySignedPreviewUrlsByRows,
@@ -29,7 +28,6 @@ import {
 import {
   BUCKET,
   createMediaTabBooleanState,
-  formatDate,
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
   isVideoFile,
@@ -59,10 +57,12 @@ import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPrompt
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
 
-type LastPickedItem =
-  | { kind: "media"; row: MediaFileRow }
-  | { kind: "prompt"; row: PromptRow }
-  | null;
+type FolderContextMenuState = {
+  folderId: string;
+  folderName: string;
+  x: number;
+  y: number;
+};
 
 type MediaLibraryPanelProps = {
   onSelectMedia: (payload: {
@@ -87,6 +87,9 @@ type MediaLibraryPanelProps = {
 const MEDIA_PAGE_SIZE = 36;
 const PROMPT_PAGE_SIZE = 36;
 const ROOT_FOLDER_LABEL = "All Media";
+const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
+const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
+const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
 
 const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKind => {
   if (itemType === "images") return "images";
@@ -110,9 +113,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectPrompt,
   resolveInternalDropItem,
 }: MediaLibraryPanelProps) {
+  // Drag/drop is the only add-to-reference flow for media in this panel.
+  void onSelectMedia;
+
   const {
     folders,
-    customFolders,
     orderedFolders,
     activeFolderId,
     setActiveFolderId,
@@ -126,6 +131,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     startFolderRename,
     cancelFolderRename,
     commitFolderRename,
+    deleteFolder,
   } = useMediaLibraryFoldersState();
 
   const [itemType] = useState<MediaLibraryPanelItemType>("all");
@@ -140,13 +146,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [promptHasMore, setPromptHasMore] = useState(false);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
+  const [isPromptsSectionCollapsed, setPromptsSectionCollapsed] = useState(false);
+  const [isImagesSectionCollapsed, setImagesSectionCollapsed] = useState(false);
+  const [isVideosSectionCollapsed, setVideosSectionCollapsed] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [lastPickedItem, setLastPickedItem] = useState<LastPickedItem>(null);
-  const [assignTargetFolderId, setAssignTargetFolderId] = useState<string>("");
+  const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
 
   const signedUrlRetryRef = useRef<Record<string, number>>({});
   const signAttemptRef = useRef<Record<string, number>>({});
@@ -170,6 +178,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
   const visibleMediaIdsRef = useRef<Set<string>>(new Set());
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
+  const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [signPassNonce, setSignPassNonce] = useState(0);
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
@@ -192,6 +201,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [debouncedSearch]
   );
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
+  const visibleImageRows = useMemo(
+    () => mediaRows.filter((row) => !isVideoFile(row.file_type)),
+    [mediaRows]
+  );
+  const visibleVideoRows = useMemo(
+    () => mediaRows.filter((row) => isVideoFile(row.file_type)),
+    [mediaRows]
+  );
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
@@ -304,19 +321,38 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   useEffect(() => {
-    if (!customFolders.length) {
-      setAssignTargetFolderId("");
-      return;
-    }
-    setAssignTargetFolderId((previous) =>
-      customFolders.some((folder) => folder.id === previous) ? previous : customFolders[0].id
-    );
-  }, [customFolders]);
-
-  useEffect(() => {
     signAttemptRef.current = {};
     setOptimizerFallbackMediaIds(new Set());
   }, [activeFolderId, itemType, normalizedSearch]);
+
+  useEffect(() => {
+    if (!folderContextMenu) return;
+    const dismissContextMenu = () => {
+      setFolderContextMenu(null);
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        dismissContextMenu();
+        return;
+      }
+      if (folderContextMenuRef.current?.contains(target)) return;
+      dismissContextMenu();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        dismissContextMenu();
+      }
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", dismissContextMenu, true);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", dismissContextMenu, true);
+    };
+  }, [folderContextMenu]);
 
   const applySignedUrlsToMediaRows = useCallback(
     (_tab: MediaDataTab, signedById: Map<string, string>) => {
@@ -400,29 +436,28 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     []
   );
 
-  const { refreshSignedUrl, handleMediaPreviewError } =
-    useMediaPreviewRecoveryController<MediaFileRow>({
-      applySignedUrlsToTab: applySignedUrlsToMediaRows,
-      currentUserIdRef,
-      resolveSignedUrlsByMediaIds,
-      hydrateViaStorageDownload,
-      signStoragePath,
-      signedUrlRetryRef,
-      objectUrlByMediaIdRef,
-      resolveTabForRow: getMediaDataTabForRow,
-      beforeRetry: ({ row, failedUrl }) => {
-        if (!isNextImageOptimizerUrl(failedUrl)) return;
-        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
-        if (!sourceUrl) return;
-        applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
-        setOptimizerFallbackMediaIds((previous) => {
-          if (previous.has(row.id)) return previous;
-          const next = new Set(previous);
-          next.add(row.id);
-          return next;
-        });
-      },
-    });
+  const { handleMediaPreviewError } = useMediaPreviewRecoveryController<MediaFileRow>({
+    applySignedUrlsToTab: applySignedUrlsToMediaRows,
+    currentUserIdRef,
+    resolveSignedUrlsByMediaIds,
+    hydrateViaStorageDownload,
+    signStoragePath,
+    signedUrlRetryRef,
+    objectUrlByMediaIdRef,
+    resolveTabForRow: getMediaDataTabForRow,
+    beforeRetry: ({ row, failedUrl }) => {
+      if (!isNextImageOptimizerUrl(failedUrl)) return;
+      const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
+      if (!sourceUrl) return;
+      applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
+      setOptimizerFallbackMediaIds((previous) => {
+        if (previous.has(row.id)) return previous;
+        const next = new Set(previous);
+        next.add(row.id);
+        return next;
+      });
+    },
+  });
 
   useMediaPreviewSigningController({
     activeMediaTab,
@@ -616,7 +651,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     setMembershipMessage(null);
     setSelectedIds(new Set());
-    setLastPickedItem(null);
     if (shouldShowMedia) {
       void loadMediaPage({ reset: true });
     } else {
@@ -648,7 +682,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         next.add(prompt.id);
         return next;
       });
-      setLastPickedItem({ kind: "prompt", row: prompt });
       onSelectPrompt({
         id: prompt.id,
         promptText: prompt.prompt_text,
@@ -658,42 +691,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [onSelectPrompt]
   );
 
-  const handleSelectMediaFile = useCallback(
-    async (file: MediaFileRow) => {
-      const nextUrl =
-        (await resolveSignedSelectionUrl({
-          row: file,
-          currentUserId: currentUserIdRef.current,
-          signStoragePath,
-        })) ??
-        (await refreshSignedUrl(file)) ??
-        file.signedUrl;
-      if (!nextUrl) return;
-      const previewStoragePath = file.preview_storage_path ?? file.storage_path;
-      const fullStoragePath = file.storage_path;
-      const previewUrl = file.signedUrl ?? nextUrl;
-      const fullUrl = nextUrl;
-      setSelectedIds((previous) => {
-        const next = new Set(previous);
-        next.add(file.id);
-        return next;
-      });
-      setLastPickedItem({ kind: "media", row: file });
-      onSelectMedia({
-        id: file.id,
-        url: nextUrl,
-        fileType: isVideoFile(file.file_type) ? "video" : "image",
-        filename: file.filename,
-        promptText: resolveMediaMetadataPromptText(file.metadata),
-        source: file.source ?? "upload",
-        previewStoragePath,
-        fullStoragePath,
-        previewUrl,
-        fullUrl,
-      });
-    },
-    [onSelectMedia, refreshSignedUrl, signStoragePath]
-  );
+  const handleSelectMediaFile = useCallback((file: MediaFileRow) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      next.add(file.id);
+      return next;
+    });
+  }, []);
 
   const refreshActiveRows = useCallback(async () => {
     if (shouldShowMedia) {
@@ -704,59 +708,41 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     }
   }, [loadMediaPage, loadPromptPage, shouldShowMedia, shouldShowPrompts]);
 
-  const handleAssignLastPicked = useCallback(async () => {
-    if (!lastPickedItem) return;
-    if (!assignTargetFolderId) return;
-    setMembershipMessage(null);
-    setFolderError(null);
-    try {
-      await applyMediaFolderMembershipBatch({
-        folderId: assignTargetFolderId,
-        action: "assign",
-        mediaIds: lastPickedItem.kind === "media" ? [lastPickedItem.row.id] : [],
-        promptIds: lastPickedItem.kind === "prompt" ? [lastPickedItem.row.id] : [],
-      });
-      const targetFolderName =
-        customFolders.find((folder) => folder.id === assignTargetFolderId)?.name || "folder";
-      setMembershipMessage(`Added to ${targetFolderName}.`);
-      await refreshActiveRows();
-    } catch (membershipError) {
-      setFolderError(
-        membershipError instanceof Error
-          ? membershipError.message
-          : "Unable to update folder membership."
-      );
-    }
-  }, [assignTargetFolderId, customFolders, lastPickedItem, refreshActiveRows, setFolderError]);
-
-  const handleUnassignLastPicked = useCallback(async () => {
-    if (!lastPickedItem) return;
-    if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-    setMembershipMessage(null);
-    setFolderError(null);
-    try {
-      await applyMediaFolderMembershipBatch({
-        folderId: activeFolderId,
-        action: "unassign",
-        mediaIds: lastPickedItem.kind === "media" ? [lastPickedItem.row.id] : [],
-        promptIds: lastPickedItem.kind === "prompt" ? [lastPickedItem.row.id] : [],
-      });
-      setMembershipMessage("Removed from this folder.");
-      if (lastPickedItem.kind === "media") {
-        setMediaRows((previous) => previous.filter((row) => row.id !== lastPickedItem.row.id));
-      } else {
-        setPromptRows((previous) => previous.filter((row) => row.id !== lastPickedItem.row.id));
+  const handleRemoveItemFromActiveFolder = useCallback(
+    async (item: { kind: "media" | "prompt"; id: string }) => {
+      if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+      setMembershipMessage(null);
+      setFolderError(null);
+      try {
+        await applyMediaFolderMembershipBatch({
+          folderId: activeFolderId,
+          action: "unassign",
+          mediaIds: item.kind === "media" ? [item.id] : [],
+          promptIds: item.kind === "prompt" ? [item.id] : [],
+        });
+        setMembershipMessage("Removed from this folder.");
+        if (item.kind === "media") {
+          setMediaRows((previous) => previous.filter((row) => row.id !== item.id));
+        } else {
+          setPromptRows((previous) => previous.filter((row) => row.id !== item.id));
+        }
+        setSelectedIds((previous) => {
+          if (!previous.has(item.id)) return previous;
+          const next = new Set(previous);
+          next.delete(item.id);
+          return next;
+        });
+        await refreshActiveRows();
+      } catch (membershipError) {
+        setFolderError(
+          membershipError instanceof Error
+            ? membershipError.message
+            : "Unable to update folder membership."
+        );
       }
-      setLastPickedItem(null);
-      await refreshActiveRows();
-    } catch (membershipError) {
-      setFolderError(
-        membershipError instanceof Error
-          ? membershipError.message
-          : "Unable to update folder membership."
-      );
-    }
-  }, [activeFolderId, lastPickedItem, refreshActiveRows, setFolderError]);
+    },
+    [activeFolderId, refreshActiveRows, setFolderError]
+  );
 
   const foldersDropController = useMediaLibraryFolderDropController({
     folders,
@@ -834,19 +820,103 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     event.currentTarget.classList.remove("is-dragging");
   }, []);
 
+  const openFolderContextMenu = useCallback(
+    (
+      event: React.MouseEvent<HTMLElement>,
+      folder: { id: string; name: string },
+      isRoot: boolean
+    ) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isRoot) {
+        setFolderContextMenu(null);
+        return;
+      }
+      setActiveFolderId(folder.id);
+      const boundedX = Math.min(
+        event.clientX,
+        window.innerWidth - FOLDER_CONTEXT_MENU_WIDTH_PX - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
+      );
+      const boundedY = Math.min(
+        event.clientY,
+        window.innerHeight - FOLDER_CONTEXT_MENU_HEIGHT_PX - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
+      );
+      setFolderContextMenu({
+        folderId: folder.id,
+        folderName: folder.name,
+        x: Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, boundedX),
+        y: Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, boundedY),
+      });
+    },
+    [setActiveFolderId]
+  );
+
+  const handleContextRename = useCallback(() => {
+    if (!folderContextMenu) return;
+    startFolderRename(folderContextMenu.folderId, folderContextMenu.folderName);
+    setFolderContextMenu(null);
+  }, [folderContextMenu, startFolderRename]);
+
+  const handleContextDelete = useCallback(async () => {
+    if (!folderContextMenu) return;
+    const folderId = folderContextMenu.folderId;
+    setFolderContextMenu(null);
+    await deleteFolder(folderId);
+  }, [deleteFolder, folderContextMenu]);
+
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-  const canAssignPickedItem =
-    isRootFolderSelected && Boolean(lastPickedItem) && Boolean(assignTargetFolderId);
-  const canUnassignPickedItem = !isRootFolderSelected && Boolean(lastPickedItem);
+  const canShowFolderItemRemoveAction = !isRootFolderSelected;
+  const promptsSectionCollapsed = isRootFolderSelected && isPromptsSectionCollapsed;
+  const imagesSectionCollapsed = isRootFolderSelected && isImagesSectionCollapsed;
+  const videosSectionCollapsed = isRootFolderSelected && isVideosSectionCollapsed;
+
+  const renderMediaGrid = useCallback(
+    (rows: MediaFileRow[]) => (
+      <MediaLibraryMediaGrid
+        activeMedia={rows}
+        selectedIds={selectedIds}
+        optimizerFallbackMediaIds={optimizerFallbackMediaIds}
+        adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+        adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
+        scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
+        getMediaCardRef={getMediaCardRef}
+        onSelectMediaFile={(file) => {
+          void handleSelectMediaFile(file);
+        }}
+        onMediaDragStart={handleMediaCardDragStart}
+        onMediaDragEnd={handleCardDragEnd}
+        showRemoveAction={canShowFolderItemRemoveAction}
+        onRemoveMediaFromFolder={(file) => {
+          void handleRemoveItemFromActiveFolder({ kind: "media", id: file.id });
+        }}
+        onMediaPreviewError={handleMediaPreviewError}
+        onMediaPaint={() => undefined}
+        onSignedUrlLoaded={(id) => {
+          signedUrlRetryRef.current[id] = 0;
+        }}
+      />
+    ),
+    [
+      adaptivePreviewQualityEnabled,
+      canShowFolderItemRemoveAction,
+      getMediaCardRef,
+      handleCardDragEnd,
+      handleMediaCardDragStart,
+      handleMediaPreviewError,
+      handleRemoveItemFromActiveFolder,
+      handleSelectMediaFile,
+      mediaAdaptivePressure.previewPressureLevel,
+      optimizerFallbackMediaIds,
+      selectedIds,
+    ]
+  );
 
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
         <div>
           <p className="eyebrow">Media Library</p>
-          <p className="tiny subdued helper-text">
-            Drag references to the grid or click to add instantly.
-          </p>
+          <p className="tiny subdued helper-text">Drag references to the grid.</p>
         </div>
       </header>
 
@@ -886,6 +956,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                       foldersDropController.hoveredFolderId === folder.id ? "is-drop-hover" : ""
                     }`}
                     role="listitem"
+                    onContextMenu={(event) => openFolderContextMenu(event, folder, isRoot)}
                     onDragOver={(event) =>
                       foldersDropController.handleFolderDragOver(folder.id, event)
                     }
@@ -987,43 +1058,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         </div>
 
         <div className="media-library-panel-content-panel" style={foldersSplit.bottomSectionStyle}>
-          <div className="media-library-panel-membership-controls">
-            {canAssignPickedItem ? (
-              <>
-                <select
-                  className="media-library-panel-folder-select"
-                  value={assignTargetFolderId}
-                  onChange={(event) => setAssignTargetFolderId(event.target.value)}
-                >
-                  {customFolders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={() => {
-                    void handleAssignLastPicked();
-                  }}
-                >
-                  Add Picked Item To Folder
-                </button>
-              </>
-            ) : null}
-            {canUnassignPickedItem ? (
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => {
-                  void handleUnassignLastPicked();
-                }}
-              >
-                Remove Picked Item From Folder
-              </button>
-            ) : null}
-          </div>
           {membershipMessage ? <p className="tiny subdued">{membershipMessage}</p> : null}
 
           <div className="media-library-panel-body" ref={panelBodyRef}>
@@ -1032,46 +1066,173 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             {shouldShowPrompts ? (
               <section className="media-library-panel-section">
                 <div className="media-library-panel-section-head">
-                  <p className="tiny subdued">
-                    Prompts ({visiblePromptRows.length})
-                    {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-                  </p>
-                </div>
-                {promptLoading && visiblePromptRows.length === 0 ? (
-                  <p className="tiny subdued">Loading prompts…</p>
-                ) : null}
-                {!promptLoading && visiblePromptRows.length === 0 ? (
-                  <p className="tiny subdued">No prompts found for this folder.</p>
-                ) : null}
-                {visiblePromptRows.length > 0 ? (
-                  <MediaLibraryPromptGrid
-                    prompts={visiblePromptRows}
-                    sortedPrompts={visiblePromptRows}
-                    selectedIds={selectedIds}
-                    onSelectPromptCard={handleSelectPromptCard}
-                    onPromptDragStart={handlePromptCardDragStart}
-                    onPromptDragEnd={handleCardDragEnd}
-                    variant="reference-card"
-                  />
-                ) : null}
-                {promptHasMore ? (
-                  <div className="media-load-more">
+                  {isRootFolderSelected ? (
                     <button
                       type="button"
-                      className="btn-secondary"
+                      className={`media-library-panel-section-toggle${
+                        promptsSectionCollapsed ? " is-collapsed" : ""
+                      }`}
+                      aria-expanded={!promptsSectionCollapsed}
+                      aria-controls="media-library-panel-prompts-section"
                       onClick={() => {
-                        void loadPromptPage({ reset: false });
+                        setPromptsSectionCollapsed((previous) => !previous);
                       }}
-                      disabled={promptLoading}
                     >
-                      {promptLoading ? "Loading more..." : "Load more prompts"}
+                      <span className="tiny subdued">
+                        Prompts ({visiblePromptRows.length})
+                        {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+                      </span>
+                      <CaretDown
+                        size={14}
+                        weight="bold"
+                        aria-hidden
+                        className="media-library-panel-section-toggle-icon"
+                      />
                     </button>
+                  ) : (
+                    <p className="tiny subdued">
+                      Prompts ({visiblePromptRows.length})
+                      {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+                    </p>
+                  )}
+                </div>
+                {!promptsSectionCollapsed && promptLoading && visiblePromptRows.length === 0 ? (
+                  <p className="tiny subdued">Loading prompts…</p>
+                ) : null}
+                {!promptsSectionCollapsed && !promptLoading && visiblePromptRows.length === 0 ? (
+                  <p className="tiny subdued">No prompts found for this folder.</p>
+                ) : null}
+                {!promptsSectionCollapsed ? (
+                  <div id="media-library-panel-prompts-section">
+                    {visiblePromptRows.length > 0 ? (
+                      <MediaLibraryPromptGrid
+                        prompts={visiblePromptRows}
+                        sortedPrompts={visiblePromptRows}
+                        selectedIds={selectedIds}
+                        onSelectPromptCard={handleSelectPromptCard}
+                        onPromptDragStart={handlePromptCardDragStart}
+                        onPromptDragEnd={handleCardDragEnd}
+                        showRemoveAction={canShowFolderItemRemoveAction}
+                        onRemovePromptFromFolder={(prompt) => {
+                          void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
+                        }}
+                        variant="reference-card"
+                      />
+                    ) : null}
+                    {promptHasMore ? (
+                      <div className="media-load-more">
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => {
+                            void loadPromptPage({ reset: false });
+                          }}
+                          disabled={promptLoading}
+                        >
+                          {promptLoading ? "Loading more..." : "Load more prompts"}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </section>
             ) : null}
 
-            {shouldShowMedia ? (
+            {shouldShowMedia && isRootFolderSelected ? (
+              <>
+                <section className="media-library-panel-section">
+                  <div className="media-library-panel-section-head">
+                    <button
+                      type="button"
+                      className={`media-library-panel-section-toggle${
+                        imagesSectionCollapsed ? " is-collapsed" : ""
+                      }`}
+                      aria-expanded={!imagesSectionCollapsed}
+                      aria-controls="media-library-panel-images-section"
+                      onClick={() => {
+                        setImagesSectionCollapsed((previous) => !previous);
+                      }}
+                    >
+                      <span className="tiny subdued">
+                        Images ({visibleImageRows.length})
+                        {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                      </span>
+                      <CaretDown
+                        size={14}
+                        weight="bold"
+                        aria-hidden
+                        className="media-library-panel-section-toggle-icon"
+                      />
+                    </button>
+                  </div>
+                  {!imagesSectionCollapsed && mediaLoading && mediaRows.length === 0 ? (
+                    <p className="tiny subdued">Loading images…</p>
+                  ) : null}
+                  {!imagesSectionCollapsed && !mediaLoading && visibleImageRows.length === 0 ? (
+                    <p className="tiny subdued">No images found for this folder.</p>
+                  ) : null}
+                  {!imagesSectionCollapsed ? (
+                    <div id="media-library-panel-images-section">
+                      {visibleImageRows.length > 0 ? renderMediaGrid(visibleImageRows) : null}
+                    </div>
+                  ) : null}
+                </section>
+
+                <section className="media-library-panel-section">
+                  <div className="media-library-panel-section-head">
+                    <button
+                      type="button"
+                      className={`media-library-panel-section-toggle${
+                        videosSectionCollapsed ? " is-collapsed" : ""
+                      }`}
+                      aria-expanded={!videosSectionCollapsed}
+                      aria-controls="media-library-panel-videos-section"
+                      onClick={() => {
+                        setVideosSectionCollapsed((previous) => !previous);
+                      }}
+                    >
+                      <span className="tiny subdued">
+                        Videos ({visibleVideoRows.length})
+                        {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                      </span>
+                      <CaretDown
+                        size={14}
+                        weight="bold"
+                        aria-hidden
+                        className="media-library-panel-section-toggle-icon"
+                      />
+                    </button>
+                  </div>
+                  {!videosSectionCollapsed && mediaLoading && mediaRows.length === 0 ? (
+                    <p className="tiny subdued">Loading videos…</p>
+                  ) : null}
+                  {!videosSectionCollapsed && !mediaLoading && visibleVideoRows.length === 0 ? (
+                    <p className="tiny subdued">No videos found for this folder.</p>
+                  ) : null}
+                  {!videosSectionCollapsed ? (
+                    <div id="media-library-panel-videos-section">
+                      {visibleVideoRows.length > 0 ? renderMediaGrid(visibleVideoRows) : null}
+                      {mediaHasMore ? (
+                        <div className="media-load-more">
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              void loadMediaPage({ reset: false });
+                            }}
+                            disabled={mediaLoading}
+                          >
+                            {mediaLoading ? "Loading more..." : "Load more media"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </section>
+              </>
+            ) : null}
+
+            {shouldShowMedia && !isRootFolderSelected ? (
               <section className="media-library-panel-section">
                 <div className="media-library-panel-section-head">
                   <p className="tiny subdued">
@@ -1085,62 +1246,66 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 {!mediaLoading && mediaRows.length === 0 ? (
                   <p className="tiny subdued">No media found for this folder.</p>
                 ) : null}
-                {mediaRows.length > 0 ? (
-                  <MediaLibraryMediaGrid
-                    activeMedia={mediaRows}
-                    selectedIds={selectedIds}
-                    optimizerFallbackMediaIds={optimizerFallbackMediaIds}
-                    adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
-                    adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
-                    scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
-                    getMediaCardRef={getMediaCardRef}
-                    onSelectMediaFile={(file) => {
-                      void handleSelectMediaFile(file);
-                    }}
-                    onMediaDragStart={handleMediaCardDragStart}
-                    onMediaDragEnd={handleCardDragEnd}
-                    onMediaPreviewError={handleMediaPreviewError}
-                    onMediaPaint={() => undefined}
-                    onSignedUrlLoaded={(id) => {
-                      signedUrlRetryRef.current[id] = 0;
-                    }}
-                  />
-                ) : null}
-                {mediaHasMore ? (
-                  <div className="media-load-more">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => {
-                        void loadMediaPage({ reset: false });
-                      }}
-                      disabled={mediaLoading}
-                    >
-                      {mediaLoading ? "Loading more..." : "Load more media"}
-                    </button>
-                  </div>
-                ) : null}
+                <div id="media-library-panel-media-section">
+                  {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
+                  {mediaHasMore ? (
+                    <div className="media-load-more">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => {
+                          void loadMediaPage({ reset: false });
+                        }}
+                        disabled={mediaLoading}
+                      >
+                        {mediaLoading ? "Loading more..." : "Load more media"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </section>
             ) : null}
           </div>
 
           <footer className="media-library-panel-footer">
             <p className="tiny subdued">
-              Active folder:{" "}
               {orderedFolders.find((folder) => folder.id === activeFolderId)?.name ||
                 ROOT_FOLDER_LABEL}
             </p>
-            {lastPickedItem ? (
-              <p className="tiny subdued">
-                Picked:{" "}
-                {lastPickedItem.kind === "media"
-                  ? lastPickedItem.row.filename
-                  : lastPickedItem.row.title || formatDate(lastPickedItem.row.created_at)}
-              </p>
-            ) : null}
           </footer>
         </div>
       </div>
+      {folderContextMenu ? (
+        <div
+          ref={folderContextMenuRef}
+          className="media-library-panel-folder-context-menu"
+          role="menu"
+          aria-label={`${folderContextMenu.folderName} folder actions`}
+          style={{
+            top: `${folderContextMenu.y}px`,
+            left: `${folderContextMenu.x}px`,
+          }}
+        >
+          <button
+            type="button"
+            className="media-library-panel-folder-context-menu-item"
+            role="menuitem"
+            onClick={handleContextRename}
+          >
+            Rename folder
+          </button>
+          <button
+            type="button"
+            className="media-library-panel-folder-context-menu-item is-destructive"
+            role="menuitem"
+            onClick={() => {
+              void handleContextDelete();
+            }}
+          >
+            Delete folder
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 });

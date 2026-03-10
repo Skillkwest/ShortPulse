@@ -155,32 +155,34 @@ function AiStudioToolbarComponent({
                   ? isEditSelected
                   : selectedTool === tool.id;
           return (
-            <button
-              key={tool.id}
-              type="button"
-              className={`toolbar-item ${isActive ? "is-active" : ""}`}
-              data-tool-id={tool.id}
-              onClick={() => {
-                const isToggleablePrimary =
-                  tool.id === "video" || tool.id === "edit" || tool.id === "canvas";
-                if (isToggleablePrimary && isActive) {
+            <React.Fragment key={tool.id}>
+              {tool.id === "canvas" ? <div className="toolbar-divider" aria-hidden="true" /> : null}
+              <button
+                type="button"
+                className={`toolbar-item ${isActive ? "is-active" : ""}`}
+                data-tool-id={tool.id}
+                onClick={() => {
+                  const isToggleablePrimary =
+                    tool.id === "video" || tool.id === "edit" || tool.id === "canvas";
+                  if (isToggleablePrimary && isActive) {
+                    onToggleCreateTools(false);
+                    onSelectTool(null);
+                    return;
+                  }
                   onToggleCreateTools(false);
-                  onSelectTool(null);
-                  return;
-                }
-                onToggleCreateTools(false);
-                onSelectTool(tool.id);
-              }}
-            >
-              {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
-              <div className="toolbar-copy">
-                <span className="toolbar-label">{tool.label}</span>
-              </div>
-            </button>
+                  onSelectTool(tool.id);
+                }}
+              >
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                <div className="toolbar-copy">
+                  <span className="toolbar-label">{tool.label}</span>
+                </div>
+              </button>
+            </React.Fragment>
           );
         })}
         <div className="toolbar-divider" aria-hidden="true" />
-        <div className="toolbar-lower">
+        <div className="toolbar-lower toolbar-libraries">
           <p className="toolbar-section-label">Libraries</p>
           {librariesToolList.map((tool) => {
             const IconComponent = toolIcons[tool.id];
@@ -219,6 +221,7 @@ function AiStudioToolbarComponent({
             );
           })}
         </div>
+        <div className="toolbar-divider" aria-hidden="true" />
         <div className="toolbar-lower">
           <p className="toolbar-section-label">Shortcuts</p>
           {shortcutsToolList.map((tool) => {

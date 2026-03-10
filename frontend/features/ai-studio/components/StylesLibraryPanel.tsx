@@ -3,16 +3,26 @@
  * Presentational surface wired to the style-creator controller.
  */
 import React from "react";
-import { X } from "phosphor-react";
+import { Prohibit, X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
 import { resolveStylePreviewBackgroundImage } from "./edit/expertEditStyles";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
 
+const NONE_STYLE_ID = "__none_style__";
+const NONE_STYLE_TILE: ExpertEditStyleTile = {
+  id: NONE_STYLE_ID,
+  title: "None",
+  style: "None",
+  referenceImageName: "None",
+  stylePrompt: "",
+  previewUrl: null,
+  placeholder: false,
+};
+
 export type StylesLibraryPanelProps = {
   styles: readonly ExpertEditStyleTile[];
   selectedStyleId: string | null;
-  onSelectStyle?: (styleId: string | null) => void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   deleteError?: string | null;
   onSaveStyleDetails?: (
@@ -25,7 +35,6 @@ export type StylesLibraryPanelProps = {
 export function StylesLibraryPanel({
   styles,
   selectedStyleId,
-  onSelectStyle,
   onDeleteStyle,
   deleteError = null,
   onSaveStyleDetails,
@@ -70,13 +79,15 @@ export function StylesLibraryPanel({
     handleStyleDragEnd,
     applyStylePreviewFromTransfer,
     applyStylePreviewFile,
-    onSelectStyle: handleSelectStyle,
   } = useStyleCreatorController({
     styles,
-    onSelectStyle,
     onDeleteStyle,
     onSaveStyleDetails,
   });
+  const stylesWithNoneFirst = React.useMemo(
+    () => [NONE_STYLE_TILE, ...renderedStyles],
+    [renderedStyles]
+  );
 
   return (
     <section
@@ -109,8 +120,11 @@ export function StylesLibraryPanel({
         }`.trim()}
       >
         <div className="styles-library-grid" role="list" aria-label="Styles library tiles">
-          {renderedStyles.map((style) => {
-            const isSelected = !style.placeholder && selectedStyleId === style.id;
+          {stylesWithNoneFirst.map((style) => {
+            const isNoneStyle = style.id === NONE_STYLE_ID;
+            const isSelected = isNoneStyle
+              ? selectedStyleId == null
+              : !style.placeholder && selectedStyleId === style.id;
             return (
               <article
                 key={style.id}
@@ -120,13 +134,17 @@ export function StylesLibraryPanel({
                 } ${dropTargetStyleId === style.id ? "is-drop-target" : ""} ${
                   style.placeholder ? "is-placeholder" : ""
                 }`.trim()}
-                draggable
-                onDragStart={(event) => handleStyleDragStart(style.id, event)}
-                onDragOver={(event) => handleStyleDragOver(style.id, event)}
-                onDrop={(event) => handleStyleDrop(style.id, event)}
+                draggable={!isNoneStyle}
+                onDragStart={
+                  isNoneStyle ? undefined : (event) => handleStyleDragStart(style.id, event)
+                }
+                onDragOver={
+                  isNoneStyle ? undefined : (event) => handleStyleDragOver(style.id, event)
+                }
+                onDrop={isNoneStyle ? undefined : (event) => handleStyleDrop(style.id, event)}
                 onDragEnd={handleStyleDragEnd}
               >
-                {!style.placeholder ? (
+                {!style.placeholder && !isNoneStyle ? (
                   <button
                     type="button"
                     className="styles-library-tile-delete"
@@ -147,7 +165,7 @@ export function StylesLibraryPanel({
                   disabled={style.placeholder}
                   onClick={() => {
                     if (style.placeholder) return;
-                    handleSelectStyle?.(style.id);
+                    if (isNoneStyle) return;
                     openStyleEditModal(style);
                   }}
                 >
@@ -165,6 +183,10 @@ export function StylesLibraryPanel({
                   >
                     {style.placeholder ? (
                       <span className="styles-library-tile-coming-soon">Coming soon</span>
+                    ) : isNoneStyle ? (
+                      <span className="styles-library-none-icon" aria-hidden="true">
+                        <Prohibit size={34} weight="duotone" />
+                      </span>
                     ) : null}
                   </span>
                 </button>

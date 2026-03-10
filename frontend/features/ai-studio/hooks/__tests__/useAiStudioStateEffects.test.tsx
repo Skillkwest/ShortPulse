@@ -171,4 +171,21 @@ describe("useAiStudioStateEffects", () => {
       expect(setModel).toHaveBeenCalledWith("fal-ai/bytedance/seedream/v4.5/edit");
     });
   });
+
+  it("forces square aspect on first edit workflow activation", async () => {
+    const setAspect = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          aspect: "9:16",
+          selectedTool: "edit",
+          setAspect,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setAspect).toHaveBeenCalledWith("1:1");
+    });
+  });
 });

@@ -1778,7 +1778,7 @@ describe("CharacterManagerShell behavior", () => {
     ).toBeInTheDocument();
     expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
     expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-      /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck\./i
+      /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck into the Character References\./i
     );
     expect(
       screen.getByText("Tip: Character description will be used as part of consistency generation.")
@@ -1822,7 +1822,7 @@ describe("CharacterManagerShell behavior", () => {
       ).toBeInTheDocument();
       expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
       expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-        /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck\./i
+        /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck into the Character References\./i
       );
       expect(
         screen.getByText(

@@ -41,6 +41,18 @@ body.character-manager-body {
   padding: 0;
 }
 
+.character-manager-page--embedded .character-library-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+}
+
+.character-manager-page--embedded .character-library-panel-header .eyebrow,
+.character-manager-page--embedded .character-library-panel-header .helper-text {
+  margin: 0;
+}
+
 .character-manager-page--embedded .character-mode-row {
   flex-wrap: wrap;
 }
@@ -151,6 +163,23 @@ body.character-manager-body {
 .character-manager-page--embedded .character-description-helper {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.character-manager-page--embedded .character-sheet-preset-panel {
+  padding-top: 10px;
+}
+
+.character-manager-page--embedded .character-sheet-description-card {
+  margin-bottom: 16px;
+  gap: 10px;
+}
+
+.character-manager-page--embedded .character-description-footer-row {
+  margin-top: 0;
+}
+
+.character-manager-page--embedded .character-sheet-references-title-row {
+  margin: 4px 0 10px;
 }
 
 .character-manager-page--embedded .character-character-sheet-card {

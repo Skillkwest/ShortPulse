@@ -89,7 +89,7 @@ describe("AiStudioToolbar", () => {
     expect(onSelectTool).toHaveBeenCalledWith(expected);
   });
 
-  it("shows Media Library as the first Libraries button with secondary styling", () => {
+  it("shows Media as the first Libraries button with secondary styling", () => {
     render(
       <AiStudioToolbar
         selectedTool={null}
@@ -105,13 +105,13 @@ describe("AiStudioToolbar", () => {
     expect(librariesSection).not.toBeNull();
     const libraryButtons = within(librariesSection as HTMLElement).getAllByRole("button");
     expect(libraryButtons.map((button) => button.textContent?.trim())).toEqual([
-      "Media Library",
+      "Media",
       "Characters",
       "Presets",
       "Styles",
     ]);
     expect(
-      within(librariesSection as HTMLElement).getByRole("button", { name: "Media Library" })
+      within(librariesSection as HTMLElement).getByRole("button", { name: "Media" })
     ).toHaveClass("toolbar-item-secondary");
   });
 
@@ -133,7 +133,7 @@ describe("AiStudioToolbar", () => {
     expect(shortcutButtons.map((button) => button.textContent?.trim())).toEqual(["Templates"]);
   });
 
-  it("routes Media Library to tool selection and closes create tools", () => {
+  it("routes Media to tool selection and closes create tools", () => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
 
@@ -148,7 +148,7 @@ describe("AiStudioToolbar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Media Library" }));
+    fireEvent.click(screen.getByRole("button", { name: "Media" }));
 
     expect(onToggleCreateTools).toHaveBeenCalledWith(false);
     expect(onSelectTool).toHaveBeenCalledWith("media-library");

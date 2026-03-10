@@ -197,10 +197,12 @@ describe("ReferenceGrid curated split", () => {
     vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_CURATED_SPLIT", "false");
     vi.resetModules();
     const { ReferenceGrid: ReloadedReferenceGrid } = await import("../ReferenceGrid");
+    const onOpenMediaLibrary = vi.fn();
 
     const { container } = render(
       <ReloadedReferenceGrid
         {...createProps({
+          onOpenMediaLibrary,
           railCanvasProps: createRailCanvasProps(),
           panelVisibility: {
             canvas: true,
@@ -236,9 +238,12 @@ describe("ReferenceGrid curated split", () => {
     expect(
       within(allRefsSection as HTMLElement).getByRole("button", { name: /add files/i })
     ).toBeInTheDocument();
-    expect(
-      within(allRefsSection as HTMLElement).queryByRole("button", { name: /media library/i })
-    ).not.toBeInTheDocument();
+    const mediaLibraryButton = within(allRefsSection as HTMLElement).getByRole("button", {
+      name: /media library/i,
+    });
+    expect(mediaLibraryButton).toBeInTheDocument();
+    fireEvent.click(mediaLibraryButton);
+    expect(onOpenMediaLibrary).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the primary pending output on spinner visuals after timeout fallback kicks in", () => {
@@ -1871,14 +1876,16 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
+    expect(getByText("None")).toBeInTheDocument();
     expect(getByText("Photorealistic")).toBeInTheDocument();
     expect(getByText("Cinematic")).toBeInTheDocument();
     expect(getByText("Cell phone snapshot")).toBeInTheDocument();
     expect(getByText("Anime")).toBeInTheDocument();
 
     const tiles = getAllByRole("button", { name: /style tile:/i });
-    expect(tiles).toHaveLength(EXPERT_EDIT_STYLE_CATALOG.length);
-    expect(tiles).toHaveLength(4);
+    expect(tiles[0]).toHaveAccessibleName("Style tile: None");
+    expect(tiles).toHaveLength(EXPERT_EDIT_STYLE_CATALOG.length + 1);
+    expect(tiles).toHaveLength(5);
     expect(queryByRole("button", { name: /\(coming soon\)/i })).toBeNull();
     tiles.forEach((tile) => {
       expect(tile).toBeEnabled();
@@ -1901,6 +1908,10 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
+    expect(getByRole("button", { name: /style tile: none$/i })).toHaveClass("is-selected");
+    fireEvent.click(getByRole("button", { name: /style tile: none$/i }));
+    expect(onSelectStyle).toHaveBeenCalledWith(null);
+
     fireEvent.click(getByRole("button", { name: /style tile: cinematic$/i }));
     expect(onSelectStyle).toHaveBeenCalledWith("cinematic");
 
@@ -1917,6 +1928,7 @@ describe("ReferenceGrid curated split", () => {
         })}
       />
     );
+    expect(getByRole("button", { name: /style tile: none$/i })).not.toHaveClass("is-selected");
     expect(getByRole("button", { name: /style tile: cinematic$/i })).toHaveClass("is-selected");
   });
 

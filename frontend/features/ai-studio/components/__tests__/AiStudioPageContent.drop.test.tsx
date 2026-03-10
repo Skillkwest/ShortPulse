@@ -136,8 +136,8 @@ vi.mock("../StylesLibraryPanel", () => ({
   }) => (
     <div data-testid="styles-library-panel">
       <div data-testid="styles-library-selected-style">{props.selectedStyleId ?? ""}</div>
-      <button type="button" onClick={() => props.onSelectStyle?.("cinematic")}>
-        Select cinematic style in library
+      <button type="button" onClick={() => props.onSelectStyle?.("anime")}>
+        Select anime style in library
       </button>
     </div>
   ),
@@ -712,6 +712,26 @@ describe("AiStudioPageContent right column drop router", () => {
       />
     );
     expect(screen.getByTestId("create-selected-style")).toHaveTextContent("cinematic");
+  });
+
+  it("does not let styles-library clicks change workflow style selection", () => {
+    const baseProps = createProps({
+      selectedTool: "edit",
+      propertiesEditExpert: {
+        expertEditEligible: true,
+      } as AiStudioPageContentProps["propertiesEditExpert"],
+    });
+    const { rerender } = render(<AiStudioPageContent {...baseProps} />);
+
+    fireEvent.click(
+      within(screen.getByTestId("expert-edit-properties")).getByRole("button", { name: "Styles" })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Select cinematic style" }));
+    expect(screen.getByTestId("expert-edit-selected-style")).toHaveTextContent("cinematic");
+
+    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "styles" })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Select anime style in library" }));
+    expect(screen.getByTestId("styles-library-selected-style")).toHaveTextContent("cinematic");
   });
 
   it("creates a text card when text is dropped on the right column shell", () => {

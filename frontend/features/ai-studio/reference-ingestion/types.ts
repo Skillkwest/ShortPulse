@@ -31,6 +31,7 @@ export type ReferenceIngestionInput =
         id: string;
         url: string;
         fileType: "image" | "video";
+        originFolderId?: string | null;
         filename?: string | null;
         promptText?: string | null;
         source?: string | null;
@@ -46,6 +47,7 @@ export type ReferenceIngestionInput =
       payload: {
         id: string;
         promptText: string;
+        originFolderId?: string | null;
         title?: string | null;
       };
     };

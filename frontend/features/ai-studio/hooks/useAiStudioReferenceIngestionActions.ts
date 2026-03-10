@@ -29,6 +29,7 @@ type UseAiStudioReferenceIngestionActionsResult = {
     id: string;
     url: string;
     fileType: "image" | "video";
+    originFolderId?: string | null;
     filename?: string | null;
     promptText?: string | null;
     source?: string | null;
@@ -40,6 +41,7 @@ type UseAiStudioReferenceIngestionActionsResult = {
   addLibraryPromptReference: (payload: {
     id: string;
     promptText: string;
+    originFolderId?: string | null;
     title?: string | null;
   }) => void;
   addOutputsFromFiles: (files: FileList, source?: "filePicker" | "drop") => Promise<void>;
@@ -132,6 +134,7 @@ export const useAiStudioReferenceIngestionActions = ({
       id: string;
       url: string;
       fileType: "image" | "video";
+      originFolderId?: string | null;
       filename?: string | null;
       promptText?: string | null;
       source?: string | null;
@@ -161,7 +164,12 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const addLibraryPromptReference = useCallback(
-    (payload: { id: string; promptText: string; title?: string | null }) => {
+    (payload: {
+      id: string;
+      promptText: string;
+      originFolderId?: string | null;
+      title?: string | null;
+    }) => {
       const result = buildStudioOutputsFromReferenceInputSync(
         {
           kind: "libraryPrompt",

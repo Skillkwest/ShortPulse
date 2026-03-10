@@ -13,30 +13,42 @@ vi.mock("../api/supabaseAdmin", () => ({
 }));
 
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
+const SOURCE_FOLDER_ID = "2d6fc803-2289-47a9-9a07-063ebf2eec4f";
+const TARGET_FOLDER_ID = "6f1ff0ab-c9e7-4b20-9b27-53da4ac44b0b";
 
 type BatchMockOptions = {
-  folderExists?: boolean;
+  sourceFolderExists?: boolean;
+  targetFolderExists?: boolean;
   ownedMediaIds?: string[];
   ownedPromptIds?: string[];
-  assignMediaRows?: Array<{ media_file_id: string }>;
-  assignPromptRows?: Array<{ prompt_id: string }>;
+  existingTargetMediaIds?: string[];
+  existingTargetPromptIds?: string[];
+  existingSourceMediaIds?: string[];
+  existingSourcePromptIds?: string[];
   unassignMediaCount?: number;
   unassignPromptCount?: number;
 };
 
 const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
-  const folderExists = options.folderExists ?? true;
+  const sourceFolderExists = options.sourceFolderExists ?? true;
+  const targetFolderExists = options.targetFolderExists ?? true;
   const ownedMediaIds = options.ownedMediaIds ?? [];
   const ownedPromptIds = options.ownedPromptIds ?? [];
-  const assignMediaRows = options.assignMediaRows ?? [];
-  const assignPromptRows = options.assignPromptRows ?? [];
+  const existingTargetMediaIds = options.existingTargetMediaIds ?? [];
+  const existingTargetPromptIds = options.existingTargetPromptIds ?? [];
+  const existingSourceMediaIds = options.existingSourceMediaIds ?? [];
+  const existingSourcePromptIds = options.existingSourcePromptIds ?? [];
   const unassignMediaCount = options.unassignMediaCount ?? 0;
   const unassignPromptCount = options.unassignPromptCount ?? 0;
 
-  const folderMaybeSingleMock = vi.fn(async () => ({
-    data: folderExists ? { id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f" } : null,
-    error: null,
-  }));
+  const folderMaybeSingleMock = vi.fn(async (...args: unknown[]) => {
+    const folderId = typeof args[0] === "string" ? args[0] : "";
+    const exists = folderId === SOURCE_FOLDER_ID ? sourceFolderExists : targetFolderExists;
+    return {
+      data: exists ? { id: folderId } : null,
+      error: null,
+    };
+  });
   const mediaOwnershipInMock = vi.fn(async () => ({
     data: ownedMediaIds.map((id) => ({ id })),
     error: null,
@@ -45,12 +57,38 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
     data: ownedPromptIds.map((id) => ({ id })),
     error: null,
   }));
-  const mediaAssignSelectMock = vi.fn(async () => ({
-    data: assignMediaRows,
+  const mediaMembershipSelectInByFolderMock = vi.fn(
+    async (idColumn: string, ids: string[], folderId: string) => {
+      const existingIds =
+        idColumn === "media_file_id"
+          ? folderId === SOURCE_FOLDER_ID
+            ? [...existingSourceMediaIds]
+            : [...existingTargetMediaIds]
+          : [];
+      return {
+        data: ids.filter((id) => existingIds.includes(id)).map((id) => ({ media_file_id: id })),
+        error: null,
+      };
+    }
+  );
+  const promptMembershipSelectInByFolderMock = vi.fn(
+    async (idColumn: string, ids: string[], folderId: string) => {
+      const existingIds =
+        idColumn === "prompt_id"
+          ? folderId === SOURCE_FOLDER_ID
+            ? [...existingSourcePromptIds]
+            : [...existingTargetPromptIds]
+          : [];
+      return {
+        data: ids.filter((id) => existingIds.includes(id)).map((id) => ({ prompt_id: id })),
+        error: null,
+      };
+    }
+  );
+  const mediaUpsertMock = vi.fn(async () => ({
     error: null,
   }));
-  const promptAssignSelectMock = vi.fn(async () => ({
-    data: assignPromptRows,
+  const promptUpsertMock = vi.fn(async () => ({
     error: null,
   }));
   const mediaUnassignInMock = vi.fn(async () => ({
@@ -66,13 +104,19 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
     from: vi.fn((table: string) => {
       if (table === "media_folders") {
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                maybeSingle: folderMaybeSingleMock,
-              })),
-            })),
-          })),
+          select: vi.fn(() => {
+            let selectedFolderId = "";
+            return {
+              eq: vi.fn((column: string, value: string) => {
+                if (column === "id") selectedFolderId = value;
+                return {
+                  eq: vi.fn(() => ({
+                    maybeSingle: () => folderMaybeSingleMock(selectedFolderId),
+                  })),
+                };
+              }),
+            };
+          }),
         };
       }
       if (table === "media_files") {
@@ -95,9 +139,24 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
       }
       if (table === "media_folder_media_items") {
         return {
-          upsert: vi.fn(() => ({
-            select: mediaAssignSelectMock,
-          })),
+          select: vi.fn(() => {
+            let selectedFolderId = "";
+            return {
+              eq: vi.fn((column: string, value: string) => {
+                if (column === "folder_id") selectedFolderId = value;
+                return {
+                  eq: vi.fn((secondColumn: string, secondValue: string) => {
+                    if (secondColumn === "folder_id") selectedFolderId = secondValue;
+                    return {
+                      in: (columnName: string, ids: string[]) =>
+                        mediaMembershipSelectInByFolderMock(columnName, ids, selectedFolderId),
+                    };
+                  }),
+                };
+              }),
+            };
+          }),
+          upsert: mediaUpsertMock,
           delete: vi.fn(() => ({
             eq: vi.fn(() => ({
               eq: vi.fn(() => ({
@@ -109,9 +168,24 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
       }
       if (table === "media_folder_prompt_items") {
         return {
-          upsert: vi.fn(() => ({
-            select: promptAssignSelectMock,
-          })),
+          select: vi.fn(() => {
+            let selectedFolderId = "";
+            return {
+              eq: vi.fn((column: string, value: string) => {
+                if (column === "folder_id") selectedFolderId = value;
+                return {
+                  eq: vi.fn((secondColumn: string, secondValue: string) => {
+                    if (secondColumn === "folder_id") selectedFolderId = secondValue;
+                    return {
+                      in: (columnName: string, ids: string[]) =>
+                        promptMembershipSelectInByFolderMock(columnName, ids, selectedFolderId),
+                    };
+                  }),
+                };
+              }),
+            };
+          }),
+          upsert: promptUpsertMock,
           delete: vi.fn(() => ({
             eq: vi.fn(() => ({
               eq: vi.fn(() => ({
@@ -130,8 +204,8 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
   );
 
   return {
-    mediaAssignSelectMock,
-    promptAssignSelectMock,
+    mediaUpsertMock,
+    promptUpsertMock,
     mediaUnassignInMock,
     promptUnassignInMock,
   };
@@ -141,7 +215,7 @@ const createBatchInput = (
   overrides: Partial<FolderMembershipBatchInput> = {}
 ): FolderMembershipBatchInput => ({
   userId: "user-1",
-  folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+  folderId: TARGET_FOLDER_ID,
   action: "assign",
   mediaIds: [],
   promptIds: [],
@@ -186,11 +260,11 @@ describe("mediaFoldersService helpers", () => {
   });
 
   it("assigns media + prompts and returns assigned counts", async () => {
-    const { mediaAssignSelectMock, promptAssignSelectMock } = createSupabaseBatchMock({
+    const { mediaUpsertMock, promptUpsertMock } = createSupabaseBatchMock({
       ownedMediaIds: ["media-1", "media-2"],
       ownedPromptIds: ["prompt-1"],
-      assignMediaRows: [{ media_file_id: "media-1" }, { media_file_id: "media-2" }],
-      assignPromptRows: [{ prompt_id: "prompt-1" }],
+      existingTargetMediaIds: [],
+      existingTargetPromptIds: [],
     });
 
     const result = await applyFolderMembershipBatch(
@@ -201,15 +275,21 @@ describe("mediaFoldersService helpers", () => {
       })
     );
 
-    expect(mediaAssignSelectMock).toHaveBeenCalledWith("media_file_id");
-    expect(promptAssignSelectMock).toHaveBeenCalledWith("prompt_id");
+    expect(mediaUpsertMock).toHaveBeenCalledTimes(1);
+    expect(promptUpsertMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
-      folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
       action: "assign",
+      folderId: TARGET_FOLDER_ID,
+      sourceFolderId: null,
+      targetFolderId: null,
       mediaAssigned: 2,
       mediaUnassigned: 0,
       promptsAssigned: 1,
       promptsUnassigned: 0,
+      mediaDuplicates: 0,
+      promptDuplicates: 0,
+      mediaSkipped: 0,
+      promptSkipped: 0,
     });
   });
 
@@ -217,6 +297,8 @@ describe("mediaFoldersService helpers", () => {
     const { mediaUnassignInMock, promptUnassignInMock } = createSupabaseBatchMock({
       ownedMediaIds: ["media-1"],
       ownedPromptIds: ["prompt-1", "prompt-2"],
+      existingTargetMediaIds: ["media-1"],
+      existingTargetPromptIds: ["prompt-1", "prompt-2"],
       unassignMediaCount: 1,
       unassignPromptCount: 2,
     });
@@ -232,12 +314,18 @@ describe("mediaFoldersService helpers", () => {
     expect(mediaUnassignInMock).toHaveBeenCalledWith("media_file_id", ["media-1"]);
     expect(promptUnassignInMock).toHaveBeenCalledWith("prompt_id", ["prompt-1", "prompt-2"]);
     expect(result).toEqual({
-      folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
       action: "unassign",
+      folderId: TARGET_FOLDER_ID,
+      sourceFolderId: null,
+      targetFolderId: null,
       mediaAssigned: 0,
       mediaUnassigned: 1,
       promptsAssigned: 0,
       promptsUnassigned: 2,
+      mediaDuplicates: 0,
+      promptDuplicates: 0,
+      mediaSkipped: 0,
+      promptSkipped: 0,
     });
   });
 });

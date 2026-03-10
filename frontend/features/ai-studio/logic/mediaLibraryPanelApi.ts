@@ -12,13 +12,30 @@ export type MediaFolder = {
   updatedAt: string;
 };
 
-export type FolderMembershipBatchAction = "assign" | "unassign";
+export type FolderMembershipBatchAction = "assign" | "unassign" | "move";
 
 export type MediaFolderMembershipBatch = {
-  folderId: string;
   action: FolderMembershipBatchAction;
+  folderId?: string;
+  sourceFolderId?: string;
+  targetFolderId?: string;
   mediaIds?: string[];
   promptIds?: string[];
+};
+
+export type MediaFolderMembershipBatchResult = {
+  action: FolderMembershipBatchAction;
+  folderId: string | null;
+  sourceFolderId: string | null;
+  targetFolderId: string | null;
+  mediaAssigned: number;
+  mediaUnassigned: number;
+  promptsAssigned: number;
+  promptsUnassigned: number;
+  mediaDuplicates: number;
+  promptDuplicates: number;
+  mediaSkipped: number;
+  promptSkipped: number;
 };
 
 export type PromptListCursor = {
@@ -198,15 +215,17 @@ export const deleteMediaFolder = async (folderId: string): Promise<void> => {
  */
 export const applyMediaFolderMembershipBatch = async (
   input: MediaFolderMembershipBatch
-): Promise<void> => {
+): Promise<MediaFolderMembershipBatchResult> => {
   const response = await fetchWithAuth("/api/media/folders/membership-batch", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      folderId: input.folderId,
       action: input.action,
+      folderId: input.folderId,
+      sourceFolderId: input.sourceFolderId,
+      targetFolderId: input.targetFolderId,
       mediaIds: input.mediaIds ?? [],
       promptIds: input.promptIds ?? [],
     }),
@@ -216,6 +235,34 @@ export const applyMediaFolderMembershipBatch = async (
     const payload = asRecord(await response.json().catch(() => ({})));
     throw new Error(asString(payload.error) || "Unable to update folder membership.");
   }
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const action = payload.action;
+  if (action !== "assign" && action !== "unassign" && action !== "move") {
+    throw new Error("Unable to update folder membership.");
+  }
+  const asCount = (value: unknown): number => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.max(0, Math.trunc(parsed));
+  };
+  const parseOptionalId = (value: unknown): string | null => {
+    const normalized = asString(value);
+    return normalized || null;
+  };
+  return {
+    action,
+    folderId: parseOptionalId(payload.folderId),
+    sourceFolderId: parseOptionalId(payload.sourceFolderId),
+    targetFolderId: parseOptionalId(payload.targetFolderId),
+    mediaAssigned: asCount(payload.mediaAssigned),
+    mediaUnassigned: asCount(payload.mediaUnassigned),
+    promptsAssigned: asCount(payload.promptsAssigned),
+    promptsUnassigned: asCount(payload.promptsUnassigned),
+    mediaDuplicates: asCount(payload.mediaDuplicates),
+    promptDuplicates: asCount(payload.promptDuplicates),
+    mediaSkipped: asCount(payload.mediaSkipped),
+    promptSkipped: asCount(payload.promptSkipped),
+  };
 };
 
 /**

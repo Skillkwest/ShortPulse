@@ -5,6 +5,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseClient } from "../../../lib/supabaseClient";
 import type { StylesLibraryStyleDetails, StylesLibraryStyleDetailsMap } from "../types";
+import {
+  areStyleDetailMapsEqual,
+  mergeStyleDetailsMaps,
+  normalizeStyleDetails,
+  normalizeStyleDetailsMap,
+} from "../logic/styleDetailsNormalization";
 
 const STYLE_DETAILS_STORAGE_KEY = "shortpulse.ai_studio.style_details_overrides";
 
@@ -16,83 +22,6 @@ type UseStylesLibraryStyleDetailsPreferenceResult = {
   error: string | null;
   syncState: StylesLibraryStyleDetailsSyncState;
   upsertStyleDetails: (styleId: string, details: StylesLibraryStyleDetails) => Promise<boolean>;
-};
-
-const MAX_STYLE_FIELD_LENGTH = 120;
-const MAX_STYLE_PROMPT_LENGTH = 4000;
-const MAX_STYLE_PREVIEW_URL_LENGTH = 2_000_000;
-
-const clampString = (value: unknown, limit: number): string => {
-  if (typeof value !== "string") return "";
-  const normalized = value.trim();
-  if (normalized.length <= limit) return normalized;
-  return normalized.slice(0, limit).trim();
-};
-
-const normalizePreviewImageUrl = (value: unknown): string => {
-  if (typeof value !== "string") return "";
-  const normalized = value.trim();
-  if (!normalized) return "";
-  return normalized.length <= MAX_STYLE_PREVIEW_URL_LENGTH ? normalized : "";
-};
-
-const normalizeStyleDetails = (value: unknown): StylesLibraryStyleDetails => {
-  const details = value as Partial<StylesLibraryStyleDetails> | null | undefined;
-  return {
-    style: clampString(details?.style, MAX_STYLE_FIELD_LENGTH),
-    title: clampString(details?.title, MAX_STYLE_FIELD_LENGTH),
-    referenceImageName: clampString(details?.referenceImageName, MAX_STYLE_FIELD_LENGTH),
-    stylePrompt: clampString(details?.stylePrompt, MAX_STYLE_PROMPT_LENGTH),
-    previewImageUrl: normalizePreviewImageUrl(details?.previewImageUrl),
-  };
-};
-
-const normalizeStyleDetailsMap = (value: unknown): StylesLibraryStyleDetailsMap => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const entries = Object.entries(value as Record<string, unknown>);
-  const normalized: StylesLibraryStyleDetailsMap = {};
-  entries.forEach(([rawId, rawDetails]) => {
-    const styleId = rawId.trim();
-    if (!styleId) return;
-    normalized[styleId] = normalizeStyleDetails(rawDetails);
-  });
-  return normalized;
-};
-
-const areStyleDetailMapsEqual = (
-  left: StylesLibraryStyleDetailsMap,
-  right: StylesLibraryStyleDetailsMap
-): boolean => {
-  const leftKeys = Object.keys(left).sort();
-  const rightKeys = Object.keys(right).sort();
-  if (leftKeys.length !== rightKeys.length) return false;
-  for (let index = 0; index < leftKeys.length; index += 1) {
-    if (leftKeys[index] !== rightKeys[index]) return false;
-    const key = leftKeys[index];
-    const leftValue = left[key];
-    const rightValue = right[key];
-    if (!rightValue) return false;
-    if (
-      leftValue.style !== rightValue.style ||
-      leftValue.title !== rightValue.title ||
-      leftValue.referenceImageName !== rightValue.referenceImageName ||
-      leftValue.stylePrompt !== rightValue.stylePrompt ||
-      leftValue.previewImageUrl !== rightValue.previewImageUrl
-    ) {
-      return false;
-    }
-  }
-  return true;
-};
-
-const mergeStyleDetailsMaps = (
-  remoteValue: StylesLibraryStyleDetailsMap,
-  localValue: StylesLibraryStyleDetailsMap
-): StylesLibraryStyleDetailsMap => {
-  return {
-    ...remoteValue,
-    ...localValue,
-  };
 };
 
 const readLocalStyleDetails = (): StylesLibraryStyleDetailsMap => {

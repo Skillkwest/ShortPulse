@@ -94,6 +94,13 @@
   min-width: 0;
 }
 
+.media-library-panel-folder-strip-item.is-drop-hover .media-library-panel-folder-chip {
+  border-color: rgba(100, 209, 230, 0.5);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 1px rgba(100, 209, 230, 0.45);
+}
+
 .media-library-panel-folder-chip {
   width: 92px;
   height: 92px;

@@ -350,6 +350,47 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("button", { name: "Delete active folder" })).not.toBeInTheDocument();
   });
 
+  it("shows folder tile drop highlight while a compatible drag is hovering", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const payload = JSON.stringify({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-1",
+        url: "https://cdn.example.com/ref-1.png",
+        fileType: "image",
+      },
+    });
+    const transfer = {
+      getData: (type: string) =>
+        type === "application/x-shortpulse-media-library-item"
+          ? payload
+          : type === "text/x-shortpulse-media-library-item"
+            ? payload
+            : "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+    expect(folderTile.classList.contains("is-drop-hover")).toBe(false);
+
+    fireEvent.dragOver(folderTile, { dataTransfer: transfer });
+    expect(folderTile.classList.contains("is-drop-hover")).toBe(true);
+
+    fireEvent.dragLeave(folderTile, { dataTransfer: transfer });
+    expect(folderTile.classList.contains("is-drop-hover")).toBe(false);
+  });
+
   it("resizes folders/content sections when dragging the horizontal divider", async () => {
     const { container } = render(
       <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />

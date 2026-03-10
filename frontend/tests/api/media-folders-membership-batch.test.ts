@@ -82,11 +82,17 @@ describe("POST /api/media/folders/membership-batch", () => {
   it("returns service result on success", async () => {
     applyFolderMembershipBatchMock.mockResolvedValueOnce({
       folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      sourceFolderId: null,
+      targetFolderId: null,
       action: "unassign",
       mediaAssigned: 0,
       mediaUnassigned: 1,
       promptsAssigned: 0,
       promptsUnassigned: 2,
+      mediaDuplicates: 0,
+      promptDuplicates: 0,
+      mediaSkipped: 0,
+      promptSkipped: 0,
     });
     const req = {
       method: "POST",
@@ -104,11 +110,35 @@ describe("POST /api/media/folders/membership-batch", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      sourceFolderId: null,
+      targetFolderId: null,
       action: "unassign",
       mediaAssigned: 0,
       mediaUnassigned: 1,
       promptsAssigned: 0,
       promptsUnassigned: 2,
+      mediaDuplicates: 0,
+      promptDuplicates: 0,
+      mediaSkipped: 0,
+      promptSkipped: 0,
     });
+  });
+
+  it("validates move requests require source and target folder ids", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        action: "move",
+        sourceFolderId: "all_items",
+        targetFolderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        mediaIds: ["media-1"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(applyFolderMembershipBatchMock).not.toHaveBeenCalled();
   });
 });

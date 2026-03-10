@@ -46,6 +46,7 @@ import {
   type ReferenceGridScenario,
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
+import { resolveMediaLibraryInternalDropResolver } from "../features/ai-studio/logic/mediaLibraryInternalDropResolver";
 import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
@@ -72,6 +73,8 @@ const FLAG_PAGE_OUTPUT_DECOUPLE =
   !AI_STUDIO_EMERGENCY_DISABLE_SELECTOR_STORE && PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
+const MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS = 3500;
+const MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS = 120;
 
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
@@ -398,6 +401,19 @@ export default function AiStudioPage() {
       };
     },
     [getOutputById, resolveSavedMediaIdFromOutput]
+  );
+  const resolveMediaLibraryInternalDropItem = useCallback(
+    async (payload: InternalReferenceDragPayload) =>
+      await resolveMediaLibraryInternalDropResolver({
+        payload,
+        getOutputById,
+        getOutputSnapshot,
+        resolveSavedMediaIdFromOutput,
+        saveReferenceToLibrary,
+        persistTimeoutMs: MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS,
+        pollIntervalMs: MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS,
+      }),
+    [getOutputById, getOutputSnapshot, resolveSavedMediaIdFromOutput, saveReferenceToLibrary]
   );
   const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
@@ -1659,6 +1675,7 @@ export default function AiStudioPage() {
         onDetailSavePrompt={onDetailSavePrompt}
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}
+        resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         onOpenMediaLibrary={onOpenMediaLibrary}
         modelModalState={{
           isOpen: isModelModalOpen,

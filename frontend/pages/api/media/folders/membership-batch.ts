@@ -11,12 +11,18 @@ import {
 } from "../../../../lib/server/mediaFoldersService";
 
 type MembershipBatchSuccessResponse = {
-  folderId: string;
   action: FolderMembershipBatchAction;
+  folderId: string | null;
+  sourceFolderId: string | null;
+  targetFolderId: string | null;
   mediaAssigned: number;
   mediaUnassigned: number;
   promptsAssigned: number;
   promptsUnassigned: number;
+  mediaDuplicates: number;
+  promptDuplicates: number;
+  mediaSkipped: number;
+  promptSkipped: number;
 };
 
 type MembershipBatchErrorResponse = {
@@ -49,7 +55,7 @@ const asString = (value: unknown): string => {
 };
 
 const asAction = (value: unknown): FolderMembershipBatchAction | null => {
-  if (value === "assign" || value === "unassign") return value;
+  if (value === "assign" || value === "unassign" || value === "move") return value;
   return null;
 };
 
@@ -83,19 +89,27 @@ export default async function handler(
   try {
     const body = toRequestBody(req.body);
     const folderId = asString(body.folderId);
+    const sourceFolderId = asString(body.sourceFolderId);
+    const targetFolderId = asString(body.targetFolderId);
     const action = asAction(body.action);
     const mediaIds = asIdList(body.mediaIds);
     const promptIds = asIdList(body.promptIds);
 
-    if (!isCustomMediaFolderId(folderId)) {
-      return res.status(400).json({
-        error: "Invalid folder id",
-      });
-    }
     if (!action) {
       return res.status(400).json({
         error: "Invalid action",
-        details: "Action must be assign or unassign.",
+        details: "Action must be assign, unassign, or move.",
+      });
+    }
+    if (action === "move") {
+      if (!isCustomMediaFolderId(sourceFolderId) || !isCustomMediaFolderId(targetFolderId)) {
+        return res.status(400).json({
+          error: "Invalid folder id",
+        });
+      }
+    } else if (!isCustomMediaFolderId(folderId)) {
+      return res.status(400).json({
+        error: "Invalid folder id",
       });
     }
     if (!mediaIds.length && !promptIds.length) {
@@ -107,8 +121,10 @@ export default async function handler(
 
     const result = await applyFolderMembershipBatch({
       userId: user.id,
-      folderId,
       action,
+      folderId: action === "move" ? undefined : folderId,
+      sourceFolderId: action === "move" ? sourceFolderId : undefined,
+      targetFolderId: action === "move" ? targetFolderId : undefined,
       mediaIds,
       promptIds,
     });
@@ -116,6 +132,9 @@ export default async function handler(
     return res.status(200).json(result);
   } catch (error) {
     if (error instanceof Error) {
+      if (error.message === "Invalid folder id") {
+        return res.status(400).json({ error: "Invalid folder id" });
+      }
       if (error.message === "Folder not found") {
         return res.status(404).json({ error: "Folder not found" });
       }

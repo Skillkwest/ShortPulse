@@ -20,23 +20,31 @@ export type MediaFolderRow = {
   updated_at: string;
 };
 
-export type FolderMembershipBatchAction = "assign" | "unassign";
+export type FolderMembershipBatchAction = "assign" | "unassign" | "move";
 
 export type FolderMembershipBatchInput = {
   userId: string;
-  folderId: string;
   action: FolderMembershipBatchAction;
+  folderId?: string;
+  sourceFolderId?: string;
+  targetFolderId?: string;
   mediaIds: string[];
   promptIds: string[];
 };
 
 export type FolderMembershipBatchResult = {
-  folderId: string;
   action: FolderMembershipBatchAction;
+  folderId: string | null;
+  sourceFolderId: string | null;
+  targetFolderId: string | null;
   mediaAssigned: number;
   mediaUnassigned: number;
   promptsAssigned: number;
   promptsUnassigned: number;
+  mediaDuplicates: number;
+  promptDuplicates: number;
+  mediaSkipped: number;
+  promptSkipped: number;
 };
 
 /**
@@ -215,21 +223,85 @@ export const deleteMediaFolderForUser = async ({
 export const applyFolderMembershipBatch = async (
   input: FolderMembershipBatchInput
 ): Promise<FolderMembershipBatchResult> => {
-  const { action, folderId, mediaIds, promptIds, userId } = input;
+  const { action, mediaIds, promptIds, userId } = input;
+  const fallbackFolderId = input.folderId?.trim() ?? "";
+  const sourceFolderId =
+    action === "move" ? (input.sourceFolderId?.trim() ?? "") : fallbackFolderId;
+  const targetFolderId =
+    action === "move" ? (input.targetFolderId?.trim() ?? "") : fallbackFolderId;
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: folderRow, error: folderError } = await supabaseAdmin
-    .from("media_folders")
-    .select("id")
-    .eq("id", folderId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const assertOwnedFolder = async (folderId: string): Promise<void> => {
+    const { data: folderRow, error: folderError } = await supabaseAdmin
+      .from("media_folders")
+      .select("id")
+      .eq("id", folderId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (folderError) {
+      throw new Error(folderError.message || "Failed to load folder");
+    }
+    if (!folderRow) {
+      throw new Error("Folder not found");
+    }
+  };
 
-  if (folderError) {
-    throw new Error(folderError.message || "Failed to load folder");
+  const listExistingMembershipIds = async (
+    table: "media_folder_media_items" | "media_folder_prompt_items",
+    idColumn: "media_file_id" | "prompt_id",
+    folderId: string,
+    ids: string[]
+  ): Promise<Set<string>> => {
+    if (!ids.length) return new Set();
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select(idColumn)
+      .eq("user_id", userId)
+      .eq("folder_id", folderId)
+      .in(idColumn, ids);
+    if (error) {
+      throw new Error(error.message || `Failed to load ${table} memberships`);
+    }
+    const existing = new Set<string>();
+    for (const row of data ?? []) {
+      const value = (row as Record<string, unknown>)[idColumn];
+      if (typeof value !== "string") continue;
+      const normalized = value.trim();
+      if (!normalized) continue;
+      existing.add(normalized);
+    }
+    return existing;
+  };
+
+  if (!sourceFolderId || !targetFolderId) {
+    throw new Error("Invalid folder id");
   }
-  if (!folderRow) {
-    throw new Error("Folder not found");
+  if (
+    sourceFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID ||
+    targetFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+  ) {
+    throw new Error("Invalid folder id");
+  }
+  if (action === "move" && sourceFolderId === targetFolderId) {
+    return {
+      action,
+      folderId: null,
+      sourceFolderId,
+      targetFolderId,
+      mediaAssigned: 0,
+      mediaUnassigned: 0,
+      promptsAssigned: 0,
+      promptsUnassigned: 0,
+      mediaDuplicates: 0,
+      promptDuplicates: 0,
+      mediaSkipped: mediaIds.length,
+      promptSkipped: promptIds.length,
+    };
+  }
+
+  await assertOwnedFolder(sourceFolderId);
+  if (targetFolderId !== sourceFolderId) {
+    await assertOwnedFolder(targetFolderId);
   }
 
   const ownedMediaIds = await toOwnedIdsSet({
@@ -253,73 +325,119 @@ export const applyFolderMembershipBatch = async (
   let mediaUnassigned = 0;
   let promptsAssigned = 0;
   let promptsUnassigned = 0;
+  let mediaDuplicates = 0;
+  let promptDuplicates = 0;
+  let mediaSkipped = 0;
+  let promptSkipped = 0;
 
-  if (action === "assign") {
+  if (action === "assign" || action === "move") {
     if (mediaIds.length) {
-      const mediaRows = mediaIds.map((mediaFileId) => ({
-        folder_id: folderId,
-        media_file_id: mediaFileId,
-        user_id: userId,
-      }));
-      const { data, error } = await supabaseAdmin
-        .from("media_folder_media_items")
-        .upsert(mediaRows, { onConflict: "folder_id,media_file_id" })
-        .select("media_file_id");
-      if (error) {
-        throw new Error(error.message || "Failed to assign media items");
+      const existingTargetMedia = await listExistingMembershipIds(
+        "media_folder_media_items",
+        "media_file_id",
+        targetFolderId,
+        mediaIds
+      );
+      mediaDuplicates = existingTargetMedia.size;
+      const mediaIdsToAssign = mediaIds.filter((id) => !existingTargetMedia.has(id));
+      if (mediaIdsToAssign.length) {
+        const mediaRows = mediaIdsToAssign.map((mediaFileId) => ({
+          folder_id: targetFolderId,
+          media_file_id: mediaFileId,
+          user_id: userId,
+        }));
+        const { error } = await supabaseAdmin
+          .from("media_folder_media_items")
+          .upsert(mediaRows, { onConflict: "folder_id,media_file_id" });
+        if (error) {
+          throw new Error(error.message || "Failed to assign media items");
+        }
+        mediaAssigned = mediaIdsToAssign.length;
       }
-      mediaAssigned = (data ?? []).length;
     }
 
     if (promptIds.length) {
-      const promptRows = promptIds.map((promptId) => ({
-        folder_id: folderId,
-        prompt_id: promptId,
-        user_id: userId,
-      }));
-      const { data, error } = await supabaseAdmin
-        .from("media_folder_prompt_items")
-        .upsert(promptRows, { onConflict: "folder_id,prompt_id" })
-        .select("prompt_id");
-      if (error) {
-        throw new Error(error.message || "Failed to assign prompt items");
+      const existingTargetPrompts = await listExistingMembershipIds(
+        "media_folder_prompt_items",
+        "prompt_id",
+        targetFolderId,
+        promptIds
+      );
+      promptDuplicates = existingTargetPrompts.size;
+      const promptIdsToAssign = promptIds.filter((id) => !existingTargetPrompts.has(id));
+      if (promptIdsToAssign.length) {
+        const promptRows = promptIdsToAssign.map((promptId) => ({
+          folder_id: targetFolderId,
+          prompt_id: promptId,
+          user_id: userId,
+        }));
+        const { error } = await supabaseAdmin
+          .from("media_folder_prompt_items")
+          .upsert(promptRows, { onConflict: "folder_id,prompt_id" });
+        if (error) {
+          throw new Error(error.message || "Failed to assign prompt items");
+        }
+        promptsAssigned = promptIdsToAssign.length;
       }
-      promptsAssigned = (data ?? []).length;
     }
-  } else {
+  }
+
+  if (action === "unassign" || action === "move") {
+    const unassignFolderId = action === "move" ? sourceFolderId : targetFolderId;
+
     if (mediaIds.length) {
+      const existingSourceMedia = await listExistingMembershipIds(
+        "media_folder_media_items",
+        "media_file_id",
+        unassignFolderId,
+        mediaIds
+      );
       const { error, count } = await supabaseAdmin
         .from("media_folder_media_items")
         .delete({ count: "exact" })
         .eq("user_id", userId)
-        .eq("folder_id", folderId)
+        .eq("folder_id", unassignFolderId)
         .in("media_file_id", mediaIds);
       if (error) {
         throw new Error(error.message || "Failed to unassign media items");
       }
       mediaUnassigned = count ?? 0;
+      mediaSkipped = Math.max(0, mediaIds.length - existingSourceMedia.size);
     }
 
     if (promptIds.length) {
+      const existingSourcePrompts = await listExistingMembershipIds(
+        "media_folder_prompt_items",
+        "prompt_id",
+        unassignFolderId,
+        promptIds
+      );
       const { error, count } = await supabaseAdmin
         .from("media_folder_prompt_items")
         .delete({ count: "exact" })
         .eq("user_id", userId)
-        .eq("folder_id", folderId)
+        .eq("folder_id", unassignFolderId)
         .in("prompt_id", promptIds);
       if (error) {
         throw new Error(error.message || "Failed to unassign prompt items");
       }
       promptsUnassigned = count ?? 0;
+      promptSkipped = Math.max(0, promptIds.length - existingSourcePrompts.size);
     }
   }
 
   return {
-    folderId,
     action,
+    folderId: action === "move" ? null : targetFolderId,
+    sourceFolderId: action === "move" ? sourceFolderId : null,
+    targetFolderId: action === "move" ? targetFolderId : null,
     mediaAssigned,
     mediaUnassigned,
     promptsAssigned,
     promptsUnassigned,
+    mediaDuplicates,
+    promptDuplicates,
+    mediaSkipped,
+    promptSkipped,
   };
 };

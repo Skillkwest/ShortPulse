@@ -111,6 +111,7 @@ sequenceDiagram
 - `/api/ai/generate-prompt` -> `agentRuntimeService.generatePrompt` (`legacyPromptGenerationService`).
 - `/api/ai/describe-image` -> `agentRuntimeService.describeImage` (`legacyImageDescribeService`).
 - `/api/ai/extract-style` -> `agentRuntimeService.extractStyle` (`legacyStyleExtractionService`) for Styles Library new-style image intake (returns `stylePrompt` + normalized `styleTitle`).
+  - Operational ownership and metadata/telemetry contracts for style-create flows are defined in `docs/sops/sop_ai_studio_style_creator.md`.
 4. Admin control plane routes (policy operations):
 - `GET /api/admin/agent-safety-policy/active`
 - `POST /api/admin/agent-safety-policy/activate`

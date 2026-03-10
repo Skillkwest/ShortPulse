@@ -17,6 +17,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Text refinement inside `/api/ai/generate-prompt` (Agent 1)
 - Image description/reverse prompt inside `/api/ai/describe-image` (Agent 2)
 - Style descriptor extraction inside `/api/ai/extract-style` (Styles Library create flow)
+  - Full style-creator domain contract (intake/state/persistence/telemetry) is documented in `docs/sops/sop_ai_studio_style_creator.md`.
 - AI Studio chat orchestration inside `/api/ai/studio-agent` (single enhanced prompt output contract)
 - Canonical prompt definitions in `frontend/lib/agentPromptsConfig.ts` (any external agent prompt docs should be retired so the TS file remains the single source of truth)
 - Runtime configuration via environment variables (OpenAI keys, model names, emergency overrides)

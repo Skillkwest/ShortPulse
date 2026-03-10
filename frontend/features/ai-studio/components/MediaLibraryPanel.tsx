@@ -45,17 +45,15 @@ import {
 } from "../logic/mediaLibraryModalModel";
 import {
   applyMediaFolderMembershipBatch,
-  createMediaFolder,
   fetchMediaPromptListPage,
-  listMediaFolders,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
-  renameMediaFolder,
-  type MediaFolder,
-  type MediaFolderId,
   type PromptListCursor,
 } from "../logic/mediaLibraryPanelApi";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
+import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
+import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 
@@ -80,45 +78,15 @@ type MediaLibraryPanelProps = {
     fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
+  resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
+    kind: "media" | "prompt";
+    id: string;
+  } | null>;
 };
 
 const MEDIA_PAGE_SIZE = 36;
 const PROMPT_PAGE_SIZE = 36;
-const FOLDERS_REQUEST_TIMEOUT_MS = 12_000;
 const ROOT_FOLDER_LABEL = "All Media";
-const NEW_FOLDER_BASE_NAME = "New Folder";
-const MAX_FOLDER_NAME_COLLISION_RETRIES = 1;
-const TEMP_FOLDER_ID_PREFIX = "__pending_new_folder__";
-const ROOT_FOLDER: MediaFolder = {
-  id: MEDIA_LIBRARY_ROOT_FOLDER_ID,
-  name: ROOT_FOLDER_LABEL,
-  createdAt: "",
-  updatedAt: "",
-};
-
-const resolveNextFolderNameFromNames = (existingNames: Set<string>): string => {
-  if (!existingNames.has(NEW_FOLDER_BASE_NAME.toLocaleLowerCase())) {
-    return NEW_FOLDER_BASE_NAME;
-  }
-  let nextIndex = 2;
-  while (existingNames.has(`${NEW_FOLDER_BASE_NAME} ${nextIndex}`.toLocaleLowerCase())) {
-    nextIndex += 1;
-  }
-  return `${NEW_FOLDER_BASE_NAME} ${nextIndex}`;
-};
-
-const toNormalizedFolderNames = (rows: MediaFolder[]): Set<string> => {
-  const names = new Set<string>();
-  for (const row of rows) {
-    const normalized = row.name.trim().toLocaleLowerCase();
-    if (!normalized) continue;
-    names.add(normalized);
-  }
-  return names;
-};
-
-const buildPendingFolderId = () =>
-  `${TEMP_FOLDER_ID_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKind => {
   if (itemType === "images") return "images";
@@ -137,28 +105,29 @@ const createdAtTime = (value: string | null | undefined): number => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
-const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, message: string) =>
-  await new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      reject(new Error(message));
-    }, timeoutMs);
-    promise
-      .then((value) => {
-        window.clearTimeout(timeoutId);
-        resolve(value);
-      })
-      .catch((error) => {
-        window.clearTimeout(timeoutId);
-        reject(error);
-      });
-  });
-
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
+  resolveInternalDropItem,
 }: MediaLibraryPanelProps) {
-  const [folders, setFolders] = useState<MediaFolder[]>([]);
-  const [activeFolderId, setActiveFolderId] = useState<MediaFolderId>(MEDIA_LIBRARY_ROOT_FOLDER_ID);
+  const {
+    folders,
+    customFolders,
+    orderedFolders,
+    activeFolderId,
+    setActiveFolderId,
+    folderError,
+    setFolderError,
+    creatingFolder,
+    createFolder,
+    editingFolderId,
+    editingFolderName,
+    setEditingFolderName,
+    startFolderRename,
+    cancelFolderRename,
+    commitFolderRename,
+  } = useMediaLibraryFoldersState();
+
   const [itemType] = useState<MediaLibraryPanelItemType>("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -173,13 +142,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [promptLoading, setPromptLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-  const [folderError, setFolderError] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
-
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
-  const [editingFolderName, setEditingFolderName] = useState("");
-  const [savingFolderEdit, setSavingFolderEdit] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastPickedItem, setLastPickedItem] = useState<LastPickedItem>(null);
@@ -194,8 +157,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const mediaRequestTokenRef = useRef(0);
   const promptRequestTokenRef = useRef(0);
-  const foldersRequestTokenRef = useRef(0);
-  const creatingFolderInFlightRef = useRef(false);
   const activeTabRef = useRef<MediaTab>("uploaded_images");
   const activeMediaQueryRef = useRef("");
   const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
@@ -230,14 +191,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => normalizeMediaSearchTerm(debouncedSearch),
     [debouncedSearch]
   );
-  const customFolders = useMemo(
-    () =>
-      [...folders].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "accent" })
-      ),
-    [folders]
-  );
-  const orderedFolders = useMemo(() => [ROOT_FOLDER, ...customFolders], [customFolders]);
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
@@ -349,36 +302,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     []
   );
-
-  const loadFolders = useCallback(async () => {
-    const requestToken = foldersRequestTokenRef.current + 1;
-    foldersRequestTokenRef.current = requestToken;
-    setFolderError(null);
-    try {
-      const nextFolders = await withTimeout(
-        listMediaFolders(),
-        FOLDERS_REQUEST_TIMEOUT_MS,
-        "Unable to load folders."
-      );
-      if (foldersRequestTokenRef.current !== requestToken) return;
-      if (!isMountedRef.current) return;
-      setFolders(nextFolders);
-      setActiveFolderId((previous) => {
-        if (previous === MEDIA_LIBRARY_ROOT_FOLDER_ID) return previous;
-        return nextFolders.some((folder) => folder.id === previous)
-          ? previous
-          : MEDIA_LIBRARY_ROOT_FOLDER_ID;
-      });
-    } catch (loadError) {
-      if (foldersRequestTokenRef.current !== requestToken) return;
-      if (!isMountedRef.current) return;
-      setFolderError(loadError instanceof Error ? loadError.message : "Unable to load folders.");
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadFolders();
-  }, [loadFolders]);
 
   useEffect(() => {
     if (!customFolders.length) {
@@ -772,99 +695,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [onSelectMedia, refreshSignedUrl, signStoragePath]
   );
 
-  const handleCreateFolder = useCallback(async () => {
-    if (creatingFolderInFlightRef.current) return;
-    creatingFolderInFlightRef.current = true;
-    const pendingFolderId = buildPendingFolderId();
-    const knownFolderNames = toNormalizedFolderNames(folders);
-    let nextName = resolveNextFolderNameFromNames(knownFolderNames);
-
-    setFolders((previous) => [
-      ...previous,
-      {
-        id: pendingFolderId,
-        name: nextName,
-        createdAt: "",
-        updatedAt: "",
-      },
-    ]);
-    setCreatingFolder(true);
-    setFolderError(null);
-    try {
-      try {
-        const latestFolders = await listMediaFolders();
-        for (const name of toNormalizedFolderNames(latestFolders)) {
-          knownFolderNames.add(name);
-        }
-        nextName = resolveNextFolderNameFromNames(knownFolderNames);
-        setFolders((previous) =>
-          previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
-        );
-      } catch {
-        // Keep optimistic create path responsive if preflight refresh fails.
-      }
-
-      for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
-        try {
-          const folder = await createMediaFolder(nextName);
-          setFolders((previous) => {
-            const withoutPending = previous.filter(
-              (row) => row.id !== pendingFolderId && row.id !== folder.id
-            );
-            return [...withoutPending, folder];
-          });
-          setActiveFolderId(folder.id);
-          setEditingFolderId(folder.id);
-          setEditingFolderName(folder.name);
-          return;
-        } catch (createError) {
-          const isNameCollision =
-            createError instanceof Error && createError.message === "Folder name already exists";
-          if (!isNameCollision) {
-            throw createError;
-          }
-          knownFolderNames.add(nextName.toLocaleLowerCase());
-          nextName = resolveNextFolderNameFromNames(knownFolderNames);
-          setFolders((previous) =>
-            previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
-          );
-        }
-      }
-      throw new Error("Unable to allocate an available folder name.");
-    } catch (createError) {
-      setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
-      setFolderError(
-        createError instanceof Error ? createError.message : "Unable to create folder."
-      );
-    } finally {
-      setCreatingFolder(false);
-      creatingFolderInFlightRef.current = false;
+  const refreshActiveRows = useCallback(async () => {
+    if (shouldShowMedia) {
+      await loadMediaPage({ reset: true });
     }
-  }, [folders]);
-
-  const handleCommitFolderRename = useCallback(async () => {
-    const folderId = editingFolderId;
-    const nextName = editingFolderName.trim();
-    if (!folderId || !nextName || savingFolderEdit) return;
-    setSavingFolderEdit(true);
-    setFolderError(null);
-    try {
-      const renamed = await renameMediaFolder({ folderId, name: nextName });
-      setFolders((previous) =>
-        previous.map((folder) =>
-          folder.id === folderId ? { ...folder, name: renamed.name } : folder
-        )
-      );
-      setEditingFolderId(null);
-      setEditingFolderName("");
-    } catch (renameError) {
-      setFolderError(
-        renameError instanceof Error ? renameError.message : "Unable to rename folder."
-      );
-    } finally {
-      setSavingFolderEdit(false);
+    if (shouldShowPrompts) {
+      await loadPromptPage({ reset: true });
     }
-  }, [editingFolderId, editingFolderName, savingFolderEdit]);
+  }, [loadMediaPage, loadPromptPage, shouldShowMedia, shouldShowPrompts]);
 
   const handleAssignLastPicked = useCallback(async () => {
     if (!lastPickedItem) return;
@@ -881,6 +719,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       const targetFolderName =
         customFolders.find((folder) => folder.id === assignTargetFolderId)?.name || "folder";
       setMembershipMessage(`Added to ${targetFolderName}.`);
+      await refreshActiveRows();
     } catch (membershipError) {
       setFolderError(
         membershipError instanceof Error
@@ -888,7 +727,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           : "Unable to update folder membership."
       );
     }
-  }, [assignTargetFolderId, customFolders, lastPickedItem]);
+  }, [assignTargetFolderId, customFolders, lastPickedItem, refreshActiveRows, setFolderError]);
 
   const handleUnassignLastPicked = useCallback(async () => {
     if (!lastPickedItem) return;
@@ -909,6 +748,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setPromptRows((previous) => previous.filter((row) => row.id !== lastPickedItem.row.id));
       }
       setLastPickedItem(null);
+      await refreshActiveRows();
     } catch (membershipError) {
       setFolderError(
         membershipError instanceof Error
@@ -916,7 +756,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           : "Unable to update folder membership."
       );
     }
-  }, [activeFolderId, lastPickedItem]);
+  }, [activeFolderId, lastPickedItem, refreshActiveRows, setFolderError]);
+
+  const foldersDropController = useMediaLibraryFolderDropController({
+    folders,
+    setFolderError,
+    setMembershipMessage,
+    refreshActiveRows,
+    resolveInternalDropItem,
+  });
 
   const handleMediaCardDragStart = useCallback(
     (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => {
@@ -933,6 +781,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           id: file.id,
           url: signedUrl,
           fileType: isVideoFile(file.file_type) ? "video" : "image",
+          originFolderId: activeFolderId,
           filename: file.filename,
           promptText,
           source: file.source ?? null,
@@ -953,7 +802,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       }
       event.currentTarget.classList.add("is-dragging");
     },
-    []
+    [activeFolderId]
   );
 
   const handlePromptCardDragStart = useCallback(
@@ -969,6 +818,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         payload: {
           id: prompt.id,
           promptText,
+          originFolderId: activeFolderId,
           title: prompt.title,
         },
       });
@@ -977,7 +827,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       event.dataTransfer.setData("text/plain", promptText);
       event.currentTarget.classList.add("is-dragging");
     },
-    []
+    [activeFolderId]
   );
 
   const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLButtonElement>) => {
@@ -1032,8 +882,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 return (
                   <div
                     key={folder.id}
-                    className="media-library-panel-folder-strip-item"
+                    className={`media-library-panel-folder-strip-item ${
+                      foldersDropController.hoveredFolderId === folder.id ? "is-drop-hover" : ""
+                    }`}
                     role="listitem"
+                    onDragOver={(event) =>
+                      foldersDropController.handleFolderDragOver(folder.id, event)
+                    }
+                    onDragLeave={() => foldersDropController.handleFolderDragLeave(folder.id)}
+                    onDrop={(event) => {
+                      void foldersDropController.handleFolderDrop(folder.id, event);
+                    }}
                   >
                     {isEditing ? (
                       <>
@@ -1060,12 +919,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                             onKeyDown={(event) => {
                               if (event.key === "Enter") {
                                 event.preventDefault();
-                                void handleCommitFolderRename();
+                                void commitFolderRename();
                               }
                               if (event.key === "Escape") {
                                 event.preventDefault();
-                                setEditingFolderId(null);
-                                setEditingFolderName("");
+                                cancelFolderRename();
                               }
                             }}
                           />
@@ -1091,9 +949,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                           onClick={() => setActiveFolderId(folder.id)}
                           onDoubleClick={() => {
                             if (isRoot) return;
-                            setActiveFolderId(folder.id);
-                            setEditingFolderId(folder.id);
-                            setEditingFolderName(folder.name);
+                            startFolderRename(folder.id, folder.name);
                           }}
                           aria-label={`${folder.name} name`}
                         >
@@ -1110,7 +966,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   className="media-library-panel-folder-chip is-create"
                   aria-label="Create new folder"
                   onClick={() => {
-                    void handleCreateFolder();
+                    void createFolder();
                   }}
                   disabled={creatingFolder}
                 >

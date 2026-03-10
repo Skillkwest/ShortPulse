@@ -77,6 +77,7 @@ import {
   readMediaLibraryDragPayload,
   getMediaLibraryDragTypes,
 } from "../logic/mediaLibraryDragPayload";
+import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -132,6 +133,7 @@ type LibraryMediaReferencePayload = {
   id: string;
   url: string;
   fileType: "image" | "video";
+  originFolderId?: string | null;
   filename?: string | null;
   promptText?: string | null;
   source?: string | null;
@@ -143,6 +145,7 @@ type LibraryMediaReferencePayload = {
 type LibraryPromptReferencePayload = {
   id: string;
   promptText: string;
+  originFolderId?: string | null;
   title?: string | null;
 };
 type RightColumnDropPayload =
@@ -503,6 +506,10 @@ export type AiStudioPageContentProps = {
   onDetailSavePrompt?: (promptText: string) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
+  resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
+    kind: "media" | "prompt";
+    id: string;
+  } | null>;
   onOpenMediaLibrary?: () => void;
   modelModalState: {
     isOpen: boolean;
@@ -565,6 +572,7 @@ export function AiStudioPageContent({
   onDetailSavePrompt,
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
+  resolveMediaLibraryInternalDropItem,
   onOpenMediaLibrary,
   modelModalState,
   agentChat,
@@ -637,6 +645,8 @@ export function AiStudioPageContent({
         title: resolvedStyleName,
         referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
         stylePrompt: styleDetails.stylePrompt.trim(),
+        styleProfile: styleDetails.styleProfile,
+        extractionMeta: styleDetails.extractionMeta,
         previewUrl: resolvedPreviewUrl,
       };
     });
@@ -651,6 +661,8 @@ export function AiStudioPageContent({
           title: resolvedStyleName,
           referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
           stylePrompt: styleDetails.stylePrompt.trim(),
+          styleProfile: styleDetails.styleProfile,
+          extractionMeta: styleDetails.extractionMeta,
           previewUrl: styleDetails.previewImageUrl.trim() || null,
           placeholder: false,
         };
@@ -1002,6 +1014,7 @@ export function AiStudioPageContent({
           <MediaLibraryPanel
             onSelectMedia={onAddLibraryMediaReference}
             onSelectPrompt={onAddLibraryPromptReference}
+            resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           />
         ) : (
           <p className="tiny subdued">Media Library panel is unavailable.</p>
@@ -1032,6 +1045,7 @@ export function AiStudioPageContent({
       visibleStylesCatalog,
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
+      resolveMediaLibraryInternalDropItem,
     ]
   );
   const resolvePanelFromRegistry = React.useCallback(

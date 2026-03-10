@@ -92,6 +92,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
 - `docs/sops/sop_ai_studio_agent_rollout_operations.md`
 - `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`
+- `docs/sops/sop_ai_studio_style_creator.md`
 - `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/sops/sop_billing_credits_operations.md`

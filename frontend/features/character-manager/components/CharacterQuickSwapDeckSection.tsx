@@ -3,8 +3,9 @@
  * Renders active and archived quick-swap references with upload and drag/drop affordances.
  */
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CaretDown, Trash, UploadSimple } from "phosphor-react";
+import { resolveVirtualGridWindow, sliceVirtualGridEntries } from "../logic/quickSwapVirtualGrid";
 import type { CharacterQuickSwapItem } from "../types";
 
 type CharacterQuickSwapDeckSectionProps = {
@@ -21,6 +22,8 @@ type CharacterQuickSwapDeckSectionProps = {
   archivedCount: number;
   hasMoreArchived: boolean;
   loadingArchived: boolean;
+  quickSwapGridColumnCount: number;
+  quickSwapArchiveGridColumnCount: number;
   onToggleCollapsed: () => void;
   onOpenUploadPicker: () => void;
   onRemoveItem: (itemId: string) => void;
@@ -41,6 +44,32 @@ type CharacterQuickSwapDeckSectionProps = {
   onDrop: (event: React.DragEvent<HTMLElement>) => void;
 };
 
+const ACTIVE_GRID_GAP_PX = 4;
+const ARCHIVE_GRID_GAP_PX = 6;
+const ACTIVE_CARD_MAX_WIDTH_PX = 220;
+const ACTIVE_CARD_ASPECT_HEIGHT_MULTIPLIER = 5 / 4;
+const ARCHIVE_CARD_ESTIMATED_CHROME_PX = 46;
+const ARCHIVE_CARD_IMAGE_HEIGHT_MULTIPLIER = 11 / 16;
+const GRID_OVERSCAN_ROWS = 1;
+const ACTIVE_VIRTUALIZE_MIN_ROWS = 6;
+const ARCHIVE_VIRTUALIZE_MIN_ROWS = 6;
+
+const resolveCardWidth = ({
+  viewportWidth,
+  columnCount,
+  gapPx,
+  maxWidthPx,
+}: {
+  viewportWidth: number;
+  columnCount: number;
+  gapPx: number;
+  maxWidthPx: number;
+}): number => {
+  const columns = Math.max(1, Math.floor(columnCount));
+  const width = Math.max(0, viewportWidth - gapPx * (columns - 1)) / columns;
+  return Math.max(1, Math.min(maxWidthPx, width));
+};
+
 /**
  * Renders the quick-swap deck with dynamic item counts and archived controls.
  */
@@ -58,6 +87,8 @@ export function CharacterQuickSwapDeckSection({
   archivedCount,
   hasMoreArchived,
   loadingArchived,
+  quickSwapGridColumnCount,
+  quickSwapArchiveGridColumnCount,
   onToggleCollapsed,
   onOpenUploadPicker,
   onRemoveItem,
@@ -73,6 +104,164 @@ export function CharacterQuickSwapDeckSection({
   onDrop,
 }: CharacterQuickSwapDeckSectionProps) {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const activeScrollRef = useRef<HTMLDivElement | null>(null);
+  const archiveGridRef = useRef<HTMLDivElement | null>(null);
+  const [activeScrollTop, setActiveScrollTop] = useState(0);
+  const [activeViewportHeight, setActiveViewportHeight] = useState(0);
+  const [activeViewportWidth, setActiveViewportWidth] = useState(0);
+  const [archiveScrollTop, setArchiveScrollTop] = useState(0);
+  const [archiveViewportHeight, setArchiveViewportHeight] = useState(0);
+  const [archiveViewportWidth, setArchiveViewportWidth] = useState(0);
+  const [archiveMeasuredCardHeight, setArchiveMeasuredCardHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const node = activeScrollRef.current;
+    if (!node) return;
+    const syncMetrics = () => {
+      setActiveViewportHeight(node.clientHeight);
+      setActiveViewportWidth(node.clientWidth);
+    };
+    syncMetrics();
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(syncMetrics);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, [quickSwapGridColumnCount]);
+
+  useEffect(() => {
+    if (!isArchiveOpen) return;
+    const node = archiveGridRef.current;
+    if (!node) return;
+    const syncMetrics = () => {
+      setArchiveViewportHeight(node.clientHeight);
+      setArchiveViewportWidth(node.clientWidth);
+    };
+    syncMetrics();
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(syncMetrics);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, [isArchiveOpen, quickSwapArchiveGridColumnCount, archivedItems.length]);
+
+  const activeCardWidth = useMemo(
+    () =>
+      resolveCardWidth({
+        viewportWidth: activeViewportWidth,
+        columnCount: quickSwapGridColumnCount,
+        gapPx: ACTIVE_GRID_GAP_PX,
+        maxWidthPx: ACTIVE_CARD_MAX_WIDTH_PX,
+      }),
+    [activeViewportWidth, quickSwapGridColumnCount]
+  );
+  const activeCardHeight = activeCardWidth * ACTIVE_CARD_ASPECT_HEIGHT_MULTIPLIER;
+  const activeRenderableCount = activeItems.length + 1;
+  const shouldVirtualizeActive =
+    activeViewportHeight > 0 &&
+    activeRenderableCount > Math.max(1, quickSwapGridColumnCount) * ACTIVE_VIRTUALIZE_MIN_ROWS;
+  const activeWindow = useMemo(
+    () =>
+      shouldVirtualizeActive
+        ? resolveVirtualGridWindow({
+            itemCount: activeRenderableCount,
+            columnCount: quickSwapGridColumnCount,
+            viewportHeight: activeViewportHeight,
+            scrollTop: activeScrollTop,
+            rowHeight: activeCardHeight,
+            rowGap: ACTIVE_GRID_GAP_PX,
+            overscanRows: GRID_OVERSCAN_ROWS,
+          })
+        : {
+            startIndex: 0,
+            endIndexExclusive: activeRenderableCount,
+            paddingTop: 0,
+            paddingBottom: 0,
+          },
+    [
+      activeCardHeight,
+      activeRenderableCount,
+      activeScrollTop,
+      activeViewportHeight,
+      quickSwapGridColumnCount,
+      shouldVirtualizeActive,
+    ]
+  );
+
+  const visibleActiveEntries = useMemo(
+    () =>
+      sliceVirtualGridEntries(
+        activeItems,
+        activeWindow.startIndex,
+        Math.min(activeItems.length, activeWindow.endIndexExclusive)
+      ),
+    [activeItems, activeWindow.endIndexExclusive, activeWindow.startIndex]
+  );
+  const shouldRenderUploadPlaceholder =
+    activeItems.length >= activeWindow.startIndex &&
+    activeItems.length < activeWindow.endIndexExclusive;
+
+  const archiveEstimatedCardHeight = useMemo(() => {
+    const cardWidth = resolveCardWidth({
+      viewportWidth: archiveViewportWidth,
+      columnCount: quickSwapArchiveGridColumnCount,
+      gapPx: ARCHIVE_GRID_GAP_PX,
+      maxWidthPx: 100000,
+    });
+    return cardWidth * ARCHIVE_CARD_IMAGE_HEIGHT_MULTIPLIER + ARCHIVE_CARD_ESTIMATED_CHROME_PX;
+  }, [archiveViewportWidth, quickSwapArchiveGridColumnCount]);
+  const archiveCardHeight = archiveMeasuredCardHeight ?? archiveEstimatedCardHeight;
+  const shouldVirtualizeArchive =
+    isArchiveOpen &&
+    archiveViewportHeight > 0 &&
+    archivedItems.length >
+      Math.max(1, quickSwapArchiveGridColumnCount) * ARCHIVE_VIRTUALIZE_MIN_ROWS;
+  const archiveWindow = useMemo(
+    () =>
+      shouldVirtualizeArchive
+        ? resolveVirtualGridWindow({
+            itemCount: archivedItems.length,
+            columnCount: quickSwapArchiveGridColumnCount,
+            viewportHeight: archiveViewportHeight,
+            scrollTop: archiveScrollTop,
+            rowHeight: archiveCardHeight,
+            rowGap: ARCHIVE_GRID_GAP_PX,
+            overscanRows: GRID_OVERSCAN_ROWS,
+          })
+        : {
+            startIndex: 0,
+            endIndexExclusive: archivedItems.length,
+            paddingTop: 0,
+            paddingBottom: 0,
+          },
+    [
+      archiveCardHeight,
+      archiveScrollTop,
+      archiveViewportHeight,
+      archivedItems.length,
+      quickSwapArchiveGridColumnCount,
+      shouldVirtualizeArchive,
+    ]
+  );
+  const visibleArchivedEntries = useMemo(
+    () =>
+      sliceVirtualGridEntries(
+        archivedItems,
+        archiveWindow.startIndex,
+        archiveWindow.endIndexExclusive
+      ),
+    [archiveWindow.endIndexExclusive, archiveWindow.startIndex, archivedItems]
+  );
+
+  const handleArchiveCardMeasure = useCallback((node: HTMLElement | null) => {
+    if (!node) return;
+    const measuredHeight = node.getBoundingClientRect().height;
+    if (measuredHeight > 0) {
+      setArchiveMeasuredCardHeight(measuredHeight);
+    }
+  }, []);
 
   return (
     <section
@@ -154,13 +343,27 @@ export function CharacterQuickSwapDeckSection({
           </div>
         ) : null}
 
-        <div className="character-quickswap-active-scroll">
+        <div
+          ref={activeScrollRef}
+          className="character-quickswap-active-scroll"
+          onScroll={(event) => {
+            setActiveScrollTop((event.currentTarget as HTMLDivElement).scrollTop);
+          }}
+        >
           <div
             className="character-reference-upload-grid character-reference-upload-grid--drop-card"
             role="list"
             aria-label="Uploaded references"
+            style={
+              shouldVirtualizeActive
+                ? {
+                    paddingTop: `${activeWindow.paddingTop}px`,
+                    paddingBottom: `${activeWindow.paddingBottom}px`,
+                  }
+                : undefined
+            }
           >
-            {activeItems.map((item, index) => (
+            {visibleActiveEntries.map(({ item, absoluteIndex }) => (
               <article
                 key={item.id}
                 role="listitem"
@@ -172,7 +375,7 @@ export function CharacterQuickSwapDeckSection({
                 <button
                   type="button"
                   className="character-list-delete-btn character-reference-delete-btn"
-                  aria-label={`Remove reference ${index + 1}`}
+                  aria-label={`Remove reference ${absoluteIndex + 1}`}
                   onClick={() => {
                     onRemoveItem(item.id);
                   }}
@@ -183,13 +386,13 @@ export function CharacterQuickSwapDeckSection({
                 <div
                   className="character-reference-upload-image-wrap"
                   onDoubleClick={() => {
-                    onOpenReferencePreview(index, null);
+                    onOpenReferencePreview(absoluteIndex, null);
                   }}
                   title="Double-click to preview this reference image"
                 >
                   <Image
                     src={resolveCharacterGridPreviewUrl(item.previewUrl, 320) ?? item.previewUrl}
-                    alt={`Reference ${index + 1}`}
+                    alt={`Reference ${absoluteIndex + 1}`}
                     className="character-reference-upload-image"
                     width={320}
                     height={240}
@@ -199,21 +402,25 @@ export function CharacterQuickSwapDeckSection({
               </article>
             ))}
 
-            <button
-              type="button"
-              className="character-reference-upload-placeholder"
-              onClick={onOpenUploadPicker}
-              disabled={pageBusy}
-              aria-label="Upload quick swap reference image"
-            >
-              <UploadSimple
-                size={16}
-                weight="bold"
-                className="character-reference-upload-placeholder-icon"
-                aria-hidden="true"
-              />
-              <span className="character-reference-upload-placeholder-label">Click to upload</span>
-            </button>
+            {(!shouldVirtualizeActive || shouldRenderUploadPlaceholder) && (
+              <button
+                type="button"
+                className="character-reference-upload-placeholder"
+                onClick={onOpenUploadPicker}
+                disabled={pageBusy}
+                aria-label="Upload quick swap reference image"
+              >
+                <UploadSimple
+                  size={16}
+                  weight="bold"
+                  className="character-reference-upload-placeholder-icon"
+                  aria-hidden="true"
+                />
+                <span className="character-reference-upload-placeholder-label">
+                  Click to upload
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -237,15 +444,32 @@ export function CharacterQuickSwapDeckSection({
             </button>
             {isArchiveOpen ? (
               <div
+                ref={archiveGridRef}
                 className="character-quickswap-archive-grid"
                 role="list"
                 aria-label="Archived references"
+                onScroll={(event) => {
+                  setArchiveScrollTop((event.currentTarget as HTMLDivElement).scrollTop);
+                }}
+                style={
+                  shouldVirtualizeArchive
+                    ? {
+                        paddingTop: `${archiveWindow.paddingTop}px`,
+                        paddingBottom: `${archiveWindow.paddingBottom}px`,
+                      }
+                    : undefined
+                }
               >
-                {archivedItems.map((item) => (
+                {visibleArchivedEntries.map(({ item, absoluteIndex }) => (
                   <article
                     key={item.id}
                     role="listitem"
                     className="character-quickswap-archive-card"
+                    ref={
+                      absoluteIndex === archiveWindow.startIndex
+                        ? handleArchiveCardMeasure
+                        : undefined
+                    }
                   >
                     <div className="character-reference-upload-image-wrap">
                       <Image

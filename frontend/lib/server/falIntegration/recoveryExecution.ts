@@ -4,7 +4,12 @@
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
+import { writeAppErrorLog } from "../api/appErrorLogs";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import {
+  GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
+  GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
+} from "../api/errorTelemetryPolicy";
 import {
   canTransitionToSuccess,
   collectRecoveredUrls,
@@ -177,6 +182,7 @@ export const executeGenerationRecovery = async ({
   const runtimeFlags = readFalRuntimeFlags();
   const effectiveMaxAttempts = Math.max(maxAttempts ?? runtimeFlags.reconcilerMaxAttempts, 1);
   const runningExhaustMinAgeSeconds = Math.max(runtimeFlags.runningExhaustMinAgeSeconds, 0);
+  const runningHardTimeoutSeconds = Math.max(runtimeFlags.runningHardTimeoutSeconds, 0);
   const attempts = Number(generation.recovery_attempts ?? 0);
   const nowDate = new Date();
   const nowIso = nowDate.toISOString();
@@ -265,8 +271,70 @@ export const executeGenerationRecovery = async ({
   });
 
   if (currentObservation.state === "running") {
+    const hardTimeoutReached =
+      runningHardTimeoutSeconds > 0 && generationAgeSeconds >= runningHardTimeoutSeconds;
+    if (hardTimeoutReached) {
+      try {
+        await writeAppErrorLog({
+          source: GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
+          scope: "generation",
+          severity: "high",
+          message: GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
+          route: routeLabel,
+          endpoint: routeLabel.startsWith("/") ? routeLabel : `/${routeLabel}`,
+          requestId: generation.request_id,
+          userId: generation.user_id,
+          metadata: {
+            actor,
+            generation_id: generation.id,
+            model_id: generation.model_id,
+            provider: generation.provider,
+            recovery_attempts: attempts,
+            generation_age_seconds: generationAgeSeconds,
+            running_hard_timeout_seconds: runningHardTimeoutSeconds,
+          },
+        });
+      } catch {
+        // best-effort telemetry signal only
+      }
+      await settleGenerationOutcome({
+        userId: generation.user_id,
+        providerRequestId: generation.request_id,
+        outcome: "fail",
+        reason: "Provider exceeded running hard-timeout during recovery execution.",
+        routeLabel,
+        detail: {
+          actor,
+          generation_id: generation.id,
+          generation_age_seconds: generationAgeSeconds,
+          running_hard_timeout_seconds: runningHardTimeoutSeconds,
+        },
+      });
+      await updateGenerationRecoveryState({
+        generation,
+        updates: {
+          status: "fail",
+          completed_at: nowIso,
+          recovery_state: "exhausted",
+          failure_reason_code: "provider_running_timeout",
+          last_recovery_at: nowIso,
+          next_recovery_at: null,
+        },
+      });
+      return {
+        ok: true,
+        state: "exhausted",
+        generationId: generation.id,
+        requestId: generation.request_id,
+        mediaFileIds: [],
+        mediaUrls: [],
+        processed: true,
+        note: "running_hard_timeout",
+      };
+    }
+
     const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1));
-    const queuePlan = buildRecoveryQueuePlan({
+    const queuePlanBase = buildRecoveryQueuePlan({
       attempts,
       effectiveMaxAttempts,
       nextDelaySeconds,
@@ -274,6 +342,21 @@ export const executeGenerationRecovery = async ({
       exhaustMinAgeSeconds: runningExhaustMinAgeSeconds,
       enforceMinAgeForExhaustion: true,
     });
+    const generationCreatedAtMs = Date.parse(generation.created_at);
+    const runningDeadlineAtIso =
+      runningHardTimeoutSeconds > 0 && Number.isFinite(generationCreatedAtMs)
+        ? new Date(generationCreatedAtMs + runningHardTimeoutSeconds * 1000).toISOString()
+        : null;
+    const queuePlan = {
+      ...queuePlanBase,
+      nextRecoveryAt:
+        queuePlanBase.nextRecoveryAt && runningDeadlineAtIso
+          ? new Date(queuePlanBase.nextRecoveryAt).getTime() >
+            new Date(runningDeadlineAtIso).getTime()
+            ? runningDeadlineAtIso
+            : queuePlanBase.nextRecoveryAt
+          : queuePlanBase.nextRecoveryAt,
+    };
     if (queuePlan.isExhausted) {
       await settleGenerationOutcome({
         userId: generation.user_id,

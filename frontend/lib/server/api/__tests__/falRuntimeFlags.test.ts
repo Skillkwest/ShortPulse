@@ -35,6 +35,7 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED;
     delete process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS;
+    delete process.env.SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS;
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -68,6 +69,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.statusTransientFailuresEnabled).toBe(false);
     expect(flags.noMediaExhaustMinAgeSeconds).toBe(7200);
     expect(flags.runningExhaustMinAgeSeconds).toBe(7200);
+    expect(flags.runningHardTimeoutSeconds).toBe(0);
   });
 
   it("parses admission env overrides with per-tier fallback", () => {
@@ -97,6 +99,7 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
     process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS = "10800";
     process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS = "14400";
+    process.env.SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS = "900";
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -133,6 +136,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.statusTransientFailuresEnabled).toBe(true);
     expect(flags.noMediaExhaustMinAgeSeconds).toBe(10800);
     expect(flags.runningExhaustMinAgeSeconds).toBe(14400);
+    expect(flags.runningHardTimeoutSeconds).toBe(900);
   });
 
   it("enables reservation cleanup by default when reconciler is enabled", () => {

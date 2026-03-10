@@ -10,6 +10,7 @@ const deleteMediaFolderMock = vi.fn();
 const applyMediaFolderMembershipBatchMock = vi.fn();
 const fetchMediaPromptListPageMock = vi.fn();
 const fetchMediaListPageMock = vi.fn();
+const mediaGridPropsSpy = vi.fn();
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseClient: () => ({
@@ -90,6 +91,15 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
   MediaLibraryMediaGrid: (props: {
     activeMedia: Array<{ id: string; filename: string }>;
     onSelectMediaFile: (row: { id: string; filename: string }) => void;
+    resolveCardPreviewUrl?: (args: {
+      signedUrl: string | null | undefined;
+      fileType?: string | null;
+      pressureLevel: 0 | 1 | 2;
+      adaptivePreviewQualityEnabled: boolean;
+      shouldBypassAdaptivePreview?: boolean;
+      cardLongEdgePx?: number;
+      devicePixelRatio?: number;
+    }) => string | null;
     onDownloadMediaFile?: (row: {
       id: string;
       filename: string;
@@ -101,27 +111,30 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
       filename: string;
       signedUrl?: string | null;
     }) => void;
-  }) => (
-    <div data-testid="mock-media-grid">
-      {props.activeMedia.map((row) => (
-        <React.Fragment key={row.id}>
-          <button type="button" onClick={() => props.onSelectMediaFile(row)}>
-            Select media {row.filename}
-          </button>
-          {props.onDownloadMediaFile ? (
-            <button type="button" onClick={() => props.onDownloadMediaFile?.(row)}>
-              Download media {row.filename}
+  }) => {
+    mediaGridPropsSpy(props);
+    return (
+      <div data-testid="mock-media-grid">
+        {props.activeMedia.map((row) => (
+          <React.Fragment key={row.id}>
+            <button type="button" onClick={() => props.onSelectMediaFile(row)}>
+              Select media {row.filename}
             </button>
-          ) : null}
-          {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
-            <button type="button" onClick={() => props.onRemoveMediaFromFolder?.(row)}>
-              Remove media {row.filename}
-            </button>
-          ) : null}
-        </React.Fragment>
-      ))}
-    </div>
-  ),
+            {props.onDownloadMediaFile ? (
+              <button type="button" onClick={() => props.onDownloadMediaFile?.(row)}>
+                Download media {row.filename}
+              </button>
+            ) : null}
+            {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
+              <button type="button" onClick={() => props.onRemoveMediaFromFolder?.(row)}>
+                Remove media {row.filename}
+              </button>
+            ) : null}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  },
 }));
 
 vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
@@ -173,6 +186,7 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
 describe("MediaLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mediaGridPropsSpy.mockReset();
     listMediaFoldersMock.mockResolvedValue([
       {
         id: "folder-1",
@@ -265,6 +279,17 @@ describe("MediaLibraryPanel", () => {
         promptText: "Prompt text",
       })
     );
+  });
+
+  it("passes panel-specific preview resolver callback to media grid", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("mock-media-grid").length).toBeGreaterThan(0);
+    });
+    const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps).toBeTruthy();
+    expect(typeof latestProps.resolveCardPreviewUrl).toBe("function");
   });
 
   it("downloads media from the panel media hover action", async () => {

@@ -46,6 +46,7 @@ describe("errorIncidentViewUtils", () => {
     expect(eventSignalFilterLabel("character_mode_reference_refresh_empty")).toContain(
       "reference refresh empty"
     );
+    expect(eventSignalFilterLabel("provider_running_timeout")).toContain("running timeout");
     expect(eventIncidentFilterLabel("actionable")).toContain("Actionable");
     expect(eventIncidentFilterLabel("unlinked")).toContain("Unlinked");
   });

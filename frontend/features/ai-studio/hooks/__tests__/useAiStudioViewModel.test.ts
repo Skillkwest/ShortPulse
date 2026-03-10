@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
+import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
 
 const makeCostParamsForModel =
@@ -189,5 +190,49 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("switches edit cost and credit guardrail to FLUX Fill when inpaint intent is active", () => {
+    const selectedModelId = "fal-ai/flux-2/klein/9b";
+    const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
+    const standardCostCredits = computeCostForModel(
+      selectedModelId,
+      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+    )?.credits;
+    const inpaintCostCredits = computeCostForModel(
+      INPAINT_FLUX_FILL_MODEL_ID,
+      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+    )?.credits;
+    expect(standardCostCredits).not.toBeNull();
+    expect(inpaintCostCredits).not.toBeNull();
+    expect(inpaintCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
+    const balanceCredits = standardCostCredits ?? 0;
+
+    const { result, rerender } = renderHook(
+      ({ intent }: { intent?: "standard" | "inpaint" }) =>
+        useAiStudioViewModel({
+          ...editInput,
+          model: selectedModelId,
+          aspect: "1:1",
+          prompt: "Clean up edges and relight subtly",
+          referenceImageUrl: "https://example.com/reference.png",
+          costParamsForModel: editCostParamsForModel,
+          balanceCredits,
+          editSubmitIntent: intent,
+        }),
+      {
+        initialProps: { intent: "standard" as const },
+      }
+    );
+
+    expect(result.current.currentCostCredits).toBe(standardCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(false);
+    expect(result.current.generationGuardrail).toBeNull();
+
+    rerender({ intent: "inpaint" as const });
+
+    expect(result.current.currentCostCredits).toBe(inpaintCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(true);
+    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
   });
 });

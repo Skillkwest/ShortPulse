@@ -479,6 +479,27 @@ body.dashboard-body {
   max-width: 540px;
 }
 
+.hero-announcement {
+  display: grid;
+  gap: 6px;
+  max-width: 560px;
+}
+
+.hero-announcement-title {
+  margin: 0;
+  color: var(--color-teal);
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: var(--font-semibold);
+}
+
+.hero-announcement-message {
+  margin: 0;
+  color: var(--color-ash-70);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
 .hero-onboarding {
   border-radius: var(--radius-3xl);
   border: 1px solid var(--color-teal-soft);

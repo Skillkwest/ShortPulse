@@ -3,6 +3,7 @@
  * Keeps protected-prefix routing rules centralized to avoid drift between layers.
  */
 export const PROTECTED_API_PREFIXES = [
+  "/api/announcements/",
   "/api/fal/",
   "/api/ai/",
   "/api/media/",

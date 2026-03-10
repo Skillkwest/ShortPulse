@@ -8,6 +8,10 @@ import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
+import {
+  resolveEffectiveEditSubmitModelId,
+  type EditSubmitIntent,
+} from "../logic/editSubmitIntent";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
@@ -29,6 +33,7 @@ type ViewModelInput = {
   imageResolution: string;
   videoGenerateAudio: boolean;
   balanceCredits: number | null;
+  editSubmitIntent?: EditSubmitIntent;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
 };
 
@@ -50,17 +55,27 @@ export const useAiStudioViewModel = ({
   imageResolution,
   videoGenerateAudio,
   balanceCredits,
+  editSubmitIntent,
   costParamsForModel,
 }: ViewModelInput) => {
   const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
   const isEditWorkflowSelected = isEditWorkflow(selectedTool);
   const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
+  const effectiveEditSubmitModelId = useMemo(
+    () =>
+      resolveEffectiveEditSubmitModelId({
+        selectedTool,
+        selectedModelId: model,
+        editSubmitIntent,
+      }),
+    [editSubmitIntent, model, selectedTool]
+  );
   const isDescribeMode = isCreateWorkflowSelected && mode === "text" && useReferenceImageIndicator;
   const requiresModelSelection =
     (isCreateWorkflowSelected && mode !== "text") ||
     isVideoWorkflowSelected ||
     isEditWorkflowSelected;
-  const isModelSelected = Boolean(model);
+  const isModelSelected = Boolean(effectiveEditSubmitModelId);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
   const isVideoTool = isVideoWorkflowSelected;
   const isImageTool = (isCreateWorkflowSelected && mode === "image") || isEditWorkflowSelected;
@@ -101,9 +116,9 @@ export const useAiStudioViewModel = ({
     }
 
     if (isEditWorkflowSelected) {
-      if (!model) return null;
+      if (!effectiveEditSubmitModelId) return null;
       return computeCostForModel(
-        model,
+        effectiveEditSubmitModelId,
         costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {})
       );
     }
@@ -129,6 +144,7 @@ export const useAiStudioViewModel = ({
     getDefaultDurationSeconds,
     mode,
     model,
+    effectiveEditSubmitModelId,
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
     isVideoTool,
@@ -141,9 +157,9 @@ export const useAiStudioViewModel = ({
   const currentCostCredits = currentCost?.credits ?? null;
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
-    if (!model) return null;
+    if (!effectiveEditSubmitModelId) return null;
     const breakdown = computeCostForModel(
-      model,
+      effectiveEditSubmitModelId,
       costParamsForModel(
         isVideoTool
           ? {
@@ -159,9 +175,9 @@ export const useAiStudioViewModel = ({
     return breakdown?.credits ?? null;
   }, [
     costParamsForModel,
+    effectiveEditSubmitModelId,
     isVideoTool,
     isImageTool,
-    model,
     pricingImageResolution,
     videoDurationSeconds,
     videoGenerateAudio,
@@ -199,16 +215,16 @@ export const useAiStudioViewModel = ({
   );
 
   const promptGenerateCostCredits = useMemo(() => {
-    if (!model || !isImageTool) return null;
+    if (!effectiveEditSubmitModelId || !isImageTool) return null;
     const breakdown = computeCostForModel(
-      model,
+      effectiveEditSubmitModelId,
       costParamsForModel({
         aspect,
         ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
       })
     );
     return breakdown?.credits ?? null;
-  }, [aspect, costParamsForModel, isImageTool, model, pricingImageResolution]);
+  }, [aspect, costParamsForModel, effectiveEditSubmitModelId, isImageTool, pricingImageResolution]);
   const promptReferenceGenerateCostCredits =
     (isImageTool ? promptGenerateCostCredits : null) ??
     modelPickerCostCredits ??

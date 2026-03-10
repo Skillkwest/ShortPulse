@@ -918,31 +918,35 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("renders Move/Inpaint rail buttons with Move selected by default", async () => {
+  it("renders Move/Inpaint/Markup rail buttons with Move selected by default", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
     const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
     const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
+    const videoButton = await within(rail).findByRole("button", { name: /^markup$/i });
     const railOrder = within(rail)
       .getAllByRole("button")
       .map((button) => button.textContent?.trim()?.toLowerCase());
 
-    expect(railOrder).toEqual(["move", "inpaint"]);
+    expect(railOrder).toEqual(["move", "inpaint", "markup"]);
+    expect(videoButton).toHaveAttribute("aria-pressed", "false");
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
     expect(moveButton).toHaveAttribute("aria-pressed", "true");
     expect(within(rail).queryByRole("button", { name: /^crop$/i })).toBeNull();
   });
 
-  it("toggles selected tool state between Move/Inpaint rail buttons", async () => {
+  it("toggles selected tool state across Move/Inpaint/Markup rail buttons", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
     const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
     const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
+    const videoButton = await within(rail).findByRole("button", { name: /^markup$/i });
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
+    expect(videoButton).toHaveAttribute("aria-pressed", "false");
     expect(moveButton).toHaveAttribute("aria-pressed", "true");
     expect(within(rail).queryByRole("button", { name: /^crop$/i })).toBeNull();
     const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
@@ -963,15 +967,63 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(inpaintButton);
     expect(inpaintButton).toHaveAttribute("aria-pressed", "true");
+    expect(videoButton).toHaveAttribute("aria-pressed", "false");
     expect(moveButton).toHaveAttribute("aria-pressed", "false");
     const inpaintSettingsPanel = screen.getByRole("group", { name: /inpaint tools/i });
     expect(inpaintSettingsPanel).toHaveClass("is-themed-inpaint");
 
+    fireEvent.click(videoButton);
+    expect(videoButton).toHaveAttribute("aria-pressed", "true");
+    expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
+    expect(moveButton).toHaveAttribute("aria-pressed", "false");
+    const videoSettingsPanel = screen.getByRole("group", { name: /markup tools/i });
+    expect(videoSettingsPanel).toHaveClass("is-themed-video");
+    const penButton = within(videoSettingsPanel).getByRole("button", { name: /^pen$/i });
+    const eraserButton = within(videoSettingsPanel).getByRole("button", { name: /^eraser$/i });
+    const expandButton = within(videoSettingsPanel).getByRole("button", {
+      name: /expand markup tools/i,
+    });
+    const markupColorPicker = within(videoSettingsPanel).getByLabelText(/markup color/i);
+    const clearMarkupButton = within(videoSettingsPanel).getByRole("button", {
+      name: /clear markup strokes/i,
+    });
+
+    expect(penButton).toHaveAttribute("aria-pressed", "true");
+    expect(eraserButton).toHaveAttribute("aria-pressed", "false");
+    expect(expandButton).toHaveAttribute("aria-pressed", "false");
+    expect(markupColorPicker).toHaveAttribute("type", "color");
+    expect(clearMarkupButton).toBeInTheDocument();
+    expect(within(videoSettingsPanel).queryByRole("tab", { name: /^select$/i })).toBeNull();
+    expect(
+      within(videoSettingsPanel).queryByRole("button", { name: /invert selection/i })
+    ).toBeNull();
+
     fireEvent.click(moveButton);
     expect(moveButton).toHaveAttribute("aria-pressed", "true");
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
+    expect(videoButton).toHaveAttribute("aria-pressed", "false");
     const moveSettingsPanelAgain = screen.getByRole("group", { name: /move tools/i });
     expect(moveSettingsPanelAgain).toHaveClass("is-themed-move");
+  });
+
+  it("publishes edit submit intent when the rail tool changes", async () => {
+    const onEditSubmitIntentChange = vi.fn();
+    render(
+      <ExpertEditPanelView {...baseProps} onEditSubmitIntentChange={onEditSubmitIntentChange} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
+    const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
+
+    expect(onEditSubmitIntentChange).toHaveBeenCalledWith("standard");
+
+    fireEvent.click(inpaintButton);
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("inpaint");
+
+    fireEvent.click(moveButton);
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
   });
 
   it("locks the model picker to FLUX Pro Fill while Inpaint is selected", async () => {

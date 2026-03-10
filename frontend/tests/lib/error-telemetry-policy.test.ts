@@ -4,6 +4,8 @@ import {
   CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT,
   CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT,
   CHARACTER_MODE_TELEMETRY_SOURCE,
+  GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
+  GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
   isTelemetrySource,
@@ -26,5 +28,9 @@ describe("error telemetry source policy", () => {
     expect(CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT).toBe(
       "character_mode_injection_fallback.bundle_unavailable"
     );
+    expect(GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE).toBe(
+      "telemetry.generation.recovery.running_hard_timeout"
+    );
+    expect(GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT).toBe("provider_running_timeout");
   });
 });

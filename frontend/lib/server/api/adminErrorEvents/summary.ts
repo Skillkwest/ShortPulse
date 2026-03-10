@@ -125,6 +125,7 @@ export const buildDegradedEventsPayload = (params: {
   total15mThreshold: number;
   high15mThreshold: number;
   generation15mThreshold: number;
+  providerRunningTimeout15mThreshold: number;
   reason: string;
 }) => ({
   events: [],
@@ -132,6 +133,7 @@ export const buildDegradedEventsPayload = (params: {
     last15mCount: 0,
     high15mCount: 0,
     generation15mCount: 0,
+    providerRunningTimeout15mCount: 0,
     lastHourCount: 0,
     last24hCount: 0,
     app24hCount: 0,
@@ -145,9 +147,11 @@ export const buildDegradedEventsPayload = (params: {
     total15mThreshold: params.total15mThreshold,
     high15mThreshold: params.high15mThreshold,
     generation15mThreshold: params.generation15mThreshold,
+    providerRunningTimeout15mThreshold: params.providerRunningTimeout15mThreshold,
     total15mBreached: false,
     high15mBreached: false,
     generation15mBreached: false,
+    providerRunningTimeout15mBreached: false,
   },
   health: degradedHealth(params.reason),
   pagination: {

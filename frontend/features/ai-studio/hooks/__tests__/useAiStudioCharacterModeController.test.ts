@@ -56,6 +56,7 @@ const createSnapshotWithPresetReference = (
     const defaultPresetState = createDefaultCharacterSheetPresetState();
     return {
       characterId: "char-1",
+      userId: "user-1",
       characterSheetId: "sheet-1",
       characterName: "Hero",
       legacyCharacterDescription: input.legacyDescription ?? "Legacy hero description",

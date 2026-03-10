@@ -62,6 +62,8 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 | Provider-attached cleanup min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS` | `7200s` |
 | Provider-attached orphan min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS` | `86400s` |
 | Queue max wait before exhaust | `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS` | `1200s` |
+| Running recovery min age for attempt-budget exhaustion | `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS` | `7200s` |
+| Running hard-timeout failover | `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS` | `0s` (disabled) |
 | Client queue polling max wait | `QUEUE_STATUS_MAX_WAIT_MS` | `1800000ms` (30m) |
 | Guarded manual stale threshold | `sql/check_generation_queue_blockers.sql` | `>= 2h` |
 

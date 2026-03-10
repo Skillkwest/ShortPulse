@@ -4,6 +4,7 @@ import { executeGenerationRecovery } from "../recoveryExecution";
 const getSupabaseAdminMock = vi.fn();
 const readFalRuntimeFlagsMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const readExistingRecoveryMediaRowsMock = vi.fn();
 const persistRecoveryMediaFilesForGenerationMock = vi.fn();
 const probeGenerationProviderResultMock = vi.fn();
@@ -18,6 +19,10 @@ vi.mock("../../api/falRuntimeFlags", () => ({
 
 vi.mock("../../api/generationBilling", () => ({
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
+}));
+
+vi.mock("../../api/appErrorLogs", () => ({
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../recoveryMediaPersistence", () => ({
@@ -120,8 +125,10 @@ describe("executeGenerationRecovery", () => {
       reconcilerMaxAttempts: 3,
       noMediaExhaustMinAgeSeconds: 7200,
       runningExhaustMinAgeSeconds: 7200,
+      runningHardTimeoutSeconds: 0,
     });
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
     probeGenerationProviderResultMock.mockResolvedValue({
@@ -236,6 +243,113 @@ describe("executeGenerationRecovery", () => {
       })
     );
     expect(typeof scenario.updatePayloads[0]?.next_recovery_at).toBe("string");
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+  });
+
+  it("marks provider-running generations as exhausted when running hard-timeout is reached", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      reconcilerMaxAttempts: 3,
+      noMediaExhaustMinAgeSeconds: 7200,
+      runningExhaustMinAgeSeconds: 7200,
+      runningHardTimeoutSeconds: 900,
+    });
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        created_at: new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+        recovery_attempts: 1,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      maxAttempts: 5,
+      observation: {
+        state: "running",
+        payload: null,
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "exhausted",
+        processed: true,
+        note: "running_hard_timeout",
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "fail",
+        recovery_state: "exhausted",
+        failure_reason_code: "provider_running_timeout",
+        next_recovery_at: null,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+        reason: "Provider exceeded running hard-timeout during recovery execution.",
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.generation.recovery.running_hard_timeout",
+        message: "provider_running_timeout",
+        scope: "generation",
+        severity: "high",
+      })
+    );
+  });
+
+  it("caps next recovery check at running hard-timeout deadline", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      reconcilerMaxAttempts: 5,
+      noMediaExhaustMinAgeSeconds: 7200,
+      runningExhaustMinAgeSeconds: 7200,
+      runningHardTimeoutSeconds: 900,
+    });
+    const createdAt = new Date(Date.now() - 14 * 60 * 1000).toISOString();
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        created_at: createdAt,
+        recovery_attempts: 4,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      maxAttempts: 5,
+      observation: {
+        state: "running",
+        payload: null,
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "provider_running",
+        processed: true,
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    const nextRecoveryAt = scenario.updatePayloads[0]?.next_recovery_at;
+    expect(typeof nextRecoveryAt).toBe("string");
+    const hardDeadlineMs = Date.parse(createdAt) + 900 * 1000;
+    const scheduledMs = Date.parse(String(nextRecoveryAt));
+    expect(Number.isFinite(scheduledMs)).toBe(true);
+    expect(scheduledMs).toBeLessThanOrEqual(hardDeadlineMs);
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
   });
 

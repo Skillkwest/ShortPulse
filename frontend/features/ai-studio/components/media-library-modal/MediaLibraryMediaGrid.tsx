@@ -14,12 +14,23 @@ import {
   type MediaCardRefCallback,
 } from "../../logic/mediaLibraryModalModel";
 
+type ResolveMediaLibraryGridPreviewUrlArgs = {
+  signedUrl: string | null | undefined;
+  fileType?: string | null;
+  pressureLevel: 0 | 1 | 2;
+  adaptivePreviewQualityEnabled: boolean;
+  shouldBypassAdaptivePreview?: boolean;
+  cardLongEdgePx?: number;
+  devicePixelRatio?: number;
+};
+
 type MediaLibraryMediaGridProps = {
   activeMedia: MediaFileRow[];
   selectedIds: Set<string>;
   optimizerFallbackMediaIds: Set<string>;
   adaptivePressureLevel: 0 | 1 | 2;
   adaptivePreviewQualityEnabled: boolean;
+  resolveCardPreviewUrl?: (args: ResolveMediaLibraryGridPreviewUrlArgs) => string | null;
   scrollContainerRef?: MutableRefObject<HTMLElement | null>;
   getMediaCardRef: (fileId: string) => MediaCardRefCallback;
   onSelectMediaFile: (file: MediaFileRow) => void;
@@ -39,6 +50,7 @@ export function MediaLibraryMediaGrid({
   optimizerFallbackMediaIds,
   adaptivePressureLevel,
   adaptivePreviewQualityEnabled,
+  resolveCardPreviewUrl,
   scrollContainerRef,
   getMediaCardRef,
   onSelectMediaFile,
@@ -91,6 +103,7 @@ export function MediaLibraryMediaGrid({
       detachDelayMs: 850,
       visibilityThreshold: 0.5,
     });
+  void selectedIds;
 
   return (
     <div
@@ -116,16 +129,26 @@ export function MediaLibraryMediaGrid({
             fileType: file.file_type,
             metadata: file.metadata,
           });
-          const cardPreviewUrl = resolveMediaLibraryAdaptiveCardPreviewUrl({
-            surface: "media-library-modal-grid",
-            signedUrl: file.signedUrl,
-            fileType: file.file_type,
-            pressureLevel: adaptivePressureLevel,
-            adaptivePreviewQualityEnabled,
-            shouldBypassAdaptivePreview,
-            cardLongEdgePx: 320,
-            devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-          });
+          const cardPreviewUrl = resolveCardPreviewUrl
+            ? resolveCardPreviewUrl({
+                signedUrl: file.signedUrl,
+                fileType: file.file_type,
+                pressureLevel: adaptivePressureLevel,
+                adaptivePreviewQualityEnabled,
+                shouldBypassAdaptivePreview,
+                cardLongEdgePx: 320,
+                devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+              })
+            : resolveMediaLibraryAdaptiveCardPreviewUrl({
+                surface: "media-library-modal-grid",
+                signedUrl: file.signedUrl,
+                fileType: file.file_type,
+                pressureLevel: adaptivePressureLevel,
+                adaptivePreviewQualityEnabled,
+                shouldBypassAdaptivePreview,
+                cardLongEdgePx: 320,
+                devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+              });
           const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
           const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";

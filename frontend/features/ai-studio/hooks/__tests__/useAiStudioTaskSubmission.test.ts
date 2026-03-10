@@ -1907,6 +1907,81 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("preserves handler-specific submit failures instead of overriding with submit-not-started", async () => {
+    const setOutputs = vi.fn();
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+    vi.mocked(handleImageModelSubmission).mockImplementationOnce(
+      async ({ id, notifyGenerationFailure: notifyFromHandler }) => {
+        notifyFromHandler(id, "FLUX Fill requires both a base image and mask.");
+        return true;
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/flux-pro/v1/fill",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("put a dog here", ["https://cdn.test/base.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+      });
+    });
+
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      expect.any(String),
+      "FLUX Fill requires both a base image and mask.",
+      undefined
+    );
+    expect(reportAppErrorMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "fal_submit_not_started",
+      })
+    );
+  });
+
   it("maps auth-session timeout during submit to an immediate start failure with telemetry", async () => {
     const setOutputs = vi.fn();
     const setIsPromptGenerating = vi.fn();

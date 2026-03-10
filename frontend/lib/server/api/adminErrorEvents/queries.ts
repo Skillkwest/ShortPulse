@@ -18,6 +18,7 @@ export type ErrorEventsDatasetResult = {
   last15mCountResult: CountQueryResult;
   high15mCountResult: CountQueryResult;
   generation15mCountResult: CountQueryResult;
+  providerRunningTimeout15mCountResult: CountQueryResult;
   lastHourCountResult: CountQueryResult;
   last24hCountResult: CountQueryResult;
   app24hCountResult: CountQueryResult;
@@ -65,6 +66,7 @@ export const fetchErrorEventsDataset = async (params: {
     last15mCountResult,
     high15mCountResult,
     generation15mCountResult,
+    providerRunningTimeout15mCountResult,
     lastHourCountResult,
     last24hCountResult,
     app24hCountResult,
@@ -101,6 +103,12 @@ export const fetchErrorEventsDataset = async (params: {
         .eq("scope", "generation") as unknown as EventQuery,
       params.summaryFilters
     ) as unknown as Promise<CountQueryResult>,
+    params.supabaseAdmin
+      .from("ai_generations")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "fail")
+      .eq("failure_reason_code", "provider_running_timeout")
+      .gte("completed_at", params.since15mIso) as unknown as Promise<CountQueryResult>,
     applyEventFilters(
       params.supabaseAdmin
         .from("app_error_events")
@@ -188,6 +196,7 @@ export const fetchErrorEventsDataset = async (params: {
     last15mCountResult,
     high15mCountResult,
     generation15mCountResult,
+    providerRunningTimeout15mCountResult,
     lastHourCountResult,
     last24hCountResult,
     app24hCountResult,

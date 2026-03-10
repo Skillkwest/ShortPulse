@@ -238,6 +238,7 @@ const supabaseClientMockState = vi.hoisted(() => ({
 const characterManagerMockState = vi.hoisted(() => ({
   characters: [] as MockCharacterListEntry[],
   selectedCharacterId: "character-1",
+  loading: false,
 }));
 
 const quickSwapDeckMockState = vi.hoisted(() => ({
@@ -402,7 +403,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         },
         slots,
         error: null,
-        loading: false,
+        loading: characterManagerMockState.loading,
         isSavingName: false,
         isCreatingCharacter: false,
         isDeletingCharacter: false,
@@ -637,6 +638,7 @@ describe("CharacterManagerShell behavior", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = TEST_SUPABASE_URL;
     characterManagerMockState.characters = [];
     characterManagerMockState.selectedCharacterId = "character-1";
+    characterManagerMockState.loading = false;
     supabaseClientMockState.mediaLookupMaybeSingle.mockReset();
     supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValue({ data: null, error: null });
     supabaseClientMockState.storageDownload.mockReset();
@@ -1719,6 +1721,17 @@ describe("CharacterManagerShell behavior", () => {
         })
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("shows a loading spinner in Manage Characters while the character list is loading", () => {
+    characterManagerMockState.loading = true;
+    characterManagerMockState.characters = [];
+
+    render(<CharacterManagerShell initialWorkflowTab="manage" />);
+
+    expect(screen.getByText("Loading characters...")).toBeInTheDocument();
+    expect(screen.getByText("Pulling your character library into view.")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: /Character list/i })).not.toBeInTheDocument();
   });
 
   it("hides beginner toggle controls when `showBeginnerModeToggle` is false", () => {

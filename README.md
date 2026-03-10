@@ -21,6 +21,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, webhook routes, and authenticated credit snapshot reads at `/api/credits/snapshot` (available + pending reservation holds).
 - Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error`, viewed as grouped incidents via `/api/admin/errors`, and inspected as raw occurrences via `/api/admin/error-events`; admins can update one (`/api/admin/errors-status`) or many (`/api/admin/errors-status-bulk`) incident statuses and smoke-test visibility via `/api/admin/errors-test`.
 - Admin access gating: `/api/admin/access` provides lightweight server-authoritative admin access checks so admin pages do not depend on `/api/admin/users` list fetches for authorization gating.
+- Dashboard announcements: authenticated users read the active global dashboard bulletin via `/api/announcements/active`; admins manage current state with `/api/admin/announcements/current|publish|clear`.
 - Agent safety control-plane admin APIs: `/api/admin/agent-safety-policy/active`, `/api/admin/agent-safety-policy/activate`, `/api/admin/agent-safety-policy/rollback`, and `/api/admin/agent-safety-policy/version` provide authenticated profile activation/rollback/version controls with cooldown-aware rollback safety.
 - Optional alert tuning: set `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, and `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` to control Admin event-spike thresholds.
 
@@ -57,7 +58,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 
 ## Frontend surfaces
 
-- **Dashboard (`/dashboard`)**: Launchpad with plan/status chips and a `New Project` quick action into AI Studio. Set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to temporarily restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign work.
+- **Dashboard (`/dashboard`)**: Launchpad with plan/status chips and a `New Project` quick action into AI Studio. The hero helper slot renders an active global announcement when one exists, and fails soft to default helper copy otherwise. Set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to temporarily restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign work.
 - **Performance Analytics (`/performance`)**: Authenticated demo analytics surface (staged rollout; dashboard currently points to `/performance-soon`).
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
@@ -72,14 +73,14 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
   The left toolbar includes a `Sessions` action that lists recent persisted sessions and supports explicit save-and-switch restoration back into AI Studio.
 - **Character Manager (`/character`)**: Character creation and management workspace with persisted reference intake and persisted character-sheet assignments. Character Sheet preset tabs are dynamic (`1..10`): new users start with only tab `1` labeled `Double click me`, `+` adds tabs, double-click rename autosaves per user/character, and tabs after `1` can be deleted via `X` with confirmation (removes that tab's saved preset references). Character Profile description is also preset-scoped per active tab and persists in metadata. AI Studio Character Mode injects active-tab description first, then falls back to legacy character description when empty. The same preset-tab behavior is used in the AI Studio Character Properties panel via shared shell logic. Beginner toggle controls are temporarily hidden by the same runtime policy used by AI Studio.
 - **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.
-- **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls, per-user recent credit transaction audit (including billed-vs-raw pricing metadata), and a live app-error incident feed.
+- **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls, per-user recent credit transaction audit (including billed-vs-raw pricing metadata), a live app-error incident feed, and an Announcements tab for publishing/clearing the one active dashboard bulletin.
 
 ## Security
 
 - Only the Supabase anon key is used on the client; never share the service role key.
 - Enable RLS on `saved_creators` and `media_files` (per-user isolation) and keep the `media_library` bucket private with paths prefixed by `auth.uid()`.
 - Route protection: `/dashboard`, `/performance`, `/performance-soon`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`, `/character`, `/character-soon`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
-- API protection: provider proxy routes, media routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
+- API protection: announcement routes, provider proxy routes, media routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
 
 ## Testing
 

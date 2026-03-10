@@ -3,6 +3,7 @@
  * Owns character list loading and selected-character bundle loading.
  */
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
@@ -41,10 +42,29 @@ export const useAiStudioCharacterModeLifecycle = ({
   setIsCharacterBundleLoading,
 }: UseAiStudioCharacterModeLifecycleParams) => {
   const [characterOptions, setCharacterOptions] = useState<CharacterSelectOption[]>([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(
-    () => readPersistedSelectedCharacterId() ?? ""
-  );
+  const [selectedCharacterId, setSelectedCharacterId] = useState("");
+  const [selectedCharacterStorageScope, setSelectedCharacterStorageScope] = useState<
+    string | null | undefined
+  >(undefined);
   const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void ensureSupabaseClient()
+      .auth.getSession()
+      .then(({ data, error }) => {
+        if (!active || error) return;
+        const resolvedScope = data.session?.user?.id?.trim() ?? null;
+        setSelectedCharacterStorageScope(resolvedScope);
+        if (!resolvedScope) return;
+        const persistedId = readPersistedSelectedCharacterId({ userId: resolvedScope });
+        if (!persistedId) return;
+        setSelectedCharacterId((current) => (current.trim().length > 0 ? current : persistedId));
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -85,18 +105,29 @@ export const useAiStudioCharacterModeLifecycle = ({
   }, [setUiError]);
 
   useEffect(() => {
-    persistSelectedCharacterId(selectedCharacterId || null);
-  }, [selectedCharacterId]);
+    if (selectedCharacterStorageScope === undefined) return;
+    persistSelectedCharacterId(selectedCharacterId || null, {
+      userId: selectedCharacterStorageScope,
+    });
+  }, [selectedCharacterId, selectedCharacterStorageScope]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToSelectedCharacterId((nextCharacterId) => {
-      setSelectedCharacterId((current) => {
-        const normalized = nextCharacterId ?? "";
-        return current === normalized ? current : normalized;
-      });
-    });
+    if (selectedCharacterStorageScope === undefined) {
+      return () => {};
+    }
+    const unsubscribe = subscribeToSelectedCharacterId(
+      (nextCharacterId) => {
+        setSelectedCharacterId((current) => {
+          const normalized = nextCharacterId ?? "";
+          return current === normalized ? current : normalized;
+        });
+      },
+      {
+        userId: selectedCharacterStorageScope,
+      }
+    );
     return unsubscribe;
-  }, []);
+  }, [selectedCharacterStorageScope]);
 
   useEffect(() => {
     let active = true;

@@ -1,6 +1,6 @@
 /**
  * Character Manager page shell.
- * Provides a simplified character creation uploader and a placeholder manage tab.
+ * Provides Character Profile + Manage Characters workflows for route and embedded surfaces.
  */
 import type { User } from "@supabase/supabase-js";
 import Image from "next/image";
@@ -26,7 +26,6 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { isTrustedMediaDirectPreviewUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
@@ -43,6 +42,13 @@ import {
   CHARACTER_LIBRARY_SMOOTH_TARGET,
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
+import {
+  extractFirstUriListEntry,
+  inferMimeTypeFromUrl,
+  isTrustedDroppedImageUrl,
+  parseDropMediaFileId,
+  parseDropUrlCandidate,
+} from "../logic/characterDropPayload";
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
@@ -160,6 +166,12 @@ const resolveInitialQuickSwapGridColumnCount = (): number => {
   return window.matchMedia("(max-width: 860px)").matches ? 2 : 3;
 };
 
+const resolveInitialQuickSwapArchiveGridColumnCount = (): number => {
+  if (typeof window === "undefined") return 4;
+  if (typeof window.matchMedia !== "function") return 4;
+  return window.matchMedia("(max-width: 900px)").matches ? 2 : 4;
+};
+
 type DroppedImageReference = {
   url: string;
   mimeType: string | null;
@@ -177,69 +189,6 @@ const sanitizeFilenameSegment = (value: string): string =>
     .replace(/[^\w.-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-
-const parseDropUrlCandidate = (value: string | null | undefined): string | null => {
-  const candidate = (value ?? "").trim();
-  if (!candidate || /^data:video\//i.test(candidate)) return null;
-  if (/^data:image\//i.test(candidate)) return candidate;
-  if (/^blob:/i.test(candidate)) return candidate;
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-};
-
-const parseDropMediaFileId = (value: string | null | undefined): string | null => {
-  const candidate = (value ?? "").trim();
-  return candidate.length ? candidate : null;
-};
-
-const isTrustedDroppedImageUrl = (url: string): boolean => {
-  if (/^data:image\//i.test(url)) return true;
-  if (/^blob:/i.test(url)) return true;
-  return isTrustedMediaDirectPreviewUrl(url, { requireUserScope: false });
-};
-
-const extractFirstUriListEntry = (value: string | null | undefined): string | null =>
-  (value ?? "")
-    .split(/\r?\n/)
-    .map((entry) => entry.trim())
-    .find((entry) => entry.length > 0 && !entry.startsWith("#")) ?? null;
-
-const inferMimeTypeFromUrl = (url: string): string | null => {
-  if (/^data:image\//i.test(url)) {
-    const match = url.match(/^data:(image\/[^;,]+)[;,]/i);
-    return match?.[1]?.toLowerCase() ?? "image/png";
-  }
-  if (!DROPPED_IMAGE_URL_PATTERN.test(url)) return null;
-  const extension = url.split("?")[0]?.split("#")[0]?.split(".").pop()?.toLowerCase();
-  switch (extension) {
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "png":
-      return "image/png";
-    case "webp":
-      return "image/webp";
-    case "gif":
-      return "image/gif";
-    case "svg":
-      return "image/svg+xml";
-    case "avif":
-      return "image/avif";
-    case "bmp":
-      return "image/bmp";
-    case "heic":
-      return "image/heic";
-    case "heif":
-      return "image/heif";
-    default:
-      return null;
-  }
-};
 
 const parseDroppedStorageCandidateFromUrl = (url: string): DroppedStorageCandidate | null => {
   try {
@@ -562,6 +511,9 @@ export function CharacterManagerShell({
   const [quickSwapGridColumnCount, setQuickSwapGridColumnCount] = useState(
     resolveInitialQuickSwapGridColumnCount
   );
+  const [quickSwapArchiveGridColumnCount, setQuickSwapArchiveGridColumnCount] = useState(
+    resolveInitialQuickSwapArchiveGridColumnCount
+  );
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
@@ -653,6 +605,7 @@ export function CharacterManagerShell({
     () => deferredCharacters.slice(0, characterLibraryWindow.visibleCount),
     [characterLibraryWindow.visibleCount, deferredCharacters]
   );
+  const isManageCharactersLoading = loading && deferredCharacters.length === 0;
   const activeProfileImageTransform =
     isProfileAdjusterVisible && profileAdjustDraft ? profileAdjustDraft : profileImageTransform;
   const resolvedCharacterSheetPresetAssignments = useMemo(
@@ -906,21 +859,30 @@ export function CharacterManagerShell({
     if (typeof window === "undefined") return;
     if (typeof window.matchMedia !== "function") return;
     const mediaQuery = window.matchMedia("(max-width: 860px)");
+    const archiveMediaQuery = window.matchMedia("(max-width: 900px)");
     const applyColumnCount = () => {
       setQuickSwapGridColumnCount(mediaQuery.matches ? 2 : 3);
+      setQuickSwapArchiveGridColumnCount(archiveMediaQuery.matches ? 2 : 4);
     };
     applyColumnCount();
 
-    if (typeof mediaQuery.addEventListener === "function") {
+    if (
+      typeof mediaQuery.addEventListener === "function" &&
+      typeof archiveMediaQuery.addEventListener === "function"
+    ) {
       mediaQuery.addEventListener("change", applyColumnCount);
+      archiveMediaQuery.addEventListener("change", applyColumnCount);
       return () => {
         mediaQuery.removeEventListener("change", applyColumnCount);
+        archiveMediaQuery.removeEventListener("change", applyColumnCount);
       };
     }
 
     mediaQuery.addListener(applyColumnCount);
+    archiveMediaQuery.addListener(applyColumnCount);
     return () => {
       mediaQuery.removeListener(applyColumnCount);
+      archiveMediaQuery.removeListener(applyColumnCount);
     };
   }, []);
 
@@ -1960,6 +1922,8 @@ export function CharacterManagerShell({
                 archivedCount={quickSwapArchivedCount}
                 hasMoreArchived={quickSwapHasMoreArchived}
                 loadingArchived={quickSwapLoadingArchived}
+                quickSwapGridColumnCount={quickSwapGridColumnCount}
+                quickSwapArchiveGridColumnCount={quickSwapArchiveGridColumnCount}
                 onToggleCollapsed={() => {
                   fileDragDepthRef.current = 0;
                   setIsDropActive(false);
@@ -2551,113 +2515,130 @@ export function CharacterManagerShell({
             ) : null}
           </div>
 
-          {characters.length > CHARACTER_LIBRARY_SMOOTH_TARGET ? (
-            <div className="character-manage-window-status">
-              <p className="tiny subdued">
-                Showing {characterLibraryWindow.visibleCount} of {deferredCharacters.length}{" "}
-                characters.
+          {isManageCharactersLoading ? (
+            <div className="character-manage-loading" role="status" aria-live="polite">
+              <span className="character-manage-loading-spinner" aria-hidden="true" />
+              <p className="character-manage-loading-title">Loading characters...</p>
+              <p className="tiny subdued character-manage-loading-copy">
+                Pulling your character library into view.
               </p>
-              {characterLibraryWindow.hiddenCount > 0 ? (
-                <div className="character-manage-window-actions">
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() =>
-                      setCharacterLibraryVisibleCount(
-                        characterLibraryRequestedVisibleCount + CHARACTER_LIBRARY_EXPAND_STEP
-                      )
-                    }
-                  >
-                    Show{" "}
-                    {Math.min(CHARACTER_LIBRARY_EXPAND_STEP, characterLibraryWindow.hiddenCount)}{" "}
-                    more
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => setCharacterLibraryVisibleCount(deferredCharacters.length)}
-                  >
-                    Show all
-                  </button>
+            </div>
+          ) : (
+            <>
+              {characters.length > CHARACTER_LIBRARY_SMOOTH_TARGET ? (
+                <div className="character-manage-window-status">
+                  <p className="tiny subdued">
+                    Showing {characterLibraryWindow.visibleCount} of {deferredCharacters.length}{" "}
+                    characters.
+                  </p>
+                  {characterLibraryWindow.hiddenCount > 0 ? (
+                    <div className="character-manage-window-actions">
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() =>
+                          setCharacterLibraryVisibleCount(
+                            characterLibraryRequestedVisibleCount + CHARACTER_LIBRARY_EXPAND_STEP
+                          )
+                        }
+                      >
+                        Show{" "}
+                        {Math.min(
+                          CHARACTER_LIBRARY_EXPAND_STEP,
+                          characterLibraryWindow.hiddenCount
+                        )}{" "}
+                        more
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => setCharacterLibraryVisibleCount(deferredCharacters.length)}
+                      >
+                        Show all
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
-            </div>
-          ) : null}
 
-          <div className="character-manage-list" role="list" aria-label="Character list">
-            {visibleManageCharacters.map((character) => {
-              const isSelected = character.characterId === selectedCharacterId;
-              const chipName = character.characterName || "Untitled character";
-              const chipInitials = getCharacterInitials(chipName);
-              return (
-                <article
-                  key={character.characterId}
-                  role="listitem"
-                  className={`character-list-card ${isSelected ? "is-active" : ""} ${
-                    pageBusy ? "is-disabled" : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className="character-list-select-btn"
-                    onClick={() => {
-                      void selectCharacter(character.characterId);
-                      setActiveTab("create");
-                    }}
-                    disabled={pageBusy}
-                  >
-                    <div className="character-list-main">
-                      <span className="character-list-avatar" aria-hidden="true">
-                        {character.profileImageUrl ? (
-                          <Image
-                            src={
-                              resolveCharacterGridPreviewUrl(
-                                character.profileImageUrl,
-                                CHARACTER_CHIP_AVATAR_SIZE
-                              ) ?? character.profileImageUrl
-                            }
-                            alt=""
-                            className="character-list-avatar-image"
-                            style={
-                              character.profileImageTransform
-                                ? buildProfileImageTransformStyle(
-                                    character.profileImageTransform,
+              <div className="character-manage-list" role="list" aria-label="Character list">
+                {visibleManageCharacters.map((character) => {
+                  const isSelected = character.characterId === selectedCharacterId;
+                  const chipName = character.characterName || "Untitled character";
+                  const chipInitials = getCharacterInitials(chipName);
+                  return (
+                    <article
+                      key={character.characterId}
+                      role="listitem"
+                      className={`character-list-card ${isSelected ? "is-active" : ""} ${
+                        pageBusy ? "is-disabled" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="character-list-select-btn"
+                        onClick={() => {
+                          void selectCharacter(character.characterId);
+                          setActiveTab("create");
+                        }}
+                        disabled={pageBusy}
+                      >
+                        <div className="character-list-main">
+                          <span className="character-list-avatar" aria-hidden="true">
+                            {character.profileImageUrl ? (
+                              <Image
+                                src={
+                                  resolveCharacterGridPreviewUrl(
+                                    character.profileImageUrl,
                                     CHARACTER_CHIP_AVATAR_SIZE
-                                  )
-                                : undefined
-                            }
-                            width={CHARACTER_CHIP_AVATAR_SIZE}
-                            height={CHARACTER_CHIP_AVATAR_SIZE}
-                            unoptimized
-                          />
-                        ) : (
-                          <span className="character-list-avatar-initials">{chipInitials}</span>
-                        )}
-                      </span>
-                      <div className="character-list-copy">
-                        <p className="metric-label tiny">{isSelected ? "Selected" : "Character"}</p>
-                        <p className="character-list-name">{chipName}</p>
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    className="character-list-delete-btn"
-                    aria-label={`Delete character: ${chipName}`}
-                    onClick={() => {
-                      setDeleteTargetCharacter({
-                        characterId: character.characterId,
-                        characterName: chipName,
-                      });
-                    }}
-                    disabled={pageBusy}
-                  >
-                    <Trash size={12} weight="bold" />
-                  </button>
-                </article>
-              );
-            })}
-          </div>
+                                  ) ?? character.profileImageUrl
+                                }
+                                alt=""
+                                className="character-list-avatar-image"
+                                style={
+                                  character.profileImageTransform
+                                    ? buildProfileImageTransformStyle(
+                                        character.profileImageTransform,
+                                        CHARACTER_CHIP_AVATAR_SIZE
+                                      )
+                                    : undefined
+                                }
+                                width={CHARACTER_CHIP_AVATAR_SIZE}
+                                height={CHARACTER_CHIP_AVATAR_SIZE}
+                                unoptimized
+                              />
+                            ) : (
+                              <span className="character-list-avatar-initials">{chipInitials}</span>
+                            )}
+                          </span>
+                          <div className="character-list-copy">
+                            <p className="metric-label tiny">
+                              {isSelected ? "Selected" : "Character"}
+                            </p>
+                            <p className="character-list-name">{chipName}</p>
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="character-list-delete-btn"
+                        aria-label={`Delete character: ${chipName}`}
+                        onClick={() => {
+                          setDeleteTargetCharacter({
+                            characterId: character.characterId,
+                            characterName: chipName,
+                          });
+                        }}
+                        disabled={pageBusy}
+                      >
+                        <Trash size={12} weight="bold" />
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
           <p className="sr-only" role="status" aria-live="polite">
             {isSwitchingCharacter ? "Loading selected character..." : ""}
           </p>

@@ -8,16 +8,26 @@ import {
   loadCharacterManagerDraftByCharacterId,
 } from "../../../character-manager/logic/characterManagerPersistence";
 import { persistSelectedCharacterId } from "../../../character-manager/logic/selectedCharacterPersistence";
+import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: vi.fn(),
   loadCharacterManagerDraftByCharacterId: vi.fn(),
 }));
 
+vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseClient: vi.fn(),
+}));
+
 const listCharacterManagerCharactersMock = vi.mocked(listCharacterManagerCharacters);
 const loadCharacterManagerDraftByCharacterIdMock = vi.mocked(
   loadCharacterManagerDraftByCharacterId
 );
+const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const getSessionMock = vi.fn(async () => ({
+  data: { session: { user: { id: "user-1" } } },
+  error: null,
+}));
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -39,6 +49,7 @@ const createSnapshotWithPresetReferences = (
     const activeDescription = input.description ?? "Hero description";
     return {
       characterId: "char-1",
+      userId: "user-1",
       characterSheetId: "sheet-1",
       characterName: "Hero",
       legacyCharacterDescription: input.legacyDescription ?? "Legacy hero description",
@@ -118,10 +129,22 @@ describe("useAiStudioCharacterModeLifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    getSessionMock.mockResolvedValue({
+      data: { session: { user: { id: "user-1" } } },
+      error: null,
+    });
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: getSessionMock,
+      },
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
   });
 
   it("hydrates selected character id from persisted storage", async () => {
-    window.localStorage.setItem("shortpulse.character_manager.selected_character_id.v1", "char-2");
+    window.localStorage.setItem(
+      "shortpulse.character_manager.selected_character_id.v2:user-1",
+      "char-2"
+    );
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
       createSnapshotWithPresetReferences()
     );
@@ -243,7 +266,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
 
     act(() => {
-      persistSelectedCharacterId("char-2");
+      persistSelectedCharacterId("char-2", { userId: "user-1" });
     });
 
     await waitFor(() => {

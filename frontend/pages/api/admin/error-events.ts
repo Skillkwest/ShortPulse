@@ -9,6 +9,7 @@ import {
   APP_ERROR_EVENTS_MISSING_REASON,
   DEFAULT_GENERATION_15M_THRESHOLD,
   DEFAULT_HIGH_15M_THRESHOLD,
+  DEFAULT_PROVIDER_RUNNING_TIMEOUT_15M_THRESHOLD,
   DEFAULT_LIMIT,
   DEFAULT_TOTAL_15M_THRESHOLD,
   MAX_LIMIT,
@@ -110,6 +111,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       process.env.SHORTPULSE_ADMIN_ALERT_GENERATION_15M,
       DEFAULT_GENERATION_15M_THRESHOLD
     );
+    const providerRunningTimeout15mThreshold = asThreshold(
+      process.env.SHORTPULSE_ADMIN_ALERT_PROVIDER_RUNNING_TIMEOUT_15M,
+      DEFAULT_PROVIDER_RUNNING_TIMEOUT_15M_THRESHOLD
+    );
 
     const {
       eventsResult,
@@ -117,6 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       last15mCountResult,
       high15mCountResult,
       generation15mCountResult,
+      providerRunningTimeout15mCountResult,
       lastHourCountResult,
       last24hCountResult,
       app24hCountResult,
@@ -146,6 +152,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             total15mThreshold,
             high15mThreshold,
             generation15mThreshold,
+            providerRunningTimeout15mThreshold,
             reason: APP_ERROR_EVENTS_MISSING_REASON,
           })
         );
@@ -190,6 +197,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       countErrorMessage(last15mCountResult),
       countErrorMessage(high15mCountResult),
       countErrorMessage(generation15mCountResult),
+      countErrorMessage(providerRunningTimeout15mCountResult),
       countErrorMessage(lastHourCountResult),
       countErrorMessage(last24hCountResult),
       countErrorMessage(app24hCountResult),
@@ -275,6 +283,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         app24hCount: countOrZero(app24hCountResult),
         generation24hCount: countOrZero(generation24hCountResult),
         high24hCount: countOrZero(high24hCountResult),
+        providerRunningTimeout15mCount: countOrZero(providerRunningTimeout15mCountResult),
         characterModeReferenceRefreshEmptyLastHourCount: countOrZero(
           characterModeReferenceRefreshEmptyLastHourCountResult
         ),
@@ -291,9 +300,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         total15mThreshold,
         high15mThreshold,
         generation15mThreshold,
+        providerRunningTimeout15mThreshold,
         total15mBreached: countOrZero(last15mCountResult) >= total15mThreshold,
         high15mBreached: countOrZero(high15mCountResult) >= high15mThreshold,
         generation15mBreached: countOrZero(generation15mCountResult) >= generation15mThreshold,
+        providerRunningTimeout15mBreached:
+          countOrZero(providerRunningTimeout15mCountResult) >= providerRunningTimeout15mThreshold,
       },
       health,
       pagination: responsePagination,
@@ -313,6 +325,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         process.env.SHORTPULSE_ADMIN_ALERT_GENERATION_15M,
         DEFAULT_GENERATION_15M_THRESHOLD
       );
+      const providerRunningTimeout15mThreshold = asThreshold(
+        process.env.SHORTPULSE_ADMIN_ALERT_PROVIDER_RUNNING_TIMEOUT_15M,
+        DEFAULT_PROVIDER_RUNNING_TIMEOUT_15M_THRESHOLD
+      );
       const perPage = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
       return res.status(200).json(
         buildDegradedEventsPayload({
@@ -320,6 +336,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           total15mThreshold,
           high15mThreshold,
           generation15mThreshold,
+          providerRunningTimeout15mThreshold,
           reason: APP_ERROR_EVENTS_MISSING_REASON,
         })
       );

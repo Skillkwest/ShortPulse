@@ -70,6 +70,7 @@ export type AdminErrorEventSummary = {
   last15mCount: number;
   high15mCount: number;
   generation15mCount: number;
+  providerRunningTimeout15mCount: number;
   lastHourCount: number;
   last24hCount: number;
   app24hCount: number;
@@ -82,15 +83,18 @@ export type AdminErrorEventSummary = {
   total15mThreshold: number;
   high15mThreshold: number;
   generation15mThreshold: number;
+  providerRunningTimeout15mThreshold: number;
   total15mBreached: boolean;
   high15mBreached: boolean;
   generation15mBreached: boolean;
+  providerRunningTimeout15mBreached: boolean;
 };
 
 export type AdminErrorEventSignalFilter =
   | "all"
   | "character_mode_reference_refresh_empty"
-  | "character_mode_bundle_unavailable_fallback";
+  | "character_mode_bundle_unavailable_fallback"
+  | "provider_running_timeout";
 
 export type AdminErrorEventIncidentFilter =
   | "all"
@@ -150,3 +154,11 @@ export type AdminAccessResponse =
       isAdmin: false;
       accessVia: "none";
     };
+
+export type AdminDashboardAnnouncement = {
+  id: string;
+  title: string;
+  message: string;
+  publishedAt: string | null;
+  updatedAt: string | null;
+};

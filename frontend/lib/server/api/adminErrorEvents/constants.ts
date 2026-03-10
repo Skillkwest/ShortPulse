@@ -9,6 +9,7 @@ export const ACTIONABLE_PREFETCH_LIMIT = 800;
 export const DEFAULT_TOTAL_15M_THRESHOLD = 40;
 export const DEFAULT_HIGH_15M_THRESHOLD = 8;
 export const DEFAULT_GENERATION_15M_THRESHOLD = 20;
+export const DEFAULT_PROVIDER_RUNNING_TIMEOUT_15M_THRESHOLD = 2;
 
 export const APP_ERROR_EVENTS_MISSING_REASON =
   "app_error_events is unavailable; apply sql/migrations/015_add_app_error_events.sql.";

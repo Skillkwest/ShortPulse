@@ -285,6 +285,27 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `prune_ai_studio_sessions_expired(p_limit default 10000)`
   - Service-role cleanup helper for bounded stale-row pruning.
 
+### dashboard_announcements
+- `id` (uuid, pk, default `gen_random_uuid()`).
+- `title` (text, required): Trimmed title (`btrim`) with length `1..120`.
+- `message` (text, required): Trimmed body copy (`btrim`) with length `1..500`.
+- `is_active` (boolean, default `false`): Active global bulletin flag.
+- `published_at` (timestamptz, nullable): Publish timestamp for active/current history rows.
+- `created_by` / `updated_by` (uuid, nullable fk -> `auth.users.id`): Admin attribution.
+- `created_at` / `updated_at` (timestamptz, default UTC now).
+- RLS: enabled with authenticated read policy limited to active rows (`auth.uid() is not null and is_active = true`).
+- Integrity:
+  - Partial unique index enforces a single active row at a time (`where is_active = true`).
+  - Update trigger stamps `updated_at` on row mutation.
+  - Historical rows are retained after deactivation for future admin history UX.
+
+### Dashboard announcement RPC contract
+- `publish_dashboard_announcement(p_title, p_message, p_actor_user_id)`
+  - Service-role-only execute posture (`security definer` + execute grant restricted to `service_role`).
+  - Trims and bounds payload server-side (`title <= 120`, `message <= 500`) and rejects empty values.
+  - Atomically deactivates current active row and inserts a new active row with `published_at`.
+  - Uses advisory lock serialization for deterministic one-active semantics under concurrent publish calls.
+
 ### agent_safety_policy_versions
 - `id` (bigint identity, pk): Immutable policy version row id.
 - `profile_id` (text): `prod_safe_v1 | staging_lenient | dev_absolute_zero`.

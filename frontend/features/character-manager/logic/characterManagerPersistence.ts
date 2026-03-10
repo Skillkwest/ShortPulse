@@ -68,6 +68,7 @@ export type { CharacterManagerListItem } from "./characterManagerPersistenceCore
 const MEDIA_BUCKET = "media_library";
 
 export type CharacterManagerDraftSnapshot = {
+  userId: string;
   characterId: string;
   characterSheetId: string;
   characterName: string;
@@ -222,6 +223,7 @@ const toLegacyCharacterDescription = (description: string | null | undefined): s
   sanitizeCharacterSheetPresetDescription(description);
 
 const toCharacterSnapshot = async (input: {
+  userId: string;
   characterId: string;
   characterName: string;
   characterDescription: string | null | undefined;
@@ -259,6 +261,7 @@ const toCharacterSnapshot = async (input: {
       })
     : null;
   return {
+    userId: input.userId,
     characterId: input.characterId,
     characterSheetId: characterSheet.id,
     characterName: input.characterName.trim() || DEFAULT_CHARACTER_NAME,
@@ -309,6 +312,7 @@ export const loadOrCreateCharacterManagerDraft = async (
     } | null;
     if (preferredCharacter && preferredCharacter.status !== "archived") {
       return toCharacterSnapshot({
+        userId,
         characterId: preferredCharacter.id,
         characterName: preferredCharacter.name || DEFAULT_CHARACTER_NAME,
         characterDescription: preferredCharacter.description ?? "",
@@ -343,6 +347,7 @@ export const loadOrCreateCharacterManagerDraft = async (
       })
     : (await createDraftCharacter(DEFAULT_CHARACTER_NAME)).character;
   return toCharacterSnapshot({
+    userId,
     characterId: character.id,
     characterName: character.name || DEFAULT_CHARACTER_NAME,
     characterDescription: character.description ?? "",
@@ -356,10 +361,12 @@ export const loadOrCreateCharacterManagerDraft = async (
 export const createCharacterManagerDraft = async (
   name = DEFAULT_CHARACTER_NAME
 ): Promise<CharacterManagerDraftSnapshot> => {
+  const { userId } = await resolveSupabaseContext();
   const { character, characterSheet } = await createDraftCharacter(name);
   const presetState = createDefaultCharacterSheetPresetState();
   const legacyCharacterDescription = toLegacyCharacterDescription(character.description);
   return {
+    userId,
     characterId: character.id,
     characterSheetId: characterSheet.id,
     characterName: character.name?.trim() || DEFAULT_CHARACTER_NAME,
@@ -407,6 +414,7 @@ export const loadCharacterManagerDraftByCharacterId = async (
   }
 
   return toCharacterSnapshot({
+    userId,
     characterId: character.id,
     characterName: character.name || DEFAULT_CHARACTER_NAME,
     characterDescription: character.description ?? "",

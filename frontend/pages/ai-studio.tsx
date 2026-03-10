@@ -9,6 +9,7 @@ import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
+import { useAiStudioEditSubmitIntent } from "../features/ai-studio/hooks/useAiStudioEditSubmitIntent";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
@@ -402,6 +403,9 @@ export default function AiStudioPage() {
     },
     [getOutputById, resolveSavedMediaIdFromOutput]
   );
+  const { editSubmitIntent, setEditSubmitIntent } = useAiStudioEditSubmitIntent({
+    selectedTool,
+  });
   const resolveMediaLibraryInternalDropItem = useCallback(
     async (payload: InternalReferenceDragPayload) =>
       await resolveMediaLibraryInternalDropResolver({
@@ -1266,6 +1270,7 @@ export default function AiStudioPage() {
     imageResolution,
     videoGenerateAudio,
     balanceCredits: effectiveBalanceCredits,
+    editSubmitIntent,
     costParamsForModel,
   });
   const isCharacterLoadingGenerateDisabled = useMemo(
@@ -1531,6 +1536,7 @@ export default function AiStudioPage() {
     extraImageUrls,
     editReferenceText,
     handleImageRegenerateWithDebit,
+    onEditSubmitIntentChange: setEditSubmitIntent,
     addSessionMediaReference: addPastedMediaReference,
     referenceImageWarning,
     resolveOutputPreviewUrl: resolvePanelOutputPreviewUrl,

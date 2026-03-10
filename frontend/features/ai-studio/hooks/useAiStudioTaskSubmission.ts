@@ -45,6 +45,7 @@ import {
   resolveSubmissionStartUiError,
   shouldSkipTextCreateSubmission,
 } from "./taskSubmission/submitInvariants";
+import { resolvePrepareReferenceTimeoutBudget } from "./taskSubmission/preflightTimeout";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type GenerationMetadata = Record<string, unknown>;
@@ -53,7 +54,6 @@ type SubmissionInvariantError = Error & {
   detail?: string;
 };
 
-const PREPARE_REFERENCE_TIMEOUT_MS = 10_000;
 const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
@@ -334,6 +334,10 @@ export const useAiStudioTaskSubmission = ({
 
         let preparedImageInputs: string[] = [];
         let preparedInpaintOverride: InpaintSubmissionOverride | null = null;
+        const preflightTimeoutBudget = resolvePrepareReferenceTimeoutBudget({
+          imageInputs,
+          inpaintOverride: options?.inpaintOverride,
+        });
         try {
           addBreadcrumb({
             type: "ui",
@@ -346,7 +350,7 @@ export const useAiStudioTaskSubmission = ({
             },
           });
           const preflightPrepared = await withDeadline({
-            timeoutMs: PREPARE_REFERENCE_TIMEOUT_MS,
+            timeoutMs: preflightTimeoutBudget.timeoutMs,
             timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
             run: async () => {
               const preparedReferences = (
@@ -399,6 +403,8 @@ export const useAiStudioTaskSubmission = ({
                 model_id: finalModel,
                 tool: effectiveTool,
                 duration_ms: error.timeoutMs,
+                preflight_work_units: preflightTimeoutBudget.workUnitCount,
+                preflight_timeout_ms: preflightTimeoutBudget.timeoutMs,
                 reason_code: "PREFLIGHT_TIMEOUT",
               },
             });
@@ -523,6 +529,15 @@ export const useAiStudioTaskSubmission = ({
           let taskStarted = false;
           let startedTaskId: string | null = null;
           let startedProvider: Provider | null = null;
+          let submissionFailureSignaled = false;
+          const notifyGenerationFailureForSubmit = (
+            outputId: string,
+            message: string,
+            detail?: string
+          ) => {
+            submissionFailureSignaled = true;
+            notifyGenerationFailure(outputId, message, detail);
+          };
           const startPollingWithGeneration = (
             taskId: string | undefined,
             provider: Provider,
@@ -636,7 +651,7 @@ export const useAiStudioTaskSubmission = ({
               requestedAudio,
               preparedImageInputs,
               modelConfig,
-              notifyGenerationFailure,
+              notifyGenerationFailure: notifyGenerationFailureForSubmit,
               updateOutputById,
               startPollingWithGeneration,
               videoReferenceMode,
@@ -662,7 +677,7 @@ export const useAiStudioTaskSubmission = ({
               requestedAudio,
               preparedImageInputs,
               modelConfig,
-              notifyGenerationFailure,
+              notifyGenerationFailure: notifyGenerationFailureForSubmit,
               updateOutputById,
               startPollingWithGeneration,
               falReferencePayload,
@@ -684,11 +699,14 @@ export const useAiStudioTaskSubmission = ({
               requestedAudio,
               preparedImageInputs,
               modelConfig,
-              notifyGenerationFailure,
+              notifyGenerationFailure: notifyGenerationFailureForSubmit,
               updateOutputById,
               startPollingWithGeneration,
               falReferencePayload,
             });
+          }
+          if (submissionFailureSignaled) {
+            return;
           }
           if (!taskStarted || !startedTaskId || !startedProvider) {
             throw submitNotStartedError(

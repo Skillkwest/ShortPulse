@@ -14,7 +14,10 @@ import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry"
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
-import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryFeatureFlags";
+import {
+  MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
+  MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
+} from "../../media-library/logic/mediaLibraryFeatureFlags";
 import {
   fetchMediaListPage,
   type MediaListCursor,
@@ -48,6 +51,7 @@ import {
   type PromptListCursor,
 } from "../logic/mediaLibraryPanelApi";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import { resolveMediaLibraryPanelCardPreviewUrl } from "../logic/mediaLibraryPanelPreviewResolver";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
@@ -686,7 +690,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [onSelectPrompt]
   );
 
-  const handleSelectMediaFile = useCallback(() => undefined, []);
+  const handleSelectMediaFile = useCallback((file: MediaFileRow) => {
+    void file;
+  }, []);
 
   const refreshActiveRows = useCallback(async () => {
     if (shouldShowMedia) {
@@ -864,6 +870,36 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const promptsSectionCollapsed = isRootFolderSelected && isPromptsSectionCollapsed;
   const imagesSectionCollapsed = isRootFolderSelected && isImagesSectionCollapsed;
   const videosSectionCollapsed = isRootFolderSelected && isVideosSectionCollapsed;
+  const resolvePanelCardPreviewUrl = useCallback(
+    ({
+      signedUrl,
+      fileType,
+      pressureLevel,
+      adaptivePreviewQualityEnabled: isAdaptivePreviewQualityEnabled,
+      shouldBypassAdaptivePreview = false,
+      cardLongEdgePx,
+      devicePixelRatio,
+    }: {
+      signedUrl: string | null | undefined;
+      fileType?: string | null;
+      pressureLevel: 0 | 1 | 2;
+      adaptivePreviewQualityEnabled: boolean;
+      shouldBypassAdaptivePreview?: boolean;
+      cardLongEdgePx?: number;
+      devicePixelRatio?: number;
+    }) =>
+      resolveMediaLibraryPanelCardPreviewUrl({
+        signedUrl,
+        fileType,
+        pressureLevel,
+        adaptivePreviewQualityEnabled: isAdaptivePreviewQualityEnabled,
+        shouldBypassAdaptivePreview,
+        cardLongEdgePx,
+        devicePixelRatio,
+        constantCompressionEnabled: MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
+      }),
+    []
+  );
 
   const renderMediaGrid = useCallback(
     (rows: MediaFileRow[]) => (
@@ -873,6 +909,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
         adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
         adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
+        resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
         onSelectMediaFile={(file) => {
@@ -904,6 +941,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleSelectMediaFile,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
+      resolvePanelCardPreviewUrl,
       selectedIds,
     ]
   );

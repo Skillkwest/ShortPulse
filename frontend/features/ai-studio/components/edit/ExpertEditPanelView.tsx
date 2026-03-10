@@ -3,15 +3,19 @@ import React from "react";
 import {
   ArrowClockwise,
   ArrowCounterClockwise,
+  ArrowsOutSimple,
   ArrowsOutCardinal,
   CaretLeft,
   CaretRight,
   CircleDashed,
   CircleHalf,
+  Eraser,
   GearSix,
   MagicWand,
   PaintBrush,
   PaintBrushBroad,
+  PenNib,
+  PencilSimple,
   Plus,
   Sliders,
   Sparkle,
@@ -45,6 +49,10 @@ import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
+import {
+  resolveEditSubmitIntentFromInpaintSelection,
+  type EditSubmitIntent,
+} from "../../logic/editSubmitIntent";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
@@ -100,6 +108,7 @@ export type ExpertEditPanelViewProps = {
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
+  onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   onRegenerate: () => void;
   onRegenerateWithReferenceInputs?: (
     referenceInputs: string[],
@@ -278,7 +287,7 @@ const editLayerUtilityActions = [
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
   },
 ] as const;
-type RailTool = "move" | "inpaint";
+type RailTool = "move" | "inpaint" | "video";
 const inpaintRailTools: ReadonlyArray<{
   id: RailTool;
   label: string;
@@ -297,10 +306,17 @@ const inpaintRailTools: ReadonlyArray<{
     selectedClassName: "is-selected-inpaint",
     icon: PaintBrushBroad,
   },
+  {
+    id: "video",
+    label: "Markup",
+    selectedClassName: "is-selected-video",
+    icon: PencilSimple,
+  },
 ];
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
 type TransformDragMode = "move" | "resize" | "rotate";
+type MarkupMode = "pen" | "eraser";
 const cropAspectRatioPresets = [
   { value: "9:16", label: "Vertical", ratio: 9 / 16 },
   { value: "4:5", label: "Social Post", ratio: 4 / 5 },
@@ -768,6 +784,7 @@ export function ExpertEditPanelView({
   onPrimaryImageChange,
   onExtraImageChange,
   onPromptTextChange,
+  onEditSubmitIntentChange,
   onRegenerate,
   onRegenerateWithReferenceInputs,
   resolvePreviewUrlById,
@@ -859,6 +876,9 @@ export function ExpertEditPanelView({
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
+  const [selectedMarkupMode, setSelectedMarkupMode] = React.useState<MarkupMode>("pen");
+  const [isMarkupExpandSelected, setIsMarkupExpandSelected] = React.useState(false);
+  const [markupColor, setMarkupColor] = React.useState("#ff4fa3");
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
@@ -1003,13 +1023,19 @@ export function ExpertEditPanelView({
 
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isInpaintToolSelected = selectedRailTool === "inpaint";
+  const isVideoToolSelected = selectedRailTool === "video";
+  const isInpaintLikeToolSelected = isInpaintToolSelected || isVideoToolSelected;
   const isMoveToolSelected = selectedRailTool === "move";
   const isModelPickerLocked = isInpaintToolSelected;
   const effectiveModelPickerLabel = isModelPickerLocked
     ? INPAINT_FLUX_FILL_MODEL_LABEL
     : stripEditLabel(modelLabel);
   const effectiveModelPickerLogoSrc = isModelPickerLocked ? undefined : modelLogoSrc;
-  const collapsedToolsThemeClass = isMoveToolSelected ? "is-active-move" : "is-active-inpaint";
+  const collapsedToolsThemeClass = isMoveToolSelected
+    ? "is-active-move"
+    : isVideoToolSelected
+      ? "is-active-video"
+      : "is-active-inpaint";
   const sceneZoomScale = 1;
   const handlePromptTextChange = React.useCallback(
     (value: string) => {
@@ -1184,6 +1210,11 @@ export function ExpertEditPanelView({
     },
     [handlePromptDrop, handlePromptTextChange, promptTextValue]
   );
+
+  React.useEffect(() => {
+    if (!onEditSubmitIntentChange) return;
+    onEditSubmitIntentChange(resolveEditSubmitIntentFromInpaintSelection(isInpaintToolSelected));
+  }, [isInpaintToolSelected, onEditSubmitIntentChange]);
 
   React.useEffect(() => {
     const caretPosition = pendingPromptCaretRef.current;
@@ -2969,9 +3000,17 @@ export function ExpertEditPanelView({
                 <div
                   className={`edit-expert-inpaint-controls ${
                     isInpaintToolSelected ? "is-themed-inpaint" : ""
-                  } ${isMoveToolSelected ? "is-themed-move" : ""}`.trim()}
+                  } ${isVideoToolSelected ? "is-themed-video" : ""} ${
+                    isMoveToolSelected ? "is-themed-move" : ""
+                  }`.trim()}
                   role="group"
-                  aria-label={isInpaintToolSelected ? "Inpaint tools" : "Move tools"}
+                  aria-label={
+                    isInpaintLikeToolSelected
+                      ? isVideoToolSelected
+                        ? "Markup tools"
+                        : "Inpaint tools"
+                      : "Move tools"
+                  }
                 >
                   {isInpaintToolSelected ? (
                     <div className="edit-expert-inpaint-controls-content">
@@ -3073,6 +3112,92 @@ export function ExpertEditPanelView({
                           aria-label="Clear selection"
                           onClick={clearSelectedLayerMask}
                           disabled={!imageHasInteractiveMask}
+                        >
+                          <TrashSimple size={18} weight="regular" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : isVideoToolSelected ? (
+                    <div className="edit-expert-markup-controls-content">
+                      <div
+                        className="edit-expert-inpaint-mode-row"
+                        role="group"
+                        aria-label="Markup tool mode"
+                      >
+                        <button
+                          type="button"
+                          className={`edit-expert-inpaint-mode-btn ${
+                            selectedMarkupMode === "pen" ? "is-active" : ""
+                          }`}
+                          aria-pressed={selectedMarkupMode === "pen"}
+                          onClick={() => setSelectedMarkupMode("pen")}
+                        >
+                          <PenNib size={16} weight="regular" />
+                          <span>Pen</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`edit-expert-inpaint-mode-btn ${
+                            selectedMarkupMode === "eraser" ? "is-active" : ""
+                          }`}
+                          aria-pressed={selectedMarkupMode === "eraser"}
+                          onClick={() => setSelectedMarkupMode("eraser")}
+                        >
+                          <Eraser size={16} weight="regular" />
+                          <span>Eraser</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`edit-expert-inpaint-mode-btn ${
+                            isMarkupExpandSelected ? "is-active" : ""
+                          }`}
+                          aria-pressed={isMarkupExpandSelected}
+                          onClick={() => setIsMarkupExpandSelected((previous) => !previous)}
+                          aria-label="Expand markup tools"
+                        >
+                          <ArrowsOutSimple size={16} weight="regular" />
+                          <span>Expand</span>
+                        </button>
+                      </div>
+                      <div className="edit-expert-inpaint-stroke-row">
+                        <label
+                          className="edit-expert-inpaint-stroke-label"
+                          htmlFor="edit-expert-markup-stroke-size"
+                        >
+                          Stroke Size
+                        </label>
+                        <input
+                          id="edit-expert-markup-stroke-size"
+                          className="edit-expert-inpaint-stroke-slider"
+                          type="range"
+                          min={1}
+                          max={100}
+                          value={inpaintStrokeSize}
+                          onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
+                          onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
+                          aria-label="Stroke size"
+                        />
+                      </div>
+                      <div className="edit-expert-markup-color-row">
+                        <label
+                          className="edit-expert-markup-color-label"
+                          htmlFor="edit-expert-markup-color-picker"
+                        >
+                          Color
+                        </label>
+                        <input
+                          id="edit-expert-markup-color-picker"
+                          className="edit-expert-markup-color-picker"
+                          type="color"
+                          value={markupColor}
+                          onChange={(event) => setMarkupColor(event.target.value)}
+                          aria-label="Markup color"
+                        />
+                        <button
+                          type="button"
+                          className="edit-expert-inpaint-action-btn"
+                          aria-label="Clear markup strokes"
+                          onClick={() => void 0}
                         >
                           <TrashSimple size={18} weight="regular" />
                         </button>

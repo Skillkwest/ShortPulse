@@ -18,6 +18,7 @@ type BuildGenerationReplayConfigV1Input = {
   imageResolution: string | null;
   referenceInputs: string[];
   characterContext?: StudioOutput["characterContext"];
+  styleContext?: StudioOutput["styleContext"];
   capturedAt?: string;
 };
 
@@ -48,6 +49,7 @@ export const buildGenerationReplayConfigV1 = ({
   imageResolution,
   referenceInputs,
   characterContext,
+  styleContext,
   capturedAt,
 }: BuildGenerationReplayConfigV1Input): GenerationReplayConfigV1 | null => {
   if (mode !== "image") return null;
@@ -67,6 +69,7 @@ export const buildGenerationReplayConfigV1 = ({
     imageResolution: typeof imageResolution === "string" ? imageResolution : null,
     referenceInputs: toNormalizedReferenceInputs(referenceInputs),
     ...(characterContext ? { characterContext } : {}),
+    ...(styleContext ? { styleContext } : {}),
     capturedAt: normalizedCapturedAt,
   };
 };

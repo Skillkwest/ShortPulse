@@ -6,6 +6,8 @@ import {
   CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT,
   CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT,
   CHARACTER_MODE_TELEMETRY_SOURCE,
+  GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
+  GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
 } from "../errorTelemetryPolicy";
@@ -38,6 +40,10 @@ export const applyEventFilters = (query: EventQuery, filters: EventFilterInput):
     next = next
       .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
       .eq("message", CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT);
+  } else if (filters.signal === "provider_running_timeout") {
+    next = next
+      .eq("source", GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE)
+      .eq("message", GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT);
   }
 
   if (filters.incident === "open") {

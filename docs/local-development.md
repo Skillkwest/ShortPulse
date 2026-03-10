@@ -45,6 +45,7 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `SHORTPULSE_ADMIN_ALERT_TOTAL_15M` (optional admin event spike threshold; default `40`)
    - `SHORTPULSE_ADMIN_ALERT_HIGH_15M` (optional admin high-severity spike threshold; default `8`)
    - `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` (optional admin generation spike threshold; default `20`)
+   - `SHORTPULSE_ADMIN_ALERT_PROVIDER_RUNNING_TIMEOUT_15M` (optional admin threshold for `provider_running_timeout` fails over 15 minutes; default `2`)
 
 Never commit `.env.local`.
 

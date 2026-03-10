@@ -20,6 +20,15 @@ describe("selectedCharacterPersistence", () => {
     expect(readPersistedSelectedCharacterId()).toBe("char-7");
   });
 
+  it("keeps persisted selected character isolated per user scope", () => {
+    persistSelectedCharacterId("char-user-a", { userId: "user-a" });
+    persistSelectedCharacterId("char-user-b", { userId: "user-b" });
+
+    expect(readPersistedSelectedCharacterId({ userId: "user-a" })).toBe("char-user-a");
+    expect(readPersistedSelectedCharacterId({ userId: "user-b" })).toBe("char-user-b");
+    expect(readPersistedSelectedCharacterId({ userId: "user-c" })).toBeNull();
+  });
+
   it("notifies subscribers on persisted selection changes", () => {
     const onChange = vi.fn();
     const unsubscribe = subscribeToSelectedCharacterId(onChange);
@@ -31,6 +40,23 @@ describe("selectedCharacterPersistence", () => {
     expect(onChange).toHaveBeenCalledTimes(2);
     expect(onChange).toHaveBeenNthCalledWith(1, "char-1");
     expect(onChange).toHaveBeenNthCalledWith(2, "char-2");
+  });
+
+  it("filters subscriber events by user scope", () => {
+    const onChangeUserA = vi.fn();
+    const onChangeUserB = vi.fn();
+    const unsubscribeA = subscribeToSelectedCharacterId(onChangeUserA, { userId: "user-a" });
+    const unsubscribeB = subscribeToSelectedCharacterId(onChangeUserB, { userId: "user-b" });
+
+    persistSelectedCharacterId("char-a", { userId: "user-a" });
+    persistSelectedCharacterId("char-b", { userId: "user-b" });
+    unsubscribeA();
+    unsubscribeB();
+
+    expect(onChangeUserA).toHaveBeenCalledTimes(1);
+    expect(onChangeUserA).toHaveBeenCalledWith("char-a");
+    expect(onChangeUserB).toHaveBeenCalledTimes(1);
+    expect(onChangeUserB).toHaveBeenCalledWith("char-b");
   });
 
   it("does not dispatch duplicate change events when selection is unchanged", () => {

@@ -26,6 +26,13 @@ export type StudioOutputCharacterContext = {
   characterProfileImageUrl?: string | null;
 };
 
+export type StudioOutputStyleContext = {
+  applied: boolean;
+  styleId?: string | null;
+  styleName?: string | null;
+  stylePrompt?: string | null;
+};
+
 export type GenerationReplaySubmitTool = "create" | "image" | "edit";
 
 export type GenerationReplayConfigV1 = {
@@ -40,6 +47,7 @@ export type GenerationReplayConfigV1 = {
   // Provider-ready reference URLs captured from preflight at submit time.
   referenceInputs: string[];
   characterContext?: StudioOutputCharacterContext;
+  styleContext?: StudioOutputStyleContext;
   capturedAt: string;
 };
 
@@ -86,6 +94,7 @@ export type StudioOutput = {
   archivedAt?: string | null;
   archiveReason?: "soft_limit" | "manual" | "cleanup" | null;
   characterContext?: StudioOutputCharacterContext;
+  styleContext?: StudioOutputStyleContext;
   generationReplay?: GenerationReplayConfig;
 };
 

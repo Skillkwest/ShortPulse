@@ -6,7 +6,7 @@ Reference for pages, auth expectations, and ownership.
 | --- | --- | --- | --- |
 | `/landing` | No | Marketing landing page | Root redirects here. |
 | `/auth` | No | Email/password auth via Supabase | Redirects to `/dashboard` on session. |
-| `/dashboard` | Yes | Workspace hub with plan/status chips and launch actions | Uses `useProtectedRoute`. Default UI shows `New Project` CTA into `/ai-studio`; set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign. |
+| `/dashboard` | Yes | Workspace hub with plan/status chips and launch actions | Uses `useProtectedRoute`. Default UI shows `New Project` CTA into `/ai-studio` plus a server-driven global announcement in the hero helper-text slot when one is active; falls back to default helper copy when no active announcement exists. Set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign. |
 | `/performance` | Yes | Performance analytics | Authenticated demo analytics route; dashboard entry remains staged through `/performance-soon`. |
 | `/performance-soon` | Yes | Temporary placeholder for the analytics workspace | Explains that the Performance surface is still under construction. |
 | `/saved-creators` | Yes | Saved creators list | Post‑MVP (Coming Soon). |
@@ -15,7 +15,7 @@ Reference for pages, auth expectations, and ownership.
 | `/character` | Yes | Character Manager (reference intake + character management) | Upload and persist unlimited QuickSwap references per character (500 active, overflow archived), then arrange and persist character-sheet assignments for downstream generation wiring. Character Sheet preset tabs are dynamic (`1..10`): default one visible tab (`1`) labeled `Double click me`, `+` adds tabs, double-click rename autosaves per user/character, and tabs after `1` can be deleted via `X` with confirmation (removing that tab's saved preset references). Character Profile description is preset-scoped to the active tab and persists per preset; AI Studio Character Mode uses active-tab description first with legacy description fallback. This behavior is shared with the AI Studio Character Properties panel. Beginner toggle controls are temporarily hidden by runtime policy flags. |
 | `/character-soon` | Yes | Legacy placeholder route for Character | Kept as fallback while Character Manager rollout stabilizes. |
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges; account-level AI Studio media autosave toggle. |
-| `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. |
+| `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. Includes `Overview`, `Errors`, and `Announcements` tabs, where Announcements manages the single active dashboard bulletin shown to all signed-in users. |
 | `/admin/generation-trace` | Yes | Admin generation trace page | Operator-only debugging route for stitched generation timelines. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |
 | `/creator-studio` | Yes | Legacy alias to AI Studio | Re-export of `/ai-studio`. |

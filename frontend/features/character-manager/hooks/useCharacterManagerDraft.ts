@@ -3,6 +3,7 @@
  * Binds reference intake and draft character state to persisted Supabase records.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   CHARACTER_MANAGER_MAX_IMAGE_BYTES,
   CHARACTER_SHEET_PRESET_IDS,
@@ -194,6 +195,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const characterSheetAssignmentsRef = useRef<CharacterSheetAssignments>(
     createEmptyCharacterSheetAssignments()
   );
+  const selectedCharacterStorageScopeRef = useRef<string | null>(null);
   const characterSheetAssignmentsRequestRef = useRef(0);
   const activeCharacterSheetPresetIdRef = useRef<CharacterSheetPresetId>("1");
   const activeCharacterSheetPresetRequestRef = useRef(0);
@@ -300,6 +302,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextProfileImageUrl,
       nextProfileImageTransform,
       nextSlots,
+      nextUserId,
     }: {
       nextCharacterId: string;
       nextCharacterSheetId: string;
@@ -315,9 +318,11 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextProfileImageUrl: string | null;
       nextProfileImageTransform: CharacterProfileImageTransform;
       nextSlots: CharacterSlotFileMap;
+      nextUserId: string;
     }) => {
       setCharacterId(nextCharacterId);
-      persistSelectedCharacterId(nextCharacterId);
+      selectedCharacterStorageScopeRef.current = nextUserId;
+      persistSelectedCharacterId(nextCharacterId, { userId: nextUserId });
       setCharacterSheetId(nextCharacterSheetId);
       suppressNextNamePersistRef.current = true;
       setCharacterNameState(nextCharacterName);
@@ -362,8 +367,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       setLoading(true);
       setError(null);
       try {
+        const { data: sessionData, error: sessionError } =
+          await ensureSupabaseClient().auth.getSession();
+        if (sessionError) {
+          throw sessionError;
+        }
+        const scopedUserId = sessionData.session?.user?.id?.trim() ?? null;
+        selectedCharacterStorageScopeRef.current = scopedUserId;
         const snapshot = await loadOrCreateCharacterManagerDraft(
-          readPersistedSelectedCharacterId()
+          readPersistedSelectedCharacterId(scopedUserId ? { userId: scopedUserId } : undefined)
         );
         if (!active) return;
         applySnapshot({
@@ -381,6 +393,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextProfileImageUrl: snapshot.profileImageUrl,
           nextProfileImageTransform: snapshot.profileImageTransform,
           nextSlots: snapshot.slots,
+          nextUserId: snapshot.userId,
         });
         await refreshCharacterListSilently(snapshot.characterId);
       } catch (nextError) {
@@ -1284,6 +1297,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextProfileImageUrl: snapshot.profileImageUrl,
         nextProfileImageTransform: snapshot.profileImageTransform,
         nextSlots: snapshot.slots,
+        nextUserId: snapshot.userId,
       });
       await refreshCharacterListSilently(snapshot.characterId);
     } catch (nextError) {
@@ -1326,6 +1340,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextProfileImageUrl: snapshot.profileImageUrl,
             nextProfileImageTransform: snapshot.profileImageTransform,
             nextSlots: snapshot.slots,
+            nextUserId: snapshot.userId,
           });
           await refreshCharacterListSilently(snapshot.characterId);
         } else {
@@ -1345,6 +1360,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextProfileImageUrl: snapshot.profileImageUrl,
             nextProfileImageTransform: snapshot.profileImageTransform,
             nextSlots: snapshot.slots,
+            nextUserId: snapshot.userId,
           });
           await refreshCharacterListSilently(snapshot.characterId);
         }
@@ -1382,6 +1398,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextProfileImageUrl: snapshot.profileImageUrl,
           nextProfileImageTransform: snapshot.profileImageTransform,
           nextSlots: snapshot.slots,
+          nextUserId: snapshot.userId,
         });
         await refreshCharacterListSilently(snapshot.characterId);
       } catch (nextError) {

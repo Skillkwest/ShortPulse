@@ -5,8 +5,16 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import {
+  buildUserScopedStorageKey,
+  readLocalStorageValue,
+  removeLocalStorageValue,
+  writeLocalStorageValue,
+} from "../logic/userScopedLocalStorage";
 
-const QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY = "shortpulse.character_manager.quickswap_tip_hidden";
+const QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY_V2 = "shortpulse.character_manager.quickswap_tip_hidden.v2";
+const QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY_LEGACY =
+  "shortpulse.character_manager.quickswap_tip_hidden";
 
 export type CharacterQuickSwapTipSyncState = "loading" | "ready" | "saving" | "error";
 
@@ -18,15 +26,29 @@ type UseCharacterQuickSwapTipPreferenceResult = {
   markQuickSwapTipHidden: () => Promise<boolean>;
 };
 
-const readLocalTipHidden = (): boolean => {
-  if (typeof window === "undefined") return false;
-  const stored = window.localStorage.getItem(QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY);
-  return stored === "true";
+const parseStoredBoolean = (value: string | null): boolean | null => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
 };
 
-const writeLocalTipHidden = (value: boolean): void => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY, String(value));
+const readLocalTipHidden = (userId: string | null): boolean => {
+  const scopedKey = buildUserScopedStorageKey(QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY_V2, userId);
+  const scopedValue = parseStoredBoolean(readLocalStorageValue(scopedKey));
+  if (scopedValue !== null) return scopedValue;
+  if (userId) return false;
+  const legacyValue = parseStoredBoolean(
+    readLocalStorageValue(QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY_LEGACY)
+  );
+  return legacyValue ?? false;
+};
+
+const writeLocalTipHidden = (value: boolean, userId: string | null): void => {
+  const scopedKey = buildUserScopedStorageKey(QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY_V2, userId);
+  writeLocalStorageValue(scopedKey, String(value));
+  if (userId) {
+    removeLocalStorageValue(QUICK_SWAP_TIP_HIDDEN_STORAGE_KEY_LEGACY);
+  }
 };
 
 const isMissingQuickSwapTipPreferenceError = (error: unknown): boolean => {
@@ -56,15 +78,17 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<CharacterQuickSwapTipSyncState>("loading");
   const [userId, setUserId] = useState<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
   const latestValueRef = useRef(false);
   const writeVersionRef = useRef(0);
   const remoteSyncEnabledRef = useRef(true);
   const hasLocalOverrideRef = useRef(false);
 
-  const updateLocalValue = useCallback((value: boolean) => {
+  const updateLocalValue = useCallback((value: boolean, scopeUserId?: string | null) => {
+    const resolvedUserId = scopeUserId ?? userIdRef.current;
     latestValueRef.current = value;
     setIsQuickSwapTipHidden(value);
-    writeLocalTipHidden(value);
+    writeLocalTipHidden(value, resolvedUserId);
   }, []);
 
   useEffect(() => {
@@ -73,21 +97,26 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
     setSyncState("loading");
 
     (async () => {
-      updateLocalValue(readLocalTipHidden());
       try {
         const supabase = ensureSupabaseClient();
         const { data, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
-        const id = data.session?.user?.id;
+        const id = data.session?.user?.id?.trim() ?? null;
+        if (!active) return;
+        setUserId(id);
+        userIdRef.current = id;
+
+        const localValue = readLocalTipHidden(id);
+        if (!hasLocalOverrideRef.current) {
+          updateLocalValue(localValue, id);
+        }
+
         if (!id) {
           if (!active) return;
-          setUserId(null);
           setError(null);
           setSyncState("ready");
           return;
         }
-        if (!active) return;
-        setUserId(id);
 
         const { data: storedPreference, error: preferenceError } = await supabase
           .from("user_preferences")
@@ -97,15 +126,20 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
         if (preferenceError) throw preferenceError;
         if (!active) return;
 
+        const hasStoredPreference = Boolean(storedPreference);
         const remoteValue = storedPreference?.ai_studio_character_quickswap_tip_hidden === true;
-        const mergedValue = latestValueRef.current || remoteValue;
+        const mergedValue = hasLocalOverrideRef.current
+          ? latestValueRef.current
+          : hasStoredPreference
+            ? remoteValue
+            : localValue;
         if (!hasLocalOverrideRef.current) {
-          updateLocalValue(mergedValue);
+          updateLocalValue(mergedValue, id);
         }
 
         if (
-          !storedPreference ||
-          storedPreference.ai_studio_character_quickswap_tip_hidden !== mergedValue
+          !hasStoredPreference ||
+          storedPreference?.ai_studio_character_quickswap_tip_hidden !== mergedValue
         ) {
           const { error: upsertError } = await supabase.from("user_preferences").upsert(
             {
@@ -149,7 +183,7 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
     hasLocalOverrideRef.current = true;
 
     const previousValue = latestValueRef.current;
-    updateLocalValue(true);
+    updateLocalValue(true, userIdRef.current);
     setSyncState("saving");
     setError(null);
 
@@ -181,7 +215,7 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
         setSyncState("ready");
         return true;
       }
-      updateLocalValue(previousValue);
+      updateLocalValue(previousValue, userIdRef.current);
       setError(err instanceof Error ? err.message : "Unable to update QuickSwap tip preference.");
       setSyncState("error");
       return false;

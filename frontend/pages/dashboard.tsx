@@ -26,16 +26,43 @@ import {
   type BillingPlanRecord,
 } from "../features/billing/catalog";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
+import { fetchWithAuth } from "../lib/authenticatedFetch";
 
 const DEFAULT_PLAN_TIER = "business";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
   process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
+const DASHBOARD_FALLBACK_HELPER_COPY =
+  "Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling.";
 
 const PLAN_MAP: Record<string, { label: string; className: string }> = {
   free: { label: "Free", className: "plan-free" },
   media: { label: "Media", className: "plan-media" },
   studio: { label: "Studio", className: "plan-studio" },
   business: { label: "Business", className: "plan-business" },
+};
+
+type DashboardAnnouncement = {
+  id: string;
+  title: string;
+  message: string;
+  publishedAt: string | null;
+  updatedAt: string | null;
+};
+
+const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null => {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const id = typeof row.id === "string" ? row.id : "";
+  const title = typeof row.title === "string" ? row.title.trim() : "";
+  const message = typeof row.message === "string" ? row.message.trim() : "";
+  if (!id || !title || !message) return null;
+  return {
+    id,
+    title,
+    message,
+    publishedAt: typeof row.publishedAt === "string" ? row.publishedAt : null,
+    updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
+  };
 };
 
 /**
@@ -52,6 +79,9 @@ export default function DashboardPage() {
   );
   const [mediaBytesUsed, setMediaBytesUsed] = useState(0);
   const [usageLoading, setUsageLoading] = useState(true);
+  const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
+    null
+  );
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -191,6 +221,41 @@ export default function DashboardPage() {
     };
 
     void loadUsage();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadDashboardAnnouncement = async () => {
+      if (!user) {
+        if (active) {
+          setDashboardAnnouncement(null);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetchWithAuth("/api/announcements/active", {
+          method: "GET",
+        });
+        if (!response.ok) {
+          throw new Error("Failed to load active announcement.");
+        }
+        const payload = (await response.json().catch(() => ({}))) as {
+          announcement?: unknown;
+        };
+        if (!active) return;
+        setDashboardAnnouncement(asDashboardAnnouncement(payload.announcement ?? null));
+      } catch {
+        if (!active) return;
+        setDashboardAnnouncement(null);
+      }
+    };
+
+    void loadDashboardAnnouncement();
     return () => {
       active = false;
     };
@@ -391,10 +456,14 @@ export default function DashboardPage() {
               <h1>
                 Welcome back, <span>{firstName}</span>
               </h1>
-              <p className="hero-subtext">
-                Your dashboard is the launch surface for analytics, creator ops, and storage—built
-                for fast decisions and secure tooling.
-              </p>
+              {dashboardAnnouncement ? (
+                <div className="hero-announcement" role="status" aria-live="polite">
+                  <p className="hero-announcement-title">{dashboardAnnouncement.title}</p>
+                  <p className="hero-announcement-message">{dashboardAnnouncement.message}</p>
+                </div>
+              ) : (
+                <p className="hero-subtext">{DASHBOARD_FALLBACK_HELPER_COPY}</p>
+              )}
             </div>
             <div className="hero-visual">
               <Image

@@ -208,6 +208,21 @@ describe("useAiStudioPanelProps", () => {
     });
   });
 
+  it("forwards edit submit-intent callback into expert edit panel props", () => {
+    const onEditSubmitIntentChange = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          onEditSubmitIntentChange,
+        })
+      )
+    );
+
+    result.current.propertiesEditExpert.onEditSubmitIntentChange?.("inpaint");
+
+    expect(onEditSubmitIntentChange).toHaveBeenCalledWith("inpaint");
+  });
+
   it("does not disable generate controls when only agent send is busy", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(

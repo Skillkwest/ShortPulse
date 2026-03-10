@@ -30,10 +30,7 @@ type QueryResult = {
 
 const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
   from: (table: string) => {
-    const queue = queues[table];
-    if (!queue) {
-      throw new Error(`Unexpected table: ${table}`);
-    }
+    const queue = queues[table] ?? [];
 
     let selected: QueryResult | null = null;
     const ensureSelected = () => {
@@ -77,6 +74,7 @@ describe("GET /api/admin/error-events", () => {
     process.env.SHORTPULSE_ADMIN_ALERT_TOTAL_15M = "40";
     process.env.SHORTPULSE_ADMIN_ALERT_HIGH_15M = "8";
     process.env.SHORTPULSE_ADMIN_ALERT_GENERATION_15M = "20";
+    process.env.SHORTPULSE_ADMIN_ALERT_PROVIDER_RUNNING_TIMEOUT_15M = "2";
   });
 
   it("rejects non-GET methods", async () => {
@@ -168,9 +166,11 @@ describe("GET /api/admin/error-events", () => {
         last15mCount: number;
         high15mCount: number;
         generation15mCount: number;
+        providerRunningTimeout15mCount: number;
         total15mThreshold: number;
         high15mThreshold: number;
         generation15mThreshold: number;
+        providerRunningTimeout15mThreshold: number;
         characterModeReferenceRefreshEmptyLastHourCount: number;
         characterModeReferenceRefreshEmptyLast24hCount: number;
         characterModeBundleUnavailableFallbackLastHourCount: number;
@@ -195,6 +195,7 @@ describe("GET /api/admin/error-events", () => {
         total15mBreached: boolean;
         high15mBreached: boolean;
         generation15mBreached: boolean;
+        providerRunningTimeout15mBreached: boolean;
       };
       health: {
         eventsTableAvailable: boolean;
@@ -211,9 +212,11 @@ describe("GET /api/admin/error-events", () => {
       last15mCount: 50,
       high15mCount: 9,
       generation15mCount: 22,
+      providerRunningTimeout15mCount: 0,
       total15mThreshold: 40,
       high15mThreshold: 8,
       generation15mThreshold: 20,
+      providerRunningTimeout15mThreshold: 2,
       characterModeReferenceRefreshEmptyLastHourCount: 3,
       characterModeReferenceRefreshEmptyLast24hCount: 9,
       characterModeBundleUnavailableFallbackLastHourCount: 2,
@@ -221,6 +224,7 @@ describe("GET /api/admin/error-events", () => {
       total15mBreached: true,
       high15mBreached: true,
       generation15mBreached: true,
+      providerRunningTimeout15mBreached: false,
     });
     expect(payload.summary.admissionDeniedTelemetry).toMatchObject({
       last15m: {

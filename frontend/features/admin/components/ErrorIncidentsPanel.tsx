@@ -704,6 +704,31 @@ export function ErrorIncidentsPanel({
               }`}
             </p>
           </div>
+          <div
+            className={`${styles.adminCard} ${
+              errorEventsSummary.providerRunningTimeout15mBreached ? styles.warning : ""
+            }`}
+          >
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>15m running timeouts</span>
+            </div>
+            <p className={styles.adminMetric}>
+              {errorEventsSummary.providerRunningTimeout15mCount}
+            </p>
+            <p className={styles.adminSubtext}>
+              {`Threshold ${errorEventsSummary.providerRunningTimeout15mThreshold} · ${
+                errorEventsSummary.providerRunningTimeout15mBreached ? "Elevated" : "Normal"
+              }`}
+            </p>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => onErrorEventSignalFilterChange("provider_running_timeout")}
+              disabled={errorEventsLoading || errorEventSignalFilter === "provider_running_timeout"}
+            >
+              Filter stream
+            </button>
+          </div>
         </section>
 
         <div className={styles.searchRow}>

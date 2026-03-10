@@ -52,6 +52,7 @@ export type FalRuntimeFlags = {
   recoveryProbeTimeoutMs: number;
   noMediaExhaustMinAgeSeconds: number;
   runningExhaustMinAgeSeconds: number;
+  runningHardTimeoutSeconds: number;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -228,6 +229,11 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   runningExhaustMinAgeSeconds: parseInteger(
     process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS,
     7200,
+    0
+  ),
+  runningHardTimeoutSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS,
+    0,
     0
   ),
 });

@@ -10,6 +10,7 @@ import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncide
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import type {
   AdminCreditLedgerRow,
+  AdminDashboardAnnouncement,
   AdminErrorEventIncidentFilter,
   AdminErrorLogRow,
   AdminErrorEventRow,
@@ -42,10 +43,13 @@ const CREDIT_LEDGER_LIMIT = 20;
 const SEARCH_DEBOUNCE_MS = 250;
 const ERROR_REFRESH_INTERVAL_MS = 30000;
 const ADJUSTMENT_PRESETS = [100, 500, -100, -500] as const;
+const DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH = 120;
+const DASHBOARD_ANNOUNCEMENT_MESSAGE_MAX_LENGTH = 500;
 const DEFAULT_ERROR_EVENTS_SUMMARY: AdminErrorEventSummary = {
   last15mCount: 0,
   high15mCount: 0,
   generation15mCount: 0,
+  providerRunningTimeout15mCount: 0,
   lastHourCount: 0,
   last24hCount: 0,
   app24hCount: 0,
@@ -58,9 +62,11 @@ const DEFAULT_ERROR_EVENTS_SUMMARY: AdminErrorEventSummary = {
   total15mThreshold: 40,
   high15mThreshold: 8,
   generation15mThreshold: 20,
+  providerRunningTimeout15mThreshold: 2,
   total15mBreached: false,
   high15mBreached: false,
   generation15mBreached: false,
+  providerRunningTimeout15mBreached: false,
 };
 const DEFAULT_ERROR_EVENTS_HEALTH: AdminErrorEventsHealth = {
   eventsTableAvailable: true,
@@ -109,9 +115,25 @@ const formatCreditDelta = (changeCents: number): string =>
 
 const formatUsd = (value: number | null): string => (value == null ? "—" : `$${value.toFixed(2)}`);
 
+const asAdminDashboardAnnouncement = (value: unknown): AdminDashboardAnnouncement | null => {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const id = typeof row.id === "string" ? row.id : "";
+  const title = typeof row.title === "string" ? row.title.trim() : "";
+  const message = typeof row.message === "string" ? row.message.trim() : "";
+  if (!id || !title || !message) return null;
+  return {
+    id,
+    title,
+    message,
+    publishedAt: typeof row.publishedAt === "string" ? row.publishedAt : null,
+    updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
+  };
+};
+
 export default function AdminDashboardPage() {
   const { loading, user } = useProtectedRoute(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "errors">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "errors" | "announcements">("overview");
   const [userSearch, setUserSearch] = useState("");
   const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
   const [usersPage, setUsersPage] = useState(1);
@@ -164,6 +186,16 @@ export default function AdminDashboardPage() {
     "app" | "generation" | null
   >(null);
   const [testIncidentResult, setTestIncidentResult] = useState<string | null>(null);
+  const [announcementCurrent, setAnnouncementCurrent] = useState<AdminDashboardAnnouncement | null>(
+    null
+  );
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementLoading, setAnnouncementLoading] = useState(false);
+  const [announcementPublishing, setAnnouncementPublishing] = useState(false);
+  const [announcementClearing, setAnnouncementClearing] = useState(false);
+  const [announcementResult, setAnnouncementResult] = useState<string | null>(null);
+  const [announcementError, setAnnouncementError] = useState<string | null>(null);
   const [errorSummary, setErrorSummary] = useState<AdminErrorSummary>({
     openCount: 0,
     highSeverityOpenCount: 0,
@@ -502,6 +534,7 @@ export default function AdminDashboardPage() {
           last15mCount: Number(data.summary?.last15mCount ?? 0),
           high15mCount: Number(data.summary?.high15mCount ?? 0),
           generation15mCount: Number(data.summary?.generation15mCount ?? 0),
+          providerRunningTimeout15mCount: Number(data.summary?.providerRunningTimeout15mCount ?? 0),
           lastHourCount: Number(data.summary?.lastHourCount ?? 0),
           last24hCount: Number(data.summary?.last24hCount ?? 0),
           app24hCount: Number(data.summary?.app24hCount ?? 0),
@@ -522,9 +555,15 @@ export default function AdminDashboardPage() {
           total15mThreshold: Number(data.summary?.total15mThreshold ?? 40),
           high15mThreshold: Number(data.summary?.high15mThreshold ?? 8),
           generation15mThreshold: Number(data.summary?.generation15mThreshold ?? 20),
+          providerRunningTimeout15mThreshold: Number(
+            data.summary?.providerRunningTimeout15mThreshold ?? 2
+          ),
           total15mBreached: Boolean(data.summary?.total15mBreached),
           high15mBreached: Boolean(data.summary?.high15mBreached),
           generation15mBreached: Boolean(data.summary?.generation15mBreached),
+          providerRunningTimeout15mBreached: Boolean(
+            data.summary?.providerRunningTimeout15mBreached
+          ),
         });
         setErrorEventsHealth({
           eventsTableAvailable: Boolean(data.health?.eventsTableAvailable ?? true),
@@ -562,6 +601,37 @@ export default function AdminDashboardPage() {
       errorSourceFilter,
     ]
   );
+
+  const loadCurrentAnnouncement = useCallback(async () => {
+    setAnnouncementLoading(true);
+    setAnnouncementError(null);
+    setAnnouncementResult(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/announcements/current", {
+        method: "GET",
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        announcement?: unknown;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load current announcement.");
+      }
+      const announcement = asAdminDashboardAnnouncement(data.announcement ?? null);
+      setAnnouncementCurrent(announcement);
+      setAnnouncementTitle(announcement?.title ?? "");
+      setAnnouncementMessage(announcement?.message ?? "");
+    } catch (error) {
+      setAnnouncementError(
+        error instanceof Error ? error.message : "Failed to load current announcement."
+      );
+      setAnnouncementCurrent(null);
+      setAnnouncementTitle("");
+      setAnnouncementMessage("");
+    } finally {
+      setAnnouncementLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedUserSearch(userSearch), SEARCH_DEBOUNCE_MS);
@@ -603,6 +673,11 @@ export default function AdminDashboardPage() {
     if (!user || !adminEnabled) return;
     loadErrorEvents();
   }, [adminEnabled, loadErrorEvents, user]);
+
+  useEffect(() => {
+    if (!user || !adminEnabled || activeTab !== "announcements") return;
+    void loadCurrentAnnouncement();
+  }, [activeTab, adminEnabled, loadCurrentAnnouncement, user]);
 
   const overview = useMemo(
     () => ({
@@ -776,6 +851,100 @@ export default function AdminDashboardPage() {
     },
     [errors, loadErrorEvents, loadErrors]
   );
+
+  const handlePublishAnnouncement = useCallback(async () => {
+    const normalizedTitle = announcementTitle.trim();
+    const normalizedMessage = announcementMessage.trim();
+    if (!normalizedTitle) {
+      setAnnouncementError("Title is required.");
+      setAnnouncementResult(null);
+      return;
+    }
+    if (!normalizedMessage) {
+      setAnnouncementError("Message is required.");
+      setAnnouncementResult(null);
+      return;
+    }
+    if (normalizedTitle.length > DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH) {
+      setAnnouncementError(
+        `Title must be ${DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH} characters or fewer.`
+      );
+      setAnnouncementResult(null);
+      return;
+    }
+    if (normalizedMessage.length > DASHBOARD_ANNOUNCEMENT_MESSAGE_MAX_LENGTH) {
+      setAnnouncementError(
+        `Message must be ${DASHBOARD_ANNOUNCEMENT_MESSAGE_MAX_LENGTH} characters or fewer.`
+      );
+      setAnnouncementResult(null);
+      return;
+    }
+
+    setAnnouncementPublishing(true);
+    setAnnouncementError(null);
+    setAnnouncementResult(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/announcements/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: normalizedTitle,
+          message: normalizedMessage,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        announcement?: unknown;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to publish announcement.");
+      }
+      const announcement = asAdminDashboardAnnouncement(data.announcement ?? null);
+      if (!announcement) {
+        throw new Error("Published announcement payload is invalid.");
+      }
+      setAnnouncementCurrent(announcement);
+      setAnnouncementTitle(announcement.title);
+      setAnnouncementMessage(announcement.message);
+      setAnnouncementResult("Announcement published.");
+    } catch (error) {
+      setAnnouncementError(
+        error instanceof Error ? error.message : "Failed to publish announcement."
+      );
+      setAnnouncementResult(null);
+    } finally {
+      setAnnouncementPublishing(false);
+    }
+  }, [announcementMessage, announcementTitle]);
+
+  const handleClearAnnouncement = useCallback(async () => {
+    setAnnouncementClearing(true);
+    setAnnouncementError(null);
+    setAnnouncementResult(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/announcements/clear", {
+        method: "POST",
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!response.ok || data.ok !== true) {
+        throw new Error(data.error || "Failed to clear active announcement.");
+      }
+      setAnnouncementCurrent(null);
+      setAnnouncementTitle("");
+      setAnnouncementMessage("");
+      setAnnouncementResult("Active announcement cleared.");
+    } catch (error) {
+      setAnnouncementError(
+        error instanceof Error ? error.message : "Failed to clear active announcement."
+      );
+      setAnnouncementResult(null);
+    } finally {
+      setAnnouncementClearing(false);
+    }
+  }, []);
 
   const refreshErrorData = useCallback(async () => {
     await Promise.all([loadErrors(), loadErrorEvents()]);
@@ -988,6 +1157,13 @@ export default function AdminDashboardPage() {
             onClick={() => setActiveTab("errors")}
           >
             Errors
+          </button>
+          <button
+            type="button"
+            className={`${styles.tabButton} ${activeTab === "announcements" ? styles.tabActive : ""}`}
+            onClick={() => setActiveTab("announcements")}
+          >
+            Announcements
           </button>
           <Link href="/admin/generation-trace" className="ghost-btn mini">
             Generation trace
@@ -1287,7 +1463,7 @@ export default function AdminDashboardPage() {
               </div>
             </section>
           </>
-        ) : (
+        ) : activeTab === "errors" ? (
           <ErrorIncidentsPanel
             errors={errors}
             errorsLoading={errorsLoading}
@@ -1361,6 +1537,104 @@ export default function AdminDashboardPage() {
             onEventNextPage={() => setErrorEventsPage((value) => value + 1)}
             onRefresh={refreshErrorData}
           />
+        ) : (
+          <section className={styles.adminSection}>
+            <div className={styles.adminSectionHead}>
+              <div>
+                <p className="eyebrow">Current announcement</p>
+                <p className="tiny subdued">
+                  Publish one global announcement shown to all signed-in dashboard users.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => void loadCurrentAnnouncement()}
+                disabled={announcementLoading || announcementPublishing || announcementClearing}
+              >
+                {announcementLoading ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+
+            <div className={styles.announcementFormGrid}>
+              <label className={styles.manualAdjustField}>
+                <span className="tiny subdued">
+                  Title ({announcementTitle.trim().length}/{DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH}
+                  )
+                </span>
+                <input
+                  className={styles.searchInput}
+                  type="text"
+                  value={announcementTitle}
+                  onChange={(event) => setAnnouncementTitle(event.target.value)}
+                  maxLength={DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH}
+                  placeholder="Platform notice"
+                  disabled={announcementPublishing || announcementClearing}
+                />
+              </label>
+              <label className={styles.manualAdjustField}>
+                <span className="tiny subdued">
+                  Message ({announcementMessage.trim().length}/
+                  {DASHBOARD_ANNOUNCEMENT_MESSAGE_MAX_LENGTH})
+                </span>
+                <textarea
+                  className={styles.announcementMessageInput}
+                  value={announcementMessage}
+                  onChange={(event) => setAnnouncementMessage(event.target.value)}
+                  maxLength={DASHBOARD_ANNOUNCEMENT_MESSAGE_MAX_LENGTH}
+                  placeholder="Tell users what changed and what to expect next."
+                  rows={5}
+                  disabled={announcementPublishing || announcementClearing}
+                />
+              </label>
+            </div>
+
+            <div className={styles.announcementActions}>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => void handlePublishAnnouncement()}
+                disabled={announcementPublishing || announcementClearing || announcementLoading}
+              >
+                {announcementPublishing ? "Publishing…" : "Publish"}
+              </button>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => void handleClearAnnouncement()}
+                disabled={announcementClearing || announcementPublishing || announcementLoading}
+              >
+                {announcementClearing ? "Clearing…" : "Clear active announcement"}
+              </button>
+            </div>
+
+            {announcementError ? (
+              <p className={styles.announcementError}>{announcementError}</p>
+            ) : null}
+            {announcementResult ? (
+              <p className={styles.announcementResult}>{announcementResult}</p>
+            ) : null}
+
+            <div className={styles.announcementPreview}>
+              <p className="eyebrow">Live dashboard payload</p>
+              {announcementCurrent ? (
+                <>
+                  <p className={styles.announcementPreviewTitle}>{announcementCurrent.title}</p>
+                  <p className={styles.announcementPreviewMessage}>{announcementCurrent.message}</p>
+                  <p className="tiny subdued">
+                    Published{" "}
+                    {announcementCurrent.publishedAt
+                      ? new Date(announcementCurrent.publishedAt).toLocaleString()
+                      : "—"}
+                  </p>
+                </>
+              ) : (
+                <p className="tiny subdued">
+                  No active announcement. Dashboard users will see fallback helper copy.
+                </p>
+              )}
+            </div>
+          </section>
         )}
       </main>
     </>

@@ -354,6 +354,73 @@
   align-items: flex-end;
 }
 
+.announcementFormGrid {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.announcementMessageInput {
+  width: 100%;
+  min-height: 120px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-1);
+  color: var(--admin-text-strong);
+  resize: vertical;
+  font: inherit;
+}
+
+.announcementMessageInput:focus {
+  outline: none;
+  border-color: var(--admin-focus);
+}
+
+.announcementActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.announcementError {
+  margin: 0;
+  font-size: 12px;
+  color: #ffb8b8;
+}
+
+.announcementResult {
+  margin: 0;
+  font-size: 12px;
+  color: #d8f7e2;
+}
+
+.announcementPreview {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-3);
+  display: grid;
+  gap: 4px;
+}
+
+.announcementPreviewTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--admin-text-strong);
+}
+
+.announcementPreviewMessage {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.42;
+  color: var(--admin-text-muted);
+}
+
 .searchInput {
   flex: 1;
   padding: 8px 10px;

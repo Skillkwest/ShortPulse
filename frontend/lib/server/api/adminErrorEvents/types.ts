@@ -37,7 +37,8 @@ export type SyntheticFilterValue = "all" | "only" | "exclude";
 export type SignalFilterValue =
   | "all"
   | "character_mode_reference_refresh_empty"
-  | "character_mode_bundle_unavailable_fallback";
+  | "character_mode_bundle_unavailable_fallback"
+  | "provider_running_timeout";
 
 export type IncidentFilterValue =
   | "all"

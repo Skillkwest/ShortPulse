@@ -19,6 +19,7 @@ import type {
 } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput } from "../types";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
+import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
 import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 import type {
@@ -134,6 +135,7 @@ export type UseAiStudioPanelPropsParams = {
     displayPromptOverride?: string | null;
     submissionPromptOverride?: string | null;
   }) => void | Promise<void>;
+  onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
@@ -263,6 +265,7 @@ export const useAiStudioPanelProps = ({
   extraImageUrls,
   editReferenceText,
   handleImageRegenerateWithDebit,
+  onEditSubmitIntentChange,
   addSessionMediaReference,
   referenceImageWarning,
   resolveOutputPreviewUrl,
@@ -447,6 +450,7 @@ export const useAiStudioPanelProps = ({
     setExtraImageUrl,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,
+    onEditSubmitIntentChange,
     addSessionMediaReference,
     currentCostCredits,
     isGenerateDisabled,

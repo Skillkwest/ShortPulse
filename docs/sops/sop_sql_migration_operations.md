@@ -94,6 +94,9 @@ Current set:
 - `057_add_user_preferences_ai_studio_deleted_style_ids.sql`
 - `058_add_user_preferences_ai_studio_style_details_overrides.sql`
 - `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql`
+- `060_add_media_folders_and_membership.sql`
+- `061_backfill_media_image_dimensions_metadata.sql`
+- `062_add_dashboard_announcements.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

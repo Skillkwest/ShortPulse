@@ -5,6 +5,7 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
+import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import type { AiStudioEditExpertPanelContract } from "./contracts/pageContentContracts";
 import type {
   ExpertEditCustomPresetOverrides,
@@ -45,6 +46,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
     displayPromptOverride?: string | null;
     submissionPromptOverride?: string | null;
   }) => void | Promise<void>;
+  onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
@@ -86,6 +88,7 @@ export const useAiStudioEditExpertPanelProps = ({
   setExtraImageUrl,
   handleEditPromptTextChange,
   handleImageRegenerateWithDebit,
+  onEditSubmitIntentChange,
   addSessionMediaReference,
   currentCostCredits,
   isGenerateDisabled,
@@ -124,6 +127,7 @@ export const useAiStudioEditExpertPanelProps = ({
       onPrimaryImageChange: setReferenceImageUrl,
       onExtraImageChange: setExtraImageUrl,
       onPromptTextChange: handleEditPromptTextChange,
+      onEditSubmitIntentChange,
       onRegenerate: handleImageRegenerateWithDebit,
       onRegenerateWithReferenceInputs: (
         referenceInputs: string[],
@@ -175,6 +179,7 @@ export const useAiStudioEditExpertPanelProps = ({
       extraImageUrls,
       handleEditPromptTextChange,
       handleImageRegenerateWithDebit,
+      onEditSubmitIntentChange,
       handleOpenModelModal,
       imageResolution,
       isCharacterModeEnabled,

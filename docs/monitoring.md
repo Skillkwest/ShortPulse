@@ -81,7 +81,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - If `app_error_events` is missing (schema drift), `/api/admin/error-events` now returns a degraded payload (`health.degraded = true`) instead of failing hard. The Admin Event Stream shows a drift warning so operators can apply migration `015` and restore per-occurrence visibility.
 - If non-core summary or enrichment queries fail (for example, transient count-query failures), `/api/admin/error-events` and `/api/admin/errors` now fail soft with `health.degraded = true` and keep the primary list payload available.
 - Alert metrics are computed against real failure traffic only (synthetic admin test events and `telemetry.*` sources excluded) and are not altered by UI filter state.
-- Threshold env vars (server-side): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`.
+- Threshold env vars (server-side): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`, `SHORTPULSE_ADMIN_ALERT_PROVIDER_RUNNING_TIMEOUT_15M`.
 - Defaults if unset: `40`, `8`, `20`.
 
 Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.

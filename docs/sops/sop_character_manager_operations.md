@@ -46,6 +46,7 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Internal payload parse/resolve/fallback failures fail closed (no partial quickswap/sheet mutation).
 6. Character selection persistence:
    - Selecting a character in Character Manager persists that selection in browser local storage.
+   - Local persistence must be scoped per authenticated `user_id` to prevent cross-account leakage on shared browsers.
    - The persisted selection is used as the preferred default on reload for both `/character` and the AI Studio embedded Character panel.
    - If the persisted character no longer exists, Character Manager falls back to the latest available draft.
 7. AI Studio Create Character Mode consumes Character Manager data at generation time:
@@ -58,6 +59,7 @@ Define the operational contract for the `/character` Character Manager surface, 
    - `0-50` characters: full-list smooth rendering target.
    - `51-100` characters: progressive rendering mode (`show 50` by default, `+25` expansion steps, optional `show all`).
    - Selected character remains visible when list is windowed.
+   - QuickSwap active/archive grids use visible-window rendering (viewport rows + deterministic overscan) for large datasets while preserving ordering and interaction semantics.
 9. Character Mode stale-selection safety:
    - Submit-time character bundle refresh must fail closed when selected character is no longer available.
    - Cached bundle reuse is allowed only for transient refresh failures.
@@ -156,6 +158,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Dragging from AI Studio Reference Grid to Character Sheet slot replaces the targeted slot.
 - Internal drag payload failures show user-visible error and do not mutate quickswap/sheet state.
 - QuickSwap deck is scrollable and remains interactive at high active counts.
+- QuickSwap active/archive virtualization keeps only viewport-visible rows mounted and still preserves drag/drop, remove/restore, and preview behavior.
 - Uploading beyond 500 active references archives oldest active references.
 - Archived references can be restored back into active deck.
 - New users start with one visible preset tab (`1`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.

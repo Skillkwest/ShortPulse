@@ -39,6 +39,9 @@ export const eventSignalFilterLabel = (value: AdminErrorEventSignalFilter): stri
   if (value === "character_mode_bundle_unavailable_fallback") {
     return "Character Mode: bundle unavailable fallback";
   }
+  if (value === "provider_running_timeout") {
+    return "Generation Recovery: provider running timeout";
+  }
   return "All event signals";
 };
 

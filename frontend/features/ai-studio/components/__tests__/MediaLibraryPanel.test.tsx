@@ -90,8 +90,17 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
   MediaLibraryMediaGrid: (props: {
     activeMedia: Array<{ id: string; filename: string }>;
     onSelectMediaFile: (row: { id: string; filename: string }) => void;
+    onDownloadMediaFile?: (row: {
+      id: string;
+      filename: string;
+      signedUrl?: string | null;
+    }) => void;
     showRemoveAction?: boolean;
-    onRemoveMediaFromFolder?: (row: { id: string; filename: string }) => void;
+    onRemoveMediaFromFolder?: (row: {
+      id: string;
+      filename: string;
+      signedUrl?: string | null;
+    }) => void;
   }) => (
     <div data-testid="mock-media-grid">
       {props.activeMedia.map((row) => (
@@ -99,6 +108,11 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
           <button type="button" onClick={() => props.onSelectMediaFile(row)}>
             Select media {row.filename}
           </button>
+          {props.onDownloadMediaFile ? (
+            <button type="button" onClick={() => props.onDownloadMediaFile?.(row)}>
+              Download media {row.filename}
+            </button>
+          ) : null}
           {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
             <button type="button" onClick={() => props.onRemoveMediaFromFolder?.(row)}>
               Remove media {row.filename}
@@ -251,6 +265,38 @@ describe("MediaLibraryPanel", () => {
         promptText: "Prompt text",
       })
     );
+  });
+
+  it("downloads media from the panel media hover action", async () => {
+    const originalCreateElement = document.createElement.bind(document);
+    const anchor = originalCreateElement("a");
+    const clickSpy = vi.spyOn(anchor, "click").mockImplementation(() => undefined);
+    const removeSpy = vi.spyOn(anchor, "remove").mockImplementation(() => undefined);
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(((
+      tagName: string
+    ) => {
+      if (tagName.toLowerCase() === "a") return anchor;
+      return originalCreateElement(tagName as keyof HTMLElementTagNameMap);
+    }) as typeof document.createElement);
+    try {
+      render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Download media ref-1.png" })
+        ).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Download media ref-1.png" }));
+
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(removeSpy).toHaveBeenCalledTimes(1);
+      expect(anchor.download).toBe("ref-1.png");
+    } finally {
+      createElementSpy.mockRestore();
+      clickSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
   });
 
   it("includes private-tab uploads inside All Media", async () => {

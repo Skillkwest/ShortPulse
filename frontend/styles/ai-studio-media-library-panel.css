@@ -309,6 +309,7 @@
   top: 6px;
   right: 6px;
   display: flex;
+  gap: 6px;
   z-index: 4;
   opacity: 0;
   pointer-events: none;
@@ -325,6 +326,7 @@
   pointer-events: auto;
 }
 
+.media-library-panel-card-download-btn,
 .media-library-panel-card-remove-btn {
   width: 28px;
   height: 28px;

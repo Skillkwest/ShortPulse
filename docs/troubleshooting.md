@@ -414,9 +414,9 @@ Checklist:
   where user_id = auth.uid();
   ```
 
-## AI Studio session persistence intentionally paused (hard-off baseline)
+## AI Studio session persistence emergency rollback posture
 Checklist:
-- Confirm these flags are set to `false` in the active frontend/server runtime when operating in rollback baseline:
+- Confirm these flags are set to `false` in the active frontend/server runtime when forcing rollback baseline:
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED`
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED`
@@ -426,10 +426,9 @@ Checklist:
   - no session restore/switch UX,
   - no `/api/ai/sessions*` traffic during normal AI Studio usage,
   - workspace state remains runtime-local only.
-- Reference-only rebuild runbook and plan:
+- Full-canvas persistence runbook:
   - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
-  - `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
-  - `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
+  - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 
 ## AI Studio session shadow persistence not syncing to server
 Checklist:
@@ -437,40 +436,28 @@ Checklist:
 - Ensure ambiguity hotfix migration `sql/migrations/053_fix_ai_studio_session_upsert_ambiguity.sql` is applied.
 - Ensure server route flag is enabled (or unset):
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` must not be `false`.
-- Ensure client remote-shadow flag is enabled for write-through shadow mode:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=true`.
+- Ensure client remote-shadow flag is enabled for write-through shadow mode (enabled by default):
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` must not be `false`.
 - Verify authenticated `POST /api/ai/sessions/save` responses are `200` for active users.
+- Verify snapshot payload size is below server cap (`~900KB` serialized JSON).
 - If `POST /api/ai/sessions/save` returns `500`, inspect API/server logs for SQLSTATE `42702` with
   `column reference "user_id" is ambiguous` from `upsert_ai_studio_session_snapshot`.
   This indicates the database function body is running pre-hotfix SQL and will fail every remote save.
-- Note: local IndexedDB shadow remains active even when remote shadow is disabled/unavailable.
-- Expected behavior:
-  - `media_autosave_enabled = true`: eligible generated/uploaded/pasted media can auto-persist.
-  - `media_autosave_enabled = false`: recovery path settles generation success but skips background `media_files` insert; manual save remains available.
-- Verify recovery decision events:
-  ```sql
-  select event_type, entity_id, metadata, created_at
-  from media_events
-  where event_type = 'generation_autosave_decision'
-  order by created_at desc
-  limit 50;
-  ```
-- If autosave OFF still persists in recovery, confirm server runtime is on latest recovery executor code (`frontend/lib/server/falIntegration/recoveryExecution.ts`) and no stale deployment is serving older behavior.
+- Note: local IndexedDB shadow remains active when remote shadow is disabled/unavailable, but cross-device durability depends on remote save success.
 
 ## AI Studio session restore candidate does not appear
 Checklist:
-- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=true` in the frontend environment.
+- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false` in the frontend environment.
 - Ensure `sid` is present and valid in URL (`/ai-studio?sid=<uuid>`).
 - If remote restore candidate is expected, ensure `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` is not `false`.
 - Verify authenticated `GET /api/ai/sessions/:sid` returns `200` (or `404` when not found).
 - Inspect client breadcrumbs for `ai_studio_session_restore_candidate_loaded` to confirm source (`local` or `remote`).
-- Note: this phase loads candidates only; hydration apply remains rollout-gated and is not auto-applied yet.
 
 ## AI Studio session snapshot is loaded but not applied to UI
 Checklist:
-- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=true`.
+- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` is not `false`.
 - Ensure restore-candidate loading is enabled:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=true`.
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false`.
 - If agent transcript/input should also restore, ensure:
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` is not `false`.
 - Verify candidate-load breadcrumb exists:
@@ -478,7 +465,7 @@ Checklist:
 - Verify hydration-apply breadcrumb exists:
   - `ai_studio_session_hydration_applied`.
 - If candidate breadcrumb exists but hydration breadcrumb does not, confirm current session `sid` has not already been hydrated in this page lifecycle and that snapshot payload includes expected workspace/output fields.
-- When hydration apply is enabled, restored state includes agent transcript + composer input; attachment tray state is intentionally not restored.
+- When hydration apply is enabled, restored state includes workspace, outputs, agent transcript/input, and canvas state (scene + dual viewport cameras + transient text-edit sessions).
 - If hydration breadcrumb is present with `agent_hydration_applied=false`, workspace/output restore ran but transcript/input restore is intentionally staged off.
 
 ## AI Studio restored session shows placeholder reference cards
@@ -518,8 +505,30 @@ Checklist:
 - Ensure session save route is enabled:
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` must not be `false`.
 - If using remote shadow write-through expectations, ensure:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=true`.
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` is not `false`.
   - (Local IndexedDB write-shadow still persists even when remote mirror is off.)
+
+## AI Studio canvas item cap reached
+Symptoms:
+- New drops or draft text commits stop adding items once the scene is dense.
+- UI warning appears about the canvas item cap.
+
+Checklist:
+- Current hard cap is `300` scene items per session snapshot.
+- Verify existing scene item count in the canvas state before further inserts.
+- Remove or consolidate items, then retry the insert.
+
+## AI Studio session autosave skipped due oversized snapshot
+Symptoms:
+- UI warning indicates session autosave was skipped due snapshot size.
+- Local canvas/workspace state still appears live, but remote durability may lag.
+
+Checklist:
+- Reduce payload pressure:
+  - remove unused canvas items,
+  - avoid non-essential large text blocks in canvas/agent/workspace fields.
+- Confirm warning includes current size vs max limit.
+- Retry after reducing state size and verify `POST /api/ai/sessions/save` returns `200`.
 
 ## AI Studio selected session shows unavailable/expired on switch
 Checklist:

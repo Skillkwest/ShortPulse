@@ -2,7 +2,7 @@
  * AI Studio session snapshot shadow storage.
  * Persists session snapshots in IndexedDB with an in-memory fallback for restricted runtimes.
  */
-import type { AiStudioSessionSnapshotV1 } from "./sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
 
 const DB_NAME = "shortpulse-ai-studio";
 const DB_VERSION = 1;
@@ -10,7 +10,7 @@ const STORE_NAME = "session_snapshots";
 
 type SessionShadowRecord = {
   sessionId: string;
-  snapshot: AiStudioSessionSnapshotV1;
+  snapshot: AiStudioSessionSnapshot;
   updatedAt: string;
 };
 
@@ -38,7 +38,7 @@ const openDb = (): Promise<IDBDatabase> =>
  */
 export const saveAiStudioSessionShadow = async (
   sessionId: string,
-  snapshot: AiStudioSessionSnapshotV1
+  snapshot: AiStudioSessionSnapshot
 ): Promise<void> => {
   const record: SessionShadowRecord = {
     sessionId,
@@ -65,7 +65,7 @@ export const saveAiStudioSessionShadow = async (
  */
 export const loadAiStudioSessionShadow = async (
   sessionId: string
-): Promise<AiStudioSessionSnapshotV1 | null> => {
+): Promise<AiStudioSessionSnapshot | null> => {
   try {
     const db = await openDb();
     const record = await new Promise<SessionShadowRecord | null>((resolve, reject) => {

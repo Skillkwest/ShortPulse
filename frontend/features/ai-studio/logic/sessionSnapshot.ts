@@ -8,13 +8,20 @@ import type {
   StudioMode,
   StudioOutput,
   StudioOutputCharacterContext,
-  StudioOutputStyleContext,
   StudioOutputMediaSource,
   StudioOutputPreviewTier,
+  StudioOutputStyleContext,
   ToolId,
 } from "../types";
+import {
+  serializeAiStudioSessionCanvasState,
+  type AiStudioSessionCanvasSnapshotV1,
+  type AiStudioSessionCanvasState,
+} from "./sessionSnapshotCanvas";
 
-export type AiStudioSessionSnapshotSchemaVersion = 1;
+export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
+
+export type AiStudioSessionSnapshotSchemaVersion = 1 | 2;
 
 export type AiStudioSessionOutputV1 = {
   id: string;
@@ -57,55 +64,79 @@ export type AiStudioSessionAgentMessageV1 = {
   content: string;
 };
 
+export type AiStudioSessionWorkspaceV1 = {
+  mode: StudioMode;
+  selectedTool: ToolId | null;
+  prompt: string;
+  model: string | null;
+  aspect: string;
+  referenceImageUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
+  editReferenceText: string;
+  videoReferenceText: string;
+  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoDurationSeconds: number;
+  videoResolution: string;
+  imageResolution: string;
+  videoGenerateAudio: boolean;
+  videoCameraFixed: boolean;
+  videoAutoFix: boolean;
+  klingNegativePrompt: string;
+  klingCfgScale: number;
+  klingShotType: "customize" | "intelligent";
+  klingVoiceIds: [string, string];
+  klingMultiPrompts: { id: string; prompt: string; duration: number }[];
+  klingElements: {
+    id: string;
+    frontalImageUrl: string;
+    referenceImageUrls: string;
+    videoUrl: string;
+  }[];
+  motionReferenceVideoUrl: string | null;
+};
+
+export type AiStudioSessionOutputsV1 = {
+  active: AiStudioSessionOutputV1[];
+  archived: AiStudioSessionOutputV1[];
+  activeOutputId: string | null;
+  curatedReferenceIds: string[];
+  removedFromAllRefsIds: string[];
+};
+
+export type AiStudioSessionAgentV1 = {
+  messages: AiStudioSessionAgentMessageV1[];
+  input: string;
+  latestAgentPrompt: string | null;
+  promptOrigin: "manual" | "agent" | "reference";
+  chatModeEnabled: boolean;
+};
+
 export type AiStudioSessionSnapshotV1 = {
-  schemaVersion: AiStudioSessionSnapshotSchemaVersion;
+  schemaVersion: 1;
   sessionId: string;
   updatedAt: string;
-  workspace: {
-    mode: StudioMode;
-    selectedTool: ToolId | null;
-    prompt: string;
-    model: string | null;
-    aspect: string;
-    referenceImageUrl: string | null;
-    extraImageUrls: [string | null, string | null, string | null];
-    editReferenceText: string;
-    videoReferenceText: string;
-    videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
-    videoDurationSeconds: number;
-    videoResolution: string;
-    imageResolution: string;
-    videoGenerateAudio: boolean;
-    videoCameraFixed: boolean;
-    videoAutoFix: boolean;
-    klingNegativePrompt: string;
-    klingCfgScale: number;
-    klingShotType: "customize" | "intelligent";
-    klingVoiceIds: [string, string];
-    klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-    klingElements: {
-      id: string;
-      frontalImageUrl: string;
-      referenceImageUrls: string;
-      videoUrl: string;
-    }[];
-    motionReferenceVideoUrl: string | null;
-  };
-  outputs: {
-    active: AiStudioSessionOutputV1[];
-    archived: AiStudioSessionOutputV1[];
-    activeOutputId: string | null;
-    curatedReferenceIds: string[];
-    removedFromAllRefsIds: string[];
-  };
-  agent: {
-    messages: AiStudioSessionAgentMessageV1[];
-    input: string;
-    latestAgentPrompt: string | null;
-    promptOrigin: "manual" | "agent" | "reference";
-    chatModeEnabled: boolean;
-  };
+  workspace: AiStudioSessionWorkspaceV1;
+  outputs: AiStudioSessionOutputsV1;
+  agent: AiStudioSessionAgentV1;
 };
+
+export type AiStudioSessionSnapshotMetaV2 = {
+  generatedAt: string;
+  checksum: string;
+};
+
+export type AiStudioSessionSnapshotV2 = {
+  schemaVersion: 2;
+  sessionId: string;
+  updatedAt: string;
+  meta: AiStudioSessionSnapshotMetaV2;
+  workspace: AiStudioSessionWorkspaceV1;
+  outputs: AiStudioSessionOutputsV1;
+  agent: AiStudioSessionAgentV1;
+  canvas: AiStudioSessionCanvasSnapshotV1;
+};
+
+export type AiStudioSessionSnapshot = AiStudioSessionSnapshotV1 | AiStudioSessionSnapshotV2;
 
 export type BuildAiStudioSessionSnapshotInput = {
   sessionId: string;
@@ -148,6 +179,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   latestAgentPrompt: string | null;
   promptOrigin: "manual" | "agent" | "reference";
   chatModeEnabled: boolean;
+  canvasState: AiStudioSessionCanvasState;
 };
 
 const sanitizeMediaUrl = (value: string | null | undefined): string | undefined => {
@@ -206,52 +238,77 @@ const sanitizeAgentMessage = (message: AgentMessage): AiStudioSessionAgentMessag
   content: message.content,
 });
 
+const computeChecksum = (value: unknown): string => {
+  const serialized = JSON.stringify(value);
+  let hash = 2166136261;
+  for (let index = 0; index < serialized.length; index += 1) {
+    hash ^= serialized.charCodeAt(index);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  const normalized = (hash >>> 0).toString(16).padStart(8, "0");
+  return `fnv1a32:${normalized}`;
+};
+
 /**
  * Builds a schema-versioned AI Studio snapshot payload for local/remote persistence.
  */
 export const buildAiStudioSessionSnapshot = (
   input: BuildAiStudioSessionSnapshotInput
-): AiStudioSessionSnapshotV1 => ({
-  schemaVersion: 1,
-  sessionId: input.sessionId,
-  updatedAt: input.updatedAt ?? new Date().toISOString(),
-  workspace: {
-    mode: input.mode,
-    selectedTool: input.selectedTool,
-    prompt: input.prompt,
-    model: input.model,
-    aspect: input.aspect,
-    referenceImageUrl: input.referenceImageUrl,
-    extraImageUrls: input.extraImageUrls,
-    editReferenceText: input.editReferenceText,
-    videoReferenceText: input.videoReferenceText,
-    videoReferenceMode: input.videoReferenceMode,
-    videoDurationSeconds: input.videoDurationSeconds,
-    videoResolution: input.videoResolution,
-    imageResolution: input.imageResolution,
-    videoGenerateAudio: input.videoGenerateAudio,
-    videoCameraFixed: input.videoCameraFixed,
-    videoAutoFix: input.videoAutoFix,
-    klingNegativePrompt: input.klingNegativePrompt,
-    klingCfgScale: input.klingCfgScale,
-    klingShotType: input.klingShotType,
-    klingVoiceIds: input.klingVoiceIds,
-    klingMultiPrompts: input.klingMultiPrompts,
-    klingElements: input.klingElements,
-    motionReferenceVideoUrl: input.motionReferenceVideoUrl,
-  },
-  outputs: {
-    active: input.outputs.map(sanitizeOutput),
-    archived: input.archivedOutputs.map(sanitizeOutput),
-    activeOutputId: input.activeOutputId,
-    curatedReferenceIds: input.curatedReferenceIds,
-    removedFromAllRefsIds: input.removedFromAllRefsIds,
-  },
-  agent: {
-    messages: input.agentMessages.map(sanitizeAgentMessage),
-    input: input.agentInput,
-    latestAgentPrompt: input.latestAgentPrompt,
-    promptOrigin: input.promptOrigin,
-    chatModeEnabled: input.chatModeEnabled,
-  },
-});
+): AiStudioSessionSnapshotV2 => {
+  const updatedAt = input.updatedAt ?? new Date().toISOString();
+  const canvas = serializeAiStudioSessionCanvasState(input.canvasState);
+
+  const basePayload = {
+    schemaVersion: LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION,
+    sessionId: input.sessionId,
+    updatedAt,
+    workspace: {
+      mode: input.mode,
+      selectedTool: input.selectedTool,
+      prompt: input.prompt,
+      model: input.model,
+      aspect: input.aspect,
+      referenceImageUrl: input.referenceImageUrl,
+      extraImageUrls: input.extraImageUrls,
+      editReferenceText: input.editReferenceText,
+      videoReferenceText: input.videoReferenceText,
+      videoReferenceMode: input.videoReferenceMode,
+      videoDurationSeconds: input.videoDurationSeconds,
+      videoResolution: input.videoResolution,
+      imageResolution: input.imageResolution,
+      videoGenerateAudio: input.videoGenerateAudio,
+      videoCameraFixed: input.videoCameraFixed,
+      videoAutoFix: input.videoAutoFix,
+      klingNegativePrompt: input.klingNegativePrompt,
+      klingCfgScale: input.klingCfgScale,
+      klingShotType: input.klingShotType,
+      klingVoiceIds: input.klingVoiceIds,
+      klingMultiPrompts: input.klingMultiPrompts,
+      klingElements: input.klingElements,
+      motionReferenceVideoUrl: input.motionReferenceVideoUrl,
+    },
+    outputs: {
+      active: input.outputs.map(sanitizeOutput),
+      archived: input.archivedOutputs.map(sanitizeOutput),
+      activeOutputId: input.activeOutputId,
+      curatedReferenceIds: input.curatedReferenceIds,
+      removedFromAllRefsIds: input.removedFromAllRefsIds,
+    },
+    agent: {
+      messages: input.agentMessages.map(sanitizeAgentMessage),
+      input: input.agentInput,
+      latestAgentPrompt: input.latestAgentPrompt,
+      promptOrigin: input.promptOrigin,
+      chatModeEnabled: input.chatModeEnabled,
+    },
+    canvas,
+  } as const;
+
+  return {
+    ...basePayload,
+    meta: {
+      generatedAt: updatedAt,
+      checksum: computeChecksum(basePayload),
+    },
+  };
+};

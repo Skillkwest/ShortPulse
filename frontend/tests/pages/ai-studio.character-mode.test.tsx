@@ -312,7 +312,14 @@ vi.mock("../../features/ai-studio/logic/imageDescription", () => ({
 }));
 
 vi.mock("../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(() => ({})),
+  ensureSupabaseClient: vi.fn(() => ({
+    auth: {
+      getSession: vi.fn(async () => ({
+        data: { session: null },
+        error: null,
+      })),
+    },
+  })),
 }));
 
 vi.mock("../../lib/clientBreadcrumbs", () => ({
@@ -328,6 +335,20 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioState", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioSessionIdentity", () => ({
   useAiStudioSessionIdentity: () => ({ sessionId: "test-session-id" }),
+}));
+
+vi.mock("../../features/ai-studio/hooks/useAiStudioSessionPersistenceController", () => ({
+  useAiStudioSessionPersistenceController: () => ({
+    sessionId: "test-session-id",
+    sessionSnapshot: null,
+    sessionRestoreCandidate: {
+      snapshot: null,
+      status: "idle",
+      warning: null,
+      error: null,
+    },
+    setSkipRestoreApplyForSessionId: vi.fn(),
+  }),
 }));
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioSessionSwitcher", () => ({

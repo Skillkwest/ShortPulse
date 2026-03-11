@@ -4,7 +4,7 @@ import {
   parseAiStudioSessionSnapshotV1,
   selectAiStudioSessionRestoreSnapshot,
 } from "../sessionRestoreCandidate";
-import type { AiStudioSessionSnapshotV1 } from "../sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "../sessionSnapshot";
 
 const loadLocalMock = vi.fn();
 const loadRemoteMock = vi.fn();
@@ -19,8 +19,8 @@ vi.mock("../sessionApiClient", () => ({
 
 const SESSION_ID = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
 
-const createSnapshot = (updatedAt: string): AiStudioSessionSnapshotV1 => ({
-  schemaVersion: 1 as const,
+const createSnapshot = (updatedAt: string, schemaVersion: 1 | 2 = 1): AiStudioSessionSnapshot => ({
+  schemaVersion,
   sessionId: SESSION_ID,
   updatedAt,
   workspace: {
@@ -62,6 +62,33 @@ const createSnapshot = (updatedAt: string): AiStudioSessionSnapshotV1 => ({
     promptOrigin: "manual",
     chatModeEnabled: true,
   },
+  ...(schemaVersion === 2
+    ? {
+        meta: {
+          generatedAt: updatedAt,
+          checksum: "fnv1a32:test0001",
+        },
+        canvas: {
+          scene: { items: [] },
+          viewports: {
+            main: { x: 0, y: 0, zoom: 1 },
+            rail: { x: 0, y: 0, zoom: 1 },
+          },
+          transient: {
+            draftTextEntry: null,
+            textEditSession: null,
+            draftOwnerInstanceId: null,
+            textEditOwnerInstanceId: null,
+          },
+          meta: {
+            schemaVersion: 1,
+            itemCount: 0,
+            truncatedItemCount: 0,
+            skippedNonDurableImageCount: 0,
+          },
+        },
+      }
+    : {}),
 });
 
 describe("sessionRestoreCandidate", () => {
@@ -83,6 +110,14 @@ describe("sessionRestoreCandidate", () => {
     expect(valid).not.toBeNull();
     expect(wrongSession).toBeNull();
     expect(invalid).toBeNull();
+  });
+
+  it("accepts schema v2 snapshots for restore", () => {
+    const parsed = parseAiStudioSessionSnapshotV1(
+      createSnapshot("2026-03-02T00:00:00.000Z", 2),
+      SESSION_ID
+    );
+    expect(parsed?.schemaVersion).toBe(2);
   });
 
   it("picks local snapshot when remote is missing", () => {

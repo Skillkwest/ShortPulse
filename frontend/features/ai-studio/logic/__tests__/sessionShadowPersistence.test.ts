@@ -59,9 +59,9 @@ const createSnapshot = () => ({
 const loadPersistModule = async (remoteEnabled: boolean) => {
   vi.resetModules();
   if (remoteEnabled) {
-    process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = "true";
-  } else {
     delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED;
+  } else {
+    process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = "false";
   }
   return (await import("../sessionShadowPersistence")).persistAiStudioSessionShadow;
 };
@@ -88,7 +88,7 @@ describe("sessionShadowPersistence", () => {
     expect(saveRemoteMock).not.toHaveBeenCalled();
   });
 
-  it("mirrors to remote when remote shadow is enabled", async () => {
+  it("mirrors to remote when remote shadow is enabled by default", async () => {
     saveRemoteMock.mockResolvedValue(undefined);
     const persist = await loadPersistModule(true);
     await persist("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot(), { keepalive: true });
@@ -101,12 +101,12 @@ describe("sessionShadowPersistence", () => {
     );
   });
 
-  it("swallows remote shadow failures", async () => {
+  it("propagates remote shadow failures for retry handling", async () => {
     saveRemoteMock.mockRejectedValue(new Error("server failed"));
     const persist = await loadPersistModule(true);
-    await expect(
-      persist("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot())
-    ).resolves.toBeUndefined();
+    await expect(persist("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot())).rejects.toThrow(
+      "server failed"
+    );
     expect(saveLocalMock).toHaveBeenCalledTimes(1);
   });
 });

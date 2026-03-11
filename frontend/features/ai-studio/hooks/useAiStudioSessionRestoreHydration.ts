@@ -4,12 +4,12 @@
  */
 import { useEffect, useRef } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import type { AiStudioSessionSnapshotV1 } from "../logic/sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { AiStudioSessionRestoreCandidateState } from "./useAiStudioSessionRestoreCandidate";
 
 const RESTORE_APPLY_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED === "true";
+  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED !== "false";
 const RESTORE_APPLY_AGENT_ENABLED =
   process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED !== "false";
 
@@ -17,9 +17,10 @@ type UseAiStudioSessionRestoreHydrationParams = {
   sessionId: string | null;
   sessionRestoreCandidate: AiStudioSessionRestoreCandidateState;
   hydrateFromSessionSnapshot: (
-    snapshot: AiStudioSessionSnapshotV1
+    snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
   hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
+  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionHydrationPayload["canvas"]) => void;
   applyEnabled?: boolean;
   agentApplyEnabled?: boolean;
   skipApplyForSessionId?: string | null;
@@ -33,6 +34,7 @@ export const useAiStudioSessionRestoreHydration = ({
   sessionRestoreCandidate,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
+  hydrateFromSessionCanvasSnapshot,
   applyEnabled = RESTORE_APPLY_ENABLED,
   agentApplyEnabled = RESTORE_APPLY_AGENT_ENABLED,
   skipApplyForSessionId = null,
@@ -87,6 +89,7 @@ export const useAiStudioSessionRestoreHydration = ({
     if (agentApplyEnabled) {
       hydrateFromSessionAgentSnapshot(payload.agent);
     }
+    hydrateFromSessionCanvasSnapshot?.(payload.canvas);
     sessionHydrationAppliedRef.current = sessionId;
 
     addBreadcrumb({
@@ -98,9 +101,11 @@ export const useAiStudioSessionRestoreHydration = ({
         source: sessionRestoreCandidate.source,
         snapshot_updated_at: snapshot.updatedAt,
         agent_hydration_applied: agentApplyEnabled,
+        canvas_hydration_applied: Boolean(hydrateFromSessionCanvasSnapshot),
       },
     });
   }, [
+    hydrateFromSessionCanvasSnapshot,
     agentApplyEnabled,
     applyEnabled,
     hydrateFromSessionSnapshot,

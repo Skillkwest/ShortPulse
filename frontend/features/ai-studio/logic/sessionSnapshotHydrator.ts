@@ -2,9 +2,17 @@
  * AI Studio session snapshot hydrator.
  * Normalizes persisted snapshot payloads into safe in-memory state values.
  */
-import type { AiStudioSessionOutputV1, AiStudioSessionSnapshotV1 } from "./sessionSnapshot";
+import type {
+  AiStudioSessionOutputV1,
+  AiStudioSessionSnapshot,
+  AiStudioSessionSnapshotV1,
+} from "./sessionSnapshot";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
+import {
+  parseAiStudioSessionCanvasState,
+  type AiStudioSessionCanvasState,
+} from "./sessionSnapshotCanvas";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -267,17 +275,22 @@ export type AiStudioSessionHydrationPayload = {
     promptOrigin: "manual" | "agent" | "reference";
     chatModeEnabled: boolean;
   };
+  canvas: AiStudioSessionCanvasState | null;
 };
 
 /**
  * Builds normalized state payload used by snapshot hydration apply paths.
  */
 export const buildAiStudioSessionHydrationPayload = (
-  snapshot: AiStudioSessionSnapshotV1
+  snapshot: AiStudioSessionSnapshot
 ): AiStudioSessionHydrationPayload => {
   const workspace = snapshot.workspace ?? ({} as AiStudioSessionSnapshotV1["workspace"]);
   const outputs = snapshot.outputs ?? ({} as AiStudioSessionSnapshotV1["outputs"]);
   const agent = snapshot.agent ?? ({} as AiStudioSessionSnapshotV1["agent"]);
+  const canvas =
+    snapshot.schemaVersion >= 2
+      ? parseAiStudioSessionCanvasState((snapshot as Record<string, unknown>).canvas ?? null)
+      : null;
 
   const activeOutputs = dedupeOutputs((outputs.active ?? []).map(hydrateOutput));
   const archivedOutputs = dedupeOutputs((outputs.archived ?? []).map(hydrateOutput));
@@ -339,5 +352,6 @@ export const buildAiStudioSessionHydrationPayload = (
       promptOrigin: asPromptOrigin(agent.promptOrigin),
       chatModeEnabled: asBoolean(agent.chatModeEnabled, true),
     },
+    canvas,
   };
 };

@@ -48,8 +48,8 @@
   --ai-toolbar-font-size: 12px;
   --ai-toolbar-font-weight: 100;
   --ai-toolbar-label-size: 14px;
-  --ai-toolbar-divider-spacing: 18px;
-  --ai-toolbar-divider-spacing-tight: 14px;
+  --ai-toolbar-divider-spacing: 20px;
+  --ai-toolbar-divider-spacing-tight: 15px;
   --ai-canvas-cream-soft: #f8f0de;
   --ai-canvas-cream: #f5ddae;
   --ai-canvas-cream-deep: #e8d2a8;
@@ -1138,6 +1138,10 @@ body.ai-shell-resizing * {
   );
   margin: var(--ai-toolbar-divider-spacing) 0;
   opacity: 0.38;
+}
+
+.toolbar-divider-after-dashboard {
+  margin-top: var(--ai-toolbar-divider-spacing-tight);
 }
 
 .toolbar-divider-children {

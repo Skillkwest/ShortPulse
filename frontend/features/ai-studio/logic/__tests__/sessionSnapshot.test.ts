@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAiStudioSessionSnapshot } from "../sessionSnapshot";
 import type { StudioOutput } from "../../types";
+import type { AiStudioSessionCanvasState } from "../sessionSnapshotCanvas";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -11,6 +12,16 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   status: "ready",
   timestamp: "2026-03-02T00:00:00.000Z",
   ...overrides,
+});
+
+const createCanvasState = (): AiStudioSessionCanvasState => ({
+  items: [],
+  draftTextEntry: null,
+  textEditSession: null,
+  draftOwnerInstanceId: null,
+  textEditOwnerInstanceId: null,
+  mainCamera: { x: 0, y: 0, zoom: 1 },
+  railCamera: { x: 0, y: 0, zoom: 1 },
 });
 
 describe("sessionSnapshot", () => {
@@ -51,13 +62,16 @@ describe("sessionSnapshot", () => {
       latestAgentPrompt: "Here is your prompt.",
       promptOrigin: "agent",
       chatModeEnabled: true,
+      canvasState: createCanvasState(),
     });
 
-    expect(snapshot.schemaVersion).toBe(1);
+    expect(snapshot.schemaVersion).toBe(2);
     expect(snapshot.sessionId).toBe("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a");
     expect(snapshot.workspace.prompt).toBe("A cinematic portrait");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
     expect(snapshot.agent.messages[0]?.role).toBe("assistant");
+    expect(snapshot.canvas.viewports.main.zoom).toBe(1);
+    expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
   it("strips local blob/data preview URLs from persisted output payloads", () => {
@@ -101,6 +115,7 @@ describe("sessionSnapshot", () => {
       latestAgentPrompt: null,
       promptOrigin: "manual",
       chatModeEnabled: true,
+      canvasState: createCanvasState(),
     });
 
     expect(snapshot.outputs.active[0]?.previewUrl).toBeUndefined();

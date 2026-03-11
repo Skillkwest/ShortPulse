@@ -26,11 +26,17 @@ import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionS
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
 import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
 import { useAiStudioSessionReferenceDurability } from "./useAiStudioSessionReferenceDurability";
-import type { AiStudioSessionSnapshotV1 } from "../logic/sessionSnapshot";
+import {
+  buildAiStudioSessionSnapshot,
+  type AiStudioSessionSnapshot,
+  type AiStudioSessionSnapshotV2,
+} from "../logic/sessionSnapshot";
+import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 import {
   buildAiStudioSessionHydrationPayload,
   type AiStudioSessionHydrationPayload,
 } from "../logic/sessionSnapshotHydrator";
+import type { AgentMessage } from "../../../prefabs/agent/types";
 import {
   applySessionRestoreSignedUrls,
   buildSessionOutputSigningFingerprintById,
@@ -590,7 +596,7 @@ export const useAiStudioState = ({
     });
 
   const hydrateFromSessionSnapshot = useCallback(
-    (snapshot: AiStudioSessionSnapshotV1): AiStudioSessionHydrationPayload => {
+    (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
       const payload = buildAiStudioSessionHydrationPayload(snapshot);
       const workspace = payload.workspace;
       const outputPayload = payload.outputs;
@@ -695,6 +701,96 @@ export const useAiStudioState = ({
       setOutputsState,
       setArchivedOutputs,
       setReferenceProjectionState,
+    ]
+  );
+
+  const buildSessionSnapshot = useCallback(
+    ({
+      sessionId,
+      updatedAt,
+      agentMessages,
+      agentInput,
+      latestAgentPrompt,
+      promptOrigin,
+      chatModeEnabled,
+      canvasState,
+    }: {
+      sessionId: string;
+      updatedAt?: string;
+      agentMessages: AgentMessage[];
+      agentInput: string;
+      latestAgentPrompt: string | null;
+      promptOrigin: "manual" | "agent" | "reference";
+      chatModeEnabled: boolean;
+      canvasState: AiStudioSessionCanvasState;
+    }): AiStudioSessionSnapshotV2 =>
+      buildAiStudioSessionSnapshot({
+        sessionId,
+        updatedAt,
+        mode,
+        selectedTool,
+        prompt,
+        model,
+        aspect,
+        referenceImageUrl,
+        extraImageUrls,
+        editReferenceText,
+        videoReferenceText,
+        videoReferenceMode,
+        videoDurationSeconds,
+        videoResolution,
+        imageResolution,
+        videoGenerateAudio,
+        videoCameraFixed,
+        videoAutoFix,
+        klingNegativePrompt,
+        klingCfgScale,
+        klingShotType,
+        klingVoiceIds,
+        klingMultiPrompts,
+        klingElements,
+        motionReferenceVideoUrl,
+        outputs,
+        archivedOutputs,
+        activeOutputId,
+        curatedReferenceIds,
+        removedFromAllRefsIds,
+        agentMessages,
+        agentInput,
+        latestAgentPrompt,
+        promptOrigin,
+        chatModeEnabled,
+        canvasState,
+      }),
+    [
+      activeOutputId,
+      archivedOutputs,
+      aspect,
+      curatedReferenceIds,
+      editReferenceText,
+      extraImageUrls,
+      imageResolution,
+      klingCfgScale,
+      klingElements,
+      klingMultiPrompts,
+      klingNegativePrompt,
+      klingShotType,
+      klingVoiceIds,
+      mode,
+      model,
+      motionReferenceVideoUrl,
+      outputs,
+      prompt,
+      referenceImageUrl,
+      removedFromAllRefsIds,
+      selectedTool,
+      videoAutoFix,
+      videoCameraFixed,
+      videoDurationSeconds,
+      videoGenerateAudio,
+      videoReferenceMode,
+      videoReferenceText,
+      videoResolution,
     ]
   );
 
@@ -829,6 +925,7 @@ export const useAiStudioState = ({
     addLibraryMediaReference,
     addLibraryPromptReference,
     addOutputsFromFiles,
+    buildSessionSnapshot,
     hydrateFromSessionSnapshot,
     toggleReferenceIndicator,
     clearReferenceImages,

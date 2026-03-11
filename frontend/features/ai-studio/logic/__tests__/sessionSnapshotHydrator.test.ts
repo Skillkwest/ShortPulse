@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
-import type { AiStudioSessionSnapshotV1 } from "../sessionSnapshot";
+import type { AiStudioSessionSnapshot, AiStudioSessionSnapshotV1 } from "../sessionSnapshot";
 
 const createSnapshot = (
   overrides: Partial<AiStudioSessionSnapshotV1> = {}
@@ -81,6 +81,60 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.outputs.removedFromAllRefsIds).toEqual(["out-2"]);
     expect(payload.agent.promptOrigin).toBe("manual");
     expect(payload.agent.chatModeEnabled).toBe(true);
+    expect(payload.canvas).toBeNull();
+  });
+
+  it("hydrates canvas payload for schema v2 snapshots", () => {
+    const snapshotV2: AiStudioSessionSnapshot = {
+      ...createSnapshot(),
+      schemaVersion: 2,
+      meta: {
+        generatedAt: "2026-03-02T00:00:00.000Z",
+        checksum: "fnv1a32:1234abcd",
+      },
+      canvas: {
+        scene: {
+          items: [
+            {
+              id: "canvas-text-1",
+              kind: "text",
+              x: 12,
+              y: 24,
+              z: 1,
+              selected: true,
+              outputId: null,
+              sourceSurface: null,
+              text: "Draft note",
+              width: 260,
+            },
+          ],
+        },
+        viewports: {
+          main: { x: 1, y: 2, zoom: 1.2 },
+          rail: { x: -4, y: 8, zoom: 0.8 },
+        },
+        transient: {
+          draftTextEntry: { x: 10, y: 20, value: "typing" },
+          textEditSession: { itemId: "canvas-text-1", value: "editing" },
+          draftOwnerInstanceId: "rail",
+          textEditOwnerInstanceId: "main",
+        },
+        meta: {
+          schemaVersion: 1,
+          itemCount: 1,
+          truncatedItemCount: 0,
+          skippedNonDurableImageCount: 0,
+        },
+      },
+    };
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshotV2);
+    expect(payload.canvas).not.toBeNull();
+    expect(payload.canvas?.items).toHaveLength(1);
+    expect(payload.canvas?.mainCamera.zoom).toBe(1.2);
+    expect(payload.canvas?.railCamera.zoom).toBe(0.8);
+    expect(payload.canvas?.draftOwnerInstanceId).toBe("rail");
+    expect(payload.canvas?.textEditSession?.itemId).toBe("canvas-text-1");
   });
 
   it("keeps styles as a valid restored selected tool", () => {

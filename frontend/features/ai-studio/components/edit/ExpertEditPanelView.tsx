@@ -3714,18 +3714,16 @@ export function ExpertEditPanelView({
             <ArrowsOutCardinal size={modeIconSize} weight="regular" />
             Adjust
           </button>
-          {!isModalScope ? (
-            <button
-              type="button"
-              className="edit-expert-move-mode-btn edit-expert-move-center-btn"
-              aria-label="Center move action"
-              onClick={handleRecenterMoveAction}
-              disabled={isMoveTransformCentered}
-            >
-              <ArrowsInCardinal size={recenterIconSize} weight="regular" />
-              Center
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="edit-expert-move-mode-btn edit-expert-move-center-btn"
+            aria-label="Center move action"
+            onClick={handleRecenterMoveAction}
+            disabled={isMoveTransformCentered}
+          >
+            <ArrowsInCardinal size={recenterIconSize} weight="regular" />
+            Center
+          </button>
           {!isModalScope ? (
             <button
               type="button"

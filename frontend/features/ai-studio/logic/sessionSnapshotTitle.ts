@@ -2,7 +2,7 @@
  * AI Studio session title resolver.
  * Derives a compact human label from persisted snapshot content for session-list UX.
  */
-import type { AiStudioSessionSnapshotV1 } from "./sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
 
 const MAX_TITLE_LENGTH = 120;
 
@@ -17,7 +17,7 @@ const normalizeTitleCandidate = (value: string | null | undefined): string | nul
  * Resolves a user-friendly session title from snapshot state.
  */
 export const resolveAiStudioSessionSnapshotTitle = (
-  snapshot: AiStudioSessionSnapshotV1
+  snapshot: AiStudioSessionSnapshot
 ): string | null => {
   const workspace = snapshot.workspace;
   const outputs = snapshot.outputs;

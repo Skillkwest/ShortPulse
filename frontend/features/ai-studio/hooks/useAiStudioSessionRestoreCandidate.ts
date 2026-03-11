@@ -7,20 +7,20 @@ import {
   loadAiStudioSessionRestoreCandidate,
   type AiStudioSessionRestoreSource,
 } from "../logic/sessionRestoreCandidate";
-import type { AiStudioSessionSnapshotV1 } from "../logic/sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 
 const RESTORE_CANDIDATE_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED === "true";
+  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED !== "false";
 
 export type AiStudioSessionRestoreCandidateState = {
   status: "idle" | "loading" | "ready";
-  snapshot: AiStudioSessionSnapshotV1 | null;
+  snapshot: AiStudioSessionSnapshot | null;
   source: AiStudioSessionRestoreSource;
 };
 
 type LoadedRestoreCandidate = {
   sessionId: string;
-  snapshot: AiStudioSessionSnapshotV1 | null;
+  snapshot: AiStudioSessionSnapshot | null;
   source: AiStudioSessionRestoreSource;
 };
 

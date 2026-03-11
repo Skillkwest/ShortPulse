@@ -2,12 +2,15 @@
  * Page-scoped state controller for the AI Studio Canvas workspace.
  * Composes shared scene state with per-viewport camera + interaction controllers.
  */
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useCanvasSharedSceneState } from "./canvasSceneState";
 import type { ResolveCanvasDropReference } from "./canvasTypes";
+import { CANVAS_DEFAULT_CAMERA } from "./canvasGeometry";
 import type {
   AiStudioDualCanvasWorkspaceState,
   CanvasPropertiesPanelProps,
+  CanvasWorkspaceInstanceId,
+  CanvasWorkspaceSessionState,
 } from "./canvasWorkspaceContracts";
 import { useCanvasViewportInstanceState } from "./useCanvasViewportInstanceState";
 import { useCanvasSpacePanTracker } from "./useCanvasSpacePanTracker";
@@ -24,16 +27,19 @@ export type {
 export const useAiStudioCanvasWorkspaceState = ({
   resolveCanvasDropReference,
   onPinTextReference,
+  onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   onPinTextReference?: (text: string) => void;
+  onItemLimitReached?: () => void;
 } = {}): CanvasPropertiesPanelProps => {
-  const sharedScene = useCanvasSharedSceneState();
+  const sharedScene = useCanvasSharedSceneState({ onItemLimitReached });
   const isSpacePanActiveRef = useCanvasSpacePanTracker();
-  const [draftOwnerInstanceId, setDraftOwnerInstanceId] = useState<"main" | "rail" | null>(null);
-  const [textEditOwnerInstanceId, setTextEditOwnerInstanceId] = useState<"main" | "rail" | null>(
-    null
-  );
+  const [draftOwnerInstanceId, setDraftOwnerInstanceId] =
+    useState<CanvasWorkspaceInstanceId | null>(null);
+  const [textEditOwnerInstanceId, setTextEditOwnerInstanceId] =
+    useState<CanvasWorkspaceInstanceId | null>(null);
+  const [mainCamera, setMainCamera] = useState(CANVAS_DEFAULT_CAMERA);
 
   return useCanvasViewportInstanceState({
     instanceId: "main",
@@ -45,6 +51,10 @@ export const useAiStudioCanvasWorkspaceState = ({
     textEditOwnerInstanceId,
     setDraftOwnerInstanceId,
     setTextEditOwnerInstanceId,
+    cameraState: {
+      camera: mainCamera,
+      setCamera: setMainCamera,
+    },
   });
 };
 
@@ -54,16 +64,22 @@ export const useAiStudioCanvasWorkspaceState = ({
 export const useAiStudioDualCanvasWorkspaceState = ({
   resolveCanvasDropReference,
   onPinTextReference,
+  onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   onPinTextReference?: (text: string) => void;
+  onItemLimitReached?: () => void;
 } = {}): AiStudioDualCanvasWorkspaceState => {
-  const sharedScene = useCanvasSharedSceneState();
+  const sharedScene = useCanvasSharedSceneState({ onItemLimitReached });
   const isSpacePanActiveRef = useCanvasSpacePanTracker();
-  const [draftOwnerInstanceId, setDraftOwnerInstanceId] = useState<"main" | "rail" | null>(null);
-  const [textEditOwnerInstanceId, setTextEditOwnerInstanceId] = useState<"main" | "rail" | null>(
-    null
-  );
+  const [draftOwnerInstanceId, setDraftOwnerInstanceId] =
+    useState<CanvasWorkspaceInstanceId | null>(null);
+  const [textEditOwnerInstanceId, setTextEditOwnerInstanceId] =
+    useState<CanvasWorkspaceInstanceId | null>(null);
+  const [mainCamera, setMainCamera] = useState(CANVAS_DEFAULT_CAMERA);
+  const [railCamera, setRailCamera] = useState(CANVAS_DEFAULT_CAMERA);
+  const { items, draftTextEntry, textEditSession, clearPendingItems, replaceSessionSceneState } =
+    sharedScene;
 
   const mainCanvasProps = useCanvasViewportInstanceState({
     instanceId: "main",
@@ -75,6 +91,10 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     textEditOwnerInstanceId,
     setDraftOwnerInstanceId,
     setTextEditOwnerInstanceId,
+    cameraState: {
+      camera: mainCamera,
+      setCamera: setMainCamera,
+    },
   });
 
   const railCanvasProps = useCanvasViewportInstanceState({
@@ -87,13 +107,69 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     textEditOwnerInstanceId,
     setDraftOwnerInstanceId,
     setTextEditOwnerInstanceId,
+    cameraState: {
+      camera: railCamera,
+      setCamera: setRailCamera,
+    },
   });
+
+  const sessionState = useMemo<CanvasWorkspaceSessionState>(
+    () => ({
+      items,
+      draftTextEntry,
+      textEditSession,
+      draftOwnerInstanceId,
+      textEditOwnerInstanceId,
+      mainCamera,
+      railCamera,
+    }),
+    [
+      draftOwnerInstanceId,
+      mainCamera,
+      railCamera,
+      draftTextEntry,
+      items,
+      textEditSession,
+      textEditOwnerInstanceId,
+    ]
+  );
+
+  const hydrateSessionState = useCallback(
+    (state: CanvasWorkspaceSessionState | null) => {
+      if (!state) {
+        replaceSessionSceneState({
+          items: [],
+          draftTextEntry: null,
+          textEditSession: null,
+        });
+        clearPendingItems();
+        setDraftOwnerInstanceId(null);
+        setTextEditOwnerInstanceId(null);
+        setMainCamera(CANVAS_DEFAULT_CAMERA);
+        setRailCamera(CANVAS_DEFAULT_CAMERA);
+        return;
+      }
+
+      replaceSessionSceneState({
+        items: state.items,
+        draftTextEntry: state.draftTextEntry,
+        textEditSession: state.textEditSession,
+      });
+      setDraftOwnerInstanceId(state.draftOwnerInstanceId);
+      setTextEditOwnerInstanceId(state.textEditOwnerInstanceId);
+      setMainCamera(state.mainCamera);
+      setRailCamera(state.railCamera);
+    },
+    [clearPendingItems, replaceSessionSceneState]
+  );
 
   return useMemo(
     () => ({
       mainCanvasProps,
       railCanvasProps,
+      sessionState,
+      hydrateSessionState,
     }),
-    [mainCanvasProps, railCanvasProps]
+    [hydrateSessionState, mainCanvasProps, railCanvasProps, sessionState]
   );
 };

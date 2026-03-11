@@ -1,11 +1,11 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioSessionWriteShadow } from "../useAiStudioSessionWriteShadow";
-import type { AiStudioSessionSnapshotV1 } from "../../logic/sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
 
 const createSnapshot = (
-  overrides: Partial<AiStudioSessionSnapshotV1> = {}
-): AiStudioSessionSnapshotV1 => ({
+  overrides: Partial<AiStudioSessionSnapshot> = {}
+): AiStudioSessionSnapshot => ({
   schemaVersion: 1,
   sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
   updatedAt: "2026-03-02T00:00:00.000Z",
@@ -77,9 +77,13 @@ describe("useAiStudioSessionWriteShadow", () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
-    expect(persistSnapshot).toHaveBeenCalledWith(snapshot.sessionId, snapshot, {
-      keepalive: false,
-    });
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({
+        keepalive: false,
+      })
+    );
   });
 
   it("flushes immediately when visibility becomes hidden", async () => {
@@ -103,9 +107,13 @@ describe("useAiStudioSessionWriteShadow", () => {
     });
 
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
-    expect(persistSnapshot).toHaveBeenCalledWith(snapshot.sessionId, snapshot, {
-      keepalive: true,
-    });
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({
+        keepalive: true,
+      })
+    );
   });
 
   it("flushes on pagehide event", async () => {
@@ -125,16 +133,20 @@ describe("useAiStudioSessionWriteShadow", () => {
     });
 
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
-    expect(persistSnapshot).toHaveBeenCalledWith(snapshot.sessionId, snapshot, {
-      keepalive: true,
-    });
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({
+        keepalive: true,
+      })
+    );
   });
 
   it("flushes by max dirty timeout even when debounce keeps being reset", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
     const { rerender } = renderHook(
-      ({ snapshot }: { snapshot: AiStudioSessionSnapshotV1 }) =>
+      ({ snapshot }: { snapshot: AiStudioSessionSnapshot }) =>
         useAiStudioSessionWriteShadow({
           sessionId: sid,
           snapshot,
@@ -152,5 +164,39 @@ describe("useAiStudioSessionWriteShadow", () => {
     });
 
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports oversize snapshots and skips persistence", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const onPersistError = vi.fn();
+    const snapshot = createSnapshot({
+      workspace: {
+        ...createSnapshot().workspace,
+        prompt: "x".repeat(10_000),
+      },
+    });
+
+    renderHook(() =>
+      useAiStudioSessionWriteShadow({
+        sessionId: snapshot.sessionId,
+        snapshot,
+        maxSnapshotBytes: 1024,
+        persistSnapshot,
+        onPersistError,
+      })
+    );
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(persistSnapshot).not.toHaveBeenCalled();
+    expect(onPersistError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        reason: "snapshot_too_large",
+        maxSnapshotBytes: 1024,
+      })
+    );
   });
 });

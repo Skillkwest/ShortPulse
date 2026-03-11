@@ -112,7 +112,7 @@ function AiStudioToolbarComponent({
         />
       </div>
       <DashboardNavPrefab className="toolbar-back-link" />
-      <div className="toolbar-divider" aria-hidden="true" />
+      <div className="toolbar-divider toolbar-divider-after-dashboard" aria-hidden="true" />
       <div className="toolbar-list">
         {primaryToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];

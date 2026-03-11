@@ -14,7 +14,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Create panel + generation wiring: `docs/sops/sop_ai_studio_create_properties_generation_wiring.md` — end-to-end wiring map for Create properties UI, model selectors, submit pipeline, and agent/control integration.
 - Styles Library style creator: `docs/sops/sop_ai_studio_style_creator.md` — modular style creation/edit/delete workflow, extraction outcomes, metadata contract, and telemetry schema.
 - Expert Edit prompt references: `docs/sops/sop_ai_studio_expert_edit_prompt_references.md` — `@img1..@img3` token grammar, drag insertion, generate preflight blocking, and submit-time Figure mapping.
-- Session persistence (reference-only): `docs/sops/sop_ai_studio_session_persistence_reference_only.md` — staged restore/write enablement and rollback runbook for reference-only session continuity.
+- Session persistence (full canvas durability): `docs/sops/sop_ai_studio_session_persistence_reference_only.md` — default-on restore/write operation for workspace + outputs + agent + dual-canvas session continuity with rollback runbook.
 
 ## Reference Grid Foundation Program Docs
 - Program plan: `docs/planning/ai-studio-reference-grid-modularization-program.md`

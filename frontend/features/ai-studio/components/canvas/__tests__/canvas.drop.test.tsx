@@ -219,4 +219,37 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByText("External note")).toBeInTheDocument();
   });
+
+  it("enforces a hard cap of 300 canvas items", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    for (let index = 0; index < 300; index += 1) {
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/plain": `Note ${index + 1}`,
+        }),
+        clientX: 220,
+        clientY: 140,
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId(/canvas-item-/)).toHaveLength(300);
+    });
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Overflow note",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId(/canvas-item-/)).toHaveLength(300);
+    });
+    expect(screen.queryByText("Overflow note")).not.toBeInTheDocument();
+  });
 });

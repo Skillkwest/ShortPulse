@@ -3,7 +3,7 @@
  * Encapsulates authenticated save calls to `/api/ai/sessions/save`.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import type { AiStudioSessionSnapshotV1 } from "./sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
 import { resolveAiStudioSessionSnapshotTitle } from "./sessionSnapshotTitle";
 
 export type AiStudioSessionSaveApiResponse = {
@@ -44,7 +44,7 @@ export const saveAiStudioSessionSnapshotViaApi = async ({
   title,
 }: {
   sessionId: string;
-  snapshot: AiStudioSessionSnapshotV1;
+  snapshot: AiStudioSessionSnapshot;
   keepalive?: boolean;
   title?: string | null;
 }): Promise<AiStudioSessionSaveApiResponse> => {

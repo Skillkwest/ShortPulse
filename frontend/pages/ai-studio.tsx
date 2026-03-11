@@ -48,6 +48,8 @@ import {
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
 import { resolveMediaLibraryInternalDropResolver } from "../features/ai-studio/logic/mediaLibraryInternalDropResolver";
+import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
+import { useAiStudioSessionPersistenceController } from "../features/ai-studio/hooks/useAiStudioSessionPersistenceController";
 import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
@@ -191,7 +193,7 @@ type AiStudioPerfWindow = Window & {
 };
 
 export default function AiStudioPage() {
-  const sessionId: string | null = null;
+  const { sessionId } = useAiStudioSessionIdentity();
 
   const {
     mediaAutosaveEnabled,
@@ -307,6 +309,7 @@ export default function AiStudioPage() {
     savePromptReference,
     savePromptToLibrary,
     addOutputsFromFiles,
+    buildSessionSnapshot,
     addLibraryMediaReference,
     addLibraryPromptReference,
     toggleReferenceIndicator,
@@ -327,6 +330,7 @@ export default function AiStudioPage() {
     addAgentPromptReference,
     addPastedPromptReference,
     addPastedMediaReference,
+    hydrateFromSessionSnapshot,
     getOutputById,
     getOutputSnapshot,
   } = useAiStudioState({
@@ -423,9 +427,17 @@ export default function AiStudioPage() {
       }),
     [getOutputById, getOutputSnapshot, resolveSavedMediaIdFromOutput, saveReferenceToLibrary]
   );
-  const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
+  const {
+    mainCanvasProps,
+    railCanvasProps,
+    sessionState: canvasSessionState,
+    hydrateSessionState,
+  } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
     onPinTextReference: addPastedPromptReference,
+    onItemLimitReached: () => {
+      setUiNotice("Canvas supports up to 300 items. Remove one item before adding another.");
+    },
   });
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
@@ -1153,6 +1165,7 @@ export default function AiStudioPage() {
     agentActions,
     isAgentChatOpen,
     latestAgentPrompt,
+    promptOrigin,
     setPromptOrigin,
     agentPrimarySource,
     stagedAgentPrompt,
@@ -1177,6 +1190,7 @@ export default function AiStudioPage() {
     handleAgentAddToGrid,
     handleClearAgentChat,
     handleCloseAgentChat,
+    hydrateFromSessionAgentSnapshot,
   } = useAiStudioAgentBridge({
     sessionId,
     mode,
@@ -1197,6 +1211,52 @@ export default function AiStudioPage() {
     setActiveOutputId,
     setUiNotice,
     trackAgentUiEvent: trackUiEvent,
+  });
+
+  const buildSessionSnapshotForSessionId = useCallback(
+    (activeSessionId: string) =>
+      buildSessionSnapshot({
+        sessionId: activeSessionId,
+        agentMessages,
+        agentInput,
+        latestAgentPrompt,
+        promptOrigin,
+        chatModeEnabled,
+        canvasState: canvasSessionState,
+      }),
+    [
+      agentInput,
+      agentMessages,
+      buildSessionSnapshot,
+      canvasSessionState,
+      chatModeEnabled,
+      latestAgentPrompt,
+      promptOrigin,
+    ]
+  );
+
+  const hydrateFromSessionCanvasSnapshot = useCallback(
+    (canvasPayload: ReturnType<typeof hydrateFromSessionSnapshot>["canvas"]) => {
+      if (!canvasPayload) return;
+      hydrateSessionState(canvasPayload);
+    },
+    [hydrateSessionState]
+  );
+
+  const handleSessionPersistenceWarning = useCallback(
+    (message: string) => {
+      setUiNotice(message);
+    },
+    [setUiNotice]
+  );
+
+  useAiStudioSessionPersistenceController({
+    sessionId,
+    buildSessionSnapshot: buildSessionSnapshotForSessionId,
+    hydrateFromSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
+    onPersistenceWarning: handleSessionPersistenceWarning,
   });
 
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();

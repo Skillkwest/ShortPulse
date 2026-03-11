@@ -1,0 +1,122 @@
+/**
+ * AI Studio session persistence controller.
+ * Orchestrates sid identity, restore candidate loading/apply, and debounced local+remote write shadow.
+ */
+import { useCallback, useMemo, useState } from "react";
+import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
+import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
+import { persistAiStudioSessionShadow } from "../logic/sessionShadowPersistence";
+import {
+  useAiStudioSessionRestoreCandidate,
+  type AiStudioSessionRestoreCandidateState,
+} from "./useAiStudioSessionRestoreCandidate";
+import { useAiStudioSessionRestoreHydration } from "./useAiStudioSessionRestoreHydration";
+import {
+  useAiStudioSessionWriteShadow,
+  type AiStudioSessionWriteShadowError,
+} from "./useAiStudioSessionWriteShadow";
+
+type UseAiStudioSessionPersistenceControllerParams = {
+  sessionId: string | null;
+  buildSessionSnapshot: (sessionId: string) => AiStudioSessionSnapshot;
+  hydrateFromSessionSnapshot: (
+    snapshot: AiStudioSessionSnapshot
+  ) => AiStudioSessionHydrationPayload;
+  hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
+  hydrateFromSessionCanvasSnapshot: (canvas: AiStudioSessionHydrationPayload["canvas"]) => void;
+  onPersistenceWarning?: (message: string) => void;
+};
+
+export type AiStudioSessionPersistenceController = {
+  sessionId: string | null;
+  sessionSnapshot: AiStudioSessionSnapshot | null;
+  sessionRestoreCandidate: AiStudioSessionRestoreCandidateState;
+  setSkipRestoreApplyForSessionId: (sessionId: string | null) => void;
+};
+
+const formatOversizeMessage = ({
+  snapshotBytes,
+  maxSnapshotBytes,
+}: {
+  snapshotBytes?: number;
+  maxSnapshotBytes: number;
+}): string => {
+  const currentKb = typeof snapshotBytes === "number" ? Math.ceil(snapshotBytes / 1024) : null;
+  const limitKb = Math.ceil(maxSnapshotBytes / 1024);
+  if (currentKb == null) {
+    return `Session autosave skipped because snapshot size exceeded the ${limitKb}KB limit.`;
+  }
+  return `Session autosave skipped because snapshot size (${currentKb}KB) exceeded the ${limitKb}KB limit.`;
+};
+
+const resolvePersistenceWarningMessage = (
+  details: AiStudioSessionWriteShadowError,
+  error: Error
+): string => {
+  switch (details.reason) {
+    case "snapshot_too_large":
+      return formatOversizeMessage(details);
+    case "snapshot_serialize_failed":
+      return "Session autosave skipped because snapshot serialization failed.";
+    case "persist_failed":
+      return `Session autosave is retrying in the background: ${error.message}`;
+    default:
+      return "Session autosave encountered an issue and will retry.";
+  }
+};
+
+/**
+ * Returns session persistence wiring for the AI Studio page orchestration layer.
+ */
+export const useAiStudioSessionPersistenceController = ({
+  sessionId,
+  buildSessionSnapshot,
+  hydrateFromSessionSnapshot,
+  hydrateFromSessionAgentSnapshot,
+  hydrateFromSessionCanvasSnapshot,
+  onPersistenceWarning,
+}: UseAiStudioSessionPersistenceControllerParams): AiStudioSessionPersistenceController => {
+  const [skipRestoreApplyForSessionId, setSkipRestoreApplyForSessionId] = useState<string | null>(
+    null
+  );
+
+  const sessionSnapshot = useMemo(
+    () => (sessionId ? buildSessionSnapshot(sessionId) : null),
+    [buildSessionSnapshot, sessionId]
+  );
+
+  const sessionRestoreCandidate = useAiStudioSessionRestoreCandidate({
+    sessionId,
+  });
+
+  useAiStudioSessionRestoreHydration({
+    sessionId,
+    sessionRestoreCandidate,
+    hydrateFromSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
+    skipApplyForSessionId: skipRestoreApplyForSessionId,
+  });
+
+  const handlePersistError = useCallback(
+    (error: Error, details: AiStudioSessionWriteShadowError) => {
+      const message = resolvePersistenceWarningMessage(details, error);
+      onPersistenceWarning?.(message);
+    },
+    [onPersistenceWarning]
+  );
+
+  useAiStudioSessionWriteShadow({
+    sessionId,
+    snapshot: sessionSnapshot,
+    persistSnapshot: persistAiStudioSessionShadow,
+    onPersistError: handlePersistError,
+  });
+
+  return {
+    sessionId,
+    sessionSnapshot,
+    sessionRestoreCandidate,
+    setSkipRestoreApplyForSessionId,
+  };
+};

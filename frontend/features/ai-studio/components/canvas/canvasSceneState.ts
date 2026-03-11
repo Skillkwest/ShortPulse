@@ -2,8 +2,16 @@
  * Canvas shared scene state.
  * Owns scene items, pending placeholders, selection, and text draft/edit mutation flows.
  */
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { randomId } from "../../logic/ids";
+import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../logic/sessionSnapshotCanvas";
 import {
   CANVAS_IMAGE_ITEM_HEIGHT,
   CANVAS_IMAGE_ITEM_WIDTH,
@@ -42,9 +50,11 @@ export type CanvasSharedSceneState = {
   draftTextEntry: CanvasDraftTextEntry | null;
   textEditSession: CanvasTextEditSession | null;
   setItems: Dispatch<SetStateAction<CanvasSceneItem[]>>;
+  setPendingItems: Dispatch<SetStateAction<CanvasPendingSceneItem[]>>;
   setDraftTextEntry: Dispatch<SetStateAction<CanvasDraftTextEntry | null>>;
   setTextEditSession: Dispatch<SetStateAction<CanvasTextEditSession | null>>;
   clearSelection: () => void;
+  clearPendingItems: () => void;
   clearDraftTextEntry: () => void;
   clearTextEditSession: () => void;
   deleteSelection: () => void;
@@ -54,6 +64,11 @@ export type CanvasSharedSceneState = {
     worldY: number,
     options?: { showLoadingPlaceholder?: boolean }
   ) => Promise<void>;
+  replaceSessionSceneState: (next: {
+    items: CanvasSceneItem[];
+    draftTextEntry: CanvasDraftTextEntry | null;
+    textEditSession: CanvasTextEditSession | null;
+  }) => void;
   commitDraftTextEntry: () => void;
   commitTextItemEdit: () => void;
 };
@@ -226,14 +241,31 @@ const buildCanvasSceneItem = ({
 /**
  * Returns the shared scene store used by both canvas instances.
  */
-export const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
+export const useCanvasSharedSceneState = ({
+  onItemLimitReached,
+}: {
+  onItemLimitReached?: () => void;
+} = {}): CanvasSharedSceneState => {
   const [items, setItems] = useState<CanvasSceneItem[]>([]);
   const [pendingItems, setPendingItems] = useState<CanvasPendingSceneItem[]>([]);
   const [draftTextEntry, setDraftTextEntry] = useState<CanvasDraftTextEntry | null>(null);
   const [textEditSession, setTextEditSession] = useState<CanvasTextEditSession | null>(null);
+  const itemsRef = useRef<CanvasSceneItem[]>([]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const notifyItemLimitReached = useCallback(() => {
+    onItemLimitReached?.();
+  }, [onItemLimitReached]);
 
   const clearSelection = useCallback(() => {
     setItems((currentItems) => clearCanvasSceneSelection(currentItems));
+  }, []);
+
+  const clearPendingItems = useCallback(() => {
+    setPendingItems([]);
   }, []);
 
   const clearDraftTextEntry = useCallback(() => {
@@ -256,6 +288,11 @@ export const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
       worldY: number,
       options: { showLoadingPlaceholder?: boolean } = {}
     ) => {
+      if (itemsRef.current.length >= AI_STUDIO_CANVAS_ITEM_HARD_CAP) {
+        notifyItemLimitReached();
+        return;
+      }
+
       const showLoadingPlaceholder = Boolean(options.showLoadingPlaceholder);
       const pendingId = showLoadingPlaceholder ? randomId() : null;
       const preResolvedImageDimensions =
@@ -301,7 +338,12 @@ export const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
           await waitForNextAnimationFrame();
         }
 
+        let blockedByCap = false;
         setItems((currentItems) => {
+          if (currentItems.length >= AI_STUDIO_CANVAS_ITEM_HARD_CAP) {
+            blockedByCap = true;
+            return currentItems;
+          }
           const highestZ = getHighestCanvasZIndex(currentItems) + 1;
           const nextItems = clearCanvasSceneSelection(currentItems);
           const offsetX =
@@ -324,6 +366,9 @@ export const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
             }),
           ];
         });
+        if (blockedByCap) {
+          notifyItemLimitReached();
+        }
       } finally {
         if (pendingId) {
           setPendingItems((currentPendingItems) =>
@@ -332,14 +377,19 @@ export const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
         }
       }
     },
-    []
+    [notifyItemLimitReached]
   );
 
   const commitDraftTextEntry = useCallback(() => {
     setDraftTextEntry((draft) => {
       const text = draft?.value.trim() ?? "";
       if (!draft || !text) return null;
+      let blockedByCap = false;
       setItems((currentItems) => {
+        if (currentItems.length >= AI_STUDIO_CANVAS_ITEM_HARD_CAP) {
+          blockedByCap = true;
+          return currentItems;
+        }
         const highestZ = getHighestCanvasZIndex(currentItems) + 1;
         const nextItems = clearCanvasSceneSelection(currentItems);
         return [
@@ -356,9 +406,12 @@ export const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
           }),
         ];
       });
+      if (blockedByCap) {
+        notifyItemLimitReached();
+      }
       return null;
     });
-  }, []);
+  }, [notifyItemLimitReached]);
 
   const commitTextItemEdit = useCallback(() => {
     setTextEditSession((session) => {
@@ -379,19 +432,36 @@ export const useCanvasSharedSceneState = (): CanvasSharedSceneState => {
     });
   }, []);
 
+  const replaceSessionSceneState = useCallback(
+    (next: {
+      items: CanvasSceneItem[];
+      draftTextEntry: CanvasDraftTextEntry | null;
+      textEditSession: CanvasTextEditSession | null;
+    }) => {
+      setPendingItems([]);
+      setItems(next.items);
+      setDraftTextEntry(next.draftTextEntry);
+      setTextEditSession(next.textEditSession);
+    },
+    []
+  );
+
   return {
     items,
     pendingItems,
     draftTextEntry,
     textEditSession,
     setItems,
+    setPendingItems,
     setDraftTextEntry,
     setTextEditSession,
     clearSelection,
+    clearPendingItems,
     clearDraftTextEntry,
     clearTextEditSession,
     deleteSelection,
     addResolvedItem,
+    replaceSessionSceneState,
     commitDraftTextEntry,
     commitTextItemEdit,
   };

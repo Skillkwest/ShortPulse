@@ -9,10 +9,24 @@ import type {
   RefObject,
   WheelEvent,
 } from "react";
-import type { CanvasPendingSceneItem } from "./canvasSceneState";
+import type {
+  CanvasDraftTextEntry,
+  CanvasPendingSceneItem,
+  CanvasTextEditSession,
+} from "./canvasSceneState";
 import type { CanvasCamera, CanvasSceneItem } from "./canvasTypes";
 
 export type CanvasWorkspaceInstanceId = "main" | "rail";
+
+export type CanvasWorkspaceSessionState = {
+  items: CanvasSceneItem[];
+  draftTextEntry: CanvasDraftTextEntry | null;
+  textEditSession: CanvasTextEditSession | null;
+  draftOwnerInstanceId: CanvasWorkspaceInstanceId | null;
+  textEditOwnerInstanceId: CanvasWorkspaceInstanceId | null;
+  mainCamera: CanvasCamera;
+  railCamera: CanvasCamera;
+};
 
 export type CanvasPropertiesPanelProps = {
   instanceId?: CanvasWorkspaceInstanceId;
@@ -56,4 +70,6 @@ export type CanvasPropertiesPanelProps = {
 export type AiStudioDualCanvasWorkspaceState = {
   mainCanvasProps: CanvasPropertiesPanelProps;
   railCanvasProps: CanvasPropertiesPanelProps;
+  sessionState: CanvasWorkspaceSessionState;
+  hydrateSessionState: (state: CanvasWorkspaceSessionState | null) => void;
 };

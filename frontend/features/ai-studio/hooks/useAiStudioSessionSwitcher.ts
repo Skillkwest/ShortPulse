@@ -11,7 +11,7 @@ import {
 } from "../logic/sessionApiClient";
 import { persistAiStudioSessionShadow } from "../logic/sessionShadowPersistence";
 import { loadAiStudioSessionRestoreCandidate } from "../logic/sessionRestoreCandidate";
-import type { AiStudioSessionSnapshotV1 } from "../logic/sessionSnapshot";
+import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { resolveAiStudioSessionSnapshotTitle } from "../logic/sessionSnapshotTitle";
 
@@ -19,9 +19,9 @@ const DEFAULT_SESSIONS_PAGE_SIZE = 20;
 
 type UseAiStudioSessionSwitcherParams = {
   sessionId: string | null;
-  sessionSnapshot: AiStudioSessionSnapshotV1 | null;
+  sessionSnapshot: AiStudioSessionSnapshot | null;
   hydrateFromSessionSnapshot: (
-    snapshot: AiStudioSessionSnapshotV1
+    snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
   hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
   setSkipRestoreApplyForSessionId: (sessionId: string | null) => void;

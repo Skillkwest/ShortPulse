@@ -30,6 +30,7 @@ import {
 } from "./canvasInteractionController";
 import { selectCanvasSceneItem, type CanvasSharedSceneState } from "./canvasSceneState";
 import type { ResolveCanvasDropReference } from "./canvasTypes";
+import type { CanvasCamera } from "./canvasTypes";
 import {
   shouldStartCanvasPanFromPointerDown,
   type CanvasPointerSession,
@@ -86,6 +87,10 @@ type UseCanvasViewportInstanceStateParams = {
   textEditOwnerInstanceId: CanvasWorkspaceInstanceId | null;
   setDraftOwnerInstanceId: Dispatch<SetStateAction<CanvasWorkspaceInstanceId | null>>;
   setTextEditOwnerInstanceId: Dispatch<SetStateAction<CanvasWorkspaceInstanceId | null>>;
+  cameraState?: {
+    camera: CanvasCamera;
+    setCamera: Dispatch<SetStateAction<CanvasCamera>>;
+  };
 };
 /**
  * Builds a single Canvas viewport contract over shared scene state.
@@ -100,12 +105,15 @@ export const useCanvasViewportInstanceState = ({
   textEditOwnerInstanceId,
   setDraftOwnerInstanceId,
   setTextEditOwnerInstanceId,
+  cameraState,
 }: UseCanvasViewportInstanceStateParams): CanvasPropertiesPanelProps => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<CanvasPointerSession>({ kind: "none" });
   const lastViewportTapRef = useRef<CanvasInteractionPoint | null>(null);
   const lastViewportDraftCreationRef = useRef<CanvasInteractionPoint | null>(null);
-  const [camera, setCamera] = useState(CANVAS_DEFAULT_CAMERA);
+  const [internalCamera, setInternalCamera] = useState(CANVAS_DEFAULT_CAMERA);
+  const camera = cameraState?.camera ?? internalCamera;
+  const setCamera = cameraState?.setCamera ?? setInternalCamera;
   const {
     items,
     pendingItems,
@@ -418,7 +426,7 @@ export const useCanvasViewportInstanceState = ({
         y: Math.round((interaction.cameraY + event.clientY - interaction.startClientY) * 100) / 100,
       }));
     },
-    [logCanvasGesture]
+    [logCanvasGesture, setCamera]
   );
 
   const handleViewportPointerUp = useCallback(
@@ -502,7 +510,7 @@ export const useCanvasViewportInstanceState = ({
         });
       }
     },
-    [createDraftTextAtClientPoint, isSpacePanActiveRef, logCanvasGesture]
+    [createDraftTextAtClientPoint, isSpacePanActiveRef, logCanvasGesture, setCamera]
   );
 
   const handleViewportPointerCancel = useCallback(
@@ -612,7 +620,7 @@ export const useCanvasViewportInstanceState = ({
         )
       );
     },
-    [camera.zoom, setItems]
+    [camera.zoom, setCamera, setItems]
   );
 
   const handleItemPointerUp = useCallback((itemId: string, event: PointerEvent<HTMLElement>) => {
@@ -652,26 +660,29 @@ export const useCanvasViewportInstanceState = ({
     []
   );
 
-  const handleViewportWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
-    if (!viewportRef.current) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = viewportRef.current.getBoundingClientRect();
-    const delta = resolveCanvasWheelZoomDelta({
-      deltaY: event.deltaY,
-      deltaMode: event.deltaMode,
-    });
-    if (!delta) return;
-    setCamera((currentCamera) =>
-      zoomCanvasCameraAtViewportPoint({
-        camera: currentCamera,
-        clientX: event.clientX,
-        clientY: event.clientY,
-        rect,
-        nextZoom: currentCamera.zoom + delta,
-      })
-    );
-  }, []);
+  const handleViewportWheel = useCallback(
+    (event: WheelEvent<HTMLDivElement>) => {
+      if (!viewportRef.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = viewportRef.current.getBoundingClientRect();
+      const delta = resolveCanvasWheelZoomDelta({
+        deltaY: event.deltaY,
+        deltaMode: event.deltaMode,
+      });
+      if (!delta) return;
+      setCamera((currentCamera) =>
+        zoomCanvasCameraAtViewportPoint({
+          camera: currentCamera,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect,
+          nextZoom: currentCamera.zoom + delta,
+        })
+      );
+    },
+    [setCamera]
+  );
 
   return useMemo(
     () => ({

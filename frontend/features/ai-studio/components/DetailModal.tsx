@@ -138,6 +138,13 @@ export function DetailModal({
     characterContext?.characterName?.trim() ||
     characterContext?.characterId?.trim() ||
     "Selected Character";
+  const styleContext = output?.styleContext;
+  const hasStyleContext = Boolean(styleContext?.applied);
+  const styleName =
+    styleContext?.styleName?.trim() ||
+    styleContext?.styleId?.trim() ||
+    styleContext?.stylePrompt?.trim() ||
+    "Selected Style";
   const characterInitials = useMemo(() => {
     const trimmed = characterName.trim();
     if (!trimmed) return "PC";
@@ -145,6 +152,13 @@ export function DetailModal({
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
   }, [characterName]);
+  const styleInitials = useMemo(() => {
+    const trimmed = styleName.trim();
+    if (!trimmed) return "ST";
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
+  }, [styleName]);
   const isUploadedReference = useMemo(() => {
     if (!displayPreviewUrl) return false;
     if (output?.id?.startsWith("upload-")) return true;
@@ -849,6 +863,17 @@ export function DetailModal({
                       <div className="art-character-chip-copy">
                         <span className="art-character-chip-label">Character</span>
                         <span className="art-character-chip-name">{characterName}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                  {hasStyleContext ? (
+                    <div className="art-character-chip" aria-label="Style used for generation">
+                      <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
+                        {styleInitials}
+                      </span>
+                      <div className="art-character-chip-copy">
+                        <span className="art-character-chip-label">Style</span>
+                        <span className="art-character-chip-name">{styleName}</span>
                       </div>
                     </div>
                   ) : null}

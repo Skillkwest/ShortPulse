@@ -8,6 +8,7 @@ import type {
   StudioMode,
   StudioOutput,
   StudioOutputCharacterContext,
+  StudioOutputStyleContext,
   StudioOutputMediaSource,
   StudioOutputPreviewTier,
   ToolId,
@@ -46,6 +47,7 @@ export type AiStudioSessionOutputV1 = {
   archivedAt?: string | null;
   archiveReason?: "soft_limit" | "manual" | "cleanup" | null;
   characterContext?: StudioOutputCharacterContext;
+  styleContext?: StudioOutputStyleContext;
   generationReplay?: GenerationReplayConfig;
 };
 
@@ -193,6 +195,7 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     archivedAt: output.archivedAt ?? null,
     archiveReason: output.archiveReason ?? null,
     characterContext: output.characterContext,
+    ...(output.styleContext ? { styleContext: output.styleContext } : {}),
     generationReplay: output.generationReplay,
   };
 };

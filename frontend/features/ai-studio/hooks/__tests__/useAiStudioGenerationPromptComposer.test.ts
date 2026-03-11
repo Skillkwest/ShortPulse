@@ -88,6 +88,69 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
+  it("forwards selected style context metadata to submission options", () => {
+    const submitTask = vi.fn();
+    const params = createParams({
+      submitTask,
+      selectedStyleContext: {
+        applied: true,
+        styleId: "style-cinematic",
+        styleName: "Cinematic",
+        stylePrompt: "cinematic teal-and-amber treatment",
+      },
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("prompt override");
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "prompt override",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({
+        displayPromptOverride: "prompt override",
+        styleContextOverride: {
+          applied: true,
+          styleId: "style-cinematic",
+          styleName: "Cinematic",
+          stylePrompt: "cinematic teal-and-amber treatment",
+        },
+      })
+    );
+  });
+
+  it("does not forward style context metadata for video tools", () => {
+    const submitTask = vi.fn();
+    const params = createParams({
+      submitTask,
+      selectedTool: "video",
+      selectedStyleContext: {
+        applied: true,
+        styleId: "style-cinematic",
+        styleName: "Cinematic",
+        stylePrompt: "cinematic teal-and-amber treatment",
+      },
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("prompt override");
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "prompt override",
+      ["https://example.com/ref.png"],
+      expect.not.objectContaining({
+        styleContextOverride: expect.anything(),
+      })
+    );
+  });
+
   it("uses video prompt and single primary input for standard video mode", () => {
     const submitTask = vi.fn();
     const resolveReferenceInputsForTool = vi.fn(() => ({

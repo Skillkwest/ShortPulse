@@ -90,6 +90,20 @@ describe("StylesLibraryPanel", () => {
       screen.getByRole("button", { name: "Drop reference image or click to upload" })
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Style Prompt")).toHaveValue("");
+    expect(screen.getByText("0 / 1000")).toBeInTheDocument();
+  });
+
+  it("shows a style prompt character counter and enforces the 1000-char input cap", () => {
+    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+
+    const stylePromptInput = screen.getByLabelText("Style Prompt");
+    fireEvent.change(stylePromptInput, { target: { value: "a".repeat(950) } });
+    expect(screen.getByText("950 / 1000")).toHaveClass("is-near-limit");
+
+    fireEvent.change(stylePromptInput, { target: { value: "a".repeat(1100) } });
+    expect(stylePromptInput).toHaveValue("a".repeat(1000));
+    expect(screen.getByText("1000 / 1000")).toHaveClass("is-limit-reached");
   });
 
   it("saves a new style from the add style modal", async () => {
@@ -167,7 +181,9 @@ describe("StylesLibraryPanel", () => {
     Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
       configurable: true,
       writable: true,
-      value: () => "data:image/jpeg;base64,mock-cropped-style",
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
     });
     try {
       render(
@@ -212,10 +228,9 @@ describe("StylesLibraryPanel", () => {
       expect(savedDetails.stylePrompt).toBe(
         "cinematic lighting, shallow depth of field, balanced dynamic range"
       );
-      expect(savedDetails.previewImageUrl).toBe("data:image/jpeg;base64,mock-cropped-style");
-      expect(prepareStyleImageUrl).not.toHaveBeenCalledWith(
-        "data:image/jpeg;base64,mock-cropped-style"
-      );
+      expect(savedDetails.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(prepareStyleImageUrl).toHaveBeenCalledWith("data:image/jpeg;base64,1024x768");
+      expect(prepareStyleImageUrl).not.toHaveBeenCalledWith("data:image/jpeg;base64,512x512");
       await waitFor(() => {
         expect(reportAppError).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -282,7 +297,9 @@ describe("StylesLibraryPanel", () => {
     Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
       configurable: true,
       writable: true,
-      value: () => "data:image/jpeg;base64,mock-cropped-style",
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
     });
     try {
       render(
@@ -395,7 +412,9 @@ describe("StylesLibraryPanel", () => {
     Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
       configurable: true,
       writable: true,
-      value: () => "data:image/jpeg;base64,mock-cropped-style",
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
     });
     try {
       render(
@@ -550,7 +569,9 @@ describe("StylesLibraryPanel", () => {
     Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
       configurable: true,
       writable: true,
-      value: () => "data:image/jpeg;base64,mock-create-preview",
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
     });
     try {
       render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
@@ -570,6 +591,8 @@ describe("StylesLibraryPanel", () => {
         );
       });
       expect(screen.getByLabelText("Style")).toHaveValue("Noir Bloom");
+      expect(prepareStyleImageUrl).toHaveBeenCalledWith("data:image/jpeg;base64,1024x768");
+      expect(prepareStyleImageUrl).not.toHaveBeenCalledWith("data:image/jpeg;base64,512x512");
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,
@@ -630,7 +653,9 @@ describe("StylesLibraryPanel", () => {
     Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
       configurable: true,
       writable: true,
-      value: () => "data:image/jpeg;base64,mock-create-preview",
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
     });
     try {
       render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
@@ -715,7 +740,9 @@ describe("StylesLibraryPanel", () => {
     Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
       configurable: true,
       writable: true,
-      value: () => "data:image/jpeg;base64,mock-create-preview",
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
     });
     try {
       render(
@@ -750,7 +777,7 @@ describe("StylesLibraryPanel", () => {
         { stylePrompt: string; previewImageUrl: string },
       ];
       expect(payload.stylePrompt).toBe("manual fallback style prompt");
-      expect(payload.previewImageUrl).toBe("data:image/jpeg;base64,mock-create-preview");
+      expect(payload.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,

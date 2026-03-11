@@ -239,11 +239,13 @@ const characterManagerMockState = vi.hoisted(() => ({
   characters: [] as MockCharacterListEntry[],
   selectedCharacterId: "character-1",
   loading: false,
+  isSwitchingCharacter: false,
 }));
 
 const quickSwapDeckMockState = vi.hoisted(() => ({
   initialActiveItems: null as MockQuickSwapItem[] | null,
   appendExistingMediaReferenceImpl: null as null | ((mediaFileId: string) => Promise<boolean>),
+  loading: false,
 }));
 
 const quickSwapTipPreferenceMockState = vi.hoisted(() => ({
@@ -407,7 +409,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         isSavingName: false,
         isCreatingCharacter: false,
         isDeletingCharacter: false,
-        isSwitchingCharacter: false,
+        isSwitchingCharacter: characterManagerMockState.isSwitchingCharacter,
         isSavingProfileImage: false,
         isSavingCharacterSheetPreset: false,
         setCharacterName: () => undefined,
@@ -561,7 +563,7 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
         activeItems,
         archivedItems: [] as MockQuickSwapItem[],
         archivedCount: 0,
-        loading: false,
+        loading: quickSwapDeckMockState.loading,
         loadingArchived: false,
         mutating: false,
         error,
@@ -639,6 +641,7 @@ describe("CharacterManagerShell behavior", () => {
     characterManagerMockState.characters = [];
     characterManagerMockState.selectedCharacterId = "character-1";
     characterManagerMockState.loading = false;
+    characterManagerMockState.isSwitchingCharacter = false;
     supabaseClientMockState.mediaLookupMaybeSingle.mockReset();
     supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValue({ data: null, error: null });
     supabaseClientMockState.storageDownload.mockReset();
@@ -648,6 +651,7 @@ describe("CharacterManagerShell behavior", () => {
     });
     quickSwapDeckMockState.initialActiveItems = null;
     quickSwapDeckMockState.appendExistingMediaReferenceImpl = null;
+    quickSwapDeckMockState.loading = false;
     quickSwapTipPreferenceMockState.hidden = false;
     quickSwapTipPreferenceMockState.markQuickSwapTipHidden.mockReset();
     quickSwapTipPreferenceMockState.markQuickSwapTipHidden.mockResolvedValue(true);
@@ -1731,7 +1735,59 @@ describe("CharacterManagerShell behavior", () => {
 
     expect(screen.getByText("Loading characters...")).toBeInTheDocument();
     expect(screen.getByText("Pulling your character library into view.")).toBeInTheDocument();
+    expect(document.querySelectorAll(".character-manage-loading-skeleton-card")).toHaveLength(4);
     expect(screen.queryByRole("list", { name: /Character list/i })).not.toBeInTheDocument();
+  });
+
+  it("shows create-panel loading skeletons while the character profile is loading", () => {
+    characterManagerMockState.loading = true;
+    characterManagerMockState.characters = [];
+
+    render(<CharacterManagerShell initialWorkflowTab="create" />);
+
+    expect(screen.getByText("Loading character profile...")).toBeInTheDocument();
+    expect(
+      screen.getByText("Pulling your character sheet and references into view.")
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll(".character-create-loading-thumbnail")).toHaveLength(6);
+    expect(document.querySelectorAll(".character-create-loading-reference")).toHaveLength(4);
+    expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
+  });
+
+  it("shows create-panel loading skeletons while switching characters", () => {
+    characterManagerMockState.isSwitchingCharacter = true;
+    characterManagerMockState.characters = [
+      {
+        characterId: "character-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+        profileImageTransform: null,
+      },
+    ];
+
+    render(<CharacterManagerShell initialWorkflowTab="create" />);
+
+    expect(screen.getByText("Loading character profile...")).toBeInTheDocument();
+    expect(document.querySelectorAll(".character-create-loading-thumbnail")).toHaveLength(6);
+    expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
+  });
+
+  it("shows create-panel loading skeletons while quickswap is hydrating on initial entry", () => {
+    characterManagerMockState.loading = false;
+    characterManagerMockState.characters = [
+      {
+        characterId: "character-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+        profileImageTransform: null,
+      },
+    ];
+    quickSwapDeckMockState.loading = true;
+
+    render(<CharacterManagerShell initialWorkflowTab="create" />);
+
+    expect(screen.getByText("Loading character profile...")).toBeInTheDocument();
+    expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
   });
 
   it("hides beginner toggle controls when `showBeginnerModeToggle` is false", () => {

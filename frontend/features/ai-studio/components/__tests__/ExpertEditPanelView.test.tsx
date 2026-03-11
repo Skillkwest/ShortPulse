@@ -152,6 +152,24 @@ const readFrameTranslate = (frame: HTMLDivElement) => {
   };
 };
 
+const readMarkupViewportTransform = (scope: ParentNode = document) => {
+  const viewport = scope.querySelector(".edit-expert-markup-viewport") as HTMLDivElement | null;
+  if (!viewport) {
+    return null;
+  }
+  const transform = viewport.style.transform;
+  const match = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*0\)\s*scale\(([-\d.]+)\)/.exec(
+    transform
+  );
+  return {
+    viewport,
+    transform,
+    offsetX: Number(match?.[1] ?? "0"),
+    offsetY: Number(match?.[2] ?? "0"),
+    scale: Number(match?.[3] ?? "1"),
+  };
+};
+
 describe("ExpertEditPanelView", () => {
   const createObjectURLMock = vi.fn();
   const revokeObjectURLMock = vi.fn();
@@ -845,26 +863,24 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByText("Chat Mode")).not.toBeInTheDocument();
   });
 
-  it("switches selected inpaint mode button when clicked", async () => {
+  it("switches brush/lasso inpaint modes and expands to markup modal", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     fireEvent.click(await screen.findByRole("button", { name: /^inpaint$/i }));
 
     const lassoBtn = await screen.findByRole("button", { name: /lasso/i });
     const brushBtn = await screen.findByRole("button", { name: /brush/i });
-    const autoBtn = await screen.findByRole("button", { name: /auto/i });
+    const expandBtn = await screen.findByRole("button", { name: /expand markup tools/i });
 
     expect(brushBtn).toHaveAttribute("aria-pressed", "true");
     expect(lassoBtn).toHaveAttribute("aria-pressed", "false");
-    expect(autoBtn).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(lassoBtn);
     expect(lassoBtn).toHaveAttribute("aria-pressed", "true");
     expect(brushBtn).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(autoBtn);
-    expect(autoBtn).toHaveAttribute("aria-pressed", "true");
-    expect(lassoBtn).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(expandBtn);
+    expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
   });
 
   it("switches selection tabs between Select and Unselect", async () => {
@@ -951,18 +967,20 @@ describe("ExpertEditPanelView", () => {
     expect(within(rail).queryByRole("button", { name: /^crop$/i })).toBeNull();
     const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
     expect(moveSettingsPanel).toHaveClass("is-themed-move");
-    expect(within(moveSettingsPanel).getByRole("button", { name: /^move$/i })).toBeInTheDocument();
     expect(
-      within(moveSettingsPanel).getByRole("button", { name: /^resize$/i })
+      within(moveSettingsPanel).getByRole("button", { name: /^adjust$/i })
     ).toBeInTheDocument();
     expect(
-      within(moveSettingsPanel).getByRole("button", { name: /^rotate$/i })
+      within(moveSettingsPanel).getByRole("button", { name: /expand markup tools/i })
     ).toBeInTheDocument();
     expect(
       within(moveSettingsPanel).getByRole("button", { name: /undo move action/i })
     ).toBeInTheDocument();
     expect(
       within(moveSettingsPanel).getByRole("button", { name: /redo move action/i })
+    ).toBeInTheDocument();
+    expect(
+      within(moveSettingsPanel).getByRole("button", { name: /re-center move action/i })
     ).toBeInTheDocument();
 
     fireEvent.click(inpaintButton);
@@ -983,7 +1001,9 @@ describe("ExpertEditPanelView", () => {
     const expandButton = within(videoSettingsPanel).getByRole("button", {
       name: /expand markup tools/i,
     });
-    const markupColorPicker = within(videoSettingsPanel).getByLabelText(/markup color/i);
+    const markupColorPicker = within(videoSettingsPanel).getByRole("button", {
+      name: /markup color/i,
+    });
     const clearMarkupButton = within(videoSettingsPanel).getByRole("button", {
       name: /clear markup strokes/i,
     });
@@ -991,7 +1011,9 @@ describe("ExpertEditPanelView", () => {
     expect(penButton).toHaveAttribute("aria-pressed", "true");
     expect(eraserButton).toHaveAttribute("aria-pressed", "false");
     expect(expandButton).toHaveAttribute("aria-pressed", "false");
-    expect(markupColorPicker).toHaveAttribute("type", "color");
+    expect(markupColorPicker).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(markupColorPicker);
+    expect(screen.getByRole("dialog", { name: /markup color picker/i })).toBeInTheDocument();
     expect(clearMarkupButton).toBeInTheDocument();
     expect(within(videoSettingsPanel).queryByRole("tab", { name: /^select$/i })).toBeNull();
     expect(
@@ -1024,6 +1046,344 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(moveButton);
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
+  });
+
+  it("opens the expanded markup canvas modal from the expand button", async () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    const markupButton = await within(rail).findByRole("button", { name: /^markup$/i });
+    fireEvent.click(markupButton);
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    const expandButton = within(markupPanel).getByRole("button", { name: /expand markup tools/i });
+    fireEvent.click(expandButton);
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    expect(expandedModal).toBeInTheDocument();
+    const modalToolbar = within(expandedModal).getByRole("group", { name: /markup tools/i });
+    expect(within(modalToolbar).getByText(/^markup$/i)).toBeInTheDocument();
+    const topRow = modalToolbar.querySelector(".edit-expert-inpaint-mode-row");
+    expect(topRow).toBeTruthy();
+    expect(
+      within(topRow as HTMLElement).getByRole("button", { name: /^pen$/i })
+    ).toBeInTheDocument();
+    expect(
+      within(topRow as HTMLElement).getByRole("button", { name: /^eraser$/i })
+    ).toBeInTheDocument();
+    const clearButton = within(topRow as HTMLElement).getByRole("button", {
+      name: /clear markup strokes/i,
+    });
+    expect(clearButton).toBeInTheDocument();
+
+    const colorRow = modalToolbar.querySelector(".edit-expert-markup-color-row");
+    expect(colorRow).toBeTruthy();
+    expect(
+      within(colorRow as HTMLElement).getByRole("button", { name: /markup color/i })
+    ).toBeInTheDocument();
+    expect(
+      within(colorRow as HTMLElement).queryByRole("button", { name: /clear markup strokes/i })
+    ).toBeNull();
+
+    fireEvent.click(clearButton);
+    expect(
+      within(expandedModal).getByRole("button", { name: /close expanded markup canvas/i })
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(expandedModal).getByRole("button", { name: /close expanded markup canvas/i })
+    );
+    expect(screen.queryByRole("dialog", { name: /expanded markup canvas/i })).toBeNull();
+  });
+
+  it("blocks non-modal drop targets while the expanded markup modal is open", async () => {
+    const onPromptTextChange = vi.fn();
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        onPromptTextChange={onPromptTextChange}
+        referenceText="Base prompt"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: /markup tools/i })).getByRole("button", {
+        name: /expand markup tools/i,
+      })
+    );
+
+    const panel = screen.getByLabelText("Expert edit composer");
+    expect(panel).toHaveClass("is-markup-modal-open");
+
+    const promptInput = screen.getByLabelText("Edit prompt");
+    const transfer = {
+      files: [],
+      types: ["text/plain"],
+      setData: vi.fn(),
+      getData: vi.fn((type: string) =>
+        type === "text/plain" ? "__shortpulse_layer_reorder__" : ""
+      ),
+    } as unknown as DataTransfer;
+    fireEvent.drop(promptInput, { dataTransfer: transfer });
+
+    expect(onPromptTextChange).not.toHaveBeenCalled();
+  });
+
+  it("pans the markup viewport in the inline stage without rendering recenter there", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-pan-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 300,
+      height: 300,
+      right: 300,
+      bottom: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    expect(within(markupPanel).queryByRole("button", { name: /recenter markup view/i })).toBeNull();
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 601,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 24,
+      clientY: 32,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 601,
+      pointerType: "mouse",
+      clientX: 116,
+      clientY: 152,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 601,
+      pointerType: "mouse",
+      clientX: 116,
+      clientY: 152,
+    });
+
+    const beforePan = readMarkupViewportTransform();
+    expect(beforePan).not.toBeNull();
+    expect(Math.abs(beforePan?.offsetX ?? 0)).toBeLessThan(0.01);
+    expect(Math.abs(beforePan?.offsetY ?? 0)).toBeLessThan(0.01);
+
+    fireEvent.keyDown(window, { key: " ", code: "Space" });
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 602,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 60,
+      clientY: 70,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 602,
+      pointerType: "mouse",
+      clientX: 168,
+      clientY: 186,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 602,
+      pointerType: "mouse",
+      clientX: 168,
+      clientY: 186,
+    });
+    fireEvent.keyUp(window, { key: " ", code: "Space" });
+
+    const afterPan = readMarkupViewportTransform();
+    expect(afterPan).not.toBeNull();
+    expect(Math.abs(afterPan?.offsetX ?? 0)).toBeGreaterThan(80);
+    expect(Math.abs(afterPan?.offsetY ?? 0)).toBeGreaterThan(80);
+  });
+
+  it("zooms markup only with Cmd/Ctrl wheel and shares viewport state with expanded modal", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-zoom-shared.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const inlineRect = {
+      left: 0,
+      top: 0,
+      width: 320,
+      height: 320,
+      right: 320,
+      bottom: 320,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => inlineRect,
+    });
+
+    fireEvent.wheel(primaryDropzone, {
+      deltaY: -160,
+      clientX: 140,
+      clientY: 140,
+    });
+    const afterUnmodifiedWheel = readMarkupViewportTransform();
+    expect(afterUnmodifiedWheel).not.toBeNull();
+    expect(afterUnmodifiedWheel?.scale ?? 0).toBeCloseTo(1, 4);
+
+    fireEvent.wheel(primaryDropzone, {
+      deltaY: -160,
+      ctrlKey: true,
+      clientX: 140,
+      clientY: 140,
+    });
+    const afterZoom = readMarkupViewportTransform();
+    expect(afterZoom).not.toBeNull();
+    expect(afterZoom?.scale ?? 0).toBeGreaterThan(1);
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const modalViewport = readMarkupViewportTransform(expandedModal);
+    expect(modalViewport).not.toBeNull();
+    expect(modalViewport?.scale ?? 0).toBeCloseTo(afterZoom?.scale ?? 0, 4);
+
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement;
+    expect(modalStage).toBeTruthy();
+    const modalRect = {
+      left: 0,
+      top: 0,
+      width: 640,
+      height: 640,
+      right: 640,
+      bottom: 640,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(modalStage, "getBoundingClientRect", {
+      configurable: true,
+      value: () => modalRect,
+    });
+
+    fireEvent.wheel(modalStage, {
+      deltaY: 120,
+      metaKey: true,
+      clientX: 280,
+      clientY: 280,
+    });
+    const modalAfterZoomOut = readMarkupViewportTransform(expandedModal);
+    expect(modalAfterZoomOut).not.toBeNull();
+    expect(modalAfterZoomOut?.scale ?? 0).toBeLessThan(modalViewport?.scale ?? 0);
+
+    const modalToolbar = within(expandedModal).getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(modalToolbar).getByRole("button", { name: /recenter markup view/i }));
+    const modalAfterRecenter = readMarkupViewportTransform(expandedModal);
+    expect(modalAfterRecenter).not.toBeNull();
+    expect(modalAfterRecenter?.scale ?? 0).toBeCloseTo(1, 4);
+    expect(Math.abs(modalAfterRecenter?.offsetX ?? 0)).toBeLessThan(0.01);
+    expect(Math.abs(modalAfterRecenter?.offsetY ?? 0)).toBeLessThan(0.01);
+  });
+
+  it("pans the markup modal viewport with middle-mouse drag without holding space", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-middle-pan-modal.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: /markup tools/i })).getByRole("button", {
+        name: /expand markup tools/i,
+      })
+    );
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement;
+    expect(modalStage).toBeTruthy();
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 640,
+      height: 640,
+      right: 640,
+      bottom: 640,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(modalStage, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const beforePan = readMarkupViewportTransform(expandedModal);
+    expect(beforePan).not.toBeNull();
+    expect(Math.abs(beforePan?.offsetX ?? 0)).toBeLessThan(0.01);
+    expect(Math.abs(beforePan?.offsetY ?? 0)).toBeLessThan(0.01);
+
+    fireEvent.pointerDown(modalStage, {
+      pointerId: 801,
+      pointerType: "mouse",
+      button: 1,
+      clientX: 220,
+      clientY: 220,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 801,
+      pointerType: "mouse",
+      clientX: 344,
+      clientY: 356,
+    });
+    fireEvent.pointerUp(modalStage, {
+      pointerId: 801,
+      pointerType: "mouse",
+      button: 1,
+      clientX: 344,
+      clientY: 356,
+    });
+
+    const afterPan = readMarkupViewportTransform(expandedModal);
+    expect(afterPan).not.toBeNull();
+    expect(Math.abs(afterPan?.offsetX ?? 0)).toBeGreaterThan(80);
+    expect(Math.abs(afterPan?.offsetY ?? 0)).toBeGreaterThan(80);
   });
 
   it("locks the model picker to FLUX Pro Fill while Inpaint is selected", async () => {
@@ -1073,14 +1433,32 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("does not render a move zoom slider", async () => {
-    render(<ExpertEditPanelView {...baseProps} />);
+  it("renders adjust and expand controls in the move panel top row", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/move-zoom-stage.png"
+        referenceText="prompt text"
+      />
+    );
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+    const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
+    const adjustButton = within(moveSettingsPanel).getByRole("button", { name: /^adjust$/i });
+    const expandButton = within(moveSettingsPanel).getByRole("button", {
+      name: /expand markup tools/i,
+    });
+    const modeRow = moveSettingsPanel.querySelector(".edit-expert-move-mode-row");
 
-    expect(screen.queryByRole("slider", { name: /zoom image/i })).not.toBeInTheDocument();
+    expect(adjustButton).toBeInTheDocument();
+    expect(expandButton).toBeInTheDocument();
+    expect(within(moveSettingsPanel).queryByRole("slider", { name: /zoom stage/i })).toBeNull();
+    expect(modeRow?.children).toHaveLength(2);
+
+    fireEvent.click(expandButton);
+    expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
   });
 
   it("does not render a crop guide overlay in the primary stage", async () => {
@@ -1207,8 +1585,10 @@ describe("ExpertEditPanelView", () => {
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
     const undoButton = screen.getByRole("button", { name: /undo move action/i });
     const redoButton = screen.getByRole("button", { name: /redo move action/i });
+    const recenterButton = screen.getByRole("button", { name: /re-center move action/i });
     expect(undoButton).toBeDisabled();
     expect(redoButton).toBeDisabled();
+    expect(recenterButton).toBeDisabled();
 
     fireEvent.pointerDown(primaryDropzone, {
       pointerId: 141,
@@ -1235,12 +1615,14 @@ describe("ExpertEditPanelView", () => {
     expect(movedTranslate.y).toBeGreaterThan(10);
     expect(undoButton).not.toBeDisabled();
     expect(redoButton).toBeDisabled();
+    expect(recenterButton).not.toBeDisabled();
 
     fireEvent.click(undoButton);
     const undoneTranslate = readFrameTranslate(frame);
     expect(Math.abs(undoneTranslate.x)).toBeLessThan(0.01);
     expect(Math.abs(undoneTranslate.y)).toBeLessThan(0.01);
     expect(redoButton).not.toBeDisabled();
+    expect(recenterButton).toBeDisabled();
 
     fireEvent.click(redoButton);
     const redoneTranslate = readFrameTranslate(frame);
@@ -1248,7 +1630,7 @@ describe("ExpertEditPanelView", () => {
     expect(redoneTranslate.y).toBeCloseTo(movedTranslate.y, 4);
   });
 
-  it("resizes only the selected layer when resize mode is active", async () => {
+  it("resizes only the selected layer when adjust drag starts with shift", async () => {
     const { container } = render(
       <ExpertEditPanelView
         {...baseProps}
@@ -1262,7 +1644,6 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^resize$/i }));
 
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     const rect = {
@@ -1300,6 +1681,7 @@ describe("ExpertEditPanelView", () => {
       pointerId: 71,
       pointerType: "mouse",
       button: 0,
+      shiftKey: true,
       clientX: 160,
       clientY: 40,
     });
@@ -1334,7 +1716,7 @@ describe("ExpertEditPanelView", () => {
     expect(foundationScaleAfter).toBe(foundationScaleBefore);
   });
 
-  it("resizes the selected layer when resize mode is active", async () => {
+  it("resizes the selected layer when adjust drag starts with shift", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -1346,7 +1728,6 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^resize$/i }));
 
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     const rect = {
@@ -1373,6 +1754,7 @@ describe("ExpertEditPanelView", () => {
       pointerId: 51,
       pointerType: "mouse",
       button: 0,
+      shiftKey: true,
       clientX: 196,
       clientY: 4,
     });
@@ -1393,7 +1775,7 @@ describe("ExpertEditPanelView", () => {
     expect(resizedScale).toBeGreaterThan(1);
   });
 
-  it("allows resizing the selected layer smaller than the previous minimum floor", async () => {
+  it("allows resizing smaller than the previous minimum floor with shift adjust drag", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -1405,7 +1787,6 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^resize$/i }));
 
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     const rect = {
@@ -1432,6 +1813,7 @@ describe("ExpertEditPanelView", () => {
       pointerId: 451,
       pointerType: "mouse",
       button: 0,
+      shiftKey: true,
       clientX: 196,
       clientY: 4,
     });
@@ -1453,11 +1835,11 @@ describe("ExpertEditPanelView", () => {
     expect(resizedScale).toBeGreaterThanOrEqual(0.2);
   });
 
-  it("rotates the selected layer when rotate mode is active", async () => {
+  it("re-centers the selected layer from the move history row", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
-        referenceImageUrl="https://example.com/rotate-target.png"
+        referenceImageUrl="https://example.com/recenter-target.png"
         referenceText="prompt text"
       />
     );
@@ -1465,7 +1847,6 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^rotate$/i }));
 
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     const rect = {
@@ -1485,30 +1866,39 @@ describe("ExpertEditPanelView", () => {
     });
 
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    expect(frame.style.transform).toContain("rotate(0deg)");
+    const recenterButton = screen.getByRole("button", { name: /re-center move action/i });
+    expect(recenterButton).toBeDisabled();
 
     fireEvent.pointerDown(primaryDropzone, {
       pointerId: 61,
       pointerType: "mouse",
       button: 0,
-      clientX: 100,
-      clientY: 16,
+      clientX: 60,
+      clientY: 40,
     });
     fireEvent.pointerMove(primaryDropzone, {
       pointerId: 61,
       pointerType: "mouse",
-      clientX: 184,
-      clientY: 100,
+      clientX: 156,
+      clientY: 128,
     });
     fireEvent.pointerUp(primaryDropzone, {
       pointerId: 61,
       pointerType: "mouse",
-      clientX: 184,
-      clientY: 100,
+      clientX: 156,
+      clientY: 128,
     });
 
-    const rotationDeg = Number(frame.style.transform.match(/rotate\(([-\d.]+)deg\)/)?.[1] ?? "0");
-    expect(Math.abs(rotationDeg)).toBeGreaterThan(10);
+    const movedTranslate = readFrameTranslate(frame);
+    expect(Math.abs(movedTranslate.x)).toBeGreaterThan(10);
+    expect(Math.abs(movedTranslate.y)).toBeGreaterThan(10);
+    expect(recenterButton).not.toBeDisabled();
+
+    fireEvent.click(recenterButton);
+    const resetTranslate = readFrameTranslate(frame);
+    expect(Math.abs(resetTranslate.x)).toBeLessThan(0.01);
+    expect(Math.abs(resetTranslate.y)).toBeLessThan(0.01);
+    expect(recenterButton).toBeDisabled();
   });
 
   it("resets inpaint stroke slider to default on double click", async () => {
@@ -1952,6 +2342,58 @@ describe("ExpertEditPanelView", () => {
       container.querySelectorAll(".edit-expert-layer-row .edit-expert-layer-label")
     ).map((node) => node.textContent?.trim());
 
+    expect(labels.slice(0, 3)).toEqual(["layer 2", "layer 1", "layer 3"]);
+  });
+
+  it("does not write plain text payload when starting a layer reorder drag", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+
+    const rowForLayerTwo = screen
+      .getByRole("button", { name: "layer 2" })
+      .closest(".edit-expert-layer-row") as HTMLElement;
+    const transfer = createLayerDragTransfer();
+
+    fireEvent.dragStart(rowForLayerTwo, { dataTransfer: transfer });
+
+    expect(transfer.setData).toHaveBeenCalledWith("application/x-shortpulse-layer-index", "0");
+    expect(transfer.setData).not.toHaveBeenCalledWith("text/plain", expect.any(String));
+  });
+
+  it("allows dragging layers to reorder inside the expanded markup modal", async () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+    uploadPrimaryFile(container, "layer-3.png");
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const inlineMarkupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(
+      within(inlineMarkupPanel).getByRole("button", { name: /expand markup tools/i })
+    );
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const rowForLayerThree = within(expandedModal)
+      .getByRole("button", { name: "layer 3" })
+      .closest(".edit-expert-layer-row") as HTMLElement;
+    const rowForLayerOne = within(expandedModal)
+      .getByRole("button", { name: "layer 1" })
+      .closest(".edit-expert-layer-row") as HTMLElement;
+    const transfer = createLayerDragTransfer();
+
+    fireEvent.dragStart(rowForLayerThree, { dataTransfer: transfer });
+    fireEvent.dragOver(rowForLayerOne, { dataTransfer: transfer });
+    fireEvent.drop(rowForLayerOne, { dataTransfer: transfer });
+
+    const labels = Array.from(
+      expandedModal.querySelectorAll(".edit-expert-layer-row .edit-expert-layer-label")
+    ).map((node) => node.textContent?.trim());
     expect(labels.slice(0, 3)).toEqual(["layer 2", "layer 1", "layer 3"]);
   });
 

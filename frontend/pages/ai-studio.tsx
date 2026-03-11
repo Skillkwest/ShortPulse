@@ -213,6 +213,9 @@ export default function AiStudioPage() {
   const [isCharacterBundleLoading, setIsCharacterBundleLoading] = useState(false);
   const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(false);
   const [selectedStylePrompt, setSelectedStylePrompt] = useState<string | null>(null);
+  const [selectedStyleContext, setSelectedStyleContext] = useState<
+    StudioOutput["styleContext"] | null
+  >(null);
   const [characterModeInjectionBundle, setCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
 
@@ -329,6 +332,7 @@ export default function AiStudioPage() {
   } = useAiStudioState({
     isCharacterModeEnabled,
     selectedStylePrompt,
+    selectedStyleContext,
   });
   const resolveSavedMediaIdFromOutput = useCallback(
     (output: StudioOutput | null, imageIndex: number) => {
@@ -1730,6 +1734,7 @@ export default function AiStudioPage() {
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}
         onSelectedStylePromptChange={setSelectedStylePrompt}
+        onSelectedStyleContextChange={setSelectedStyleContext}
       />
       {!isMediaLibraryPanelEnabled ? (
         <MediaLibraryModal

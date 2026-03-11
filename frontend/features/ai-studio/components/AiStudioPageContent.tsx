@@ -530,6 +530,7 @@ export type AiStudioPageContentProps = {
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
+  onSelectedStyleContextChange?: (styleContext: StudioOutput["styleContext"] | null) => void;
 };
 
 export function AiStudioPageContent({
@@ -581,6 +582,7 @@ export function AiStudioPageContent({
   triggerFilePicker,
   resolveCharacterDropReference,
   onSelectedStylePromptChange,
+  onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
   const resolvedReferenceGridFileInputRef =
     referenceGridFileInputRef ?? referenceCanvasFileInputRef;
@@ -688,9 +690,30 @@ export function AiStudioPageContent({
     const normalizedPrompt = selectedStyle?.stylePrompt?.trim() ?? "";
     return normalizedPrompt.length ? normalizedPrompt : null;
   }, [selectedStyleId, visibleStylesCatalog]);
+  const selectedStyleContext = React.useMemo<StudioOutput["styleContext"] | null>(() => {
+    if (!selectedStyleId) return null;
+    const selectedStyle = visibleStylesCatalog.find((style) => style.id === selectedStyleId);
+    if (!selectedStyle || selectedStyle.placeholder) return null;
+    const styleName =
+      selectedStyle.style?.trim() ||
+      selectedStyle.title?.trim() ||
+      selectedStyle.referenceImageName?.trim() ||
+      null;
+    const stylePrompt = selectedStyle.stylePrompt?.trim() || null;
+    if (!styleName && !stylePrompt) return null;
+    return {
+      applied: true,
+      styleId: selectedStyle.id,
+      styleName,
+      stylePrompt,
+    };
+  }, [selectedStyleId, visibleStylesCatalog]);
   React.useEffect(() => {
     onSelectedStylePromptChange?.(selectedStylePrompt);
   }, [onSelectedStylePromptChange, selectedStylePrompt]);
+  React.useEffect(() => {
+    onSelectedStyleContextChange?.(selectedStyleContext);
+  }, [onSelectedStyleContextChange, selectedStyleContext]);
   const workflowPanelVisibilityKey = resolvePanelVisibilityWorkflowKey(selectedTool);
   const workflowPanelVisibility = panelVisibilityByWorkflow[workflowPanelVisibilityKey];
   const isQuickSlotToggleAvailable = Boolean(

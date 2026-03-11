@@ -965,6 +965,12 @@ describe("useAiStudioTaskSubmission", () => {
           characterId: "char-1",
           characterName: "Nova",
         },
+        styleContextOverride: {
+          applied: true,
+          styleId: "cinematic",
+          styleName: "Cinematic",
+          stylePrompt: "cinematic contrast and rich shadows",
+        },
       });
     });
 
@@ -983,6 +989,12 @@ describe("useAiStudioTaskSubmission", () => {
           applied: true,
           characterId: "char-1",
           characterName: "Nova",
+        },
+        styleContext: {
+          applied: true,
+          styleId: "cinematic",
+          styleName: "Cinematic",
+          stylePrompt: "cinematic contrast and rich shadows",
         },
       })
     );

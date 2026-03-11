@@ -84,6 +84,20 @@ body.character-manager-body {
   min-height: 178px;
 }
 
+.character-manager-page--embedded .character-manage-loading-skeleton-card {
+  min-height: 96px;
+  padding: 12px;
+}
+
+.character-manager-page--embedded .character-create-loading-profile-row {
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+
+.character-manager-page--embedded .character-create-loading-profile-avatar {
+  width: 92px;
+  height: 92px;
+}
+
 .character-manager-page--embedded .character-manage-panel .character-list-card {
   min-height: 96px;
   padding: 14px 16px 14px 14px;
@@ -2000,9 +2014,9 @@ body.character-manager-body {
 .character-manage-loading {
   min-height: 156px;
   border-radius: 14px;
-  border: 1px solid rgba(43, 232, 121, 0.2);
+  border: 1px solid rgba(152, 162, 178, 0.2);
   background:
-    radial-gradient(circle at 50% 4%, rgba(43, 232, 121, 0.12), transparent 58%),
+    radial-gradient(circle at 50% 4%, rgba(178, 186, 198, 0.1), transparent 80%),
     rgba(6, 14, 13, 0.58);
   display: grid;
   justify-items: center;
@@ -2016,10 +2030,10 @@ body.character-manager-body {
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  border: 2px solid rgba(53, 226, 132, 0.24);
-  border-top-color: rgba(53, 226, 132, 0.98);
-  border-right-color: rgba(123, 233, 255, 0.92);
-  box-shadow: 0 0 16px rgba(53, 226, 132, 0.2);
+  border: 2px solid rgba(154, 166, 186, 0.26);
+  border-top-color: rgba(206, 214, 225, 0.92);
+  border-right-color: rgba(182, 191, 204, 0.84);
+  box-shadow: 0 0 12px rgba(112, 123, 139, 0.2);
   animation: character-manage-loading-spin 0.84s linear infinite;
 }
 
@@ -2036,9 +2050,249 @@ body.character-manager-body {
   max-width: 36ch;
 }
 
+.character-create-loading {
+  display: grid;
+  gap: 14px;
+}
+
+.character-create-loading-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 2px solid rgba(154, 166, 186, 0.26);
+  border-top-color: rgba(206, 214, 225, 0.92);
+  border-right-color: rgba(182, 191, 204, 0.84);
+  box-shadow: 0 0 12px rgba(112, 123, 139, 0.2);
+  animation: character-manage-loading-spin 0.84s linear infinite;
+}
+
+.character-create-loading-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: rgba(223, 251, 233, 0.92);
+}
+
+.character-create-loading-copy {
+  margin: 0;
+}
+
+.character-create-loading-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(154, 166, 186, 0.16);
+  background: rgba(14, 20, 31, 0.56);
+}
+
+.character-create-loading-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    106deg,
+    rgba(255, 255, 255, 0) 14%,
+    rgba(184, 194, 209, 0.07) 42%,
+    rgba(205, 213, 224, 0.12) 56%,
+    rgba(255, 255, 255, 0) 78%
+  );
+  transform: translateX(-130%);
+  animation: character-manage-loading-shimmer 1.35s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.character-create-loading-heading {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.character-create-loading-line {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(174, 184, 199, 0.2), rgba(174, 184, 199, 0.1));
+}
+
+.character-create-loading-line--title {
+  width: min(210px, 70%);
+  height: 16px;
+}
+
+.character-create-loading-line--subtitle {
+  width: min(380px, 90%);
+  height: 10px;
+}
+
+.character-create-loading-quickswap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.character-create-loading-thumbnail {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 12px;
+  border: 1px solid rgba(154, 166, 186, 0.16);
+  background: rgba(20, 26, 38, 0.55);
+}
+
+.character-create-loading-profile-row {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.character-create-loading-profile-avatar {
+  display: block;
+  width: 78px;
+  height: 78px;
+  border-radius: 999px;
+  border: 1px solid rgba(154, 166, 186, 0.18);
+  background: rgba(20, 26, 38, 0.55);
+}
+
+.character-create-loading-profile-name {
+  display: block;
+  width: min(420px, 92%);
+  height: 42px;
+  border-radius: 11px;
+  border: 1px solid rgba(154, 166, 186, 0.16);
+  background: rgba(20, 26, 38, 0.55);
+}
+
+.character-create-loading-tab-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.character-create-loading-tab {
+  display: block;
+  min-height: 40px;
+  border-radius: 11px;
+  border: 1px solid rgba(154, 166, 186, 0.16);
+  background: rgba(20, 26, 38, 0.5);
+}
+
+.character-create-loading-tab--short {
+  max-width: 64px;
+}
+
+.character-create-loading-description {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  border-radius: 12px;
+  border: 1px solid rgba(154, 166, 186, 0.16);
+  background: rgba(20, 26, 38, 0.52);
+  margin-bottom: 12px;
+}
+
+.character-create-loading-references-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.character-create-loading-reference {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 12px;
+  border: 1px solid rgba(154, 166, 186, 0.16);
+  background: rgba(20, 26, 38, 0.52);
+}
+
+.character-manage-loading-skeleton {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.character-manage-loading-skeleton-card {
+  position: relative;
+  min-height: 84px;
+  border-radius: 14px;
+  border: 1px solid rgba(154, 166, 186, 0.16);
+  background: rgba(17, 24, 36, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.character-manage-loading-skeleton-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    106deg,
+    rgba(255, 255, 255, 0) 14%,
+    rgba(184, 194, 209, 0.07) 42%,
+    rgba(205, 213, 224, 0.12) 56%,
+    rgba(255, 255, 255, 0) 78%
+  );
+  transform: translateX(-130%);
+  animation: character-manage-loading-shimmer 1.35s ease-in-out infinite;
+}
+
+.character-manage-loading-skeleton-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(174, 184, 199, 0.18), rgba(174, 184, 199, 0.08));
+  flex-shrink: 0;
+}
+
+.character-manage-loading-skeleton-lines {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 180px);
+}
+
+.character-manage-loading-skeleton-line {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(174, 184, 199, 0.2), rgba(174, 184, 199, 0.1));
+}
+
+.character-manage-loading-skeleton-line--short {
+  width: 42%;
+}
+
+.character-manage-loading-skeleton-line--long {
+  width: 82%;
+}
+
 @keyframes character-manage-loading-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes character-manage-loading-shimmer {
+  to {
+    transform: translateX(130%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-manage-loading-spinner,
+  .character-create-loading-spinner,
+  .character-manage-loading-skeleton-card::after,
+  .character-create-loading-card::after {
+    animation: none;
+    transform: none;
   }
 }
 
@@ -2585,6 +2839,10 @@ body.character-manager-body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .character-manage-loading-skeleton {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .character-reference-upload-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2592,6 +2850,18 @@ body.character-manager-body {
 
 @media (max-width: 1100px) {
   .character-manage-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-manage-loading-skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-create-loading-quickswap-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-create-loading-references-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2806,6 +3076,19 @@ body.character-manager-body {
 
   .character-manage-list {
     grid-template-columns: 1fr;
+  }
+
+  .character-manage-loading-skeleton {
+    grid-template-columns: 1fr;
+  }
+
+  .character-create-loading-profile-row {
+    grid-template-columns: 1fr;
+  }
+
+  .character-create-loading-profile-avatar {
+    width: 72px;
+    height: 72px;
   }
 
   .character-section-title {

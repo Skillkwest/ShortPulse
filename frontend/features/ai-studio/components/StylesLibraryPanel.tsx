@@ -7,6 +7,10 @@ import { Prohibit, X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
 import { resolveStylePreviewBackgroundImage } from "./edit/expertEditStyles";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
+import {
+  STYLE_PROMPT_MAX_CHARACTERS,
+  STYLE_PROMPT_NEAR_LIMIT_CHARACTERS,
+} from "./style-creator/constants";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
 
 const NONE_STYLE_ID = "__none_style__";
@@ -41,6 +45,7 @@ export function StylesLibraryPanel({
   saveError = null,
 }: StylesLibraryPanelProps) {
   const stylePreviewFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const stylePromptInputId = "styles-library-style-prompt-input";
 
   const {
     renderedStyles,
@@ -88,6 +93,9 @@ export function StylesLibraryPanel({
     () => [NONE_STYLE_TILE, ...renderedStyles],
     [renderedStyles]
   );
+  const stylePromptCharacterCount = pendingStyleEdit?.details.stylePrompt.length ?? 0;
+  const stylePromptNearLimit = stylePromptCharacterCount >= STYLE_PROMPT_NEAR_LIMIT_CHARACTERS;
+  const stylePromptAtLimit = stylePromptCharacterCount >= STYLE_PROMPT_MAX_CHARACTERS;
 
   return (
     <section
@@ -342,14 +350,18 @@ export function StylesLibraryPanel({
                 </span>
               </div>
             </div>
-            <label className="styles-library-edit-field">
-              <span className="styles-library-edit-label">Style Prompt</span>
+            <div className="styles-library-edit-field">
+              <label className="styles-library-edit-label" htmlFor={stylePromptInputId}>
+                Style Prompt
+              </label>
               <textarea
+                id={stylePromptInputId}
                 className="styles-library-edit-textarea"
                 rows={5}
+                maxLength={STYLE_PROMPT_MAX_CHARACTERS}
                 value={pendingStyleEdit.details.stylePrompt}
                 onChange={(event) => {
-                  const nextValue = event.target.value;
+                  const nextValue = event.target.value.slice(0, STYLE_PROMPT_MAX_CHARACTERS);
                   setPendingStyleEdit((previous) => {
                     if (!previous) return previous;
                     return {
@@ -362,7 +374,15 @@ export function StylesLibraryPanel({
                   });
                 }}
               />
-            </label>
+              <span
+                className={`styles-library-edit-counter tiny subdued ${
+                  stylePromptNearLimit ? "is-near-limit" : ""
+                } ${stylePromptAtLimit ? "is-limit-reached" : ""}`.trim()}
+                aria-live="polite"
+              >
+                {stylePromptCharacterCount} / {STYLE_PROMPT_MAX_CHARACTERS}
+              </span>
+            </div>
             {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting ? (
               <p className="styles-library-edit-copy tiny subdued">Analyzing style...</p>
             ) : null}

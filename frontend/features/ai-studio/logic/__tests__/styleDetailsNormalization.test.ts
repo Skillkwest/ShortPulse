@@ -77,6 +77,18 @@ describe("styleDetailsNormalization", () => {
     expect(normalized.style).toBe("Noir");
   });
 
+  it("clamps style prompts to persistence max length", () => {
+    const normalized = normalizeStyleDetails({
+      style: "Noir",
+      title: "Noir",
+      referenceImageName: "Noir",
+      stylePrompt: "a".repeat(1100),
+      previewImageUrl: "/Styles/Cinematic.png",
+    });
+
+    expect(normalized.stylePrompt.length).toBe(1000);
+  });
+
   it("normalizes style details maps and compares equality with metadata", () => {
     const mapA = normalizeStyleDetailsMap({
       cinematic: {

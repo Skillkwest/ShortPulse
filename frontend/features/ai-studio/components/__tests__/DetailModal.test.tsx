@@ -20,7 +20,7 @@ const baseOutput: StudioOutput = {
 };
 
 describe("DetailModal", () => {
-  it("shows character attribution and the actual model used when character mode was applied", () => {
+  it("shows character and style attribution with the actual model used", () => {
     render(
       <DetailModal
         output={{
@@ -30,6 +30,12 @@ describe("DetailModal", () => {
             characterId: "char-1",
             characterName: "Taylor",
             characterProfileImageUrl: "https://cdn.test/char.png",
+          },
+          styleContext: {
+            applied: true,
+            styleId: "photorealistic",
+            styleName: "Photorealistic",
+            stylePrompt: "photoreal skin texture and natural daylight contrast",
           },
         }}
         onClose={vi.fn()}
@@ -44,12 +50,16 @@ describe("DetailModal", () => {
     const promptLabel = screen.getByText("PROMPT");
     expect(characterName).toBeInTheDocument();
     expect(screen.getByAltText("Taylor profile")).toBeInTheDocument();
+    const styleName = screen.getByText("Photorealistic");
+    expect(styleName).toBeInTheDocument();
+    expect(screen.getByLabelText("Style used for generation")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy Prompt" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save prompt" })).not.toBeInTheDocument();
     expect(characterName.compareDocumentPosition(promptLabel)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+    expect(styleName.compareDocumentPosition(promptLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("shows Save Prompt action in prompt-only mode and saves the edited prompt", () => {

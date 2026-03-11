@@ -22,6 +22,12 @@ describe("generationReplay", () => {
         characterId: "char-1",
         characterName: "Nova",
       },
+      styleContext: {
+        applied: true,
+        styleId: "style-photoreal",
+        styleName: "Photorealistic",
+        stylePrompt: "natural skin texture, neutral palette",
+      },
       capturedAt: "2026-02-25T00:00:00.000Z",
     });
 
@@ -39,6 +45,12 @@ describe("generationReplay", () => {
         applied: true,
         characterId: "char-1",
         characterName: "Nova",
+      },
+      styleContext: {
+        applied: true,
+        styleId: "style-photoreal",
+        styleName: "Photorealistic",
+        stylePrompt: "natural skin texture, neutral palette",
       },
       capturedAt: "2026-02-25T00:00:00.000Z",
     });

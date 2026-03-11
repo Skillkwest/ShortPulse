@@ -15,11 +15,12 @@ import {
   buildNewStyleDetails,
   buildNextCustomStyleName,
   canAcceptStyleLibraryImageDropHint,
-  cropImageDataUrlToSquareDataUrl,
+  clampStylePromptCharacters,
   isDefaultCustomStyleName,
   isImageFileCandidate,
   normalizeStylePromptFallbackText,
   normalizeStyleDetailsDraft,
+  preprocessStyleImageDataUrl,
   readFileAsDataUrl,
   reorderById,
   resolveDroppedStylePreview,
@@ -160,6 +161,7 @@ export const useStyleCreatorController = ({
     }) => {
       setPendingStyleEdit((previous) => {
         if (!previous || previous.mode !== "create") return previous;
+        const clampedStylePrompt = clampStylePromptCharacters(stylePrompt);
         const currentStyleName = previous.details.style.trim();
         const shouldReplaceStyleName =
           !currentStyleName.length || isDefaultCustomStyleName(currentStyleName);
@@ -168,13 +170,13 @@ export const useStyleCreatorController = ({
           styleTitle: shouldReplaceStyleName ? styleTitle : previous.styleTitle,
           details: {
             ...previous.details,
-            stylePrompt,
+            stylePrompt: clampedStylePrompt,
             style: shouldReplaceStyleName ? styleTitle : previous.details.style,
             title: shouldReplaceStyleName ? styleTitle : previous.details.title,
             referenceImageName: shouldReplaceStyleName
               ? styleTitle
               : previous.details.referenceImageName,
-            styleProfile: buildStyleProfileFromPrompt(stylePrompt),
+            styleProfile: buildStyleProfileFromPrompt(clampedStylePrompt),
             extractionMeta: buildStyleExtractionMeta({
               outcome,
               flow,
@@ -304,10 +306,12 @@ export const useStyleCreatorController = ({
       setLocalSaveError(null);
       try {
         const sourceImageDataUrl = await readFileAsDataUrl(file);
-        const croppedPreview = await cropImageDataUrlToSquareDataUrl(sourceImageDataUrl);
-        setPendingStyleEdit((previous) => applyStylePreviewToPendingEdit(previous, croppedPreview));
+        const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
+        setPendingStyleEdit((previous) =>
+          applyStylePreviewToPendingEdit(previous, processed.previewImageUrl)
+        );
         if (pendingStyleEdit?.mode === "create") {
-          void extractStyleForCreateDraft(sourceImageDataUrl);
+          void extractStyleForCreateDraft(processed.extractionSourceImageUrl);
         }
       } catch {
         setLocalSaveError("Unable to process that image.");
@@ -342,7 +346,7 @@ export const useStyleCreatorController = ({
           extractionResult.stylePrompt &&
           extractionResult.styleTitle
         ) {
-          extractedStylePrompt = extractionResult.stylePrompt;
+          extractedStylePrompt = clampStylePromptCharacters(extractionResult.stylePrompt);
           extractedStyleTitle = extractionResult.styleTitle;
           trackStyleExtractionOutcome("success", "library_drop", {
             stage: "extract",

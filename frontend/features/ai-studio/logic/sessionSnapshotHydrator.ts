@@ -173,6 +173,7 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => ({
   archivedAt: output.archivedAt ?? null,
   archiveReason: output.archiveReason ?? null,
   characterContext: output.characterContext,
+  ...(output.styleContext ? { styleContext: output.styleContext } : {}),
   generationReplay: output.generationReplay,
 });
 

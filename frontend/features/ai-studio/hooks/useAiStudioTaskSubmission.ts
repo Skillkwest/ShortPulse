@@ -183,6 +183,7 @@ export const useAiStudioTaskSubmission = ({
         selectedToolOverride?: ToolId | null;
         displayPromptOverride?: string | null;
         characterContextOverride?: StudioOutput["characterContext"];
+        styleContextOverride?: StudioOutput["styleContext"];
         outputIdOverride?: string;
         modelIdOverride?: string | null;
         aspectOverride?: string;
@@ -296,6 +297,7 @@ export const useAiStudioTaskSubmission = ({
             imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
             referenceInputs,
             characterContext: options?.characterContextOverride,
+            styleContext: options?.styleContextOverride,
           });
         const nextOutput: StudioOutput = {
           mode: outputMode,
@@ -318,6 +320,7 @@ export const useAiStudioTaskSubmission = ({
           saveError: null,
           characterContext: options?.characterContextOverride,
           submissionTraceId,
+          ...(options?.styleContextOverride ? { styleContext: options.styleContextOverride } : {}),
           hiddenInReferenceGrid:
             finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid
               ? true

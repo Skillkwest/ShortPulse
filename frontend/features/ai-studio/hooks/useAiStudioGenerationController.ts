@@ -58,6 +58,7 @@ type RegenerateWithDebitOptions = {
   hideOutputFromReferenceGrid?: boolean;
   displayPromptOverride?: string | null;
   submissionPromptOverride?: string | null;
+  styleContextOverride?: StudioOutput["styleContext"];
 };
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
@@ -141,6 +142,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       displayPromptOverride?: string | null;
       referenceInputsOverride?: string[];
       characterContextOverride?: StudioOutput["characterContext"];
+      styleContextOverride?: StudioOutput["styleContext"];
       outputIdOverride?: string;
       modelIdOverride?: string | null;
       inpaintOverride?: InpaintSubmissionOverride | null;
@@ -152,6 +154,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     displayPromptOverride?: string | null;
     referenceInputsOverride?: string[];
     characterContextOverride?: StudioOutput["characterContext"];
+    styleContextOverride?: StudioOutput["styleContext"];
     outputIdOverride?: string;
     modelIdOverride?: string | null;
     inpaintOverride?: InpaintSubmissionOverride | null;
@@ -716,6 +719,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           characterModeOverrides?.referenceInputsOverride ?? options?.referenceInputsOverride,
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+        ...(options?.styleContextOverride
+          ? { styleContextOverride: options.styleContextOverride }
+          : {}),
         ...(characterModeOverrides?.characterContextOverride
           ? { characterContextOverride: characterModeOverrides.characterContextOverride }
           : {}),

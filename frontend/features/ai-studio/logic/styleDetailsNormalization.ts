@@ -9,9 +9,10 @@ import type {
   StylesLibraryStyleExtractionOutcome,
   StylesLibraryStyleProfile,
 } from "../types";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../components/style-creator/constants";
 
 const MAX_STYLE_FIELD_LENGTH = 120;
-const MAX_STYLE_PROMPT_LENGTH = 4000;
+const MAX_STYLE_PROMPT_LENGTH = STYLE_PROMPT_MAX_CHARACTERS;
 const MAX_STYLE_PREVIEW_URL_LENGTH = 2_000_000;
 const MAX_DESCRIPTOR_COUNT = 32;
 const MAX_DESCRIPTOR_LENGTH = 120;

@@ -3,6 +3,10 @@
   min-height: 420px;
 }
 
+.edit-expert-panel.is-markup-modal-open > :not(.edit-expert-markup-modal-backdrop) {
+  pointer-events: none;
+}
+
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties {
   padding-top: 12px;
   padding-bottom: 12px;
@@ -1026,6 +1030,15 @@
   pointer-events: none;
 }
 
+.edit-expert-markup-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform;
+}
+
 .edit-expert-primary-layer-frame {
   position: absolute;
   inset: 0;
@@ -1246,6 +1259,8 @@
 .edit-expert-styles-btn-preview {
   width: 100%;
   height: 100%;
+  max-width: 512px;
+  max-height: 512px;
   border-radius: inherit;
   background-size: cover;
   background-position: center;
@@ -1787,6 +1802,19 @@
   border-color: rgba(245, 185, 66, 0.34);
 }
 
+.edit-expert-inpaint-controls.is-themed-inpaint .edit-expert-inpaint-expand-btn,
+.edit-expert-inpaint-controls.is-themed-inpaint .edit-expert-inpaint-expand-btn:hover,
+.edit-expert-inpaint-controls.is-themed-inpaint .edit-expert-inpaint-expand-btn:focus-visible {
+  border-color: rgba(245, 185, 66, 0.9);
+  background: linear-gradient(135deg, #f5b754 0%, #f4921f 100%);
+  color: rgba(12, 14, 19, 0.98);
+  font-weight: 700;
+}
+
+.edit-expert-inpaint-controls.is-themed-inpaint .edit-expert-inpaint-expand-btn svg {
+  color: rgba(12, 14, 19, 0.98);
+}
+
 .edit-expert-inpaint-controls.is-themed-inpaint .edit-expert-inpaint-select-tabs {
   border: 1px solid rgba(245, 185, 66, 0.32);
 }
@@ -1819,6 +1847,20 @@
   border-color: rgba(170, 101, 239, 0.28);
 }
 
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-btn.is-active,
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-btn.is-active:hover,
+.edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-mode-btn.is-active:focus-visible {
+  border-color: rgba(170, 101, 239, 0.92);
+  background: #4a415b;
+  color: rgba(246, 241, 255, 0.98);
+  font-weight: 700;
+}
+
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-btn.is-active svg {
+  color: rgba(246, 241, 255, 0.98);
+}
+
 .edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-select-tabs {
   border: 1px solid rgba(170, 101, 239, 0.3);
 }
@@ -1829,6 +1871,25 @@
 
 .edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-color-picker {
   border-color: rgba(170, 101, 239, 0.3);
+}
+
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn {
+  border-color: rgba(170, 101, 239, 0.92);
+  background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
+  color: rgba(246, 241, 255, 0.98);
+  font-weight: 700;
+}
+
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn svg {
+  color: rgba(246, 241, 255, 0.98);
+}
+
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn:hover,
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn:focus-visible,
+.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn.is-active {
+  border-color: rgba(170, 101, 239, 0.92);
+  background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
+  color: rgba(246, 241, 255, 0.98);
 }
 
 .edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-divider {
@@ -1861,8 +1922,8 @@
 
 .edit-expert-inpaint-controls.is-themed-move {
   border-color: rgba(52, 200, 255, 0.34);
-  height: 114px;
-  min-height: 114px;
+  height: 122px;
+  min-height: 122px;
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn {
@@ -1870,13 +1931,30 @@
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn.is-active {
-  border-color: rgba(61, 173, 248, 0.9);
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.94), rgba(34, 211, 238, 0.94));
-  color: rgba(8, 22, 34, 0.98);
+  border-color: rgba(61, 173, 248, 0.88);
+  background: rgba(58, 65, 77, 0.94);
+  color: #eef2f8;
+  box-shadow: inset 0 0 0 1px rgba(61, 173, 248, 0.24);
 }
 
-.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-divider {
-  background: rgba(52, 200, 255, 0.42);
+.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn.is-active:hover,
+.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn.is-active:focus-visible {
+  border-color: rgba(61, 173, 248, 0.95);
+  background: rgba(62, 70, 83, 0.96);
+  color: #eef2f8;
+}
+
+.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-expand-btn,
+.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-expand-btn:hover,
+.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-expand-btn:focus-visible {
+  border-color: rgba(64, 184, 255, 0.9);
+  background: linear-gradient(135deg, #2f80ff 0%, #22c8e5 100%);
+  color: rgba(9, 18, 32, 0.98);
+  font-weight: 700;
+}
+
+.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-expand-btn svg {
+  color: rgba(9, 18, 32, 0.98);
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-history-btn {
@@ -2080,9 +2158,49 @@
 
 .edit-expert-markup-color-row {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 6px;
+}
+
+.edit-expert-markup-viewport-actions {
+  display: flex;
+  align-items: center;
+  justify-content: stretch;
+}
+
+.edit-expert-markup-recenter-btn {
+  width: 100%;
+  min-height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(92, 96, 104, 0.55);
+  background: rgba(37, 41, 47, 0.46);
+  color: rgba(238, 242, 248, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.edit-expert-markup-recenter-btn:hover:not(:disabled) {
+  border-color: rgba(205, 210, 220, 0.36);
+  background: rgba(52, 56, 64, 0.86);
+}
+
+.edit-expert-markup-recenter-btn:disabled {
+  border-color: rgba(92, 96, 104, 0.32);
+  background: rgba(37, 41, 47, 0.28);
+  color: rgba(201, 205, 214, 0.54);
+  cursor: default;
 }
 
 .edit-expert-markup-color-label {
@@ -2091,28 +2209,481 @@
   font-weight: 400;
 }
 
+.edit-expert-markup-color-picker-anchor {
+  position: relative;
+  width: 100%;
+}
+
 .edit-expert-markup-color-picker {
+  appearance: none;
   width: 100%;
   min-height: 32px;
   border-radius: 8px;
   border: 1px solid rgba(92, 96, 104, 0.9);
-  background: rgba(37, 41, 47, 0.64);
+  background: #ff4fa3;
   padding: 4px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.edit-expert-markup-color-picker:focus-visible {
+  outline: none;
+  border-color: rgba(205, 210, 220, 0.4);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(205, 210, 220, 0.16);
+}
+
+.edit-expert-markup-color-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: 248px;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: #131518;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 22;
+}
+
+.edit-expert-markup-color-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.edit-expert-markup-color-popover-title {
+  margin: 0;
+  color: rgba(236, 240, 246, 0.94);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.edit-expert-markup-color-popover-value {
+  color: rgba(236, 240, 246, 0.8);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.edit-expert-markup-color-popover-saturation {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  border: none;
+  background: #0f1114;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.edit-expert-markup-color-popover-saturation-thumb {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(7, 10, 16, 0.7);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.edit-expert-markup-color-popover-hue {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-expert-markup-color-popover-hue-label {
+  color: rgba(236, 240, 246, 0.82);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.edit-expert-markup-color-popover-hue-slider {
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: linear-gradient(
+    90deg,
+    #ff0000 0%,
+    #ffbf00 17%,
+    #80ff00 33%,
+    #00ffbf 50%,
+    #0040ff 67%,
+    #8000ff 83%,
+    #ff0000 100%
+  );
+}
+
+.edit-expert-markup-color-popover-hue-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(7, 10, 16, 0.48);
   cursor: pointer;
 }
 
-.edit-expert-markup-color-picker::-webkit-color-swatch-wrapper {
+.edit-expert-markup-color-popover-hue-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(7, 10, 16, 0.48);
+  cursor: pointer;
+}
+
+.edit-expert-markup-color-popover-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.edit-expert-markup-color-popover-swatch {
+  appearance: none;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  cursor: pointer;
+}
+
+.edit-expert-markup-color-popover-swatch.is-active {
+  border-color: rgba(236, 240, 246, 0.9);
+  box-shadow: 0 0 0 1px rgba(236, 240, 246, 0.3);
+}
+
+.edit-expert-markup-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  background: rgba(7, 10, 16, 0.78);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.edit-expert-markup-modal {
+  position: relative;
+  width: min(92vw, calc(min(92vh, 960px) + 448px));
+  height: min(92vh, 960px);
+  border-radius: 16px;
+  border: none;
+  background: #131518;
+  box-shadow: 0 34px 64px rgba(0, 0, 0, 0.62);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr) 208px;
+  align-items: start;
+  gap: 16px;
+}
+
+.edit-expert-markup-modal-close-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(92, 96, 104, 0.9);
+  background: rgba(37, 41, 47, 0.86);
+  color: rgba(238, 242, 248, 0.96);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.edit-expert-markup-modal-close-btn:hover {
+  border-color: rgba(205, 210, 220, 0.26);
+  background: rgba(52, 56, 64, 0.95);
+}
+
+.edit-expert-markup-modal-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  align-self: center;
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  max-width: 100%;
+  max-height: 100%;
+  background: #0f1114;
+}
+
+.edit-expert-markup-modal-controls-compact {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  z-index: 6;
+  align-self: flex-start;
+  border-radius: 14px;
+  border: 1px solid rgba(170, 101, 239, 0.4);
+  background: rgba(201, 205, 214, 0.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  padding: 12px 11px;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-controls-content {
+  gap: 12px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.edit-expert-markup-modal-toolbar-title {
+  margin: 0;
+  color: rgba(236, 240, 246, 0.9);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn {
+  min-height: 42px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 12px;
+  gap: 8px;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-clear-btn-modal {
+  width: 44px;
+  min-width: 44px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-icon-only-btn {
+  padding: 0;
+  gap: 0;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  row-gap: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-label,
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-color-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(236, 240, 246, 0.9);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-color-row {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-color-label {
+  grid-column: 1 / -1;
+  margin-bottom: 1px;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-viewport-actions {
   padding: 0;
 }
 
-.edit-expert-markup-color-picker::-webkit-color-swatch {
-  border: none;
-  border-radius: 6px;
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-recenter-btn {
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 14px;
+  gap: 7px;
 }
 
-.edit-expert-markup-color-picker::-moz-color-swatch {
-  border: none;
-  border-radius: 6px;
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider {
+  height: 16px;
+}
+
+.edit-expert-markup-modal-controls-compact
+  .edit-expert-inpaint-stroke-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(8, 11, 16, 0.88);
+}
+
+.edit-expert-markup-modal-controls-compact
+  .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-top: calc((8px - 16px) / 2);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(8, 11, 16, 0.88);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-color-picker {
+  height: 44px;
+  border-radius: 11px;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-action-btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 11px;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn {
+  border-color: rgba(92, 96, 104, 0.275);
+  background: rgba(37, 41, 47, 0.64);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn:hover {
+  border-color: rgba(205, 210, 220, 0.202);
+  background: rgba(37, 41, 47, 0.64);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn.is-active,
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn.is-active:hover {
+  border-color: rgba(170, 101, 239, 0.92);
+  background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
+  color: rgba(246, 241, 255, 0.98);
+  font-weight: 700;
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn.is-active svg {
+  color: rgba(246, 241, 255, 0.98);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-clear-btn-modal {
+  border-color: rgba(96, 101, 111, 0.58);
+  background: rgba(38, 42, 49, 0.76);
+  color: rgba(205, 212, 224, 0.72);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-clear-btn-modal:hover {
+  border-color: rgba(238, 112, 133, 0.86);
+  background: rgba(93, 26, 44, 0.86);
+  color: rgba(255, 214, 223, 0.98);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-clear-btn-modal:focus-visible {
+  border-color: rgba(238, 112, 133, 0.9);
+  background: rgba(93, 26, 44, 0.9);
+  color: rgba(255, 214, 223, 0.98);
+}
+
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb,
+.edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
+  background: #d6b6ff;
+}
+
+.edit-expert-layers-toolbar--modal {
+  position: relative;
+  left: auto;
+  top: auto;
+  bottom: auto;
+  transform: none;
+  width: 100%;
+  max-width: 208px;
+  align-self: flex-start;
+  z-index: 6;
+  gap: 10px;
+}
+
+.edit-expert-layers-toolbar--modal .edit-expert-layers-toolbar-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-expert-layers-toolbar--modal .edit-expert-layers-toolbar-title-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid rgba(201, 205, 214, 0.02);
+  background: rgba(201, 205, 214, 0.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.edit-expert-layers-toolbar--modal .edit-expert-layers-toolbar-card {
+  border: 1px solid rgba(201, 205, 214, 0.02);
+  background: rgba(201, 205, 214, 0.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.edit-expert-layers-toolbar--modal .edit-expert-preset-action-btn {
+  min-height: 46px;
+}
+
+@media (max-width: 1280px) {
+  .edit-expert-markup-modal {
+    width: min(94vw, calc(min(92vh, 960px) + 408px));
+    grid-template-columns: 188px minmax(0, 1fr) 188px;
+    gap: 12px;
+  }
+
+  .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn {
+    min-height: 38px;
+    font-size: 13px;
+    padding-inline: 10px;
+  }
+
+  .edit-expert-layers-toolbar--modal {
+    max-width: 188px;
+  }
 }
 
 .edit-expert-inpaint-select-tabs {
@@ -2274,7 +2845,6 @@
 }
 
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-row,
-.edit-expert-inpaint-controls.is-themed-move .edit-expert-move-divider,
 .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-history-row {
   width: 100%;
 }
@@ -2361,35 +2931,41 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 2px 0;
+  gap: 9px;
+  padding: 1px 0;
   width: 100%;
   height: 100%;
 }
 
 .edit-expert-move-mode-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 8px;
 }
 
 .edit-expert-move-mode-btn {
-  min-height: 34px;
-  border-radius: 10px;
+  min-height: 32px;
+  border-radius: 8px;
   border: 1px solid rgba(92, 96, 104, 0.275);
   background: rgba(37, 41, 47, 0.64);
   color: #eef2f8;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.02em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   cursor: pointer;
   transition:
     border-color 0.16s ease,
     background 0.16s ease,
     color 0.16s ease;
+}
+
+.edit-expert-move-mode-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .edit-expert-move-mode-btn:hover {
@@ -2401,22 +2977,15 @@
   border-color: rgba(205, 210, 220, 0.28);
 }
 
-.edit-expert-move-divider {
-  width: 100%;
-  height: 1px;
-  background: rgba(126, 131, 141, 0.34);
-  margin: 2px 0;
-}
-
 .edit-expert-move-history-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .edit-expert-move-history-btn {
-  min-height: 34px;
-  border-radius: 10px;
+  min-height: 32px;
+  border-radius: 8px;
   border: 1px solid rgba(92, 96, 104, 0.9);
   background: rgba(52, 56, 64, 0.92);
   color: rgba(241, 244, 250, 0.94);
@@ -2445,6 +3014,11 @@
 .edit-expert-move-history-btn:focus-visible {
   outline: none;
   border-color: rgba(205, 210, 220, 0.34);
+}
+
+.edit-expert-move-history-btn:disabled {
+  cursor: default;
+  opacity: 0.58;
 }
 
 .edit-expert-inpaint-btn:hover {

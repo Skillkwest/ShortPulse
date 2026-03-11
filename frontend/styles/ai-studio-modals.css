@@ -599,6 +599,11 @@
   letter-spacing: 0.04em;
 }
 
+.art-character-chip-avatar--style {
+  background: rgba(255, 188, 80, 0.18);
+  color: rgba(255, 227, 171, 0.96);
+}
+
 .art-character-chip-copy {
   display: flex;
   flex-direction: column;

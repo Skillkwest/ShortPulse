@@ -14,14 +14,13 @@ import {
   MagicWand,
   PaintBrush,
   PaintBrushBroad,
-  PenNib,
   PencilSimple,
   Plus,
   Sliders,
-  Sparkle,
   StackSimple,
   TrashSimple,
   UploadSimple,
+  X,
 } from "phosphor-react";
 import type { Icon as PhosphorIcon } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
@@ -315,7 +314,7 @@ const inpaintRailTools: ReadonlyArray<{
 ];
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
-type TransformDragMode = "move" | "resize" | "rotate";
+type TransformDragMode = "move" | "resize";
 type MarkupMode = "pen" | "eraser";
 const cropAspectRatioPresets = [
   { value: "9:16", label: "Vertical", ratio: 9 / 16 },
@@ -334,6 +333,22 @@ const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const TRANSFORM_HISTORY_LIMIT = 80;
+const LAYER_REORDER_DRAG_MIME = "application/x-shortpulse-layer-index";
+const MARKUP_COLOR_DEFAULT = "#ff4fa3";
+const MARKUP_COLOR_SWATCHES = [
+  "#ff4fa3",
+  "#f43f5e",
+  "#fb923c",
+  "#facc15",
+  "#4ade80",
+  "#22d3ee",
+  "#60a5fa",
+  "#a78bfa",
+] as const;
+const MARKUP_VIEWPORT_SCALE_MIN = 0.5;
+const MARKUP_VIEWPORT_SCALE_MAX = 4;
+const MARKUP_VIEWPORT_ZOOM_INTENSITY = 0.0018;
+const MARKUP_VIEWPORT_EPSILON = 0.001;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
 const INPAINT_CURSOR_DIAMETER_MAX = 52;
@@ -362,6 +377,155 @@ const clampLayerTranslateRatio = (value: number) =>
   Math.min(LAYER_TRANSLATE_RATIO_MAX, Math.max(LAYER_TRANSLATE_RATIO_MIN, value));
 const clampLayerScale = (value: number) =>
   Math.min(LAYER_SCALE_MAX, Math.max(LAYER_SCALE_MIN, value));
+
+type RgbColor = {
+  r: number;
+  g: number;
+  b: number;
+};
+
+type HsvColor = {
+  h: number;
+  s: number;
+  v: number;
+};
+
+type MarkupViewportState = {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+type MarkupPanPointerSession = {
+  active: boolean;
+  pointerId: number | null;
+  startClientX: number;
+  startClientY: number;
+  startOffsetX: number;
+  startOffsetY: number;
+};
+
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const createDefaultMarkupViewportState = (): MarkupViewportState => ({
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+});
+
+const createIdleMarkupPanPointerSession = (): MarkupPanPointerSession => ({
+  active: false,
+  pointerId: null,
+  startClientX: 0,
+  startClientY: 0,
+  startOffsetX: 0,
+  startOffsetY: 0,
+});
+
+const clampMarkupViewportScale = (value: number) =>
+  clampNumber(value, MARKUP_VIEWPORT_SCALE_MIN, MARKUP_VIEWPORT_SCALE_MAX);
+
+const isMarkupViewportCentered = (viewport: MarkupViewportState) =>
+  Math.abs(viewport.scale - 1) <= MARKUP_VIEWPORT_EPSILON &&
+  Math.abs(viewport.offsetX) <= MARKUP_VIEWPORT_EPSILON &&
+  Math.abs(viewport.offsetY) <= MARKUP_VIEWPORT_EPSILON;
+
+const parseHexColor = (value: string): RgbColor | null => {
+  const normalized = value.trim();
+  const match = /^#?([0-9a-f]{6})$/i.exec(normalized);
+  if (!match) return null;
+  const hex = match[1];
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  if (![r, g, b].every((channel) => Number.isFinite(channel))) {
+    return null;
+  }
+  return { r, g, b };
+};
+
+const rgbToHex = ({ r, g, b }: RgbColor) =>
+  `#${[r, g, b]
+    .map((channel) => clampNumber(Math.round(channel), 0, 255).toString(16).padStart(2, "0"))
+    .join("")}`;
+
+const rgbToHsv = ({ r, g, b }: RgbColor): HsvColor => {
+  const red = clampNumber(r / 255, 0, 1);
+  const green = clampNumber(g / 255, 0, 1);
+  const blue = clampNumber(b / 255, 0, 1);
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let hue = 0;
+  if (delta > 0) {
+    if (max === red) {
+      hue = ((green - blue) / delta) % 6;
+    } else if (max === green) {
+      hue = (blue - red) / delta + 2;
+    } else {
+      hue = (red - green) / delta + 4;
+    }
+    hue *= 60;
+    if (hue < 0) {
+      hue += 360;
+    }
+  }
+  const saturation = max === 0 ? 0 : delta / max;
+  return {
+    h: clampNumber(hue, 0, 360),
+    s: clampNumber(saturation, 0, 1),
+    v: clampNumber(max, 0, 1),
+  };
+};
+
+const hsvToRgb = ({ h, s, v }: HsvColor): RgbColor => {
+  const hue = ((h % 360) + 360) % 360;
+  const saturation = clampNumber(s, 0, 1);
+  const value = clampNumber(v, 0, 1);
+  const chroma = value * saturation;
+  const second = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const match = value - chroma;
+
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+
+  if (hue < 60) {
+    red = chroma;
+    green = second;
+  } else if (hue < 120) {
+    red = second;
+    green = chroma;
+  } else if (hue < 180) {
+    green = chroma;
+    blue = second;
+  } else if (hue < 240) {
+    green = second;
+    blue = chroma;
+  } else if (hue < 300) {
+    red = second;
+    blue = chroma;
+  } else {
+    red = chroma;
+    blue = second;
+  }
+
+  return {
+    r: Math.round((red + match) * 255),
+    g: Math.round((green + match) * 255),
+    b: Math.round((blue + match) * 255),
+  };
+};
+
+const hexToHsv = (value: string): HsvColor => {
+  const parsed = parseHexColor(value);
+  if (!parsed) {
+    return { h: 0, s: 0, v: 1 };
+  }
+  return rgbToHsv(parsed);
+};
+
 type LayerTransform = {
   translateXRatio: number;
   translateYRatio: number;
@@ -464,7 +628,6 @@ type TransformGeometry = {
 };
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
-const toDegrees = (radians: number) => (radians * 180) / Math.PI;
 
 const rotatePoint = (x: number, y: number, rotationDeg: number) => {
   const rotation = toRadians(rotationDeg);
@@ -628,7 +791,6 @@ type TransformPointerSession = {
   centerX: number;
   centerY: number;
   baseDistanceToCenter: number;
-  baseAngleOffsetRad: number;
 };
 
 const createIdleTransformPointerSession = (): TransformPointerSession => ({
@@ -646,7 +808,6 @@ const createIdleTransformPointerSession = (): TransformPointerSession => ({
   centerX: 0,
   centerY: 0,
   baseDistanceToCenter: 1,
-  baseAngleOffsetRad: 0,
 });
 
 const writePresetDragTransfer = (
@@ -832,6 +993,14 @@ export function ExpertEditPanelView({
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const markupModalRef = React.useRef<HTMLDivElement | null>(null);
+  const markupModalControlsRef = React.useRef<HTMLDivElement | null>(null);
+  const markupModalLayersRef = React.useRef<HTMLDivElement | null>(null);
+  const markupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
+  const markupColorSaturationRef = React.useRef<HTMLDivElement | null>(null);
+  const markupPanPointerSessionRef = React.useRef<MarkupPanPointerSession>(
+    createIdleMarkupPanPointerSession()
+  );
   const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const promptInputShellRef = React.useRef<HTMLDivElement | null>(null);
   const promptHighlightRef = React.useRef<HTMLDivElement | null>(null);
@@ -871,14 +1040,22 @@ export function ExpertEditPanelView({
 
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("move");
-  const [selectedTransformMode, setSelectedTransformMode] =
-    React.useState<TransformDragMode>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
   const [selectedMarkupMode, setSelectedMarkupMode] = React.useState<MarkupMode>("pen");
   const [isMarkupExpandSelected, setIsMarkupExpandSelected] = React.useState(false);
-  const [markupColor, setMarkupColor] = React.useState("#ff4fa3");
+  const [isMarkupColorPickerOpen, setIsMarkupColorPickerOpen] = React.useState(false);
+  const [markupColorHsv, setMarkupColorHsv] = React.useState<HsvColor>(() =>
+    hexToHsv(MARKUP_COLOR_DEFAULT)
+  );
+  const [markupViewport, setMarkupViewport] = React.useState<MarkupViewportState>(() =>
+    createDefaultMarkupViewportState()
+  );
+  const [isMarkupPanDragging, setIsMarkupPanDragging] = React.useState(false);
+  const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
+  const [markupModalSquareSize, setMarkupModalSquareSize] = React.useState<number | null>(null);
+  const [, setMarkupStrokes] = React.useState<string[]>([]);
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
@@ -912,6 +1089,7 @@ export function ExpertEditPanelView({
   const [editingLayerValue, setEditingLayerValue] = React.useState("");
   const [draggingLayerIndex, setDraggingLayerIndex] = React.useState<number | null>(null);
   const [dragOverLayerIndex, setDragOverLayerIndex] = React.useState<number | null>(null);
+  const draggingLayerIndexRef = React.useRef<number | null>(null);
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
@@ -921,6 +1099,7 @@ export function ExpertEditPanelView({
     string | null
   >(null);
   const foundationLayerId = foundationLayerIdRef.current;
+  const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
   const resolvedSelectedLayerIndex =
     selectedLayerIndex == null || selectedLayerIndex < 0 || selectedLayerIndex >= layers.length
       ? 0
@@ -942,6 +1121,10 @@ export function ExpertEditPanelView({
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
   const isPrimaryStageBusy = isRemoveBackgroundPending || isPrimaryStageGenerating;
   const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
+  const isMarkupViewportAtRest = React.useMemo(
+    () => isMarkupViewportCentered(markupViewport),
+    [markupViewport]
+  );
   const hostPrimaryImageUrl = React.useMemo(
     () =>
       selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
@@ -1499,12 +1682,7 @@ export function ExpertEditPanelView({
   const morePresetsSurfaceId = React.useId();
   const primaryDropzoneCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
-      const resolvedDragMode = isTransformPointerDragging
-        ? transformPointerSessionRef.current.dragMode
-        : selectedTransformMode;
-      if (resolvedDragMode === "rotate") {
-        return "crosshair";
-      }
+      const resolvedDragMode = transformPointerSessionRef.current.dragMode;
       if (resolvedDragMode === "resize") {
         return "nwse-resize";
       }
@@ -1524,7 +1702,6 @@ export function ExpertEditPanelView({
     inpaintStrokeSize,
     isTransformPointerDragging,
     isMoveToolSelected,
-    selectedTransformMode,
     selectedLayerImageUrl,
     shouldShowInpaintBrushReticle,
     shouldShowInpaintLassoCursor,
@@ -1544,6 +1721,7 @@ export function ExpertEditPanelView({
     () => parseAspectRatioToken(aspect) ?? 1,
     [aspect]
   );
+  const shouldApplyMarkupViewport = isVideoToolSelected && hasPrimaryCompositePreview;
   const primaryStageWidthScale = React.useMemo(
     () => Math.max(primaryDropzoneAspectRatioValue, 0.0001),
     [primaryDropzoneAspectRatioValue]
@@ -1555,16 +1733,59 @@ export function ExpertEditPanelView({
     }),
     [primaryStageWidthScale]
   );
+  const markupViewportCursor = React.useMemo(() => {
+    if (!shouldApplyMarkupViewport) return undefined;
+    if (isMarkupPanDragging) return "grabbing";
+    if (isMarkupPanSpacePressed) return "grab";
+    return undefined;
+  }, [isMarkupPanDragging, isMarkupPanSpacePressed, shouldApplyMarkupViewport]);
+  const markupViewportStyle = React.useMemo<React.CSSProperties>(() => {
+    const viewport = shouldApplyMarkupViewport
+      ? markupViewport
+      : createDefaultMarkupViewportState();
+    return {
+      transform: `translate3d(${Math.round(viewport.offsetX * 100) / 100}px, ${Math.round(viewport.offsetY * 100) / 100}px, 0) scale(${Math.round(viewport.scale * 10000) / 10000})`,
+      transformOrigin: "center center",
+    };
+  }, [markupViewport, shouldApplyMarkupViewport]);
   const primaryDropzoneStyle = React.useMemo(() => {
     const style: React.CSSProperties = {
       aspectRatio: primaryDropzoneAspectRatio,
       width: "100%",
     };
-    if (!isMorePresetsSurfaceOpen && primaryDropzoneCursor) {
-      style.cursor = primaryDropzoneCursor;
+    if (!isMorePresetsSurfaceOpen) {
+      if (markupViewportCursor) {
+        style.cursor = markupViewportCursor;
+      } else if (primaryDropzoneCursor) {
+        style.cursor = primaryDropzoneCursor;
+      }
     }
     return style;
-  }, [isMorePresetsSurfaceOpen, primaryDropzoneAspectRatio, primaryDropzoneCursor]);
+  }, [
+    isMorePresetsSurfaceOpen,
+    markupViewportCursor,
+    primaryDropzoneAspectRatio,
+    primaryDropzoneCursor,
+  ]);
+  const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
+    const cursorStyle = markupViewportCursor ? { cursor: markupViewportCursor } : null;
+    if (markupModalSquareSize != null && markupModalSquareSize > 0) {
+      return {
+        width: `${markupModalSquareSize}px`,
+        height: `${markupModalSquareSize}px`,
+        maxWidth: "100%",
+        maxHeight: "100%",
+        ...(cursorStyle ?? {}),
+      };
+    }
+    return {
+      aspectRatio: "1 / 1",
+      width: "100%",
+      maxWidth: "100%",
+      maxHeight: "100%",
+      ...(cursorStyle ?? {}),
+    };
+  }, [markupModalSquareSize, markupViewportCursor]);
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
     if (typeof document === "undefined") return;
@@ -1943,9 +2164,218 @@ export function ExpertEditPanelView({
     });
   }, []);
 
+  const handleRecenterMoveAction = React.useCallback(() => {
+    if (!selectedLayer) return;
+    const nextLayers = layers.map((layer) =>
+      layer.id === selectedLayer.id
+        ? {
+            ...layer,
+            transform: defaultLayerTransform(),
+          }
+        : layer
+    );
+    const baselineEntry = buildTransformHistoryEntry(layers);
+    const nextEntry = buildTransformHistoryEntry(nextLayers);
+    if (areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) {
+      return;
+    }
+    setLayers(nextLayers);
+    commitTransformHistoryTransition(nextEntry, baselineEntry);
+  }, [commitTransformHistoryTransition, layers, selectedLayer]);
+
+  const resetMarkupViewport = React.useCallback(() => {
+    setMarkupViewport(createDefaultMarkupViewportState());
+    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
+    setIsMarkupPanDragging(false);
+  }, []);
+
+  const isMoveTransformCentered = React.useMemo(() => {
+    if (!selectedLayer) return true;
+    return areLayerTransformsEqual(selectedLayer.transform, defaultLayerTransform());
+  }, [selectedLayer]);
+
+  const beginMarkupPanGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!shouldApplyMarkupViewport) {
+        return false;
+      }
+      const isMiddleMousePanGesture =
+        event.pointerType === "mouse" && event.button === 1 && isMarkupExpandSelected;
+      const isSpacePanGesture =
+        isMarkupPanSpacePressed && (event.pointerType !== "mouse" || event.button === 0);
+      if (!isMiddleMousePanGesture && !isSpacePanGesture) {
+        return false;
+      }
+      event.preventDefault();
+      if (event.currentTarget.setPointerCapture) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      markupPanPointerSessionRef.current = {
+        active: true,
+        pointerId: event.pointerId,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startOffsetX: markupViewport.offsetX,
+        startOffsetY: markupViewport.offsetY,
+      };
+      setIsMarkupPanDragging(true);
+      return true;
+    },
+    [
+      isMarkupExpandSelected,
+      isMarkupPanSpacePressed,
+      markupViewport.offsetX,
+      markupViewport.offsetY,
+      shouldApplyMarkupViewport,
+    ]
+  );
+
+  const continueMarkupPanGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupPanPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      event.preventDefault();
+      const deltaX = event.clientX - session.startClientX;
+      const deltaY = event.clientY - session.startClientY;
+      setMarkupViewport((previous) => ({
+        ...previous,
+        offsetX: session.startOffsetX + deltaX,
+        offsetY: session.startOffsetY + deltaY,
+      }));
+      return true;
+    },
+    []
+  );
+
+  const endMarkupPanGesture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const session = markupPanPointerSessionRef.current;
+    if (!session.active || event.pointerId !== session.pointerId) {
+      return false;
+    }
+    if (event.currentTarget.releasePointerCapture) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture may already be released.
+      }
+    }
+    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
+    setIsMarkupPanDragging(false);
+    return true;
+  }, []);
+
+  const endMarkupPanGestureOnLeave = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupPanPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      const hasPointerCapture =
+        typeof event.currentTarget.hasPointerCapture === "function" &&
+        event.currentTarget.hasPointerCapture(event.pointerId);
+      if (hasPointerCapture) {
+        return false;
+      }
+      markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
+      setIsMarkupPanDragging(false);
+      return true;
+    },
+    []
+  );
+
+  const handleMarkupViewportWheel = React.useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!shouldApplyMarkupViewport) return;
+      if (!event.metaKey && !event.ctrlKey) return;
+      const stageRect = event.currentTarget.getBoundingClientRect();
+      if (stageRect.width <= 0 || stageRect.height <= 0) return;
+      event.preventDefault();
+      const pointerX = event.clientX - stageRect.left;
+      const pointerY = event.clientY - stageRect.top;
+      const centerX = stageRect.width / 2;
+      const centerY = stageRect.height / 2;
+      const zoomMultiplier = Math.exp(-event.deltaY * MARKUP_VIEWPORT_ZOOM_INTENSITY);
+      setMarkupViewport((previous) => {
+        const nextScale = clampMarkupViewportScale(previous.scale * zoomMultiplier);
+        if (Math.abs(nextScale - previous.scale) <= MARKUP_VIEWPORT_EPSILON) {
+          return previous;
+        }
+        const relativeX = pointerX - centerX;
+        const relativeY = pointerY - centerY;
+        const nextOffsetX =
+          relativeX - ((relativeX - previous.offsetX) / previous.scale) * nextScale;
+        const nextOffsetY =
+          relativeY - ((relativeY - previous.offsetY) / previous.scale) * nextScale;
+        return {
+          scale: nextScale,
+          offsetX: nextOffsetX,
+          offsetY: nextOffsetY,
+        };
+      });
+    },
+    [shouldApplyMarkupViewport]
+  );
+
+  const handleMarkupStagePointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      beginMarkupPanGesture(event);
+    },
+    [beginMarkupPanGesture]
+  );
+
+  const handleMarkupStagePointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      continueMarkupPanGesture(event);
+    },
+    [continueMarkupPanGesture]
+  );
+
+  const handleMarkupStagePointerUp = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      endMarkupPanGesture(event);
+    },
+    [endMarkupPanGesture]
+  );
+
+  const handleMarkupStagePointerCancel = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      endMarkupPanGesture(event);
+    },
+    [endMarkupPanGesture]
+  );
+
+  const handleMarkupStagePointerLeave = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      endMarkupPanGestureOnLeave(event);
+    },
+    [endMarkupPanGestureOnLeave]
+  );
+
+  const handleMarkupStageMouseDown = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.button !== 1 || !isMarkupExpandSelected) return;
+      event.preventDefault();
+    },
+    [isMarkupExpandSelected]
+  );
+
+  const handleMarkupStageAuxClick = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.button !== 1 || !isMarkupExpandSelected) return;
+      event.preventDefault();
+    },
+    [isMarkupExpandSelected]
+  );
+
   const handlePrimaryPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isVideoToolSelected) {
+        beginMarkupPanGesture(event);
+        return;
+      }
       if (isMoveToolSelected) {
         if (!selectedLayer?.imageUrl) {
           showStatusToast("Select a layer image before transforming.");
@@ -1970,14 +2400,10 @@ export function ExpertEditPanelView({
           width,
           height,
         });
-        const dragMode = selectedTransformMode;
+        const dragMode: TransformDragMode = event.shiftKey ? "resize" : "move";
         const distanceToCenter = Math.max(
           1,
           computeDistance(pointerX, pointerY, transformGeometry.centerX, transformGeometry.centerY)
-        );
-        const pointerAngle = Math.atan2(
-          pointerY - transformGeometry.centerY,
-          pointerX - transformGeometry.centerX
         );
         event.preventDefault();
         if ((event.currentTarget as HTMLElement | null)?.setPointerCapture) {
@@ -1999,7 +2425,6 @@ export function ExpertEditPanelView({
           centerX: transformGeometry.centerX,
           centerY: transformGeometry.centerY,
           baseDistanceToCenter: distanceToCenter,
-          baseAngleOffsetRad: pointerAngle - toRadians(selectedLayer.transform.rotationDeg),
         };
         setIsTransformPointerDragging(true);
         return;
@@ -2014,10 +2439,11 @@ export function ExpertEditPanelView({
       inpaintStrokeSize,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
+      isVideoToolSelected,
       layers,
       lockGlobalCursor,
+      beginMarkupPanGesture,
       selectedLayer,
-      selectedTransformMode,
       sceneZoomScale,
       showStatusToast,
       shouldShowInpaintBrushReticle,
@@ -2027,6 +2453,10 @@ export function ExpertEditPanelView({
   const handlePrimaryPointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isVideoToolSelected) {
+        continueMarkupPanGesture(event);
+        return;
+      }
       if (isMoveToolSelected) {
         const dropzone = primaryDropzoneRef.current;
         if (!dropzone) return;
@@ -2090,26 +2520,17 @@ export function ExpertEditPanelView({
           );
           return;
         }
-        const nextPointerAngle = Math.atan2(pointerY - session.centerY, pointerX - session.centerX);
-        const nextRotationDeg = toDegrees(nextPointerAngle - session.baseAngleOffsetRad);
-        setLayers((previousLayers) =>
-          previousLayers.map((layer) =>
-            layer.id === session.layerId
-              ? {
-                  ...layer,
-                  transform: {
-                    ...layer.transform,
-                    rotationDeg: nextRotationDeg,
-                  },
-                }
-              : layer
-          )
-        );
-        return;
       }
       handleInpaintPointerMove(event);
     },
-    [handleInpaintPointerMove, isMorePresetsSurfaceOpen, isMoveToolSelected, sceneZoomScale]
+    [
+      continueMarkupPanGesture,
+      handleInpaintPointerMove,
+      isMorePresetsSurfaceOpen,
+      isMoveToolSelected,
+      isVideoToolSelected,
+      sceneZoomScale,
+    ]
   );
 
   const endTransformPointerSession = React.useCallback(
@@ -2137,6 +2558,10 @@ export function ExpertEditPanelView({
   const handlePrimaryPointerUp = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isVideoToolSelected) {
+        endMarkupPanGesture(event);
+        return;
+      }
       if (isMoveToolSelected) {
         endTransformPointerSession(event);
         return;
@@ -2149,13 +2574,19 @@ export function ExpertEditPanelView({
       handleInpaintPointerUp,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
+      isVideoToolSelected,
       unlockGlobalCursor,
+      endMarkupPanGesture,
     ]
   );
 
   const handlePrimaryPointerCancel = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isVideoToolSelected) {
+        endMarkupPanGesture(event);
+        return;
+      }
       if (isMoveToolSelected) {
         endTransformPointerSession(event);
         return;
@@ -2168,13 +2599,19 @@ export function ExpertEditPanelView({
       handleInpaintPointerCancel,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
+      isVideoToolSelected,
       unlockGlobalCursor,
+      endMarkupPanGesture,
     ]
   );
 
   const handlePrimaryPointerLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (isVideoToolSelected) {
+        endMarkupPanGestureOnLeave(event);
+        return;
+      }
       if (isMoveToolSelected) {
         const session = transformPointerSessionRef.current;
         if (!session.active) return;
@@ -2197,8 +2634,20 @@ export function ExpertEditPanelView({
       handleInpaintPointerLeave,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
+      isVideoToolSelected,
       unlockGlobalCursor,
+      endMarkupPanGestureOnLeave,
     ]
+  );
+
+  const handlePrimaryWheel = React.useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!isVideoToolSelected) {
+        return;
+      }
+      handleMarkupViewportWheel(event);
+    },
+    [handleMarkupViewportWheel, isVideoToolSelected]
   );
 
   const handlePrimaryDropzoneClick = React.useCallback(() => {
@@ -2243,6 +2692,7 @@ export function ExpertEditPanelView({
         const nextEditingIndex = nextLayers.findIndex((layer) => layer.id === editingLayerId);
         setEditingLayerIndex(nextEditingIndex >= 0 ? nextEditingIndex : null);
       }
+      draggingLayerIndexRef.current = null;
       setDragOverLayerIndex(null);
       setDraggingLayerIndex(null);
     },
@@ -2255,39 +2705,73 @@ export function ExpertEditPanelView({
         event.preventDefault();
         return;
       }
+      event.stopPropagation();
       event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", layers[index]?.id ?? "");
+      event.dataTransfer.setData(LAYER_REORDER_DRAG_MIME, String(index));
+      draggingLayerIndexRef.current = index;
       setDraggingLayerIndex(index);
       setDragOverLayerIndex(index);
     },
-    [editingLayerIndex, layers]
+    [editingLayerIndex]
   );
 
   const handleLayerDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>, index: number) => {
-      if (draggingLayerIndex == null) return;
+      const isLayerReorderDrag =
+        draggingLayerIndexRef.current != null ||
+        Array.from(event.dataTransfer.types).includes(LAYER_REORDER_DRAG_MIME);
+      if (!isLayerReorderDrag) return;
       event.preventDefault();
+      event.stopPropagation();
       event.dataTransfer.dropEffect = "move";
       if (dragOverLayerIndex !== index) {
         setDragOverLayerIndex(index);
       }
     },
-    [dragOverLayerIndex, draggingLayerIndex]
+    [dragOverLayerIndex]
   );
 
   const handleLayerDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>, index: number) => {
       event.preventDefault();
-      if (draggingLayerIndex == null) return;
-      handleReorderLayers(draggingLayerIndex, index);
+      event.stopPropagation();
+      const transferIndexRaw = event.dataTransfer.getData(LAYER_REORDER_DRAG_MIME);
+      const transferIndex = Number.parseInt(transferIndexRaw, 10);
+      const fromIndex = Number.isFinite(transferIndex)
+        ? transferIndex
+        : (draggingLayerIndexRef.current ?? draggingLayerIndex);
+      if (fromIndex == null) return;
+      handleReorderLayers(fromIndex, index);
     },
     [draggingLayerIndex, handleReorderLayers]
   );
 
   const handleLayerDragEnd = React.useCallback(() => {
+    draggingLayerIndexRef.current = null;
     setDraggingLayerIndex(null);
     setDragOverLayerIndex(null);
   }, []);
+
+  const handleMarkupModalDragShield = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  const isDragTargetInsideMarkupModal = React.useCallback((target: EventTarget | null) => {
+    const modalElement = markupModalRef.current;
+    if (!modalElement || !(target instanceof Node)) return false;
+    return modalElement.contains(target);
+  }, []);
+
+  const handleMarkupModalRootDragCapture = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!isMarkupExpandSelected) return;
+      if (isDragTargetInsideMarkupModal(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [isDragTargetInsideMarkupModal, isMarkupExpandSelected]
+  );
 
   const handleDeleteLayer = React.useCallback(
     (index: number) => {
@@ -2460,6 +2944,138 @@ export function ExpertEditPanelView({
   }, [isMoveToolSelected, isTransformPointerDragging]);
 
   React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      setIsMarkupPanSpacePressed(true);
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      setIsMarkupPanSpacePressed(false);
+    };
+    const handleWindowBlur = () => {
+      setIsMarkupPanSpacePressed(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (isVideoToolSelected) return;
+    if (isMarkupPanDragging) {
+      setIsMarkupPanDragging(false);
+    }
+    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
+  }, [isMarkupPanDragging, isVideoToolSelected]);
+
+  React.useEffect(() => {
+    if (!isVideoToolSelected && isMarkupExpandSelected) {
+      setIsMarkupExpandSelected(false);
+    }
+  }, [isMarkupExpandSelected, isVideoToolSelected]);
+
+  React.useEffect(() => {
+    if (!isMarkupExpandSelected || typeof document === "undefined") return;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isMarkupExpandSelected]);
+
+  React.useEffect(() => {
+    if (!isMarkupExpandSelected || typeof window === "undefined") return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMarkupExpandSelected(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isMarkupExpandSelected]);
+
+  React.useEffect(() => {
+    if (!isMarkupExpandSelected) {
+      setMarkupModalSquareSize(null);
+      return;
+    }
+    const markupModalElement = markupModalRef.current;
+    if (!markupModalElement) return;
+
+    const updateSquareSize = () => {
+      const modalRect = markupModalElement.getBoundingClientRect();
+      const controlsRect = markupModalControlsRef.current?.getBoundingClientRect();
+      const layersRect = markupModalLayersRef.current?.getBoundingClientRect();
+      const computedStyle = window.getComputedStyle(markupModalElement);
+      const horizontalGapRaw = Number.parseFloat(computedStyle.columnGap || computedStyle.gap);
+      const horizontalGap = Number.isFinite(horizontalGapRaw) ? horizontalGapRaw : 0;
+      const paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
+      const paddingRight = Number.parseFloat(computedStyle.paddingRight) || 0;
+      const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
+      const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
+      const controlsWidth = controlsRect?.width ?? 0;
+      const layersWidth = layersRect?.width ?? 0;
+      const availableWidth =
+        modalRect.width -
+        paddingLeft -
+        paddingRight -
+        controlsWidth -
+        layersWidth -
+        horizontalGap * 2;
+      const availableHeight = modalRect.height - paddingTop - paddingBottom;
+      const nextSquareSize = Math.max(0, Math.floor(Math.min(availableWidth, availableHeight)));
+      setMarkupModalSquareSize((previous) => {
+        if (nextSquareSize <= 0) {
+          return previous === null ? previous : null;
+        }
+        return previous === nextSquareSize ? previous : nextSquareSize;
+      });
+    };
+
+    updateSquareSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      if (typeof window === "undefined") return;
+      window.addEventListener("resize", updateSquareSize);
+      return () => {
+        window.removeEventListener("resize", updateSquareSize);
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateSquareSize();
+    });
+    resizeObserver.observe(markupModalElement);
+    if (markupModalControlsRef.current) {
+      resizeObserver.observe(markupModalControlsRef.current);
+    }
+    if (markupModalLayersRef.current) {
+      resizeObserver.observe(markupModalLayersRef.current);
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", updateSquareSize);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", updateSquareSize);
+      }
+    };
+  }, [isMarkupExpandSelected]);
+
+  React.useEffect(() => {
     if (!shouldShowInpaintBrushReticle || isMorePresetsSurfaceOpen) {
       unlockGlobalCursor();
     }
@@ -2584,11 +3200,437 @@ export function ExpertEditPanelView({
     [editingLayerValue, layers]
   );
 
+  const applyMarkupColorFromHex = React.useCallback((value: string) => {
+    const parsed = parseHexColor(value);
+    if (!parsed) return;
+    setMarkupColorHsv(rgbToHsv(parsed));
+  }, []);
+
+  const applyMarkupSaturationValueFromPointer = React.useCallback(
+    (clientX: number, clientY: number) => {
+      const saturationSurface = markupColorSaturationRef.current;
+      if (!saturationSurface) return;
+      const rect = saturationSurface.getBoundingClientRect();
+      if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) return;
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const saturation = clampNumber((clientX - rect.left) / rect.width, 0, 1);
+      const value = 1 - clampNumber((clientY - rect.top) / rect.height, 0, 1);
+      setMarkupColorHsv((previous) => ({
+        ...previous,
+        s: saturation,
+        v: value,
+      }));
+    },
+    []
+  );
+
+  const handleMarkupSaturationPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      applyMarkupSaturationValueFromPointer(event.clientX, event.clientY);
+      if (event.currentTarget.setPointerCapture) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+    },
+    [applyMarkupSaturationValueFromPointer]
+  );
+
+  const handleMarkupSaturationPointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const isPointerActive =
+        event.buttons > 0 || event.currentTarget.hasPointerCapture(event.pointerId);
+      if (!isPointerActive) return;
+      event.preventDefault();
+      applyMarkupSaturationValueFromPointer(event.clientX, event.clientY);
+    },
+    [applyMarkupSaturationValueFromPointer]
+  );
+
+  const handleMarkupSaturationPointerUp = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    []
+  );
+
+  const handleMarkupHueChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextHue = clampNumber(Number(event.target.value), 0, 360);
+    setMarkupColorHsv((previous) => ({
+      ...previous,
+      h: nextHue,
+    }));
+  }, []);
+
+  React.useEffect(() => {
+    if (!isVideoToolSelected) {
+      setIsMarkupColorPickerOpen(false);
+    }
+  }, [isVideoToolSelected]);
+
+  React.useEffect(() => {
+    if (!isMarkupColorPickerOpen || typeof document === "undefined") return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const anchor = markupColorPickerAnchorRef.current;
+      const target = event.target as Node | null;
+      if (!anchor || !target) return;
+      if (anchor.contains(target)) return;
+      setIsMarkupColorPickerOpen(false);
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMarkupColorPickerOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isMarkupColorPickerOpen]);
+
+  const renderMarkupControlsContent = (scope: "inline" | "modal") => {
+    const isModalScope = scope === "modal";
+    const modeIconSize = isModalScope ? 18 : 16;
+    const strokeSizeControlId = `edit-expert-markup-stroke-size-${scope}`;
+    const colorPickerId = `edit-expert-markup-color-picker-${scope}`;
+    const hueSliderId = `edit-expert-markup-color-hue-${scope}`;
+    return (
+      <div className="edit-expert-markup-controls-content">
+        {isModalScope ? <p className="edit-expert-markup-modal-toolbar-title">Markup</p> : null}
+        <div className="edit-expert-inpaint-mode-row" role="group" aria-label="Markup tool mode">
+          <button
+            type="button"
+            className={`edit-expert-inpaint-mode-btn ${isModalScope ? "edit-expert-markup-icon-only-btn" : ""} ${
+              selectedMarkupMode === "pen" ? "is-active" : ""
+            }`.trim()}
+            aria-pressed={selectedMarkupMode === "pen"}
+            aria-label="Pen"
+            onClick={() => setSelectedMarkupMode("pen")}
+          >
+            <PencilSimple size={modeIconSize} weight="regular" />
+            {!isModalScope ? <span>Pen</span> : null}
+          </button>
+          <button
+            type="button"
+            className={`edit-expert-inpaint-mode-btn ${isModalScope ? "edit-expert-markup-icon-only-btn" : ""} ${
+              selectedMarkupMode === "eraser" ? "is-active" : ""
+            }`.trim()}
+            aria-pressed={selectedMarkupMode === "eraser"}
+            aria-label="Eraser"
+            onClick={() => setSelectedMarkupMode("eraser")}
+          >
+            <Eraser size={modeIconSize} weight="regular" />
+            {!isModalScope ? <span>Eraser</span> : null}
+          </button>
+          {isModalScope ? (
+            <button
+              type="button"
+              className="edit-expert-inpaint-action-btn edit-expert-markup-clear-btn-modal"
+              aria-label="Clear markup strokes"
+              onClick={() => setMarkupStrokes([])}
+            >
+              <TrashSimple size={18} weight="regular" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`edit-expert-inpaint-mode-btn edit-expert-markup-collapse-btn ${
+                isMarkupExpandSelected ? "is-active" : ""
+              }`}
+              aria-pressed={isMarkupExpandSelected}
+              onClick={() => setIsMarkupExpandSelected((previous) => !previous)}
+              aria-label="Expand markup tools"
+            >
+              <ArrowsOutSimple size={modeIconSize} weight="regular" />
+              <span>Expand</span>
+            </button>
+          )}
+        </div>
+        <div className="edit-expert-inpaint-stroke-row">
+          <label className="edit-expert-inpaint-stroke-label" htmlFor={strokeSizeControlId}>
+            Stroke Size
+          </label>
+          <input
+            id={strokeSizeControlId}
+            className="edit-expert-inpaint-stroke-slider"
+            type="range"
+            min={1}
+            max={100}
+            value={inpaintStrokeSize}
+            onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
+            onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
+            aria-label="Stroke size"
+          />
+        </div>
+        <div className="edit-expert-markup-color-row">
+          <span className="edit-expert-markup-color-label">Color</span>
+          <div className="edit-expert-markup-color-picker-anchor" ref={markupColorPickerAnchorRef}>
+            <button
+              id={colorPickerId}
+              type="button"
+              className="edit-expert-markup-color-picker"
+              style={{ backgroundColor: markupColor }}
+              aria-label="Markup color"
+              aria-expanded={isMarkupColorPickerOpen}
+              aria-haspopup="dialog"
+              onClick={() => setIsMarkupColorPickerOpen((previous) => !previous)}
+            />
+            {isMarkupColorPickerOpen ? (
+              <div
+                className="edit-expert-markup-color-popover"
+                role="dialog"
+                aria-label="Markup color picker"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="edit-expert-markup-color-popover-header">
+                  <p className="edit-expert-markup-color-popover-title">Markup Color</p>
+                  <span className="edit-expert-markup-color-popover-value">
+                    {markupColor.toUpperCase()}
+                  </span>
+                </div>
+                <div
+                  ref={markupColorSaturationRef}
+                  className="edit-expert-markup-color-popover-saturation"
+                  style={{
+                    background: `linear-gradient(to top, #000000, rgba(0, 0, 0, 0)), linear-gradient(to right, #ffffff, hsl(${Math.round(markupColorHsv.h)}, 100%, 50%))`,
+                  }}
+                  onPointerDown={handleMarkupSaturationPointerDown}
+                  onPointerMove={handleMarkupSaturationPointerMove}
+                  onPointerUp={handleMarkupSaturationPointerUp}
+                  onPointerCancel={handleMarkupSaturationPointerUp}
+                >
+                  <span
+                    className="edit-expert-markup-color-popover-saturation-thumb"
+                    style={{
+                      left: `${markupColorHsv.s * 100}%`,
+                      top: `${(1 - markupColorHsv.v) * 100}%`,
+                    }}
+                    aria-hidden="true"
+                  />
+                </div>
+                <div className="edit-expert-markup-color-popover-hue">
+                  <label
+                    htmlFor={hueSliderId}
+                    className="edit-expert-markup-color-popover-hue-label"
+                  >
+                    Hue
+                  </label>
+                  <input
+                    id={hueSliderId}
+                    type="range"
+                    min={0}
+                    max={360}
+                    step={1}
+                    value={Math.round(markupColorHsv.h)}
+                    className="edit-expert-markup-color-popover-hue-slider"
+                    aria-label="Markup hue"
+                    onChange={handleMarkupHueChange}
+                  />
+                </div>
+                <div
+                  className="edit-expert-markup-color-popover-swatches"
+                  aria-label="Markup swatches"
+                >
+                  {MARKUP_COLOR_SWATCHES.map((swatch) => (
+                    <button
+                      key={swatch}
+                      type="button"
+                      className={`edit-expert-markup-color-popover-swatch ${
+                        markupColor.toLowerCase() === swatch.toLowerCase() ? "is-active" : ""
+                      }`}
+                      style={{ backgroundColor: swatch }}
+                      aria-label={`Select ${swatch} color`}
+                      onClick={() => applyMarkupColorFromHex(swatch)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          {!isModalScope ? (
+            <button
+              type="button"
+              className="edit-expert-inpaint-action-btn"
+              aria-label="Clear markup strokes"
+              onClick={() => setMarkupStrokes([])}
+            >
+              <TrashSimple size={18} weight="regular" />
+            </button>
+          ) : null}
+        </div>
+        {isModalScope ? (
+          <div className="edit-expert-markup-viewport-actions">
+            <button
+              type="button"
+              className="edit-expert-markup-recenter-btn"
+              aria-label="Recenter markup view"
+              onClick={resetMarkupViewport}
+              disabled={isMarkupViewportAtRest}
+            >
+              <ArrowsOutCardinal size={14} weight="regular" />
+              <span>Recenter</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderLayersToolbar = (scope: "main" | "modal", toolbarRef?: React.Ref<HTMLDivElement>) => {
+    const isModalScope = scope === "modal";
+    const shouldShowUtilityActions = !isModalScope;
+    return (
+      <div
+        ref={toolbarRef}
+        className={`edit-expert-layers-toolbar ${
+          isModalScope ? "edit-expert-layers-toolbar--modal" : ""
+        }`.trim()}
+        aria-label={isModalScope ? "Expanded canvas layers toolbar" : "Edit layers toolbar"}
+      >
+        {isModalScope ? (
+          <div className="edit-expert-layers-toolbar-header-row">
+            <div className="edit-expert-layers-toolbar-title-card">
+              <p className="edit-expert-layers-toolbar-title">Layers</p>
+            </div>
+            <button
+              type="button"
+              className="edit-expert-markup-modal-close-btn"
+              aria-label="Close expanded markup canvas"
+              onClick={() => setIsMarkupExpandSelected(false)}
+            >
+              <X size={14} weight="bold" />
+            </button>
+          </div>
+        ) : (
+          <div className="edit-expert-layers-toolbar-title-card">
+            <p className="edit-expert-layers-toolbar-title">Layers</p>
+            <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
+              <StackSimple size={14} weight="regular" />
+            </span>
+          </div>
+        )}
+        <div className="edit-expert-layers-toolbar-card">
+          <div className="edit-expert-layers-toolbar-list">
+            {layers.map((layer, index) =>
+              editingLayerIndex === index ? (
+                <input
+                  key={layer.id}
+                  type="text"
+                  className="edit-expert-layer-input"
+                  value={editingLayerValue}
+                  autoFocus
+                  aria-label={`Rename ${layer.name}`}
+                  onChange={(event) => setEditingLayerValue(event.target.value)}
+                  onBlur={() => handleCommitLayerRename(index)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleCommitLayerRename(index);
+                      return;
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      setEditingLayerIndex(null);
+                      setEditingLayerValue("");
+                    }
+                  }}
+                />
+              ) : (
+                <div
+                  key={layer.id}
+                  className={`edit-expert-layer-row ${
+                    draggingLayerIndex === index ? "is-dragging" : ""
+                  } ${dragOverLayerIndex === index ? "is-drop-target" : ""}`.trim()}
+                  draggable={editingLayerIndex !== index}
+                  onDragStart={(event) => handleLayerDragStart(event, index)}
+                  onDragOver={(event) => handleLayerDragOver(event, index)}
+                  onDrop={(event) => handleLayerDrop(event, index)}
+                  onDragEnd={handleLayerDragEnd}
+                >
+                  <button
+                    type="button"
+                    className={`edit-expert-preset-btn edit-expert-layer-btn ${
+                      resolvedSelectedLayerIndex === index ? "is-selected" : ""
+                    }`}
+                    onClick={() => setSelectedLayerIndex(index)}
+                    onDoubleClick={() => {
+                      setEditingLayerIndex(index);
+                      setEditingLayerValue(layer.name);
+                    }}
+                  >
+                    <span className="edit-expert-layer-label">{layer.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="edit-expert-layer-delete-btn"
+                    aria-label={`Delete ${layer.name}`}
+                    onClick={() => handleDeleteLayer(index)}
+                  >
+                    <TrashSimple size={12} weight="regular" />
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+        {shouldShowUtilityActions ? (
+          <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
+            {editLayerUtilityActions.map((action) => {
+              const Icon = action.icon;
+              const isActionDisabled = Boolean(
+                (action.id === REMOVE_BACKGROUND_ACTION_ID &&
+                  (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
+                (action.id === "flatten-image" && populatedLayerCount <= 0)
+              );
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
+                  aria-label={action.label}
+                  disabled={isActionDisabled}
+                  onClick={
+                    action.id === "flatten-image"
+                      ? () => void handleManualFlatten()
+                      : action.id === REMOVE_BACKGROUND_ACTION_ID
+                        ? handleRemoveBackground
+                        : undefined
+                  }
+                >
+                  <Icon size={20} weight="regular" />
+                  <span>{action.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        {statusToastMessage && isLayerLimitStatusToast ? (
+          <div
+            className={`edit-expert-stage-status-toast edit-expert-stage-status-toast--layers ${
+              statusToastTone === "warning" ? "is-warning" : "is-info"
+            } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
+            role="status"
+            aria-live="polite"
+          >
+            {statusToastMessage}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <div
-      className="tool-properties edit-expert-panel create-expert-panel"
+      className={`tool-properties edit-expert-panel create-expert-panel ${
+        isMarkupExpandSelected ? "is-markup-modal-open" : ""
+      }`.trim()}
       role="group"
       aria-label="Expert edit composer"
+      onDragEnterCapture={handleMarkupModalRootDragCapture}
+      onDragOverCapture={handleMarkupModalRootDragCapture}
+      onDropCapture={handleMarkupModalRootDragCapture}
     >
       <div className="edit-expert-main-stage" style={primaryStageStyle}>
         <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
@@ -2692,118 +3734,7 @@ export function ExpertEditPanelView({
             })}
           </div>
         </div>
-        <div className="edit-expert-layers-toolbar" aria-label="Edit layers toolbar">
-          <div className="edit-expert-layers-toolbar-title-card">
-            <p className="edit-expert-layers-toolbar-title">Layers</p>
-            <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
-              <StackSimple size={14} weight="regular" />
-            </span>
-          </div>
-          <div className="edit-expert-layers-toolbar-card">
-            <div className="edit-expert-layers-toolbar-list">
-              {layers.map((layer, index) =>
-                editingLayerIndex === index ? (
-                  <input
-                    key={layer.id}
-                    type="text"
-                    className="edit-expert-layer-input"
-                    value={editingLayerValue}
-                    autoFocus
-                    aria-label={`Rename ${layer.name}`}
-                    onChange={(event) => setEditingLayerValue(event.target.value)}
-                    onBlur={() => handleCommitLayerRename(index)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleCommitLayerRename(index);
-                        return;
-                      }
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        setEditingLayerIndex(null);
-                        setEditingLayerValue("");
-                      }
-                    }}
-                  />
-                ) : (
-                  <div
-                    key={layer.id}
-                    className={`edit-expert-layer-row ${
-                      draggingLayerIndex === index ? "is-dragging" : ""
-                    } ${dragOverLayerIndex === index ? "is-drop-target" : ""}`.trim()}
-                    draggable={editingLayerIndex !== index}
-                    onDragStart={(event) => handleLayerDragStart(event, index)}
-                    onDragOver={(event) => handleLayerDragOver(event, index)}
-                    onDrop={(event) => handleLayerDrop(event, index)}
-                    onDragEnd={handleLayerDragEnd}
-                  >
-                    <button
-                      type="button"
-                      className={`edit-expert-preset-btn edit-expert-layer-btn ${
-                        resolvedSelectedLayerIndex === index ? "is-selected" : ""
-                      }`}
-                      onClick={() => setSelectedLayerIndex(index)}
-                      onDoubleClick={() => {
-                        setEditingLayerIndex(index);
-                        setEditingLayerValue(layer.name);
-                      }}
-                    >
-                      <span className="edit-expert-layer-label">{layer.name}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="edit-expert-layer-delete-btn"
-                      aria-label={`Delete ${layer.name}`}
-                      onClick={() => handleDeleteLayer(index)}
-                    >
-                      <TrashSimple size={12} weight="regular" />
-                    </button>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-          <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
-            {editLayerUtilityActions.map((action) => {
-              const Icon = action.icon;
-              const isActionDisabled = Boolean(
-                (action.id === REMOVE_BACKGROUND_ACTION_ID &&
-                  (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
-                (action.id === "flatten-image" && populatedLayerCount <= 0)
-              );
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
-                  aria-label={action.label}
-                  disabled={isActionDisabled}
-                  onClick={
-                    action.id === "flatten-image"
-                      ? () => void handleManualFlatten()
-                      : action.id === REMOVE_BACKGROUND_ACTION_ID
-                        ? handleRemoveBackground
-                        : undefined
-                  }
-                >
-                  <Icon size={20} weight="regular" />
-                  <span>{action.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          {statusToastMessage && isLayerLimitStatusToast ? (
-            <div
-              className={`edit-expert-stage-status-toast edit-expert-stage-status-toast--layers ${
-                statusToastTone === "warning" ? "is-warning" : "is-info"
-              } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
-              role="status"
-              aria-live="polite"
-            >
-              {statusToastMessage}
-            </div>
-          ) : null}
-        </div>
+        {!isMarkupExpandSelected ? renderLayersToolbar("main") : null}
 
         <div className="edit-expert-primary-stage-shell">
           <div
@@ -2821,78 +3752,76 @@ export function ExpertEditPanelView({
             onPointerUp={handlePrimaryPointerUp}
             onPointerCancel={handlePrimaryPointerCancel}
             onPointerLeave={handlePrimaryPointerLeave}
+            onWheel={handlePrimaryWheel}
             onClick={handlePrimaryDropzoneClick}
             aria-label="Primary edit image"
             aria-busy={isPrimaryStageBusy || undefined}
           >
             {hasPrimaryCompositePreview ? (
-              <div
-                className="edit-expert-primary-layer-canvas"
-                style={{
-                  transform: `scale(${sceneZoomScale})`,
-                  transformOrigin: "center center",
-                }}
-                aria-hidden="true"
-              >
-                {layers.map((layer, index) =>
-                  layer.imageUrl ? (
-                    <div
-                      key={layer.id}
-                      className="edit-expert-primary-layer-frame"
-                      style={{
-                        backgroundImage: `url(${layer.imageUrl})`,
-                        zIndex: layers.length - index,
-                        opacity: clampLayerOpacity(layer.opacity),
-                        transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
-                        transformOrigin: "center center",
-                      }}
-                    />
-                  ) : null
-                )}
-                <canvas
-                  ref={overlayCanvasRef}
-                  className="edit-expert-inpaint-overlay-canvas"
-                  aria-hidden="true"
-                />
-                {isRemoveBackgroundPending ? (
-                  <div
-                    className="edit-expert-primary-layer-loading-overlay"
-                    data-testid="edit-expert-remove-background-loading-overlay"
-                  >
-                    <div
-                      className="edit-expert-primary-layer-loading"
-                      role="status"
-                      aria-label="Removing background"
-                      aria-live="polite"
-                    >
-                      <span
-                        className="edit-expert-primary-layer-loading-spinner"
-                        aria-hidden="true"
+              <div className="edit-expert-markup-viewport" style={markupViewportStyle}>
+                <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
+                  {layers.map((layer, index) =>
+                    layer.imageUrl ? (
+                      <div
+                        key={layer.id}
+                        className="edit-expert-primary-layer-frame"
+                        style={{
+                          backgroundImage: `url(${layer.imageUrl})`,
+                          zIndex: layers.length - index,
+                          opacity: clampLayerOpacity(layer.opacity),
+                          transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
+                          transformOrigin: "center center",
+                        }}
                       />
-                      <span className="edit-expert-primary-layer-loading-text">
-                        Removing background...
-                      </span>
-                    </div>
-                  </div>
-                ) : isPrimaryStageGenerating ? (
-                  <div
-                    className="edit-expert-primary-layer-loading-overlay"
-                    data-testid="edit-expert-inline-generate-loading-overlay"
-                  >
+                    ) : null
+                  )}
+                  <canvas
+                    ref={overlayCanvasRef}
+                    className="edit-expert-inpaint-overlay-canvas"
+                    aria-hidden="true"
+                  />
+                  {isRemoveBackgroundPending ? (
                     <div
-                      className="edit-expert-primary-layer-loading"
-                      role="status"
-                      aria-label="Generating image"
-                      aria-live="polite"
+                      className="edit-expert-primary-layer-loading-overlay"
+                      data-testid="edit-expert-remove-background-loading-overlay"
                     >
-                      <span
-                        className="edit-expert-primary-layer-loading-spinner"
-                        aria-hidden="true"
-                      />
-                      <span className="edit-expert-primary-layer-loading-text">Generating...</span>
+                      <div
+                        className="edit-expert-primary-layer-loading"
+                        role="status"
+                        aria-label="Removing background"
+                        aria-live="polite"
+                      >
+                        <span
+                          className="edit-expert-primary-layer-loading-spinner"
+                          aria-hidden="true"
+                        />
+                        <span className="edit-expert-primary-layer-loading-text">
+                          Removing background...
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : isPrimaryStageGenerating ? (
+                    <div
+                      className="edit-expert-primary-layer-loading-overlay"
+                      data-testid="edit-expert-inline-generate-loading-overlay"
+                    >
+                      <div
+                        className="edit-expert-primary-layer-loading"
+                        role="status"
+                        aria-label="Generating image"
+                        aria-live="polite"
+                      >
+                        <span
+                          className="edit-expert-primary-layer-loading-spinner"
+                          aria-hidden="true"
+                        />
+                        <span className="edit-expert-primary-layer-loading-text">
+                          Generating...
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
             {hasPrimaryCompositePreview ? null : (
@@ -3039,14 +3968,15 @@ export function ExpertEditPanelView({
                         </button>
                         <button
                           type="button"
-                          className={`edit-expert-inpaint-mode-btn ${
-                            selectedInpaintMode === "auto" ? "is-active" : ""
-                          }`}
-                          aria-pressed={selectedInpaintMode === "auto"}
-                          onClick={() => setSelectedInpaintMode("auto")}
+                          className="edit-expert-inpaint-mode-btn edit-expert-inpaint-expand-btn"
+                          aria-label="Expand markup tools"
+                          onClick={() => {
+                            setSelectedRailTool("video");
+                            setIsMarkupExpandSelected(true);
+                          }}
                         >
-                          <Sparkle size={16} weight="regular" />
-                          <span>Auto</span>
+                          <ArrowsOutSimple size={16} weight="regular" />
+                          <span>Expand</span>
                         </button>
                       </div>
                       <div className="edit-expert-inpaint-stroke-row">
@@ -3118,91 +4048,7 @@ export function ExpertEditPanelView({
                       </div>
                     </div>
                   ) : isVideoToolSelected ? (
-                    <div className="edit-expert-markup-controls-content">
-                      <div
-                        className="edit-expert-inpaint-mode-row"
-                        role="group"
-                        aria-label="Markup tool mode"
-                      >
-                        <button
-                          type="button"
-                          className={`edit-expert-inpaint-mode-btn ${
-                            selectedMarkupMode === "pen" ? "is-active" : ""
-                          }`}
-                          aria-pressed={selectedMarkupMode === "pen"}
-                          onClick={() => setSelectedMarkupMode("pen")}
-                        >
-                          <PenNib size={16} weight="regular" />
-                          <span>Pen</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`edit-expert-inpaint-mode-btn ${
-                            selectedMarkupMode === "eraser" ? "is-active" : ""
-                          }`}
-                          aria-pressed={selectedMarkupMode === "eraser"}
-                          onClick={() => setSelectedMarkupMode("eraser")}
-                        >
-                          <Eraser size={16} weight="regular" />
-                          <span>Eraser</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`edit-expert-inpaint-mode-btn ${
-                            isMarkupExpandSelected ? "is-active" : ""
-                          }`}
-                          aria-pressed={isMarkupExpandSelected}
-                          onClick={() => setIsMarkupExpandSelected((previous) => !previous)}
-                          aria-label="Expand markup tools"
-                        >
-                          <ArrowsOutSimple size={16} weight="regular" />
-                          <span>Expand</span>
-                        </button>
-                      </div>
-                      <div className="edit-expert-inpaint-stroke-row">
-                        <label
-                          className="edit-expert-inpaint-stroke-label"
-                          htmlFor="edit-expert-markup-stroke-size"
-                        >
-                          Stroke Size
-                        </label>
-                        <input
-                          id="edit-expert-markup-stroke-size"
-                          className="edit-expert-inpaint-stroke-slider"
-                          type="range"
-                          min={1}
-                          max={100}
-                          value={inpaintStrokeSize}
-                          onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
-                          onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
-                          aria-label="Stroke size"
-                        />
-                      </div>
-                      <div className="edit-expert-markup-color-row">
-                        <label
-                          className="edit-expert-markup-color-label"
-                          htmlFor="edit-expert-markup-color-picker"
-                        >
-                          Color
-                        </label>
-                        <input
-                          id="edit-expert-markup-color-picker"
-                          className="edit-expert-markup-color-picker"
-                          type="color"
-                          value={markupColor}
-                          onChange={(event) => setMarkupColor(event.target.value)}
-                          aria-label="Markup color"
-                        />
-                        <button
-                          type="button"
-                          className="edit-expert-inpaint-action-btn"
-                          aria-label="Clear markup strokes"
-                          onClick={() => void 0}
-                        >
-                          <TrashSimple size={18} weight="regular" />
-                        </button>
-                      </div>
-                    </div>
+                    renderMarkupControlsContent("inline")
                   ) : (
                     <div className="edit-expert-move-controls-content">
                       <div
@@ -3213,35 +4059,27 @@ export function ExpertEditPanelView({
                         <button
                           type="button"
                           className={`edit-expert-move-mode-btn ${
-                            selectedTransformMode === "move" ? "is-active" : ""
+                            isMoveToolSelected ? "is-active" : ""
                           }`}
-                          aria-pressed={selectedTransformMode === "move"}
-                          onClick={() => setSelectedTransformMode("move")}
+                          aria-pressed={isMoveToolSelected}
+                          aria-label="Adjust"
                         >
-                          Move
+                          <ArrowsOutCardinal size={16} weight="regular" />
+                          Adjust
                         </button>
                         <button
                           type="button"
-                          className={`edit-expert-move-mode-btn ${
-                            selectedTransformMode === "resize" ? "is-active" : ""
-                          }`}
-                          aria-pressed={selectedTransformMode === "resize"}
-                          onClick={() => setSelectedTransformMode("resize")}
+                          className="edit-expert-move-mode-btn edit-expert-move-expand-btn"
+                          aria-label="Expand markup tools"
+                          onClick={() => {
+                            setSelectedRailTool("video");
+                            setIsMarkupExpandSelected(true);
+                          }}
                         >
-                          Resize
-                        </button>
-                        <button
-                          type="button"
-                          className={`edit-expert-move-mode-btn ${
-                            selectedTransformMode === "rotate" ? "is-active" : ""
-                          }`}
-                          aria-pressed={selectedTransformMode === "rotate"}
-                          onClick={() => setSelectedTransformMode("rotate")}
-                        >
-                          Rotate
+                          <ArrowsOutSimple size={16} weight="regular" />
+                          Expand
                         </button>
                       </div>
-                      <div className="edit-expert-move-divider" aria-hidden="true" />
                       <div className="edit-expert-move-history-row">
                         <button
                           type="button"
@@ -3262,6 +4100,16 @@ export function ExpertEditPanelView({
                         >
                           <ArrowClockwise size={14} weight="regular" />
                           Redo
+                        </button>
+                        <button
+                          type="button"
+                          className="edit-expert-move-history-btn"
+                          aria-label="Re-center move action"
+                          onClick={handleRecenterMoveAction}
+                          disabled={isMoveTransformCentered}
+                        >
+                          <ArrowsOutCardinal size={14} weight="regular" />
+                          Re-center
                         </button>
                       </div>
                     </div>
@@ -3483,6 +4331,71 @@ export function ExpertEditPanelView({
           ) : null}
         </div>
       </div>
+
+      {isMarkupExpandSelected ? (
+        <div
+          className="edit-expert-markup-modal-backdrop"
+          role="presentation"
+          onClick={() => setIsMarkupExpandSelected(false)}
+          onDragEnter={handleMarkupModalDragShield}
+          onDragOver={handleMarkupModalDragShield}
+          onDrop={handleMarkupModalDragShield}
+        >
+          <div
+            className="edit-expert-markup-modal"
+            ref={markupModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Expanded markup canvas"
+            onClick={(event) => event.stopPropagation()}
+            onDragEnter={handleMarkupModalDragShield}
+            onDragOver={handleMarkupModalDragShield}
+            onDrop={handleMarkupModalDragShield}
+          >
+            <div
+              ref={markupModalControlsRef}
+              className="edit-expert-markup-modal-controls-compact"
+              role="group"
+              aria-label="Markup tools"
+            >
+              {renderMarkupControlsContent("modal")}
+            </div>
+            <div
+              className="edit-expert-markup-modal-stage"
+              style={markupModalStageStyle}
+              onMouseDown={handleMarkupStageMouseDown}
+              onAuxClick={handleMarkupStageAuxClick}
+              onPointerDown={handleMarkupStagePointerDown}
+              onPointerMove={handleMarkupStagePointerMove}
+              onPointerUp={handleMarkupStagePointerUp}
+              onPointerCancel={handleMarkupStagePointerCancel}
+              onPointerLeave={handleMarkupStagePointerLeave}
+              onWheel={handleMarkupViewportWheel}
+            >
+              <div className="edit-expert-markup-viewport" style={markupViewportStyle}>
+                <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
+                  {layers.map((layer, index) =>
+                    layer.imageUrl ? (
+                      <div
+                        key={`markup-modal-${layer.id}`}
+                        className="edit-expert-primary-layer-frame"
+                        style={{
+                          backgroundImage: `url(${layer.imageUrl})`,
+                          zIndex: layers.length - index,
+                          opacity: clampLayerOpacity(layer.opacity),
+                          transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
+                          transformOrigin: "center center",
+                        }}
+                      />
+                    ) : null
+                  )}
+                </div>
+              </div>
+            </div>
+            {renderLayersToolbar("modal", markupModalLayersRef)}
+          </div>
+        </div>
+      ) : null}
 
       <input
         ref={primaryInputRef}

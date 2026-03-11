@@ -20,6 +20,7 @@ export type AiStudioGenerateSubmissionOverrides = {
   displayPromptOverride?: string | null;
   referenceInputsOverride?: string[];
   characterContextOverride?: StudioOutput["characterContext"];
+  styleContextOverride?: StudioOutput["styleContext"];
   outputIdOverride?: string;
   modelIdOverride?: string | null;
   inpaintOverride?: InpaintSubmissionOverride | null;
@@ -37,6 +38,7 @@ type UseAiStudioGenerationPromptComposerParams = {
   editReferenceText: string;
   videoReferenceText: string;
   selectedStylePrompt?: string | null;
+  selectedStyleContext?: StudioOutput["styleContext"] | null;
   selectedTool: ToolId | null;
   videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
   useReferenceImageIndicator: boolean;
@@ -53,6 +55,7 @@ type UseAiStudioGenerationPromptComposerParams = {
       selectedToolOverride?: ToolId | null;
       displayPromptOverride?: string | null;
       characterContextOverride?: StudioOutput["characterContext"];
+      styleContextOverride?: StudioOutput["styleContext"];
       outputIdOverride?: string;
       modelIdOverride?: string | null;
       inpaintOverride?: InpaintSubmissionOverride | null;
@@ -80,6 +83,9 @@ const resolvePromptForTool = ({
   return prompt;
 };
 
+const shouldAttachStyleContextForTool = (tool: ToolId | null): boolean =>
+  tool === "create" || tool === "text" || tool === "image" || tool === "edit";
+
 /**
  * Returns generate/regenerate handlers with stable prompt and reference composition rules.
  */
@@ -89,6 +95,7 @@ export const useAiStudioGenerationPromptComposer = ({
   editReferenceText,
   videoReferenceText,
   selectedStylePrompt = null,
+  selectedStyleContext = null,
   selectedTool,
   videoReferenceMode,
   useReferenceImageIndicator,
@@ -137,6 +144,11 @@ export const useAiStudioGenerationPromptComposer = ({
         modelId: effectiveModelId,
         adapterEnabled: stylePromptFamilyAdapterEnabled,
       });
+      const styleContextOverrideCandidate =
+        options?.styleContextOverride ?? selectedStyleContext ?? undefined;
+      const styleContextOverrideToSubmit = shouldAttachStyleContextForTool(effectiveTool)
+        ? styleContextOverrideCandidate
+        : undefined;
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(effectiveTool);
       const isVideoGenerationTool = effectiveTool === "video" || effectiveTool === "kling";
@@ -158,6 +170,11 @@ export const useAiStudioGenerationPromptComposer = ({
         modelIdOverride: options?.modelIdOverride,
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+        ...(styleContextOverrideToSubmit
+          ? {
+              styleContextOverride: styleContextOverrideToSubmit,
+            }
+          : {}),
         ...(typeof options?.outputIdOverride === "string"
           ? { outputIdOverride: options.outputIdOverride }
           : {}),
@@ -171,6 +188,7 @@ export const useAiStudioGenerationPromptComposer = ({
       resolveMergedReferenceInputs,
       selectedTool,
       selectedStylePrompt,
+      selectedStyleContext,
       stylePromptFamilyAdapterEnabled,
       submitTask,
       videoReferenceMode,
@@ -202,6 +220,11 @@ export const useAiStudioGenerationPromptComposer = ({
         modelId: effectiveModelId,
         adapterEnabled: stylePromptFamilyAdapterEnabled,
       });
+      const styleContextOverrideCandidate =
+        options?.styleContextOverride ?? selectedStyleContext ?? undefined;
+      const styleContextOverrideToSubmit = shouldAttachStyleContextForTool(selectedTool)
+        ? styleContextOverrideCandidate
+        : undefined;
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(selectedTool);
       const referencePool = buildRegenerateReferencePool({
@@ -222,6 +245,11 @@ export const useAiStudioGenerationPromptComposer = ({
         modelIdOverride: options?.modelIdOverride,
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+        ...(styleContextOverrideToSubmit
+          ? {
+              styleContextOverride: styleContextOverrideToSubmit,
+            }
+          : {}),
       });
     },
     [
@@ -233,6 +261,7 @@ export const useAiStudioGenerationPromptComposer = ({
       resolveMergedReferenceInputs,
       selectedTool,
       selectedStylePrompt,
+      selectedStyleContext,
       stylePromptFamilyAdapterEnabled,
       submitTask,
       useReferenceImageIndicator,

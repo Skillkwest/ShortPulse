@@ -38,7 +38,10 @@ Rules:
 
 ## Workflow
 1. User creates style via Add Style modal or library drop.
-2. Intake resolves preview image and extraction source URL.
+2. Intake resolves two derived image artifacts from the dropped/uploaded source:
+   - Preview image: center-cropped square `512x512` JPEG for style-card rendering.
+   - Extraction source: aspect-preserving bounded JPEG (`max(width,height)=1024`, no upscaling) used for `/api/ai/extract-style`.
+   - Style Prompt editor enforces a `1000` character max (live counter + input clamp, near-limit warning at `900`) to keep style add-ons within the runtime prompt budget used by extraction and submit-path append behavior.
 3. Extraction calls `/api/ai/extract-style` through client helper with bounded per-attempt timeout, overall deadline cap, and transient-only retries.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
 5. Create/save path persists normalized details; optional metadata is attached when available.

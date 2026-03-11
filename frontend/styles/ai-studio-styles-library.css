@@ -204,6 +204,8 @@
 .styles-library-tile-preview {
   position: relative;
   width: 100%;
+  max-width: 512px;
+  max-height: 512px;
   aspect-ratio: 1 / 1;
   border-radius: 10px;
   border: none;
@@ -373,6 +375,20 @@
   min-height: 220px;
 }
 
+.styles-library-edit-counter {
+  margin-top: 2px;
+  align-self: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+
+.styles-library-edit-counter.is-near-limit {
+  color: rgba(240, 182, 105, 0.92);
+}
+
+.styles-library-edit-counter.is-limit-reached {
+  color: rgba(255, 188, 112, 0.95);
+}
+
 .styles-library-edit-input:focus-visible,
 .styles-library-edit-textarea:focus-visible {
   outline: 2px solid rgba(105, 198, 255, 0.7);
@@ -423,6 +439,8 @@
 
 .styles-library-edit-dropzone-preview {
   width: min(220px, 100%);
+  max-width: 512px;
+  max-height: 512px;
   aspect-ratio: 1 / 1;
   border-radius: 10px;
   background:

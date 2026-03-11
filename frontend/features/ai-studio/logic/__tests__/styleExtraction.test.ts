@@ -115,6 +115,33 @@ describe("styleExtraction helpers", () => {
     expect(result.modelUsed).toBe("gpt-5-nano");
   });
 
+  it("allows slow upstream extraction responses within the aligned timeout budget", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetchWithAuth).mockImplementation(async () => {
+      return await new Promise<Response>((resolve) => {
+        setTimeout(() => {
+          resolve(
+            new Response(
+              JSON.stringify({
+                stylePrompt: "anime style, warm palette, soft diffusion",
+                styleTitle: "Warm Anime Diffusion",
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } }
+            )
+          );
+        }, 45000);
+      });
+    });
+
+    const resultPromise = postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    await vi.advanceTimersByTimeAsync(46000);
+    const result = await resultPromise;
+
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+    expect(result.stylePrompt).toBe("anime style, warm palette, soft diffusion");
+    expect(result.styleTitle).toBe("Warm Anime Diffusion");
+  });
+
   it("retries on timeout abort and succeeds on the next attempt", async () => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0);
@@ -144,7 +171,7 @@ describe("styleExtraction helpers", () => {
     });
 
     const resultPromise = postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
-    await vi.advanceTimersByTimeAsync(36000);
+    await vi.advanceTimersByTimeAsync(59000);
     const result = await resultPromise;
 
     expect(fetchWithAuth).toHaveBeenCalledTimes(2);
@@ -168,7 +195,7 @@ describe("styleExtraction helpers", () => {
     const rejection = expect(resultPromise).rejects.toThrow(
       "Style extraction timed out. Please retry."
     );
-    await vi.advanceTimersByTimeAsync(80000);
+    await vi.advanceTimersByTimeAsync(100000);
     await rejection;
     expect(fetchWithAuth).toHaveBeenCalledTimes(2);
   });

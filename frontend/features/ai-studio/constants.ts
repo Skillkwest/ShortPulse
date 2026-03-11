@@ -211,6 +211,7 @@ export const primaryToolList: ToolConfig[] = [
 export const editToolList: ToolConfig[] = [
   { id: "edit", label: "Edit", desc: "Edit and refine content" },
   { id: "video", label: "Video", desc: "Generate video content" },
+  { id: "sound", label: "Sound", desc: "Open sound properties" },
   { id: "canvas", label: "Canvas", desc: "Canvas workspace (coming soon)" },
 ];
 

@@ -24,6 +24,7 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("presets")).toBe("presets");
     expect(resolvePropertiesPanelKind("styles")).toBe("styles");
     expect(resolvePropertiesPanelKind("media-library")).toBe("media-library");
+    expect(resolvePropertiesPanelKind("sound")).toBe("sound");
   });
 
   it("falls back to none for null", () => {

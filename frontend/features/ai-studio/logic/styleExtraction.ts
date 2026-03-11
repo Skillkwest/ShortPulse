@@ -27,9 +27,13 @@ export type StyleExtractionResult = {
 };
 
 const STYLE_TITLE_FALLBACK = "Extracted Style";
-const STYLE_EXTRACTION_TOTAL_DEADLINE_MS = 70000;
-const STYLE_EXTRACTION_ATTEMPT_TIMEOUT_MS = 35000;
-const STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS = 3;
+/**
+ * Keep client timeout budget aligned with server-side extraction runtime:
+ * server path may include URL probe + OpenAI retry before responding.
+ */
+const STYLE_EXTRACTION_TOTAL_DEADLINE_MS = 95000;
+const STYLE_EXTRACTION_ATTEMPT_TIMEOUT_MS = 58000;
+const STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS = 2;
 const STYLE_EXTRACTION_RETRY_BASE_DELAY_MS = 250;
 const STYLE_EXTRACTION_RETRY_JITTER_MS = 120;
 const STYLE_EXTERNAL_FETCH_BLOCKED_MESSAGE =

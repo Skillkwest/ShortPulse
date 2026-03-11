@@ -110,6 +110,7 @@ export type ToolId =
   | "character"
   | "image"
   | "video"
+  | "sound"
   | "text"
   | "kling"
   | "edit"

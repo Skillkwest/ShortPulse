@@ -12,6 +12,7 @@ export const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
   "Files",
   "text/plain",
   "text/reference-url",
+  "text/reference-render-url",
   "text/reference-id",
   "text/reference-origin",
   "image/url",
@@ -21,6 +22,9 @@ export const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
 export const BLOCKED_STYLE_IMAGE_SOURCE_ERROR = "blocked-style-image-source";
 export const BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE =
   "This image source blocks browser access. Download the image and drop the file directly.";
+export const EXPIRED_STYLE_IMAGE_SOURCE_ERROR = "expired-style-image-source";
+export const EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE =
+  "That reference image URL expired. Re-open or re-add the image, then drag it again.";
 
 export const STYLE_EXTRACTION_TELEMETRY_SOURCE = "telemetry.ai_studio.style_extraction";
 export const STYLE_EXTRACTION_TELEMETRY_FAMILY = "style_extraction";

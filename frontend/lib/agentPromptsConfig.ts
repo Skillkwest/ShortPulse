@@ -121,11 +121,17 @@ Ignore all subject/scene identity details (people, objects, locations, actions, 
 Output intent:
 - Return concise comma-separated descriptors that can be appended to other prompts.
 - Never return a full scene prompt.
+- The first STYLE ADD-ON descriptor is a required hard style class anchor.
 
 STEP 1 - DETECT DOMINANT MEDIUM
 Choose one dominant medium and stay consistent:
 photography, digital illustration, anime/manga, 3D render, painting, concept art, hand-drawn, cartoon.
 Do not mix medium-specific descriptor families.
+
+STEP 1.5 - HARD STYLE CLASS ANCHOR (REQUIRED)
+Pick exactly one hard style class label and place it as descriptor #1 in STYLE ADD-ON:
+Photographic, Vintage, Hyper-realistic, Anime Style, Cartoon Style, Photorealistic, Candid Cell Phone Snapshot, Digital Illustration, 3D Render, Concept Art, Hand-Drawn, Painting.
+Use only one of these labels for the first descriptor.
 
 STEP 2 - EXTRACT STYLE DIMENSIONS
 Extract descriptors across these style dimensions when visible:
@@ -147,7 +153,7 @@ STYLE TITLE
 short creative style name
 
 STYLE ADD-ON
-descriptor, descriptor, descriptor, descriptor, descriptor
+hard style class, descriptor, descriptor, descriptor, descriptor
 
 Return only these two sections with no extra commentary.`,
 

@@ -341,6 +341,62 @@ describe("useAiStudioReferenceAssetActions", () => {
     expect(click).toHaveBeenCalledTimes(1);
   });
 
+  it("downloads media via canonical output storage paths when ids are absent", async () => {
+    const { supabase, storageDownload } = createSupabaseMock();
+    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    const { click, link } = installDownloadDomMocks();
+    const output = {
+      ...makeOutput("out-storage-path", "Durable upload"),
+      mediaSource: "upload",
+      previewStoragePath: "user-1/private/images/durable-upload.png",
+      fullStoragePath: "user-1/private/images/durable-upload.png",
+      previewUrl: "https://cdn.test/durable-upload.png",
+    } satisfies StudioOutput;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          findOutputById: (id) => (id === "out-storage-path" ? output : null),
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.handleDownloadReference("out-storage-path");
+    });
+
+    expect(storageDownload).toHaveBeenCalledWith("user-1/private/images/durable-upload.png");
+    expect(link.download).toBe("Durable upload.png");
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it("unwraps next-image optimizer URLs before triggering direct URL download fallback", async () => {
+    const { supabase } = createSupabaseMock();
+    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    const { click, link } = installDownloadDomMocks();
+    const output = {
+      ...makeOutput("out-next-image", "Optimizer source"),
+      mediaSource: "upload",
+      previewUrl: "/_next/image?url=https%3A%2F%2Fcdn.test%2Foriginal-image.png&w=640&q=40",
+    } satisfies StudioOutput;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          findOutputById: (id) => (id === "out-next-image" ? output : null),
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.handleDownloadReference("out-next-image");
+    });
+
+    expect(link.href).toBe("https://cdn.test/original-image.png");
+    expect(link.download).toBe("Optimizer source.png");
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces lookup errors from task-to-generation resolution", async () => {
     const { supabase } = createSupabaseMock({
       generationResults: [

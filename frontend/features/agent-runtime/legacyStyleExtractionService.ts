@@ -8,6 +8,7 @@ import { loadAgentPrompt } from "../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../lib/agentPromptsConfig";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
+import { enforceLeadingHardStyleClass } from "./styleExtractionPromptPolicy";
 import {
   extractImageDescriptionText,
   requestOpenAiImageDescribeWithRetry,
@@ -49,7 +50,15 @@ const normalizeExtractedStylePrompt = (value: string): string | null => {
   const sanitized = sanitizeGenerationPromptText(withoutHeading);
   if (!sanitized) return null;
   const clamped = clampStylePrompt(sanitized);
-  return clamped.length > 0 ? clamped : null;
+  if (
+    clamped === STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE ||
+    clamped === STUDIO_AGENT_INFRA_FALLBACK_MESSAGE
+  ) {
+    return clamped;
+  }
+  const anchored = clampStylePrompt(enforceLeadingHardStyleClass(clamped));
+  if (!anchored) return null;
+  return anchored.length > 0 ? anchored : null;
 };
 
 const clampStyleTitle = (value: string): string => {

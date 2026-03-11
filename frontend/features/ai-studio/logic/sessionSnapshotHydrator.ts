@@ -28,6 +28,7 @@ const TOOL_IDS = new Set<ToolId>([
   "character",
   "image",
   "video",
+  "sound",
   "text",
   "kling",
   "edit",

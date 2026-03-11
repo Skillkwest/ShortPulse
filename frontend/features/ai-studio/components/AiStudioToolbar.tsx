@@ -10,6 +10,7 @@ import {
   ImageSquare,
   type IconProps,
   Person,
+  SpeakerHigh,
   Selection,
   Sliders,
   Sparkle,
@@ -60,6 +61,7 @@ const toolIcons: Record<ToolId, IconComponent> = {
   text: TextT,
   image: ImageSquare,
   video: VideoCamera,
+  sound: SpeakerHigh,
   character: Person,
   kling: VideoCamera,
   edit: Selection,
@@ -80,17 +82,20 @@ function AiStudioToolbarComponent({
   const isCreateSelected = isCreateWorkflow(selectedTool);
   const isEditSelected = isEditWorkflow(selectedTool);
   const isVideoSelected = isVideoWorkflow(selectedTool);
+  const isSoundSelected = selectedTool === "sound";
   const isCharacterSelected = isCharacterWorkflow(selectedTool);
   const isCanvasSelected = selectedTool === "canvas";
-  const activePrimary: "create" | "video" | "edit" | "canvas" | null = isCreateSelected
+  const activePrimary: "create" | "video" | "sound" | "edit" | "canvas" | null = isCreateSelected
     ? "create"
     : isVideoSelected
       ? "video"
-      : isEditSelected
-        ? "edit"
-        : isCanvasSelected
-          ? "canvas"
-          : null;
+      : isSoundSelected
+        ? "sound"
+        : isEditSelected
+          ? "edit"
+          : isCanvasSelected
+            ? "canvas"
+            : null;
 
   return (
     <aside
@@ -149,11 +154,13 @@ function AiStudioToolbarComponent({
           const isActive =
             tool.id === "video"
               ? isVideoSelected
-              : tool.id === "canvas"
-                ? isCanvasSelected
-                : tool.id === "edit"
-                  ? isEditSelected
-                  : selectedTool === tool.id;
+              : tool.id === "sound"
+                ? isSoundSelected
+                : tool.id === "canvas"
+                  ? isCanvasSelected
+                  : tool.id === "edit"
+                    ? isEditSelected
+                    : selectedTool === tool.id;
           return (
             <React.Fragment key={tool.id}>
               {tool.id === "canvas" ? <div className="toolbar-divider" aria-hidden="true" /> : null}
@@ -163,7 +170,10 @@ function AiStudioToolbarComponent({
                 data-tool-id={tool.id}
                 onClick={() => {
                   const isToggleablePrimary =
-                    tool.id === "video" || tool.id === "edit" || tool.id === "canvas";
+                    tool.id === "video" ||
+                    tool.id === "sound" ||
+                    tool.id === "edit" ||
+                    tool.id === "canvas";
                   if (isToggleablePrimary && isActive) {
                     onToggleCreateTools(false);
                     onSelectTool(null);

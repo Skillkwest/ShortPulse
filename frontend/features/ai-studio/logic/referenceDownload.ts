@@ -2,6 +2,7 @@
  * Download helpers for AI Studio reference assets.
  * Keeps storage/generation lookup and browser download behavior isolated from hooks.
  */
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import type { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
 
@@ -22,6 +23,7 @@ export type ResolvedReferenceDownloadTarget = {
     filename: string | null;
   } | null;
   generationId: string | null;
+  directUrl: string | null;
 };
 
 const INVALID_FILENAME_CHARACTERS = /[<>:"/\\|?*]/g;
@@ -29,6 +31,11 @@ const FILE_EXTENSION_PATTERN = /\.([a-z0-9]{1,8})$/i;
 const DEFAULT_PROVIDER_DOWNLOAD_TIMEOUT_MS = 10000;
 const MIN_PROVIDER_DOWNLOAD_TIMEOUT_MS = 1000;
 const MAX_PROVIDER_DOWNLOAD_TIMEOUT_MS = 60000;
+const HTTP_LIKE_PATTERN = /^https?:\/\//i;
+const DATA_LIKE_PATTERN = /^data:(image|video)\//i;
+const BLOB_LIKE_PATTERN = /^blob:/i;
+const ROOT_RELATIVE_PATTERN = /^\//;
+const NEXT_IMAGE_PATH_PATTERN = /(?:^|\/)_next\/image(?:$|\?)/i;
 
 export const REFERENCE_PROVIDER_DOWNLOAD_ERROR_MESSAGE =
   "Unable to download media from provider URL.";
@@ -73,6 +80,41 @@ const extractFilenameFromUrl = (url: string | null | undefined): string | null =
 
 const hasFileExtension = (value: string): boolean => FILE_EXTENSION_PATTERN.test(value);
 
+const isRenderableDownloadUrl = (value: string): boolean =>
+  HTTP_LIKE_PATTERN.test(value) ||
+  DATA_LIKE_PATTERN.test(value) ||
+  BLOB_LIKE_PATTERN.test(value) ||
+  ROOT_RELATIVE_PATTERN.test(value);
+
+const toRenderableDownloadUrl = (value: unknown): string | null => {
+  const trimmed = asTrimmedString(value);
+  if (!trimmed || !isRenderableDownloadUrl(trimmed)) return null;
+  return trimmed;
+};
+
+const resolveNextImageOptimizerSourceUrl = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!NEXT_IMAGE_PATH_PATTERN.test(trimmed)) return null;
+  try {
+    const parsed = new URL(trimmed, "https://shortpulse.local");
+    const source = parsed.searchParams.get("url")?.trim() ?? "";
+    if (!source) return null;
+    return source;
+  } catch {
+    return null;
+  }
+};
+
+const resolveDownloadUrlCandidate = (value: unknown): string | null => {
+  const renderable = toRenderableDownloadUrl(value);
+  if (!renderable) return null;
+  const optimizerSource = resolveNextImageOptimizerSourceUrl(renderable);
+  if (optimizerSource) {
+    return toRenderableDownloadUrl(optimizerSource) ?? optimizerSource;
+  }
+  return renderable;
+};
+
 const clampProviderDownloadTimeoutMs = (value: number | undefined): number => {
   if (!Number.isFinite(value)) return DEFAULT_PROVIDER_DOWNLOAD_TIMEOUT_MS;
   const rounded = Math.trunc(value as number);
@@ -82,12 +124,38 @@ const clampProviderDownloadTimeoutMs = (value: number | undefined): number => {
 };
 
 const toMediaFileRecord = (row: MediaFileRow | null | undefined) => {
-  const storagePath = asTrimmedString(row?.storage_path);
+  const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
   if (!storagePath) return null;
   return {
     storagePath,
     filename: sanitizeFilename(asTrimmedString(row?.filename)),
   };
+};
+
+const resolveOutputStorageFileRecord = (
+  output: Pick<StudioOutput, "previewStoragePath" | "fullStoragePath">
+): ResolvedReferenceDownloadTarget["fileRecord"] => {
+  const storagePath =
+    asCanonicalStoragePath(asTrimmedString(output.fullStoragePath)) ??
+    asCanonicalStoragePath(asTrimmedString(output.previewStoragePath));
+  if (!storagePath) return null;
+  return {
+    storagePath,
+    filename: null,
+  };
+};
+
+const resolveDirectDownloadUrl = (
+  output: Pick<StudioOutput, "resultUrls" | "previewUrl" | "fullStoragePath" | "previewStoragePath">
+): string | null => {
+  const resultUrls = Array.isArray(output.resultUrls) ? output.resultUrls : [];
+  const candidates = [
+    ...resultUrls.map((value) => resolveDownloadUrlCandidate(value)),
+    resolveDownloadUrlCandidate(output.previewUrl),
+    resolveDownloadUrlCandidate(output.fullStoragePath),
+    resolveDownloadUrlCandidate(output.previewStoragePath),
+  ];
+  return candidates.find((value): value is string => Boolean(value)) ?? null;
 };
 
 const resolveLatestMediaFileBySavedIds = async (
@@ -150,9 +218,19 @@ export const resolveReferenceDownloadTarget = async ({
   output,
   supabase,
 }: {
-  output: Pick<StudioOutput, "savedMediaIds" | "generationId" | "taskId">;
+  output: Pick<
+    StudioOutput,
+    | "savedMediaIds"
+    | "generationId"
+    | "taskId"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "previewUrl"
+    | "resultUrls"
+  >;
   supabase: SupabaseClient;
 }): Promise<ResolvedReferenceDownloadTarget> => {
+  const directUrl = resolveDirectDownloadUrl(output);
   const savedFileRecord = await resolveLatestMediaFileBySavedIds(
     supabase,
     output.savedMediaIds ?? []
@@ -161,6 +239,16 @@ export const resolveReferenceDownloadTarget = async ({
     return {
       fileRecord: savedFileRecord,
       generationId: null,
+      directUrl,
+    };
+  }
+
+  const outputStorageFileRecord = resolveOutputStorageFileRecord(output);
+  if (outputStorageFileRecord) {
+    return {
+      fileRecord: outputStorageFileRecord,
+      generationId: null,
+      directUrl,
     };
   }
 
@@ -173,6 +261,7 @@ export const resolveReferenceDownloadTarget = async ({
     return {
       fileRecord: null,
       generationId: null,
+      directUrl,
     };
   }
 
@@ -180,6 +269,7 @@ export const resolveReferenceDownloadTarget = async ({
   return {
     fileRecord: generatedFileRecord,
     generationId,
+    directUrl,
   };
 };
 
@@ -255,10 +345,39 @@ export const downloadBlobToFile = (blob: Blob, filename: string) => {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   const objectUrl = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
+  const shouldAttachNode = link instanceof Node;
   link.href = objectUrl;
   link.download = sanitizeFilename(filename) ?? "reference";
+  if (shouldAttachNode) {
+    document.body.appendChild(link);
+  }
   link.click();
+  if (shouldAttachNode) {
+    link.remove();
+  }
   window.setTimeout(() => {
     window.URL.revokeObjectURL(objectUrl);
   }, 1000);
+};
+
+/**
+ * Trigger a browser download from a renderable URL.
+ */
+export const downloadUrlToFile = (url: string, filename: string) => {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  const resolvedUrl = resolveDownloadUrlCandidate(url);
+  if (!resolvedUrl) return false;
+  const link = document.createElement("a");
+  const shouldAttachNode = link instanceof Node;
+  link.href = resolvedUrl;
+  link.download = sanitizeFilename(filename) ?? "reference";
+  link.rel = "noopener noreferrer";
+  if (shouldAttachNode) {
+    document.body.appendChild(link);
+  }
+  link.click();
+  if (shouldAttachNode) {
+    link.remove();
+  }
+  return true;
 };

@@ -43,6 +43,8 @@ Rules:
    - Extraction source: aspect-preserving bounded JPEG (`max(width,height)=1024`, no upscaling) used for `/api/ai/extract-style`.
    - Style Prompt editor enforces a `1000` character max (live counter + input clamp, near-limit warning at `900`) to keep style add-ons within the runtime prompt budget used by extraction and submit-path append behavior.
 3. Extraction calls `/api/ai/extract-style` through client helper with bounded per-attempt timeout, overall deadline cap, and transient-only retries.
+   - Extraction normalization enforces a deterministic leading hard style class descriptor as the first `stylePrompt` token.
+   - Current hard style class set: `Photographic`, `Vintage`, `Hyper-realistic`, `Anime Style`, `Cartoon Style`, `Photorealistic`, `Candid Cell Phone Snapshot`, `Digital Illustration`, `3D Render`, `Concept Art`, `Hand-Drawn`, `Painting`.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
 5. Create/save path persists normalized details; optional metadata is attached when available.
 6. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
@@ -61,6 +63,7 @@ Rules:
 - Runtime kill switch: set `NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED=false` to force legacy style-line output.
 2. Prompt-writing guidance for stronger adherence:
 - Keep user prompt task-oriented, then add style intent in style prompt fields with explicit visual dimensions:
+  - first descriptor = one hard style class anchor,
   - palette,
   - lighting,
   - contrast,
@@ -115,6 +118,8 @@ Failure class mapping:
 - `fallback`/`unknown`: normalized residual classes for deterministic reporting.
 
 ## Verification checklist
+- `npm -C frontend run test -- features/agent-runtime/__tests__/styleExtractionPromptPolicy.test.ts`
+- `npm -C frontend run test -- lib/__tests__/agentPromptsConfig.test.ts`
 - `npm -C frontend run test -- features/ai-studio/components/style-creator/__tests__/extraction.test.ts`
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/styleDetailsNormalization.test.ts`
 - `npm -C frontend run test -- features/ai-studio/components/__tests__/StylesLibraryPanel.test.tsx`

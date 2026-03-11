@@ -7,6 +7,7 @@ import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
+import { downloadUrlToFile } from "../logic/referenceDownload";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 
 type DetailModalProps = {
@@ -468,12 +469,7 @@ export function DetailModal({
       return;
     }
     if (!displayPreviewUrl || typeof window === "undefined") return;
-    const link = document.createElement("a");
-    link.href = displayPreviewUrl;
-    link.target = "_blank";
-    link.rel = "noreferrer";
-    link.download = downloadFilename;
-    link.click();
+    downloadUrlToFile(displayPreviewUrl, downloadFilename);
   };
 
   const handlePreviewAspectLoad = useCallback(

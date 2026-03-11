@@ -64,6 +64,7 @@ describe("AiStudioToolbar", () => {
     { button: "Create", expected: "create" as const },
     { button: "Edit", expected: "edit" as const },
     { button: "Video", expected: "video" as const },
+    { button: "Sound", expected: "sound" as const },
     { button: "Canvas", expected: "canvas" as const },
     { button: "Characters", expected: "character" as const },
     { button: "Presets", expected: "presets" as const },
@@ -203,6 +204,7 @@ describe("AiStudioToolbar", () => {
     { selectedTool: "image" as const, button: "Edit" },
     { selectedTool: "video" as const, button: "Video" },
     { selectedTool: "kling" as const, button: "Video" },
+    { selectedTool: "sound" as const, button: "Sound" },
     { selectedTool: "character" as const, button: "Characters" },
     { selectedTool: "canvas" as const, button: "Canvas" },
   ])("toggles $button off when selectedTool is $selectedTool", ({ selectedTool, button }) => {

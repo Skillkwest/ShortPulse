@@ -370,6 +370,116 @@ describe("StylesLibraryPanel", () => {
     }
   });
 
+  it("shows a processing placeholder while creating a style from dropped image", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    let resolveExtraction: ((value: { stylePrompt: string; styleTitle: string }) => void) | null =
+      null;
+    vi.mocked(postExtractStyle).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveExtraction = resolve;
+        })
+    );
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
+    });
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const imageFile = new File(["mock-image-bytes"], "desktop-image.png", { type: "image/png" });
+      const transfer = {
+        files: [imageFile],
+        types: ["Files"],
+        getData: vi.fn(() => ""),
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(screen.getByText("Creating style from image...")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Processing image")).toBeInTheDocument();
+      expect(screen.getByText("Analyzing style...")).toBeInTheDocument();
+      expect(onSaveStyleDetails).not.toHaveBeenCalled();
+
+      await waitFor(() => {
+        expect(resolveExtraction).toBeTypeOf("function");
+      });
+
+      resolveExtraction?.({
+        stylePrompt: "anime style, warm palette, soft diffusion",
+        styleTitle: "Warm Anime Diffusion",
+      });
+
+      await waitFor(() => {
+        expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+      });
+      await waitFor(() => {
+        expect(screen.queryByText("Processing image")).not.toBeInTheDocument();
+      });
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
+  });
+
   it("ignores filename-like drag payload text when extraction times out", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
     vi.mocked(postExtractStyle).mockRejectedValue(
@@ -515,6 +625,66 @@ describe("StylesLibraryPanel", () => {
         expect(
           screen.getByText(
             "This image source blocks browser access. Download the image and drop the file directly."
+          )
+        ).toBeInTheDocument();
+      });
+      expect(onSaveStyleDetails).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(reportAppError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            source: "telemetry.ai_studio.style_extraction",
+            message: "style_extraction.blocked_source",
+            metadata: expect.objectContaining({
+              outcome: "blocked_source",
+              flow: "library_drop",
+            }),
+          })
+        );
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("shows deterministic guidance when dropped reference URLs have expired", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      blob: async () => new Blob([]),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const transfer = {
+        files: [],
+        types: ["text/reference-url", "text/plain"],
+        getData: vi.fn((type: string) => {
+          if (type === "text/reference-url" || type === "text/plain") {
+            return "https://cdn.example.com/expired-reference.png";
+          }
+          return "";
+        }),
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "That reference image URL expired. Re-open or re-add the image, then drag it again."
           )
         ).toBeInTheDocument();
       });

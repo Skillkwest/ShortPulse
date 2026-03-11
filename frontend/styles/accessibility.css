@@ -181,6 +181,7 @@ a:focus-visible {
   .toolbar-item[data-tool-id="create"]:hover,
   .toolbar-item[data-tool-id="kling"]:hover,
   .toolbar-item[data-tool-id="video"]:hover,
+  .toolbar-item[data-tool-id="sound"]:hover,
   .toolbar-item[data-tool-id="edit"]:hover,
   .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):hover {
     transform: none;

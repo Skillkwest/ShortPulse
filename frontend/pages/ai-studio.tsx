@@ -688,7 +688,7 @@ export default function AiStudioPage() {
 
       const toolbarTargets = Array.from(
         document.querySelectorAll<HTMLElement>(
-          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video'], .toolbar-item[data-tool-id='character'], .toolbar-item[data-tool-id='canvas']"
+          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video'], .toolbar-item[data-tool-id='sound'], .toolbar-item[data-tool-id='character'], .toolbar-item[data-tool-id='canvas']"
         )
       );
       for (let index = 0; index < toolbarSamples; index += 1) {

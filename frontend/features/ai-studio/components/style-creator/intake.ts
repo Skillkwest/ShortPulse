@@ -4,9 +4,11 @@
 import type { StylesLibraryStyleDetails } from "../../types";
 import { extractDragDropPayload } from "../../utils/dragDrop";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
+import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
   BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
   CUSTOM_STYLE_NAME_PREFIX,
+  EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
   IMAGE_FILE_EXTENSION_PATTERN,
   STYLE_EXTRACTION_MAX_DIMENSION_PX,
   STYLE_DROP_HINT_TRANSFER_TYPES,
@@ -20,6 +22,8 @@ const IMAGE_FILENAME_TEXT_PATTERN =
   /(?:^|[\\/])[^\\/\n]+\.(?:avif|bmp|gif|heic|heif|jpe?g|png|webp|tiff?)$/i;
 const CAMERA_FILENAME_STEM_PATTERN = /^(?:img|dsc|pxl|mvimg|screenshot)[-_ ]?\d[\w .:-]*$/i;
 const STYLE_IMAGE_OUTPUT_QUALITY = 0.9;
+const REFERENCE_RENDER_URL_TRANSFER_TYPE = "text/reference-render-url";
+const URLISH_TEXT_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
 
 /**
  * Returns true when a dropped file is a supported image candidate.
@@ -216,16 +220,98 @@ export const preprocessStyleImageDataUrl = async (
   };
 };
 
+const isSameOriginUrl = (value: string): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    return new URL(value, window.location.href).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
+
+const fetchDroppedImageResponse = async (sourceUrl: string): Promise<Response> => {
+  const sameOrigin = isSameOriginUrl(sourceUrl);
+  const initialResponse = sameOrigin
+    ? await fetch(sourceUrl, { credentials: "include" })
+    : await fetch(sourceUrl);
+  if ((initialResponse.status === 401 || initialResponse.status === 403) && sameOrigin) {
+    return fetchWithAuth(sourceUrl, {
+      method: "GET",
+      shortpulseLogScope: "generation",
+      shortpulseSkipErrorLogging: true,
+    });
+  }
+  return initialResponse;
+};
+
 const readImageDataUrlFromUrl = async (sourceUrl: string): Promise<string> => {
-  const response = await fetch(sourceUrl);
+  const response = await fetchDroppedImageResponse(sourceUrl);
   if (!response.ok) {
-    throw new Error("Unable to download image.");
+    throw new Error(`Unable to download image (${response.status}).`);
+  }
+  const responseContentType = response.headers?.get?.("content-type")?.trim().toLowerCase() ?? "";
+  if (responseContentType && !responseContentType.startsWith("image/")) {
+    throw new Error("Dropped URL did not resolve to an image.");
   }
   const sourceBlob = await response.blob();
   if (!(sourceBlob instanceof Blob) || sourceBlob.size <= 0) {
     throw new Error("Unable to read image.");
   }
+  if (sourceBlob.type && !sourceBlob.type.startsWith("image/")) {
+    throw new Error("Dropped URL did not resolve to an image.");
+  }
   return readFileAsDataUrl(sourceBlob);
+};
+
+const getFirstUriListValue = (value: string): string => {
+  return (
+    value
+      .split("\n")
+      .map((item) => item.trim())
+      .find(Boolean) ?? ""
+  );
+};
+
+const collectDroppedImageUrlCandidates = (
+  transfer: DataTransfer,
+  primaryCandidate: string
+): string[] => {
+  const candidates: string[] = [];
+  const pushCandidate = (value: string | null | undefined) => {
+    const normalized = value?.trim() ?? "";
+    if (!normalized) return;
+    if (!candidates.includes(normalized)) {
+      candidates.push(normalized);
+    }
+  };
+  pushCandidate(primaryCandidate);
+  pushCandidate(transfer.getData("text/reference-url"));
+  pushCandidate(transfer.getData("image/url"));
+  pushCandidate(getFirstUriListValue(transfer.getData("text/uri-list")));
+  const plainText = transfer.getData("text/plain").trim();
+  if (URLISH_TEXT_PATTERN.test(plainText)) {
+    pushCandidate(plainText);
+  }
+  // Keep rendered transfer URL as a resilient fallback (stale URL recovery),
+  // but prefer higher-fidelity canonical/source URLs first.
+  pushCandidate(transfer.getData(REFERENCE_RENDER_URL_TRANSFER_TYPE));
+  return candidates;
+};
+
+const readDroppedImageDataUrlWithRefreshFallback = async (sourceUrl: string): Promise<string> => {
+  const normalizedSourceUrl = sourceUrl.trim();
+  if (/^data:image\//i.test(normalizedSourceUrl)) {
+    return normalizedSourceUrl;
+  }
+  try {
+    return await readImageDataUrlFromUrl(normalizedSourceUrl);
+  } catch (directError) {
+    const refreshedUrl = await prepareImageUrlForSubmission(normalizedSourceUrl).catch(() => null);
+    if (!refreshedUrl || refreshedUrl.trim() === normalizedSourceUrl) {
+      throw directError;
+    }
+    return await readImageDataUrlFromUrl(refreshedUrl);
+  }
 };
 
 const findDroppedImageFile = (transfer: DataTransfer): File | null => {
@@ -303,13 +389,24 @@ export const resolveDroppedStylePreview = async (
   }
   const dragPayload = extractDragDropPayload(transfer);
   const droppedImageUrl = dragPayload.imageUrl?.trim() ?? "";
-  if (!droppedImageUrl) {
+  const droppedImageUrlCandidates = collectDroppedImageUrlCandidates(transfer, droppedImageUrl);
+  if (!droppedImageUrlCandidates.length) {
     throw new Error("missing-dropped-style-image");
   }
-  const preparedDroppedImageUrl =
-    (await prepareImageUrlForSubmission(droppedImageUrl)) ?? droppedImageUrl;
   try {
-    const sourceImageDataUrl = await readImageDataUrlFromUrl(preparedDroppedImageUrl);
+    let sourceImageDataUrl: string | null = null;
+    let lastReadError: unknown = null;
+    for (const candidateUrl of droppedImageUrlCandidates) {
+      try {
+        sourceImageDataUrl = await readDroppedImageDataUrlWithRefreshFallback(candidateUrl);
+        break;
+      } catch (error) {
+        lastReadError = error;
+      }
+    }
+    if (!sourceImageDataUrl) {
+      throw lastReadError ?? new Error("missing-dropped-style-image");
+    }
     const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
     return {
       previewImageUrl: processed.previewImageUrl,
@@ -318,10 +415,32 @@ export const resolveDroppedStylePreview = async (
     };
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : "";
+    const downloadStatusMatch = message.match(/unable to download image \((\d{3})\)/);
+    const downloadStatus = downloadStatusMatch?.[1]
+      ? Number.parseInt(downloadStatusMatch[1], 10)
+      : null;
+    const nonImageSource =
+      message.includes("dropped url did not resolve to an image") ||
+      message.includes("unable to load image") ||
+      message.includes("unable to process image") ||
+      message.includes("invalid image dimensions");
+    const expiredOrDeniedSource =
+      (typeof downloadStatus === "number" && downloadStatus >= 400 && downloadStatus < 500) ||
+      message.includes("reference url expired") ||
+      message.includes("could not be refreshed");
+    if (nonImageSource) {
+      throw new Error("missing-dropped-style-image");
+    }
+    if (expiredOrDeniedSource) {
+      throw new Error(EXPIRED_STYLE_IMAGE_SOURCE_ERROR);
+    }
     if (
+      (typeof downloadStatus === "number" && downloadStatus >= 500) ||
       message.includes("failed to fetch") ||
       message.includes("networkerror") ||
-      message.includes("cors")
+      message.includes("cors") ||
+      message.includes("tainted canvases") ||
+      message.includes("securityerror")
     ) {
       throw new Error(BLOCKED_STYLE_IMAGE_SOURCE_ERROR);
     }

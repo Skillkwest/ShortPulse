@@ -36,4 +36,11 @@ describe("agentPromptsConfig", () => {
     expect(agentPrompts.STUDIO_AGENT_SYSTEM).toContain("I cannot describe this.");
     expect(agentPrompts.OPENAI_PROMPT_SYSTEM).toContain('"I cannot rewrite this."');
   });
+
+  it("requires a hard style class anchor in style extraction output ordering", () => {
+    const styleExtractPrompt = agentPrompts.OPENAI_PROMPT_STYLE_EXTRACT;
+    expect(styleExtractPrompt).toContain("HARD STYLE CLASS ANCHOR (REQUIRED)");
+    expect(styleExtractPrompt).toContain("descriptor #1");
+    expect(styleExtractPrompt).toContain("hard style class, descriptor");
+  });
 });

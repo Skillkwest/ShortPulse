@@ -903,6 +903,40 @@ describe("ExpertEditPanelView", () => {
     expect(unselectTab).toHaveAttribute("aria-selected", "false");
   });
 
+  it("keeps in-paint and markup stroke size sliders independent in expanded modal", async () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: /markup tools/i })).getByRole("button", {
+        name: /expand markup tools/i,
+      })
+    );
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const inpaintPanel = within(expandedModal).getByRole("group", { name: /in-paint tools/i });
+    const markupPanel = within(expandedModal).getByRole("group", { name: /markup tools/i });
+
+    const inpaintStrokeSlider = within(inpaintPanel).getByRole("slider", {
+      name: /in-paint stroke size/i,
+    }) as HTMLInputElement;
+    const markupStrokeSlider = within(markupPanel).getByRole("slider", {
+      name: /stroke size/i,
+    }) as HTMLInputElement;
+
+    expect(inpaintStrokeSlider.value).toBe("26");
+    expect(markupStrokeSlider.value).toBe("26");
+
+    fireEvent.change(markupStrokeSlider, { target: { value: "77" } });
+    expect(markupStrokeSlider.value).toBe("77");
+    expect(inpaintStrokeSlider.value).toBe("26");
+
+    fireEvent.change(inpaintStrokeSlider, { target: { value: "41" } });
+    expect(inpaintStrokeSlider.value).toBe("41");
+    expect(markupStrokeSlider.value).toBe("77");
+  });
+
   it("collapses and expands inpaint controls from the skinny toggle button", () => {
     vi.useFakeTimers();
 
@@ -980,7 +1014,7 @@ describe("ExpertEditPanelView", () => {
       within(moveSettingsPanel).getByRole("button", { name: /redo move action/i })
     ).toBeInTheDocument();
     expect(
-      within(moveSettingsPanel).getByRole("button", { name: /re-center move action/i })
+      within(moveSettingsPanel).getByRole("button", { name: /center move action/i })
     ).toBeInTheDocument();
 
     fireEvent.click(inpaintButton);
@@ -1062,9 +1096,60 @@ describe("ExpertEditPanelView", () => {
 
     const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
     expect(expandedModal).toBeInTheDocument();
+    const generalModalToolbar = within(expandedModal).getByRole("group", {
+      name: /^general tools$/i,
+    });
+    const moveModalToolbar = within(expandedModal).getByRole("group", { name: /^move tools$/i });
+    const inpaintModalToolbar = within(expandedModal).getByRole("group", {
+      name: /in-paint tools/i,
+    });
     const modalToolbar = within(expandedModal).getByRole("group", { name: /markup tools/i });
+    expect(
+      Boolean(
+        generalModalToolbar.compareDocumentPosition(moveModalToolbar) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ).toBe(true);
+    expect(
+      Boolean(
+        moveModalToolbar.compareDocumentPosition(inpaintModalToolbar) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ).toBe(true);
+    expect(
+      Boolean(
+        inpaintModalToolbar.compareDocumentPosition(modalToolbar) & Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ).toBe(true);
+    expect(within(generalModalToolbar).getByText(/^general$/i)).toBeInTheDocument();
+    const generalUndoButton = within(generalModalToolbar).getByRole("button", {
+      name: /undo action/i,
+    });
+    const generalRedoButton = within(generalModalToolbar).getByRole("button", {
+      name: /redo action/i,
+    });
+    expect(generalUndoButton).toBeInTheDocument();
+    expect(generalRedoButton).toBeInTheDocument();
+    expect(generalUndoButton).not.toHaveTextContent(/undo/i);
+    expect(generalRedoButton).not.toHaveTextContent(/redo/i);
+    expect(
+      within(generalModalToolbar).getByRole("button", { name: /reset stage/i })
+    ).toBeInTheDocument();
+    expect(within(moveModalToolbar).getByText(/^move$/i)).toBeInTheDocument();
+    const modalAdjustButton = within(moveModalToolbar).getByRole("button", { name: /^adjust$/i });
+    expect(modalAdjustButton).toHaveTextContent(/^adjust$/i);
+    expect(modalAdjustButton).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(modalAdjustButton);
+    expect(modalAdjustButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
+    expect(within(inpaintModalToolbar).getByText(/^in-paint$/i)).toBeInTheDocument();
     expect(within(modalToolbar).getByText(/^markup$/i)).toBeInTheDocument();
-    const topRow = modalToolbar.querySelector(".edit-expert-inpaint-mode-row");
+
+    const markupTitle = within(modalToolbar).getByText(/^markup$/i);
+    const markupContent = markupTitle.closest(".edit-expert-markup-controls-content");
+    expect(markupContent).toBeTruthy();
+
+    const topRow = markupContent?.querySelector(".edit-expert-inpaint-mode-row");
     expect(topRow).toBeTruthy();
     expect(
       within(topRow as HTMLElement).getByRole("button", { name: /^pen$/i })
@@ -1077,7 +1162,7 @@ describe("ExpertEditPanelView", () => {
     });
     expect(clearButton).toBeInTheDocument();
 
-    const colorRow = modalToolbar.querySelector(".edit-expert-markup-color-row");
+    const colorRow = markupContent?.querySelector(".edit-expert-markup-color-row");
     expect(colorRow).toBeTruthy();
     expect(
       within(colorRow as HTMLElement).getByRole("button", { name: /markup color/i })
@@ -1306,8 +1391,10 @@ describe("ExpertEditPanelView", () => {
     expect(modalAfterZoomOut).not.toBeNull();
     expect(modalAfterZoomOut?.scale ?? 0).toBeLessThan(modalViewport?.scale ?? 0);
 
-    const modalToolbar = within(expandedModal).getByRole("group", { name: /markup tools/i });
-    fireEvent.click(within(modalToolbar).getByRole("button", { name: /recenter markup view/i }));
+    const modalPrimaryDropzone = screen.getByLabelText("Primary edit image");
+    fireEvent.contextMenu(modalPrimaryDropzone, { clientX: 300, clientY: 300 });
+    const stageMenu = screen.getByRole("menu", { name: /stage actions/i });
+    fireEvent.click(within(stageMenu).getByRole("menuitem", { name: /^recenter$/i }));
     const modalAfterRecenter = readMarkupViewportTransform(expandedModal);
     expect(modalAfterRecenter).not.toBeNull();
     expect(modalAfterRecenter?.scale ?? 0).toBeCloseTo(1, 4);
@@ -1433,7 +1520,7 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("renders adjust and expand controls in the move panel top row", async () => {
+  it("renders adjust, re-center, expand, and a functional move zoom slider", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -1447,18 +1534,72 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
     const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
     const adjustButton = within(moveSettingsPanel).getByRole("button", { name: /^adjust$/i });
+    const recenterButton = within(moveSettingsPanel).getByRole("button", {
+      name: /center move action/i,
+    });
     const expandButton = within(moveSettingsPanel).getByRole("button", {
       name: /expand markup tools/i,
     });
+    const zoomSlider = within(moveSettingsPanel).getByRole("slider", {
+      name: /zoom stage/i,
+    }) as HTMLInputElement;
     const modeRow = moveSettingsPanel.querySelector(".edit-expert-move-mode-row");
 
     expect(adjustButton).toBeInTheDocument();
+    expect(recenterButton).toBeInTheDocument();
     expect(expandButton).toBeInTheDocument();
-    expect(within(moveSettingsPanel).queryByRole("slider", { name: /zoom stage/i })).toBeNull();
-    expect(modeRow?.children).toHaveLength(2);
+    expect(zoomSlider.value).toBe("50");
+    expect(modeRow?.children).toHaveLength(3);
+    expect(readMarkupViewportTransform()?.scale ?? 0).toBeCloseTo(1, 4);
+
+    fireEvent.change(zoomSlider, { target: { value: "100" } });
+    expect(zoomSlider.value).toBe("100");
+    expect(readMarkupViewportTransform()?.scale ?? 0).toBeGreaterThan(1);
+
+    fireEvent.change(zoomSlider, { target: { value: "0" } });
+    expect(zoomSlider.value).toBe("0");
+    expect(readMarkupViewportTransform()?.scale ?? 1).toBeLessThan(1);
+
+    fireEvent.doubleClick(zoomSlider);
+    expect(zoomSlider.value).toBe("50");
+    expect(readMarkupViewportTransform()?.scale ?? 0).toBeCloseTo(1, 4);
 
     fireEvent.click(expandButton);
     expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
+  });
+
+  it("keeps stage zoom consistent when switching between move, inpaint, and markup tools", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/shared-stage-zoom-tools.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
+    const zoomSlider = within(moveSettingsPanel).getByRole("slider", {
+      name: /zoom stage/i,
+    }) as HTMLInputElement;
+    fireEvent.change(zoomSlider, { target: { value: "100" } });
+
+    const moveZoomed = readMarkupViewportTransform();
+    expect(moveZoomed).not.toBeNull();
+    expect(moveZoomed?.scale ?? 0).toBeGreaterThan(1);
+
+    fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+    const inpaintZoomed = readMarkupViewportTransform();
+    expect(inpaintZoomed).not.toBeNull();
+    expect(inpaintZoomed?.scale ?? 0).toBeCloseTo(moveZoomed?.scale ?? 0, 4);
+
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const markupZoomed = readMarkupViewportTransform();
+    expect(markupZoomed).not.toBeNull();
+    expect(markupZoomed?.scale ?? 0).toBeCloseTo(moveZoomed?.scale ?? 0, 4);
   });
 
   it("does not render a crop guide overlay in the primary stage", async () => {
@@ -1471,6 +1612,31 @@ describe("ExpertEditPanelView", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     expect(container.querySelector(".edit-expert-crop-guide-rect")).toBeNull();
+  });
+
+  it("opens stage context menu on right click with expected actions", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/context-menu-target.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    fireEvent.contextMenu(primaryDropzone, { clientX: 140, clientY: 120 });
+
+    const stageMenu = screen.getByRole("menu", { name: /stage actions/i });
+    expect(within(stageMenu).getByRole("menuitem", { name: /^recenter$/i })).toBeInTheDocument();
+    expect(within(stageMenu).getByRole("menuitem", { name: /^expand$/i })).toBeInTheDocument();
+    expect(within(stageMenu).getByRole("menuitem", { name: /^add image$/i })).toBeInTheDocument();
+    expect(
+      within(stageMenu).getByRole("menuitem", { name: /^remove image$/i })
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(stageMenu).getByRole("menuitem", { name: /^expand$/i }));
+    expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
   });
 
   it("moves the selected layer inside the primary dropzone when dragging in move mode", async () => {
@@ -1585,7 +1751,7 @@ describe("ExpertEditPanelView", () => {
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
     const undoButton = screen.getByRole("button", { name: /undo move action/i });
     const redoButton = screen.getByRole("button", { name: /redo move action/i });
-    const recenterButton = screen.getByRole("button", { name: /re-center move action/i });
+    const recenterButton = screen.getByRole("button", { name: /center move action/i });
     expect(undoButton).toBeDisabled();
     expect(redoButton).toBeDisabled();
     expect(recenterButton).toBeDisabled();
@@ -1866,7 +2032,7 @@ describe("ExpertEditPanelView", () => {
     });
 
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    const recenterButton = screen.getByRole("button", { name: /re-center move action/i });
+    const recenterButton = screen.getByRole("button", { name: /center move action/i });
     expect(recenterButton).toBeDisabled();
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -1899,6 +2065,68 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(resetTranslate.x)).toBeLessThan(0.01);
     expect(Math.abs(resetTranslate.y)).toBeLessThan(0.01);
     expect(recenterButton).toBeDisabled();
+  });
+
+  it("re-centers the selected layer when double clicking the primary stage in move mode", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/recenter-stage-double-click-target.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 261,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 50,
+      clientY: 44,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 261,
+      pointerType: "mouse",
+      clientX: 142,
+      clientY: 139,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 261,
+      pointerType: "mouse",
+      clientX: 142,
+      clientY: 139,
+    });
+
+    const movedTranslate = readFrameTranslate(frame);
+    expect(Math.abs(movedTranslate.x)).toBeGreaterThan(10);
+    expect(Math.abs(movedTranslate.y)).toBeGreaterThan(10);
+
+    fireEvent.doubleClick(primaryDropzone);
+    const resetTranslate = readFrameTranslate(frame);
+    expect(Math.abs(resetTranslate.x)).toBeLessThan(0.01);
+    expect(Math.abs(resetTranslate.y)).toBeLessThan(0.01);
   });
 
   it("resets inpaint stroke slider to default on double click", async () => {

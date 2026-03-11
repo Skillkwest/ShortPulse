@@ -6,6 +6,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   downloadBlobToFile,
+  downloadUrlToFile,
   downloadReferenceProviderBlob,
   REFERENCE_PROVIDER_DOWNLOAD_ERROR_MESSAGE,
   resolveReferenceDownloadFilename,
@@ -41,7 +42,7 @@ export const useAiStudioReferenceAssetActions = ({
           preferredFilename: resolvedTarget.fileRecord?.filename ?? null,
           prompt: target.prompt,
           outputId: target.id,
-          previewUrl: target.previewUrl ?? null,
+          previewUrl: resolvedTarget.directUrl ?? target.previewUrl ?? null,
         });
 
         if (resolvedTarget.fileRecord?.storagePath) {
@@ -57,22 +58,22 @@ export const useAiStudioReferenceAssetActions = ({
           return;
         }
 
-        if (target.previewUrl) {
+        const directUrl = resolvedTarget.directUrl ?? target.previewUrl ?? null;
+        if (directUrl) {
           const isGeneratedReference =
             target.mediaSource === "generated" || Boolean(target.generationId || target.taskId);
           if (isGeneratedReference) {
             const blob = await downloadReferenceProviderBlob({
-              url: target.previewUrl,
+              url: directUrl,
             });
             downloadBlobToFile(blob, downloadFilename);
             return;
           }
 
-          const link = document.createElement("a");
-          link.href = target.previewUrl;
-          link.rel = "noreferrer";
-          link.download = downloadFilename;
-          link.click();
+          const startedDownload = downloadUrlToFile(directUrl, downloadFilename);
+          if (!startedDownload) {
+            throw new Error("No media available to download.");
+          }
           return;
         }
         throw new Error("No media available to download.");

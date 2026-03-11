@@ -3,7 +3,7 @@
  * Presentational surface wired to the style-creator controller.
  */
 import React from "react";
-import { Prohibit, X } from "phosphor-react";
+import { CircleNotch, Prohibit, UploadSimple, X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
 import { resolveStylePreviewBackgroundImage } from "./edit/expertEditStyles";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
@@ -38,7 +38,6 @@ export type StylesLibraryPanelProps = {
 
 export function StylesLibraryPanel({
   styles,
-  selectedStyleId,
   onDeleteStyle,
   deleteError = null,
   onSaveStyleDetails,
@@ -116,7 +115,14 @@ export function StylesLibraryPanel({
           <p className="styles-library-drop-status tiny">Drop image to create a new style.</p>
         ) : null}
         {createStyleFromDropSubmitting ? (
-          <p className="styles-library-drop-status tiny subdued">Creating style from image...</p>
+          <p className="styles-library-drop-status styles-library-drop-status-processing tiny subdued">
+            <span className="styles-library-processing-inline-spinner" aria-hidden="true">
+              <CircleNotch size={12} weight="bold" />
+            </span>
+            <span role="status" aria-live="polite">
+              Creating style from image...
+            </span>
+          </p>
         ) : null}
         {stylesLibraryDropError ? (
           <p className="styles-library-drop-error tiny">{stylesLibraryDropError}</p>
@@ -130,18 +136,13 @@ export function StylesLibraryPanel({
         <div className="styles-library-grid" role="list" aria-label="Styles library tiles">
           {stylesWithNoneFirst.map((style) => {
             const isNoneStyle = style.id === NONE_STYLE_ID;
-            const isSelected = isNoneStyle
-              ? selectedStyleId == null
-              : !style.placeholder && selectedStyleId === style.id;
             return (
               <article
                 key={style.id}
                 role="listitem"
-                className={`styles-library-tile ${isSelected ? "is-selected" : ""} ${
-                  draggedStyleId === style.id ? "is-dragging" : ""
-                } ${dropTargetStyleId === style.id ? "is-drop-target" : ""} ${
-                  style.placeholder ? "is-placeholder" : ""
-                }`.trim()}
+                className={`styles-library-tile ${draggedStyleId === style.id ? "is-dragging" : ""} ${
+                  dropTargetStyleId === style.id ? "is-drop-target" : ""
+                } ${style.placeholder ? "is-placeholder" : ""}`.trim()}
                 draggable={!isNoneStyle}
                 onDragStart={
                   isNoneStyle ? undefined : (event) => handleStyleDragStart(style.id, event)
@@ -169,7 +170,6 @@ export function StylesLibraryPanel({
                   type="button"
                   className="styles-library-tile-select"
                   aria-label={`Style tile: ${style.title}${style.placeholder ? " (coming soon)" : ""}`}
-                  aria-pressed={style.placeholder ? undefined : isSelected}
                   disabled={style.placeholder}
                   onClick={() => {
                     if (style.placeholder) return;
@@ -201,6 +201,26 @@ export function StylesLibraryPanel({
               </article>
             );
           })}
+          {createStyleFromDropSubmitting ? (
+            <article
+              role="listitem"
+              className="styles-library-tile styles-library-processing-tile"
+              aria-live="polite"
+              aria-label="Processing dropped style image"
+            >
+              <div className="styles-library-processing-content" role="status">
+                <span className="styles-library-tile-title styles-library-processing-title">
+                  Processing image
+                </span>
+                <span className="styles-library-tile-preview styles-library-processing-preview">
+                  <span className="styles-library-processing-spinner" aria-hidden="true">
+                    <CircleNotch size={24} weight="bold" />
+                  </span>
+                  <span className="styles-library-processing-copy tiny">Analyzing style...</span>
+                </span>
+              </div>
+            </article>
+          ) : null}
           <article role="listitem" className="styles-library-tile styles-library-add-tile">
             <button
               type="button"
@@ -341,7 +361,16 @@ export function StylesLibraryPanel({
                       : undefined
                   }
                   aria-hidden="true"
-                />
+                >
+                  {!pendingEditPreviewImageUrl ? (
+                    <span className="styles-library-edit-dropzone-upload" aria-hidden="true">
+                      <UploadSimple size={24} weight="bold" />
+                      <span className="styles-library-edit-dropzone-upload-copy tiny">
+                        Upload image
+                      </span>
+                    </span>
+                  ) : null}
+                </span>
                 <span className="styles-library-edit-dropzone-copy">
                   Drop an image here, or click to upload.
                 </span>

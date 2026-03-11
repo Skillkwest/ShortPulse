@@ -7,8 +7,16 @@ import { postExtractStyle, prepareStyleImageUrl } from "../../logic/styleExtract
 import type { StylesLibraryStyleDetails } from "../../types";
 import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
-import { BLOCKED_STYLE_IMAGE_SOURCE_ERROR, BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE } from "./constants";
-import { buildExtractionFailureResult, isBlockedStyleSourceError } from "./extraction";
+import {
+  BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
+  BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE,
+  EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE,
+} from "./constants";
+import {
+  buildExtractionFailureResult,
+  isBlockedStyleSourceError,
+  isExpiredStyleSourceError,
+} from "./extraction";
 import {
   applyStylePreviewToPendingEdit,
   buildInitialStyleDetails,
@@ -420,7 +428,23 @@ export const useStyleCreatorController = ({
           setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
           return;
         }
-        setStylesLibraryDropError("Unable to process that dropped image.");
+        if (isExpiredStyleSourceError(error)) {
+          trackStyleExtractionOutcome("blocked_source", "library_drop", {
+            stage: "preview_source",
+            failureClass: "blocked_source",
+            errorMessage: error instanceof Error ? error.message : "unknown_error",
+          });
+          setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
+          return;
+        }
+        trackStyleExtractionOutcome("fallback", "library_drop", {
+          stage: "preview_source",
+          failureClass: "unknown",
+          errorMessage: error instanceof Error ? error.message : "unknown_error",
+        });
+        setStylesLibraryDropError(
+          "Unable to process that dropped image. Re-open or re-add the reference image, then drag again."
+        );
       } finally {
         setCreateStyleFromDropSubmitting(false);
       }

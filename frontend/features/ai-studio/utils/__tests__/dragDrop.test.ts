@@ -175,6 +175,100 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/reference-height", "900");
   });
 
+  it("writes rendered-image transfer metadata for image drags", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragImageSrc = "blob:http://localhost:3000/ref-rendered-image";
+
+    prepareReferenceDrag(event, {
+      id: "ref-rendered",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-rendered.png",
+    });
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-render-url",
+      "blob:http://localhost:3000/ref-rendered-image"
+    );
+    expect(setData).toHaveBeenCalledWith(
+      "image/url",
+      "blob:http://localhost:3000/ref-rendered-image"
+    );
+  });
+
+  it("prefers rendered snapshot data URLs for style-intake transfer metadata", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragImageSrc = "blob:http://localhost:3000/ref-rendered-image";
+    const image = document.createElement("img");
+    image.className = "reference-card-image";
+    image.setAttribute("src", "/reference.png");
+    Object.defineProperty(image, "complete", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(image, "naturalWidth", {
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(image, "naturalHeight", {
+      configurable: true,
+      value: 768,
+    });
+    dragNode.appendChild(image);
+
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,drag-snapshot",
+    });
+
+    try {
+      prepareReferenceDrag(event, {
+        id: "ref-rendered-snapshot",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        previewUrl: "https://example.com/ref-rendered.png",
+      });
+
+      expect(setData).toHaveBeenCalledWith(
+        "text/reference-render-url",
+        "data:image/jpeg;base64,drag-snapshot"
+      );
+      expect(setData).toHaveBeenCalledWith("image/url", "http://localhost:3000/reference.png");
+    } finally {
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalToDataUrl,
+      });
+    }
+  });
+
   it("extracts versioned internal reference payload metadata", () => {
     const transfer = makeTransfer({
       "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,

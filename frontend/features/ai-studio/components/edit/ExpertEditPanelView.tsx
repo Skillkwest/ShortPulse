@@ -3,6 +3,7 @@ import React from "react";
 import {
   ArrowClockwise,
   ArrowCounterClockwise,
+  ArrowsInCardinal,
   ArrowsOutSimple,
   ArrowsOutCardinal,
   CaretLeft,
@@ -349,7 +350,16 @@ const MARKUP_VIEWPORT_SCALE_MIN = 0.5;
 const MARKUP_VIEWPORT_SCALE_MAX = 4;
 const MARKUP_VIEWPORT_ZOOM_INTENSITY = 0.0018;
 const MARKUP_VIEWPORT_EPSILON = 0.001;
+const MOVE_STAGE_ZOOM_SLIDER_MIN = 0;
+const MOVE_STAGE_ZOOM_SLIDER_MAX = 100;
+const MOVE_STAGE_ZOOM_SLIDER_DEFAULT = 50;
+const MOVE_STAGE_ZOOM_SCALE_MIN = 0.5;
+const MOVE_STAGE_ZOOM_SCALE_MAX = 2;
+const STAGE_CONTEXT_MENU_WIDTH = 164;
+const STAGE_CONTEXT_MENU_HEIGHT = 172;
+const STAGE_CONTEXT_MENU_GUTTER = 8;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
+const MARKUP_STROKE_SIZE_DEFAULT = 26;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
 const INPAINT_CURSOR_DIAMETER_MAX = 52;
 const INPAINT_CURSOR_PADDING = 6;
@@ -426,10 +436,39 @@ const createIdleMarkupPanPointerSession = (): MarkupPanPointerSession => ({
 const clampMarkupViewportScale = (value: number) =>
   clampNumber(value, MARKUP_VIEWPORT_SCALE_MIN, MARKUP_VIEWPORT_SCALE_MAX);
 
-const isMarkupViewportCentered = (viewport: MarkupViewportState) =>
-  Math.abs(viewport.scale - 1) <= MARKUP_VIEWPORT_EPSILON &&
-  Math.abs(viewport.offsetX) <= MARKUP_VIEWPORT_EPSILON &&
-  Math.abs(viewport.offsetY) <= MARKUP_VIEWPORT_EPSILON;
+const resolveMoveStageZoomScale = (sliderValue: number) => {
+  const clampedValue = clampNumber(
+    sliderValue,
+    MOVE_STAGE_ZOOM_SLIDER_MIN,
+    MOVE_STAGE_ZOOM_SLIDER_MAX
+  );
+  if (clampedValue <= MOVE_STAGE_ZOOM_SLIDER_DEFAULT) {
+    const progress =
+      (clampedValue - MOVE_STAGE_ZOOM_SLIDER_MIN) /
+      (MOVE_STAGE_ZOOM_SLIDER_DEFAULT - MOVE_STAGE_ZOOM_SLIDER_MIN);
+    return MOVE_STAGE_ZOOM_SCALE_MIN + progress * (1 - MOVE_STAGE_ZOOM_SCALE_MIN);
+  }
+  const progress =
+    (clampedValue - MOVE_STAGE_ZOOM_SLIDER_DEFAULT) /
+    (MOVE_STAGE_ZOOM_SLIDER_MAX - MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
+  return 1 + progress * (MOVE_STAGE_ZOOM_SCALE_MAX - 1);
+};
+
+const resolveMoveStageZoomSliderValue = (scale: number) => {
+  const clampedScale = clampNumber(scale, MOVE_STAGE_ZOOM_SCALE_MIN, MOVE_STAGE_ZOOM_SCALE_MAX);
+  if (clampedScale <= 1) {
+    const progress = (clampedScale - MOVE_STAGE_ZOOM_SCALE_MIN) / (1 - MOVE_STAGE_ZOOM_SCALE_MIN);
+    return Math.round(
+      MOVE_STAGE_ZOOM_SLIDER_MIN +
+        progress * (MOVE_STAGE_ZOOM_SLIDER_DEFAULT - MOVE_STAGE_ZOOM_SLIDER_MIN)
+    );
+  }
+  const progress = (clampedScale - 1) / (MOVE_STAGE_ZOOM_SCALE_MAX - 1);
+  return Math.round(
+    MOVE_STAGE_ZOOM_SLIDER_DEFAULT +
+      progress * (MOVE_STAGE_ZOOM_SLIDER_MAX - MOVE_STAGE_ZOOM_SLIDER_DEFAULT)
+  );
+};
 
 const parseHexColor = (value: string): RgbColor | null => {
   const normalized = value.trim();
@@ -996,6 +1035,7 @@ export function ExpertEditPanelView({
   const markupModalRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalControlsRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalLayersRef = React.useRef<HTMLDivElement | null>(null);
+  const stageContextMenuRef = React.useRef<HTMLDivElement | null>(null);
   const markupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
   const markupColorSaturationRef = React.useRef<HTMLDivElement | null>(null);
   const markupPanPointerSessionRef = React.useRef<MarkupPanPointerSession>(
@@ -1041,6 +1081,7 @@ export function ExpertEditPanelView({
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
+  const [markupStrokeSize, setMarkupStrokeSize] = React.useState(MARKUP_STROKE_SIZE_DEFAULT);
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
   const [selectedMarkupMode, setSelectedMarkupMode] = React.useState<MarkupMode>("pen");
@@ -1055,6 +1096,19 @@ export function ExpertEditPanelView({
   const [isMarkupPanDragging, setIsMarkupPanDragging] = React.useState(false);
   const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
   const [markupModalSquareSize, setMarkupModalSquareSize] = React.useState<number | null>(null);
+  const [isMarkupModalAdjustSelected, setIsMarkupModalAdjustSelected] = React.useState(true);
+  const [stageContextMenuState, setStageContextMenuState] = React.useState<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+  }>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+  });
+  const [moveStageZoomSliderValue, setMoveStageZoomSliderValue] = React.useState(
+    MOVE_STAGE_ZOOM_SLIDER_DEFAULT
+  );
   const [, setMarkupStrokes] = React.useState<string[]>([]);
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
@@ -1121,10 +1175,6 @@ export function ExpertEditPanelView({
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
   const isPrimaryStageBusy = isRemoveBackgroundPending || isPrimaryStageGenerating;
   const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
-  const isMarkupViewportAtRest = React.useMemo(
-    () => isMarkupViewportCentered(markupViewport),
-    [markupViewport]
-  );
   const hostPrimaryImageUrl = React.useMemo(
     () =>
       selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
@@ -1219,7 +1269,7 @@ export function ExpertEditPanelView({
     : isVideoToolSelected
       ? "is-active-video"
       : "is-active-inpaint";
-  const sceneZoomScale = 1;
+  const sceneZoomScale = markupViewport.scale;
   const handlePromptTextChange = React.useCallback(
     (value: string) => {
       setShowPromptTokenInlineError(false);
@@ -1742,12 +1792,16 @@ export function ExpertEditPanelView({
   const markupViewportStyle = React.useMemo<React.CSSProperties>(() => {
     const viewport = shouldApplyMarkupViewport
       ? markupViewport
-      : createDefaultMarkupViewportState();
+      : {
+          scale: sceneZoomScale,
+          offsetX: 0,
+          offsetY: 0,
+        };
     return {
       transform: `translate3d(${Math.round(viewport.offsetX * 100) / 100}px, ${Math.round(viewport.offsetY * 100) / 100}px, 0) scale(${Math.round(viewport.scale * 10000) / 10000})`,
       transformOrigin: "center center",
     };
-  }, [markupViewport, shouldApplyMarkupViewport]);
+  }, [markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
   const primaryDropzoneStyle = React.useMemo(() => {
     const style: React.CSSProperties = {
       aspectRatio: primaryDropzoneAspectRatio,
@@ -2183,7 +2237,27 @@ export function ExpertEditPanelView({
     commitTransformHistoryTransition(nextEntry, baselineEntry);
   }, [commitTransformHistoryTransition, layers, selectedLayer]);
 
+  const handleMoveZoomSliderChange = React.useCallback((value: number) => {
+    const clampedSliderValue = clampNumber(
+      Number.isFinite(value) ? value : MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
+      MOVE_STAGE_ZOOM_SLIDER_MIN,
+      MOVE_STAGE_ZOOM_SLIDER_MAX
+    );
+    const nextSliderValue = Math.round(clampedSliderValue);
+    const nextScale = resolveMoveStageZoomScale(nextSliderValue);
+    setMoveStageZoomSliderValue(nextSliderValue);
+    setMarkupViewport((previous) =>
+      Math.abs(previous.scale - nextScale) <= MARKUP_VIEWPORT_EPSILON
+        ? previous
+        : {
+            ...previous,
+            scale: nextScale,
+          }
+    );
+  }, []);
+
   const resetMarkupViewport = React.useCallback(() => {
+    setMoveStageZoomSliderValue(MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
     setMarkupViewport(createDefaultMarkupViewportState());
     markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
     setIsMarkupPanDragging(false);
@@ -2193,6 +2267,14 @@ export function ExpertEditPanelView({
     if (!selectedLayer) return true;
     return areLayerTransformsEqual(selectedLayer.transform, defaultLayerTransform());
   }, [selectedLayer]);
+  const isMarkupViewportAtRest = React.useMemo(
+    () =>
+      Math.abs(markupViewport.scale - 1) <= MARKUP_VIEWPORT_EPSILON &&
+      Math.abs(markupViewport.offsetX) <= MARKUP_VIEWPORT_EPSILON &&
+      Math.abs(markupViewport.offsetY) <= MARKUP_VIEWPORT_EPSILON,
+    [markupViewport]
+  );
+  const isGeneralResetDisabled = isMoveTransformCentered && isMarkupViewportAtRest;
 
   const beginMarkupPanGesture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -2650,10 +2732,108 @@ export function ExpertEditPanelView({
     [handleMarkupViewportWheel, isVideoToolSelected]
   );
 
+  const closeStageContextMenu = React.useCallback(() => {
+    setStageContextMenuState((previous) =>
+      previous.isOpen ? { ...previous, isOpen: false } : previous
+    );
+  }, []);
+
+  const openStageContextMenu = React.useCallback((clientX: number, clientY: number) => {
+    if (typeof window === "undefined") return;
+    const nextX = clampNumber(
+      clientX,
+      STAGE_CONTEXT_MENU_GUTTER,
+      Math.max(
+        STAGE_CONTEXT_MENU_GUTTER,
+        window.innerWidth - STAGE_CONTEXT_MENU_WIDTH - STAGE_CONTEXT_MENU_GUTTER
+      )
+    );
+    const nextY = clampNumber(
+      clientY,
+      STAGE_CONTEXT_MENU_GUTTER,
+      Math.max(
+        STAGE_CONTEXT_MENU_GUTTER,
+        window.innerHeight - STAGE_CONTEXT_MENU_HEIGHT - STAGE_CONTEXT_MENU_GUTTER
+      )
+    );
+    setStageContextMenuState({
+      isOpen: true,
+      x: Math.round(nextX),
+      y: Math.round(nextY),
+    });
+  }, []);
+
+  const handlePrimaryDropzoneContextMenu = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      event.preventDefault();
+      openStageContextMenu(event.clientX, event.clientY);
+    },
+    [isMorePresetsSurfaceOpen, openStageContextMenu]
+  );
+
+  const handleStageContextMenuRecenter = React.useCallback(() => {
+    handleRecenterMoveAction();
+    resetMarkupViewport();
+    closeStageContextMenu();
+  }, [closeStageContextMenu, handleRecenterMoveAction, resetMarkupViewport]);
+
+  const handleStageContextMenuExpand = React.useCallback(() => {
+    setSelectedRailTool("video");
+    setIsMarkupExpandSelected(true);
+    closeStageContextMenu();
+  }, [closeStageContextMenu]);
+
+  const handleStageContextMenuAddImage = React.useCallback(() => {
+    closeStageContextMenu();
+    primaryInputRef.current?.click();
+  }, [closeStageContextMenu]);
+
+  const handleStageContextMenuRemoveImage = React.useCallback(() => {
+    const selectedLayerId = selectedLayer?.id ?? null;
+    if (!selectedLayerId) {
+      closeStageContextMenu();
+      return;
+    }
+    setLayers((previousLayers) =>
+      previousLayers.map((layer) =>
+        layer.id === selectedLayerId
+          ? {
+              ...layer,
+              name:
+                layer.id === foundationLayerId && layer.isAutoNamed
+                  ? formatLayerName(1)
+                  : layer.name,
+              imageUrl: null,
+              ownsImageUrl: false,
+              opacity: LAYER_OPACITY_DEFAULT,
+              transform: defaultLayerTransform(),
+            }
+          : layer
+      )
+    );
+    closeStageContextMenu();
+  }, [closeStageContextMenu, foundationLayerId, selectedLayer?.id]);
+
   const handlePrimaryDropzoneClick = React.useCallback(() => {
     if (isMorePresetsSurfaceOpen || hasPrimaryCompositePreview) return;
     primaryInputRef.current?.click();
   }, [hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]);
+
+  const handlePrimaryDropzoneDoubleClick = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen || !hasPrimaryCompositePreview) return;
+      if (!isMoveToolSelected) return;
+      event.preventDefault();
+      handleRecenterMoveAction();
+    },
+    [
+      handleRecenterMoveAction,
+      hasPrimaryCompositePreview,
+      isMorePresetsSurfaceOpen,
+      isMoveToolSelected,
+    ]
+  );
 
   const closeMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
@@ -2845,6 +3025,13 @@ export function ExpertEditPanelView({
   }, [layers]);
 
   React.useEffect(() => {
+    const syncedSliderValue = resolveMoveStageZoomSliderValue(markupViewport.scale);
+    setMoveStageZoomSliderValue((previous) =>
+      previous === syncedSliderValue ? previous : syncedSliderValue
+    );
+  }, [markupViewport.scale]);
+
+  React.useEffect(() => {
     if (!layers.length) {
       setSelectedLayerIndex(null);
       return;
@@ -3003,6 +3190,33 @@ export function ExpertEditPanelView({
       window.removeEventListener("keydown", handleEscape);
     };
   }, [isMarkupExpandSelected]);
+
+  React.useEffect(() => {
+    if (!stageContextMenuState.isOpen || typeof document === "undefined") return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const menuElement = stageContextMenuRef.current;
+      const targetNode = event.target as Node | null;
+      if (menuElement && targetNode && menuElement.contains(targetNode)) {
+        return;
+      }
+      closeStageContextMenu();
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      closeStageContextMenu();
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [closeStageContextMenu, stageContextMenuState.isOpen]);
+
+  React.useEffect(() => {
+    if (!isMorePresetsSurfaceOpen && !isMarkupExpandSelected) return;
+    closeStageContextMenu();
+  }, [closeStageContextMenu, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
     if (!isMarkupExpandSelected) {
@@ -3358,9 +3572,9 @@ export function ExpertEditPanelView({
             type="range"
             min={1}
             max={100}
-            value={inpaintStrokeSize}
-            onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
-            onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
+            value={markupStrokeSize}
+            onChange={(event) => setMarkupStrokeSize(Number(event.target.value))}
+            onDoubleClick={() => setMarkupStrokeSize(MARKUP_STROKE_SIZE_DEFAULT)}
             aria-label="Stroke size"
           />
         </div>
@@ -3460,20 +3674,263 @@ export function ExpertEditPanelView({
             </button>
           ) : null}
         </div>
+      </div>
+    );
+  };
+
+  const renderMoveControlsContent = (scope: "inline" | "modal") => {
+    const isModalScope = scope === "modal";
+    const isAdjustSelected = isModalScope ? isMarkupModalAdjustSelected : isMoveToolSelected;
+    const modeIconSize = isModalScope ? 18 : 16;
+    const recenterIconSize = isModalScope ? 16 : 14;
+    const zoomSliderId = isModalScope
+      ? "edit-expert-move-zoom-slider-modal"
+      : "edit-expert-move-zoom-slider";
+    return (
+      <div className="edit-expert-move-controls-content">
         {isModalScope ? (
-          <div className="edit-expert-markup-viewport-actions">
+          <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--move">
+            Move
+          </p>
+        ) : null}
+        <div
+          className={`edit-expert-move-mode-row ${isModalScope ? "edit-expert-move-mode-row--modal" : ""}`.trim()}
+          role="group"
+          aria-label="Move tool mode"
+        >
+          <button
+            type="button"
+            className={`edit-expert-move-mode-btn ${isAdjustSelected ? "is-active" : ""}`.trim()}
+            aria-pressed={isAdjustSelected}
+            aria-label="Adjust"
+            onClick={() => {
+              if (isModalScope) {
+                setIsMarkupModalAdjustSelected(true);
+                return;
+              }
+              setSelectedRailTool("move");
+            }}
+          >
+            <ArrowsOutCardinal size={modeIconSize} weight="regular" />
+            Adjust
+          </button>
+          {!isModalScope ? (
             <button
               type="button"
-              className="edit-expert-markup-recenter-btn"
-              aria-label="Recenter markup view"
-              onClick={resetMarkupViewport}
-              disabled={isMarkupViewportAtRest}
+              className="edit-expert-move-mode-btn edit-expert-move-center-btn"
+              aria-label="Center move action"
+              onClick={handleRecenterMoveAction}
+              disabled={isMoveTransformCentered}
             >
-              <ArrowsOutCardinal size={14} weight="regular" />
-              <span>Recenter</span>
+              <ArrowsInCardinal size={recenterIconSize} weight="regular" />
+              Center
+            </button>
+          ) : null}
+          {!isModalScope ? (
+            <button
+              type="button"
+              className="edit-expert-move-mode-btn edit-expert-move-expand-btn"
+              aria-label="Expand markup tools"
+              onClick={() => {
+                setSelectedRailTool("video");
+                setIsMarkupExpandSelected(true);
+              }}
+            >
+              <ArrowsOutSimple size={modeIconSize} weight="regular" />
+              Expand
+            </button>
+          ) : null}
+        </div>
+        <div className="edit-expert-move-zoom-row">
+          <label className="edit-expert-move-zoom-label" htmlFor={zoomSliderId}>
+            Zoom
+          </label>
+          <input
+            id={zoomSliderId}
+            className="edit-expert-move-zoom-slider"
+            type="range"
+            min={MOVE_STAGE_ZOOM_SLIDER_MIN}
+            max={MOVE_STAGE_ZOOM_SLIDER_MAX}
+            step={1}
+            value={moveStageZoomSliderValue}
+            onChange={(event) => handleMoveZoomSliderChange(Number(event.target.value))}
+            onDoubleClick={() => handleMoveZoomSliderChange(MOVE_STAGE_ZOOM_SLIDER_DEFAULT)}
+            aria-label="Zoom stage"
+          />
+        </div>
+        {!isModalScope ? (
+          <div className="edit-expert-move-history-row">
+            <button
+              type="button"
+              className="edit-expert-move-history-btn"
+              aria-label="Undo move action"
+              onClick={handleUndoMoveAction}
+              disabled={!canUndoTransformHistory}
+            >
+              <ArrowCounterClockwise size={14} weight="regular" />
+              Undo
+            </button>
+            <button
+              type="button"
+              className="edit-expert-move-history-btn"
+              aria-label="Redo move action"
+              onClick={handleRedoMoveAction}
+              disabled={!canRedoTransformHistory}
+            >
+              <ArrowClockwise size={14} weight="regular" />
+              Redo
             </button>
           </div>
         ) : null}
+      </div>
+    );
+  };
+
+  const renderMarkupModalGeneralPanel = () => {
+    return (
+      <div className="edit-expert-markup-modal-general-content">
+        <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--general">
+          General
+        </p>
+        <div
+          className="edit-expert-markup-modal-general-row"
+          role="group"
+          aria-label="General actions"
+        >
+          <button
+            type="button"
+            className="edit-expert-markup-modal-general-btn edit-expert-markup-modal-general-btn--icon"
+            aria-label="Undo action"
+            onClick={handleUndoMoveAction}
+            disabled={!canUndoTransformHistory}
+          >
+            <ArrowCounterClockwise size={15} weight="regular" />
+          </button>
+          <button
+            type="button"
+            className="edit-expert-markup-modal-general-btn edit-expert-markup-modal-general-btn--icon"
+            aria-label="Redo action"
+            onClick={handleRedoMoveAction}
+            disabled={!canRedoTransformHistory}
+          >
+            <ArrowClockwise size={15} weight="regular" />
+          </button>
+          <button
+            type="button"
+            className="edit-expert-markup-modal-general-btn edit-expert-markup-modal-general-btn--reset"
+            aria-label="Reset stage"
+            onClick={() => {
+              handleRecenterMoveAction();
+              resetMarkupViewport();
+            }}
+            disabled={isGeneralResetDisabled}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderMarkupModalMovePanel = () => {
+    return renderMoveControlsContent("modal");
+  };
+
+  const renderMarkupModalInpaintPanel = () => {
+    const modeIconSize = 18;
+    const strokeSizeControlId = "edit-expert-markup-modal-inpaint-stroke-size";
+    return (
+      <div className="edit-expert-markup-modal-inpaint-content">
+        <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--inpaint">
+          In-paint
+        </p>
+        <div className="edit-expert-inpaint-mode-row" role="group" aria-label="In-paint tool mode">
+          <button
+            type="button"
+            className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
+              selectedInpaintMode === "brush" ? "is-active" : ""
+            }`}
+            aria-pressed={selectedInpaintMode === "brush"}
+            aria-label="Brush"
+            onClick={() => setSelectedInpaintMode("brush")}
+          >
+            <PaintBrush size={modeIconSize} weight="regular" />
+          </button>
+          <button
+            type="button"
+            className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
+              selectedInpaintMode === "lasso" ? "is-active" : ""
+            }`}
+            aria-pressed={selectedInpaintMode === "lasso"}
+            aria-label="Lasso"
+            onClick={() => setSelectedInpaintMode("lasso")}
+          >
+            <CircleDashed size={modeIconSize} weight="regular" />
+          </button>
+          <button
+            type="button"
+            className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-clear-btn"
+            aria-label="Clear in-paint selection"
+            onClick={clearSelectedLayerMask}
+          >
+            <TrashSimple size={18} weight="regular" />
+          </button>
+        </div>
+        <div className="edit-expert-inpaint-stroke-row">
+          <label className="edit-expert-inpaint-stroke-label" htmlFor={strokeSizeControlId}>
+            Stroke Size
+          </label>
+          <input
+            id={strokeSizeControlId}
+            className="edit-expert-inpaint-stroke-slider"
+            type="range"
+            min={1}
+            max={100}
+            value={inpaintStrokeSize}
+            onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
+            onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
+            aria-label="In-paint stroke size"
+          />
+        </div>
+        <div className="edit-expert-inpaint-selection-row">
+          <div
+            className="edit-expert-inpaint-select-tabs"
+            role="tablist"
+            aria-label="In-paint selection mode"
+          >
+            <button
+              type="button"
+              className={`edit-expert-inpaint-select-tab ${
+                selectedInpaintSelectionTab === "select" ? "is-active" : ""
+              }`}
+              role="tab"
+              aria-selected={selectedInpaintSelectionTab === "select"}
+              onClick={() => setSelectedInpaintSelectionTab("select")}
+            >
+              Select
+            </button>
+            <button
+              type="button"
+              className={`edit-expert-inpaint-select-tab ${
+                selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
+              }`}
+              role="tab"
+              aria-selected={selectedInpaintSelectionTab === "unselect"}
+              onClick={() => setSelectedInpaintSelectionTab("unselect")}
+            >
+              Unselect
+            </button>
+          </div>
+          <button
+            type="button"
+            className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-invert-btn"
+            aria-label="Invert in-paint selection"
+            onClick={invertSelectedLayerMask}
+            disabled={!imageHasInteractiveMask}
+          >
+            <CircleHalf size={18} weight="regular" />
+          </button>
+        </div>
       </div>
     );
   };
@@ -3753,7 +4210,9 @@ export function ExpertEditPanelView({
             onPointerCancel={handlePrimaryPointerCancel}
             onPointerLeave={handlePrimaryPointerLeave}
             onWheel={handlePrimaryWheel}
+            onContextMenu={handlePrimaryDropzoneContextMenu}
             onClick={handlePrimaryDropzoneClick}
+            onDoubleClick={handlePrimaryDropzoneDoubleClick}
             aria-label="Primary edit image"
             aria-busy={isPrimaryStageBusy || undefined}
           >
@@ -4029,7 +4488,7 @@ export function ExpertEditPanelView({
                         </div>
                         <button
                           type="button"
-                          className="edit-expert-inpaint-action-btn"
+                          className="edit-expert-inpaint-action-btn edit-expert-inpaint-invert-btn"
                           aria-label="Invert selection"
                           onClick={invertSelectedLayerMask}
                           disabled={!imageHasInteractiveMask}
@@ -4038,7 +4497,7 @@ export function ExpertEditPanelView({
                         </button>
                         <button
                           type="button"
-                          className="edit-expert-inpaint-action-btn"
+                          className="edit-expert-inpaint-action-btn edit-expert-inpaint-clear-btn"
                           aria-label="Clear selection"
                           onClick={clearSelectedLayerMask}
                           disabled={!imageHasInteractiveMask}
@@ -4050,69 +4509,7 @@ export function ExpertEditPanelView({
                   ) : isVideoToolSelected ? (
                     renderMarkupControlsContent("inline")
                   ) : (
-                    <div className="edit-expert-move-controls-content">
-                      <div
-                        className="edit-expert-move-mode-row"
-                        role="group"
-                        aria-label="Move tool mode"
-                      >
-                        <button
-                          type="button"
-                          className={`edit-expert-move-mode-btn ${
-                            isMoveToolSelected ? "is-active" : ""
-                          }`}
-                          aria-pressed={isMoveToolSelected}
-                          aria-label="Adjust"
-                        >
-                          <ArrowsOutCardinal size={16} weight="regular" />
-                          Adjust
-                        </button>
-                        <button
-                          type="button"
-                          className="edit-expert-move-mode-btn edit-expert-move-expand-btn"
-                          aria-label="Expand markup tools"
-                          onClick={() => {
-                            setSelectedRailTool("video");
-                            setIsMarkupExpandSelected(true);
-                          }}
-                        >
-                          <ArrowsOutSimple size={16} weight="regular" />
-                          Expand
-                        </button>
-                      </div>
-                      <div className="edit-expert-move-history-row">
-                        <button
-                          type="button"
-                          className="edit-expert-move-history-btn"
-                          aria-label="Undo move action"
-                          onClick={handleUndoMoveAction}
-                          disabled={!canUndoTransformHistory}
-                        >
-                          <ArrowCounterClockwise size={14} weight="regular" />
-                          Undo
-                        </button>
-                        <button
-                          type="button"
-                          className="edit-expert-move-history-btn"
-                          aria-label="Redo move action"
-                          onClick={handleRedoMoveAction}
-                          disabled={!canRedoTransformHistory}
-                        >
-                          <ArrowClockwise size={14} weight="regular" />
-                          Redo
-                        </button>
-                        <button
-                          type="button"
-                          className="edit-expert-move-history-btn"
-                          aria-label="Re-center move action"
-                          onClick={handleRecenterMoveAction}
-                          disabled={isMoveTransformCentered}
-                        >
-                          <ArrowsOutCardinal size={14} weight="regular" />
-                          Re-center
-                        </button>
-                      </div>
-                    </div>
+                    renderMoveControlsContent("inline")
                   )}
                 </div>
               </div>
@@ -4352,13 +4749,35 @@ export function ExpertEditPanelView({
             onDragOver={handleMarkupModalDragShield}
             onDrop={handleMarkupModalDragShield}
           >
-            <div
-              ref={markupModalControlsRef}
-              className="edit-expert-markup-modal-controls-compact"
-              role="group"
-              aria-label="Markup tools"
-            >
-              {renderMarkupControlsContent("modal")}
+            <div ref={markupModalControlsRef} className="edit-expert-markup-modal-controls-column">
+              <div
+                className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--general"
+                role="group"
+                aria-label="General tools"
+              >
+                {renderMarkupModalGeneralPanel()}
+              </div>
+              <div
+                className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--move"
+                role="group"
+                aria-label="Move tools"
+              >
+                {renderMarkupModalMovePanel()}
+              </div>
+              <div
+                className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint"
+                role="group"
+                aria-label="In-paint tools"
+              >
+                {renderMarkupModalInpaintPanel()}
+              </div>
+              <div
+                className="edit-expert-markup-modal-controls-compact"
+                role="group"
+                aria-label="Markup tools"
+              >
+                {renderMarkupControlsContent("modal")}
+              </div>
             </div>
             <div
               className="edit-expert-markup-modal-stage"
@@ -4394,6 +4813,44 @@ export function ExpertEditPanelView({
             </div>
             {renderLayersToolbar("modal", markupModalLayersRef)}
           </div>
+        </div>
+      ) : null}
+
+      {stageContextMenuState.isOpen ? (
+        <div
+          ref={stageContextMenuRef}
+          className="edit-expert-stage-context-menu"
+          role="menu"
+          aria-label="Stage actions"
+          style={{
+            left: `${stageContextMenuState.x}px`,
+            top: `${stageContextMenuState.y}px`,
+          }}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <button type="button" role="menuitem" onClick={handleStageContextMenuRecenter}>
+            Recenter
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleStageContextMenuExpand}
+            disabled={isMarkupExpandSelected}
+          >
+            Expand
+          </button>
+          <button type="button" role="menuitem" onClick={handleStageContextMenuAddImage}>
+            Add Image
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            onClick={handleStageContextMenuRemoveImage}
+            disabled={!selectedLayerImageUrl}
+          >
+            Remove Image
+          </button>
         </div>
       ) : null}
 

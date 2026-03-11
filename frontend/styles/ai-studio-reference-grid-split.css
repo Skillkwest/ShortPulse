@@ -345,6 +345,11 @@
   --reference-divider-active-ring: rgba(185, 151, 255, 0.28);
 }
 
+.ai-studio-page[data-selected-tool="sound"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: #7de8c8;
+  --reference-divider-active-ring: rgba(125, 232, 200, 0.28);
+}
+
 .ai-studio-page[data-selected-tool="character"] .reference-grid-horizontal-divider-wrap {
   --reference-divider-active-color: #4ae074;
   --reference-divider-active-ring: rgba(74, 224, 116, 0.28);

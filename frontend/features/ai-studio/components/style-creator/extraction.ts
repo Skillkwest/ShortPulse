@@ -1,7 +1,7 @@
 /**
  * Extraction classification helpers for styles-library flows.
  */
-import { BLOCKED_STYLE_IMAGE_SOURCE_ERROR } from "./constants";
+import { BLOCKED_STYLE_IMAGE_SOURCE_ERROR, EXPIRED_STYLE_IMAGE_SOURCE_ERROR } from "./constants";
 import type { StyleExtractionOutcome, StyleExtractionRuntimeResult } from "./types";
 import { isStyleExtractionError } from "../../logic/styleExtraction";
 
@@ -26,10 +26,20 @@ export const isBlockedStyleSourceError = (error: unknown): boolean => {
 };
 
 /**
+ * Detects expired-source extraction failures.
+ */
+export const isExpiredStyleSourceError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  return error.message.trim().toLowerCase() === EXPIRED_STYLE_IMAGE_SOURCE_ERROR;
+};
+
+/**
  * Maps extraction exceptions to deterministic outcome categories.
  */
 export const classifyStyleExtractionOutcome = (error: unknown): StyleExtractionOutcome =>
-  isBlockedStyleSourceError(error) ? "blocked_source" : "fallback";
+  isBlockedStyleSourceError(error) || isExpiredStyleSourceError(error)
+    ? "blocked_source"
+    : "fallback";
 
 /**
  * Builds a normalized extraction runtime result for create/drop flows.
@@ -38,11 +48,12 @@ export const buildExtractionFailureResult = (error: unknown): StyleExtractionRun
   outcome: classifyStyleExtractionOutcome(error),
   sourceUrlKind: "unknown",
   errorMessage: normalizeErrorMessage(error),
-  failureClass: isBlockedStyleSourceError(error)
-    ? "blocked_source"
-    : isStyleExtractionError(error)
-      ? error.failureClass
-      : "unknown",
+  failureClass:
+    isBlockedStyleSourceError(error) || isExpiredStyleSourceError(error)
+      ? "blocked_source"
+      : isStyleExtractionError(error)
+        ? error.failureClass
+        : "unknown",
   attemptCount: isStyleExtractionError(error) ? error.attemptCount : null,
   probeMs: isStyleExtractionError(error) ? (error.probeMs ?? null) : null,
   openAiMs: isStyleExtractionError(error) ? (error.openAiMs ?? null) : null,

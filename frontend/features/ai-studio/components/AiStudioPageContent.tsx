@@ -21,6 +21,7 @@ import { CanvasPropertiesPanel } from "./canvas/CanvasPropertiesPanel";
 import { StylesLibraryPanel } from "./StylesLibraryPanel";
 import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
+import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
@@ -1013,6 +1014,7 @@ export function AiStudioPageContent({
         <EditPropertiesPanel {...propertiesImage} />
       ),
       video: <VideoPropertiesPanel {...propertiesVideo} />,
+      sound: <SoundPropertiesPanel />,
       canvas: <CanvasPropertiesPanel {...propertiesCanvas} />,
       character: (
         <CharacterPanel

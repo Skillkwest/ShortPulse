@@ -29,9 +29,9 @@ const DRAG_GHOST_SCALE = 0.68;
 const DRAG_GHOST_MIN_SIZE_PX = 108;
 const DRAG_GHOST_MAX_SIZE_PX = 244;
 const DRAG_GHOST_ASPECT_RATIO = 4 / 5;
-const DRAG_GHOST_SNAPSHOT_WIDTH = 200;
-const DRAG_GHOST_SNAPSHOT_HEIGHT = 250;
-const DRAG_GHOST_SNAPSHOT_QUALITY = 0.35;
+const DRAG_GHOST_SNAPSHOT_WIDTH = 768;
+const DRAG_GHOST_SNAPSHOT_HEIGHT = 960;
+const DRAG_GHOST_SNAPSHOT_QUALITY = 0.82;
 
 type ReferenceDragPreviewKind = "image" | "video" | "text";
 
@@ -68,6 +68,7 @@ const REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE = "text/reference-source-surface";
 const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
+const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
 
 export type InternalReferenceDragPayload = {
   version: number;
@@ -693,13 +694,25 @@ export const prepareReferenceDrag = (
   const sourceSurface = options?.sourceSurface ?? "all-refs";
   const imageIndex = Math.max(0, Math.floor(options?.imageIndex ?? 0));
   const promptText = dedupeText(output.prompt ?? output.previewText);
+  const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
+  const previewDataset = readReferenceDragPreviewDataset(dragNode);
   const previewUrl = resolveReferenceTransferUrl(output, "any");
   const imagePreviewUrl = resolveReferenceTransferUrl(output, "image");
+  const datasetImageUrl = normalizeReferenceTransferUrlCandidate(previewDataset.imageSrc);
+  const datasetPreviewUrl = normalizeReferenceTransferUrlCandidate(previewDataset.previewUrl);
+  const datasetSnapshotUrl = normalizeReferenceTransferUrlCandidate(previewDataset.snapshotSrc);
+  const renderedImageUrlCandidate =
+    (datasetImageUrl && isLikelyImageTransferUrl(datasetImageUrl) ? datasetImageUrl : null) ??
+    (datasetPreviewUrl && isLikelyImageTransferUrl(datasetPreviewUrl) ? datasetPreviewUrl : null);
+  const resolvedImageTransferUrl = renderedImageUrlCandidate ?? imagePreviewUrl ?? null;
+  const resolvedRenderedTransferUrl =
+    (datasetSnapshotUrl && isLikelyImageTransferUrl(datasetSnapshotUrl)
+      ? datasetSnapshotUrl
+      : null) ?? resolvedImageTransferUrl;
+  const resolvedReferenceTransferUrl = previewUrl ?? resolvedImageTransferUrl ?? null;
   const referenceMediaId =
     output.savedMediaIds?.[imageIndex]?.trim() ?? output.savedMediaIds?.[0]?.trim();
-  const previewImageNode = (options?.dragImage ?? event.currentTarget).querySelector(
-    ".reference-card-image"
-  );
+  const previewImageNode = dragNode.querySelector(".reference-card-image");
   const naturalWidth =
     previewImageNode instanceof HTMLImageElement && previewImageNode.naturalWidth > 0
       ? previewImageNode.naturalWidth
@@ -708,12 +721,15 @@ export const prepareReferenceDrag = (
     previewImageNode instanceof HTMLImageElement && previewImageNode.naturalHeight > 0
       ? previewImageNode.naturalHeight
       : 0;
-  if (previewUrl) {
-    transfer.setData("text/uri-list", previewUrl);
-    transfer.setData("text/reference-url", previewUrl);
-    if (imagePreviewUrl) {
-      transfer.setData("image/url", imagePreviewUrl);
-    }
+  if (resolvedReferenceTransferUrl) {
+    transfer.setData("text/uri-list", resolvedReferenceTransferUrl);
+    transfer.setData("text/reference-url", resolvedReferenceTransferUrl);
+  }
+  if (resolvedImageTransferUrl) {
+    transfer.setData("image/url", resolvedImageTransferUrl);
+  }
+  if (resolvedRenderedTransferUrl) {
+    transfer.setData(REFERENCE_TRANSFER_RENDER_URL_TYPE, resolvedRenderedTransferUrl);
   }
   if (output.id) {
     transfer.setData("text/reference-id", output.id);
@@ -733,17 +749,15 @@ export const prepareReferenceDrag = (
   if (promptText) {
     transfer.setData("text/plain", promptText);
     transfer.setData("text/prompt", promptText);
-  } else if (previewUrl) {
-    transfer.setData("text/plain", previewUrl);
+  } else if (resolvedReferenceTransferUrl) {
+    transfer.setData("text/plain", resolvedReferenceTransferUrl);
   }
 
-  const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
   if (dragNode) {
     dragNode.classList.add("is-dragging");
     // Use a dedicated drag ghost so selected-card controls never leak into drag previews.
     try {
       const rect = dragNode.getBoundingClientRect();
-      const previewDataset = readReferenceDragPreviewDataset(dragNode);
       const ghost = buildReferenceDragGhost({
         output,
         previewDataset,

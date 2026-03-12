@@ -2502,6 +2502,30 @@ describe("ExpertEditPanelView", () => {
     expect(primaryDropzone.style.cursor).toContain("crosshair");
   });
 
+  it("shows markup reticle only on the primary dropzone stage", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-reticle-source.png"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
+    expect(primaryDropzone.style.cursor).toContain("crosshair");
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(".edit-expert-markup-modal-stage");
+    expect(modalStage).toBeTruthy();
+    expect((modalStage as HTMLElement).style.cursor).toBe("");
+  });
+
   it("locks brush reticle cursor globally during active brush drawing and restores on pointer up", () => {
     render(
       <ExpertEditPanelView

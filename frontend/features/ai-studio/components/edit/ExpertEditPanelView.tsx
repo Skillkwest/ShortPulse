@@ -1812,6 +1812,7 @@ export function ExpertEditPanelView({
     selectedInpaintMode === "lasso" &&
     Boolean(selectedLayerImageUrl) &&
     imageHasInteractiveMask;
+  const shouldShowMarkupBrushReticle = isVideoToolSelected && hasPrimaryCompositePreview;
   const morePresetsSurfaceId = React.useId();
   const primaryDropzoneCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
@@ -1830,14 +1831,19 @@ export function ExpertEditPanelView({
     if (shouldShowInpaintLassoCursor) {
       return buildInpaintLassoCursor();
     }
+    if (shouldShowMarkupBrushReticle) {
+      return buildInpaintBrushReticleCursor(markupStrokeSize);
+    }
     return undefined;
   }, [
     inpaintStrokeSize,
     isTransformPointerDragging,
     isMoveToolSelected,
+    markupStrokeSize,
     selectedLayerImageUrl,
     shouldShowInpaintBrushReticle,
     shouldShowInpaintLassoCursor,
+    shouldShowMarkupBrushReticle,
   ]);
   const primaryDropzoneAspectRatio = React.useMemo(() => {
     const parsedAspectRatio = parseAspectRatioToken(aspect);

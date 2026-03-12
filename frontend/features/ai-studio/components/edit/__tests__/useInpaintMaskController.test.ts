@@ -7,6 +7,8 @@ import {
   deriveMaskContourFromAlpha,
   INPAINT_MARCHING_ANTS_DASH_PATTERN,
   INPAINT_MARCHING_ANTS_STEP_MS,
+  mapLassoPreviewPointsToOverlaySpace,
+  resolveMaskSpaceScaleFromSurface,
   resolveInpaintBrushPaintRadius,
   resolveSceneCanvasPoint,
   resolvePointerSampleEvents,
@@ -242,6 +244,34 @@ describe("useInpaintMaskController helpers", () => {
     expect(shouldRenderLassoPreview(false, "lasso")).toBe(false);
   });
 
+  it("maps lasso preview points from mask space into overlay space", () => {
+    expect(
+      mapLassoPreviewPointsToOverlaySpace({
+        points: [{ x: 200, y: 150 }],
+        maskWidth: 400,
+        maskHeight: 300,
+        overlayWidth: 800,
+        overlayHeight: 600,
+      })
+    ).toEqual([{ x: 400, y: 300 }]);
+  });
+
+  it("returns unchanged lasso preview points when spaces are already matched", () => {
+    const points = [
+      { x: 10, y: 20 },
+      { x: 30, y: 40 },
+    ];
+    expect(
+      mapLassoPreviewPointsToOverlaySpace({
+        points,
+        maskWidth: 500,
+        maskHeight: 500,
+        overlayWidth: 500,
+        overlayHeight: 500,
+      })
+    ).toBe(points);
+  });
+
   it("keeps brush paint radius visually stable by compensating for stage zoom", () => {
     const radiusAt100 = resolveInpaintBrushPaintRadius({
       strokeSize: 60,
@@ -257,6 +287,24 @@ describe("useInpaintMaskController helpers", () => {
     });
     expect(radiusAt200).toBeCloseTo(radiusAt100 / 2, 4);
     expect(radiusAt50).toBeCloseTo(radiusAt100 * 2, 4);
+  });
+
+  it("rescales brush paint radius for differing surface and mask sizes", () => {
+    const baseRadius = resolveInpaintBrushPaintRadius({
+      strokeSize: 60,
+      sceneScale: 1,
+    });
+    const scaledRadius = resolveInpaintBrushPaintRadius({
+      strokeSize: 60,
+      sceneScale: 1,
+      surfaceToMaskScale: resolveMaskSpaceScaleFromSurface({
+        surfaceWidth: 800,
+        surfaceHeight: 800,
+        maskWidth: 400,
+        maskHeight: 400,
+      }),
+    });
+    expect(scaledRadius).toBeCloseTo(baseRadius * 0.5, 4);
   });
 
   it("keeps active pointer sessions alive on leave while capture is held", () => {

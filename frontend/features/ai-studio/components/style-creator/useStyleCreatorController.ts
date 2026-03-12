@@ -10,6 +10,7 @@ import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import {
   BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
   BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE,
+  EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
   EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE,
 } from "./constants";
 import {
@@ -24,6 +25,8 @@ import {
   buildNextCustomStyleName,
   canAcceptStyleLibraryImageDropHint,
   clampStylePromptCharacters,
+  getStyleDropPreviewClassifierReason,
+  isStyleDropPreviewErrorCode,
   isDefaultCustomStyleName,
   isImageFileCandidate,
   normalizeStylePromptFallbackText,
@@ -291,19 +294,37 @@ export const useStyleCreatorController = ({
           void extractStyleForCreateDraft(extractionSourceImageUrl);
         }
       } catch (error) {
-        if (error instanceof Error && error.message === "missing-dropped-style-image") {
+        const classifierReason = getStyleDropPreviewClassifierReason(error) ?? "unknown";
+        if (isStyleDropPreviewErrorCode(error, "missing-dropped-style-image")) {
           setLocalSaveError("Please drop an image reference.");
           return;
         }
-        if (error instanceof Error && error.message === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
+        if (isStyleDropPreviewErrorCode(error, BLOCKED_STYLE_IMAGE_SOURCE_ERROR)) {
           trackStyleExtractionOutcome("blocked_source", "create_modal", {
             stage: "preview_source",
             failureClass: "blocked_source",
-            errorMessage: error.message,
+            classifierReason,
+            errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
           return;
         }
+        if (isStyleDropPreviewErrorCode(error, EXPIRED_STYLE_IMAGE_SOURCE_ERROR)) {
+          trackStyleExtractionOutcome("blocked_source", "create_modal", {
+            stage: "preview_source",
+            failureClass: "blocked_source",
+            classifierReason,
+            errorMessage: error instanceof Error ? error.message : "unknown_error",
+          });
+          setLocalSaveError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
+          return;
+        }
+        trackStyleExtractionOutcome("fallback", "create_modal", {
+          stage: "preview_source",
+          failureClass: "unknown",
+          classifierReason,
+          errorMessage: error instanceof Error ? error.message : "unknown_error",
+        });
         setLocalSaveError("Unable to process that image.");
       }
     },
@@ -418,7 +439,8 @@ export const useStyleCreatorController = ({
           return;
         }
       } catch (error) {
-        if (error instanceof Error && error.message === "missing-dropped-style-image") {
+        const classifierReason = getStyleDropPreviewClassifierReason(error) ?? "unknown";
+        if (isStyleDropPreviewErrorCode(error, "missing-dropped-style-image")) {
           setStylesLibraryDropError(
             "Drop an image from your computer, Reference Grid, or Quick Slot Inventory."
           );
@@ -428,6 +450,7 @@ export const useStyleCreatorController = ({
           trackStyleExtractionOutcome("blocked_source", "library_drop", {
             stage: "preview_source",
             failureClass: "blocked_source",
+            classifierReason,
             errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
@@ -437,6 +460,7 @@ export const useStyleCreatorController = ({
           trackStyleExtractionOutcome("blocked_source", "library_drop", {
             stage: "preview_source",
             failureClass: "blocked_source",
+            classifierReason,
             errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
@@ -445,6 +469,7 @@ export const useStyleCreatorController = ({
         trackStyleExtractionOutcome("fallback", "library_drop", {
           stage: "preview_source",
           failureClass: "unknown",
+          classifierReason,
           errorMessage: error instanceof Error ? error.message : "unknown_error",
         });
         setStylesLibraryDropError(

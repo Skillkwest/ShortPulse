@@ -420,6 +420,33 @@ describe("style-creator intake preprocessing", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it.each(["Load failed", "Network request failed", "The operation is insecure."])(
+    "maps %s dropped-image fetch errors to blocked-source error code",
+    async (networkMessage) => {
+      const transfer = {
+        files: [],
+        types: ["text/reference-url", "text/plain"],
+        getData: (type: string) => {
+          if (type === "text/reference-url") {
+            return "https://cdn.example.com/network-flaky-image.png";
+          }
+          if (type === "text/plain") return "network flaky image";
+          return "";
+        },
+      } as unknown as DataTransfer;
+      const fetchMock = vi.fn().mockRejectedValue(new TypeError(networkMessage));
+      vi.stubGlobal("fetch", fetchMock);
+
+      try {
+        await expect(resolveDroppedStylePreview(transfer)).rejects.toThrow(
+          "blocked-style-image-source"
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
+  );
 });
 
 describe("style-creator drop hint acceptance", () => {

@@ -84,6 +84,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 1. Deleting a custom folder removes that folder and its memberships; master items remain in `All Media`.
 2. Removing an item from a custom folder removes only that folder membership.
 3. Deleting an item from `All Media` permanently deletes it from the Media Library and Supabase storage/metadata.
+4. Root delete actions initiated from the item `X` button require explicit confirm/cancel before mutation.
 
 ### 7) Folder-canvas spaces
 1. Each user-created folder owns a unique canvas space.

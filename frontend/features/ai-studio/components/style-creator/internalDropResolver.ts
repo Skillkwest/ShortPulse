@@ -32,6 +32,11 @@ type ResolveStyleInternalDropCandidatesArgs = {
   sleep?: (ms: number) => Promise<void>;
   resolveSignedStorageUrl?: (storagePath: string) => Promise<string | null>;
   resolveStoragePathFromMediaId?: (mediaId: string) => Promise<string | null>;
+  resolveStoragePathFromGenerationOutput?: (args: {
+    generationId: string | null;
+    taskId: string | null;
+    imageIndex: number;
+  }) => Promise<string | null>;
 };
 
 const defaultNow = (): number => Date.now();
@@ -60,6 +65,105 @@ const defaultResolveStoragePathFromMediaId = async (mediaId: string): Promise<st
   if (error) return null;
   const storagePath = typeof data?.storage_path === "string" ? data.storage_path : null;
   return asCanonicalStoragePath(storagePath);
+};
+
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const asFiniteOutputIndex = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.trunc(value));
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (Number.isFinite(parsed)) return Math.max(0, parsed);
+  }
+  return null;
+};
+
+const resolveMetadataOutputIndex = (metadata: unknown): number | null => {
+  if (!metadata || typeof metadata !== "object") return null;
+  const metadataRecord = metadata as Record<string, unknown>;
+  const generationOutputIndex = asFiniteOutputIndex(metadataRecord.generation_output_index);
+  if (typeof generationOutputIndex === "number") return generationOutputIndex;
+  return asFiniteOutputIndex(metadataRecord.index);
+};
+
+const resolveGenerationIdByTaskId = async (taskId: string): Promise<string | null> => {
+  const normalizedTaskId = taskId.trim();
+  if (!normalizedTaskId) return null;
+  const supabase = ensureSupabaseClient();
+  const { data, error } = await supabase
+    .from("ai_generations")
+    .select("id, created_at")
+    .eq("request_id", normalizedTaskId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return asTrimmedString(data?.id);
+};
+
+const resolveStoragePathByGenerationAndIndex = async ({
+  generationId,
+  imageIndex,
+}: {
+  generationId: string;
+  imageIndex: number;
+}): Promise<string | null> => {
+  const supabase = ensureSupabaseClient();
+  const lookupByIndex = async (metadataFilter: Record<string, number>) => {
+    const { data, error } = await supabase
+      .from("media_files")
+      .select("storage_path, created_at")
+      .eq("source", "ai_studio")
+      .eq("source_ref", generationId)
+      .contains("metadata", metadataFilter)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) return null;
+    return asCanonicalStoragePath(asTrimmedString(data?.storage_path));
+  };
+
+  const generationIndexPath = await lookupByIndex({ generation_output_index: imageIndex });
+  if (generationIndexPath) return generationIndexPath;
+
+  const indexPath = await lookupByIndex({ index: imageIndex });
+  if (indexPath) return indexPath;
+
+  const { data, error } = await supabase
+    .from("media_files")
+    .select("storage_path, metadata, created_at")
+    .eq("source", "ai_studio")
+    .eq("source_ref", generationId)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  if (error || !Array.isArray(data) || !data.length) return null;
+
+  const indexedRow =
+    data.find((row) => resolveMetadataOutputIndex(row?.metadata) === imageIndex) ??
+    (data.length === 1 ? data[0] : null);
+  return asCanonicalStoragePath(asTrimmedString(indexedRow?.storage_path));
+};
+
+const defaultResolveStoragePathFromGenerationOutput = async ({
+  generationId,
+  taskId,
+  imageIndex,
+}: {
+  generationId: string | null;
+  taskId: string | null;
+  imageIndex: number;
+}): Promise<string | null> => {
+  const resolvedGenerationId =
+    generationId?.trim() || (taskId ? await resolveGenerationIdByTaskId(taskId) : null);
+  if (!resolvedGenerationId) return null;
+  return await resolveStoragePathByGenerationAndIndex({
+    generationId: resolvedGenerationId,
+    imageIndex,
+  });
 };
 
 const resolvePayloadOutputId = ({
@@ -117,6 +221,7 @@ export const resolveStyleInternalDropCandidates = async ({
   sleep = defaultSleep,
   resolveSignedStorageUrl = defaultResolveSignedStorageUrl,
   resolveStoragePathFromMediaId = defaultResolveStoragePathFromMediaId,
+  resolveStoragePathFromGenerationOutput = defaultResolveStoragePathFromGenerationOutput,
 }: ResolveStyleInternalDropCandidatesArgs): Promise<ResolvedInternalStyleDrop | null> => {
   const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
   const resolvedOutputId = resolvePayloadOutputId({
@@ -152,9 +257,26 @@ export const resolveStyleInternalDropCandidates = async ({
   }
 
   const candidates: string[] = [];
+  let resolutionReason: ResolvedInternalStyleDrop["resolutionReason"] = null;
   let storagePath = resolveOutputStoragePath(resolvedOutput);
+  if (storagePath) {
+    resolutionReason = "output_storage_path";
+  }
   if (!storagePath && resolvedMediaId) {
     storagePath = await resolveStoragePathFromMediaId(resolvedMediaId).catch(() => null);
+    if (storagePath) {
+      resolutionReason = "saved_media_lookup";
+    }
+  }
+  if (!storagePath) {
+    storagePath = await resolveStoragePathFromGenerationOutput({
+      generationId: asTrimmedString(resolvedOutput.generationId),
+      taskId: asTrimmedString(resolvedOutput.taskId),
+      imageIndex,
+    }).catch(() => null);
+    if (storagePath) {
+      resolutionReason = "generation_index_lookup";
+    }
   }
   if (storagePath) {
     const signedUrl = await resolveSignedStorageUrl(storagePath).catch(() => null);
@@ -162,13 +284,24 @@ export const resolveStyleInternalDropCandidates = async ({
   }
 
   const indexedResultUrl = resolvedOutput.resultUrls?.[imageIndex] ?? null;
+  const outputPreviewCandidate = resolveReferenceTransferUrl(resolvedOutput, "image");
   pushImageCandidate(candidates, indexedResultUrl);
-  pushImageCandidate(candidates, resolveReferenceTransferUrl(resolvedOutput, "image"));
+  pushImageCandidate(candidates, outputPreviewCandidate);
   fallbackCandidates.forEach((candidate) => pushImageCandidate(candidates, candidate));
   if (!candidates.length) return null;
+  if (!resolutionReason) {
+    if (indexedResultUrl?.trim()) {
+      resolutionReason = "result_url";
+    } else if ((outputPreviewCandidate ?? "").trim()) {
+      resolutionReason = "output_preview_url";
+    } else if (fallbackCandidates.length) {
+      resolutionReason = "payload_reference_url";
+    }
+  }
 
   return {
     imageUrlCandidates: candidates,
     promptText: resolvedOutput.prompt || resolvedOutput.previewText || null,
+    resolutionReason,
   };
 };

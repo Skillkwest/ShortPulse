@@ -10,6 +10,8 @@
   --edit-expert-accent-medium: rgba(245, 185, 66, 0.62);
   --edit-expert-accent-strong: rgba(245, 185, 66, 0.9);
   --edit-expert-accent-shadow: rgba(245, 185, 66, 0.26);
+  --edit-expert-inpaint-thumb-color: #f5b942;
+  --edit-expert-markup-thumb-color: #aa65ef;
   --ai-accent: var(--edit-expert-accent);
   --ai-accent-start: var(--edit-expert-accent-start);
   --ai-accent-soft: var(--edit-expert-accent-soft);
@@ -19,6 +21,8 @@
   --edit-expert-stage-max-width: clamp(360px, 58vw, 560px);
   --edit-expert-primary-size: clamp(352px, 33.5vw, 510px);
   --edit-expert-side-rail-width: 154px;
+  --edit-expert-side-rail-width-left: 163px;
+  --edit-expert-side-rail-width-right: 167px;
   --edit-expert-side-rail-gap: 18px;
   --edit-expert-secondary-width: clamp(72px, calc(var(--app-fixed-width) * 0.09), 92px);
   --edit-expert-secondary-aspect: 4 / 5;

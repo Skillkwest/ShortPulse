@@ -10,6 +10,22 @@ const mockFindOutputById = vi.fn(() => null);
 const mockDeleteOutputFromLifecycle = vi.fn();
 const mockNotifyGenerationFailure = vi.fn();
 const mockUpdateOutputPrompt = vi.fn();
+const getSignedMediaUrlMock = vi.fn();
+const refreshSupabaseSignedUrlIfNeededMock = vi.fn();
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
+}));
+
+vi.mock("../../utils/imageUpload", async () => {
+  const actual =
+    await vi.importActual<typeof import("../../utils/imageUpload")>("../../utils/imageUpload");
+  return {
+    ...actual,
+    refreshSupabaseSignedUrlIfNeeded: (...args: unknown[]) =>
+      refreshSupabaseSignedUrlIfNeededMock(...args),
+  };
+});
 
 vi.mock("../useAiStudioReferenceSelectionState", () => ({
   useAiStudioReferenceSelectionState: () => ({
@@ -115,6 +131,10 @@ describe("useAiStudioState output store bridge", () => {
     mockDeleteOutputFromLifecycle.mockClear();
     mockNotifyGenerationFailure.mockClear();
     mockUpdateOutputPrompt.mockClear();
+    getSignedMediaUrlMock.mockReset();
+    refreshSupabaseSignedUrlIfNeededMock.mockReset();
+    getSignedMediaUrlMock.mockResolvedValue(null);
+    refreshSupabaseSignedUrlIfNeededMock.mockImplementation(async (value: string) => value);
   });
 
   it("publishes output mutations to selector store in StrictMode", async () => {
@@ -207,6 +227,63 @@ describe("useAiStudioState output store bridge", () => {
       expect(output.prompt).toBe("Golden-hour beach portrait with soft shadows.");
       expect(output.model).toBe("forest.png");
     });
+  });
+
+  it("refreshes media-library ingest URLs from storage paths while preserving metadata labels", async () => {
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/previews/ref-fresh.png") {
+        return "https://signed.example.com/previews/ref-fresh.png";
+      }
+      if (storagePath === "user-1/full/ref-fresh.png") {
+        return "https://signed.example.com/full/ref-fresh.png";
+      }
+      return null;
+    });
+
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.addLibraryMediaReference({
+        id: "media-fresh",
+        url: "https://expired.example.com/ref-fresh.png",
+        fileType: "image",
+        filename: "ref-fresh.png",
+        promptText: "Fresh reference prompt",
+        source: "upload",
+        previewStoragePath: " user-1/previews/ref-fresh.png ",
+        fullStoragePath: " user-1/full/ref-fresh.png ",
+      });
+    });
+
+    await waitFor(() => {
+      const snapshot = getAiStudioOutputSnapshot();
+      expect(snapshot.outputOrder.length).toBe(1);
+      const outputId = snapshot.outputOrder[0];
+      const output = snapshot.outputById[outputId];
+      expect(output.previewUrl).toBe("https://signed.example.com/previews/ref-fresh.png");
+      expect(output.resultUrls).toEqual(["https://signed.example.com/full/ref-fresh.png"]);
+      expect(output.previewStoragePath).toBe("user-1/previews/ref-fresh.png");
+      expect(output.fullStoragePath).toBe("user-1/full/ref-fresh.png");
+      expect(output.savedMediaIds).toEqual(["media-fresh"]);
+      expect(output.prompt).toBe("Fresh reference prompt");
+      expect(output.model).toBe("ref-fresh.png");
+    });
+
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePath: "user-1/previews/ref-fresh.png",
+        forceRefresh: true,
+      })
+    );
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePath: "user-1/full/ref-fresh.png",
+        forceRefresh: true,
+      })
+    );
+    expect(refreshSupabaseSignedUrlIfNeededMock).not.toHaveBeenCalled();
   });
 
   it("supports media-library add -> quick-slot reorder/remove -> archive/restore flow", async () => {

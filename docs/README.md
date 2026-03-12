@@ -221,6 +221,7 @@ Start here for all repository documentation.
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 - `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
 - `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
+- `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
 
 ## Archive
 - `docs/archive/README.md`

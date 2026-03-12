@@ -169,6 +169,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   15. Inpaint lock uses shared constants from `frontend/features/ai-studio/logic/inpaintSubmission.ts` (`INPAINT_FLUX_FILL_MODEL_ID`, `INPAINT_FLUX_FILL_MODEL_LABEL`) for UI lock label and submit model identity.
   16. Expert Edit prompt-reference tokens support `@img1`, `@img2`, and `@img3` for secondary slot references, with generate-time validation blocking and submit-time Figure mapping for provider prompts.
   17. Markup mode uses stage overlays (not pixel-destructive edits): Pen draws note strokes on top of the composed stage, color picker controls new stroke color, Eraser drag removes entire intersected stroke objects, inline and expanded markup canvases share the same in-session stroke state, and markup strokes are ephemeral (not persisted to snapshot/output contracts).
+  18. Main-stage and MarkupModal-stage interaction parity is mandatory: move transform pointers, inpaint brush/lasso + overlay + clear/invert, and markup pointer/wheel behavior must route through the shared stage-interaction architecture (`useExpertEditStageInteractionRouter`) so both surfaces follow one tool lifecycle contract while preserving shared state.
 - Prompt guard policy for Edit submit is model-capability driven (`editPromptPolicy`); unknown capability defaults to prompt required.
 - Token workflow details are maintained in `docs/sops/sop_ai_studio_expert_edit_prompt_references.md` (canonical SOP for grammar, UI behavior, preflight, and compilation rules).
 

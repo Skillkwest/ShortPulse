@@ -33,6 +33,14 @@ const URLISH_TEXT_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
 export type ResolvedInternalStyleDrop = {
   imageUrlCandidates: string[];
   promptText?: string | null;
+  resolutionReason?:
+    | "output_storage_path"
+    | "saved_media_lookup"
+    | "generation_index_lookup"
+    | "result_url"
+    | "output_preview_url"
+    | "payload_reference_url"
+    | null;
 };
 
 export type ResolveInternalStyleDrop = (
@@ -41,6 +49,67 @@ export type ResolveInternalStyleDrop = (
 
 type ResolveDroppedStylePreviewOptions = {
   resolveInternalStyleDrop?: ResolveInternalStyleDrop;
+};
+
+export type StyleDropPreviewErrorCode =
+  | "missing-dropped-style-image"
+  | typeof BLOCKED_STYLE_IMAGE_SOURCE_ERROR
+  | typeof EXPIRED_STYLE_IMAGE_SOURCE_ERROR;
+
+export type StyleDropPreviewClassifierReason =
+  | "missing_drop_payload"
+  | "non_image_payload"
+  | "image_load_failed"
+  | "image_process_failed"
+  | "invalid_image_dimensions"
+  | "reference_url_expired"
+  | "reference_url_refresh_failed"
+  | "download_http_4xx"
+  | "download_http_5xx"
+  | "image_read_failed"
+  | "network_failed_to_fetch"
+  | "network_request_failed"
+  | "network_error"
+  | "network_load_failed"
+  | "network_offline"
+  | "fetch_failed"
+  | "cors_blocked"
+  | "canvas_tainted"
+  | "security_error"
+  | "request_aborted"
+  | "unknown";
+
+type StyleDropPreviewError = Error & {
+  styleDropErrorCode?: StyleDropPreviewErrorCode;
+  styleDropClassifierReason?: StyleDropPreviewClassifierReason;
+};
+
+const createStyleDropPreviewError = (
+  code: StyleDropPreviewErrorCode,
+  classifierReason: StyleDropPreviewClassifierReason
+): StyleDropPreviewError => {
+  const error = new Error(code) as StyleDropPreviewError;
+  error.styleDropErrorCode = code;
+  error.styleDropClassifierReason = classifierReason;
+  return error;
+};
+
+export const getStyleDropPreviewClassifierReason = (
+  error: unknown
+): StyleDropPreviewClassifierReason | null => {
+  if (!error || typeof error !== "object") return null;
+  const reason = (error as StyleDropPreviewError).styleDropClassifierReason;
+  if (typeof reason !== "string" || !reason.trim()) return null;
+  return reason as StyleDropPreviewClassifierReason;
+};
+
+export const isStyleDropPreviewErrorCode = (
+  error: unknown,
+  code: StyleDropPreviewErrorCode
+): boolean => {
+  if (!(error instanceof Error)) return false;
+  if (error.message === code) return true;
+  return (error as StyleDropPreviewError).styleDropErrorCode === code;
 };
 
 /**
@@ -336,6 +405,208 @@ const readDroppedImageDataUrlWithRefreshFallback = async (sourceUrl: string): Pr
   }
 };
 
+const resolveErrorDetails = (
+  error: unknown
+): { name: string; message: string; messageLower: string } => {
+  const fallback = { name: "", message: "", messageLower: "" };
+  if (!error) return fallback;
+  if (typeof error === "string") {
+    const message = error.trim();
+    return { name: "", message, messageLower: message.toLowerCase() };
+  }
+  if (typeof error === "object") {
+    const maybeRecord = error as { name?: unknown; message?: unknown };
+    const name = typeof maybeRecord.name === "string" ? maybeRecord.name.trim() : "";
+    const message = typeof maybeRecord.message === "string" ? maybeRecord.message.trim() : "";
+    if (name || message) {
+      return {
+        name,
+        message,
+        messageLower: message.toLowerCase(),
+      };
+    }
+  }
+  const message = String(error ?? "").trim();
+  return { name: "", message, messageLower: message.toLowerCase() };
+};
+
+const classifyDroppedStylePreviewError = (
+  error: unknown
+): {
+  code: StyleDropPreviewErrorCode;
+  classifierReason: StyleDropPreviewClassifierReason;
+} | null => {
+  if (isStyleDropPreviewErrorCode(error, "missing-dropped-style-image")) {
+    return {
+      code: "missing-dropped-style-image",
+      classifierReason: getStyleDropPreviewClassifierReason(error) ?? "missing_drop_payload",
+    };
+  }
+  if (isStyleDropPreviewErrorCode(error, EXPIRED_STYLE_IMAGE_SOURCE_ERROR)) {
+    return {
+      code: EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
+      classifierReason: getStyleDropPreviewClassifierReason(error) ?? "reference_url_expired",
+    };
+  }
+  if (isStyleDropPreviewErrorCode(error, BLOCKED_STYLE_IMAGE_SOURCE_ERROR)) {
+    return {
+      code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
+      classifierReason: getStyleDropPreviewClassifierReason(error) ?? "unknown",
+    };
+  }
+
+  const { name, messageLower } = resolveErrorDetails(error);
+  const nameLower = name.toLowerCase();
+  const downloadStatusMatch = messageLower.match(/unable to download image \((\d{3})\)/);
+  const downloadStatus = downloadStatusMatch?.[1]
+    ? Number.parseInt(downloadStatusMatch[1], 10)
+    : null;
+
+  if (
+    messageLower.includes("dropped url did not resolve to an image") ||
+    messageLower.includes("unable to load image") ||
+    messageLower.includes("unable to process image") ||
+    messageLower.includes("invalid image dimensions") ||
+    messageLower.includes("image could not be decoded") ||
+    messageLower.includes("cannot decode image")
+  ) {
+    if (
+      messageLower.includes("unable to load image") ||
+      messageLower.includes("image could not be decoded") ||
+      messageLower.includes("cannot decode image")
+    ) {
+      return { code: "missing-dropped-style-image", classifierReason: "image_load_failed" };
+    }
+    if (messageLower.includes("unable to process image")) {
+      return { code: "missing-dropped-style-image", classifierReason: "image_process_failed" };
+    }
+    if (messageLower.includes("invalid image dimensions")) {
+      return { code: "missing-dropped-style-image", classifierReason: "invalid_image_dimensions" };
+    }
+    return { code: "missing-dropped-style-image", classifierReason: "non_image_payload" };
+  }
+
+  const expiredOrDeniedSource =
+    (typeof downloadStatus === "number" && downloadStatus >= 400 && downloadStatus < 500) ||
+    messageLower.includes("reference url expired") ||
+    messageLower.includes("could not be refreshed");
+  if (expiredOrDeniedSource) {
+    if (messageLower.includes("could not be refreshed")) {
+      return {
+        code: EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
+        classifierReason: "reference_url_refresh_failed",
+      };
+    }
+    if (typeof downloadStatus === "number") {
+      return {
+        code: EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
+        classifierReason: "download_http_4xx",
+      };
+    }
+    return {
+      code: EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
+      classifierReason: "reference_url_expired",
+    };
+  }
+
+  if (
+    messageLower.includes("unable to read image.") ||
+    messageLower.includes("unable to read image file.") ||
+    (typeof downloadStatus === "number" && downloadStatus >= 500) ||
+    messageLower.includes("failed to fetch") ||
+    messageLower.includes("network request failed") ||
+    messageLower.includes("networkerror") ||
+    messageLower.includes("network error") ||
+    messageLower.includes("load failed") ||
+    messageLower.includes("fetch failed") ||
+    messageLower.includes("the internet connection appears to be offline") ||
+    messageLower.includes("cors") ||
+    messageLower.includes("cross-origin") ||
+    messageLower.includes("tainted canvases") ||
+    messageLower.includes("tainted canvas") ||
+    messageLower.includes("securityerror") ||
+    messageLower.includes("security error") ||
+    messageLower.includes("operation is insecure") ||
+    messageLower.includes("not allowed to load local resource") ||
+    messageLower.includes("resource has been blocked") ||
+    messageLower.includes("aborterror") ||
+    messageLower.includes("aborted") ||
+    nameLower.includes("securityerror") ||
+    nameLower.includes("networkerror") ||
+    nameLower.includes("aborterror") ||
+    (nameLower.includes("typeerror") && !messageLower)
+  ) {
+    if (typeof downloadStatus === "number" && downloadStatus >= 500) {
+      return {
+        code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
+        classifierReason: "download_http_5xx",
+      };
+    }
+    if (
+      messageLower.includes("unable to read image.") ||
+      messageLower.includes("unable to read image file.")
+    ) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "image_read_failed" };
+    }
+    if (messageLower.includes("failed to fetch")) {
+      return {
+        code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
+        classifierReason: "network_failed_to_fetch",
+      };
+    }
+    if (messageLower.includes("network request failed")) {
+      return {
+        code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
+        classifierReason: "network_request_failed",
+      };
+    }
+    if (messageLower.includes("networkerror") || messageLower.includes("network error")) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "network_error" };
+    }
+    if (messageLower.includes("load failed")) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "network_load_failed" };
+    }
+    if (messageLower.includes("fetch failed")) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "fetch_failed" };
+    }
+    if (messageLower.includes("the internet connection appears to be offline")) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "network_offline" };
+    }
+    if (messageLower.includes("cors") || messageLower.includes("cross-origin")) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "cors_blocked" };
+    }
+    if (messageLower.includes("tainted canvases") || messageLower.includes("tainted canvas")) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "canvas_tainted" };
+    }
+    if (
+      messageLower.includes("securityerror") ||
+      messageLower.includes("security error") ||
+      messageLower.includes("operation is insecure") ||
+      messageLower.includes("not allowed to load local resource") ||
+      messageLower.includes("resource has been blocked") ||
+      nameLower.includes("securityerror")
+    ) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "security_error" };
+    }
+    if (
+      messageLower.includes("aborterror") ||
+      messageLower.includes("aborted") ||
+      nameLower.includes("aborterror")
+    ) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "request_aborted" };
+    }
+    if (nameLower.includes("networkerror")) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "network_error" };
+    }
+    if (nameLower.includes("typeerror") && !messageLower) {
+      return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "fetch_failed" };
+    }
+    return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "unknown" };
+  }
+
+  return null;
+};
+
 const findDroppedImageFile = (transfer: DataTransfer): File | null => {
   const droppedFiles = Array.from(transfer.files ?? []);
   return droppedFiles.find((file) => isImageFileCandidate(file)) ?? null;
@@ -423,7 +694,7 @@ export const resolveDroppedStylePreview = async (
     internalDropResolution?.imageUrlCandidates ?? []
   );
   if (!droppedImageUrlCandidates.length) {
-    throw new Error("missing-dropped-style-image");
+    throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
   }
   const fallbackPromptText = normalizeStylePromptFallbackText(dragPayload.promptText);
   const internalPromptText = normalizeStylePromptFallbackText(internalDropResolution?.promptText);
@@ -439,7 +710,10 @@ export const resolveDroppedStylePreview = async (
       }
     }
     if (!sourceImageDataUrl) {
-      throw lastReadError ?? new Error("missing-dropped-style-image");
+      throw (
+        lastReadError ??
+        createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload")
+      );
     }
     const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
     return {
@@ -448,38 +722,9 @@ export const resolveDroppedStylePreview = async (
       promptText: fallbackPromptText || internalPromptText,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message.toLowerCase() : "";
-    const downloadStatusMatch = message.match(/unable to download image \((\d{3})\)/);
-    const downloadStatus = downloadStatusMatch?.[1]
-      ? Number.parseInt(downloadStatusMatch[1], 10)
-      : null;
-    const nonImageSource =
-      message.includes("dropped url did not resolve to an image") ||
-      message.includes("unable to load image") ||
-      message.includes("unable to process image") ||
-      message.includes("invalid image dimensions");
-    const unreadableImageSource =
-      message.includes("unable to read image.") || message.includes("unable to read image file.");
-    const expiredOrDeniedSource =
-      (typeof downloadStatus === "number" && downloadStatus >= 400 && downloadStatus < 500) ||
-      message.includes("reference url expired") ||
-      message.includes("could not be refreshed");
-    if (nonImageSource) {
-      throw new Error("missing-dropped-style-image");
-    }
-    if (expiredOrDeniedSource) {
-      throw new Error(EXPIRED_STYLE_IMAGE_SOURCE_ERROR);
-    }
-    if (
-      unreadableImageSource ||
-      (typeof downloadStatus === "number" && downloadStatus >= 500) ||
-      message.includes("failed to fetch") ||
-      message.includes("networkerror") ||
-      message.includes("cors") ||
-      message.includes("tainted canvases") ||
-      message.includes("securityerror")
-    ) {
-      throw new Error(BLOCKED_STYLE_IMAGE_SOURCE_ERROR);
+    const classifiedError = classifyDroppedStylePreviewError(error);
+    if (classifiedError) {
+      throw createStyleDropPreviewError(classifiedError.code, classifiedError.classifierReason);
     }
     throw error;
   }

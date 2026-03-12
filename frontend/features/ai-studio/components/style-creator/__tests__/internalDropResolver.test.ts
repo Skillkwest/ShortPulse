@@ -160,5 +160,66 @@ describe("resolveStyleInternalDropCandidates", () => {
     });
 
     expect(resolved?.imageUrlCandidates[0]).toBe("https://cdn.example.com/signed/lookup.png");
+    expect(resolved?.resolutionReason).toBe("saved_media_lookup");
+  });
+
+  it("uses generation/task output-index fallback when media ids and storage paths are missing", async () => {
+    const output = makeImageOutput({
+      generationId: "gen-1",
+      taskId: "req-1",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: ["https://provider.example.com/result-index-0.png"],
+      previewUrl: "https://provider.example.com/preview.png",
+      savedMediaIds: [],
+    });
+    const resolveStoragePathFromGenerationOutput = vi.fn(
+      async ({
+        generationId,
+        taskId,
+        imageIndex,
+      }: {
+        generationId: string | null;
+        taskId: string | null;
+        imageIndex: number;
+      }) => {
+        if (generationId === "gen-1" && taskId === "req-1" && imageIndex === 0) {
+          return "user-1/generations/images/generation-index-0.png";
+        }
+        return null;
+      }
+    );
+
+    const resolved = await resolveStyleInternalDropCandidates({
+      payload: makePayload({ mediaId: null }),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+      saveReferenceToLibrary: () => undefined,
+      persistTimeoutMs: 3500,
+      pollIntervalMs: 120,
+      resolveStoragePathFromGenerationOutput,
+      resolveSignedStorageUrl: async (path) =>
+        path === "user-1/generations/images/generation-index-0.png"
+          ? "https://cdn.example.com/signed/generation-index-0.png"
+          : null,
+    });
+
+    expect(resolveStoragePathFromGenerationOutput).toHaveBeenCalledWith({
+      generationId: "gen-1",
+      taskId: "req-1",
+      imageIndex: 0,
+    });
+    expect(resolved?.imageUrlCandidates).toEqual([
+      "https://cdn.example.com/signed/generation-index-0.png",
+      "https://provider.example.com/result-index-0.png",
+      "https://provider.example.com/preview.png",
+    ]);
+    expect(resolved?.resolutionReason).toBe("generation_index_lookup");
   });
 });

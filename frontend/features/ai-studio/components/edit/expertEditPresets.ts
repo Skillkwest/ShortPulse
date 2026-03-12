@@ -4,7 +4,7 @@
  */
 export const EDIT_PRESET_MORE_LABEL = "More presets" as const;
 export const EDIT_PRESET_COMPOSITE_GENERATE_LABEL = "Composite & Generate" as const;
-export const EDIT_PRESET_PANEL_MAX = 11;
+export const EDIT_PRESET_PANEL_MAX = 10;
 export const EXPERT_EDIT_PRESET_DRAG_MIME = "application/x-shortpulse-expert-edit-preset";
 export const EDIT_PRESET_DELETED_OVERRIDE_LABEL = "__shortpulse_preset_deleted__";
 export const EDIT_PRESET_DELETED_OVERRIDE_PROMPT = "__shortpulse_preset_deleted__";

@@ -16,6 +16,17 @@ const normalizeTelemetryError = (value: string | undefined): string | undefined 
   return trimmed.slice(0, 180);
 };
 
+const normalizeClassifierReason = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (!normalized.length) return undefined;
+  return normalized.slice(0, 64);
+};
+
 /**
  * Emits normalized extraction telemetry with stable metadata keys.
  */
@@ -39,6 +50,7 @@ export const trackStyleExtractionOutcome = (
       source_url_kind: metadata?.sourceUrlKind ?? "unknown",
       failure_class: failureClass,
       error_class: failureClass,
+      classifier_reason: normalizeClassifierReason(metadata?.classifierReason) ?? null,
       attempt_count:
         typeof metadata?.attemptCount === "number" && Number.isFinite(metadata.attemptCount)
           ? Math.max(0, Math.trunc(metadata.attemptCount))

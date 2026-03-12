@@ -79,7 +79,7 @@ const clampOutputSize = (value: number) =>
   Math.min(STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX, Math.max(1, Math.round(value)));
 const toRadians = (value: number) => (value * Math.PI) / 180;
 const resolveAspectRatio = (value: number | undefined) =>
-  Number.isFinite(value) && value > 0 ? value : 1;
+  typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 1;
 
 const loadImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {

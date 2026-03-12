@@ -37,6 +37,7 @@ export type StyleExtractionTelemetryMetadata = {
   sourceUrlKind?: "data" | "url" | "unknown";
   failureClass?: StyleExtractionFailureClass;
   errorMessage?: string;
+  classifierReason?: string;
   attemptCount?: number | null;
   probeMs?: number | null;
   openAiMs?: number | null;

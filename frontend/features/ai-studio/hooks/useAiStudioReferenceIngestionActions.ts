@@ -11,6 +11,7 @@ import {
   buildStudioOutputsFromReferenceInput,
   buildStudioOutputsFromReferenceInputSync,
 } from "../reference-ingestion";
+import { prepareLibraryMediaIngestionPayload } from "../reference-ingestion/prepareLibraryMediaIngestionPayload";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
@@ -143,22 +144,25 @@ export const useAiStudioReferenceIngestionActions = ({
       previewUrl?: string | null;
       fullUrl?: string | null;
     }) => {
-      const result = buildStudioOutputsFromReferenceInputSync(
-        {
-          kind: "libraryMedia",
-          source: "mediaLibrary",
-          payload,
-        },
-        {
-          mode,
-          aspect,
-          model,
-          resolveModelLabel,
-          randomId,
-        }
-      );
-      if (!result.outputs.length) return;
-      setOutputs((prev) => [...result.outputs, ...prev]);
+      void (async () => {
+        const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
+        const result = buildStudioOutputsFromReferenceInputSync(
+          {
+            kind: "libraryMedia",
+            source: "mediaLibrary",
+            payload: preparedPayload,
+          },
+          {
+            mode,
+            aspect,
+            model,
+            resolveModelLabel,
+            randomId,
+          }
+        );
+        if (!result.outputs.length) return;
+        setOutputs((prev) => [...result.outputs, ...prev]);
+      })();
     },
     [aspect, mode, model, setOutputs]
   );

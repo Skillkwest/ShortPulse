@@ -81,6 +81,16 @@ type FolderContextMenuState = {
   y: number;
 };
 
+type PendingLibraryDeleteState =
+  | {
+      kind: "media";
+      file: MediaFileRow;
+    }
+  | {
+      kind: "prompt";
+      prompt: PromptRow;
+    };
+
 type MediaLibraryPanelProps = {
   onSelectMedia: (payload: {
     id: string;
@@ -169,6 +179,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const [error, setError] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
+  const [pendingLibraryDelete, setPendingLibraryDelete] =
+    useState<PendingLibraryDeleteState | null>(null);
+  const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = useState(false);
 
   const selectedIds = EMPTY_SELECTED_IDS;
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
@@ -793,14 +806,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           storage_path: file.storage_path,
           surface: "ai-studio-media-library-panel",
         });
-        await refreshActiveRows();
       } catch (deleteError) {
         setFolderError(
           deleteError instanceof Error ? deleteError.message : "Unable to delete media."
         );
       }
     },
-    [activeFolderId, refreshActiveRows, setFolderError]
+    [activeFolderId, setFolderError]
   );
 
   const handleDeletePromptFromLibrary = useCallback(
@@ -815,15 +827,45 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         void logMediaEvent("delete", "media_prompt", prompt.id, {
           surface: "ai-studio-media-library-panel",
         });
-        await refreshActiveRows();
       } catch (deleteError) {
         setFolderError(
           deleteError instanceof Error ? deleteError.message : "Unable to delete prompt."
         );
       }
     },
-    [activeFolderId, refreshActiveRows, setFolderError]
+    [activeFolderId, setFolderError]
   );
+
+  const closeDeleteConfirm = useCallback(() => {
+    if (deleteConfirmSubmitting) return;
+    setPendingLibraryDelete(null);
+  }, [deleteConfirmSubmitting]);
+
+  const confirmDeleteFromLibrary = useCallback(async () => {
+    if (!pendingLibraryDelete) return;
+    if (deleteConfirmSubmitting) return;
+    setDeleteConfirmSubmitting(true);
+    try {
+      if (pendingLibraryDelete.kind === "media") {
+        await handleDeleteMediaFromLibrary(pendingLibraryDelete.file);
+      } else {
+        await handleDeletePromptFromLibrary(pendingLibraryDelete.prompt);
+      }
+      setPendingLibraryDelete(null);
+    } finally {
+      setDeleteConfirmSubmitting(false);
+    }
+  }, [
+    deleteConfirmSubmitting,
+    handleDeleteMediaFromLibrary,
+    handleDeletePromptFromLibrary,
+    pendingLibraryDelete,
+  ]);
+
+  useEffect(() => {
+    setPendingLibraryDelete(null);
+    setDeleteConfirmSubmitting(false);
+  }, [activeFolderId]);
 
   const foldersDropController = useMediaLibraryFolderDropController({
     folders,
@@ -1047,12 +1089,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onRemoveMediaFromFolder={(file) => {
           void handleRemoveItemFromActiveFolder({ kind: "media", id: file.id });
         }}
-        showDeleteAction={
-          AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED &&
-          activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
-        }
+        showDeleteAction={activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID}
         onDeleteMediaFromLibrary={(file) => {
-          void handleDeleteMediaFromLibrary(file);
+          setPendingLibraryDelete({
+            kind: "media",
+            file,
+          });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
         onMediaPreviewError={handleMediaPreviewError}
@@ -1133,15 +1175,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 onPromptDragStart={handlePromptCardDragStart}
                 onPromptDragEnd={handleCardDragEnd}
                 showRemoveAction={canShowFolderItemRemoveAction}
-                showDeleteAction={
-                  AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED &&
-                  activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
-                }
+                showDeleteAction={activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID}
                 onRemovePromptFromFolder={(prompt) => {
                   void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
                 }}
                 onDeletePromptFromLibrary={(prompt) => {
-                  void handleDeletePromptFromLibrary(prompt);
+                  setPendingLibraryDelete({
+                    kind: "prompt",
+                    prompt,
+                  });
                 }}
                 variant="reference-card"
               />
@@ -1524,6 +1566,44 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           >
             Delete folder
           </button>
+        </div>
+      ) : null}
+      {pendingLibraryDelete ? (
+        <div className="art-confirm-backdrop" onClick={closeDeleteConfirm}>
+          <div
+            className="art-confirm-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm delete from All Media"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="art-confirm-title">Delete from All Media?</p>
+            <p className="art-confirm-copy">
+              {pendingLibraryDelete.kind === "media"
+                ? "This permanently deletes the selected media from your library."
+                : "This permanently deletes the selected prompt from your library."}
+            </p>
+            <div className="art-confirm-actions">
+              <button
+                type="button"
+                className="art-action-btn"
+                onClick={closeDeleteConfirm}
+                disabled={deleteConfirmSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="art-action-btn art-action-btn-danger"
+                onClick={() => {
+                  void confirmDeleteFromLibrary();
+                }}
+                disabled={deleteConfirmSubmitting}
+              >
+                {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </section>

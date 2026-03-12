@@ -1339,9 +1339,15 @@ describe("ExpertEditPanelView", () => {
     const mainAspectTrigger = document.querySelector(
       ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
     ) as HTMLButtonElement | null;
+    const initialModalFrame = expandedModal.querySelector(
+      ".edit-expert-markup-modal-aspect-frame"
+    ) as HTMLDivElement | null;
 
     expect(modalAspectTrigger?.textContent ?? "").toContain("1:1");
     expect(mainAspectTrigger?.textContent ?? "").toContain("1:1");
+    expect(initialModalFrame).toBeTruthy();
+    expect(initialModalFrame?.style.width).toBe("100%");
+    expect(initialModalFrame?.style.height).toBe("100%");
 
     fireEvent.click(modalAspectTrigger as HTMLButtonElement);
     fireEvent.click(within(modalAspectGroup).getByRole("option", { name: /16:9/i }));
@@ -1356,9 +1362,15 @@ describe("ExpertEditPanelView", () => {
     const refreshedMainTrigger = document.querySelector(
       ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
     ) as HTMLButtonElement | null;
+    const refreshedModalFrame = refreshedModal.querySelector(
+      ".edit-expert-markup-modal-aspect-frame"
+    ) as HTMLDivElement | null;
 
     expect(refreshedModalTrigger?.textContent ?? "").toContain("16:9");
     expect(refreshedMainTrigger?.textContent ?? "").toContain("16:9");
+    expect(refreshedModalFrame).toBeTruthy();
+    expect(refreshedModalFrame?.style.width).toBe("100%");
+    expect(refreshedModalFrame?.style.height).toBe("56.25%");
   });
 
   it("draws markup strokes in the inline stage with the pen tool", async () => {
@@ -2733,7 +2745,7 @@ describe("ExpertEditPanelView", () => {
     expect(primaryDropzone.style.cursor).toContain("crosshair");
   });
 
-  it("shows markup reticle only on the primary dropzone stage", async () => {
+  it("shows markup reticle on both inline and expanded stages", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -2754,7 +2766,8 @@ describe("ExpertEditPanelView", () => {
     const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
     const modalStage = expandedModal.querySelector(".edit-expert-markup-modal-stage");
     expect(modalStage).toBeTruthy();
-    expect((modalStage as HTMLElement).style.cursor).toBe("");
+    expect((modalStage as HTMLElement).style.cursor).toContain("data:image/svg+xml");
+    expect((modalStage as HTMLElement).style.cursor).toContain("crosshair");
   });
 
   it("locks brush reticle cursor globally during active brush drawing and restores on pointer up", () => {
@@ -2902,8 +2915,12 @@ describe("ExpertEditPanelView", () => {
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
       .mockReturnValue({
         overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
         hasSelectedLayerMask: false,
         imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks: vi.fn(),
         clearSelectedLayerMask: vi.fn(),
         invertSelectedLayerMask: vi.fn(),
         exportSelectedLayerMaskBlob: vi.fn(async () => null),
@@ -2952,6 +2969,435 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
+  it("routes expanded modal stage pointer events to inpaint handlers and renders modal overlay", async () => {
+    const onPointerDown = vi.fn();
+    const onPointerMove = vi.fn();
+    const onPointerUp = vi.fn();
+    const clearSelectedLayerMask = vi.fn();
+    const invertSelectedLayerMask = vi.fn();
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks: vi.fn(),
+        clearSelectedLayerMask,
+        invertSelectedLayerMask,
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown,
+        onPointerMove,
+        onPointerUp,
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/primary-image.png"
+          referenceText="prompt text"
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+
+      const inpaintPanel = screen.getByRole("group", { name: /inpaint tools/i });
+      fireEvent.click(within(inpaintPanel).getByRole("button", { name: /expand markup tools/i }));
+
+      const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+      const modalStage = expandedModal.querySelector(".edit-expert-markup-modal-stage");
+      expect(modalStage).toBeTruthy();
+      expect(
+        expandedModal.querySelector(".edit-expert-inpaint-overlay-canvas")
+      ).toBeInTheDocument();
+      const modalInpaintPanel = within(expandedModal).getByRole("group", {
+        name: /in-paint tools/i,
+      });
+      fireEvent.click(within(modalInpaintPanel).getByRole("button", { name: /^brush$/i }));
+
+      fireEvent.pointerDown(modalStage as HTMLElement, {
+        pointerId: 11,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 20,
+        clientY: 20,
+      });
+      fireEvent.pointerMove(modalStage as HTMLElement, {
+        pointerId: 11,
+        pointerType: "mouse",
+        clientX: 42,
+        clientY: 36,
+      });
+      fireEvent.pointerUp(modalStage as HTMLElement, {
+        pointerId: 11,
+        pointerType: "mouse",
+        clientX: 42,
+        clientY: 36,
+      });
+      expect(onPointerDown).toHaveBeenCalledTimes(1);
+      expect(onPointerMove).toHaveBeenCalledTimes(1);
+      expect(onPointerUp).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(
+        within(modalInpaintPanel).getByRole("button", { name: /invert in-paint selection/i })
+      );
+      fireEvent.click(
+        within(modalInpaintPanel).getByRole("button", { name: /clear in-paint selection/i })
+      );
+      expect(invertSelectedLayerMask).toHaveBeenCalledTimes(1);
+      expect(clearSelectedLayerMask).toHaveBeenCalledTimes(1);
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
+  });
+
+  it("applies move, resize, and rotate transforms from the expanded modal stage", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/modal-transform-target.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+    const movePanel = screen.getByRole("group", { name: /move tools/i });
+    fireEvent.click(within(movePanel).getByRole("button", { name: /expand markup tools/i }));
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement;
+    expect(modalStage).toBeTruthy();
+    const modalMovePanel = within(expandedModal).getByRole("group", { name: /^move tools$/i });
+    fireEvent.click(within(modalMovePanel).getByRole("button", { name: /^adjust$/i }));
+    mockElementRect(modalStage, createSquareRect(240));
+
+    const modalFrame = expandedModal.querySelector(
+      ".edit-expert-primary-layer-frame"
+    ) as HTMLDivElement;
+    expect(modalFrame).toBeTruthy();
+
+    fireEvent.pointerDown(modalStage, {
+      pointerId: 41,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 120,
+      clientY: 120,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 41,
+      pointerType: "mouse",
+      clientX: 160,
+      clientY: 148,
+    });
+    fireEvent.pointerUp(modalStage, {
+      pointerId: 41,
+      pointerType: "mouse",
+      clientX: 160,
+      clientY: 148,
+    });
+    const translated = readFrameTranslate(modalFrame);
+    expect(Math.abs(translated.x)).toBeGreaterThan(10);
+    expect(Math.abs(translated.y)).toBeGreaterThan(10);
+
+    fireEvent.pointerDown(modalStage, {
+      pointerId: 42,
+      pointerType: "mouse",
+      button: 0,
+      shiftKey: true,
+      clientX: 170,
+      clientY: 120,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 42,
+      pointerType: "mouse",
+      shiftKey: true,
+      clientX: 220,
+      clientY: 120,
+    });
+    fireEvent.pointerUp(modalStage, {
+      pointerId: 42,
+      pointerType: "mouse",
+      shiftKey: true,
+      clientX: 220,
+      clientY: 120,
+    });
+    expect(readFrameScale(modalFrame)).toBeGreaterThan(1);
+
+    fireEvent.pointerDown(modalStage, {
+      pointerId: 43,
+      pointerType: "mouse",
+      button: 0,
+      altKey: true,
+      clientX: 220,
+      clientY: 120,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 43,
+      pointerType: "mouse",
+      altKey: true,
+      clientX: 120,
+      clientY: 220,
+    });
+    fireEvent.pointerUp(modalStage, {
+      pointerId: 43,
+      pointerType: "mouse",
+      altKey: true,
+      clientX: 120,
+      clientY: 220,
+    });
+    expect(Math.abs(readFrameRotationDeg(modalFrame))).toBeGreaterThan(3);
+  });
+
+  it("applies undo/redo general actions to markup strokes", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-history.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const inlineMarkupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(
+      within(inlineMarkupPanel).getByRole("button", { name: /expand markup tools/i })
+    );
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement;
+    expect(modalStage).toBeTruthy();
+    mockElementRect(modalStage, createSquareRect(240));
+
+    fireEvent.pointerDown(modalStage, {
+      pointerId: 88,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 70,
+      clientY: 70,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 88,
+      pointerType: "mouse",
+      clientX: 142,
+      clientY: 132,
+    });
+    fireEvent.pointerUp(modalStage, {
+      pointerId: 88,
+      pointerType: "mouse",
+      clientX: 142,
+      clientY: 132,
+    });
+
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBeGreaterThan(0)
+    );
+
+    const undoButton = within(expandedModal).getByRole("button", { name: /undo action/i });
+    await waitFor(() => expect(undoButton).toBeEnabled());
+    fireEvent.click(undoButton);
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBe(0)
+    );
+
+    const redoButton = within(expandedModal).getByRole("button", { name: /redo action/i });
+    await waitFor(() => expect(redoButton).toBeEnabled());
+    fireEvent.click(redoButton);
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBeGreaterThan(0)
+    );
+  });
+
+  it("supports keyboard undo/redo in the expanded markup modal", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-hotkeys.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const inlineMarkupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(
+      within(inlineMarkupPanel).getByRole("button", { name: /expand markup tools/i })
+    );
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement;
+    expect(modalStage).toBeTruthy();
+    mockElementRect(modalStage, createSquareRect(240));
+
+    fireEvent.pointerDown(modalStage, {
+      pointerId: 91,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 66,
+      clientY: 68,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 91,
+      pointerType: "mouse",
+      clientX: 146,
+      clientY: 136,
+    });
+    fireEvent.pointerUp(modalStage, {
+      pointerId: 91,
+      pointerType: "mouse",
+      clientX: 146,
+      clientY: 136,
+    });
+
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBeGreaterThan(0)
+    );
+
+    const undoButton = within(expandedModal).getByRole("button", { name: /undo action/i });
+    await waitFor(() => expect(undoButton).toBeEnabled());
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBe(0)
+    );
+
+    const redoButton = within(expandedModal).getByRole("button", { name: /redo action/i });
+    await waitFor(() => expect(redoButton).toBeEnabled());
+    fireEvent.keyDown(window, { key: "y", ctrlKey: true });
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBeGreaterThan(0)
+    );
+  });
+
+  it("applies undo and reset general actions to inpaint mutations", async () => {
+    const emptySnapshot = { layers: [] };
+    const paintedSnapshot = {
+      layers: [
+        {
+          layerId: "layer-1",
+          width: 2,
+          height: 2,
+          alpha: new Uint8ClampedArray([255, 0, 0, 0]),
+        },
+      ],
+    };
+    let currentSnapshot = emptySnapshot;
+    const restoreMaskSnapshot = vi.fn((snapshot: typeof emptySnapshot) => {
+      currentSnapshot = snapshot;
+    });
+    const clearAllMasks = vi.fn(() => {
+      currentSnapshot = emptySnapshot;
+    });
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => currentSnapshot),
+        restoreMaskSnapshot,
+        clearAllMasks,
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(() => {
+          currentSnapshot = paintedSnapshot;
+        }),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/inpaint-history.png"
+          referenceText="prompt text"
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+      const inlineInpaintPanel = screen.getByRole("group", { name: /inpaint tools/i });
+      fireEvent.click(
+        within(inlineInpaintPanel).getByRole("button", { name: /expand markup tools/i })
+      );
+
+      const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+      const modalInpaintPanel = within(expandedModal).getByRole("group", {
+        name: /in-paint tools/i,
+      });
+      fireEvent.click(within(modalInpaintPanel).getByRole("button", { name: /^brush$/i }));
+      const modalStage = expandedModal.querySelector(
+        ".edit-expert-markup-modal-stage"
+      ) as HTMLDivElement;
+      expect(modalStage).toBeTruthy();
+
+      fireEvent.pointerDown(modalStage, {
+        pointerId: 61,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 42,
+        clientY: 42,
+      });
+      fireEvent.pointerUp(modalStage, {
+        pointerId: 61,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 78,
+        clientY: 74,
+      });
+
+      fireEvent.click(within(expandedModal).getByRole("button", { name: /undo action/i }));
+      await waitFor(() => expect(restoreMaskSnapshot).toHaveBeenCalledWith(emptySnapshot));
+
+      fireEvent.pointerDown(modalStage, {
+        pointerId: 62,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 54,
+        clientY: 54,
+      });
+      fireEvent.pointerUp(modalStage, {
+        pointerId: 62,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 96,
+        clientY: 88,
+      });
+
+      fireEvent.click(within(expandedModal).getByRole("button", { name: /reset stage/i }));
+      await waitFor(() => expect(clearAllMasks).toHaveBeenCalled());
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
+  });
+
   it("suppresses inpaint pointer handlers while presets surface is open", () => {
     const onPointerDown = vi.fn();
     const onPointerMove = vi.fn();
@@ -2962,8 +3408,12 @@ describe("ExpertEditPanelView", () => {
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
       .mockReturnValue({
         overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
         hasSelectedLayerMask: false,
         imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks: vi.fn(),
         clearSelectedLayerMask: vi.fn(),
         invertSelectedLayerMask: vi.fn(),
         exportSelectedLayerMaskBlob: vi.fn(async () => null),
@@ -3964,8 +4414,12 @@ describe("ExpertEditPanelView", () => {
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
       .mockReturnValue({
         overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks: vi.fn(),
         clearSelectedLayerMask: vi.fn(),
         invertSelectedLayerMask: vi.fn(),
         exportSelectedLayerMaskBlob: exportSelectedLayerMaskBlobMock,
@@ -4059,8 +4513,12 @@ describe("ExpertEditPanelView", () => {
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
       .mockReturnValue({
         overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
         hasSelectedLayerMask: false,
         imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks: vi.fn(),
         clearSelectedLayerMask: vi.fn(),
         invertSelectedLayerMask: vi.fn(),
         exportSelectedLayerMaskBlob: vi.fn(async () => null),

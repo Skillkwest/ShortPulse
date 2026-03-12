@@ -87,7 +87,7 @@
   top: 0;
   bottom: 0;
   transform: none;
-  width: var(--edit-expert-side-rail-width);
+  width: var(--edit-expert-side-rail-width-left, var(--edit-expert-side-rail-width));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -801,7 +801,7 @@
   top: 0;
   bottom: 0;
   transform: none;
-  width: var(--edit-expert-side-rail-width);
+  width: var(--edit-expert-side-rail-width-right, var(--edit-expert-side-rail-width));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -879,7 +879,7 @@
 
 .edit-expert-layer-btn {
   width: 100%;
-  min-height: 38px;
+  min-height: 33.2px;
   padding-right: 28px;
   min-width: 0;
   cursor: inherit;
@@ -902,7 +902,7 @@
 
 .edit-expert-layer-input {
   width: 100%;
-  min-height: 38px;
+  min-height: 33px;
   border-radius: 5px;
   border: 1px solid rgba(37, 41, 47, 0.64);
   background: rgba(37, 41, 47, 0.64);
@@ -1104,6 +1104,18 @@
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+}
+
+.edit-expert-markup-modal-aspect-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  pointer-events: none;
+  border: 1px solid rgba(255, 237, 201, 0.56);
+  border-radius: 4px;
+  box-shadow: 0 0 0 9999px rgba(9, 12, 18, 0.28);
 }
 
 .edit-expert-primary-layer-loading {
@@ -1820,12 +1832,12 @@
 .edit-expert-inpaint-tool-rail-btn.is-selected-video {
   border-color: rgba(170, 101, 239, 0.92);
   background: rgba(37, 41, 47, 0.64);
-  color: rgba(214, 182, 255, 0.98);
+  color: rgba(170, 101, 239, 0.92);
   font-weight: 700;
 }
 
 .edit-expert-inpaint-tool-rail-btn.is-selected-video svg {
-  color: rgba(214, 182, 255, 0.98);
+  color: rgba(170, 101, 239, 0.92);
 }
 
 .edit-expert-inpaint-tool-rail-btn.is-selected-move:hover,
@@ -1842,8 +1854,14 @@
 
 .edit-expert-inpaint-tool-rail-btn.is-selected-video:hover,
 .edit-expert-inpaint-tool-rail-btn.is-selected-video:focus-visible {
-  border-color: rgba(170, 101, 239, 0.94);
+  border-color: rgba(170, 101, 239, 0.92);
   background: rgba(37, 41, 47, 0.64);
+  color: rgba(170, 101, 239, 0.92);
+}
+
+.edit-expert-inpaint-tool-rail-btn.is-selected-video:hover svg,
+.edit-expert-inpaint-tool-rail-btn.is-selected-video:focus-visible svg {
+  color: rgba(170, 101, 239, 0.92);
 }
 
 /* CROP TOOL - Selected State */
@@ -1966,12 +1984,12 @@
 
 .edit-expert-inpaint-controls.is-themed-inpaint
   .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb {
-  background: #f5d39a;
+  background: var(--edit-expert-inpaint-thumb-color);
 }
 
 .edit-expert-inpaint-controls.is-themed-inpaint
   .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
-  background: #f5d39a;
+  background: var(--edit-expert-inpaint-thumb-color);
 }
 
 .edit-expert-inpaint-controls.is-themed-video {
@@ -2051,11 +2069,11 @@
 
 .edit-expert-inpaint-controls.is-themed-video
   .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb {
-  background: #d6b6ff;
+  background: var(--edit-expert-markup-thumb-color);
 }
 
 .edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
-  background: #d6b6ff;
+  background: var(--edit-expert-markup-thumb-color);
 }
 
 .edit-expert-inpaint-controls.is-themed-crop {
@@ -2101,7 +2119,7 @@
 .edit-expert-inpaint-controls.is-themed-move
   .edit-expert-move-center-btn:not(:disabled):focus-visible {
   border-color: rgba(95, 215, 255, 0.62);
-  background: rgba(49, 58, 70, 0.9);
+  background: rgba(37, 41, 47, 0.64);
   color: rgba(236, 245, 255, 0.98);
   box-shadow: none;
 }
@@ -2159,7 +2177,7 @@
 
   .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-mode-btn:not(:disabled):hover {
     border-color: rgba(95, 215, 255, 0.46);
-    background: rgba(46, 54, 66, 0.78);
+    background: rgba(37, 41, 47, 0.64);
   }
 
   .edit-expert-inpaint-controls.is-themed-move .edit-expert-move-expand-btn:not(:disabled):hover,
@@ -2203,7 +2221,7 @@
   .edit-expert-inpaint-controls.is-themed-move
     .edit-expert-move-center-btn:not(:disabled):focus-visible {
     border-color: rgba(110, 224, 255, 0.72);
-    background: rgba(52, 61, 75, 0.9);
+    background: rgba(37, 41, 47, 0.64);
     box-shadow: none;
   }
 
@@ -2702,10 +2720,20 @@
 
 .edit-expert-markup-modal {
   --edit-expert-markup-modal-height: min(92vh, 960px);
-  --edit-expert-markup-modal-padding: 14px;
-  --edit-expert-markup-side-column-width: 208px;
-  --edit-expert-markup-stage-gap: 12px;
-  --edit-expert-markup-stage-inline-pad: 8px;
+  --edit-expert-markup-modal-padding: 12px;
+  --edit-expert-markup-side-column-width: 198px;
+  --edit-expert-markup-stage-gap: 10px;
+  --edit-expert-markup-stage-inline-pad: 6px;
+  --edit-expert-markup-section-padding: 10px;
+  --edit-expert-markup-section-radius: 12px;
+  --edit-expert-markup-control-height: 34px;
+  --edit-expert-markup-control-height-sm: 30px;
+  --edit-expert-markup-control-height-icon: 38px;
+  --edit-expert-markup-control-radius: 10px;
+  --edit-expert-markup-control-gap: 6px;
+  --edit-expert-markup-slider-height: 14px;
+  --edit-expert-markup-slider-track-height: 6px;
+  --edit-expert-markup-slider-thumb-size: 14px;
   position: relative;
   width: min(
     96vw,
@@ -2775,11 +2803,11 @@
   min-height: 0;
   z-index: 6;
   align-self: flex-start;
-  border-radius: 14px;
+  border-radius: var(--edit-expert-markup-section-radius);
   border: 1px solid rgba(170, 101, 239, 0.4);
   background: rgba(201, 205, 214, 0.03);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
-  padding: 12px;
+  padding: var(--edit-expert-markup-section-padding);
   margin-inline: auto;
 }
 
@@ -2789,7 +2817,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   align-self: flex-start;
   justify-self: center;
   z-index: 6;
@@ -2806,13 +2834,13 @@
 .edit-expert-markup-modal-general-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--edit-expert-markup-control-gap);
 }
 
 .edit-expert-markup-modal-general-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--edit-expert-markup-control-gap);
 }
 
 .edit-expert-markup-modal-general-row--aspect {
@@ -2823,18 +2851,70 @@
   width: 100%;
 }
 
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .edit-expert-markup-modal-general-row--aspect
+  .aspect-trigger,
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .edit-expert-markup-modal-general-row--aspect
+  .aspect-trigger:hover:not(:disabled),
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .edit-expert-markup-modal-general-row--aspect
+  .aspect-trigger[aria-expanded="true"] {
+  border-color: rgba(96, 101, 111, 0.58);
+  background: rgba(12, 16, 24, 0.9);
+  box-shadow: none;
+}
+
 .edit-expert-markup-modal-general-row--aspect .aspect-menu {
   top: 0;
   bottom: auto;
-  left: calc(100% + 8px);
+  left: calc(100% + 16px);
   right: auto;
   min-width: 168px;
   width: max-content;
+  background: rgba(12, 16, 24, 0.96);
+  border-color: rgba(96, 101, 111, 0.58);
+}
+
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .edit-expert-markup-modal-general-row--aspect
+  .aspect-menu-item:hover {
+  background: rgba(56, 62, 72, 0.36);
+  border-color: rgba(129, 135, 146, 0.54);
+  color: #f7fafc;
+}
+
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .edit-expert-markup-modal-general-row--aspect
+  .aspect-menu-item.is-active {
+  background: rgba(64, 70, 82, 0.44);
+  border-color: rgba(151, 158, 170, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(173, 179, 190, 0.28);
+  color: #f7fafc;
+}
+
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .edit-expert-markup-modal-general-row--aspect
+  .aspect-menu-item:hover
+  .aspect-shape,
+.ai-studio-page
+  .edit-expert-panel.create-expert-panel
+  .edit-expert-markup-modal-general-row--aspect
+  .aspect-menu-item.is-active
+  .aspect-shape {
+  border-color: rgba(185, 192, 204, 0.78);
+  background: rgba(156, 163, 175, 0.12);
 }
 
 .edit-expert-markup-modal-general-btn {
-  min-height: 34px;
-  border-radius: 10px;
+  min-height: var(--edit-expert-markup-control-height-sm);
+  border-radius: var(--edit-expert-markup-control-radius);
   border: 1px solid rgba(96, 101, 111, 0.5);
   background: rgba(38, 42, 49, 0.76);
   color: rgba(224, 231, 241, 0.92);
@@ -2896,7 +2976,7 @@
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-controls-content {
-  gap: 8px;
+  gap: var(--edit-expert-markup-control-gap);
   height: auto;
 }
 
@@ -2905,9 +2985,9 @@
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-mode-btn {
-  height: 40px;
-  min-height: 40px;
-  border-radius: 10px;
+  height: var(--edit-expert-markup-control-height);
+  min-height: var(--edit-expert-markup-control-height);
+  border-radius: var(--edit-expert-markup-control-radius);
   font-size: 12px;
   font-weight: 600;
   padding-inline: 10px;
@@ -2947,8 +3027,8 @@
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-history-btn {
-  min-height: 32px;
-  border-radius: 10px;
+  min-height: var(--edit-expert-markup-control-height-sm);
+  border-radius: var(--edit-expert-markup-control-radius);
   font-size: 11px;
   font-weight: 600;
   border-color: rgba(52, 200, 255, 0.28);
@@ -2958,7 +3038,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: var(--edit-expert-markup-control-gap);
   min-height: 0;
 }
 
@@ -2969,40 +3049,43 @@
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-zoom-slider {
-  height: 16px;
+  height: var(--edit-expert-markup-slider-height);
   background: transparent;
   border-radius: 0;
 }
 
 .edit-expert-markup-modal-controls-compact--move
   .edit-expert-move-zoom-slider::-webkit-slider-runnable-track {
-  height: 8px;
+  height: var(--edit-expert-markup-slider-track-height);
   border-radius: 999px;
   background: rgba(8, 11, 16, 0.88);
 }
 
 .edit-expert-markup-modal-controls-compact--move
   .edit-expert-move-zoom-slider::-webkit-slider-thumb {
-  width: 16px;
-  height: 16px;
+  width: var(--edit-expert-markup-slider-thumb-size);
+  height: var(--edit-expert-markup-slider-thumb-size);
   border-radius: 50%;
-  margin-top: calc((8px - 16px) / 2);
+  margin-top: calc(
+    (var(--edit-expert-markup-slider-track-height) - var(--edit-expert-markup-slider-thumb-size)) /
+      2
+  );
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-zoom-slider::-moz-range-track {
-  height: 8px;
+  height: var(--edit-expert-markup-slider-track-height);
   border-radius: 999px;
   background: rgba(8, 11, 16, 0.88);
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-zoom-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: var(--edit-expert-markup-slider-thumb-size);
+  height: var(--edit-expert-markup-slider-thumb-size);
   border-radius: 50%;
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-markup-controls-content {
-  gap: 12px;
+  gap: 10px;
   height: auto;
   display: flex;
   flex-direction: column;
@@ -3012,11 +3095,11 @@
 .edit-expert-markup-modal-inpaint-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-radius: 14px;
+  gap: 10px;
+  border-radius: var(--edit-expert-markup-section-radius);
   border: 1px solid rgba(245, 185, 66, 0.36);
   background: rgba(201, 205, 214, 0.03);
-  padding: 12px;
+  padding: var(--edit-expert-markup-section-padding);
 }
 
 .edit-expert-markup-modal-toolbar-title--inpaint {
@@ -3024,13 +3107,13 @@
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-mode-row {
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
+  gap: var(--edit-expert-markup-control-gap);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--edit-expert-markup-control-height);
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-mode-btn {
-  min-height: 40px;
-  border-radius: 11px;
+  min-height: var(--edit-expert-markup-control-height);
+  border-radius: var(--edit-expert-markup-control-radius);
   font-size: 12px;
   font-weight: 600;
   padding-inline: 10px;
@@ -3060,7 +3143,7 @@
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-stroke-row {
-  row-gap: 8px;
+  row-gap: var(--edit-expert-markup-control-gap);
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-stroke-label {
@@ -3071,25 +3154,25 @@
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb,
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
-  background: #f5b942;
+  background: var(--edit-expert-inpaint-thumb-color);
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-selection-row {
   grid-template-columns: 1fr auto;
-  gap: 8px;
+  gap: var(--edit-expert-markup-control-gap);
   align-items: stretch;
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-select-tabs {
-  min-height: 44px;
-  border-radius: 11px;
+  min-height: var(--edit-expert-markup-control-height-icon);
+  border-radius: var(--edit-expert-markup-control-radius);
   padding: 1px;
   border: 1px solid rgba(245, 185, 66, 0.34);
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-select-tab {
-  min-height: 40px;
-  border-radius: 10px;
+  min-height: var(--edit-expert-markup-control-height);
+  border-radius: var(--edit-expert-markup-control-radius);
   border: 1px solid transparent;
 }
 
@@ -3136,13 +3219,7 @@
 .edit-expert-markup-modal-inpaint-content
   .edit-expert-markup-modal-inpaint-invert-btn:focus-visible:not(:disabled) {
   border-color: rgba(245, 185, 66, 0.96);
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.42), rgba(245, 140, 66, 0.3));
   color: rgba(255, 244, 218, 0.99);
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 0 0 1px rgba(245, 185, 66, 0.3),
-    0 0 0 1px rgba(245, 185, 66, 0.18),
-    0 8px 16px rgba(245, 185, 66, 0.16);
 }
 
 .edit-expert-markup-modal-inpaint-content
@@ -3155,12 +3232,12 @@
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-markup-modal-inpaint-clear-btn {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
-  min-height: 40px;
+  width: var(--edit-expert-markup-control-height);
+  min-width: var(--edit-expert-markup-control-height);
+  height: var(--edit-expert-markup-control-height);
+  min-height: var(--edit-expert-markup-control-height);
   padding: 0;
-  border-radius: 11px;
+  border-radius: var(--edit-expert-markup-control-radius);
   border-color: rgba(96, 101, 111, 0.58);
   background: rgba(38, 42, 49, 0.76);
   color: rgba(205, 212, 224, 0.72);
@@ -3190,8 +3267,8 @@
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn {
-  min-height: 40px;
-  border-radius: 11px;
+  min-height: var(--edit-expert-markup-control-height);
+  border-radius: var(--edit-expert-markup-control-radius);
   font-size: 12px;
   font-weight: 600;
   padding: 0 10px;
@@ -3199,8 +3276,8 @@
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--edit-expert-markup-control-height-icon);
+  gap: var(--edit-expert-markup-control-gap);
   padding: 0;
   border: none;
   border-radius: 0;
@@ -3209,12 +3286,12 @@
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-markup-clear-btn-modal {
-  width: 44px;
-  min-width: 44px;
-  height: 40px;
-  min-height: 40px;
+  width: var(--edit-expert-markup-control-height-icon);
+  min-width: var(--edit-expert-markup-control-height-icon);
+  height: var(--edit-expert-markup-control-height);
+  min-height: var(--edit-expert-markup-control-height);
   padding: 0;
-  border-radius: 11px;
+  border-radius: var(--edit-expert-markup-control-radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3234,7 +3311,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  row-gap: 8px;
+  row-gap: var(--edit-expert-markup-control-gap);
   padding: 0;
   border: none;
   border-radius: 0;
@@ -3251,7 +3328,7 @@
 
 .edit-expert-markup-modal-controls-compact .edit-expert-markup-color-row {
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: var(--edit-expert-markup-control-gap);
   padding: 0;
   border: none;
   border-radius: 0;
@@ -3265,46 +3342,49 @@
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider {
-  height: 16px;
+  height: var(--edit-expert-markup-slider-height);
 }
 
 .edit-expert-markup-modal-controls-compact
   .edit-expert-inpaint-stroke-slider::-webkit-slider-runnable-track {
-  height: 8px;
+  height: var(--edit-expert-markup-slider-track-height);
   border-radius: 999px;
   background: rgba(8, 11, 16, 0.88);
 }
 
 .edit-expert-markup-modal-controls-compact
   .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb {
-  width: 16px;
-  height: 16px;
+  width: var(--edit-expert-markup-slider-thumb-size);
+  height: var(--edit-expert-markup-slider-thumb-size);
   border-radius: 50%;
-  margin-top: calc((8px - 16px) / 2);
+  margin-top: calc(
+    (var(--edit-expert-markup-slider-track-height) - var(--edit-expert-markup-slider-thumb-size)) /
+      2
+  );
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider::-moz-range-track {
-  height: 8px;
+  height: var(--edit-expert-markup-slider-track-height);
   border-radius: 999px;
   background: rgba(8, 11, 16, 0.88);
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: var(--edit-expert-markup-slider-thumb-size);
+  height: var(--edit-expert-markup-slider-thumb-size);
   border-radius: 50%;
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-markup-color-picker {
-  height: 46px;
-  border-radius: 11px;
+  height: var(--edit-expert-markup-control-height-icon);
+  border-radius: var(--edit-expert-markup-control-radius);
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-action-btn {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  border-radius: 11px;
+  width: var(--edit-expert-markup-control-height-icon);
+  min-width: var(--edit-expert-markup-control-height-icon);
+  height: var(--edit-expert-markup-control-height-icon);
+  border-radius: var(--edit-expert-markup-control-radius);
 }
 
 .edit-expert-markup-modal-controls-compact:not(.edit-expert-markup-modal-controls-compact--inpaint)
@@ -3375,7 +3455,7 @@
   .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb,
 .edit-expert-markup-modal-controls-compact:not(.edit-expert-markup-modal-controls-compact--inpaint)
   .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
-  background: #aa65ef;
+  background: var(--edit-expert-markup-thumb-color);
 }
 
 .edit-expert-layers-toolbar--modal {
@@ -3419,9 +3499,9 @@
 
 @media (max-width: 1280px) {
   .edit-expert-markup-modal {
-    --edit-expert-markup-side-column-width: 188px;
-    --edit-expert-markup-stage-gap: 10px;
-    --edit-expert-markup-stage-inline-pad: 6px;
+    --edit-expert-markup-side-column-width: 184px;
+    --edit-expert-markup-stage-gap: 8px;
+    --edit-expert-markup-stage-inline-pad: 5px;
     width: min(
       97vw,
       calc(
@@ -3432,9 +3512,9 @@
   }
 
   .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn {
-    min-height: 38px;
-    font-size: 13px;
-    padding-inline: 10px;
+    min-height: var(--edit-expert-markup-control-height);
+    font-size: 12px;
+    padding-inline: 8px;
   }
 }
 

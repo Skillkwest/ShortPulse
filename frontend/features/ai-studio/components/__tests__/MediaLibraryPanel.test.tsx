@@ -211,6 +211,12 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
       title: string | null;
       prompt_text: string;
     }) => void;
+    showDeleteAction?: boolean;
+    onDeletePromptFromLibrary?: (row: {
+      id: string;
+      title: string | null;
+      prompt_text: string;
+    }) => void;
   }) => (
     <div data-testid="mock-prompt-grid">
       {props.sortedPrompts.map((row) => (
@@ -239,6 +245,20 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
               }
             >
               Remove prompt {row.title || row.id}
+            </button>
+          ) : null}
+          {props.showDeleteAction && props.onDeletePromptFromLibrary ? (
+            <button
+              type="button"
+              onClick={() =>
+                props.onDeletePromptFromLibrary?.({
+                  id: row.id,
+                  title: row.title,
+                  prompt_text: "Prompt text",
+                })
+              }
+            >
+              Delete prompt {row.title || row.id}
             </button>
           ) : null}
         </React.Fragment>
@@ -369,20 +389,51 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it("deletes root media items through the panel delete action", async () => {
+  it("requires confirmation before deleting root media items", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delete media ref-1.png" })).toBeInTheDocument();
     });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete media ref-1.png" }));
+    expect(deleteMediaFileWithStorageMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: "Confirm delete from All Media" })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
 
     await waitFor(() => {
       expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
         expect.objectContaining({ id: "media-1" })
       );
     });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels root prompt delete when confirmation is dismissed", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete prompt Prompt One" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete prompt Prompt One" }));
+    expect(deleteMediaPromptByIdMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: "Confirm delete from All Media" })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Confirm delete from All Media" })).toBeNull();
+    });
+    expect(deleteMediaPromptByIdMock).not.toHaveBeenCalled();
   });
 
   it("passes panel-specific preview resolver callback to media grid", async () => {

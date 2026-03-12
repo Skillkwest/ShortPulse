@@ -50,6 +50,17 @@ type PointerSession = {
   lassoPoints: InpaintPoint[];
 };
 
+export type InpaintMaskLayerSnapshot = {
+  layerId: string;
+  width: number;
+  height: number;
+  alpha: Uint8ClampedArray;
+};
+
+export type InpaintMaskSnapshot = {
+  layers: InpaintMaskLayerSnapshot[];
+};
+
 type UseInpaintMaskControllerParams = {
   dropzoneRef: React.RefObject<HTMLDivElement | null>;
   selectedLayerId: string | null;
@@ -73,8 +84,12 @@ type ExportMaskBlobParams = {
 
 type UseInpaintMaskControllerResult = {
   overlayCanvasRef: React.RefObject<HTMLCanvasElement>;
+  modalOverlayCanvasRef: React.RefObject<HTMLCanvasElement>;
   hasSelectedLayerMask: boolean;
   imageHasInteractiveMask: boolean;
+  captureMaskSnapshot: () => InpaintMaskSnapshot;
+  restoreMaskSnapshot: (snapshot: InpaintMaskSnapshot) => void;
+  clearAllMasks: () => void;
   clearSelectedLayerMask: () => void;
   invertSelectedLayerMask: () => void;
   exportSelectedLayerMaskBlob: (params: ExportMaskBlobParams) => Promise<Blob | null>;
@@ -127,7 +142,7 @@ export const resolveSceneCanvasPoint = ({
   };
 };
 
-const toCanvasPoint = (
+const toSurfaceCanvasPoint = (
   event: { clientX: number; clientY: number },
   rect: DOMRect,
   sceneScale = 1
@@ -161,6 +176,92 @@ export const toClampedCanvasPoint = (
     x: clamp(sceneX, 0, rect.width),
     y: clamp(sceneY, 0, rect.height),
   };
+};
+
+const mapSurfacePointToMaskCanvasPoint = ({
+  point,
+  interactionRect,
+  maskWidth,
+  maskHeight,
+}: {
+  point: InpaintPoint;
+  interactionRect: DOMRect;
+  maskWidth: number;
+  maskHeight: number;
+}): InpaintPoint => {
+  const sourceWidth = Math.max(1, interactionRect.width);
+  const sourceHeight = Math.max(1, interactionRect.height);
+  const targetWidth = Math.max(1, Math.round(maskWidth));
+  const targetHeight = Math.max(1, Math.round(maskHeight));
+  const widthScale = targetWidth / sourceWidth;
+  const heightScale = targetHeight / sourceHeight;
+  return {
+    x: clamp(point.x * widthScale, 0, targetWidth),
+    y: clamp(point.y * heightScale, 0, targetHeight),
+  };
+};
+
+export const areInpaintMaskSnapshotsEqual = (
+  left: InpaintMaskSnapshot,
+  right: InpaintMaskSnapshot
+) => {
+  if (left.layers.length !== right.layers.length) return false;
+  for (let index = 0; index < left.layers.length; index += 1) {
+    const leftLayer = left.layers[index];
+    const rightLayer = right.layers[index];
+    if (!leftLayer || !rightLayer) return false;
+    if (leftLayer.layerId !== rightLayer.layerId) return false;
+    if (leftLayer.width !== rightLayer.width || leftLayer.height !== rightLayer.height)
+      return false;
+    if (leftLayer.alpha.length !== rightLayer.alpha.length) return false;
+    for (let alphaIndex = 0; alphaIndex < leftLayer.alpha.length; alphaIndex += 1) {
+      if (leftLayer.alpha[alphaIndex] !== rightLayer.alpha[alphaIndex]) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
+/**
+ * Maps lasso preview points from mask-canvas space into the active overlay surface.
+ * This keeps preview strokes aligned when inline and modal overlay dimensions differ.
+ */
+export const mapLassoPreviewPointsToOverlaySpace = ({
+  points,
+  maskWidth,
+  maskHeight,
+  overlayWidth,
+  overlayHeight,
+}: {
+  points: Array<{ x: number; y: number }>;
+  maskWidth: number;
+  maskHeight: number;
+  overlayWidth: number;
+  overlayHeight: number;
+}) => {
+  if (!points.length) return points;
+  if (
+    !Number.isFinite(maskWidth) ||
+    !Number.isFinite(maskHeight) ||
+    !Number.isFinite(overlayWidth) ||
+    !Number.isFinite(overlayHeight) ||
+    maskWidth <= 0 ||
+    maskHeight <= 0 ||
+    overlayWidth <= 0 ||
+    overlayHeight <= 0
+  ) {
+    return points;
+  }
+  const scaleX = overlayWidth / maskWidth;
+  const scaleY = overlayHeight / maskHeight;
+  if (Math.abs(scaleX - 1) < 0.0001 && Math.abs(scaleY - 1) < 0.0001) {
+    return points;
+  }
+  return points.map((point) => ({
+    x: clamp(point.x * scaleX, 0, overlayWidth),
+    y: clamp(point.y * scaleY, 0, overlayHeight),
+  }));
 };
 
 /**
@@ -635,20 +736,28 @@ const renderOverlayFrame = ({
     }
   }
 
-  if (lassoPreviewPoints.length > 0) {
+  const lassoRenderPoints = mapLassoPreviewPointsToOverlaySpace({
+    points: lassoPreviewPoints,
+    maskWidth: maskCanvas?.width ?? width,
+    maskHeight: maskCanvas?.height ?? height,
+    overlayWidth: width,
+    overlayHeight: height,
+  });
+
+  if (lassoRenderPoints.length > 0) {
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    const firstPoint = lassoPreviewPoints[0]!;
-    const lastPoint = lassoPreviewPoints[lassoPreviewPoints.length - 1]!;
+    const firstPoint = lassoRenderPoints[0]!;
+    const lastPoint = lassoRenderPoints[lassoRenderPoints.length - 1]!;
     const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
     const baseOffset = -(phase * MARCHING_ANTS_DASH_OFFSET_STEP);
     const lassoAntStrokeWidth = resolveLassoAntStrokeWidth(dpr);
 
-    if (lassoPreviewPoints.length > 1) {
-      if (lassoPreviewPoints.length > 2) {
+    if (lassoRenderPoints.length > 1) {
+      if (lassoRenderPoints.length > 2) {
         ctx.fillStyle = LASSO_THEME_FILL;
-        tracePolylinePath(ctx, lassoPreviewPoints);
+        tracePolylinePath(ctx, lassoRenderPoints);
         ctx.closePath();
         ctx.fill();
       }
@@ -656,26 +765,26 @@ const renderOverlayFrame = ({
       ctx.setLineDash([]);
       ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 1.1;
       ctx.strokeStyle = "rgba(0, 0, 0, 0.72)";
-      tracePolylinePath(ctx, lassoPreviewPoints);
+      tracePolylinePath(ctx, lassoRenderPoints);
       ctx.stroke();
 
       ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
       ctx.strokeStyle = LASSO_THEME_GUIDE;
-      tracePolylinePath(ctx, lassoPreviewPoints);
+      tracePolylinePath(ctx, lassoRenderPoints);
       ctx.stroke();
 
       ctx.lineWidth = lassoAntStrokeWidth;
       ctx.setLineDash([dashSize, dashGap]);
       ctx.lineDashOffset = baseOffset;
       ctx.strokeStyle = LASSO_THEME_MARCH_DARK;
-      tracePolylinePath(ctx, lassoPreviewPoints);
+      tracePolylinePath(ctx, lassoRenderPoints);
       ctx.stroke();
       ctx.lineDashOffset = baseOffset + dashSize;
       ctx.strokeStyle = LASSO_THEME_MARCH_LIGHT;
-      tracePolylinePath(ctx, lassoPreviewPoints);
+      tracePolylinePath(ctx, lassoRenderPoints);
       ctx.stroke();
 
-      if (lassoPreviewPoints.length > 2) {
+      if (lassoRenderPoints.length > 2) {
         ctx.setLineDash([]);
         ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 0.95;
         ctx.strokeStyle = "rgba(0, 0, 0, 0.66)";
@@ -742,19 +851,54 @@ export const resolveInpaintBrushDiameter = (strokeSize: number) => {
 };
 
 /**
+ * Converts brush radius from surface-space to mask-space when overlay dimensions differ.
+ */
+export const resolveMaskSpaceScaleFromSurface = ({
+  surfaceWidth,
+  surfaceHeight,
+  maskWidth,
+  maskHeight,
+}: {
+  surfaceWidth: number;
+  surfaceHeight: number;
+  maskWidth: number;
+  maskHeight: number;
+}) => {
+  if (
+    !Number.isFinite(surfaceWidth) ||
+    !Number.isFinite(surfaceHeight) ||
+    !Number.isFinite(maskWidth) ||
+    !Number.isFinite(maskHeight) ||
+    surfaceWidth <= 0 ||
+    surfaceHeight <= 0 ||
+    maskWidth <= 0 ||
+    maskHeight <= 0
+  ) {
+    return 1;
+  }
+  const widthScale = maskWidth / surfaceWidth;
+  const heightScale = maskHeight / surfaceHeight;
+  return (widthScale + heightScale) / 2;
+};
+
+/**
  * Resolves brush paint radius in mask-canvas units while compensating for stage zoom.
  * This keeps the visible stroke footprint aligned with the on-screen reticle at any zoom level.
  */
 export const resolveInpaintBrushPaintRadius = ({
   strokeSize,
   sceneScale,
+  surfaceToMaskScale = 1,
 }: {
   strokeSize: number;
   sceneScale: number;
+  surfaceToMaskScale?: number;
 }) => {
   const diameter = resolveInpaintBrushDiameter(strokeSize);
   const safeScale = Number.isFinite(sceneScale) && sceneScale > 0 ? sceneScale : 1;
-  return diameter / safeScale / 2;
+  const safeSurfaceToMaskScale =
+    Number.isFinite(surfaceToMaskScale) && surfaceToMaskScale > 0 ? surfaceToMaskScale : 1;
+  return (diameter / safeScale / 2) * safeSurfaceToMaskScale;
 };
 
 /**
@@ -799,6 +943,7 @@ export const useInpaintMaskController = ({
   onPaintAttemptWithoutImage,
 }: UseInpaintMaskControllerParams): UseInpaintMaskControllerResult => {
   const overlayCanvasRef = React.useRef<HTMLCanvasElement>(null);
+  const modalOverlayCanvasRef = React.useRef<HTMLCanvasElement>(null);
   const maskCanvasesRef = React.useRef<Map<string, HTMLCanvasElement>>(new Map());
   const maskMetaRef = React.useRef<Map<string, MaskLayerMeta>>(new Map());
   const layerImageSignatureRef = React.useRef<Map<string, string | null>>(new Map());
@@ -864,8 +1009,6 @@ export const useInpaintMaskController = ({
 
   const renderOverlay = React.useCallback(
     (phase: number) => {
-      const overlayCanvas = overlayCanvasRef.current;
-      if (!overlayCanvas) return;
       const selectedMaskCanvas = selectedLayerId
         ? (maskCanvasesRef.current.get(selectedLayerId) ?? null)
         : null;
@@ -878,12 +1021,16 @@ export const useInpaintMaskController = ({
       )
         ? pointerSessionRef.current.lassoPoints
         : [];
-      renderOverlayFrame({
-        canvas: overlayCanvas,
-        maskCanvas: selectedMaskCanvas,
-        meta: selectedMaskMeta,
-        lassoPreviewPoints,
-        phase,
+      const overlayTargets = [overlayCanvasRef.current, modalOverlayCanvasRef.current];
+      overlayTargets.forEach((overlayCanvas) => {
+        if (!overlayCanvas) return;
+        renderOverlayFrame({
+          canvas: overlayCanvas,
+          maskCanvas: selectedMaskCanvas,
+          meta: selectedMaskMeta,
+          lassoPreviewPoints,
+          phase,
+        });
       });
     },
     [paintMode, selectedLayerId]
@@ -969,6 +1116,110 @@ export const useInpaintMaskController = ({
     },
     [analyzeLayerMask]
   );
+
+  const captureMaskSnapshot = React.useCallback((): InpaintMaskSnapshot => {
+    const layers: InpaintMaskLayerSnapshot[] = [];
+    maskCanvasesRef.current.forEach((canvas, layerId) => {
+      if (canvas.width <= 0 || canvas.height <= 0) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const alpha = new Uint8ClampedArray(canvas.width * canvas.height);
+      let hasContent = false;
+      for (let pixelIndex = 0, alphaIndex = 0; alphaIndex < alpha.length; alphaIndex += 1) {
+        const alphaValue = imageData.data[pixelIndex + 3] ?? 0;
+        alpha[alphaIndex] = alphaValue;
+        if (alphaValue > 0) {
+          hasContent = true;
+        }
+        pixelIndex += 4;
+      }
+      if (!hasContent) return;
+      layers.push({
+        layerId,
+        width: canvas.width,
+        height: canvas.height,
+        alpha,
+      });
+    });
+    layers.sort((left, right) => left.layerId.localeCompare(right.layerId));
+    return { layers };
+  }, []);
+
+  const restoreMaskSnapshot = React.useCallback(
+    (snapshot: InpaintMaskSnapshot) => {
+      const activeLayerIds = new Set(layerSources.map((source) => source.id));
+      const fallbackWidth = Math.max(1, Math.round(dropzoneSize.width));
+      const fallbackHeight = Math.max(1, Math.round(dropzoneSize.height));
+      const nextCanvases = new Map<string, HTMLCanvasElement>();
+
+      layerSources.forEach((source) => {
+        nextCanvases.set(source.id, createMaskCanvas(fallbackWidth, fallbackHeight));
+      });
+
+      snapshot.layers.forEach((layerSnapshot) => {
+        if (!activeLayerIds.has(layerSnapshot.layerId)) return;
+        const canvas = createMaskCanvas(layerSnapshot.width, layerSnapshot.height);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const imageData = ctx.createImageData(layerSnapshot.width, layerSnapshot.height);
+        for (
+          let alphaIndex = 0, pixelIndex = 0;
+          alphaIndex < layerSnapshot.alpha.length;
+          alphaIndex += 1
+        ) {
+          const alphaValue = layerSnapshot.alpha[alphaIndex] ?? 0;
+          imageData.data[pixelIndex] = 255;
+          imageData.data[pixelIndex + 1] = 255;
+          imageData.data[pixelIndex + 2] = 255;
+          imageData.data[pixelIndex + 3] = alphaValue;
+          pixelIndex += 4;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        nextCanvases.set(layerSnapshot.layerId, canvas);
+      });
+
+      maskCanvasesRef.current = nextCanvases;
+      maskMetaRef.current.clear();
+      layerSources.forEach((source) => {
+        queueLayerAnalysis(source.id, true);
+      });
+      if (!selectedLayerId) {
+        setHasSelectedLayerMask(false);
+      }
+      renderOverlayNow();
+      animateOverlay();
+    },
+    [
+      animateOverlay,
+      dropzoneSize.height,
+      dropzoneSize.width,
+      layerSources,
+      queueLayerAnalysis,
+      renderOverlayNow,
+      selectedLayerId,
+    ]
+  );
+
+  const clearAllMasks = React.useCallback(() => {
+    const fallbackWidth = Math.max(1, Math.round(dropzoneSize.width));
+    const fallbackHeight = Math.max(1, Math.round(dropzoneSize.height));
+    const nextCanvases = new Map<string, HTMLCanvasElement>();
+    layerSources.forEach((source) => {
+      nextCanvases.set(source.id, createMaskCanvas(fallbackWidth, fallbackHeight));
+    });
+    maskCanvasesRef.current = nextCanvases;
+    maskMetaRef.current.clear();
+    setHasSelectedLayerMask(false);
+    stopOverlayAnimation();
+    renderOverlayNow();
+  }, [
+    dropzoneSize.height,
+    dropzoneSize.width,
+    layerSources,
+    renderOverlayNow,
+    stopOverlayAnimation,
+  ]);
 
   const clearLayerMask = React.useCallback(
     (layerId: string) => {
@@ -1061,6 +1312,32 @@ export const useInpaintMaskController = ({
     ]
   );
 
+  const resolveMaskInteractionPoint = React.useCallback(
+    ({
+      sampleEvent,
+      interactionRect,
+      maskCanvas,
+      clampToBounds,
+    }: {
+      sampleEvent: { clientX: number; clientY: number };
+      interactionRect: DOMRect;
+      maskCanvas: HTMLCanvasElement;
+      clampToBounds: boolean;
+    }): InpaintPoint | null => {
+      const surfacePoint = clampToBounds
+        ? toClampedCanvasPoint(sampleEvent, interactionRect, sceneScale)
+        : toSurfaceCanvasPoint(sampleEvent, interactionRect, sceneScale);
+      if (!surfacePoint) return null;
+      return mapSurfacePointToMaskCanvasPoint({
+        point: surfacePoint,
+        interactionRect,
+        maskWidth: maskCanvas.width,
+        maskHeight: maskCanvas.height,
+      });
+    },
+    [sceneScale]
+  );
+
   const onPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!enabled || !selectedLayerId) return;
@@ -1074,20 +1351,22 @@ export const useInpaintMaskController = ({
         return;
       }
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      const dropzone = dropzoneRef.current;
-      if (!dropzone) return;
-      const rect = dropzone.getBoundingClientRect();
-      const point = toCanvasPoint(event, rect, sceneScale);
+      const interactionRect = event.currentTarget.getBoundingClientRect();
+      const canvas = ensureMaskCanvasForLayer(selectedLayerId);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const point = resolveMaskInteractionPoint({
+        sampleEvent: event,
+        interactionRect,
+        maskCanvas: canvas,
+        clampToBounds: false,
+      });
       if (!point) return;
 
       event.preventDefault();
       if ((event.currentTarget as HTMLElement | null)?.setPointerCapture) {
         (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
       }
-
-      const canvas = ensureMaskCanvasForLayer(selectedLayerId);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
 
       pointerSessionRef.current = {
         pointerId: event.pointerId,
@@ -1097,9 +1376,16 @@ export const useInpaintMaskController = ({
       };
 
       if (paintMode === "brush") {
+        const surfaceToMaskScale = resolveMaskSpaceScaleFromSurface({
+          surfaceWidth: interactionRect.width,
+          surfaceHeight: interactionRect.height,
+          maskWidth: canvas.width,
+          maskHeight: canvas.height,
+        });
         const radius = resolveInpaintBrushPaintRadius({
           strokeSize,
           sceneScale,
+          surfaceToMaskScale,
         });
         drawBrushSegment({
           ctx,
@@ -1116,7 +1402,6 @@ export const useInpaintMaskController = ({
     },
     [
       animateOverlay,
-      dropzoneRef,
       enabled,
       ensureMaskCanvasForLayer,
       onAutoToolAttempt,
@@ -1127,8 +1412,9 @@ export const useInpaintMaskController = ({
       selectedLayerId,
       selectedLayerImageUrl,
       selectionMode,
-      strokeSize,
       sceneScale,
+      strokeSize,
+      resolveMaskInteractionPoint,
     ]
   );
 
@@ -1136,18 +1422,30 @@ export const useInpaintMaskController = ({
     (event: React.PointerEvent<HTMLDivElement>) => {
       const session = pointerSessionRef.current;
       if (!session.active || event.pointerId !== session.pointerId || !selectedLayerId) return;
-      const dropzone = dropzoneRef.current;
-      if (!dropzone) return;
 
       event.preventDefault();
-      const rect = dropzone.getBoundingClientRect();
+      const interactionRect = event.currentTarget.getBoundingClientRect();
+      const canvas = ensureMaskCanvasForLayer(selectedLayerId);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
       const events = resolvePointerSampleEvents(event.nativeEvent as PointerEvent);
 
       if (paintMode === "lasso") {
         events.forEach((sampleEvent) => {
           const point =
-            toCanvasPoint(sampleEvent, rect, sceneScale) ??
-            toClampedCanvasPoint(sampleEvent, rect, sceneScale);
+            resolveMaskInteractionPoint({
+              sampleEvent,
+              interactionRect,
+              maskCanvas: canvas,
+              clampToBounds: false,
+            }) ??
+            resolveMaskInteractionPoint({
+              sampleEvent,
+              interactionRect,
+              maskCanvas: canvas,
+              clampToBounds: true,
+            });
+          if (!point) return;
           session.lassoPoints.push(point);
           session.lastPoint = point;
         });
@@ -1158,19 +1456,34 @@ export const useInpaintMaskController = ({
       }
 
       if (paintMode !== "brush") return;
-      const canvas = ensureMaskCanvasForLayer(selectedLayerId);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
       let didPaint = false;
       let previousPoint = session.lastPoint;
+      const surfaceToMaskScale = resolveMaskSpaceScaleFromSurface({
+        surfaceWidth: interactionRect.width,
+        surfaceHeight: interactionRect.height,
+        maskWidth: canvas.width,
+        maskHeight: canvas.height,
+      });
       const radius = resolveInpaintBrushPaintRadius({
         strokeSize,
         sceneScale,
+        surfaceToMaskScale,
       });
       events.forEach((sampleEvent) => {
         const point =
-          toCanvasPoint(sampleEvent, rect, sceneScale) ??
-          toClampedCanvasPoint(sampleEvent, rect, sceneScale);
+          resolveMaskInteractionPoint({
+            sampleEvent,
+            interactionRect,
+            maskCanvas: canvas,
+            clampToBounds: false,
+          }) ??
+          resolveMaskInteractionPoint({
+            sampleEvent,
+            interactionRect,
+            maskCanvas: canvas,
+            clampToBounds: true,
+          });
+        if (!point) return;
         if (!previousPoint) previousPoint = point;
         drawBrushSegment({
           ctx,
@@ -1194,15 +1507,15 @@ export const useInpaintMaskController = ({
     },
     [
       animateOverlay,
-      dropzoneRef,
       ensureMaskCanvasForLayer,
       paintMode,
       queueLayerAnalysis,
       renderOverlayNow,
       selectedLayerId,
       selectionMode,
-      strokeSize,
       sceneScale,
+      strokeSize,
+      resolveMaskInteractionPoint,
     ]
   );
 
@@ -1469,8 +1782,12 @@ export const useInpaintMaskController = ({
 
   return {
     overlayCanvasRef,
+    modalOverlayCanvasRef,
     hasSelectedLayerMask,
     imageHasInteractiveMask,
+    captureMaskSnapshot,
+    restoreMaskSnapshot,
+    clearAllMasks,
     clearSelectedLayerMask,
     invertSelectedLayerMask,
     exportSelectedLayerMaskBlob,

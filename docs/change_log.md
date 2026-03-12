@@ -278,6 +278,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 
 ## 2026-03-07
 - AI Studio canvas reliability hardening: restored empty-space double-click text draft creation for the main canvas while preserving pan/zoom behavior and gesture dedupe.
+
 - Added dual-canvas draft/edit ownership controls so mirrored canvas instances no longer clear each other’s active text draft or text edit session.
 - Added canvas interaction regression coverage for slight drag-jitter double-tap fallback and dual-canvas draft visibility behavior.
 - Updated `docs/sops/sop_ai_studio_index.md` with explicit canvas interaction guardrails for dual-canvas behavior.
@@ -2821,3 +2822,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Restored legacy dashboard sections behind the flag so setting `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` re-enables the prior launchpad blocks without code restoration.
 - Added and polished a single `New Project` quick-start card in the welcome row that opens `/ai-studio`, including refined CTA chip styling and responsive behavior for mobile layouts.
 - Updated docs and env example to advertise the flag and current `/dashboard` behavior (`README.md`, `docs/routes.md`, `frontend/.env.example`).
+
+## 2026-03-11
+- Realigned Media Library documentation to a `Target Contract + Current Runtime Delta` model with `All Media` master-folder semantics.
+- Updated `docs/sops/sop_ai_studio_media_library_operations.md` with explicit `All Media` sectioned display contract (prompt text cards + image/video masonry at true aspect ratio), right-click media ingest to Reference Grid, folder membership move/assign semantics, deletion semantics, and folder-canvas domain requirements.
+- Updated dependent references in `docs/sops/sop_media_library_ui.md`, `docs/sops/sop_ai_studio_index.md`, `docs/sops/sop_ai_studio_session_persistence_reference_only.md`, `README.md`, `docs/routes.md`, and `docs/api/api-internal-routes.md` for consistency.
+- Added `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md` and updated ADR/index discoverability (`docs/README.md`, `docs/adr/README.md`, `docs/sops/README.md`).

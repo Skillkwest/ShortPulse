@@ -77,11 +77,19 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
 ## AI Studio Media Library Panel Contract
 - AI Studio uses a first-class left-panel `media-library` tool surface (not modal-only by default).
 - Runtime fallback: `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` restores legacy modal open behavior.
-- Exact runtime behavior for folder/list/drag-drop operations is documented in `docs/sops/sop_ai_studio_media_library_operations.md`.
+- Exact runtime behavior for folder/list/drag-drop operations is documented in `docs/sops/sop_ai_studio_media_library_operations.md` using the `Target Contract + Current Runtime Delta` model.
 - Folder model:
   - Virtual root folder id `all_items` is immutable and always first.
+  - `All Media` is the master media/prompt set for the user.
   - Custom folders are user-owned and case-insensitive unique per user.
+  - Folder membership semantics: root -> custom = assign; custom -> custom = move; custom -> root = unassign.
   - Folder delete removes membership links only; underlying `media_files` and `media_prompts` rows remain.
+- `All Media` display contract:
+  - Prompts render as text reference cards.
+  - Images render in masonry preserving true aspect ratio.
+  - Videos render in masonry preserving true aspect ratio.
+- Right-click contract:
+  - Right-clicking media in `All Media` sends media to Reference Grid.
 - API surfaces:
   - Folder CRUD + membership: `/api/media/folders/list|create|rename|delete|membership-batch`
   - Prompt listing: `/api/media/prompts/list`

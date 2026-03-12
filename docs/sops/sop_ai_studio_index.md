@@ -7,7 +7,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Image generation: `docs/sops/sop_image_generation.md` — text-to-image today; will house image-to-image/image-to-video notes.
 - Video generation: `docs/sops/sop_video_generation.md` — text-to-video and image-to-video.
 - Media performance ops: `docs/sops/sop_media_performance_operations.md` — Reference Grid autoplay budgeting, media signing behavior, and performance triage.
-- Media Library panel operations: `docs/sops/sop_ai_studio_media_library_operations.md` — exact folder/list/drag-drop/runtime contracts for the AI Studio left-panel Media Library.
+- Media Library panel operations: `docs/sops/sop_ai_studio_media_library_operations.md` — target contract + runtime deltas for `All Media` master-folder behavior, sectioned prompts/images/videos display, drag/drop membership semantics, ghost-image expectations, right-click ingest actions, and folder-canvas domain behavior.
 - Agent collaboration: `docs/sops/sop_ai_studio_agent.md` — chat-based assistant that replaces prompt textareas, sees the reference grid, and applies prompts to generation.
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
 - Agent safety control plane: `docs/sops/sop_ai_studio_agent_safety_control_plane.md` — profile tuning knobs, admin control routes, rollback/cooldown workflow, and SQL validation gates.
@@ -48,9 +48,10 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Beginner Edit remains legacy and intact as fallback behavior.
 - Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` forces legacy Edit panel.
 - Chat mode control is hidden/off in Expert Edit; inline Generate remains the primary action.
-- `Libraries -> Media Library` is a first-class left-panel tool (`media-library`) in AI Studio and no longer modal-only by default. Runtime fallback: set `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` to restore the legacy modal open path during rollback.
+- `Libraries -> Media Library` is a first-class left-panel tool (`media-library`) in AI Studio and no longer modal-only by default. Runtime fallback: set `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` to restore the legacy modal open path during rollback. Target UX defines `All Media` as a sectioned master view (prompt text cards + masonry images/videos at true aspect ratio), with right-click media dispatch to Reference Grid and explicit folder membership move/assign semantics.
 - `Shortcuts -> Presets` opens a primary left-panel Presets Library sourced from the Expert Edit preset catalog with `Custom 1`, `Custom 2`, and `Custom 3` placeholder tiles (including overrides) plus a full-size `Create New Preset` tile, keeps the right rail visible, supports modal create/edit for preset name + prompt text, and provides per-tile delete confirmation for permanent preset removal.
 - Expert Edit generation behavior contracts (submit-scoped model overrides, Bria-only hidden replacement semantics, shared Flux Fill inpaint constants) are documented in `docs/sops/sop_image_generation.md` under `Expert Edit properties panel behavior`.
+- Expert Edit markup draw/erase/color behavior (shared inline+expanded state, whole-stroke eraser semantics, and ephemeral stroke persistence policy) is documented in `docs/sops/sop_image_generation.md` under `Expert Edit properties panel behavior`.
 - Expert Edit prompt token behavior (`@img1..@img3`, deferred invalid warning on Generate, and submission compile mapping) is documented in `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
 
 ## Canvas interaction guardrails

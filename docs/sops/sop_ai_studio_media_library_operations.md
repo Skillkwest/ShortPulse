@@ -1,27 +1,33 @@
 # SOP: AI Studio Media Library Panel Operations
 
 ## Purpose
-Define the exact runtime behavior of the AI Studio left-panel Media Library (`toolId: media-library`), including folder operations, media/prompt loading, drag/drop membership behavior, and server contracts.
+Define the authoritative AI Studio Media Library panel UX contract (`toolId: media-library`) and document current implementation deltas while rollout is in progress.
+
+## Authority Model
+- This SOP uses `Target Contract + Current Runtime Delta`.
+- `Target Contract` is the intended user experience and is the product source of truth.
+- `Current Runtime Delta` tracks implementation drift that still exists in code.
 
 ## Scope
 - In scope:
-  - AI Studio left-panel Media Library implementation under `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`.
-  - Folder CRUD and membership operations.
-  - Prompt/media list loading and pagination.
-  - Drag/drop flows between Reference Grid, Media Library, and folder memberships.
+  - AI Studio left-panel Media Library under `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`.
+  - `all_items` (`All Media`) master-folder semantics.
+  - Folder CRUD, membership operations, and drag/drop flows.
+  - Cross-surface ingestion into Reference Grid, Quick Slot Inventory, and Canvas.
+  - Folder-canvas interaction contract and persistence boundary.
 - Out of scope:
-  - Standalone `/media-library` route layout and non-AI-Studio gallery UX.
-  - Billing/storage quota UI policy.
+  - Standalone `/media-library` route page styling details.
+  - Billing/storage quota policy.
 
 ## Canonical implementation map
 - Panel composition: `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
 - Folder state lifecycle: `frontend/features/ai-studio/hooks/useMediaLibraryFoldersState.ts`
 - Folder drop controller: `frontend/features/ai-studio/hooks/useMediaLibraryFolderDropController.ts`
-- Drop intent/feedback model: `frontend/features/ai-studio/logic/mediaLibraryFolderDropModel.ts`
-- Internal reference resolver: `frontend/features/ai-studio/logic/mediaLibraryInternalDropResolver.ts`
-- Internal drag payload protocol: `frontend/features/ai-studio/utils/dragDrop.ts`
-- Panel API client contracts: `frontend/features/ai-studio/logic/mediaLibraryPanelApi.ts`
-- AI Studio resolver wiring: `frontend/pages/ai-studio.tsx`
+- Drop intent model: `frontend/features/ai-studio/logic/mediaLibraryFolderDropModel.ts`
+- Internal drop resolver: `frontend/features/ai-studio/logic/mediaLibraryInternalDropResolver.ts`
+- Drag protocol + ghost behavior: `frontend/features/ai-studio/utils/dragDrop.ts`
+- Panel API contracts: `frontend/features/ai-studio/logic/mediaLibraryPanelApi.ts`
+- AI Studio shell DnD bridge: `frontend/features/ai-studio/hooks/useAiStudioShellDndController.ts`
 - Server endpoints:
   - `frontend/pages/api/media/folders/list.ts`
   - `frontend/pages/api/media/folders/create.ts`
@@ -31,137 +37,112 @@ Define the exact runtime behavior of the AI Studio left-panel Media Library (`to
   - `frontend/pages/api/media/list.ts`
   - `frontend/pages/api/media/prompts/list.ts`
 - Membership service: `frontend/lib/server/mediaFoldersService.ts`
-- Storage/membership schema migration: `sql/migrations/060_add_media_folders_and_membership.sql`
+- Schema migration: `sql/migrations/060_add_media_folders_and_membership.sql`
 
-## Feature flags and activation
-- AI Studio left-panel Media Library is enabled by default.
-- Runtime fallback to legacy modal path:
-  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false`
-- Media list route enablement:
-  - `SHORTPULSE_MEDIA_LIST_API_ENABLED` (defaults enabled).
+## Target Contract
 
-## Operations
+### 1) Tool surface and root folder
+1. User opens `Libraries -> Media Library`.
+2. `All Media` (`all_items`) is always visible, always first, and cannot be deleted or renamed.
+3. `All Media` is the master set for all saved media/prompt items owned by the user.
 
-### 1) Tool surface routing and mount
-1. User selects `Libraries -> Media Library` in AI Studio.
-2. `AiStudioPageContent` renders `MediaLibraryPanel` as left-column properties content.
-3. `MediaLibraryPanel` receives `resolveInternalDropItem`, wired from `resolveMediaLibraryInternalDropResolver` in `pages/ai-studio.tsx`.
+### 2) Folder model and membership semantics
+1. Custom folders are organizational memberships only.
+2. Dragging an item from `All Media` into a custom folder assigns membership to that folder while preserving the `All Media` master item.
+3. Dragging an item from one custom folder to another custom folder moves membership from source to target.
+4. Dragging an item from a custom folder into `All Media` removes that custom-folder membership only.
+5. This model never creates duplicate underlying media/prompt rows for folder moves/assignments.
 
-### 2) Folder lifecycle
-1. On mount, `useMediaLibraryFoldersState` loads custom folders from `/api/media/folders/list`.
-2. Virtual root folder is always present as `all_items` (`All Media`) and is rendered first.
-3. Create folder:
-   - Optimistic pending folder tile is inserted.
-   - API call attempts `New Folder`, then collision increments (`New Folder 2`, etc.).
-4. Rename folder:
-   - Inline edit state is local in hook state.
-   - Commit uses `/api/media/folders/rename`.
-5. Delete folder:
-   - Calls `/api/media/folders/delete`.
-   - If active folder is deleted, active selection returns to `all_items`.
+### 3) `all_media` display contract
+1. `All Media` renders as sectioned content:
+   - `Prompts` section: prompt cards use text reference-card presentation.
+   - `Images` section: masonry grid preserving each image’s true aspect ratio.
+   - `Videos` section: masonry grid preserving each video’s true aspect ratio.
+2. Search and pagination apply consistently to these sections through shared list APIs.
 
-### 3) Content loading (media + prompts)
-1. Panel state tracks `activeFolderId`, search term, cursors, loading flags, and `hasMore` flags independently for media and prompts.
-2. Search input debounces locally (~220ms).
-3. Media load calls `/api/media/list` with:
-   - `surface: "media-library-modal"` (intentional parity reuse),
-   - `mediaKind`, `folderId`, `cursor`, `limit`.
-4. Prompt load calls `/api/media/prompts/list` with:
-   - `folderId`, `query`, `cursor`, `limit`.
-5. Request token refs prevent stale async responses from overwriting newer state.
-6. On active folder/query changes, both media and prompts reset and refetch.
+### 4) Drag/drop and ingest contract
+1. Users can drag images, videos, and prompts from any folder into any folder (subject to membership semantics above).
+2. Users can drag images, videos, and prompts from any Media Library folder into:
+   - Reference Grid,
+   - Quick Slot Inventory,
+   - Canvas surfaces.
+3. Drag interactions must show a visible drag ghost image for tactile feedback.
+4. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
 
-### 4) Preview URL signing and recovery
-1. Media rows start with signed preview hints when available.
-2. Panel uses shared preview signing/recovery controllers for lazy hydration and retry.
-3. Signed-url failure handling can fallback to source extraction or storage download hydration.
-4. Adaptive preview quality and signing budgets follow media-library modal policy contracts.
+### 5) Right-click behaviors
+1. Right-clicking media (image/video) in `All Media` sends that media to the Reference Grid.
+2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
 
-### 5) Outbound drag behavior from Media Library
-1. Media card drag:
-   - Writes custom media-library payload (`libraryMedia`) plus compatibility transfer fields (`text/reference-url`, `text/uri-list`, `text/prompt`, `text/plain`).
-2. Prompt card drag:
-   - Writes custom media-library payload (`libraryPrompt`) plus `text/prompt` and `text/plain`.
-3. Drag payloads are consumed by right-rail and reference-grid surfaces.
+### 6) Deletion behavior
+1. Deleting a custom folder removes that folder and its memberships; master items remain in `All Media`.
+2. Removing an item from a custom folder removes only that folder membership.
+3. Deleting an item from `All Media` permanently deletes it from the Media Library and Supabase storage/metadata.
 
-### 6) Inbound drop behavior to Media Library folders
-1. Drop acceptance is attached to folder strip tiles only.
-2. Drop controller resolves source item in this order:
-   - media-library payload (`libraryMedia` / `libraryPrompt`),
-   - internal reference-grid payload (`text/reference-*`) via resolver callback.
-3. Drop intent is computed by source folder + target folder:
-   - `assign`, `unassign`, `move`, or `noop`.
-4. Membership mutation calls `/api/media/folders/membership-batch`.
-5. Success path sets deterministic user message and refreshes active rows.
+### 7) Folder-canvas spaces
+1. Each user-created folder owns a unique canvas space.
+2. Each folder canvas has independent scene and camera state.
+3. Folder-canvas state persists durably by `user + folder` across sessions.
+4. Folder canvases follow main-canvas interaction constraints (pan/zoom/place media/double-click text).
+5. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
 
-### 7) Internal Reference Grid -> Media Library resolution flow
-1. Parse internal payload from `text/reference-*` transfer keys.
-2. Resolve dropped entity:
-   - If payload has `mediaId`, resolve as media immediately.
-   - Else resolve output by `outputId/referenceId/referenceUrl`.
-3. If resolved output is `mode: "text"`:
-   - Use `output.promptId` if present.
-   - If missing, call `saveReferenceToLibrary(outputId)` and poll until prompt id appears or timeout.
-4. If resolved output is media mode:
-   - Use `savedMediaIds[imageIndex]` fallback `savedMediaIds[0]`.
-   - If missing, call `saveReferenceToLibrary(outputId)` and poll until media id appears or timeout.
-5. Timeout returns unresolved drop item (`null`), resulting in user-facing drop failure.
+## Server Contract Invariants
+- `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
+- `membership-batch` supports `assign`, `unassign`, and `move` actions with ownership validation.
+- Folder delete removes junction memberships, not `media_files`/`media_prompts` rows.
+- Folder list and membership reads are user-scoped only.
 
-## Drop intent contract
-- Root folder id: `all_items` is virtual.
-- Rules:
-  - Same source and target => `noop`.
-  - Target root + source custom => `unassign`.
-  - Target root + no source/root source => `noop`.
-  - Target custom + no source/root source => `assign`.
-  - Target custom + different custom source => `move`.
-
-## Server contract invariants
-- `membership-batch` requires custom folder ids; `all_items` is invalid as mutation target.
-- Ownership checks enforce all media/prompt ids belong to the authenticated user.
-- Folder delete removes membership links, not underlying `media_files`/`media_prompts`.
-- Prompt folder listing is membership-filtered for custom folders and full user-scope for root.
-- Media folder listing follows same pattern via folder membership tables.
-
-## Known operational constraints
-- Folder drops are supported on folder tiles, not on the content grid/body.
-- Internal drops to root (`all_items`) from Reference Grid typically resolve to `noop` because internal drags have no source folder id.
-- `noop` exits without membership message and without forced content refresh.
-- Reference card drag availability for prompt-only cards depends on `previewText` presence.
-- Prompt-only save classification in persistence path also depends on `previewText` (`previewText && !previewUrl`).
+## Current Runtime Delta (as of 2026-03-11)
+1. `All Media` sectioned layout:
+   - Status: Partially aligned.
+   - Current: Prompts/images/videos sections are present; prompt cards and media grids are rendered in panel.
+   - Gap: Maintain explicit true-aspect-ratio masonry parity as a locked UX requirement across all panel states.
+2. Right-click media in `All Media` -> Reference Grid:
+   - Status: Not implemented.
+   - Current: Media card context behavior does not dispatch a right-click send-to-grid action.
+3. Drag ghost visibility for Media Library drags:
+   - Status: Not implemented for panel media/prompt cards.
+   - Current: Drag payloads are written, but Media Library drag-start does not install explicit custom ghost rendering.
+4. Delete from `All Media` permanent remove:
+   - Status: Not implemented in panel UX contract.
+   - Current: Panel exposes folder membership remove actions in custom folders, not root-level permanent delete action.
+5. Folder-canvas independent spaces:
+   - Status: Not implemented.
+   - Current: Media Library folders do not yet mount dedicated per-folder canvas surfaces with durable per-folder state.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`
-- Membership mutation errors surface backend message when available.
-- Intent feedback uses deterministic copy:
+- Membership mutation failures surface API error details when available.
+- Intent feedback copy remains deterministic:
   - `Added to <folder>.`
   - `Removed from <folder>.`
   - `Moved to <folder>.`
-  - Duplicate/no-op variants (`Already exists...`, `Item is not assigned...`).
+  - Duplicate/no-op variants.
 
 ## Validation and regression checklist
-1. Folder CRUD
+1. Folder lifecycle:
    - Create, rename, delete custom folders.
-2. Folder filtering
-   - Root shows all user rows; custom folder shows membership-scoped rows only.
-3. Membership operations
-   - Drag media/prompt from root -> custom (`assign`).
-   - Drag media/prompt from custom -> root (`unassign`).
-   - Drag media/prompt custom -> different custom (`move`).
-4. Internal Reference Grid drops
-   - Image with existing `savedMediaIds`.
-   - Image without saved id (autosave + poll path).
-   - Text with existing `promptId`.
-   - Text without prompt id (autosave + poll path).
-5. Failure paths
-   - Resolver timeout.
-   - Invalid folder id from API.
-   - Ownership mismatch in membership batch.
+2. `All Media` display:
+   - Prompts render as text reference cards.
+   - Images render in masonry with true aspect ratio.
+   - Videos render in masonry with true aspect ratio.
+3. Membership semantics:
+   - `All Media -> Custom` assigns membership.
+   - `Custom -> All Media` unassigns membership.
+   - `Custom -> Custom` moves membership.
+4. Cross-surface ingest:
+   - Drag media/prompt into Reference Grid, Quick Slot Inventory, and Canvas.
+   - Right-click media in `All Media` sends to Reference Grid.
+5. Internal reference resolver:
+   - Existing-media id path.
+   - Autosave+poll fallback path for media and prompt references.
+6. Deletion invariants:
+   - Custom folder delete preserves master rows in `All Media`.
+   - Root delete permanently removes item from library/storage.
 
-## Test coverage status
-- Existing:
-  - `frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx`
-  - `frontend/features/ai-studio/logic/__tests__/mediaLibraryFolderDropModel.test.ts`
-  - `frontend/features/ai-studio/logic/__tests__/mediaLibraryInternalDropResolver.test.ts`
-- Notable gap:
-  - No direct unit test for `useMediaLibraryFolderDropController` internal text-drop happy path end-to-end.
+## Related docs
+- `docs/sops/sop_media_library_ui.md`
+- `docs/sops/sop_ai_studio_index.md`
+- `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
+- `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
+- `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
+- `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`

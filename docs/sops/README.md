@@ -35,7 +35,7 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_video_generation.md`
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_media_library_ui.md`
-- `docs/sops/sop_ai_studio_media_library_operations.md`
+- `docs/sops/sop_ai_studio_media_library_operations.md` (target UX + runtime delta contract for `All Media`, folder membership, right-click ingest, and folder-canvas domains)
 - `docs/sops/sop_sql_migration_operations.md`
 - `docs/sops/sop_media_performance_operations.md`
 - `docs/sops/sop_performance_ai_detection.md`

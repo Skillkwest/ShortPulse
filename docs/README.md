@@ -219,6 +219,7 @@ Start here for all repository documentation.
 - `docs/adr/0029-ai-studio-reference-only-session-persistence.md`
 - `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
+- `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
 
 ## Archive
 - `docs/archive/README.md`

@@ -15,14 +15,21 @@ import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdap
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
 import {
+  AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED,
   MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryFeatureFlags";
+import {
+  deleteMediaFileWithStorage,
+  deleteMediaPromptById,
+  logMediaEvent,
+} from "../../media-library/logic/mediaLibraryDataEffects";
 import {
   fetchMediaListPage,
   type MediaListCursor,
   type MediaListMediaKind,
 } from "../../media-library/logic/mediaListApi";
+import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
   hydrateMediaPreviewViaStorageDownload,
   resolveAndApplySignedPreviewUrlsByRows,
@@ -50,12 +57,18 @@ import {
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
   type PromptListCursor,
 } from "../logic/mediaLibraryPanelApi";
+import {
+  attachMediaLibraryDragGhost,
+  clearMediaLibraryDragGhost,
+} from "../logic/mediaLibraryDragGhost";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import { resolveMediaLibraryPanelCardPreviewUrl } from "../logic/mediaLibraryPanelPreviewResolver";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
+import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
+import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 
@@ -86,6 +99,7 @@ type MediaLibraryPanelProps = {
     kind: "media" | "prompt";
     id: string;
   } | null>;
+  resolveCanvasDropReference?: ResolveCanvasDropReference;
 };
 
 const MEDIA_PAGE_SIZE = 36;
@@ -117,10 +131,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
   resolveInternalDropItem,
+  resolveCanvasDropReference,
 }: MediaLibraryPanelProps) {
-  // Drag/drop is the only add-to-reference flow for media in this panel.
-  void onSelectMedia;
-
   const {
     folders,
     orderedFolders,
@@ -224,7 +236,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
     defaultTopRatio: 0.3,
-    minTopSectionHeightPx: 128,
+    minTopSectionHeightPx: 0,
+    minTopRatioFloor: 0,
     minBottomSectionHeightPx: 240,
     allRefsSnapTopHeightPx: 120,
     collapseTopHeightPx: 86,
@@ -441,28 +454,29 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     []
   );
 
-  const { handleMediaPreviewError } = useMediaPreviewRecoveryController<MediaFileRow>({
-    applySignedUrlsToTab: applySignedUrlsToMediaRows,
-    currentUserIdRef,
-    resolveSignedUrlsByMediaIds,
-    hydrateViaStorageDownload,
-    signStoragePath,
-    signedUrlRetryRef,
-    objectUrlByMediaIdRef,
-    resolveTabForRow: getMediaDataTabForRow,
-    beforeRetry: ({ row, failedUrl }) => {
-      if (!isNextImageOptimizerUrl(failedUrl)) return;
-      const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
-      if (!sourceUrl) return;
-      applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
-      setOptimizerFallbackMediaIds((previous) => {
-        if (previous.has(row.id)) return previous;
-        const next = new Set(previous);
-        next.add(row.id);
-        return next;
-      });
-    },
-  });
+  const { refreshSignedUrl, handleMediaPreviewError } =
+    useMediaPreviewRecoveryController<MediaFileRow>({
+      applySignedUrlsToTab: applySignedUrlsToMediaRows,
+      currentUserIdRef,
+      resolveSignedUrlsByMediaIds,
+      hydrateViaStorageDownload,
+      signStoragePath,
+      signedUrlRetryRef,
+      objectUrlByMediaIdRef,
+      resolveTabForRow: getMediaDataTabForRow,
+      beforeRetry: ({ row, failedUrl }) => {
+        if (!isNextImageOptimizerUrl(failedUrl)) return;
+        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
+        if (!sourceUrl) return;
+        applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
+        setOptimizerFallbackMediaIds((previous) => {
+          if (previous.has(row.id)) return previous;
+          const next = new Set(previous);
+          next.add(row.id);
+          return next;
+        });
+      },
+    });
 
   useMediaPreviewSigningController({
     activeMediaTab,
@@ -690,7 +704,40 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [onSelectPrompt]
   );
 
+  const addMediaReferenceFromFile = useCallback(
+    async (file: MediaFileRow) => {
+      const nextUrl =
+        (await resolveSignedSelectionUrl({
+          row: file,
+          currentUserId: currentUserIdRef.current,
+          signStoragePath,
+        })) ??
+        (await refreshSignedUrl(file)) ??
+        file.signedUrl;
+      if (!nextUrl) return false;
+      const previewStoragePath = file.preview_storage_path ?? file.storage_path;
+      const fullStoragePath = file.storage_path;
+      const previewUrl = file.signedUrl ?? nextUrl;
+      const fullUrl = nextUrl;
+      onSelectMedia({
+        id: file.id,
+        url: nextUrl,
+        fileType: isVideoFile(file.file_type) ? "video" : "image",
+        filename: file.filename,
+        promptText: resolveMediaMetadataPromptText(file.metadata),
+        source: file.source ?? "upload",
+        previewStoragePath,
+        fullStoragePath,
+        previewUrl,
+        fullUrl,
+      });
+      return true;
+    },
+    [onSelectMedia, refreshSignedUrl, signStoragePath]
+  );
+
   const handleSelectMediaFile = useCallback((file: MediaFileRow) => {
+    if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) return;
     void file;
   }, []);
 
@@ -727,6 +774,51 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           membershipError instanceof Error
             ? membershipError.message
             : "Unable to update folder membership."
+        );
+      }
+    },
+    [activeFolderId, refreshActiveRows, setFolderError]
+  );
+
+  const handleDeleteMediaFromLibrary = useCallback(
+    async (file: MediaFileRow) => {
+      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+      setMembershipMessage(null);
+      setFolderError(null);
+      try {
+        await deleteMediaFileWithStorage(file);
+        setMediaRows((previous) => previous.filter((row) => row.id !== file.id));
+        setMembershipMessage("Deleted from All Media.");
+        void logMediaEvent("delete", "media_file", file.id, {
+          storage_path: file.storage_path,
+          surface: "ai-studio-media-library-panel",
+        });
+        await refreshActiveRows();
+      } catch (deleteError) {
+        setFolderError(
+          deleteError instanceof Error ? deleteError.message : "Unable to delete media."
+        );
+      }
+    },
+    [activeFolderId, refreshActiveRows, setFolderError]
+  );
+
+  const handleDeletePromptFromLibrary = useCallback(
+    async (prompt: PromptRow) => {
+      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+      setMembershipMessage(null);
+      setFolderError(null);
+      try {
+        await deleteMediaPromptById(prompt.id);
+        setPromptRows((previous) => previous.filter((row) => row.id !== prompt.id));
+        setMembershipMessage("Deleted from All Media.");
+        void logMediaEvent("delete", "media_prompt", prompt.id, {
+          surface: "ai-studio-media-library-panel",
+        });
+        await refreshActiveRows();
+      } catch (deleteError) {
+        setFolderError(
+          deleteError instanceof Error ? deleteError.message : "Unable to delete prompt."
         );
       }
     },
@@ -776,6 +868,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         event.dataTransfer.setData("text/plain", signedUrl);
       }
       event.currentTarget.classList.add("is-dragging");
+      if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) {
+        attachMediaLibraryDragGhost(event, {
+          label: file.filename || "Media",
+          detail: promptText,
+          previewUrl: signedUrl,
+          previewKind: isVideoFile(file.file_type) ? "video" : "image",
+        });
+      }
     },
     [activeFolderId]
   );
@@ -801,12 +901,22 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       event.dataTransfer.setData("text/prompt", promptText);
       event.dataTransfer.setData("text/plain", promptText);
       event.currentTarget.classList.add("is-dragging");
+      if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) {
+        attachMediaLibraryDragGhost(event, {
+          label: prompt.title || "Prompt",
+          detail: promptText,
+          previewKind: "text",
+        });
+      }
     },
     [activeFolderId]
   );
 
   const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLButtonElement>) => {
     event.currentTarget.classList.remove("is-dragging");
+    if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) {
+      clearMediaLibraryDragGhost(event);
+    }
   }, []);
 
   const handleDownloadMediaFile = useCallback((file: MediaFileRow) => {
@@ -820,6 +930,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     anchor.click();
     anchor.remove();
   }, []);
+
+  const handleMediaCardContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => {
+      if (!AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) return;
+      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void addMediaReferenceFromFile(file);
+    },
+    [activeFolderId, addMediaReferenceFromFile]
+  );
 
   const openFolderContextMenu = useCallback(
     (
@@ -866,6 +987,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   }, [deleteFolder, folderContextMenu]);
 
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+  const activeFolderName =
+    orderedFolders.find((folder) => folder.id === activeFolderId)?.name || ROOT_FOLDER_LABEL;
+  const showFolderCanvas =
+    activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
   const promptsSectionCollapsed = isRootFolderSelected && isPromptsSectionCollapsed;
   const imagesSectionCollapsed = isRootFolderSelected && isImagesSectionCollapsed;
@@ -917,9 +1042,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         }}
         onMediaDragStart={handleMediaCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
+        onMediaContextMenu={handleMediaCardContextMenu}
         showRemoveAction={canShowFolderItemRemoveAction}
         onRemoveMediaFromFolder={(file) => {
           void handleRemoveItemFromActiveFolder({ kind: "media", id: file.id });
+        }}
+        showDeleteAction={
+          AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED &&
+          activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+        }
+        onDeleteMediaFromLibrary={(file) => {
+          void handleDeleteMediaFromLibrary(file);
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
         onMediaPreviewError={handleMediaPreviewError}
@@ -934,7 +1067,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       canShowFolderItemRemoveAction,
       getMediaCardRef,
       handleCardDragEnd,
+      handleDeleteMediaFromLibrary,
       handleMediaCardDragStart,
+      handleMediaCardContextMenu,
       handleDownloadMediaFile,
       handleMediaPreviewError,
       handleRemoveItemFromActiveFolder,
@@ -943,6 +1078,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
       selectedIds,
+      activeFolderId,
     ]
   );
 
@@ -1098,7 +1234,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           <div className="media-library-panel-body" ref={panelBodyRef}>
             {error ? <p className="tiny subdued">{error}</p> : null}
 
-            {shouldShowPrompts ? (
+            {showFolderCanvas ? (
+              <MediaLibraryFolderCanvas
+                folderId={activeFolderId}
+                mediaRows={mediaRows}
+                promptRows={visiblePromptRows}
+                onSelectMedia={onSelectMedia}
+                onSelectPrompt={onSelectPrompt}
+                onUnassignItem={handleRemoveItemFromActiveFolder}
+                resolveCanvasDropReference={resolveCanvasDropReference}
+              />
+            ) : null}
+
+            {!showFolderCanvas && shouldShowPrompts ? (
               <section className="media-library-panel-section">
                 <div className="media-library-panel-section-head">
                   {isRootFolderSelected ? (
@@ -1148,8 +1296,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                         onPromptDragStart={handlePromptCardDragStart}
                         onPromptDragEnd={handleCardDragEnd}
                         showRemoveAction={canShowFolderItemRemoveAction}
+                        showDeleteAction={
+                          AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED &&
+                          activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+                        }
                         onRemovePromptFromFolder={(prompt) => {
                           void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
+                        }}
+                        onDeletePromptFromLibrary={(prompt) => {
+                          void handleDeletePromptFromLibrary(prompt);
                         }}
                         variant="reference-card"
                       />
@@ -1173,7 +1328,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               </section>
             ) : null}
 
-            {shouldShowMedia && isRootFolderSelected ? (
+            {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (
               <>
                 <section className="media-library-panel-section">
                   <div className="media-library-panel-section-head">
@@ -1267,7 +1422,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               </>
             ) : null}
 
-            {shouldShowMedia && !isRootFolderSelected ? (
+            {!showFolderCanvas && shouldShowMedia && !isRootFolderSelected ? (
               <section className="media-library-panel-section">
                 <div className="media-library-panel-section-head">
                   <p className="tiny subdued">
@@ -1303,9 +1458,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           </div>
 
           <footer className="media-library-panel-footer">
-            <p className="tiny subdued">
-              {orderedFolders.find((folder) => folder.id === activeFolderId)?.name ||
-                ROOT_FOLDER_LABEL}
+            <p className="tiny subdued media-library-panel-footer-folder-label">
+              <FolderSimple
+                size={13}
+                weight={isRootFolderSelected ? "fill" : "regular"}
+                aria-hidden
+              />
+              <span>{activeFolderName}</span>
             </p>
           </footer>
         </div>

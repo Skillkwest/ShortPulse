@@ -11,6 +11,28 @@ const applyMediaFolderMembershipBatchMock = vi.fn();
 const fetchMediaPromptListPageMock = vi.fn();
 const fetchMediaListPageMock = vi.fn();
 const mediaGridPropsSpy = vi.fn();
+const deleteMediaFileWithStorageMock = vi.fn();
+const deleteMediaPromptByIdMock = vi.fn();
+const logMediaEventMock = vi.fn();
+
+vi.mock("../MediaLibraryFolderCanvas", () => ({
+  MediaLibraryFolderCanvas: ({
+    onUnassignItem,
+  }: {
+    onUnassignItem: (item: { kind: "media" | "prompt"; id: string }) => Promise<void>;
+  }) => (
+    <div data-testid="media-library-folder-canvas-mock">
+      <button
+        type="button"
+        onClick={() => {
+          void onUnassignItem({ kind: "prompt", id: "prompt-1" });
+        }}
+      >
+        Remove prompt Prompt One
+      </button>
+    </div>
+  ),
+}));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseClient: () => ({
@@ -57,6 +79,24 @@ vi.mock("../../../media-library/hooks/useMediaPreviewRecoveryController", () => 
     handleMediaPreviewError: () => undefined,
   }),
 }));
+
+vi.mock("../../../media-library/logic/mediaLibraryFeatureFlags", async () => {
+  const actual = await vi.importActual("../../../media-library/logic/mediaLibraryFeatureFlags");
+  return {
+    ...actual,
+    AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED: true,
+  };
+});
+
+vi.mock("../../../media-library/logic/mediaLibraryDataEffects", async () => {
+  const actual = await vi.importActual("../../../media-library/logic/mediaLibraryDataEffects");
+  return {
+    ...actual,
+    deleteMediaFileWithStorage: (...args: unknown[]) => deleteMediaFileWithStorageMock(...args),
+    deleteMediaPromptById: (...args: unknown[]) => deleteMediaPromptByIdMock(...args),
+    logMediaEvent: (...args: unknown[]) => logMediaEventMock(...args),
+  };
+});
 
 vi.mock("../../../media-library/logic/mediaListApi", () => ({
   fetchMediaListPage: (...args: unknown[]) => fetchMediaListPageMock(...args),
@@ -105,11 +145,22 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
       filename: string;
       signedUrl?: string | null;
     }) => void;
+    onMediaContextMenu?: (
+      event: React.MouseEvent<HTMLButtonElement>,
+      row: { id: string; filename: string; signedUrl?: string | null }
+    ) => void;
     showRemoveAction?: boolean;
     onRemoveMediaFromFolder?: (row: {
       id: string;
       filename: string;
       signedUrl?: string | null;
+    }) => void;
+    showDeleteAction?: boolean;
+    onDeleteMediaFromLibrary?: (row: {
+      id: string;
+      filename: string;
+      signedUrl?: string | null;
+      storage_path?: string;
     }) => void;
   }) => {
     mediaGridPropsSpy(props);
@@ -120,6 +171,14 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
             <button type="button" onClick={() => props.onSelectMediaFile(row)}>
               Select media {row.filename}
             </button>
+            {props.onMediaContextMenu ? (
+              <button
+                type="button"
+                onContextMenu={(event) => props.onMediaContextMenu?.(event, row)}
+              >
+                Context media {row.filename}
+              </button>
+            ) : null}
             {props.onDownloadMediaFile ? (
               <button type="button" onClick={() => props.onDownloadMediaFile?.(row)}>
                 Download media {row.filename}
@@ -128,6 +187,11 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
             {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
               <button type="button" onClick={() => props.onRemoveMediaFromFolder?.(row)}>
                 Remove media {row.filename}
+              </button>
+            ) : null}
+            {props.showDeleteAction && props.onDeleteMediaFromLibrary ? (
+              <button type="button" onClick={() => props.onDeleteMediaFromLibrary?.(row)}>
+                Delete media {row.filename}
               </button>
             ) : null}
           </React.Fragment>
@@ -187,6 +251,9 @@ describe("MediaLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mediaGridPropsSpy.mockReset();
+    deleteMediaFileWithStorageMock.mockResolvedValue(undefined);
+    deleteMediaPromptByIdMock.mockResolvedValue(undefined);
+    logMediaEventMock.mockResolvedValue(undefined);
     listMediaFoldersMock.mockResolvedValue([
       {
         id: "folder-1",
@@ -279,6 +346,43 @@ describe("MediaLibraryPanel", () => {
         promptText: "Prompt text",
       })
     );
+  });
+
+  it("routes all-media media right-click to onSelectMedia", async () => {
+    const onSelectMedia = vi.fn();
+    render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Context media ref-1.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Context media ref-1.png" }));
+
+    await waitFor(() => {
+      expect(onSelectMedia).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "media-1",
+          url: "https://cdn.example.com/ref-1.png",
+          fileType: "image",
+        })
+      );
+    });
+  });
+
+  it("deletes root media items through the panel delete action", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete media ref-1.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete media ref-1.png" }));
+
+    await waitFor(() => {
+      expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "media-1" })
+      );
+    });
   });
 
   it("passes panel-specific preview resolver callback to media grid", async () => {

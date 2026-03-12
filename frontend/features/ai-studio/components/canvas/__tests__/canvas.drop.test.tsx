@@ -220,6 +220,32 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByText("External note")).toBeInTheDocument();
   });
 
+  it("creates an image item from a media-library drag payload", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "application/x-shortpulse-media-library-item": JSON.stringify({
+          kind: "libraryMedia",
+          source: "mediaLibrary",
+          payload: {
+            id: "media-lib-1",
+            url: "https://cdn.example.com/media-lib-1.png",
+            previewUrl: "https://cdn.example.com/media-lib-1.png",
+            fileType: "image",
+          },
+        }),
+      }),
+      clientX: 260,
+      clientY: 180,
+    });
+
+    expect(await screen.findByAltText("Canvas media")).toBeInTheDocument();
+    expect(await screen.findByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "image");
+  });
+
   it("enforces a hard cap of 300 canvas items", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

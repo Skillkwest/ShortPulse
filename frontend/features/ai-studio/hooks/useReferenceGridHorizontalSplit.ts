@@ -20,6 +20,7 @@ type UseReferenceGridHorizontalSplitArgs = {
   defaultTopRatio?: number;
   minTopSectionHeightPx?: number;
   minBottomSectionHeightPx?: number;
+  minTopRatioFloor?: number;
   allRefsSnapTopHeightPx?: number;
   collapseTopHeightPx?: number;
   ariaLabel?: string;
@@ -74,16 +75,17 @@ const resolveElementHeight = (node: HTMLElement | null): number => {
 const resolveRatioBounds = (
   containerHeight: number,
   minTopSectionHeightPx: number,
-  minBottomSectionHeightPx: number
+  minBottomSectionHeightPx: number,
+  minTopRatioFloor: number
 ): RatioBounds => {
   const safeHeight = Math.max(1, containerHeight);
-  const min = clamp(minTopSectionHeightPx / safeHeight, 0.01, 0.98);
+  const min = clamp(minTopSectionHeightPx / safeHeight, minTopRatioFloor, 0.98);
   const max = clamp(1 - minBottomSectionHeightPx / safeHeight, 0.02, 0.995);
   if (min <= max) return { min, max };
 
   // When the container is too small to satisfy both section minimums, pin the divider
   // to a single safe ratio that preserves the lower bound rather than allowing overflow.
-  const pinned = clamp(max, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO);
+  const pinned = clamp(max, minTopRatioFloor, FALLBACK_MAX_RATIO);
   return { min: pinned, max: pinned };
 };
 
@@ -96,10 +98,12 @@ export const useReferenceGridHorizontalSplit = ({
   defaultTopRatio = DEFAULT_TOP_RATIO,
   minTopSectionHeightPx = DEFAULT_MIN_TOP_SECTION_HEIGHT_PX,
   minBottomSectionHeightPx = DEFAULT_MIN_BOTTOM_SECTION_HEIGHT_PX,
+  minTopRatioFloor = FALLBACK_MIN_RATIO,
   allRefsSnapTopHeightPx = DEFAULT_ALL_REFS_SNAP_TOP_HEIGHT_PX,
   collapseTopHeightPx,
   ariaLabel = "Resize Quick Slot Inventory and Reference Grid sections",
 }: UseReferenceGridHorizontalSplitArgs) => {
+  const normalizedMinTopRatioFloor = clamp(minTopRatioFloor, 0, 0.98);
   const dragSessionRef = useRef<DragSession | null>(null);
   const detachPointerListenersRef = useRef<(() => void) | null>(null);
   const [allRefsExpandedThresholdRatio, setAllRefsExpandedThresholdRatio] = useState<number | null>(
@@ -137,11 +141,12 @@ export const useReferenceGridHorizontalSplit = ({
       const bounds = resolveRatioBounds(
         containerHeight,
         minTopSectionHeightPx,
-        minBottomSectionHeightPx
+        minBottomSectionHeightPx,
+        normalizedMinTopRatioFloor
       );
       return clamp(ratio, bounds.min, bounds.max);
     },
-    [minBottomSectionHeightPx, minTopSectionHeightPx]
+    [minBottomSectionHeightPx, minTopSectionHeightPx, normalizedMinTopRatioFloor]
   );
 
   const resolveCollapseRatio = useCallback(
@@ -188,7 +193,8 @@ export const useReferenceGridHorizontalSplit = ({
       const bounds = resolveRatioBounds(
         containerHeight,
         minTopSectionHeightPx,
-        minBottomSectionHeightPx
+        minBottomSectionHeightPx,
+        normalizedMinTopRatioFloor
       );
       const currentRatio = clamp(topRatioRef.current, bounds.min, bounds.max);
       if (Math.abs(currentRatio - topRatioRef.current) >= 0.001) {
@@ -202,7 +208,13 @@ export const useReferenceGridHorizontalSplit = ({
       }
       return Math.abs(residualPx) < 0.01 ? 0 : residualPx;
     },
-    [commitTopRatio, minBottomSectionHeightPx, minTopSectionHeightPx, resolveContainerHeight]
+    [
+      commitTopRatio,
+      minBottomSectionHeightPx,
+      minTopSectionHeightPx,
+      normalizedMinTopRatioFloor,
+      resolveContainerHeight,
+    ]
   );
 
   const handleWindowPointerMove = useCallback(
@@ -285,7 +297,12 @@ export const useReferenceGridHorizontalSplit = ({
       const height = resolveContainerHeight();
       const bounds =
         height > 0
-          ? resolveRatioBounds(height, minTopSectionHeightPx, minBottomSectionHeightPx)
+          ? resolveRatioBounds(
+              height,
+              minTopSectionHeightPx,
+              minBottomSectionHeightPx,
+              normalizedMinTopRatioFloor
+            )
           : FALLBACK_RATIO_BOUNDS;
       const step = event.shiftKey ? KEYBOARD_FAST_STEP : KEYBOARD_STEP;
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
@@ -328,6 +345,7 @@ export const useReferenceGridHorizontalSplit = ({
       enabled,
       minBottomSectionHeightPx,
       minTopSectionHeightPx,
+      normalizedMinTopRatioFloor,
       resolveContainerHeight,
       topRatioRef,
     ]
@@ -355,13 +373,25 @@ export const useReferenceGridHorizontalSplit = ({
     return () => observer.disconnect();
   }, [containerRef, enabled, reconcileTopRatioForContainerHeight, resolveContainerHeight]);
 
-  const ratioBounds =
+  const fallbackRatioBounds = useMemo<RatioBounds>(
+    () => ({
+      min: normalizedMinTopRatioFloor,
+      max: FALLBACK_MAX_RATIO,
+    }),
+    [normalizedMinTopRatioFloor]
+  );
+  const computedRatioBounds =
     containerHeightPx > 0
-      ? resolveRatioBounds(containerHeightPx, minTopSectionHeightPx, minBottomSectionHeightPx)
-      : FALLBACK_RATIO_BOUNDS;
+      ? resolveRatioBounds(
+          containerHeightPx,
+          minTopSectionHeightPx,
+          minBottomSectionHeightPx,
+          normalizedMinTopRatioFloor
+        )
+      : fallbackRatioBounds;
   const ariaValueNow = Math.round(topRatio * 100);
-  const ariaValueMin = Math.round(ratioBounds.min * 100);
-  const ariaValueMax = Math.round(ratioBounds.max * 100);
+  const ariaValueMin = Math.round(computedRatioBounds.min * 100);
+  const ariaValueMax = Math.round(computedRatioBounds.max * 100);
   const collapseRatio =
     containerHeightPx > 0 ? resolveCollapseRatio(containerHeightPx) : FALLBACK_MIN_RATIO;
   const effectiveAllRefsExpandedThreshold = Math.max(
@@ -369,7 +399,7 @@ export const useReferenceGridHorizontalSplit = ({
     allRefsExpandedThresholdRatio ?? collapseRatio
   );
   const isAllRefsExpanded = topRatio <= effectiveAllRefsExpandedThreshold + 0.0005;
-  const isInventoryExpanded = topRatio >= ratioBounds.max - 0.0005;
+  const isInventoryExpanded = topRatio >= computedRatioBounds.max - 0.0005;
 
   const snapToInventoryExpanded = useCallback(() => {
     setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
@@ -379,9 +409,20 @@ export const useReferenceGridHorizontalSplit = ({
       return;
     }
     setContainerHeightPx((prev) => (prev === height ? prev : height));
-    const bounds = resolveRatioBounds(height, minTopSectionHeightPx, minBottomSectionHeightPx);
+    const bounds = resolveRatioBounds(
+      height,
+      minTopSectionHeightPx,
+      minBottomSectionHeightPx,
+      normalizedMinTopRatioFloor
+    );
     commitTopRatio(bounds.max);
-  }, [commitTopRatio, minBottomSectionHeightPx, minTopSectionHeightPx, resolveContainerHeight]);
+  }, [
+    commitTopRatio,
+    minBottomSectionHeightPx,
+    minTopSectionHeightPx,
+    normalizedMinTopRatioFloor,
+    resolveContainerHeight,
+  ]);
 
   const snapToAllRefsExpanded = useCallback(
     (topHeightPx?: number) => {

@@ -17,6 +17,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/ai/sessions/save` | `POST` | Bearer (proxy + route) | Save one AI Studio session snapshot (`sid` + schema-versioned payload) for the authenticated user. | `frontend/pages/api/ai/sessions/save.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions/:sid` | `GET` | Bearer (proxy + route) | Return one persisted AI Studio session snapshot by `sid` for the authenticated user. | `frontend/pages/api/ai/sessions/[sid].ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions` | `GET` | Bearer (proxy + route) | List persisted AI Studio sessions with `limit` + `cursor` pagination for the authenticated user. | `frontend/pages/api/ai/sessions/index.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
+| `/api/ai/media-folder-canvas/:folderId` | `GET` | Bearer (proxy + route) | Load one user-owned custom-folder canvas snapshot for AI Studio Media Library folder canvases; rejects virtual root `all_items`. | `frontend/pages/api/ai/media-folder-canvas/[folderId].ts`, `frontend/lib/server/mediaFolderCanvasService.ts` |
+| `/api/ai/media-folder-canvas/save` | `POST` | Bearer (proxy + route) | Save one user-owned custom-folder canvas snapshot (`schemaVersion` + object snapshot payload); rejects virtual root `all_items` and cross-user folders. | `frontend/pages/api/ai/media-folder-canvas/save.ts`, `frontend/lib/server/mediaFolderCanvasService.ts` |
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
 | `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
@@ -130,6 +132,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_MEDIA_LIST_API_ENABLED` (`true` by default; disables `/api/media/list` when `false`)
   - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED` (client migration gate for route/modal list API usage)
   - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED` (`true` by default; set `false` to fallback AI Studio media-library opens to the legacy modal path instead of the left-panel tool)
+  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED` (`false` by default; enables panel drag ghost + root right-click ingest + root delete behavior)
+  - Custom-folder canvas surfaces are always enabled for user-created folders and persist via `/api/ai/media-folder-canvas/[folderId]` + `/api/ai/media-folder-canvas/save`
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED` (client virtualization gate for route/modal media grids)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED` (client autoplay budget gate for route/modal media grids)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED` (client sign-prefetch gate for route/modal signing passes)

@@ -411,7 +411,8 @@ const STAGE_CONTEXT_MENU_HEIGHT = 172;
 const STAGE_CONTEXT_MENU_GUTTER = 8;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const MARKUP_STROKE_SIZE_DEFAULT = 26;
-const MARKUP_STROKE_SIZE_MAX = 50;
+const MARKUP_STROKE_SIZE_MAX = 30;
+const MARKUP_CURSOR_DIAMETER_MIN = 1;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
 const INPAINT_CURSOR_DIAMETER_MAX = 52;
 const INPAINT_CURSOR_PADDING = 6;
@@ -765,6 +766,25 @@ const buildInpaintBrushReticleCursor = (strokeSize: number) => {
   const center = canvasSize / 2;
   const radius = diameter / 2;
   const ringStrokeWidth = diameter >= 34 ? 2 : 1.6;
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}">
+      <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(0,0,0,0.8)" stroke-width="${ringStrokeWidth + 1}" />
+      <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(245,249,255,0.98)" stroke-width="${ringStrokeWidth}" />
+    </svg>
+  `.trim();
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
+};
+
+const buildMarkupBrushReticleCursor = (strokeSize: number) => {
+  const diameter = clampNumber(
+    Math.round(strokeSize),
+    MARKUP_CURSOR_DIAMETER_MIN,
+    MARKUP_STROKE_SIZE_MAX
+  );
+  const canvasSize = diameter + INPAINT_CURSOR_PADDING * 2;
+  const center = canvasSize / 2;
+  const radius = diameter / 2;
+  const ringStrokeWidth = diameter >= 18 ? 2 : 1.5;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}">
       <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(0,0,0,0.8)" stroke-width="${ringStrokeWidth + 1}" />
@@ -1841,7 +1861,7 @@ export function ExpertEditPanelView({
       return buildInpaintLassoCursor();
     }
     if (shouldShowMarkupBrushReticle) {
-      return buildInpaintBrushReticleCursor(resolvedMarkupStrokeSize);
+      return buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize);
     }
     return undefined;
   }, [

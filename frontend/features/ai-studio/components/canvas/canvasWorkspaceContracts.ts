@@ -56,6 +56,9 @@ export type CanvasPropertiesPanelProps = {
   onItemPointerMove: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerUp: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerCancel: (id: string, event: PointerEvent<HTMLElement>) => void;
+  isItemDraggable?: boolean;
+  onItemDragStart?: (id: string, event: DragEvent<HTMLElement>) => void;
+  onItemDragEnd?: (id: string, event: DragEvent<HTMLElement>) => void;
   onItemContextMenu: (id: string, event: MouseEvent<HTMLElement>) => void;
   onItemDoubleClick: (id: string, event: MouseEvent<HTMLElement>) => void;
   onPinTextItem: (id: string) => void;

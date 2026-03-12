@@ -90,6 +90,11 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
   - Videos render in masonry preserving true aspect ratio.
 - Right-click contract:
   - Right-clicking media in `All Media` sends media to Reference Grid.
+- Folder canvas contract (custom folders, behind runtime flag):
+  - Custom folder body can mount a dedicated folder-scoped canvas surface with independent camera + scene persistence.
+  - Folder canvas snapshots persist by `user_id + folder_id` through `/api/ai/media-folder-canvas/[folderId]` and `/api/ai/media-folder-canvas/save`.
+  - Right-click on folder-canvas items copies media/text references into Reference Grid.
+  - Holding `Shift` while dragging folder-canvas items exports media-library drag payloads for external drop targets.
 - API surfaces:
   - Folder CRUD + membership: `/api/media/folders/list|create|rename|delete|membership-batch`
   - Prompt listing: `/api/media/prompts/list`

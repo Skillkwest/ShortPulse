@@ -2,6 +2,7 @@
  * Encapsulates drag/drop behavior for a single Canvas viewport instance.
  */
 import { useCallback, useRef, useState, type DragEvent, type RefObject } from "react";
+import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractInternalReferenceDragPayload,
   type InternalReferenceDragPayload,
@@ -11,7 +12,11 @@ import {
   extractCanvasDroppedText,
   resolveCanvasDropClientPoint,
 } from "./canvasDropController";
-import { viewportPointToCanvasWorld } from "./canvasGeometry";
+import {
+  CANVAS_IMAGE_ITEM_HEIGHT,
+  CANVAS_IMAGE_ITEM_WIDTH,
+  viewportPointToCanvasWorld,
+} from "./canvasGeometry";
 import type { CanvasCamera, CanvasDropResolution, ResolveCanvasDropReference } from "./canvasTypes";
 
 type UseCanvasViewportDropHandlersParams = {
@@ -103,17 +108,8 @@ export const useCanvasViewportDropHandlers = ({
     (event: DragEvent<HTMLDivElement>) => {
       dragDepthRef.current = 0;
       setIsDropActive(false);
-      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
-      if (internalPayload) {
-        event.preventDefault();
-        event.stopPropagation();
-        void handleResolvedInternalDrop(internalPayload, event.clientX, event.clientY);
-        return;
-      }
-      const droppedText = extractCanvasDroppedText(event.dataTransfer);
-      if (!droppedText || !viewportRef.current) return;
-      event.preventDefault();
-      event.stopPropagation();
+      const transfer = event.dataTransfer;
+      if (!viewportRef.current) return;
       const rect = viewportRef.current.getBoundingClientRect();
       const normalizedPoint = resolveCanvasDropClientPoint({
         clientX: event.clientX,
@@ -126,6 +122,79 @@ export const useCanvasViewportDropHandlers = ({
         rect,
         camera,
       });
+      const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+      if (mediaLibraryPayload) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (mediaLibraryPayload.kind === "libraryMedia") {
+          const previewSrc =
+            (mediaLibraryPayload.payload.previewUrl ?? "").trim() ||
+            (mediaLibraryPayload.payload.url ?? "").trim();
+          if (!previewSrc) return;
+          const payloadWithDimensions =
+            mediaLibraryPayload.payload as typeof mediaLibraryPayload.payload & {
+              width?: number;
+              height?: number;
+            };
+          const fallbackWidth =
+            typeof payloadWithDimensions.width === "number" &&
+            Number.isFinite(payloadWithDimensions.width) &&
+            payloadWithDimensions.width > 0
+              ? payloadWithDimensions.width
+              : CANVAS_IMAGE_ITEM_WIDTH;
+          const fallbackHeight =
+            typeof payloadWithDimensions.height === "number" &&
+            Number.isFinite(payloadWithDimensions.height) &&
+            payloadWithDimensions.height > 0
+              ? payloadWithDimensions.height
+              : CANVAS_IMAGE_ITEM_HEIGHT;
+          void addResolvedItem(
+            {
+              kind: "image",
+              outputId: null,
+              mediaId: mediaLibraryPayload.payload.id,
+              src: previewSrc,
+              alt: (mediaLibraryPayload.payload.filename || "Canvas media").trim(),
+              width: fallbackWidth,
+              height: fallbackHeight,
+            },
+            point.x,
+            point.y,
+            {
+              showLoadingPlaceholder: true,
+            }
+          );
+          return;
+        }
+        const promptText = mediaLibraryPayload.payload.promptText.trim();
+        if (!promptText) return;
+        void addResolvedItem(
+          {
+            kind: "text",
+            outputId: mediaLibraryPayload.payload.id
+              ? `prompt:${mediaLibraryPayload.payload.id}`
+              : null,
+            text: promptText,
+          },
+          point.x,
+          point.y,
+          {
+            showLoadingPlaceholder: true,
+          }
+        );
+        return;
+      }
+      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      if (internalPayload) {
+        event.preventDefault();
+        event.stopPropagation();
+        void handleResolvedInternalDrop(internalPayload, event.clientX, event.clientY);
+        return;
+      }
+      const droppedText = extractCanvasDroppedText(event.dataTransfer);
+      if (!droppedText) return;
+      event.preventDefault();
+      event.stopPropagation();
       void addResolvedItem(
         {
           kind: "text",

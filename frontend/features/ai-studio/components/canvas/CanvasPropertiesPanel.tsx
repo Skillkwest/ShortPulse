@@ -37,6 +37,9 @@ export function CanvasPropertiesPanel({
   onItemPointerMove,
   onItemPointerUp,
   onItemPointerCancel,
+  isItemDraggable = false,
+  onItemDragStart,
+  onItemDragEnd,
   onItemContextMenu,
   onItemDoubleClick,
   onPinTextItem,
@@ -148,6 +151,7 @@ export function CanvasPropertiesPanel({
                   width: `${item.width}px`,
                   ...(item.kind === "image" ? { height: `${item.height}px` } : {}),
                 }}
+                draggable={isItemDraggable}
                 onPointerDown={
                   isEditingTextItem ? undefined : (event) => onItemPointerDown(item.id, event)
                 }
@@ -161,6 +165,16 @@ export function CanvasPropertiesPanel({
                   isEditingTextItem ? undefined : (event) => onItemPointerCancel(item.id, event)
                 }
                 onContextMenu={(event) => onItemContextMenu(item.id, event)}
+                onDragStart={
+                  isItemDraggable && onItemDragStart
+                    ? (event) => onItemDragStart(item.id, event)
+                    : undefined
+                }
+                onDragEnd={
+                  isItemDraggable && onItemDragEnd
+                    ? (event) => onItemDragEnd(item.id, event)
+                    : undefined
+                }
                 onDoubleClick={(event) => {
                   if (item.kind === "text") {
                     onItemDoubleClick(item.id, event);

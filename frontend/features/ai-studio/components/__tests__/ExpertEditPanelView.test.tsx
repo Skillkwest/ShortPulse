@@ -1001,13 +1001,13 @@ describe("ExpertEditPanelView", () => {
     expect(inpaintStrokeSlider.value).toBe("26");
     expect(markupStrokeSlider.value).toBe("26");
 
-    fireEvent.change(markupStrokeSlider, { target: { value: "50" } });
-    expect(markupStrokeSlider.value).toBe("50");
+    fireEvent.change(markupStrokeSlider, { target: { value: "30" } });
+    expect(markupStrokeSlider.value).toBe("30");
     expect(inpaintStrokeSlider.value).toBe("26");
 
     fireEvent.change(inpaintStrokeSlider, { target: { value: "41" } });
     expect(inpaintStrokeSlider.value).toBe("41");
-    expect(markupStrokeSlider.value).toBe("50");
+    expect(markupStrokeSlider.value).toBe("30");
   });
 
   it("collapses and expands inpaint controls from the skinny toggle button", () => {
@@ -1433,7 +1433,7 @@ describe("ExpertEditPanelView", () => {
       clientY: 150,
     });
 
-    fireEvent.change(strokeSlider, { target: { value: "50" } });
+    fireEvent.change(strokeSlider, { target: { value: "30" } });
     fireEvent.pointerDown(primaryDropzone, {
       pointerId: 913,
       pointerType: "mouse",
@@ -1461,6 +1461,10 @@ describe("ExpertEditPanelView", () => {
     const firstStrokeWidth = Number.parseFloat(strokes[0]?.getAttribute("stroke-width") ?? "0");
     const secondStrokeWidth = Number.parseFloat(strokes[1]?.getAttribute("stroke-width") ?? "0");
     expect(secondStrokeWidth).toBeGreaterThan(firstStrokeWidth);
+    const firstStrokeWidthPx = (firstStrokeWidth / 100) * 320;
+    const secondStrokeWidthPx = (secondStrokeWidth / 100) * 320;
+    expect(firstStrokeWidthPx).toBeCloseTo(10, 1);
+    expect(secondStrokeWidthPx).toBeCloseTo(30, 1);
   });
 
   it("defaults markup color to #F43F5E in inline and expanded markup pickers", async () => {

@@ -110,3 +110,34 @@ export const removeStoragePaths = async (paths: string[]): Promise<void> => {
     });
   }
 };
+
+/**
+ * Deletes one media file row plus all associated storage objects/variants.
+ * Inputs: one media delete target containing canonical + optional variant paths.
+ * Output: Promise resolved after storage and DB row are removed.
+ * Side effects: removes bucket objects and deletes one `media_files` row.
+ */
+export const deleteMediaFileWithStorage = async (target: MediaDeleteTarget): Promise<void> => {
+  const supabase = ensureSupabaseClient();
+  const deletePaths = await collectMediaStoragePathsForDelete([target]);
+  await removeStoragePaths(deletePaths);
+  const { error: deleteError } = await supabase.from("media_files").delete().eq("id", target.id);
+  if (deleteError) throw deleteError;
+};
+
+/**
+ * Deletes one saved prompt row.
+ * Inputs: prompt id.
+ * Output: Promise resolved after DB delete succeeds.
+ * Side effects: deletes one `media_prompts` row.
+ */
+export const deleteMediaPromptById = async (promptId: string): Promise<void> => {
+  const normalizedPromptId = promptId.trim();
+  if (!normalizedPromptId) return;
+  const supabase = ensureSupabaseClient();
+  const { error: deleteError } = await supabase
+    .from("media_prompts")
+    .delete()
+    .eq("id", normalizedPromptId);
+  if (deleteError) throw deleteError;
+};

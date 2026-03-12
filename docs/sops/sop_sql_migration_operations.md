@@ -97,6 +97,7 @@ Current set:
 - `060_add_media_folders_and_membership.sql`
 - `061_backfill_media_image_dimensions_metadata.sql`
 - `062_add_dashboard_announcements.sql`
+- `063_add_media_folder_canvas_states.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

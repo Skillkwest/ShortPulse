@@ -4,6 +4,7 @@
  */
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { deleteMediaPromptById } from "../logic/mediaLibraryDataEffects";
 
 type PromptModalRow = {
   id: string;
@@ -75,12 +76,7 @@ export const useMediaPromptModalCrud = <TRow extends PromptModalRow>({
         setPromptModalError(null);
       }
       try {
-        const supabase = ensureSupabaseClient();
-        const { error: deleteError } = await supabase
-          .from("media_prompts")
-          .delete()
-          .eq("id", row.id);
-        if (deleteError) throw deleteError;
+        await deleteMediaPromptById(row.id);
         setPrompts((prev) => prev.filter((prompt) => prompt.id !== row.id));
         setSelectedIds((prev) => prev.filter((id) => id !== row.id));
         setFocusedPrompt((prev) => (prev && prev.id === row.id ? null : prev));

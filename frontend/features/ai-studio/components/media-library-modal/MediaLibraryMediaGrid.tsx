@@ -38,7 +38,10 @@ type MediaLibraryMediaGridProps = {
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   showRemoveAction?: boolean;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
+  showDeleteAction?: boolean;
+  onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
   onDownloadMediaFile?: (file: MediaFileRow) => void;
+  onMediaContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
@@ -58,7 +61,10 @@ export function MediaLibraryMediaGrid({
   onMediaDragEnd,
   showRemoveAction = false,
   onRemoveMediaFromFolder,
+  showDeleteAction = false,
+  onDeleteMediaFromLibrary,
   onDownloadMediaFile,
+  onMediaContextMenu,
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
@@ -120,10 +126,13 @@ export function MediaLibraryMediaGrid({
           const file = renderItem.item;
           const supportsRemoveAction = Boolean(onRemoveMediaFromFolder);
           const canShowRemoveAction = showRemoveAction && supportsRemoveAction;
+          const supportsDeleteAction = Boolean(onDeleteMediaFromLibrary);
+          const canShowDeleteAction = showDeleteAction && supportsDeleteAction;
           const canShowDownloadAction = Boolean(
             onDownloadMediaFile && (file.signedUrl ?? "").trim().length > 0
           );
-          const shouldShowCardActions = supportsRemoveAction || canShowDownloadAction;
+          const shouldShowCardActions =
+            canShowDownloadAction || canShowRemoveAction || canShowDeleteAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
           const previewAspectRatio = resolveMediaCardAspectRatio({
             fileType: file.file_type,
@@ -167,6 +176,7 @@ export function MediaLibraryMediaGrid({
                 onClick={() => onSelectMediaFile(file)}
                 onDragStart={(event) => onMediaDragStart?.(event, file)}
                 onDragEnd={(event) => onMediaDragEnd?.(event, file)}
+                onContextMenu={(event) => onMediaContextMenu?.(event, file)}
               >
                 {cardPreviewUrl ? (
                   isVideoFile(file.file_type) ? (
@@ -232,24 +242,28 @@ export function MediaLibraryMediaGrid({
                       <DownloadSimple size={16} weight="bold" aria-hidden />
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-                    aria-label={
-                      canShowRemoveAction
-                        ? `Remove ${file.filename || "media"} from this folder`
-                        : "Remove unavailable in All Media"
-                    }
-                    disabled={!canShowRemoveAction}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      if (!canShowRemoveAction) return;
-                      onRemoveMediaFromFolder?.(file);
-                    }}
-                  >
-                    <X size={16} weight="bold" aria-hidden />
-                  </button>
+                  {canShowRemoveAction || canShowDeleteAction ? (
+                    <button
+                      type="button"
+                      className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+                      aria-label={
+                        canShowDeleteAction
+                          ? `Delete ${file.filename || "media"} from library`
+                          : `Remove ${file.filename || "media"} from this folder`
+                      }
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (canShowDeleteAction) {
+                          onDeleteMediaFromLibrary?.(file);
+                          return;
+                        }
+                        onRemoveMediaFromFolder?.(file);
+                      }}
+                    >
+                      <X size={16} weight="bold" aria-hidden />
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>

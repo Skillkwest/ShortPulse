@@ -26,7 +26,10 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Drop intent model: `frontend/features/ai-studio/logic/mediaLibraryFolderDropModel.ts`
 - Internal drop resolver: `frontend/features/ai-studio/logic/mediaLibraryInternalDropResolver.ts`
 - Drag protocol + ghost behavior: `frontend/features/ai-studio/utils/dragDrop.ts`
+- Media Library drag ghost utility: `frontend/features/ai-studio/logic/mediaLibraryDragGhost.ts`
 - Panel API contracts: `frontend/features/ai-studio/logic/mediaLibraryPanelApi.ts`
+- Folder canvas panel: `frontend/features/ai-studio/components/MediaLibraryFolderCanvas.tsx`
+- Folder canvas snapshot adapters: `frontend/features/ai-studio/logic/mediaFolderCanvasSnapshot.ts`
 - AI Studio shell DnD bridge: `frontend/features/ai-studio/hooks/useAiStudioShellDndController.ts`
 - Server endpoints:
   - `frontend/pages/api/media/folders/list.ts`
@@ -36,8 +39,12 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - `frontend/pages/api/media/folders/membership-batch.ts`
   - `frontend/pages/api/media/list.ts`
   - `frontend/pages/api/media/prompts/list.ts`
+  - `frontend/pages/api/ai/media-folder-canvas/[folderId].ts`
+  - `frontend/pages/api/ai/media-folder-canvas/save.ts`
 - Membership service: `frontend/lib/server/mediaFoldersService.ts`
+- Folder canvas persistence service: `frontend/lib/server/mediaFolderCanvasService.ts`
 - Schema migration: `sql/migrations/060_add_media_folders_and_membership.sql`
+  - `sql/migrations/063_add_media_folder_canvas_states.sql`
 
 ## Target Contract
 
@@ -91,23 +98,23 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Folder delete removes junction memberships, not `media_files`/`media_prompts` rows.
 - Folder list and membership reads are user-scoped only.
 
-## Current Runtime Delta (as of 2026-03-11)
+## Current Runtime Delta (as of 2026-03-12)
 1. `All Media` sectioned layout:
-   - Status: Partially aligned.
-   - Current: Prompts/images/videos sections are present; prompt cards and media grids are rendered in panel.
-   - Gap: Maintain explicit true-aspect-ratio masonry parity as a locked UX requirement across all panel states.
+   - Status: Aligned.
+   - Current: Prompts/images/videos sections render in panel with prompt text cards and masonry media cards.
 2. Right-click media in `All Media` -> Reference Grid:
-   - Status: Not implemented.
-   - Current: Media card context behavior does not dispatch a right-click send-to-grid action.
+   - Status: Aligned.
+   - Current: Right-click on media cards dispatches media ingestion to Reference Grid.
 3. Drag ghost visibility for Media Library drags:
-   - Status: Not implemented for panel media/prompt cards.
-   - Current: Drag payloads are written, but Media Library drag-start does not install explicit custom ghost rendering.
+   - Status: Aligned.
+   - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
 4. Delete from `All Media` permanent remove:
-   - Status: Not implemented in panel UX contract.
-   - Current: Panel exposes folder membership remove actions in custom folders, not root-level permanent delete action.
+   - Status: Aligned.
+   - Current: Root-level delete action permanently removes media/prompt rows from library (including storage cleanup for media).
 5. Folder-canvas independent spaces:
-   - Status: Not implemented.
-   - Current: Media Library folders do not yet mount dedicated per-folder canvas surfaces with durable per-folder state.
+   - Status: Partially aligned.
+   - Current: Custom folders mount dedicated canvas spaces with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior.
+   - Gap: Folder-canvas linked-item removal currently follows canvas delete/selection interactions; dedicated explicit remove controls are deferred.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`
@@ -146,3 +153,4 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 - `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
+- `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`

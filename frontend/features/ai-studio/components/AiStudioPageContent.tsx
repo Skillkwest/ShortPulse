@@ -29,6 +29,7 @@ import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLib
 import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
 import type { ResolveCharacterDropReference } from "../../character-manager/components/CharacterManagerShell";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
+import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -515,6 +516,7 @@ export type AiStudioPageContentProps = {
     kind: "media" | "prompt";
     id: string;
   } | null>;
+  resolveCanvasDropReference?: ResolveCanvasDropReference;
   onOpenMediaLibrary?: () => void;
   modelModalState: {
     isOpen: boolean;
@@ -581,6 +583,7 @@ export function AiStudioPageContent({
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
   resolveMediaLibraryInternalDropItem,
+  resolveCanvasDropReference,
   onOpenMediaLibrary,
   modelModalState,
   agentChat,
@@ -803,7 +806,10 @@ export function AiStudioPageContent({
         ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
         : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
-  const minRightWidthPx = selectedTool === "canvas" ? AI_SHELL_RIGHT_CANVAS_MIN_PX : undefined;
+  const minRightWidthPx =
+    selectedTool === "canvas" || selectedTool === "media-library"
+      ? AI_SHELL_RIGHT_CANVAS_MIN_PX
+      : undefined;
   const defaultLeftRatio =
     selectedTool === "canvas" ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO : undefined;
   const {
@@ -1054,6 +1060,7 @@ export function AiStudioPageContent({
             onSelectMedia={onAddLibraryMediaReference}
             onSelectPrompt={onAddLibraryPromptReference}
             resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
+            resolveCanvasDropReference={resolveCanvasDropReference}
           />
         ) : (
           <p className="tiny subdued">Media Library panel is unavailable.</p>
@@ -1084,6 +1091,7 @@ export function AiStudioPageContent({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       resolveMediaLibraryInternalDropItem,
+      resolveCanvasDropReference,
     ]
   );
   const resolvePanelFromRegistry = React.useCallback(

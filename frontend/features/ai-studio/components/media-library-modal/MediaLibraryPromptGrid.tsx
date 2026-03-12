@@ -11,6 +11,8 @@ type MediaLibraryPromptGridProps = {
   onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   showRemoveAction?: boolean;
   onRemovePromptFromFolder?: (prompt: PromptRow) => void;
+  showDeleteAction?: boolean;
+  onDeletePromptFromLibrary?: (prompt: PromptRow) => void;
   variant?: "default" | "reference-card";
 };
 
@@ -23,6 +25,8 @@ export function MediaLibraryPromptGrid({
   onPromptDragEnd,
   showRemoveAction = false,
   onRemovePromptFromFolder,
+  showDeleteAction = false,
+  onDeletePromptFromLibrary,
   variant = "default",
 }: MediaLibraryPromptGridProps) {
   if (variant === "reference-card") {
@@ -61,6 +65,22 @@ export function MediaLibraryPromptGrid({
                         event.preventDefault();
                         event.stopPropagation();
                         onRemovePromptFromFolder(prompt);
+                      }}
+                    >
+                      <X size={16} weight="bold" aria-hidden />
+                    </button>
+                  </div>
+                ) : null}
+                {showDeleteAction && onDeletePromptFromLibrary ? (
+                  <div className="media-library-panel-card-actions" aria-label="Library actions">
+                    <button
+                      type="button"
+                      className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+                      aria-label={`Delete ${prompt.title || "prompt"} from library`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onDeletePromptFromLibrary(prompt);
                       }}
                     >
                       <X size={16} weight="bold" aria-hidden />
@@ -120,6 +140,22 @@ export function MediaLibraryPromptGrid({
                       event.preventDefault();
                       event.stopPropagation();
                       onRemovePromptFromFolder(prompt);
+                    }}
+                  >
+                    <X size={16} weight="bold" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
+              {showDeleteAction && onDeletePromptFromLibrary ? (
+                <div className="media-library-panel-card-actions" aria-label="Library actions">
+                  <button
+                    type="button"
+                    className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+                    aria-label={`Delete ${prompt.title || "prompt"} from library`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onDeletePromptFromLibrary(prompt);
                     }}
                   >
                     <X size={16} weight="bold" aria-hidden />

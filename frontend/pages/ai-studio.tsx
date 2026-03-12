@@ -1762,6 +1762,7 @@ export default function AiStudioPage() {
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
+        resolveCanvasDropReference={resolveCanvasDropReference}
         onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
         modelModalState={{
           isOpen: isModelModalOpen,

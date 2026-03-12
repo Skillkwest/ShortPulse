@@ -59,6 +59,15 @@ export type PromptListPageResult = {
   hasMore: boolean;
 };
 
+export type MediaFolderCanvasState = {
+  folderId: string;
+  schemaVersion: number;
+  snapshot: Record<string, unknown>;
+  saveSeq: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as Record<string, unknown>;
@@ -304,5 +313,77 @@ export const fetchMediaPromptListPage = async ({
     rows,
     nextCursor: toCursor(payload.nextCursor),
     hasMore: payload.hasMore === true,
+  };
+};
+
+/**
+ * Loads one custom-folder canvas state for the panel.
+ */
+export const getMediaFolderCanvasState = async (
+  folderId: string
+): Promise<MediaFolderCanvasState | null> => {
+  const response = await fetchWithAuth(
+    `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`,
+    {
+      method: "GET",
+      shortpulseLogScope: "app",
+    }
+  );
+  if (!response.ok) {
+    const payload = asRecord(await response.json().catch(() => ({})));
+    throw new Error(asString(payload.error) || "Unable to load folder canvas state.");
+  }
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const state = asRecord(payload.state);
+  const id = asString(state.folderId);
+  if (!id) return null;
+  const schemaVersion = Number(state.schemaVersion);
+  const saveSeq = Number(state.saveSeq);
+  const snapshot = asRecord(state.snapshot);
+  return {
+    folderId: id,
+    schemaVersion: Number.isFinite(schemaVersion) ? Math.trunc(schemaVersion) : 1,
+    snapshot,
+    saveSeq: Number.isFinite(saveSeq) ? Math.max(0, Math.trunc(saveSeq)) : 0,
+    createdAt: asString(state.createdAt),
+    updatedAt: asString(state.updatedAt),
+  };
+};
+
+/**
+ * Saves one custom-folder canvas state for the panel.
+ */
+export const saveMediaFolderCanvasState = async ({
+  folderId,
+  schemaVersion,
+  snapshot,
+}: {
+  folderId: string;
+  schemaVersion: number;
+  snapshot: Record<string, unknown>;
+}): Promise<{ schemaVersion: number; saveSeq: number; updatedAt: string }> => {
+  const response = await fetchWithAuth("/api/ai/media-folder-canvas/save", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      folderId,
+      schemaVersion,
+      snapshot,
+    }),
+    shortpulseLogScope: "app",
+  });
+  if (!response.ok) {
+    const payload = asRecord(await response.json().catch(() => ({})));
+    throw new Error(asString(payload.error) || "Unable to save folder canvas state.");
+  }
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const resolvedSchemaVersion = Number(payload.schemaVersion);
+  const resolvedSaveSeq = Number(payload.saveSeq);
+  return {
+    schemaVersion: Number.isFinite(resolvedSchemaVersion) ? Math.trunc(resolvedSchemaVersion) : 1,
+    saveSeq: Number.isFinite(resolvedSaveSeq) ? Math.max(0, Math.trunc(resolvedSaveSeq)) : 0,
+    updatedAt: asString(payload.updatedAt),
   };
 };

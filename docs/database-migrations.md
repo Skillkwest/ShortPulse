@@ -149,6 +149,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 60. `sql/migrations/060_add_media_folders_and_membership.sql`
 61. `sql/migrations/061_backfill_media_image_dimensions_metadata.sql`
 62. `sql/migrations/062_add_dashboard_announcements.sql`
+63. `sql/migrations/063_add_media_folder_canvas_states.sql`
 63. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
@@ -226,6 +227,7 @@ Billing safety note:
 - Migration `060_add_media_folders_and_membership.sql` adds user-owned Media Library folders (`media_folders`) and scoped media/prompt membership junctions (`media_folder_media_items`, `media_folder_prompt_items`) for AI Studio folder-based organization.
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.
+- Migration `063_add_media_folder_canvas_states.sql` adds per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion.
 
 ## Media storage scope verification (post-017)
 

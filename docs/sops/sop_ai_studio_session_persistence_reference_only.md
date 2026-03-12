@@ -33,7 +33,8 @@ Core flags:
 4. Media Library target UX extends this with folder-scoped canvas domains:
    - each user-created Media Library folder has an independent canvas scene/camera scope,
    - durability key is `user + folder`,
-   - folder-canvas state is distinct from the main/rail shared-scene canvas contract.
+   - folder-canvas state is distinct from the main/rail shared-scene canvas contract,
+   - storage/API boundary is `media_folder_canvas_states` + `/api/ai/media-folder-canvas/[folderId]` + `/api/ai/media-folder-canvas/save`.
 5. Hard limits:
    - max canvas items: `300`,
    - max serialized snapshot size: `~900KB`.

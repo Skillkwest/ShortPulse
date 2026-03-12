@@ -170,6 +170,26 @@ const readMarkupViewportTransform = (scope: ParentNode = document) => {
   };
 };
 
+const createSquareRect = (size: number): DOMRect =>
+  ({
+    left: 0,
+    top: 0,
+    width: size,
+    height: size,
+    right: size,
+    bottom: size,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  }) as DOMRect;
+
+const mockElementRect = (element: Element, rect: DOMRect) => {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => rect,
+  });
+};
+
 describe("ExpertEditPanelView", () => {
   const createObjectURLMock = vi.fn();
   const revokeObjectURLMock = vi.fn();
@@ -1280,6 +1300,244 @@ describe("ExpertEditPanelView", () => {
     fireEvent.drop(promptInput, { dataTransfer: transfer });
 
     expect(onPromptTextChange).not.toHaveBeenCalled();
+  });
+
+  it("draws markup strokes in the inline stage with the pen tool", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-draw-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 901,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 56,
+      clientY: 72,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 901,
+      pointerType: "mouse",
+      clientX: 188,
+      clientY: 206,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 901,
+      pointerType: "mouse",
+      clientX: 188,
+      clientY: 206,
+    });
+
+    const overlay = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay"
+    ) as SVGElement | null;
+    expect(overlay).not.toBeNull();
+    expect(overlay?.querySelectorAll("polyline").length ?? 0).toBe(1);
+  });
+
+  it("applies selected markup color to newly drawn pen strokes", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-color-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /markup color/i }));
+    fireEvent.click(screen.getByRole("button", { name: /select #22d3ee color/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 902,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 70,
+      clientY: 92,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 902,
+      pointerType: "mouse",
+      clientX: 210,
+      clientY: 226,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 902,
+      pointerType: "mouse",
+      clientX: 210,
+      clientY: 226,
+    });
+
+    const stroke = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(stroke).not.toBeNull();
+    expect(stroke?.getAttribute("stroke")).toBe("#22d3ee");
+  });
+
+  it("erases entire markup strokes when dragging with eraser", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-erase-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 903,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 52,
+      clientY: 52,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 903,
+      pointerType: "mouse",
+      clientX: 232,
+      clientY: 232,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 903,
+      pointerType: "mouse",
+      clientX: 232,
+      clientY: 232,
+    });
+
+    expect(
+      primaryDropzone.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
+    ).toHaveLength(1);
+
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /^eraser$/i }));
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 904,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 146,
+      clientY: 146,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 904,
+      pointerType: "mouse",
+      clientX: 156,
+      clientY: 156,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 904,
+      pointerType: "mouse",
+      clientX: 156,
+      clientY: 156,
+    });
+
+    expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
+  });
+
+  it("clears markup strokes and shares them with expanded markup modal", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-shared-state.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 905,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 40,
+      clientY: 58,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 905,
+      pointerType: "mouse",
+      clientX: 216,
+      clientY: 214,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 905,
+      pointerType: "mouse",
+      clientX: 216,
+      clientY: 214,
+    });
+
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    expect(
+      expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
+    ).toHaveLength(1);
+
+    fireEvent.click(within(expandedModal).getByRole("button", { name: /clear markup strokes/i }));
+    expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
+  });
+
+  it("blocks markup drawing when no primary stage image exists", async () => {
+    render(
+      <ExpertEditPanelView {...baseProps} referenceImageUrl={null} referenceText="prompt text" />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 906,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 88,
+      clientY: 94,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 906,
+      pointerType: "mouse",
+      clientX: 128,
+      clientY: 134,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 906,
+      pointerType: "mouse",
+      clientX: 128,
+      clientY: 134,
+    });
+
+    expect(screen.getByText("Add a layer image before drawing markup.")).toBeInTheDocument();
+    expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
   });
 
   it("pans the markup viewport in the inline stage without rendering recenter there", async () => {

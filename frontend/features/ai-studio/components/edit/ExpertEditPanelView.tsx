@@ -64,6 +64,20 @@ import {
 } from "../create/useCreateCharacterModeController";
 import { useAvatarResilience } from "../../hooks/useAvatarResilience";
 import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
+import {
+  appendMarkupStrokePoints,
+  createIdleMarkupDrawPointerSession,
+  resolveMarkupPointerPoint,
+  resolveMarkupStrokeHit,
+  resolveMarkupStrokePointRadiusPercent,
+  resolveMarkupStrokeSizeRatio,
+  resolveMarkupStrokeWidthPercent,
+  resolvePointerSampleEvents,
+  type MarkupDrawPointerSession,
+  type MarkupStroke,
+  type MarkupStrokePoint,
+  type MarkupViewportState,
+} from "./markupStrokeController";
 import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { StylesControl } from "../StylesControl";
@@ -435,12 +449,6 @@ type HsvColor = {
   h: number;
   s: number;
   v: number;
-};
-
-type MarkupViewportState = {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
 };
 
 type MarkupPanPointerSession = {
@@ -1080,6 +1088,10 @@ export function ExpertEditPanelView({
   const markupPanPointerSessionRef = React.useRef<MarkupPanPointerSession>(
     createIdleMarkupPanPointerSession()
   );
+  const markupDrawPointerSessionRef = React.useRef<MarkupDrawPointerSession>(
+    createIdleMarkupDrawPointerSession()
+  );
+  const markupStrokeIdCounterRef = React.useRef(1);
   const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const promptInputShellRef = React.useRef<HTMLDivElement | null>(null);
   const promptHighlightRef = React.useRef<HTMLDivElement | null>(null);
@@ -1147,7 +1159,7 @@ export function ExpertEditPanelView({
   const [moveStageZoomSliderValue, setMoveStageZoomSliderValue] = React.useState(
     MOVE_STAGE_ZOOM_SLIDER_DEFAULT
   );
-  const [, setMarkupStrokes] = React.useState<string[]>([]);
+  const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>([]);
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
@@ -1911,6 +1923,51 @@ export function ExpertEditPanelView({
       ...(cursorStyle ?? {}),
     };
   }, [markupModalSquareSize, markupViewportCursor]);
+  const renderMarkupStrokeOverlay = React.useCallback(
+    (keyPrefix: string) => {
+      if (!markupStrokes.length) return null;
+      return (
+        <svg
+          className="edit-expert-markup-strokes-overlay"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          {markupStrokes.map((stroke) => {
+            const strokeWidthPercent = resolveMarkupStrokeWidthPercent(stroke);
+            if (stroke.points.length <= 1) {
+              const point = stroke.points[0];
+              if (!point) return null;
+              return (
+                <circle
+                  key={`${keyPrefix}-${stroke.id}-point`}
+                  cx={point.xRatio * 100}
+                  cy={point.yRatio * 100}
+                  r={resolveMarkupStrokePointRadiusPercent(stroke)}
+                  fill={stroke.color}
+                />
+              );
+            }
+            const pointsValue = stroke.points
+              .map((point) => `${point.xRatio * 100},${point.yRatio * 100}`)
+              .join(" ");
+            return (
+              <polyline
+                key={`${keyPrefix}-${stroke.id}`}
+                points={pointsValue}
+                fill="none"
+                stroke={stroke.color}
+                strokeWidth={strokeWidthPercent}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            );
+          })}
+        </svg>
+      );
+    },
+    [markupStrokes]
+  );
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
     if (typeof document === "undefined") return;
@@ -2475,39 +2532,216 @@ export function ExpertEditPanelView({
     [shouldApplyMarkupViewport]
   );
 
+  const clearMarkupStrokes = React.useCallback(() => {
+    setMarkupStrokes([]);
+  }, []);
+
+  const eraseMarkupStrokesAtPoints = React.useCallback(
+    (points: MarkupStrokePoint[], stageRect: DOMRect) => {
+      if (!points.length) return;
+      const stageWidth = Math.max(1, stageRect.width);
+      const stageHeight = Math.max(1, stageRect.height);
+      const eraserRadius = Math.max(1, markupStrokeSize / 2);
+      setMarkupStrokes((previousStrokes) =>
+        previousStrokes.filter(
+          (stroke) =>
+            !points.some((point) =>
+              resolveMarkupStrokeHit({
+                stroke,
+                point,
+                eraserRadiusPx: eraserRadius,
+                stageWidth,
+                stageHeight,
+              })
+            )
+        )
+      );
+    },
+    [markupStrokeSize]
+  );
+
+  const beginMarkupDrawGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isVideoToolSelected) return false;
+      if (!hasPrimaryCompositePreview) {
+        showStatusToast("Add a layer image before drawing markup.");
+        return false;
+      }
+      if (event.pointerType === "mouse" && event.button !== 0) return false;
+      const stageRect = event.currentTarget.getBoundingClientRect();
+      const point = resolveMarkupPointerPoint({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        rect: stageRect,
+        viewport: markupViewport,
+        applyViewportTransform: shouldApplyMarkupViewport,
+      });
+      if (!point) return false;
+      event.preventDefault();
+      if (event.currentTarget.setPointerCapture) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      if (selectedMarkupMode === "eraser") {
+        eraseMarkupStrokesAtPoints([point], stageRect);
+        markupDrawPointerSessionRef.current = {
+          active: true,
+          pointerId: event.pointerId,
+          mode: "eraser",
+          strokeId: null,
+        };
+        return true;
+      }
+      const strokeId = `markup-stroke-${markupStrokeIdCounterRef.current++}`;
+      const stroke: MarkupStroke = {
+        id: strokeId,
+        color: markupColor,
+        sizeRatio: resolveMarkupStrokeSizeRatio({
+          strokeSizePx: markupStrokeSize,
+          stageWidth: stageRect.width,
+          stageHeight: stageRect.height,
+        }),
+        points: [point],
+      };
+      setMarkupStrokes((previousStrokes) => [...previousStrokes, stroke]);
+      markupDrawPointerSessionRef.current = {
+        active: true,
+        pointerId: event.pointerId,
+        mode: "pen",
+        strokeId,
+      };
+      return true;
+    },
+    [
+      eraseMarkupStrokesAtPoints,
+      hasPrimaryCompositePreview,
+      isVideoToolSelected,
+      markupColor,
+      markupStrokeSize,
+      markupViewport,
+      selectedMarkupMode,
+      shouldApplyMarkupViewport,
+      showStatusToast,
+    ]
+  );
+
+  const continueMarkupDrawGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupDrawPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      const stageRect = event.currentTarget.getBoundingClientRect();
+      const sampleEvents = resolvePointerSampleEvents(event.nativeEvent as PointerEvent);
+      const points = sampleEvents
+        .map((sampleEvent) =>
+          resolveMarkupPointerPoint({
+            clientX: sampleEvent.clientX,
+            clientY: sampleEvent.clientY,
+            rect: stageRect,
+            viewport: markupViewport,
+            applyViewportTransform: shouldApplyMarkupViewport,
+          })
+        )
+        .filter((sample): sample is MarkupStrokePoint => sample != null);
+      if (!points.length) return false;
+      event.preventDefault();
+      if (session.mode === "eraser") {
+        eraseMarkupStrokesAtPoints(points, stageRect);
+        return true;
+      }
+      if (!session.strokeId) return false;
+      const stageWidth = Math.max(1, stageRect.width);
+      const stageHeight = Math.max(1, stageRect.height);
+      setMarkupStrokes((previousStrokes) =>
+        previousStrokes.map((stroke) => {
+          if (stroke.id !== session.strokeId) {
+            return stroke;
+          }
+          return appendMarkupStrokePoints({
+            stroke,
+            samples: points,
+            stageWidth,
+            stageHeight,
+          });
+        })
+      );
+      return true;
+    },
+    [eraseMarkupStrokesAtPoints, markupViewport, shouldApplyMarkupViewport]
+  );
+
+  const endMarkupDrawGesture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const session = markupDrawPointerSessionRef.current;
+    if (!session.active || event.pointerId !== session.pointerId) {
+      return false;
+    }
+    if (event.currentTarget.releasePointerCapture) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture may already be released.
+      }
+    }
+    markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
+    return true;
+  }, []);
+
+  const endMarkupDrawGestureOnLeave = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupDrawPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      const hasPointerCapture =
+        typeof event.currentTarget.hasPointerCapture === "function" &&
+        event.currentTarget.hasPointerCapture(event.pointerId);
+      if (hasPointerCapture) {
+        return false;
+      }
+      markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
+      return true;
+    },
+    []
+  );
+
   const handleMarkupStagePointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      beginMarkupPanGesture(event);
+      if (beginMarkupPanGesture(event)) return;
+      beginMarkupDrawGesture(event);
     },
-    [beginMarkupPanGesture]
+    [beginMarkupDrawGesture, beginMarkupPanGesture]
   );
 
   const handleMarkupStagePointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      continueMarkupPanGesture(event);
+      if (continueMarkupPanGesture(event)) return;
+      continueMarkupDrawGesture(event);
     },
-    [continueMarkupPanGesture]
+    [continueMarkupDrawGesture, continueMarkupPanGesture]
   );
 
   const handleMarkupStagePointerUp = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      endMarkupPanGesture(event);
+      if (endMarkupPanGesture(event)) return;
+      endMarkupDrawGesture(event);
     },
-    [endMarkupPanGesture]
+    [endMarkupDrawGesture, endMarkupPanGesture]
   );
 
   const handleMarkupStagePointerCancel = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      endMarkupPanGesture(event);
+      if (endMarkupPanGesture(event)) return;
+      endMarkupDrawGesture(event);
     },
-    [endMarkupPanGesture]
+    [endMarkupDrawGesture, endMarkupPanGesture]
   );
 
   const handleMarkupStagePointerLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      endMarkupPanGestureOnLeave(event);
+      if (endMarkupPanGestureOnLeave(event)) return;
+      endMarkupDrawGestureOnLeave(event);
     },
-    [endMarkupPanGestureOnLeave]
+    [endMarkupDrawGestureOnLeave, endMarkupPanGestureOnLeave]
   );
 
   const handleMarkupStageMouseDown = React.useCallback(
@@ -2530,7 +2764,8 @@ export function ExpertEditPanelView({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
       if (isVideoToolSelected) {
-        beginMarkupPanGesture(event);
+        if (beginMarkupPanGesture(event)) return;
+        beginMarkupDrawGesture(event);
         return;
       }
       if (isMoveToolSelected) {
@@ -2599,6 +2834,7 @@ export function ExpertEditPanelView({
       isVideoToolSelected,
       layers,
       lockGlobalCursor,
+      beginMarkupDrawGesture,
       beginMarkupPanGesture,
       selectedLayer,
       sceneZoomScale,
@@ -2611,7 +2847,8 @@ export function ExpertEditPanelView({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
       if (isVideoToolSelected) {
-        continueMarkupPanGesture(event);
+        if (continueMarkupPanGesture(event)) return;
+        continueMarkupDrawGesture(event);
         return;
       }
       if (isMoveToolSelected) {
@@ -2681,6 +2918,7 @@ export function ExpertEditPanelView({
       handleInpaintPointerMove(event);
     },
     [
+      continueMarkupDrawGesture,
       continueMarkupPanGesture,
       handleInpaintPointerMove,
       isMorePresetsSurfaceOpen,
@@ -2716,7 +2954,8 @@ export function ExpertEditPanelView({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
       if (isVideoToolSelected) {
-        endMarkupPanGesture(event);
+        if (endMarkupPanGesture(event)) return;
+        endMarkupDrawGesture(event);
         return;
       }
       if (isMoveToolSelected) {
@@ -2728,6 +2967,7 @@ export function ExpertEditPanelView({
     },
     [
       endTransformPointerSession,
+      endMarkupDrawGesture,
       handleInpaintPointerUp,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
@@ -2741,7 +2981,8 @@ export function ExpertEditPanelView({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
       if (isVideoToolSelected) {
-        endMarkupPanGesture(event);
+        if (endMarkupPanGesture(event)) return;
+        endMarkupDrawGesture(event);
         return;
       }
       if (isMoveToolSelected) {
@@ -2753,6 +2994,7 @@ export function ExpertEditPanelView({
     },
     [
       endTransformPointerSession,
+      endMarkupDrawGesture,
       handleInpaintPointerCancel,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
@@ -2766,7 +3008,8 @@ export function ExpertEditPanelView({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
       if (isVideoToolSelected) {
-        endMarkupPanGestureOnLeave(event);
+        if (endMarkupPanGestureOnLeave(event)) return;
+        endMarkupDrawGestureOnLeave(event);
         return;
       }
       if (isMoveToolSelected) {
@@ -2788,6 +3031,7 @@ export function ExpertEditPanelView({
     },
     [
       endTransformPointerSession,
+      endMarkupDrawGestureOnLeave,
       handleInpaintPointerLeave,
       isMorePresetsSurfaceOpen,
       isMoveToolSelected,
@@ -3233,7 +3477,13 @@ export function ExpertEditPanelView({
       setIsMarkupPanDragging(false);
     }
     markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
+    markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
   }, [isMarkupPanDragging, isVideoToolSelected]);
+
+  React.useEffect(() => {
+    if (hasPrimaryCompositePreview || markupStrokes.length <= 0) return;
+    setMarkupStrokes([]);
+  }, [hasPrimaryCompositePreview, markupStrokes.length]);
 
   React.useEffect(() => {
     if (!isMarkupExpandSelected || typeof document === "undefined") return;
@@ -3618,7 +3868,7 @@ export function ExpertEditPanelView({
               type="button"
               className="edit-expert-inpaint-action-btn edit-expert-markup-clear-btn-modal"
               aria-label="Clear markup strokes"
-              onClick={() => setMarkupStrokes([])}
+              onClick={clearMarkupStrokes}
             >
               <TrashSimple size={18} weight="regular" />
             </button>
@@ -3743,7 +3993,7 @@ export function ExpertEditPanelView({
               type="button"
               className="edit-expert-inpaint-action-btn edit-expert-markup-clear-btn"
               aria-label="Clear markup strokes"
-              onClick={() => setMarkupStrokes([])}
+              onClick={clearMarkupStrokes}
             >
               <TrashSimple size={18} weight="regular" />
             </button>
@@ -4314,6 +4564,7 @@ export function ExpertEditPanelView({
                     className="edit-expert-inpaint-overlay-canvas"
                     aria-hidden="true"
                   />
+                  {renderMarkupStrokeOverlay("inline")}
                   {isRemoveBackgroundPending ? (
                     <div
                       className="edit-expert-primary-layer-loading-overlay"
@@ -4885,6 +5136,7 @@ export function ExpertEditPanelView({
                       />
                     ) : null
                   )}
+                  {renderMarkupStrokeOverlay("modal")}
                 </div>
               </div>
             </div>

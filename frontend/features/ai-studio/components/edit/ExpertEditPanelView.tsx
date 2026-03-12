@@ -386,7 +386,7 @@ const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const TRANSFORM_HISTORY_LIMIT = 80;
 const LAYER_REORDER_DRAG_MIME = "application/x-shortpulse-layer-index";
-const MARKUP_COLOR_DEFAULT = "#ff4fa3";
+const MARKUP_COLOR_DEFAULT = "#f43f5e";
 const MARKUP_COLOR_SWATCHES = [
   "#ff4fa3",
   "#f43f5e",
@@ -411,6 +411,7 @@ const STAGE_CONTEXT_MENU_HEIGHT = 172;
 const STAGE_CONTEXT_MENU_GUTTER = 8;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const MARKUP_STROKE_SIZE_DEFAULT = 26;
+const MARKUP_STROKE_SIZE_MAX = 50;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
 const INPAINT_CURSOR_DIAMETER_MAX = 52;
 const INPAINT_CURSOR_PADDING = 6;
@@ -1133,6 +1134,10 @@ export function ExpertEditPanelView({
   const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
   const [markupStrokeSize, setMarkupStrokeSize] = React.useState(MARKUP_STROKE_SIZE_DEFAULT);
+  const resolvedMarkupStrokeSize = React.useMemo(
+    () => clampNumber(markupStrokeSize, 1, MARKUP_STROKE_SIZE_MAX),
+    [markupStrokeSize]
+  );
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
   const [selectedMarkupMode, setSelectedMarkupMode] = React.useState<MarkupMode>("pen");
@@ -1202,6 +1207,10 @@ export function ExpertEditPanelView({
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
   >(null);
+  React.useEffect(() => {
+    if (markupStrokeSize === resolvedMarkupStrokeSize) return;
+    setMarkupStrokeSize(resolvedMarkupStrokeSize);
+  }, [markupStrokeSize, resolvedMarkupStrokeSize]);
   const foundationLayerId = foundationLayerIdRef.current;
   const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
   const resolvedSelectedLayerIndex =
@@ -1832,14 +1841,14 @@ export function ExpertEditPanelView({
       return buildInpaintLassoCursor();
     }
     if (shouldShowMarkupBrushReticle) {
-      return buildInpaintBrushReticleCursor(markupStrokeSize);
+      return buildInpaintBrushReticleCursor(resolvedMarkupStrokeSize);
     }
     return undefined;
   }, [
     inpaintStrokeSize,
     isTransformPointerDragging,
     isMoveToolSelected,
-    markupStrokeSize,
+    resolvedMarkupStrokeSize,
     selectedLayerImageUrl,
     shouldShowInpaintBrushReticle,
     shouldShowInpaintLassoCursor,
@@ -2547,7 +2556,7 @@ export function ExpertEditPanelView({
       if (!points.length) return;
       const stageWidth = Math.max(1, stageRect.width);
       const stageHeight = Math.max(1, stageRect.height);
-      const eraserRadius = Math.max(1, markupStrokeSize / 2);
+      const eraserRadius = Math.max(1, resolvedMarkupStrokeSize / 2);
       setMarkupStrokes((previousStrokes) =>
         previousStrokes.filter(
           (stroke) =>
@@ -2563,7 +2572,7 @@ export function ExpertEditPanelView({
         )
       );
     },
-    [markupStrokeSize]
+    [resolvedMarkupStrokeSize]
   );
 
   const beginMarkupDrawGesture = React.useCallback(
@@ -2602,7 +2611,7 @@ export function ExpertEditPanelView({
         id: strokeId,
         color: markupColor,
         sizeRatio: resolveMarkupStrokeSizeRatio({
-          strokeSizePx: markupStrokeSize,
+          strokeSizePx: resolvedMarkupStrokeSize,
           stageWidth: stageRect.width,
           stageHeight: stageRect.height,
         }),
@@ -2622,7 +2631,7 @@ export function ExpertEditPanelView({
       hasPrimaryCompositePreview,
       isVideoToolSelected,
       markupColor,
-      markupStrokeSize,
+      resolvedMarkupStrokeSize,
       markupViewport,
       selectedMarkupMode,
       shouldApplyMarkupViewport,
@@ -3902,9 +3911,13 @@ export function ExpertEditPanelView({
             className="edit-expert-inpaint-stroke-slider"
             type="range"
             min={1}
-            max={100}
-            value={markupStrokeSize}
-            onChange={(event) => setMarkupStrokeSize(Number(event.target.value))}
+            max={MARKUP_STROKE_SIZE_MAX}
+            value={resolvedMarkupStrokeSize}
+            onChange={(event) =>
+              setMarkupStrokeSize(
+                clampNumber(Number(event.target.value), 1, MARKUP_STROKE_SIZE_MAX)
+              )
+            }
             onDoubleClick={() => setMarkupStrokeSize(MARKUP_STROKE_SIZE_DEFAULT)}
             aria-label="Stroke size"
           />

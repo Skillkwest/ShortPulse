@@ -1001,13 +1001,13 @@ describe("ExpertEditPanelView", () => {
     expect(inpaintStrokeSlider.value).toBe("26");
     expect(markupStrokeSlider.value).toBe("26");
 
-    fireEvent.change(markupStrokeSlider, { target: { value: "77" } });
-    expect(markupStrokeSlider.value).toBe("77");
+    fireEvent.change(markupStrokeSlider, { target: { value: "50" } });
+    expect(markupStrokeSlider.value).toBe("50");
     expect(inpaintStrokeSlider.value).toBe("26");
 
     fireEvent.change(inpaintStrokeSlider, { target: { value: "41" } });
     expect(inpaintStrokeSlider.value).toBe("41");
-    expect(markupStrokeSlider.value).toBe("77");
+    expect(markupStrokeSlider.value).toBe("50");
   });
 
   it("collapses and expands inpaint controls from the skinny toggle button", () => {
@@ -1390,6 +1390,115 @@ describe("ExpertEditPanelView", () => {
     ) as SVGPolylineElement | null;
     expect(stroke).not.toBeNull();
     expect(stroke?.getAttribute("stroke")).toBe("#22d3ee");
+  });
+
+  it("applies markup stroke size changes to painted stroke width", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-size-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    const strokeSlider = within(markupPanel).getByRole("slider", {
+      name: /stroke size/i,
+    }) as HTMLInputElement;
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.change(strokeSlider, { target: { value: "10" } });
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 912,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 52,
+      clientY: 64,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 912,
+      pointerType: "mouse",
+      clientX: 142,
+      clientY: 150,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 912,
+      pointerType: "mouse",
+      clientX: 142,
+      clientY: 150,
+    });
+
+    fireEvent.change(strokeSlider, { target: { value: "50" } });
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 913,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 182,
+      clientY: 74,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 913,
+      pointerType: "mouse",
+      clientX: 276,
+      clientY: 164,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 913,
+      pointerType: "mouse",
+      clientX: 276,
+      clientY: 164,
+    });
+
+    const strokes = primaryDropzone.querySelectorAll(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as NodeListOf<SVGPolylineElement>;
+    expect(strokes).toHaveLength(2);
+    const firstStrokeWidth = Number.parseFloat(strokes[0]?.getAttribute("stroke-width") ?? "0");
+    const secondStrokeWidth = Number.parseFloat(strokes[1]?.getAttribute("stroke-width") ?? "0");
+    expect(secondStrokeWidth).toBeGreaterThan(firstStrokeWidth);
+  });
+
+  it("defaults markup color to #F43F5E in inline and expanded markup pickers", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-default-color.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const inlineMarkupPanel = screen.getByRole("group", { name: /markup tools/i });
+    const inlineColorButton = within(inlineMarkupPanel).getByRole("button", {
+      name: /markup color/i,
+    });
+    fireEvent.click(inlineColorButton);
+    expect(screen.getByText("#F43F5E")).toBeInTheDocument();
+    const inlineDefaultSwatch = screen.getByRole("button", { name: /select #f43f5e color/i });
+    expect(inlineDefaultSwatch.className).toContain("is-active");
+    fireEvent.click(inlineColorButton);
+
+    fireEvent.click(
+      within(inlineMarkupPanel).getByRole("button", { name: /expand markup tools/i })
+    );
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const modalToolbar = within(expandedModal).getByRole("group", { name: /markup tools/i });
+    const modalColorButton = within(modalToolbar).getByRole("button", { name: /markup color/i });
+    fireEvent.click(modalColorButton);
+
+    expect(within(expandedModal).getByText("#F43F5E")).toBeInTheDocument();
+    const modalDefaultSwatch = within(expandedModal).getByRole("button", {
+      name: /select #f43f5e color/i,
+    });
+    expect(modalDefaultSwatch.className).toContain("is-active");
   });
 
   it("erases entire markup strokes when dragging with eraser", async () => {

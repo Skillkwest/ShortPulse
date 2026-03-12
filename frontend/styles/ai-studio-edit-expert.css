@@ -4082,7 +4082,7 @@
 .edit-expert-prompt-input {
   min-height: 72px;
   height: auto;
-  max-height: 120px;
+  max-height: 90px;
   overflow-y: hidden;
   resize: none;
 }

@@ -73,6 +73,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   overflow-y: hidden;
 }
 
+html:has(.ai-studio-page[data-selected-tool="create"]),
+body:has(.ai-studio-page[data-selected-tool="create"]),
+html:has(.ai-studio-page[data-selected-tool="edit"]),
+body:has(.ai-studio-page[data-selected-tool="edit"]),
+html:has(.ai-studio-page[data-selected-tool="image"]),
+body:has(.ai-studio-page[data-selected-tool="image"]) {
+  overflow-y: hidden;
+}
+
 .ai-studio-page .ai-alert-banner {
   display: flex;
   align-items: flex-start;
@@ -313,6 +322,13 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="canvas"] {
+  height: var(--app-fixed-height);
+  overflow: hidden;
+}
+
+.ai-studio-page[data-selected-tool="create"],
+.ai-studio-page[data-selected-tool="edit"],
+.ai-studio-page[data-selected-tool="image"] {
   height: var(--app-fixed-height);
   overflow: hidden;
 }
@@ -1025,6 +1041,13 @@ body.ai-shell-resizing * {
   align-self: stretch;
   min-height: var(--ai-shell-column-max-height);
   height: 100%;
+}
+
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties {
+  min-height: calc(var(--ai-shell-column-max-height) + 12px);
+  max-height: calc(var(--ai-shell-column-max-height) + 12px);
 }
 
 /* Hide helper/tip copy in AI Studio properties panels (Create/Edit/Video) without removing markup. */

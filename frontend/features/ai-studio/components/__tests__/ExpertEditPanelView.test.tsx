@@ -1287,6 +1287,77 @@ describe("ExpertEditPanelView", () => {
     expect(onPromptTextChange).not.toHaveBeenCalled();
   });
 
+  it("shows layer utility actions inside the expanded markup modal", async () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: /markup tools/i })).getByRole("button", {
+        name: /expand markup tools/i,
+      })
+    );
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const utilityActions = within(expandedModal).getByLabelText("Layer utility actions");
+    expect(
+      within(utilityActions).getByRole("button", { name: /remove background/i })
+    ).toBeInTheDocument();
+    expect(
+      within(utilityActions).getByRole("button", { name: /flatten layers/i })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps modal and main aspect selectors synchronized through shared aspect state", async () => {
+    const onAspectChange = vi.fn();
+    const { rerender } = render(
+      <ExpertEditPanelView {...baseProps} aspect="1:1" onAspectChange={onAspectChange} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: /markup tools/i })).getByRole("button", {
+        name: /expand markup tools/i,
+      })
+    );
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const modalAspectGroup = within(expandedModal).getByRole("group", {
+      name: /aspect ratio selector/i,
+    });
+    const modalAspectTrigger = modalAspectGroup.querySelector(
+      ".aspect-trigger"
+    ) as HTMLButtonElement | null;
+    const mainAspectTrigger = document.querySelector(
+      ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
+    ) as HTMLButtonElement | null;
+
+    expect(modalAspectTrigger?.textContent ?? "").toContain("1:1");
+    expect(mainAspectTrigger?.textContent ?? "").toContain("1:1");
+
+    fireEvent.click(modalAspectTrigger as HTMLButtonElement);
+    fireEvent.click(within(modalAspectGroup).getByRole("option", { name: /16:9/i }));
+    expect(onAspectChange).toHaveBeenCalledWith("16:9");
+
+    rerender(<ExpertEditPanelView {...baseProps} aspect="16:9" onAspectChange={onAspectChange} />);
+
+    const refreshedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const refreshedModalTrigger = refreshedModal.querySelector(
+      ".edit-expert-markup-modal-general-row--aspect .aspect-trigger"
+    ) as HTMLButtonElement | null;
+    const refreshedMainTrigger = document.querySelector(
+      ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
+    ) as HTMLButtonElement | null;
+
+    expect(refreshedModalTrigger?.textContent ?? "").toContain("16:9");
+    expect(refreshedMainTrigger?.textContent ?? "").toContain("16:9");
+  });
+
   it("draws markup strokes in the inline stage with the pen tool", async () => {
     render(
       <ExpertEditPanelView

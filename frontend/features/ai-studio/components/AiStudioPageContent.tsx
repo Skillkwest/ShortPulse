@@ -80,6 +80,7 @@ import {
   getMediaLibraryDragTypes,
 } from "../logic/mediaLibraryDragPayload";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
+import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -516,6 +517,7 @@ export type AiStudioPageContentProps = {
     kind: "media" | "prompt";
     id: string;
   } | null>;
+  resolveStyleLibraryInternalDrop?: ResolveInternalStyleDrop;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   onOpenMediaLibrary?: () => void;
   modelModalState: {
@@ -583,6 +585,7 @@ export function AiStudioPageContent({
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
   resolveMediaLibraryInternalDropItem,
+  resolveStyleLibraryInternalDrop,
   resolveCanvasDropReference,
   onOpenMediaLibrary,
   modelModalState,
@@ -1052,6 +1055,7 @@ export function AiStudioPageContent({
           saveError={styleDetailsSaveError}
           onDeleteStyle={deleteStyleId}
           deleteError={stylesDeleteError}
+          resolveInternalStyleDrop={resolveStyleLibraryInternalDrop}
         />
       ),
       "media-library":
@@ -1091,6 +1095,7 @@ export function AiStudioPageContent({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       resolveMediaLibraryInternalDropItem,
+      resolveStyleLibraryInternalDrop,
       resolveCanvasDropReference,
     ]
   );

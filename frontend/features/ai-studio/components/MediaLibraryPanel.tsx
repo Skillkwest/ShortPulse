@@ -1082,6 +1082,106 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     ]
   );
 
+  const renderPromptsSection = useCallback(
+    () => (
+      <section className="media-library-panel-section">
+        <div className="media-library-panel-section-head">
+          {isRootFolderSelected ? (
+            <button
+              type="button"
+              className={`media-library-panel-section-toggle${
+                promptsSectionCollapsed ? " is-collapsed" : ""
+              }`}
+              aria-expanded={!promptsSectionCollapsed}
+              aria-controls="media-library-panel-prompts-section"
+              onClick={() => {
+                setPromptsSectionCollapsed((previous) => !previous);
+              }}
+            >
+              <span className="tiny subdued">
+                Prompts ({visiblePromptRows.length})
+                {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+              </span>
+              <CaretDown
+                size={14}
+                weight="bold"
+                aria-hidden
+                className="media-library-panel-section-toggle-icon"
+              />
+            </button>
+          ) : (
+            <p className="tiny subdued">
+              Prompts ({visiblePromptRows.length})
+              {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+            </p>
+          )}
+        </div>
+        {!promptsSectionCollapsed && promptLoading && visiblePromptRows.length === 0 ? (
+          <p className="tiny subdued">Loading prompts…</p>
+        ) : null}
+        {!promptsSectionCollapsed && !promptLoading && visiblePromptRows.length === 0 ? (
+          <p className="tiny subdued">No prompts found for this folder.</p>
+        ) : null}
+        {!promptsSectionCollapsed ? (
+          <div id="media-library-panel-prompts-section">
+            {visiblePromptRows.length > 0 ? (
+              <MediaLibraryPromptGrid
+                prompts={visiblePromptRows}
+                sortedPrompts={visiblePromptRows}
+                selectedIds={selectedIds}
+                onSelectPromptCard={handleSelectPromptCard}
+                onPromptDragStart={handlePromptCardDragStart}
+                onPromptDragEnd={handleCardDragEnd}
+                showRemoveAction={canShowFolderItemRemoveAction}
+                showDeleteAction={
+                  AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED &&
+                  activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+                }
+                onRemovePromptFromFolder={(prompt) => {
+                  void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
+                }}
+                onDeletePromptFromLibrary={(prompt) => {
+                  void handleDeletePromptFromLibrary(prompt);
+                }}
+                variant="reference-card"
+              />
+            ) : null}
+            {promptHasMore ? (
+              <div className="media-load-more">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    void loadPromptPage({ reset: false });
+                  }}
+                  disabled={promptLoading}
+                >
+                  {promptLoading ? "Loading more..." : "Load more prompts"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    ),
+    [
+      activeFolderId,
+      canShowFolderItemRemoveAction,
+      handleCardDragEnd,
+      handleDeletePromptFromLibrary,
+      handlePromptCardDragStart,
+      handleRemoveItemFromActiveFolder,
+      handleSelectPromptCard,
+      isRootFolderSelected,
+      promptHasMore,
+      promptLoading,
+      promptsSectionCollapsed,
+      selectedIds,
+      visiblePromptRows,
+      loadPromptPage,
+    ]
+  );
+
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
@@ -1246,87 +1346,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               />
             ) : null}
 
-            {!showFolderCanvas && shouldShowPrompts ? (
-              <section className="media-library-panel-section">
-                <div className="media-library-panel-section-head">
-                  {isRootFolderSelected ? (
-                    <button
-                      type="button"
-                      className={`media-library-panel-section-toggle${
-                        promptsSectionCollapsed ? " is-collapsed" : ""
-                      }`}
-                      aria-expanded={!promptsSectionCollapsed}
-                      aria-controls="media-library-panel-prompts-section"
-                      onClick={() => {
-                        setPromptsSectionCollapsed((previous) => !previous);
-                      }}
-                    >
-                      <span className="tiny subdued">
-                        Prompts ({visiblePromptRows.length})
-                        {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-                      </span>
-                      <CaretDown
-                        size={14}
-                        weight="bold"
-                        aria-hidden
-                        className="media-library-panel-section-toggle-icon"
-                      />
-                    </button>
-                  ) : (
-                    <p className="tiny subdued">
-                      Prompts ({visiblePromptRows.length})
-                      {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-                    </p>
-                  )}
-                </div>
-                {!promptsSectionCollapsed && promptLoading && visiblePromptRows.length === 0 ? (
-                  <p className="tiny subdued">Loading prompts…</p>
-                ) : null}
-                {!promptsSectionCollapsed && !promptLoading && visiblePromptRows.length === 0 ? (
-                  <p className="tiny subdued">No prompts found for this folder.</p>
-                ) : null}
-                {!promptsSectionCollapsed ? (
-                  <div id="media-library-panel-prompts-section">
-                    {visiblePromptRows.length > 0 ? (
-                      <MediaLibraryPromptGrid
-                        prompts={visiblePromptRows}
-                        sortedPrompts={visiblePromptRows}
-                        selectedIds={selectedIds}
-                        onSelectPromptCard={handleSelectPromptCard}
-                        onPromptDragStart={handlePromptCardDragStart}
-                        onPromptDragEnd={handleCardDragEnd}
-                        showRemoveAction={canShowFolderItemRemoveAction}
-                        showDeleteAction={
-                          AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED &&
-                          activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
-                        }
-                        onRemovePromptFromFolder={(prompt) => {
-                          void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
-                        }}
-                        onDeletePromptFromLibrary={(prompt) => {
-                          void handleDeletePromptFromLibrary(prompt);
-                        }}
-                        variant="reference-card"
-                      />
-                    ) : null}
-                    {promptHasMore ? (
-                      <div className="media-load-more">
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          onClick={() => {
-                            void loadPromptPage({ reset: false });
-                          }}
-                          disabled={promptLoading}
-                        >
-                          {promptLoading ? "Loading more..." : "Load more prompts"}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
+            {!showFolderCanvas && shouldShowPrompts && !isRootFolderSelected
+              ? renderPromptsSection()
+              : null}
 
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (
               <>
@@ -1421,6 +1443,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 </section>
               </>
             ) : null}
+
+            {!showFolderCanvas && shouldShowPrompts && isRootFolderSelected
+              ? renderPromptsSection()
+              : null}
 
             {!showFolderCanvas && shouldShowMedia && !isRootFolderSelected ? (
               <section className="media-library-panel-section">

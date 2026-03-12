@@ -30,6 +30,7 @@ import {
   normalizeStyleDetailsDraft,
   preprocessStyleImageDataUrl,
   readFileAsDataUrl,
+  type ResolveInternalStyleDrop,
   reorderById,
   resolveDroppedStylePreview,
 } from "./intake";
@@ -49,6 +50,7 @@ type UseStyleCreatorControllerParams = {
     styleId: string,
     details: StylesLibraryStyleDetails
   ) => Promise<boolean> | boolean;
+  resolveInternalStyleDrop?: ResolveInternalStyleDrop;
 };
 
 type StyleExtractionPayload = {
@@ -97,6 +99,7 @@ export const useStyleCreatorController = ({
   styles,
   onDeleteStyle,
   onSaveStyleDetails,
+  resolveInternalStyleDrop,
 }: UseStyleCreatorControllerParams) => {
   const stylesLibraryDropDepthRef = React.useRef(0);
   const customStyleIdCounterRef = React.useRef(0);
@@ -277,8 +280,10 @@ export const useStyleCreatorController = ({
     async (transfer: DataTransfer) => {
       setLocalSaveError(null);
       try {
-        const { previewImageUrl, extractionSourceImageUrl } =
-          await resolveDroppedStylePreview(transfer);
+        const { previewImageUrl, extractionSourceImageUrl } = await resolveDroppedStylePreview(
+          transfer,
+          { resolveInternalStyleDrop }
+        );
         setPendingStyleEdit((previous) =>
           applyStylePreviewToPendingEdit(previous, previewImageUrl)
         );
@@ -302,7 +307,7 @@ export const useStyleCreatorController = ({
         setLocalSaveError("Unable to process that image.");
       }
     },
-    [extractStyleForCreateDraft, pendingStyleEdit?.mode]
+    [extractStyleForCreateDraft, pendingStyleEdit?.mode, resolveInternalStyleDrop]
   );
 
   const applyStylePreviewFile = React.useCallback(
@@ -335,7 +340,7 @@ export const useStyleCreatorController = ({
       setStylesLibraryDropError(null);
       try {
         const { previewImageUrl, extractionSourceImageUrl, promptText } =
-          await resolveDroppedStylePreview(transfer);
+          await resolveDroppedStylePreview(transfer, { resolveInternalStyleDrop });
 
         let extractedStylePrompt = normalizeStylePromptFallbackText(promptText);
         let extractedStyleTitle: string | null = null;
@@ -449,7 +454,13 @@ export const useStyleCreatorController = ({
         setCreateStyleFromDropSubmitting(false);
       }
     },
-    [createStyleFromDropSubmitting, onSaveStyleDetails, runStyleExtraction, styles]
+    [
+      createStyleFromDropSubmitting,
+      onSaveStyleDetails,
+      resolveInternalStyleDrop,
+      runStyleExtraction,
+      styles,
+    ]
   );
 
   const handleStylesLibraryDragEnter = React.useCallback((event: React.DragEvent<HTMLElement>) => {

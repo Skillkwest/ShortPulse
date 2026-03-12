@@ -23,6 +23,43 @@ type UseAiStudioPersistenceActionsArgs = {
   prompt: string;
 };
 
+export type PersistedMediaDelivery = {
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+  previewUrl: string | null;
+  fullUrl: string | null;
+};
+
+const normalizeOptionalUrl = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length ? normalized : null;
+};
+
+/**
+ * Merges delivery metadata from persistence into an output row.
+ * Prefers fresh delivery URLs over stale preview URLs when provided.
+ */
+export const mergeOutputWithPersistedDelivery = (
+  output: StudioOutput,
+  delivery: PersistedMediaDelivery
+): StudioOutput => {
+  const nextPreviewStoragePath = delivery.previewStoragePath ?? output.previewStoragePath ?? null;
+  const nextFullStoragePath =
+    delivery.fullStoragePath ?? output.fullStoragePath ?? nextPreviewStoragePath ?? null;
+  const nextPreviewUrl =
+    normalizeOptionalUrl(delivery.previewUrl) ??
+    normalizeOptionalUrl(delivery.fullUrl) ??
+    normalizeOptionalUrl(output.previewUrl) ??
+    undefined;
+  return {
+    ...output,
+    previewStoragePath: nextPreviewStoragePath,
+    fullStoragePath: nextFullStoragePath,
+    previewUrl: nextPreviewUrl,
+  };
+};
+
 /**
  * Builds output persistence callbacks used across generation and manual saves.
  */
@@ -147,23 +184,13 @@ export const useAiStudioPersistenceActions = ({
     }): Promise<{
       mediaFileIds: string[];
       errors: string[];
-      delivery: {
-        previewStoragePath: string | null;
-        fullStoragePath: string | null;
-        previewUrl: string | null;
-        fullUrl: string | null;
-      } | null;
+      delivery: PersistedMediaDelivery | null;
     }> => {
       const output = findOutputById(outputId);
       if (!output) return { mediaFileIds: [], errors: ["Output not found"], delivery: null };
       const mediaFileIds: string[] = [];
       const errors: string[] = [];
-      let delivery: {
-        previewStoragePath: string | null;
-        fullStoragePath: string | null;
-        previewUrl: string | null;
-        fullUrl: string | null;
-      } | null = null;
+      let delivery: PersistedMediaDelivery | null = null;
 
       for (let index = 0; index < urls.length; index += 1) {
         try {
@@ -306,13 +333,7 @@ export const useAiStudioPersistenceActions = ({
           generationId: generationId ?? null,
         });
         if (delivery) {
-          updateOutputById(outputId, (item) => ({
-            ...item,
-            previewStoragePath: delivery.previewStoragePath ?? item.previewStoragePath ?? null,
-            fullStoragePath:
-              delivery.fullStoragePath ?? item.fullStoragePath ?? item.previewStoragePath ?? null,
-            previewUrl: item.previewUrl ?? delivery.previewUrl ?? delivery.fullUrl ?? undefined,
-          }));
+          updateOutputById(outputId, (item) => mergeOutputWithPersistedDelivery(item, delivery));
         }
         if (mediaFileIds.length) {
           markOutputSaved(outputId, mediaFileIds);

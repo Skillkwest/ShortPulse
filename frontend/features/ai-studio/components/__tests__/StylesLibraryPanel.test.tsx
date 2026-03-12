@@ -370,6 +370,109 @@ describe("StylesLibraryPanel", () => {
     }
   });
 
+  it("creates a style from internal reference-grid drops using resolved internal candidates", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const resolveInternalStyleDrop = vi.fn(async () => ({
+      imageUrlCandidates: ["data:image/jpeg;base64,internal-drop-snapshot"],
+      promptText: "internal prompt",
+    }));
+    const originalImage = globalThis.Image;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: function toDataUrlByCanvasSize() {
+        return `data:image/jpeg;base64,${this.width}x${this.height}`;
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+          resolveInternalStyleDrop={resolveInternalStyleDrop}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const transfer = {
+        files: [],
+        types: [
+          "text/reference-origin",
+          "text/reference-output-id",
+          "text/reference-url",
+          "text/plain",
+        ],
+        getData: (type: string) => {
+          if (type === "text/reference-origin") return "ai-studio-reference-grid";
+          if (type === "text/reference-output-id") return "out-123";
+          if (type === "text/reference-url") return "https://cdn.example.com/stale-reference.png";
+          if (type === "text/plain") return "portrait prompt";
+          return "";
+        },
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+      });
+      expect(resolveInternalStyleDrop).toHaveBeenCalledTimes(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalCanvasToDataUrl,
+      });
+    }
+  });
+
   it("shows a processing placeholder while creating a style from dropped image", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
     let resolveExtraction: ((value: { stylePrompt: string; styleTitle: string }) => void) | null =

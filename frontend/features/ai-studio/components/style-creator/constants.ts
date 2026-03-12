@@ -14,6 +14,8 @@ export const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
   "text/reference-url",
   "text/reference-render-url",
   "text/reference-id",
+  "text/reference-output-id",
+  "text/reference-media-id",
   "text/reference-origin",
   "image/url",
   "text/uri-list",

@@ -4238,6 +4238,17 @@ export function ExpertEditPanelView({
             Reset
           </button>
         </div>
+        <div
+          className="edit-expert-markup-modal-general-row edit-expert-markup-modal-general-row--aspect"
+          role="group"
+          aria-label="Aspect ratio selector"
+        >
+          <AspectDropdown
+            aspect={aspect}
+            onSelect={onAspectChange}
+            options={aspectOptionsForModel}
+          />
+        </div>
       </div>
     );
   };
@@ -4353,7 +4364,7 @@ export function ExpertEditPanelView({
 
   const renderLayersToolbar = (scope: "main" | "modal", toolbarRef?: React.Ref<HTMLDivElement>) => {
     const isModalScope = scope === "modal";
-    const shouldShowUtilityActions = !isModalScope;
+    const shouldShowUtilityActions = true;
     return (
       <div
         ref={toolbarRef}

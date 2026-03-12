@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import {
+  canAcceptStyleLibraryImageDropHint,
   clampStylePromptCharacters,
   normalizeStylePromptFallbackText,
   preprocessStyleImageDataUrl,
@@ -267,6 +268,46 @@ describe("style-creator intake preprocessing", () => {
     }
   });
 
+  it("prefers resolved internal-drop candidates ahead of stale transfer URLs", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-123";
+        if (type === "text/reference-url") return "https://cdn.example.com/stale-reference.png";
+        if (type === "text/plain") return "portrait prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, {
+        resolveInternalStyleDrop: async () => ({
+          imageUrlCandidates: ["data:image/jpeg;base64,internal-drop-snapshot"],
+          promptText: "internal prompt",
+        }),
+      });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("maps stale dropped reference URLs to the expired-source error code", async () => {
     const transfer = {
       files: [],
@@ -349,6 +390,53 @@ describe("style-creator intake preprocessing", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("maps unreadable dropped-image blobs to blocked-source error code", async () => {
+    const transfer = {
+      files: [],
+      types: ["text/reference-url", "text/plain"],
+      getData: (type: string) => {
+        if (type === "text/reference-url") {
+          return "https://cdn.example.com/unreadable-image.png";
+        }
+        if (type === "text/plain") return "unreadable image";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => "image/png" },
+      blob: async () => new Blob([], { type: "image/png" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await expect(resolveDroppedStylePreview(transfer)).rejects.toThrow(
+        "blocked-style-image-source"
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("style-creator drop hint acceptance", () => {
+  it("accepts internal reference output-id and media-id transfer hints", () => {
+    const transfer = {
+      types: ["text/reference-output-id", "text/reference-media-id"],
+      getData: () => "",
+    } as unknown as DataTransfer;
+    expect(canAcceptStyleLibraryImageDropHint(transfer)).toBe(true);
+  });
+
+  it("rejects style-library reorder transfers", () => {
+    const transfer = {
+      types: ["text/style-library-id", "text/reference-output-id"],
+      getData: () => "",
+    } as unknown as DataTransfer;
+    expect(canAcceptStyleLibraryImageDropHint(transfer)).toBe(false);
   });
 });
 

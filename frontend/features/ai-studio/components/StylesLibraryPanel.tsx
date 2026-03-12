@@ -11,6 +11,7 @@ import {
   STYLE_PROMPT_MAX_CHARACTERS,
   STYLE_PROMPT_NEAR_LIMIT_CHARACTERS,
 } from "./style-creator/constants";
+import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
 
 const NONE_STYLE_ID = "__none_style__";
@@ -34,6 +35,7 @@ export type StylesLibraryPanelProps = {
     details: StylesLibraryStyleDetails
   ) => Promise<boolean> | boolean;
   saveError?: string | null;
+  resolveInternalStyleDrop?: ResolveInternalStyleDrop;
 };
 
 export function StylesLibraryPanel({
@@ -42,6 +44,7 @@ export function StylesLibraryPanel({
   deleteError = null,
   onSaveStyleDetails,
   saveError = null,
+  resolveInternalStyleDrop,
 }: StylesLibraryPanelProps) {
   const stylePreviewFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const stylePromptInputId = "styles-library-style-prompt-input";
@@ -87,6 +90,7 @@ export function StylesLibraryPanel({
     styles,
     onDeleteStyle,
     onSaveStyleDetails,
+    resolveInternalStyleDrop,
   });
   const stylesWithNoneFirst = React.useMemo(
     () => [NONE_STYLE_TILE, ...renderedStyles],

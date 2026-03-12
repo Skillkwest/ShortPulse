@@ -2,7 +2,12 @@
  * Intake and image-prep helpers for styles-library creation/edit flows.
  */
 import type { StylesLibraryStyleDetails } from "../../types";
-import { extractDragDropPayload } from "../../utils/dragDrop";
+import {
+  extractDragDropPayload,
+  extractInternalReferenceDragPayload,
+  normalizeReferenceTransferUrlCandidate,
+  type InternalReferenceDragPayload,
+} from "../../utils/dragDrop";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
@@ -24,6 +29,19 @@ const CAMERA_FILENAME_STEM_PATTERN = /^(?:img|dsc|pxl|mvimg|screenshot)[-_ ]?\d[
 const STYLE_IMAGE_OUTPUT_QUALITY = 0.9;
 const REFERENCE_RENDER_URL_TRANSFER_TYPE = "text/reference-render-url";
 const URLISH_TEXT_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
+
+export type ResolvedInternalStyleDrop = {
+  imageUrlCandidates: string[];
+  promptText?: string | null;
+};
+
+export type ResolveInternalStyleDrop = (
+  payload: InternalReferenceDragPayload
+) => Promise<ResolvedInternalStyleDrop | null>;
+
+type ResolveDroppedStylePreviewOptions = {
+  resolveInternalStyleDrop?: ResolveInternalStyleDrop;
+};
 
 /**
  * Returns true when a dropped file is a supported image candidate.
@@ -274,16 +292,20 @@ const getFirstUriListValue = (value: string): string => {
 
 const collectDroppedImageUrlCandidates = (
   transfer: DataTransfer,
-  primaryCandidate: string
+  primaryCandidate: string,
+  priorityCandidates: readonly string[] = []
 ): string[] => {
   const candidates: string[] = [];
   const pushCandidate = (value: string | null | undefined) => {
-    const normalized = value?.trim() ?? "";
+    const normalized =
+      normalizeReferenceTransferUrlCandidate(value) ??
+      (typeof value === "string" ? value.trim() : "");
     if (!normalized) return;
     if (!candidates.includes(normalized)) {
       candidates.push(normalized);
     }
   };
+  priorityCandidates.forEach((candidate) => pushCandidate(candidate));
   pushCandidate(primaryCandidate);
   pushCandidate(transfer.getData("text/reference-url"));
   pushCandidate(transfer.getData("image/url"));
@@ -375,7 +397,8 @@ export const normalizeStylePromptFallbackText = (value: string | null | undefine
  * Resolves a drop payload into preview + extraction source URLs.
  */
 export const resolveDroppedStylePreview = async (
-  transfer: DataTransfer
+  transfer: DataTransfer,
+  options?: ResolveDroppedStylePreviewOptions
 ): Promise<ResolvedDroppedStylePreview> => {
   const droppedImageFile = findDroppedImageFile(transfer);
   if (droppedImageFile) {
@@ -387,12 +410,23 @@ export const resolveDroppedStylePreview = async (
       promptText: "",
     };
   }
+  const internalDropPayload = extractInternalReferenceDragPayload(transfer);
+  const internalDropResolution =
+    internalDropPayload && options?.resolveInternalStyleDrop
+      ? await options.resolveInternalStyleDrop(internalDropPayload).catch(() => null)
+      : null;
   const dragPayload = extractDragDropPayload(transfer);
   const droppedImageUrl = dragPayload.imageUrl?.trim() ?? "";
-  const droppedImageUrlCandidates = collectDroppedImageUrlCandidates(transfer, droppedImageUrl);
+  const droppedImageUrlCandidates = collectDroppedImageUrlCandidates(
+    transfer,
+    droppedImageUrl,
+    internalDropResolution?.imageUrlCandidates ?? []
+  );
   if (!droppedImageUrlCandidates.length) {
     throw new Error("missing-dropped-style-image");
   }
+  const fallbackPromptText = normalizeStylePromptFallbackText(dragPayload.promptText);
+  const internalPromptText = normalizeStylePromptFallbackText(internalDropResolution?.promptText);
   try {
     let sourceImageDataUrl: string | null = null;
     let lastReadError: unknown = null;
@@ -411,7 +445,7 @@ export const resolveDroppedStylePreview = async (
     return {
       previewImageUrl: processed.previewImageUrl,
       extractionSourceImageUrl: processed.extractionSourceImageUrl,
-      promptText: normalizeStylePromptFallbackText(dragPayload.promptText),
+      promptText: fallbackPromptText || internalPromptText,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -424,6 +458,8 @@ export const resolveDroppedStylePreview = async (
       message.includes("unable to load image") ||
       message.includes("unable to process image") ||
       message.includes("invalid image dimensions");
+    const unreadableImageSource =
+      message.includes("unable to read image.") || message.includes("unable to read image file.");
     const expiredOrDeniedSource =
       (typeof downloadStatus === "number" && downloadStatus >= 400 && downloadStatus < 500) ||
       message.includes("reference url expired") ||
@@ -435,6 +471,7 @@ export const resolveDroppedStylePreview = async (
       throw new Error(EXPIRED_STYLE_IMAGE_SOURCE_ERROR);
     }
     if (
+      unreadableImageSource ||
       (typeof downloadStatus === "number" && downloadStatus >= 500) ||
       message.includes("failed to fetch") ||
       message.includes("networkerror") ||

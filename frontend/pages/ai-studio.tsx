@@ -48,6 +48,7 @@ import {
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
 import { resolveMediaLibraryInternalDropResolver } from "../features/ai-studio/logic/mediaLibraryInternalDropResolver";
+import { resolveStyleInternalDropCandidates } from "../features/ai-studio/components/style-creator/internalDropResolver";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { useAiStudioSessionPersistenceController } from "../features/ai-studio/hooks/useAiStudioSessionPersistenceController";
 import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
@@ -417,6 +418,19 @@ export default function AiStudioPage() {
   const resolveMediaLibraryInternalDropItem = useCallback(
     async (payload: InternalReferenceDragPayload) =>
       await resolveMediaLibraryInternalDropResolver({
+        payload,
+        getOutputById,
+        getOutputSnapshot,
+        resolveSavedMediaIdFromOutput,
+        saveReferenceToLibrary,
+        persistTimeoutMs: MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS,
+        pollIntervalMs: MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS,
+      }),
+    [getOutputById, getOutputSnapshot, resolveSavedMediaIdFromOutput, saveReferenceToLibrary]
+  );
+  const resolveStyleLibraryInternalDrop = useCallback(
+    async (payload: InternalReferenceDragPayload) =>
+      await resolveStyleInternalDropCandidates({
         payload,
         getOutputById,
         getOutputSnapshot,
@@ -1762,6 +1776,7 @@ export default function AiStudioPage() {
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
+        resolveStyleLibraryInternalDrop={resolveStyleLibraryInternalDrop}
         resolveCanvasDropReference={resolveCanvasDropReference}
         onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
         modelModalState={{

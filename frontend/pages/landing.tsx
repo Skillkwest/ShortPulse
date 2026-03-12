@@ -157,7 +157,7 @@ export default function LandingPage() {
       <div className="lp-shell">
         <header className="lp-nav sticky">
           <div className="lp-brand">
-            <Link href="/" className="lp-brand-link">
+            <Link href="/landing" className="lp-brand-link">
               <span className="logo-dot" />
               <span className="lp-brand-text">ShortPulse</span>
             </Link>

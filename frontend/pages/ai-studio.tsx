@@ -1130,11 +1130,19 @@ export default function AiStudioPage() {
     selectedCharacterId,
     setSelectedCharacterId,
     isCharacterOptionsLoading,
+    refreshCharacterOptions,
+    resolveCharacterOptionById,
   } = useAiStudioCharacterModeLifecycle({
     setUiError,
     setCharacterModeInjectionBundle,
     setIsCharacterBundleLoading,
   });
+  const resolveCharacterAvatarUrlById = useCallback(
+    (characterId: string | null | undefined): string | null => {
+      return resolveCharacterOptionById(characterId)?.profileImageUrl?.trim() ?? null;
+    },
+    [resolveCharacterOptionById]
+  );
   const {
     refreshCharacterModeInjectionBundleForSubmission,
     resolveCharacterModeSubmissionOverrides,
@@ -1578,6 +1586,8 @@ export default function AiStudioPage() {
     isCharacterOptionsLoading,
     isCharacterModeEnabled,
     setIsCharacterModeEnabled,
+    refreshCharacterOptions,
+    resolveCharacterAvatarUrlById,
     selectedExpertEditPresetIds,
     onSelectedExpertEditPresetIdsChange: setSelectedExpertEditPresetIds,
     expertEditCustomPresetOverrides,
@@ -1738,6 +1748,8 @@ export default function AiStudioPage() {
         propertiesVideo={propertiesVideo}
         propertiesCanvas={propertiesCanvas}
         railCanvasProps={railCanvasPanelProps}
+        refreshCharacterOptions={refreshCharacterOptions}
+        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
         isTemplateView={isTemplateView}
         referenceGridProps={referenceGridProps}
         studioPreviewProps={studioPreviewProps}

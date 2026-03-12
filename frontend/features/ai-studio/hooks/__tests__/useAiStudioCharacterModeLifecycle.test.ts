@@ -188,6 +188,9 @@ describe("useAiStudioCharacterModeLifecycle", () => {
           profileImageUrl: "https://example.com/profile.png",
         },
       ]);
+      expect(result.current.characterOptionsById.get("char-1")?.name).toBe("Hero");
+      expect(result.current.resolveCharacterOptionById("char-1")?.name).toBe("Hero");
+      expect(typeof result.current.refreshCharacterOptions).toBe("function");
       expect(result.current.isCharacterOptionsLoading).toBe(false);
     });
   });
@@ -303,6 +306,37 @@ describe("useAiStudioCharacterModeLifecycle", () => {
         expect.objectContaining({
           characterDescription: "Legacy fallback description",
         })
+      );
+    });
+  });
+
+  it("refreshes character options on window focus to keep avatar URLs current", async () => {
+    let avatarUrl: string | null = null;
+    listCharacterManagerCharactersMock.mockImplementation(
+      async () =>
+        [
+          {
+            characterId: "char-1",
+            characterName: "Hero",
+            profileImageUrl: avatarUrl,
+          },
+        ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>
+    );
+
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    avatarUrl = "https://example.com/profile-refreshed.png";
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(result.current.characterOptions[0]?.profileImageUrl).toBe(
+        "https://example.com/profile-refreshed.png"
       );
     });
   });

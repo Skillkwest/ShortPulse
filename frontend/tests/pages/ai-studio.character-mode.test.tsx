@@ -632,7 +632,7 @@ describe("ai-studio page character mode submission", () => {
   it("does not force image resolution while character mode is enabled", async () => {
     render(<AiStudioPage />);
 
-    await waitFor(() => expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(listCharacterManagerCharactersMock).toHaveBeenCalled());
     expect(aiStudioStateMock.setImageResolution).not.toHaveBeenCalled();
   });
 

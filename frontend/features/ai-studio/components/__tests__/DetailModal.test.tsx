@@ -36,6 +36,7 @@ describe("DetailModal", () => {
             styleId: "photorealistic",
             styleName: "Photorealistic",
             stylePrompt: "photoreal skin texture and natural daylight contrast",
+            stylePreviewImageUrl: "https://cdn.test/style.png",
           },
         }}
         onClose={vi.fn()}
@@ -52,6 +53,7 @@ describe("DetailModal", () => {
     expect(screen.getByAltText("Taylor profile")).toBeInTheDocument();
     const styleName = screen.getByText("Photorealistic");
     expect(styleName).toBeInTheDocument();
+    expect(screen.getByAltText("Photorealistic style")).toBeInTheDocument();
     expect(screen.getByLabelText("Style used for generation")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy Prompt" })).not.toBeInTheDocument();
@@ -60,6 +62,94 @@ describe("DetailModal", () => {
       Node.DOCUMENT_POSITION_FOLLOWING
     );
     expect(styleName.compareDocumentPosition(promptLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("uses style catalog preview when style context has id but no explicit preview url", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          styleContext: {
+            applied: true,
+            styleId: "photorealistic",
+            styleName: "Photorealistic",
+            stylePrompt: "photoreal skin texture and natural daylight contrast",
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByAltText("Photorealistic style")).toBeInTheDocument();
+  });
+
+  it("recovers character chip avatar via injected refresh/resolver callbacks", async () => {
+    let refreshedCharacterAvatarUrl: string | null = null;
+    const refreshCharacterOptions = vi.fn(async () => {
+      refreshedCharacterAvatarUrl = "https://cdn.test/char-refreshed.png";
+      return [
+        {
+          id: "char-1",
+          name: "Taylor",
+          profileImageUrl: refreshedCharacterAvatarUrl,
+        },
+      ];
+    });
+    const resolveCharacterAvatarUrlById = vi.fn((characterId: string | null | undefined) =>
+      characterId === "char-1" ? refreshedCharacterAvatarUrl : null
+    );
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          characterContext: {
+            applied: true,
+            characterId: "char-1",
+            characterName: "Taylor",
+            characterProfileImageUrl: "broken-avatar",
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        refreshCharacterOptions={refreshCharacterOptions}
+        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
+      />
+    );
+
+    fireEvent.error(screen.getByAltText("Taylor profile"));
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Taylor profile").getAttribute("src")).toBe(
+        "https://cdn.test/char-refreshed.png"
+      );
+    });
+    expect(refreshCharacterOptions).toHaveBeenCalled();
+  });
+
+  it("falls back to style initials when the style thumbnail fails to load", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          styleContext: {
+            applied: true,
+            styleId: "style-1",
+            styleName: "Sunset Glow",
+            stylePrompt: "warm sunset cinematic grade",
+            stylePreviewImageUrl: "broken-style-avatar",
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    fireEvent.error(screen.getByAltText("Sunset Glow style"));
+    expect(screen.getByText("SG")).toBeInTheDocument();
   });
 
   it("shows Save Prompt action in prompt-only mode and saves the edited prompt", () => {

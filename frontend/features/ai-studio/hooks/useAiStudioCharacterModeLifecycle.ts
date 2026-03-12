@@ -2,7 +2,15 @@
  * Character Mode lifecycle hook for AI Studio page orchestration.
  * Owns character list loading and selected-character bundle loading.
  */
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   listCharacterManagerCharacters,
@@ -27,6 +35,8 @@ export type CharacterSelectOption = {
   profileImageUrl: string | null;
 };
 
+const CHARACTER_OPTIONS_REFRESH_INTERVAL_MS = 20 * 60 * 1000;
+
 type UseAiStudioCharacterModeLifecycleParams = {
   setUiError: Dispatch<SetStateAction<string | null>>;
   setCharacterModeInjectionBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>>;
@@ -47,6 +57,51 @@ export const useAiStudioCharacterModeLifecycle = ({
     string | null | undefined
   >(undefined);
   const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
+  const isMountedRef = useRef(true);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    []
+  );
+
+  const applyCharacterOptions = useCallback(
+    (items: Awaited<ReturnType<typeof listCharacterManagerCharacters>>) => {
+      if (!isMountedRef.current) return;
+      const mappedOptions = items.map((item) => ({
+        id: item.characterId,
+        name: item.characterName,
+        profileImageUrl: item.profileImageUrl,
+      }));
+      setCharacterOptions(mappedOptions);
+      setSelectedCharacterId((current) =>
+        mappedOptions.some((option) => option.id === current) ? current : ""
+      );
+    },
+    []
+  );
+  const refreshCharacterOptions = useCallback(async () => {
+    const items = await listCharacterManagerCharacters();
+    applyCharacterOptions(items);
+    return items.map((item) => ({
+      id: item.characterId,
+      name: item.characterName,
+      profileImageUrl: item.profileImageUrl,
+    })) as CharacterSelectOption[];
+  }, [applyCharacterOptions]);
+  const characterOptionsById = useMemo<ReadonlyMap<string, CharacterSelectOption>>(
+    () => new Map(characterOptions.map((option) => [option.id, option])),
+    [characterOptions]
+  );
+  const resolveCharacterOptionById = useCallback(
+    (characterId: string | null | undefined): CharacterSelectOption | null => {
+      const normalizedCharacterId = characterId?.trim() ?? "";
+      if (!normalizedCharacterId) return null;
+      return characterOptionsById.get(normalizedCharacterId) ?? null;
+    },
+    [characterOptionsById]
+  );
 
   useEffect(() => {
     let active = true;
@@ -68,19 +123,7 @@ export const useAiStudioCharacterModeLifecycle = ({
 
   useEffect(() => {
     let active = true;
-    void listCharacterManagerCharacters()
-      .then((items) => {
-        if (!active) return;
-        const mappedOptions = items.map((item) => ({
-          id: item.characterId,
-          name: item.characterName,
-          profileImageUrl: item.profileImageUrl,
-        }));
-        setCharacterOptions(mappedOptions);
-        setSelectedCharacterId((current) =>
-          mappedOptions.some((option) => option.id === current) ? current : ""
-        );
-      })
+    void refreshCharacterOptions()
       .catch((error) => {
         if (!active) return;
         const message =
@@ -102,7 +145,34 @@ export const useAiStudioCharacterModeLifecycle = ({
     return () => {
       active = false;
     };
-  }, [setUiError]);
+  }, [refreshCharacterOptions, setUiError]);
+
+  useEffect(() => {
+    const refreshCharacterOptionsSilently = () => {
+      void refreshCharacterOptions().catch(() => {
+        // Silent refresh is best-effort to keep signed avatar URLs fresh in long-running sessions.
+      });
+    };
+    const handleWindowFocus = () => {
+      refreshCharacterOptionsSilently();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshCharacterOptionsSilently();
+      }
+    };
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const refreshIntervalId = window.setInterval(
+      refreshCharacterOptionsSilently,
+      CHARACTER_OPTIONS_REFRESH_INTERVAL_MS
+    );
+    return () => {
+      window.clearInterval(refreshIntervalId);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshCharacterOptions]);
 
   useEffect(() => {
     if (selectedCharacterStorageScope === undefined) return;
@@ -189,6 +259,9 @@ export const useAiStudioCharacterModeLifecycle = ({
 
   return {
     characterOptions,
+    characterOptionsById,
+    resolveCharacterOptionById,
+    refreshCharacterOptions,
     selectedCharacterId,
     setSelectedCharacterId,
     isCharacterOptionsLoading,

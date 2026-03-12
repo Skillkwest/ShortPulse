@@ -4,7 +4,8 @@ Reference for pages, auth expectations, and ownership.
 
 | Route | Auth required | Purpose | Notes |
 | --- | --- | --- | --- |
-| `/landing` | No | Marketing landing page | Root redirects here. |
+| `/` | No | Root entry redirect | Redirects to `/dashboard`; dashboard auth guard sends signed-out users to `/auth`. |
+| `/landing` | No | Marketing landing page | Public route for visitors who open landing directly. |
 | `/auth` | No | Email/password auth via Supabase | Redirects to `/dashboard` on session. |
 | `/dashboard` | Yes | Workspace hub with plan/status chips and launch actions | Uses `useProtectedRoute`. Default UI shows `New Project` CTA into `/ai-studio` plus a server-driven global announcement in the hero helper-text slot when one is active; falls back to default helper copy when no active announcement exists. Set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign. |
 | `/performance` | Yes | Performance analytics | Authenticated demo analytics route; dashboard entry remains staged through `/performance-soon`. |
@@ -19,6 +20,6 @@ Reference for pages, auth expectations, and ownership.
 | `/admin/generation-trace` | Yes | Admin generation trace page | Operator-only debugging route for stitched generation timelines. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |
 | `/creator-studio` | Yes | Legacy alias to AI Studio | Re-export of `/ai-studio`. |
-| `/index` | No | Redirect helper to `/landing` | Keeps `/` from 404 in dev. |
+| `/index` | No | Alias of root redirect | Mirrors `/` and forwards to `/dashboard`. |
 
 Keep this table updated when adding routes and reflect protection rules in `frontend/lib/authGuard.ts`.

@@ -87,6 +87,10 @@ type UseAiStudioCreatePanelPropsParams = {
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
+  refreshCharacterOptions: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById: (characterId: string | null | undefined) => string | null;
   imageResolution: string;
   setAspect: (value: string) => void;
   setImageResolution: Dispatch<SetStateAction<string>>;
@@ -160,6 +164,8 @@ export const useAiStudioCreatePanelProps = ({
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
   imageResolution,
   setAspect,
   setImageResolution,
@@ -228,6 +234,8 @@ export const useAiStudioCreatePanelProps = ({
       isCharacterOptionsLoading,
       characterModeEnabled: isCharacterModeEnabled,
       onCharacterModeEnabledChange: setIsCharacterModeEnabled,
+      refreshCharacterOptions,
+      resolveCharacterAvatarUrlById,
       imageResolution,
       onImageResolutionChange: setImageResolution,
       beginnerMode,
@@ -298,6 +306,8 @@ export const useAiStudioCreatePanelProps = ({
       setImageResolution,
       setIsCharacterModeEnabled,
       setSelectedCharacterId,
+      refreshCharacterOptions,
+      resolveCharacterAvatarUrlById,
       stagedAgentPrompt,
       toggleReferenceIndicator,
       useReferenceImageIndicator,

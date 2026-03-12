@@ -492,6 +492,10 @@ export type AiStudioPageContentProps = {
   propertiesVideo: VideoSectionProps;
   propertiesCanvas: CanvasSectionProps;
   railCanvasProps?: CanvasSectionProps;
+  refreshCharacterOptions?: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   isTemplateView: boolean;
   referenceGridProps: ReferenceGridProps;
   /**
@@ -562,6 +566,8 @@ export function AiStudioPageContent({
   propertiesVideo,
   propertiesCanvas,
   railCanvasProps,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
   isTemplateView,
   referenceGridProps,
   referenceCanvasProps,
@@ -701,12 +707,14 @@ export function AiStudioPageContent({
       selectedStyle.referenceImageName?.trim() ||
       null;
     const stylePrompt = selectedStyle.stylePrompt?.trim() || null;
+    const stylePreviewImageUrl = selectedStyle.previewUrl?.trim() || null;
     if (!styleName && !stylePrompt) return null;
     return {
       applied: true,
       styleId: selectedStyle.id,
       styleName,
       stylePrompt,
+      ...(stylePreviewImageUrl ? { stylePreviewImageUrl } : {}),
     };
   }, [selectedStyleId, visibleStylesCatalog]);
   React.useEffect(() => {
@@ -1285,6 +1293,8 @@ export function AiStudioPageContent({
         onDeleteOutput={onDeleteOutput}
         onDownloadReference={onDetailDownload}
         onSavePrompt={onDetailSavePrompt}
+        refreshCharacterOptions={refreshCharacterOptions}
+        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
       />
     </>
   );

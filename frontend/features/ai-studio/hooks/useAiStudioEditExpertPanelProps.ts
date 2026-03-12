@@ -63,6 +63,10 @@ type UseAiStudioEditExpertPanelPropsParams = {
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
+  refreshCharacterOptions: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById: (characterId: string | null | undefined) => string | null;
   selectedPresetIds?: readonly ExpertEditPresetId[];
   onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
@@ -105,6 +109,8 @@ export const useAiStudioEditExpertPanelProps = ({
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
   selectedPresetIds,
   onSelectedPresetIdsChange,
   customPresetOverrides,
@@ -164,6 +170,8 @@ export const useAiStudioEditExpertPanelProps = ({
       isCharacterOptionsLoading,
       characterModeEnabled: isCharacterModeEnabled,
       onCharacterModeEnabledChange: setIsCharacterModeEnabled,
+      refreshCharacterOptions,
+      resolveCharacterAvatarUrlById,
       selectedPresetIds,
       onSelectedPresetIdsChange,
       customPresetOverrides,
@@ -206,5 +214,7 @@ export const useAiStudioEditExpertPanelProps = ({
       setIsCharacterModeEnabled,
       setReferenceImageUrl,
       setSelectedCharacterId,
+      refreshCharacterOptions,
+      resolveCharacterAvatarUrlById,
     ]
   );

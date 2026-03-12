@@ -14,6 +14,7 @@ type UseCreateCharacterModeControllerArgs = {
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
   isCharacterOptionsLoading: boolean;
+  onCharacterPickerOpen?: () => void;
   onCharacterModeEnabledChange?: (value: boolean) => void;
   onStepActionClick?: (step: CreateStepAction) => void;
 };
@@ -47,6 +48,7 @@ export const useCreateCharacterModeController = ({
   characterOptions,
   selectedCharacterId,
   isCharacterOptionsLoading,
+  onCharacterPickerOpen,
   onCharacterModeEnabledChange,
   onStepActionClick,
 }: UseCreateCharacterModeControllerArgs): UseCreateCharacterModeControllerResult => {
@@ -60,8 +62,9 @@ export const useCreateCharacterModeController = ({
   }, []);
   const openCharacterPicker = React.useCallback(() => {
     if (characterSelectDisabled) return;
+    onCharacterPickerOpen?.();
     setIsCharacterPickerOpen(true);
-  }, [characterSelectDisabled]);
+  }, [characterSelectDisabled, onCharacterPickerOpen]);
 
   const handleCharacterModeEnabledToggle = React.useCallback(() => {
     const nextCharacterModeEnabled = !characterModeEnabled;

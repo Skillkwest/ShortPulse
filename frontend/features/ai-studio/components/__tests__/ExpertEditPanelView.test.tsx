@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
@@ -254,6 +254,59 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByLabelText("Secondary edit image 3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
+  });
+
+  it("refreshes character options when opening the character picker", () => {
+    const refreshCharacterOptions = vi.fn(async () => []);
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        characterModeEnabled
+        characterOptions={[{ id: "char-1", name: "Taylor" }]}
+        selectedCharacterId="char-1"
+        refreshCharacterOptions={refreshCharacterOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(refreshCharacterOptions).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers broken trigger avatars after one refresh pass", async () => {
+    let refreshedAvatarUrl: string | null = "broken-avatar";
+    const refreshCharacterOptions = vi.fn(async () => {
+      refreshedAvatarUrl = "https://cdn.test/edit-recovered-avatar.png";
+      return [
+        {
+          id: "char-1",
+          name: "Taylor",
+          profileImageUrl: refreshedAvatarUrl,
+        },
+      ];
+    });
+    const resolveCharacterAvatarUrlById = vi.fn((characterId: string | null | undefined) =>
+      characterId === "char-1" ? refreshedAvatarUrl : null
+    );
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        characterModeEnabled
+        characterOptions={[{ id: "char-1", name: "Taylor", profileImageUrl: "broken-avatar" }]}
+        selectedCharacterId="char-1"
+        refreshCharacterOptions={refreshCharacterOptions}
+        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
+      />
+    );
+
+    const triggerAvatar = screen.getByAltText("Taylor profile");
+    fireEvent.error(triggerAvatar);
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Taylor profile").getAttribute("src")).toBe(
+        "https://cdn.test/edit-recovered-avatar.png"
+      );
+    });
+    expect(refreshCharacterOptions).toHaveBeenCalledTimes(1);
   });
 
   it("updates primary dropzone aspect ratio from the edit aspect selector value", () => {
@@ -1138,9 +1191,7 @@ describe("ExpertEditPanelView", () => {
     expect(within(moveModalToolbar).getByText(/^move$/i)).toBeInTheDocument();
     const modalAdjustButton = within(moveModalToolbar).getByRole("button", { name: /^adjust$/i });
     expect(modalAdjustButton).toHaveTextContent(/^adjust$/i);
-    expect(modalAdjustButton).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(modalAdjustButton);
-    expect(modalAdjustButton).toHaveAttribute("aria-pressed", "true");
+    expect(modalAdjustButton).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
     expect(within(inpaintModalToolbar).getByText(/^in-paint$/i)).toBeInTheDocument();
     expect(within(modalToolbar).getByText(/^markup$/i)).toBeInTheDocument();
@@ -1151,12 +1202,25 @@ describe("ExpertEditPanelView", () => {
 
     const topRow = markupContent?.querySelector(".edit-expert-inpaint-mode-row");
     expect(topRow).toBeTruthy();
-    expect(
-      within(topRow as HTMLElement).getByRole("button", { name: /^pen$/i })
-    ).toBeInTheDocument();
+    const modalPenButton = within(topRow as HTMLElement).getByRole("button", { name: /^pen$/i });
+    expect(modalPenButton).toBeInTheDocument();
     expect(
       within(topRow as HTMLElement).getByRole("button", { name: /^eraser$/i })
     ).toBeInTheDocument();
+    const modalBrushButton = within(inpaintModalToolbar).getByRole("button", { name: /^brush$/i });
+    expect(modalPenButton).toHaveAttribute("aria-pressed", "true");
+    expect(modalBrushButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(modalAdjustButton);
+    expect(modalAdjustButton).toHaveAttribute("aria-pressed", "true");
+    expect(modalPenButton).toHaveAttribute("aria-pressed", "false");
+    expect(modalBrushButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(modalBrushButton);
+    expect(modalBrushButton).toHaveAttribute("aria-pressed", "true");
+    expect(modalAdjustButton).toHaveAttribute("aria-pressed", "false");
+    expect(modalPenButton).toHaveAttribute("aria-pressed", "false");
+
     const clearButton = within(topRow as HTMLElement).getByRole("button", {
       name: /clear markup strokes/i,
     });
@@ -1555,6 +1619,12 @@ describe("ExpertEditPanelView", () => {
     fireEvent.change(zoomSlider, { target: { value: "100" } });
     expect(zoomSlider.value).toBe("100");
     expect(readMarkupViewportTransform()?.scale ?? 0).toBeGreaterThan(1);
+    expect(recenterButton).not.toBeDisabled();
+
+    fireEvent.click(recenterButton);
+    expect(zoomSlider.value).toBe("50");
+    expect(readMarkupViewportTransform()?.scale ?? 0).toBeCloseTo(1, 4);
+    expect(recenterButton).toBeDisabled();
 
     fireEvent.change(zoomSlider, { target: { value: "0" } });
     expect(zoomSlider.value).toBe("0");

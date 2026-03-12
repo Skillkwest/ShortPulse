@@ -1,7 +1,7 @@
 import { computeCostForModel } from "../pricing";
 import { listModelConfigs } from "../modelRegistry";
 
-const NON_FIVE_CREDIT_ROUNDING_MODELS = new Set(["fal-ai/flux-2/klein/9b"]);
+const ONE_CREDIT_STRATEGIES = new Set(["fal-flux2-klein-per-mp"]);
 
 describe("model pricing coverage", () => {
   it("returns a cost for every registered model with a pricing strategy", () => {
@@ -38,7 +38,7 @@ describe("model pricing coverage", () => {
 
       expect(estimate).not.toBeNull();
       expect(estimate?.credits).toBeGreaterThan(0);
-      if (NON_FIVE_CREDIT_ROUNDING_MODELS.has(config.id)) {
+      if (ONE_CREDIT_STRATEGIES.has(config.pricingStrategy)) {
         expect(estimate?.credits).toBe(1);
       } else {
         expect((estimate?.credits ?? 0) % 5).toBe(0);

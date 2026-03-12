@@ -7,6 +7,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Image generation: `docs/sops/sop_image_generation.md` — text-to-image today; will house image-to-image/image-to-video notes.
 - Video generation: `docs/sops/sop_video_generation.md` — text-to-video and image-to-video.
 - Media performance ops: `docs/sops/sop_media_performance_operations.md` — Reference Grid autoplay budgeting, media signing behavior, and performance triage.
+- Media Library panel operations: `docs/sops/sop_ai_studio_media_library_operations.md` — exact folder/list/drag-drop/runtime contracts for the AI Studio left-panel Media Library.
 - Agent collaboration: `docs/sops/sop_ai_studio_agent.md` — chat-based assistant that replaces prompt textareas, sees the reference grid, and applies prompts to generation.
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
 - Agent safety control plane: `docs/sops/sop_ai_studio_agent_safety_control_plane.md` — profile tuning knobs, admin control routes, rollback/cooldown workflow, and SQL validation gates.

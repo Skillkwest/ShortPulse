@@ -82,6 +82,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_new_feature_modularization.md`
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_media_library_ui.md`
+- `docs/sops/sop_ai_studio_media_library_operations.md`
 - `docs/sops/sop_sql_migration_operations.md`
 - `docs/sops/sop_media_performance_operations.md`
 - `docs/sops/sop_adaptive_media_change_control.md`

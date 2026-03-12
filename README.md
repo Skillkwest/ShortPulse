@@ -53,7 +53,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 ## Manual data actions
 
 - Performance Analytics (`/performance`) provides a demo refresh + filtering workflow for the sample dataset.
-- Dashboard and landing entry points currently route users to `/performance-soon` while analytics rollout remains staged.
+- Root entry (`/`) now routes users through `/dashboard` (unauthenticated users are redirected to `/auth` by the dashboard guard).
 - Saved Creators and Media Library actions write/read directly through the Supabase client from the frontend (Saved Creators is post‑MVP).
 
 ## Frontend surfaces

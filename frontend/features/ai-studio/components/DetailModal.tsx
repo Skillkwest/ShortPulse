@@ -9,6 +9,8 @@ import { isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
+import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
+import { useAvatarResilience } from "../hooks/useAvatarResilience";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -17,6 +19,10 @@ type DetailModalProps = {
   onDeleteOutput: (id: string) => void;
   onDownloadReference?: (id: string) => void;
   onSavePrompt?: (promptText: string) => void;
+  refreshCharacterOptions?: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
 };
 
 /**
@@ -29,6 +35,8 @@ export function DetailModal({
   onDeleteOutput,
   onDownloadReference,
   onSavePrompt,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
 }: DetailModalProps) {
   const imageVesselRef = useRef<HTMLDivElement | null>(null);
   const imagePanDragRef = useRef<{
@@ -72,6 +80,17 @@ export function DetailModal({
     outputId: string;
     index: number;
   } | null>(null);
+  const [resolvedCharacterAvatarByOutput, setResolvedCharacterAvatarByOutput] = useState<{
+    outputId: string;
+    url: string | null;
+  } | null>(null);
+  const [styleAvatarLoadErrorByOutput, setStyleAvatarLoadErrorByOutput] = useState<{
+    outputId: string;
+    value: boolean;
+  } | null>(null);
+  const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
+    surfaceId: "detail-character-chip",
+  });
 
   const parseAspectRatio = useCallback((value?: string | null): number | null => {
     if (!value || !value.includes(":")) return null;
@@ -146,6 +165,14 @@ export function DetailModal({
     styleContext?.styleId?.trim() ||
     styleContext?.stylePrompt?.trim() ||
     "Selected Style";
+  const stylePreviewImageUrl = useMemo(() => {
+    const explicitPreviewUrl = styleContext?.stylePreviewImageUrl?.trim() || "";
+    if (explicitPreviewUrl) return explicitPreviewUrl;
+    const fallbackStyleId = styleContext?.styleId?.trim() || null;
+    const catalogStyle = resolveExpertEditStyleById(fallbackStyleId);
+    const catalogPreviewUrl = catalogStyle?.previewUrl?.trim() || "";
+    return catalogPreviewUrl || null;
+  }, [styleContext?.styleId, styleContext?.stylePreviewImageUrl]);
   const characterInitials = useMemo(() => {
     const trimmed = characterName.trim();
     if (!trimmed) return "PC";
@@ -160,6 +187,31 @@ export function DetailModal({
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
   }, [styleName]);
+  const characterId = characterContext?.characterId?.trim() ?? null;
+  const characterAvatarRecoveryId =
+    outputId && characterId
+      ? `${outputId}:${characterId}`
+      : outputId
+        ? `${outputId}:character`
+        : null;
+  const candidateCharacterAvatarUrl =
+    resolvedCharacterAvatarByOutput &&
+    outputId &&
+    resolvedCharacterAvatarByOutput.outputId === outputId
+      ? resolvedCharacterAvatarByOutput.url
+      : (characterContext?.characterProfileImageUrl?.trim() ??
+        resolveCharacterAvatarUrlById?.(characterId) ??
+        null);
+  const characterAvatarUrl = resolveAvatarUrl(
+    characterAvatarRecoveryId,
+    candidateCharacterAvatarUrl
+  );
+  const isStyleAvatarLoadError =
+    styleAvatarLoadErrorByOutput && outputId && styleAvatarLoadErrorByOutput.outputId === outputId
+      ? styleAvatarLoadErrorByOutput.value
+      : false;
+  const shouldRenderCharacterAvatar = Boolean(characterAvatarUrl);
+  const shouldRenderStyleAvatar = Boolean(stylePreviewImageUrl) && !isStyleAvatarLoadError;
   const isUploadedReference = useMemo(() => {
     if (!displayPreviewUrl) return false;
     if (output?.id?.startsWith("upload-")) return true;
@@ -234,6 +286,47 @@ export function DetailModal({
     setPreviewCandidateByOutput({ outputId, index: nextIndex });
     return true;
   }, [activePreviewCandidateIndex, outputId, previewCandidates.length]);
+
+  const refreshCharacterAvatar = useCallback(async () => {
+    if (!outputId || !characterId) return null;
+    const refreshedOptions = await refreshCharacterOptions?.();
+    const refreshedAvatarUrl =
+      refreshedOptions?.find((item) => item.id === characterId)?.profileImageUrl ?? null;
+    const resolvedAvatarUrl =
+      refreshedAvatarUrl?.trim() ?? resolveCharacterAvatarUrlById?.(characterId) ?? null;
+    if (resolvedAvatarUrl) {
+      setResolvedCharacterAvatarByOutput({
+        outputId,
+        url: resolvedAvatarUrl,
+      });
+    }
+    return resolvedAvatarUrl;
+  }, [characterId, outputId, refreshCharacterOptions, resolveCharacterAvatarUrlById]);
+
+  useEffect(() => {
+    if (!outputId) return;
+    setResolvedCharacterAvatarByOutput({
+      outputId,
+      url:
+        characterContext?.characterProfileImageUrl?.trim() ??
+        resolveCharacterAvatarUrlById?.(characterId) ??
+        null,
+    });
+    setStyleAvatarLoadErrorByOutput({ outputId, value: false });
+  }, [
+    characterContext?.characterProfileImageUrl,
+    characterId,
+    outputId,
+    resolveCharacterAvatarUrlById,
+    stylePreviewImageUrl,
+  ]);
+
+  useEffect(() => {
+    if (!hasCharacterContext || !outputId || !characterId) return;
+    void refreshCharacterAvatar().catch(() => {
+      // Keep character attribution non-blocking if refresh fails.
+    });
+  }, [characterId, hasCharacterContext, outputId, refreshCharacterAvatar]);
 
   const clampImagePan = useCallback(
     (nextX: number, nextY: number, scale: number) => {
@@ -843,13 +936,22 @@ export function DetailModal({
                 <div className="art-blade-inner">
                   {hasCharacterContext ? (
                     <div className="art-character-chip" aria-label="Character used for generation">
-                      {characterContext?.characterProfileImageUrl ? (
+                      {shouldRenderCharacterAvatar ? (
                         // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           className="art-character-chip-avatar"
-                          src={characterContext.characterProfileImageUrl}
+                          src={characterAvatarUrl ?? ""}
                           alt={`${characterName} profile`}
+                          onLoad={() => {
+                            clearAvatarFailure(characterAvatarRecoveryId);
+                          }}
+                          onError={() => {
+                            void handleAvatarError({
+                              avatarId: characterAvatarRecoveryId,
+                              recoverAvatarUrl: refreshCharacterAvatar,
+                            });
+                          }}
                         />
                       ) : (
                         <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
@@ -864,9 +966,23 @@ export function DetailModal({
                   ) : null}
                   {hasStyleContext ? (
                     <div className="art-character-chip" aria-label="Style used for generation">
-                      <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
-                        {styleInitials}
-                      </span>
+                      {shouldRenderStyleAvatar ? (
+                        // Style previews can point to external URLs and signed Supabase assets.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          className="art-character-chip-avatar"
+                          src={stylePreviewImageUrl ?? ""}
+                          alt={`${styleName} style`}
+                          onError={() => {
+                            if (!outputId) return;
+                            setStyleAvatarLoadErrorByOutput({ outputId, value: true });
+                          }}
+                        />
+                      ) : (
+                        <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
+                          {styleInitials}
+                        </span>
+                      )}
                       <div className="art-character-chip-copy">
                         <span className="art-character-chip-label">Style</span>
                         <span className="art-character-chip-name">{styleName}</span>

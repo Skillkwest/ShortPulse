@@ -96,8 +96,8 @@ describe("POST /api/ai/extract-style", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         stylePrompt:
-          "cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
-        styleTitle: "Cinematic Editorial Photography Dramatic Moody",
+          "Photographic, cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
+        styleTitle: "Photographic Cinematic Editorial Photography",
         usage: {
           inputTokens: 11,
           outputTokens: 14,
@@ -143,7 +143,7 @@ describe("POST /api/ai/extract-style", () => {
       expect.objectContaining({
         styleTitle: "Noir Bloom",
         stylePrompt:
-          "cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
+          "Photographic, cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
       })
     );
   });

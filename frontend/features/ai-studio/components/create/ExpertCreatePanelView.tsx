@@ -20,6 +20,8 @@ type ExpertCreatePanelViewProps = {
   selectedCharacterName: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
+  onSelectedCharacterAvatarError?: () => void;
+  onSelectedCharacterAvatarLoad?: () => void;
   isCharacterPickerOpen: boolean;
   isCreateModelPickerOpen: boolean;
   isModelSelectionEmpty: boolean;
@@ -50,6 +52,8 @@ export function ExpertCreatePanelView({
   selectedCharacterName,
   selectedCharacterProfileImageUrl,
   selectedCharacterInitials,
+  onSelectedCharacterAvatarError,
+  onSelectedCharacterAvatarLoad,
   isCharacterPickerOpen,
   isCreateModelPickerOpen,
   isModelSelectionEmpty,
@@ -123,6 +127,8 @@ export function ExpertCreatePanelView({
                     width={20}
                     height={20}
                     unoptimized
+                    onError={onSelectedCharacterAvatarError}
+                    onLoad={onSelectedCharacterAvatarLoad}
                   />
                 ) : selectedCharacterInitials ? (
                   <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">

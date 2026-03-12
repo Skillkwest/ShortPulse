@@ -3,7 +3,7 @@
  * Verifies Create workflow controls that should stay visible in Character Mode.
  */
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard, CreatePropertiesPanel } from "../CreatePropertiesPanel";
 
@@ -99,6 +99,75 @@ describe("CreatePropertiesPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
     expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
+  });
+
+  it("refreshes character options when opening the character picker", () => {
+    const refreshCharacterOptions = vi.fn(async () => []);
+    renderPanel({
+      beginnerMode: true,
+      characterModeEnabled: true,
+      characterOptions: [{ id: "char-1", name: "Avery Pulse" }],
+      selectedCharacterId: "char-1",
+      refreshCharacterOptions,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(refreshCharacterOptions).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to initials for broken picker-list avatars", () => {
+    renderPanel({
+      beginnerMode: true,
+      characterModeEnabled: true,
+      characterOptions: [{ id: "char-1", name: "Avery Pulse", profileImageUrl: "broken-avatar" }],
+      selectedCharacterId: "char-1",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    const listAvatar = document.querySelector(
+      ".ai-character-list-avatar-image"
+    ) as HTMLImageElement | null;
+    expect(listAvatar).not.toBeNull();
+    if (!listAvatar) return;
+    fireEvent.error(listAvatar);
+
+    expect(document.querySelector(".ai-character-list-avatar-initials")?.textContent).toBe("AP");
+  });
+
+  it("recovers broken trigger avatars after one refresh pass", async () => {
+    let refreshedAvatarUrl: string | null = "broken-avatar";
+    const refreshCharacterOptions = vi.fn(async () => {
+      refreshedAvatarUrl = "https://cdn.test/recovered-avatar.png";
+      return [
+        {
+          id: "char-1",
+          name: "Taylor",
+          profileImageUrl: refreshedAvatarUrl,
+        },
+      ];
+    });
+    const resolveCharacterAvatarUrlById = vi.fn((characterId: string | null | undefined) =>
+      characterId === "char-1" ? refreshedAvatarUrl : null
+    );
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      characterModeEnabled: true,
+      characterOptions: [{ id: "char-1", name: "Taylor", profileImageUrl: "broken-avatar" }],
+      selectedCharacterId: "char-1",
+      refreshCharacterOptions,
+      resolveCharacterAvatarUrlById,
+    });
+
+    const triggerAvatar = screen.getByAltText("Taylor profile");
+    fireEvent.error(triggerAvatar);
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Taylor profile").getAttribute("src")).toBe(
+        "https://cdn.test/recovered-avatar.png"
+      );
+    });
+    expect(refreshCharacterOptions).toHaveBeenCalledTimes(1);
   });
 
   it("renders expert create composer only when expert UI is eligible and beginner mode is off", () => {

@@ -29,6 +29,7 @@ import {
   useCreateCharacterModeController,
 } from "./create/useCreateCharacterModeController";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
+import { useAvatarResilience } from "../hooks/useAvatarResilience";
 
 export type CreatePropertiesPanelProps = {
   mode: StudioMode;
@@ -102,6 +103,10 @@ export type CreatePropertiesPanelProps = {
   isCharacterOptionsLoading?: boolean;
   characterModeEnabled?: boolean;
   onCharacterModeEnabledChange?: (value: boolean) => void;
+  refreshCharacterOptions?: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
@@ -130,6 +135,10 @@ type CharacterPickerModalProps = {
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
   onSelectedCharacterIdChange?: (value: string) => void;
+  refreshCharacterOptions?: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
 };
 
 const CharacterPickerModal = ({
@@ -139,7 +148,12 @@ const CharacterPickerModal = ({
   characterOptions,
   selectedCharacterId,
   onSelectedCharacterIdChange,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
 }: CharacterPickerModalProps) => {
+  const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
+    surfaceId: "create-character-picker-list",
+  });
   if (!isOpen || !characterModeEnabled) {
     return null;
   }
@@ -174,6 +188,10 @@ const CharacterPickerModal = ({
             <div className="ai-character-picker-grid" role="list" aria-label="Character options">
               {characterOptions.map((option) => {
                 const isActive = option.id === selectedCharacterId;
+                const resolvedAvatarUrl = resolveAvatarUrl(
+                  option.id,
+                  resolveCharacterAvatarUrlById?.(option.id) ?? option.profileImageUrl ?? null
+                );
                 return (
                   <article
                     key={option.id}
@@ -193,14 +211,33 @@ const CharacterPickerModal = ({
                     >
                       <div className="ai-character-list-main">
                         <span className="ai-character-list-avatar" aria-hidden="true">
-                          {option.profileImageUrl ? (
+                          {resolvedAvatarUrl ? (
                             <Image
-                              src={option.profileImageUrl}
+                              src={resolvedAvatarUrl}
                               alt=""
                               className="ai-character-list-avatar-image"
                               width={44}
                               height={44}
                               unoptimized
+                              onLoad={() => {
+                                clearAvatarFailure(option.id);
+                              }}
+                              onError={() => {
+                                void handleAvatarError({
+                                  avatarId: option.id,
+                                  recoverAvatarUrl: async () => {
+                                    const refreshedOptions = await refreshCharacterOptions?.();
+                                    const refreshedAvatarUrl =
+                                      refreshedOptions?.find((item) => item.id === option.id)
+                                        ?.profileImageUrl ?? null;
+                                    return (
+                                      refreshedAvatarUrl?.trim() ??
+                                      resolveCharacterAvatarUrlById?.(option.id) ??
+                                      null
+                                    );
+                                  },
+                                });
+                              }}
                             />
                           ) : (
                             <span className="ai-character-list-avatar-initials">
@@ -291,6 +328,8 @@ export function CreatePropertiesPanel({
   isCharacterOptionsLoading = false,
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
   isStylesPanelOpen = false,
   onStylesPanelToggle,
   selectedStyleId = null,
@@ -318,6 +357,12 @@ export function CreatePropertiesPanel({
     model: false,
     prompt: false,
   });
+  const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
+    surfaceId: "create-character-picker-trigger",
+  });
+  const handleCharacterPickerOpenRefresh = React.useCallback(() => {
+    void refreshCharacterOptions?.();
+  }, [refreshCharacterOptions]);
   const {
     characterStepSubtitle,
     isCharacterPickerOpen,
@@ -325,7 +370,6 @@ export function CreatePropertiesPanel({
     closeCharacterPicker,
     handleCharacterModeEnabledToggle,
     characterSelectDisabled,
-    isCharacterSelectionEmpty,
     selectedCharacterName,
     selectedCharacterProfileImageUrl,
     selectedCharacterInitials,
@@ -335,9 +379,37 @@ export function CreatePropertiesPanel({
     characterOptions,
     selectedCharacterId,
     isCharacterOptionsLoading,
+    onCharacterPickerOpen: handleCharacterPickerOpenRefresh,
     onCharacterModeEnabledChange,
     onStepActionClick,
   });
+  const selectedCharacterAvatarUrl = resolveAvatarUrl(
+    selectedCharacterId,
+    resolveCharacterAvatarUrlById?.(selectedCharacterId) ?? selectedCharacterProfileImageUrl ?? null
+  );
+  const isCharacterSelectionEmpty = !selectedCharacterAvatarUrl && !selectedCharacterInitials;
+  const handleSelectedCharacterAvatarError = React.useCallback(() => {
+    void handleAvatarError({
+      avatarId: selectedCharacterId,
+      recoverAvatarUrl: async () => {
+        const refreshedOptions = await refreshCharacterOptions?.();
+        const refreshedAvatarUrl =
+          refreshedOptions?.find((item) => item.id === selectedCharacterId)?.profileImageUrl ??
+          null;
+        return (
+          refreshedAvatarUrl?.trim() ?? resolveCharacterAvatarUrlById?.(selectedCharacterId) ?? null
+        );
+      },
+    });
+  }, [
+    handleAvatarError,
+    refreshCharacterOptions,
+    resolveCharacterAvatarUrlById,
+    selectedCharacterId,
+  ]);
+  const handleSelectedCharacterAvatarLoad = React.useCallback(() => {
+    clearAvatarFailure(selectedCharacterId);
+  }, [clearAvatarFailure, selectedCharacterId]);
 
   const toggleStep = (step: "model" | "prompt") => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
@@ -515,8 +587,10 @@ export function CreatePropertiesPanel({
           characterSelectDisabled={characterSelectDisabled}
           isCharacterSelectionEmpty={isCharacterSelectionEmpty}
           selectedCharacterName={selectedCharacterName}
-          selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
+          selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
           selectedCharacterInitials={selectedCharacterInitials}
+          onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
+          onSelectedCharacterAvatarLoad={handleSelectedCharacterAvatarLoad}
           isCharacterPickerOpen={isCharacterPickerOpen}
           isCreateModelPickerOpen={isCreateModelPickerOpen}
           isModelSelectionEmpty={isModelSelectionEmpty}
@@ -546,8 +620,10 @@ export function CreatePropertiesPanel({
           characterSelectDisabled={characterSelectDisabled}
           isCharacterSelectionEmpty={isCharacterSelectionEmpty}
           selectedCharacterName={selectedCharacterName}
-          selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
+          selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
           selectedCharacterInitials={selectedCharacterInitials}
+          onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
+          onSelectedCharacterAvatarLoad={handleSelectedCharacterAvatarLoad}
           isCharacterPickerOpen={isCharacterPickerOpen}
           collapsedModel={collapsedSteps.model}
           onToggleModel={() => toggleStep("model")}
@@ -577,6 +653,8 @@ export function CreatePropertiesPanel({
         characterOptions={characterOptions}
         selectedCharacterId={selectedCharacterId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
+        refreshCharacterOptions={refreshCharacterOptions}
+        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
       />
     </>
   );

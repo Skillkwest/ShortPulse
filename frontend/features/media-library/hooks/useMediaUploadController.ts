@@ -30,6 +30,7 @@ import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath"
 
 const PRIVATE_MEDIA_FOLDER = "private";
 const MEDIA_UPLOAD_API_ROUTE = "/api/media/upload";
+const IMAGE_DIMENSION_READ_TIMEOUT_MS = 1500;
 
 type UploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
@@ -140,17 +141,29 @@ const readImageDimensionsFromFile = async (file: File): Promise<ImageDimensions 
   const objectUrl = URL.createObjectURL(file);
   try {
     return await new Promise<ImageDimensions | null>((resolve) => {
+      let settled = false;
+      const finish = (value: ImageDimensions | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        image.onload = null;
+        image.onerror = null;
+        resolve(value);
+      };
       const image = new Image();
+      const timeoutId = setTimeout(() => {
+        finish(null);
+      }, IMAGE_DIMENSION_READ_TIMEOUT_MS);
       image.onload = () => {
         const width = Math.max(1, Math.round(image.naturalWidth || image.width || 0));
         const height = Math.max(1, Math.round(image.naturalHeight || image.height || 0));
         if (width > 0 && height > 0) {
-          resolve({ width, height });
+          finish({ width, height });
           return;
         }
-        resolve(null);
+        finish(null);
       };
-      image.onerror = () => resolve(null);
+      image.onerror = () => finish(null);
       image.src = objectUrl;
     });
   } finally {

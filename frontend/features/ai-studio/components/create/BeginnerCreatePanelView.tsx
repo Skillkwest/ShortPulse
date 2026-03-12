@@ -17,6 +17,8 @@ type BeginnerCreatePanelViewProps = {
   selectedCharacterName: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
+  onSelectedCharacterAvatarError?: () => void;
+  onSelectedCharacterAvatarLoad?: () => void;
   isCharacterPickerOpen: boolean;
   collapsedModel: boolean;
   onToggleModel: () => void;
@@ -71,6 +73,8 @@ export function BeginnerCreatePanelView({
   selectedCharacterName,
   selectedCharacterProfileImageUrl,
   selectedCharacterInitials,
+  onSelectedCharacterAvatarError,
+  onSelectedCharacterAvatarLoad,
   isCharacterPickerOpen,
   collapsedModel,
   onToggleModel,
@@ -155,6 +159,8 @@ export function BeginnerCreatePanelView({
                         width={24}
                         height={24}
                         unoptimized
+                        onError={onSelectedCharacterAvatarError}
+                        onLoad={onSelectedCharacterAvatarLoad}
                       />
                     ) : selectedCharacterInitials ? (
                       <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">

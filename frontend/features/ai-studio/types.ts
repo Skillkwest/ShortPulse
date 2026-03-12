@@ -31,6 +31,7 @@ export type StudioOutputStyleContext = {
   styleId?: string | null;
   styleName?: string | null;
   stylePrompt?: string | null;
+  stylePreviewImageUrl?: string | null;
 };
 
 export type GenerationReplaySubmitTool = "create" | "image" | "edit";

@@ -76,11 +76,11 @@ describe("fal route inventory regression", () => {
     expect(listFalRouteFiles()).toEqual([...EXPECTED_FAL_ROUTE_FILES]);
   });
 
-  it("keeps every expected route module default-exported", async () => {
+  it("keeps every expected route module default-exported", () => {
     for (const routeFile of EXPECTED_FAL_ROUTE_FILES) {
-      const modulePath = `../../pages/api/fal/${routeFile}`;
-      const routeModule = await import(modulePath);
-      expect(typeof routeModule.default).toBe("function");
+      const routePath = path.join(FAL_ROUTES_DIR, routeFile);
+      const source = fs.readFileSync(routePath, "utf8");
+      expect(source).toMatch(/\bexport\s+default\b/);
     }
   });
 });

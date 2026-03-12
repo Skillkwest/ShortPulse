@@ -62,6 +62,7 @@ import {
   type CreateCharacterOption,
   useCreateCharacterModeController,
 } from "../create/useCreateCharacterModeController";
+import { useAvatarResilience } from "../../hooks/useAvatarResilience";
 import { resolveInpaintBrushDiameter, useInpaintMaskController } from "./useInpaintMaskController";
 import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
@@ -135,6 +136,10 @@ export type ExpertEditPanelViewProps = {
   isCharacterOptionsLoading?: boolean;
   characterModeEnabled?: boolean;
   onCharacterModeEnabledChange?: (value: boolean) => void;
+  refreshCharacterOptions?: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   selectedPresetIds?: readonly ExpertEditPresetId[];
   onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
@@ -152,6 +157,10 @@ type CharacterPickerModalProps = {
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
   onSelectedCharacterIdChange?: (value: string) => void;
+  refreshCharacterOptions?: () => Promise<
+    Array<{ id: string; name: string; profileImageUrl: string | null }>
+  >;
+  resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
 };
 
 const CharacterPickerModal = ({
@@ -161,7 +170,12 @@ const CharacterPickerModal = ({
   characterOptions,
   selectedCharacterId,
   onSelectedCharacterIdChange,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
 }: CharacterPickerModalProps) => {
+  const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
+    surfaceId: "edit-character-picker-list",
+  });
   if (!isOpen || !characterModeEnabled) {
     return null;
   }
@@ -196,6 +210,10 @@ const CharacterPickerModal = ({
             <div className="ai-character-picker-grid" role="list" aria-label="Character options">
               {characterOptions.map((option) => {
                 const isActive = option.id === selectedCharacterId;
+                const resolvedAvatarUrl = resolveAvatarUrl(
+                  option.id,
+                  resolveCharacterAvatarUrlById?.(option.id) ?? option.profileImageUrl ?? null
+                );
                 return (
                   <article
                     key={option.id}
@@ -215,14 +233,33 @@ const CharacterPickerModal = ({
                     >
                       <div className="ai-character-list-main">
                         <span className="ai-character-list-avatar" aria-hidden="true">
-                          {option.profileImageUrl ? (
+                          {resolvedAvatarUrl ? (
                             <Image
-                              src={option.profileImageUrl}
+                              src={resolvedAvatarUrl}
                               alt=""
                               className="ai-character-list-avatar-image"
                               width={44}
                               height={44}
                               unoptimized
+                              onLoad={() => {
+                                clearAvatarFailure(option.id);
+                              }}
+                              onError={() => {
+                                void handleAvatarError({
+                                  avatarId: option.id,
+                                  recoverAvatarUrl: async () => {
+                                    const refreshedOptions = await refreshCharacterOptions?.();
+                                    const refreshedAvatarUrl =
+                                      refreshedOptions?.find((item) => item.id === option.id)
+                                        ?.profileImageUrl ?? null;
+                                    return (
+                                      refreshedAvatarUrl?.trim() ??
+                                      resolveCharacterAvatarUrlById?.(option.id) ??
+                                      null
+                                    );
+                                  },
+                                });
+                              }}
                             />
                           ) : (
                             <span className="ai-character-list-avatar-initials">
@@ -999,6 +1036,8 @@ export function ExpertEditPanelView({
   isCharacterOptionsLoading = false,
   characterModeEnabled = false,
   onCharacterModeEnabledChange,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
   selectedPresetIds: controlledPresetIds,
   onSelectedPresetIdsChange,
   customPresetOverrides: controlledCustomPresetOverrides,
@@ -1096,7 +1135,6 @@ export function ExpertEditPanelView({
   const [isMarkupPanDragging, setIsMarkupPanDragging] = React.useState(false);
   const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
   const [markupModalSquareSize, setMarkupModalSquareSize] = React.useState<number | null>(null);
-  const [isMarkupModalAdjustSelected, setIsMarkupModalAdjustSelected] = React.useState(true);
   const [stageContextMenuState, setStageContextMenuState] = React.useState<{
     isOpen: boolean;
     x: number;
@@ -1322,6 +1360,12 @@ export function ExpertEditPanelView({
     imageResolutionValue,
     onImageResolutionChange,
   });
+  const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
+    surfaceId: "edit-character-picker-trigger",
+  });
+  const handleCharacterPickerOpenRefresh = React.useCallback(() => {
+    void refreshCharacterOptions?.();
+  }, [refreshCharacterOptions]);
 
   const {
     isCharacterPickerOpen,
@@ -1329,7 +1373,6 @@ export function ExpertEditPanelView({
     closeCharacterPicker,
     handleCharacterModeEnabledToggle,
     characterSelectDisabled,
-    isCharacterSelectionEmpty,
     selectedCharacterName,
     selectedCharacterProfileImageUrl,
     selectedCharacterInitials,
@@ -1339,8 +1382,36 @@ export function ExpertEditPanelView({
     characterOptions,
     selectedCharacterId,
     isCharacterOptionsLoading,
+    onCharacterPickerOpen: handleCharacterPickerOpenRefresh,
     onCharacterModeEnabledChange,
   });
+  const selectedCharacterAvatarUrl = resolveAvatarUrl(
+    selectedCharacterId,
+    resolveCharacterAvatarUrlById?.(selectedCharacterId) ?? selectedCharacterProfileImageUrl ?? null
+  );
+  const isCharacterSelectionEmpty = !selectedCharacterAvatarUrl && !selectedCharacterInitials;
+  const handleSelectedCharacterAvatarError = React.useCallback(() => {
+    void handleAvatarError({
+      avatarId: selectedCharacterId,
+      recoverAvatarUrl: async () => {
+        const refreshedOptions = await refreshCharacterOptions?.();
+        const refreshedAvatarUrl =
+          refreshedOptions?.find((item) => item.id === selectedCharacterId)?.profileImageUrl ??
+          null;
+        return (
+          refreshedAvatarUrl?.trim() ?? resolveCharacterAvatarUrlById?.(selectedCharacterId) ?? null
+        );
+      },
+    });
+  }, [
+    handleAvatarError,
+    refreshCharacterOptions,
+    resolveCharacterAvatarUrlById,
+    selectedCharacterId,
+  ]);
+  const handleSelectedCharacterAvatarLoad = React.useCallback(() => {
+    clearAvatarFailure(selectedCharacterId);
+  }, [clearAvatarFailure, selectedCharacterId]);
 
   const inputRefs = [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] as const;
   const promptTextValue = referenceText ?? "";
@@ -2219,22 +2290,26 @@ export function ExpertEditPanelView({
   }, []);
 
   const handleRecenterMoveAction = React.useCallback(() => {
-    if (!selectedLayer) return;
-    const nextLayers = layers.map((layer) =>
-      layer.id === selectedLayer.id
-        ? {
-            ...layer,
-            transform: defaultLayerTransform(),
-          }
-        : layer
-    );
-    const baselineEntry = buildTransformHistoryEntry(layers);
-    const nextEntry = buildTransformHistoryEntry(nextLayers);
-    if (areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) {
-      return;
+    if (selectedLayer) {
+      const nextLayers = layers.map((layer) =>
+        layer.id === selectedLayer.id
+          ? {
+              ...layer,
+              transform: defaultLayerTransform(),
+            }
+          : layer
+      );
+      const baselineEntry = buildTransformHistoryEntry(layers);
+      const nextEntry = buildTransformHistoryEntry(nextLayers);
+      if (!areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) {
+        setLayers(nextLayers);
+        commitTransformHistoryTransition(nextEntry, baselineEntry);
+      }
     }
-    setLayers(nextLayers);
-    commitTransformHistoryTransition(nextEntry, baselineEntry);
+    setMoveStageZoomSliderValue(MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
+    setMarkupViewport(createDefaultMarkupViewportState());
+    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
+    setIsMarkupPanDragging(false);
   }, [commitTransformHistoryTransition, layers, selectedLayer]);
 
   const handleMoveZoomSliderChange = React.useCallback((value: number) => {
@@ -2774,9 +2849,8 @@ export function ExpertEditPanelView({
 
   const handleStageContextMenuRecenter = React.useCallback(() => {
     handleRecenterMoveAction();
-    resetMarkupViewport();
     closeStageContextMenu();
-  }, [closeStageContextMenu, handleRecenterMoveAction, resetMarkupViewport]);
+  }, [closeStageContextMenu, handleRecenterMoveAction]);
 
   const handleStageContextMenuExpand = React.useCallback(() => {
     setSelectedRailTool("video");
@@ -3162,12 +3236,6 @@ export function ExpertEditPanelView({
   }, [isMarkupPanDragging, isVideoToolSelected]);
 
   React.useEffect(() => {
-    if (!isVideoToolSelected && isMarkupExpandSelected) {
-      setIsMarkupExpandSelected(false);
-    }
-  }, [isMarkupExpandSelected, isVideoToolSelected]);
-
-  React.useEffect(() => {
     if (!isMarkupExpandSelected || typeof document === "undefined") return;
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -3506,6 +3574,7 @@ export function ExpertEditPanelView({
 
   const renderMarkupControlsContent = (scope: "inline" | "modal") => {
     const isModalScope = scope === "modal";
+    const isMarkupToolActive = isVideoToolSelected;
     const modeIconSize = isModalScope ? 18 : 16;
     const strokeSizeControlId = `edit-expert-markup-stroke-size-${scope}`;
     const colorPickerId = `edit-expert-markup-color-picker-${scope}`;
@@ -3517,23 +3586,29 @@ export function ExpertEditPanelView({
           <button
             type="button"
             className={`edit-expert-inpaint-mode-btn ${isModalScope ? "edit-expert-markup-icon-only-btn" : ""} ${
-              selectedMarkupMode === "pen" ? "is-active" : ""
+              selectedMarkupMode === "pen" && isMarkupToolActive ? "is-active" : ""
             }`.trim()}
-            aria-pressed={selectedMarkupMode === "pen"}
+            aria-pressed={selectedMarkupMode === "pen" && isMarkupToolActive}
             aria-label="Pen"
-            onClick={() => setSelectedMarkupMode("pen")}
+            onClick={() => {
+              setSelectedRailTool("video");
+              setSelectedMarkupMode("pen");
+            }}
           >
             <PencilSimple size={modeIconSize} weight="regular" />
             {!isModalScope ? <span>Pen</span> : null}
           </button>
           <button
             type="button"
-            className={`edit-expert-inpaint-mode-btn ${isModalScope ? "edit-expert-markup-icon-only-btn" : ""} ${
-              selectedMarkupMode === "eraser" ? "is-active" : ""
-            }`.trim()}
-            aria-pressed={selectedMarkupMode === "eraser"}
+            className={`edit-expert-inpaint-mode-btn edit-expert-markup-eraser-btn ${
+              isModalScope ? "edit-expert-markup-icon-only-btn" : ""
+            } ${selectedMarkupMode === "eraser" && isMarkupToolActive ? "is-active" : ""}`.trim()}
+            aria-pressed={selectedMarkupMode === "eraser" && isMarkupToolActive}
             aria-label="Eraser"
-            onClick={() => setSelectedMarkupMode("eraser")}
+            onClick={() => {
+              setSelectedRailTool("video");
+              setSelectedMarkupMode("eraser");
+            }}
           >
             <Eraser size={modeIconSize} weight="regular" />
             {!isModalScope ? <span>Eraser</span> : null}
@@ -3666,7 +3741,7 @@ export function ExpertEditPanelView({
           {!isModalScope ? (
             <button
               type="button"
-              className="edit-expert-inpaint-action-btn"
+              className="edit-expert-inpaint-action-btn edit-expert-markup-clear-btn"
               aria-label="Clear markup strokes"
               onClick={() => setMarkupStrokes([])}
             >
@@ -3680,7 +3755,7 @@ export function ExpertEditPanelView({
 
   const renderMoveControlsContent = (scope: "inline" | "modal") => {
     const isModalScope = scope === "modal";
-    const isAdjustSelected = isModalScope ? isMarkupModalAdjustSelected : isMoveToolSelected;
+    const isAdjustSelected = isMoveToolSelected;
     const modeIconSize = isModalScope ? 18 : 16;
     const recenterIconSize = isModalScope ? 16 : 14;
     const zoomSliderId = isModalScope
@@ -3700,16 +3775,12 @@ export function ExpertEditPanelView({
         >
           <button
             type="button"
-            className={`edit-expert-move-mode-btn ${isAdjustSelected ? "is-active" : ""}`.trim()}
+            className={`edit-expert-move-mode-btn edit-expert-move-adjust-btn ${
+              isAdjustSelected ? "is-active" : ""
+            }`.trim()}
             aria-pressed={isAdjustSelected}
             aria-label="Adjust"
-            onClick={() => {
-              if (isModalScope) {
-                setIsMarkupModalAdjustSelected(true);
-                return;
-              }
-              setSelectedRailTool("move");
-            }}
+            onClick={() => setSelectedRailTool("move")}
           >
             <ArrowsOutCardinal size={modeIconSize} weight="regular" />
             Adjust
@@ -3719,7 +3790,7 @@ export function ExpertEditPanelView({
             className="edit-expert-move-mode-btn edit-expert-move-center-btn"
             aria-label="Center move action"
             onClick={handleRecenterMoveAction}
-            disabled={isMoveTransformCentered}
+            disabled={!isModalScope && isMoveTransformCentered && isMarkupViewportAtRest}
           >
             <ArrowsInCardinal size={recenterIconSize} weight="regular" />
             Center
@@ -3846,22 +3917,28 @@ export function ExpertEditPanelView({
           <button
             type="button"
             className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
-              selectedInpaintMode === "brush" ? "is-active" : ""
+              selectedInpaintMode === "brush" && isInpaintToolSelected ? "is-active" : ""
             }`}
-            aria-pressed={selectedInpaintMode === "brush"}
+            aria-pressed={selectedInpaintMode === "brush" && isInpaintToolSelected}
             aria-label="Brush"
-            onClick={() => setSelectedInpaintMode("brush")}
+            onClick={() => {
+              setSelectedRailTool("inpaint");
+              setSelectedInpaintMode("brush");
+            }}
           >
             <PaintBrush size={modeIconSize} weight="regular" />
           </button>
           <button
             type="button"
             className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
-              selectedInpaintMode === "lasso" ? "is-active" : ""
+              selectedInpaintMode === "lasso" && isInpaintToolSelected ? "is-active" : ""
             }`}
-            aria-pressed={selectedInpaintMode === "lasso"}
+            aria-pressed={selectedInpaintMode === "lasso" && isInpaintToolSelected}
             aria-label="Lasso"
-            onClick={() => setSelectedInpaintMode("lasso")}
+            onClick={() => {
+              setSelectedRailTool("inpaint");
+              setSelectedInpaintMode("lasso");
+            }}
           >
             <CircleDashed size={modeIconSize} weight="regular" />
           </button>
@@ -4658,14 +4735,16 @@ export function ExpertEditPanelView({
                 disabled={characterSelectDisabled}
                 onClick={openCharacterPicker}
               >
-                {selectedCharacterProfileImageUrl ? (
+                {selectedCharacterAvatarUrl ? (
                   <Image
-                    src={selectedCharacterProfileImageUrl}
+                    src={selectedCharacterAvatarUrl}
                     alt={`${selectedCharacterName} profile`}
                     className="ai-character-picker-trigger-avatar"
                     width={20}
                     height={20}
                     unoptimized
+                    onError={handleSelectedCharacterAvatarError}
+                    onLoad={handleSelectedCharacterAvatarLoad}
                   />
                 ) : selectedCharacterInitials ? (
                   <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
@@ -4888,6 +4967,8 @@ export function ExpertEditPanelView({
         characterOptions={characterOptions}
         selectedCharacterId={selectedCharacterId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
+        refreshCharacterOptions={refreshCharacterOptions}
+        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
       />
     </div>
   );

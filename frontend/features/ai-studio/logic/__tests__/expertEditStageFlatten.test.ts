@@ -1,12 +1,14 @@
 /**
- * Unit tests for the Expert Edit manual stage-faithful flatten helpers.
+ * Unit tests for Expert Edit stage flatten helpers.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX,
   buildStageFlattenDrawPlan,
   composePrimaryStageLayersToBlob,
-  resolveContainSizeForSquareStage,
+  resolveContainSizeForStage,
+  resolveStageFlattenCameraTransform,
+  resolveStageFlattenOutputDimensions,
   resolveStageFlattenOutputSizePx,
 } from "../expertEditStageFlatten";
 
@@ -16,7 +18,7 @@ describe("expertEditStageFlatten", () => {
     vi.restoreAllMocks();
   });
 
-  it("resolves square output size from longest source edge with clamp", () => {
+  it("resolves longest-edge output size with clamp", () => {
     expect(
       resolveStageFlattenOutputSizePx([
         { width: 640, height: 1024 },
@@ -32,14 +34,54 @@ describe("expertEditStageFlatten", () => {
     expect(resolveStageFlattenOutputSizePx([])).toBe(1);
   });
 
-  it("contains non-square layers inside a square stage", () => {
-    expect(resolveContainSizeForSquareStage(400, 200, 1000)).toEqual({
+  it("resolves output dimensions from aspect ratio", () => {
+    expect(
+      resolveStageFlattenOutputDimensions({
+        images: [{ width: 1000, height: 600 }],
+        outputAspectRatio: 16 / 9,
+      })
+    ).toEqual({ width: 1000, height: 563 });
+    expect(
+      resolveStageFlattenOutputDimensions({
+        images: [{ width: 1000, height: 600 }],
+        outputAspectRatio: 9 / 16,
+      })
+    ).toEqual({ width: 563, height: 1000 });
+    expect(
+      resolveStageFlattenOutputDimensions({
+        images: [{ width: 1000, height: 600 }],
+      })
+    ).toEqual({ width: 1000, height: 1000 });
+  });
+
+  it("contains non-square layers inside arbitrary stage bounds", () => {
+    expect(resolveContainSizeForStage(400, 200, 1000, 500)).toEqual({
       drawWidth: 1000,
       drawHeight: 500,
     });
-    expect(resolveContainSizeForSquareStage(200, 400, 1000)).toEqual({
-      drawWidth: 500,
-      drawHeight: 1000,
+    expect(resolveContainSizeForStage(200, 400, 1000, 500)).toEqual({
+      drawWidth: 250,
+      drawHeight: 500,
+    });
+  });
+
+  it("normalizes camera offsets from viewport-space into output-space", () => {
+    expect(
+      resolveStageFlattenCameraTransform({
+        camera: {
+          scale: 2,
+          offsetX: 120,
+          offsetY: -45,
+          viewportWidth: 600,
+          viewportHeight: 300,
+        },
+        outputWidth: 1000,
+        outputHeight: 500,
+      })
+    ).toEqual({
+      scale: 2,
+      offsetX: 200,
+      offsetY: -75,
     });
   });
 
@@ -69,7 +111,8 @@ describe("expertEditStageFlatten", () => {
           },
         },
       ],
-      outputSizePx: 1000,
+      outputWidth: 1000,
+      outputHeight: 1000,
     });
 
     expect(instructions).toEqual([
@@ -94,7 +137,7 @@ describe("expertEditStageFlatten", () => {
     ]);
   });
 
-  it("composes visible layers with transparent clear and bottom-to-top draw order", async () => {
+  it("composes visible layers with camera framing and bottom-to-top draw order", async () => {
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
     const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;
     const context = {
@@ -150,19 +193,31 @@ describe("expertEditStageFlatten", () => {
     });
 
     try {
-      const blob = await composePrimaryStageLayersToBlob([
+      const blob = await composePrimaryStageLayersToBlob(
+        [
+          {
+            imageUrl: "https://example.com/top.png",
+            transform: { translateXRatio: 0.2, translateYRatio: -0.1, scale: 1, rotationDeg: 0 },
+          },
+          {
+            imageUrl: "https://example.com/bottom.png",
+            transform: { translateXRatio: 0, translateYRatio: 0, scale: 1, rotationDeg: 0 },
+          },
+        ],
         {
-          imageUrl: "https://example.com/top.png",
-          transform: { translateXRatio: 0.2, translateYRatio: -0.1, scale: 1, rotationDeg: 0 },
-        },
-        {
-          imageUrl: "https://example.com/bottom.png",
-          transform: { translateXRatio: 0, translateYRatio: 0, scale: 1, rotationDeg: 0 },
-        },
-      ]);
+          outputAspectRatio: 16 / 9,
+          camera: {
+            scale: 1.5,
+            offsetX: 50,
+            offsetY: -25,
+            viewportWidth: 250,
+            viewportHeight: 250,
+          },
+        }
+      );
 
       expect(blob.type).toBe("image/png");
-      expect(context.clearRect).toHaveBeenCalledWith(0, 0, 1000, 1000);
+      expect(context.clearRect).toHaveBeenCalledWith(0, 0, 1000, 563);
       expect(context.drawImage).toHaveBeenCalledTimes(2);
       const firstDrawImage = context.drawImage.mock.calls[0]?.[0] as {
         naturalWidth: number;
@@ -174,6 +229,11 @@ describe("expertEditStageFlatten", () => {
       };
       expect(firstDrawImage).toMatchObject({ naturalWidth: 800, naturalHeight: 800 });
       expect(secondDrawImage).toMatchObject({ naturalWidth: 1000, naturalHeight: 500 });
+
+      expect(context.scale).toHaveBeenCalledWith(1.5, 1.5);
+      const firstCameraTranslate = context.translate.mock.calls[0] as [number, number];
+      expect(firstCameraTranslate[0]).toBeCloseTo(700, 4);
+      expect(firstCameraTranslate[1]).toBeCloseTo(225.2, 1);
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,

@@ -32,12 +32,11 @@ import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
-import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
 import {
-  composeExpertEditLayerCropToBlob,
-  parseAspectRatioToken,
-  resolveCenteredAspectCropRect,
-} from "../../logic/expertEditLayerCrop";
+  composePrimaryStageLayersToBlob,
+  type StageFlattenCameraTransformInput,
+} from "../../logic/expertEditStageFlatten";
+import { parseAspectRatioToken } from "../../logic/expertEditLayerCrop";
 import {
   analyzeExpertEditPromptTokens,
   buildExpertEditPromptHighlightSegments,
@@ -366,15 +365,8 @@ const inpaintRailTools: ReadonlyArray<{
 ];
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
-type TransformDragMode = "move" | "resize";
+type TransformDragMode = "move" | "resize" | "rotate";
 type MarkupMode = "pen" | "eraser";
-const cropAspectRatioPresets = [
-  { value: "9:16", label: "Vertical", ratio: 9 / 16 },
-  { value: "4:5", label: "Social Post", ratio: 4 / 5 },
-  { value: "1:1", label: "Square", ratio: 1 },
-  { value: "5:4", label: "Photo", ratio: 5 / 4 },
-  { value: "16:9", label: "Landscape", ratio: 16 / 9 },
-] as const;
 const MAX_LAYERS = 8;
 const LAYER_LIMIT_REACHED_TOAST = `Layer limit reached (${MAX_LAYERS}).`;
 const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
@@ -410,7 +402,7 @@ const STAGE_CONTEXT_MENU_WIDTH = 164;
 const STAGE_CONTEXT_MENU_HEIGHT = 172;
 const STAGE_CONTEXT_MENU_GUTTER = 8;
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
-const MARKUP_STROKE_SIZE_DEFAULT = 26;
+const MARKUP_STROKE_SIZE_DEFAULT = 4;
 const MARKUP_STROKE_SIZE_MAX = 30;
 const MARKUP_CURSOR_DIAMETER_MIN = 1;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
@@ -440,6 +432,13 @@ const clampLayerTranslateRatio = (value: number) =>
   Math.min(LAYER_TRANSLATE_RATIO_MAX, Math.max(LAYER_TRANSLATE_RATIO_MIN, value));
 const clampLayerScale = (value: number) =>
   Math.min(LAYER_SCALE_MAX, Math.max(LAYER_SCALE_MIN, value));
+const normalizeLayerRotationDeg = (value: number) => {
+  if (!Number.isFinite(value)) return 0;
+  let normalized = value % 360;
+  if (normalized > 180) normalized -= 360;
+  if (normalized <= -180) normalized += 360;
+  return Math.round(normalized * 1000) / 1000;
+};
 
 type RgbColor = {
   r: number;
@@ -896,6 +895,8 @@ type TransformPointerSession = {
   centerX: number;
   centerY: number;
   baseDistanceToCenter: number;
+  baseRotationDeg: number;
+  basePointerAngleRad: number;
 };
 
 const createIdleTransformPointerSession = (): TransformPointerSession => ({
@@ -913,6 +914,8 @@ const createIdleTransformPointerSession = (): TransformPointerSession => ({
   centerX: 0,
   centerY: 0,
   baseDistanceToCenter: 1,
+  baseRotationDeg: 0,
+  basePointerAngleRad: 0,
 });
 
 const writePresetDragTransfer = (
@@ -1076,8 +1079,7 @@ export function ExpertEditPanelView({
   selectedStyleId: controlledSelectedStyleId,
   stylesCatalog,
 }: ExpertEditPanelViewProps) {
-  const layerIdCounterRef = React.useRef(1);
-  const foundationLayerIdRef = React.useRef<string | null>(null);
+  const layerIdCounterRef = React.useRef(2);
   const previousLayersRef = React.useRef<ExpertEditLayer[]>([]);
   const lastDispatchedPrimaryRef = React.useRef<string | null>(referenceImageUrl);
   const previousPrimaryPropRef = React.useRef<string | null>(referenceImageUrl);
@@ -1196,16 +1198,20 @@ export function ExpertEditPanelView({
   const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
   const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
-  const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => {
-    const foundationLayer = createLayer({
-      indexOneBased: 1,
-      imageUrl: referenceImageUrl,
+  const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
+    {
+      id: "layer-1",
+      name: formatLayerName(1),
+      imageUrl: referenceImageUrl ?? null,
+      opacity: LAYER_OPACITY_DEFAULT,
       isAutoNamed: true,
       ownsImageUrl: false,
-    });
-    foundationLayerIdRef.current = foundationLayer.id;
-    return [foundationLayer];
-  });
+      transform: defaultLayerTransform(),
+    },
+  ]);
+  const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>(
+    () => layers[0]?.id ?? null
+  );
   const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
     () => ({
       past: [],
@@ -1224,6 +1230,8 @@ export function ExpertEditPanelView({
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
   const [showPromptTokenInlineError, setShowPromptTokenInlineError] = React.useState(false);
   const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
+  const [activeTransformDragMode, setActiveTransformDragMode] =
+    React.useState<TransformDragMode>("move");
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
   >(null);
@@ -1231,7 +1239,6 @@ export function ExpertEditPanelView({
     if (markupStrokeSize === resolvedMarkupStrokeSize) return;
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
   }, [markupStrokeSize, resolvedMarkupStrokeSize]);
-  const foundationLayerId = foundationLayerIdRef.current;
   const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
   const resolvedSelectedLayerIndex =
     selectedLayerIndex == null || selectedLayerIndex < 0 || selectedLayerIndex >= layers.length
@@ -1845,11 +1852,13 @@ export function ExpertEditPanelView({
   const morePresetsSurfaceId = React.useId();
   const primaryDropzoneCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
-      const resolvedDragMode = transformPointerSessionRef.current.dragMode;
-      if (resolvedDragMode === "resize") {
+      if (activeTransformDragMode === "rotate") {
+        return isTransformPointerDragging ? "grabbing" : "crosshair";
+      }
+      if (activeTransformDragMode === "resize") {
         return "nwse-resize";
       }
-      if (resolvedDragMode === "move" && isTransformPointerDragging) {
+      if (activeTransformDragMode === "move" && isTransformPointerDragging) {
         return "grabbing";
       }
       return "grab";
@@ -1865,6 +1874,7 @@ export function ExpertEditPanelView({
     }
     return undefined;
   }, [
+    activeTransformDragMode,
     inpaintStrokeSize,
     isTransformPointerDragging,
     isMoveToolSelected,
@@ -1958,6 +1968,30 @@ export function ExpertEditPanelView({
       ...(cursorStyle ?? {}),
     };
   }, [markupModalSquareSize, markupViewportCursor]);
+  const resolveStageFlattenSnapshot = React.useCallback(() => {
+    const stageRect = primaryDropzoneRef.current?.getBoundingClientRect() ?? null;
+    const viewportWidth =
+      stageRect && Number.isFinite(stageRect.width) && stageRect.width > 0 ? stageRect.width : 1;
+    const viewportHeight =
+      stageRect && Number.isFinite(stageRect.height) && stageRect.height > 0 ? stageRect.height : 1;
+    const camera: StageFlattenCameraTransformInput = {
+      scale: sceneZoomScale,
+      offsetX: shouldApplyMarkupViewport ? markupViewport.offsetX : 0,
+      offsetY: shouldApplyMarkupViewport ? markupViewport.offsetY : 0,
+      viewportWidth,
+      viewportHeight,
+    };
+    return {
+      outputAspectRatio: primaryDropzoneAspectRatioValue,
+      camera,
+    };
+  }, [
+    markupViewport.offsetX,
+    markupViewport.offsetY,
+    primaryDropzoneAspectRatioValue,
+    sceneZoomScale,
+    shouldApplyMarkupViewport,
+  ]);
   const renderMarkupStrokeOverlay = React.useCallback(
     (keyPrefix: string) => {
       if (!markupStrokes.length) return null;
@@ -2119,33 +2153,12 @@ export function ExpertEditPanelView({
     }
 
     try {
-      const flattenedStageBlob = await composePrimaryStageLayersToBlob(layers, {
+      const flattenSnapshot = resolveStageFlattenSnapshot();
+      const exportBlob = await composePrimaryStageLayersToBlob(layers, {
         mimeType: "image/png",
+        outputAspectRatio: flattenSnapshot.outputAspectRatio,
+        camera: flattenSnapshot.camera,
       });
-      let exportBlob = flattenedStageBlob;
-      if (Math.abs(primaryDropzoneAspectRatioValue - 1) > Number.EPSILON) {
-        const flattenedStageUrl = URL.createObjectURL(flattenedStageBlob);
-        try {
-          const flattenedStageDimensions = await resolveBlobDimensions(flattenedStageBlob);
-          const cropRect = resolveCenteredAspectCropRect({
-            stageWidth: flattenedStageDimensions.width,
-            stageHeight: flattenedStageDimensions.height,
-            aspectRatio: primaryDropzoneAspectRatioValue,
-          });
-          if (!cropRect) {
-            throw new Error("Unable to resolve crop bounds for flattened export.");
-          }
-          exportBlob = await composeExpertEditLayerCropToBlob({
-            imageUrl: flattenedStageUrl,
-            stageWidth: flattenedStageDimensions.width,
-            stageHeight: flattenedStageDimensions.height,
-            cropRect,
-            mimeType: "image/png",
-          });
-        } finally {
-          revokeObjectUrlSafe(flattenedStageUrl);
-        }
-      }
       const flattenedLayerUrl = URL.createObjectURL(exportBlob);
       const layerOne =
         layers.find((layer) => layer.id === foundationLayerId) ??
@@ -2172,7 +2185,7 @@ export function ExpertEditPanelView({
     foundationLayerId,
     layers,
     populatedLayerCount,
-    primaryDropzoneAspectRatioValue,
+    resolveStageFlattenSnapshot,
     showStatusToast,
   ]);
 
@@ -2225,6 +2238,7 @@ export function ExpertEditPanelView({
     resolveBlobDimensions,
     showStatusToast,
     onInvalidPromptReferenceToken: handleInvalidPromptReferenceToken,
+    resolveStageFlattenSnapshot,
   });
 
   const handlePrimaryFileSelection = React.useCallback(
@@ -2827,10 +2841,18 @@ export function ExpertEditPanelView({
           width,
           height,
         });
-        const dragMode: TransformDragMode = event.shiftKey ? "resize" : "move";
+        const dragMode: TransformDragMode = event.altKey
+          ? "rotate"
+          : event.shiftKey
+            ? "resize"
+            : "move";
         const distanceToCenter = Math.max(
           1,
           computeDistance(pointerX, pointerY, transformGeometry.centerX, transformGeometry.centerY)
+        );
+        const pointerAngleRad = Math.atan2(
+          pointerY - transformGeometry.centerY,
+          pointerX - transformGeometry.centerX
         );
         event.preventDefault();
         if ((event.currentTarget as HTMLElement | null)?.setPointerCapture) {
@@ -2852,7 +2874,10 @@ export function ExpertEditPanelView({
           centerX: transformGeometry.centerX,
           centerY: transformGeometry.centerY,
           baseDistanceToCenter: distanceToCenter,
+          baseRotationDeg: selectedLayer.transform.rotationDeg,
+          basePointerAngleRad: pointerAngleRad,
         };
+        setActiveTransformDragMode(dragMode);
         setIsTransformPointerDragging(true);
         return;
       }
@@ -2949,6 +2974,30 @@ export function ExpertEditPanelView({
           );
           return;
         }
+        if (session.dragMode === "rotate") {
+          const nextPointerAngle = Math.atan2(
+            pointerY - session.centerY,
+            pointerX - session.centerX
+          );
+          const nextRotationDeg = normalizeLayerRotationDeg(
+            session.baseRotationDeg +
+              ((nextPointerAngle - session.basePointerAngleRad) * 180) / Math.PI
+          );
+          setLayers((previousLayers) =>
+            previousLayers.map((layer) =>
+              layer.id === session.layerId
+                ? {
+                    ...layer,
+                    transform: {
+                      ...layer.transform,
+                      rotationDeg: nextRotationDeg,
+                    },
+                  }
+                : layer
+            )
+          );
+          return;
+        }
       }
       handleInpaintPointerMove(event);
     },
@@ -2975,6 +3024,7 @@ export function ExpertEditPanelView({
         }
       }
       transformPointerSessionRef.current = createIdleTransformPointerSession();
+      setActiveTransformDragMode("move");
       setIsTransformPointerDragging(false);
       const baselineEntry = transformGestureBaselineRef.current;
       transformGestureBaselineRef.current = null;
@@ -3364,18 +3414,17 @@ export function ExpertEditPanelView({
 
   React.useEffect(() => {
     if (layers.length <= 0) {
-      foundationLayerIdRef.current = null;
+      setFoundationLayerId((previous) => (previous === null ? previous : null));
       return;
     }
-    if (!foundationLayerIdRef.current) {
-      foundationLayerIdRef.current = layers[0]?.id ?? null;
-      return;
-    }
-    const hasCurrentFoundation = layers.some((layer) => layer.id === foundationLayerIdRef.current);
-    if (!hasCurrentFoundation) {
-      foundationLayerIdRef.current = layers[0]?.id ?? null;
-    }
-  }, [layers]);
+    const hasCurrentFoundation = foundationLayerId
+      ? layers.some((layer) => layer.id === foundationLayerId)
+      : false;
+    const resolvedFoundationId = hasCurrentFoundation ? foundationLayerId : (layers[0]?.id ?? null);
+    setFoundationLayerId((previous) =>
+      previous === resolvedFoundationId ? previous : resolvedFoundationId
+    );
+  }, [foundationLayerId, layers]);
 
   React.useEffect(() => {
     const syncedSliderValue = resolveMoveStageZoomSliderValue(markupViewport.scale);
@@ -3478,10 +3527,13 @@ export function ExpertEditPanelView({
       if (isTransformPointerDragging) {
         setIsTransformPointerDragging(false);
       }
+      if (activeTransformDragMode !== "move") {
+        setActiveTransformDragMode("move");
+      }
       transformPointerSessionRef.current = createIdleTransformPointerSession();
       transformGestureBaselineRef.current = null;
     }
-  }, [isMoveToolSelected, isTransformPointerDragging]);
+  }, [activeTransformDragMode, isMoveToolSelected, isTransformPointerDragging]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4456,7 +4508,7 @@ export function ExpertEditPanelView({
       <div className="edit-expert-main-stage" style={primaryStageStyle}>
         <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
           <div className="edit-expert-preset-toolbar-title-card">
-            <p className="edit-expert-preset-toolbar-title">Presets</p>
+            <p className="edit-expert-preset-toolbar-title">Prompt Presets</p>
             <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">
               <Sliders size={14} weight="regular" />
             </span>

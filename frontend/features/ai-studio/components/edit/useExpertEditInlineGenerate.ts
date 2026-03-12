@@ -1,8 +1,9 @@
 import React from "react";
 import {
-  composePrimaryLayersToBlob,
-  type ExpertEditCompositingLayer,
-} from "../../logic/expertEditLayerCompose";
+  composePrimaryStageLayersToBlob,
+  type ExpertEditStageFlattenLayer,
+  type StageFlattenCameraTransformInput,
+} from "../../logic/expertEditStageFlatten";
 import {
   analyzeExpertEditPromptTokens,
   compileExpertEditSubmissionPrompt,
@@ -25,10 +26,16 @@ type ExportSelectedLayerMaskBlob = (params: {
   targetWidth: number;
   targetHeight: number;
   mimeType?: "image/png" | "image/jpeg";
+  camera?: StageFlattenCameraTransformInput | null;
 }) => Promise<Blob | null>;
 
+type StageFlattenSnapshot = {
+  outputAspectRatio?: number;
+  camera?: StageFlattenCameraTransformInput | null;
+};
+
 type UseExpertEditInlineGenerateParams = {
-  layers: ExpertEditCompositingLayer[];
+  layers: ExpertEditStageFlattenLayer[];
   promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
   populatedLayerCount: number;
@@ -42,6 +49,7 @@ type UseExpertEditInlineGenerateParams = {
   resolveBlobDimensions: (blob: Blob) => Promise<{ width: number; height: number }>;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
   onInvalidPromptReferenceToken?: (message: string) => void;
+  resolveStageFlattenSnapshot?: () => StageFlattenSnapshot;
 };
 
 const MAX_REFERENCE_INPUTS = 8;
@@ -75,6 +83,7 @@ export const useExpertEditInlineGenerate = ({
   resolveBlobDimensions,
   showStatusToast,
   onInvalidPromptReferenceToken,
+  resolveStageFlattenSnapshot,
 }: UseExpertEditInlineGenerateParams) => {
   const buildFlattenReferenceInputs = React.useCallback(
     (flattenedPrimaryUrl: string) => {
@@ -105,7 +114,12 @@ export const useExpertEditInlineGenerate = ({
       let flattenedUrl: string | null = null;
       let inpaintMaskUrl: string | null = null;
       try {
-        const flattenedBlob = await composePrimaryLayersToBlob(layers, { mimeType: "image/png" });
+        const flattenSnapshot = resolveStageFlattenSnapshot?.();
+        const flattenedBlob = await composePrimaryStageLayersToBlob(layers, {
+          mimeType: "image/png",
+          outputAspectRatio: flattenSnapshot?.outputAspectRatio,
+          camera: flattenSnapshot?.camera,
+        });
         flattenedUrl = URL.createObjectURL(flattenedBlob);
         const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
         const compiledPrompt = compileExpertEditSubmissionPrompt({
@@ -134,6 +148,7 @@ export const useExpertEditInlineGenerate = ({
             targetWidth: flattenedDimensions.width,
             targetHeight: flattenedDimensions.height,
             mimeType: "image/png",
+            camera: flattenSnapshot?.camera,
           });
           if (!inpaintMaskBlob) {
             showStatusToast("Mask selection is required for inpaint.");
@@ -201,6 +216,7 @@ export const useExpertEditInlineGenerate = ({
     resolveBlobDimensions,
     showStatusToast,
     onInvalidPromptReferenceToken,
+    resolveStageFlattenSnapshot,
   ]);
 
   return {

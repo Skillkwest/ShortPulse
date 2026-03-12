@@ -3,7 +3,7 @@
  * Renders the wrapper/title/button chrome and mirrors selected-style preview state.
  */
 import React from "react";
-import { Sticker } from "phosphor-react";
+import { Palette } from "phosphor-react";
 import {
   type ExpertEditStyleTile,
   resolveExpertEditStyleById,
@@ -59,7 +59,7 @@ export function StylesControl({
                 aria-hidden="true"
               />
             ) : (
-              <Sticker size={22} weight="regular" />
+              <Palette size={22} weight="regular" />
             )}
           </button>
         </div>

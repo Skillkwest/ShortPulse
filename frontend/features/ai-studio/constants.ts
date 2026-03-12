@@ -218,7 +218,7 @@ export const editToolList: ToolConfig[] = [
 export const librariesToolList: ToolConfig[] = [
   { id: "media-library", label: "Media", desc: "Browse library media and prompts" },
   { id: "character", label: "Characters", desc: "Create and manage character references" },
-  { id: "presets", label: "Presets", desc: "Browse reusable presets" },
+  { id: "presets", label: "Prompt Presets", desc: "Browse reusable presets" },
   { id: "styles", label: "Styles", desc: "Browse reusable styles" },
 ];
 

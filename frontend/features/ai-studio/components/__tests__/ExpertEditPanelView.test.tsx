@@ -22,33 +22,17 @@ import {
 } from "../../logic/inpaintSubmission";
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
 
-const {
-  composePrimaryLayersToBlobMock,
-  composePrimaryStageLayersToBlobMock,
-  composeExpertEditLayerCropToBlobMock,
-} = vi.hoisted(() => ({
-  composePrimaryLayersToBlobMock: vi.fn(async () => new Blob(["flattened"], { type: "image/png" })),
+const { composePrimaryStageLayersToBlobMock } = vi.hoisted(() => ({
   composePrimaryStageLayersToBlobMock: vi.fn(
     async () => new Blob(["flattened-stage"], { type: "image/png" })
   ),
-  composeExpertEditLayerCropToBlobMock: vi.fn(
-    async () => new Blob(["cropped-stage"], { type: "image/png" })
-  ),
 }));
 
-vi.mock("../../logic/expertEditLayerCompose", () => ({
-  composePrimaryLayersToBlob: composePrimaryLayersToBlobMock,
-}));
-
-vi.mock("../../logic/expertEditStageFlatten", () => ({
-  composePrimaryStageLayersToBlob: composePrimaryStageLayersToBlobMock,
-}));
-
-vi.mock("../../logic/expertEditLayerCrop", async () => {
-  const actual = await vi.importActual("../../logic/expertEditLayerCrop");
+vi.mock("../../logic/expertEditStageFlatten", async () => {
+  const actual = await vi.importActual("../../logic/expertEditStageFlatten");
   return {
     ...(actual as Record<string, unknown>),
-    composeExpertEditLayerCropToBlob: composeExpertEditLayerCropToBlobMock,
+    composePrimaryStageLayersToBlob: composePrimaryStageLayersToBlobMock,
   };
 });
 
@@ -144,6 +128,9 @@ const createPromptTokenTransfer = () => {
 const readFrameScale = (frame: HTMLDivElement) =>
   Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
 
+const readFrameRotationDeg = (frame: HTMLDivElement) =>
+  Number(frame.style.transform.match(/rotate\(([-\d.]+)deg\)/)?.[1] ?? "0");
+
 const readFrameTranslate = (frame: HTMLDivElement) => {
   const match = frame.style.transform.match(/translate\(([-\d.]+)%\s*,\s*([-\d.]+)%\)/);
   return {
@@ -238,9 +225,7 @@ describe("ExpertEditPanelView", () => {
 
   beforeEach(() => {
     objectUrlCounter = 0;
-    composePrimaryLayersToBlobMock.mockClear();
     composePrimaryStageLayersToBlobMock.mockClear();
-    composeExpertEditLayerCropToBlobMock.mockClear();
     createObjectURLMock.mockReset();
     revokeObjectURLMock.mockReset();
     createObjectURLMock.mockImplementation((value: unknown) => {
@@ -514,7 +499,7 @@ describe("ExpertEditPanelView", () => {
     });
 
     expect(onRegenerateWithReferenceInputs).not.toHaveBeenCalled();
-    expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent("slot 2");
   });
 
@@ -999,7 +984,7 @@ describe("ExpertEditPanelView", () => {
     }) as HTMLInputElement;
 
     expect(inpaintStrokeSlider.value).toBe("26");
-    expect(markupStrokeSlider.value).toBe("26");
+    expect(markupStrokeSlider.value).toBe("4");
 
     fireEvent.change(markupStrokeSlider, { target: { value: "30" } });
     expect(markupStrokeSlider.value).toBe("30");
@@ -2442,6 +2427,65 @@ describe("ExpertEditPanelView", () => {
     expect(resizedScale).toBeGreaterThanOrEqual(0.2);
   });
 
+  it("rotates the selected layer with alt/option drag and records undo/redo history", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/rotate-target.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(200));
+
+    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+    expect(readFrameRotationDeg(frame)).toBeCloseTo(0, 4);
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 777,
+      pointerType: "mouse",
+      button: 0,
+      altKey: true,
+      clientX: 180,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 777,
+      pointerType: "mouse",
+      altKey: true,
+      clientX: 100,
+      clientY: 20,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 777,
+      pointerType: "mouse",
+      altKey: true,
+      clientX: 100,
+      clientY: 20,
+    });
+
+    const rotatedDeg = readFrameRotationDeg(frame);
+    expect(Math.abs(rotatedDeg)).toBeGreaterThan(20);
+
+    const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
+    const undoButton = within(moveSettingsPanel).getByRole("button", {
+      name: /undo move action/i,
+    });
+    const redoButton = within(moveSettingsPanel).getByRole("button", {
+      name: /redo move action/i,
+    });
+
+    fireEvent.click(undoButton);
+    expect(readFrameRotationDeg(frame)).toBeCloseTo(0, 3);
+    fireEvent.click(redoButton);
+    expect(readFrameRotationDeg(frame)).toBeCloseTo(rotatedDeg, 3);
+  });
+
   it("re-centers the selected layer from the move history row", async () => {
     render(
       <ExpertEditPanelView
@@ -3159,9 +3203,8 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryLayersToBlobMock).toHaveBeenCalledTimes(1);
-    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
-    const composeCalls = composePrimaryLayersToBlobMock.mock.calls as unknown as Array<
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    const composeCalls = composePrimaryStageLayersToBlobMock.mock.calls as unknown as Array<
       [
         Array<{
           imageUrl: string | null;
@@ -3279,75 +3322,48 @@ describe("ExpertEditPanelView", () => {
     });
 
     expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
-    expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
     expect(onAddSessionMediaReference).not.toHaveBeenCalled();
   });
 
-  it("manual flatten applies selected frame ratio without exporting to reference grid", async () => {
-    const originalCreateImageBitmap = window.createImageBitmap;
-    const closeBitmap = vi.fn();
-    Object.defineProperty(window, "createImageBitmap", {
-      configurable: true,
-      writable: true,
-      value: vi.fn(async () => ({
-        width: 1440,
-        height: 1440,
-        close: closeBitmap,
-      })),
+  it("manual flatten forwards selected frame ratio to stage flatten without exporting to reference grid", async () => {
+    const onAddSessionMediaReference = vi.fn();
+    const { container, rerender } = render(
+      <ExpertEditPanelView {...baseProps} onAddSessionMediaReference={onAddSessionMediaReference} />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="16:9"
+        onAddSessionMediaReference={onAddSessionMediaReference}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /flatten/i }));
+      await Promise.resolve();
     });
-    try {
-      const onAddSessionMediaReference = vi.fn();
-      const { container, rerender } = render(
-        <ExpertEditPanelView
-          {...baseProps}
-          onAddSessionMediaReference={onAddSessionMediaReference}
-        />
-      );
 
-      uploadPrimaryFile(container, "layer-1.png");
-      uploadPrimaryFile(container, "layer-2.png");
-
-      rerender(
-        <ExpertEditPanelView
-          {...baseProps}
-          aspect="16:9"
-          onAddSessionMediaReference={onAddSessionMediaReference}
-        />
-      );
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /flatten/i }));
-        await Promise.resolve();
-      });
-
-      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
-      expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
-      expect(composeExpertEditLayerCropToBlobMock).toHaveBeenCalledTimes(1);
-      expect(composeExpertEditLayerCropToBlobMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          imageUrl: expect.stringMatching(/^blob:flatten-/),
-          stageWidth: 1440,
-          stageHeight: 1440,
-          cropRect: expect.objectContaining({
-            x: 0,
-            y: 315,
-            width: 1440,
-            height: 810,
-          }),
-          mimeType: "image/png",
-        })
-      );
-      expect(closeBitmap).toHaveBeenCalledTimes(1);
-      expect(onAddSessionMediaReference).not.toHaveBeenCalled();
-    } finally {
-      Object.defineProperty(window, "createImageBitmap", {
-        configurable: true,
-        writable: true,
-        value: originalCreateImageBitmap,
-      });
-    }
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    const flattenCalls = (
+      composePrimaryStageLayersToBlobMock as unknown as {
+        mock: {
+          calls: unknown[][];
+        };
+      }
+    ).mock.calls;
+    const flattenOptions = (flattenCalls[0]?.[1] ?? null) as {
+      outputAspectRatio?: number;
+      mimeType?: string;
+    } | null;
+    expect(flattenOptions?.mimeType).toBe("image/png");
+    expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(16 / 9, 4);
+    expect(onAddSessionMediaReference).not.toHaveBeenCalled();
   });
 
   it("manual flatten forwards current layer transforms to stage flatten helper", async () => {
@@ -3403,7 +3419,6 @@ describe("ExpertEditPanelView", () => {
     });
 
     expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
-    expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
     const flattenCalls = (
       composePrimaryStageLayersToBlobMock as unknown as {
         mock: {
@@ -3448,7 +3463,7 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryLayersToBlobMock).toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
     expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     const submissionCalls = (
       onRegenerateWithReferenceInputs as unknown as {
@@ -3475,6 +3490,85 @@ describe("ExpertEditPanelView", () => {
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(referenceInputs).toContain("https://example.com/extra.png");
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
+  });
+
+  it("auto-flatten generate forwards camera framing (zoom + pan + viewport)", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^move$/i }));
+    const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
+    const zoomSlider = within(moveSettingsPanel).getByRole("slider", {
+      name: /zoom stage/i,
+    });
+    fireEvent.change(zoomSlider, { target: { value: "100" } });
+
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(200));
+
+    fireEvent.keyDown(window, { code: "Space" });
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 911,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 911,
+      pointerType: "mouse",
+      clientX: 130,
+      clientY: 112,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 911,
+      pointerType: "mouse",
+      clientX: 130,
+      clientY: 112,
+    });
+    fireEvent.keyUp(window, { code: "Space" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    const flattenCalls = (
+      composePrimaryStageLayersToBlobMock as unknown as {
+        mock: {
+          calls: unknown[][];
+        };
+      }
+    ).mock.calls;
+    const flattenOptions = (flattenCalls.at(-1)?.[1] ?? null) as {
+      outputAspectRatio?: number;
+      camera?: {
+        scale?: number;
+        offsetX?: number;
+        offsetY?: number;
+        viewportWidth?: number;
+        viewportHeight?: number;
+      };
+    } | null;
+    expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(1, 4);
+    expect(flattenOptions?.camera?.scale ?? 0).toBeGreaterThan(1);
+    expect(Math.abs(flattenOptions?.camera?.offsetX ?? 0)).toBeGreaterThan(20);
+    expect(Math.abs(flattenOptions?.camera?.offsetY ?? 0)).toBeGreaterThan(8);
+    expect(flattenOptions?.camera?.viewportWidth).toBe(200);
+    expect(flattenOptions?.camera?.viewportHeight).toBe(200);
   });
 
   it("auto-flatten generate passes display/submission prompt overrides when @img tokens are used", async () => {
@@ -3544,7 +3638,7 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryLayersToBlobMock).not.toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
     expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     const [referenceInputs, options] = (
       onRegenerateWithReferenceInputs as unknown as {
@@ -3790,6 +3884,9 @@ describe("ExpertEditPanelView", () => {
       void referenceInputs;
       void options;
     });
+    const exportSelectedLayerMaskBlobMock = vi.fn(
+      async () => new Blob(["mask"], { type: "image/png" })
+    );
     const useInpaintMaskControllerSpy = vi
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
       .mockReturnValue({
@@ -3798,7 +3895,7 @@ describe("ExpertEditPanelView", () => {
         imageHasInteractiveMask: true,
         clearSelectedLayerMask: vi.fn(),
         invertSelectedLayerMask: vi.fn(),
-        exportSelectedLayerMaskBlob: vi.fn(async () => new Blob(["mask"], { type: "image/png" })),
+        exportSelectedLayerMaskBlob: exportSelectedLayerMaskBlobMock,
         onPointerDown: vi.fn(),
         onPointerMove: vi.fn(),
         onPointerUp: vi.fn(),
@@ -3832,6 +3929,11 @@ describe("ExpertEditPanelView", () => {
       uploadPrimaryFile(container, "layer-1.png");
       fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
       const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^move$/i }));
+      const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
+      fireEvent.change(within(moveSettingsPanel).getByRole("slider", { name: /zoom stage/i }), {
+        target: { value: "100" },
+      });
       fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
@@ -3855,6 +3957,17 @@ describe("ExpertEditPanelView", () => {
         outputFormat: "png",
       });
       expect(inpaintOptions?.hideOutputFromReferenceGrid).toBeUndefined();
+      expect(exportSelectedLayerMaskBlobMock).toHaveBeenCalledTimes(1);
+      const maskExportArgs = (exportSelectedLayerMaskBlobMock.mock.calls[0]?.[0] ?? null) as {
+        targetWidth?: number;
+        targetHeight?: number;
+        camera?: { scale?: number; offsetX?: number; offsetY?: number };
+      } | null;
+      expect(maskExportArgs?.targetWidth).toBe(640);
+      expect(maskExportArgs?.targetHeight).toBe(640);
+      expect(maskExportArgs?.camera?.scale ?? 0).toBeGreaterThan(1);
+      expect(maskExportArgs?.camera?.offsetX ?? 999).toBe(0);
+      expect(maskExportArgs?.camera?.offsetY ?? 999).toBe(0);
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
       Object.defineProperty(globalThis, "Image", {

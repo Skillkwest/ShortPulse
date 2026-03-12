@@ -171,7 +171,7 @@ export function PresetsLibraryPanel({
   return (
     <section className="presets-library-panel" aria-label="Presets library">
       <header className="presets-library-header">
-        <p className="eyebrow">Presets Library</p>
+        <p className="eyebrow">Prompt Presets Library</p>
         <p className="tiny subdued helper-text">
           Click a preset card to rename it or edit the prompt text.
         </p>

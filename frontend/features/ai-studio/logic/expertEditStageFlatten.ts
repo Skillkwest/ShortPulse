@@ -1,6 +1,6 @@
 /**
- * Stage-faithful flatten helpers for Expert Edit manual flatten action.
- * Produces a square PNG that matches primary-stage framing semantics.
+ * Stage-faithful flatten helpers for Expert Edit.
+ * Produces camera-framed PNG blobs that match primary-stage semantics.
  */
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 
@@ -31,6 +31,25 @@ export type StageFlattenImageDimensions = {
   height: number;
 };
 
+export type StageFlattenOutputDimensions = {
+  width: number;
+  height: number;
+};
+
+export type StageFlattenCameraTransformInput = {
+  scale?: number;
+  offsetX?: number;
+  offsetY?: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+};
+
+export type StageFlattenResolvedCameraTransform = {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+};
+
 export type StageFlattenDrawInstruction = {
   drawWidth: number;
   drawHeight: number;
@@ -45,6 +64,8 @@ const DEFAULT_STAGE_FLATTEN_MIME_TYPE = "image/png";
 export const STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX = 4096;
 const STAGE_FLATTEN_MIN_SCALE = 0.2;
 const STAGE_FLATTEN_MAX_SCALE = 2;
+const STAGE_FLATTEN_CAMERA_SCALE_MIN = 0.2;
+const STAGE_FLATTEN_CAMERA_SCALE_MAX = 3;
 
 const isCrossOriginCandidate = (url: string) =>
   url.startsWith("http://") || url.startsWith("https://");
@@ -52,9 +73,13 @@ const isCrossOriginCandidate = (url: string) =>
 const clampOpacity = (value: number) => Math.min(1, Math.max(0, value));
 const clampScale = (value: number) =>
   Math.min(STAGE_FLATTEN_MAX_SCALE, Math.max(STAGE_FLATTEN_MIN_SCALE, value));
+const clampCameraScale = (value: number) =>
+  Math.min(STAGE_FLATTEN_CAMERA_SCALE_MAX, Math.max(STAGE_FLATTEN_CAMERA_SCALE_MIN, value));
 const clampOutputSize = (value: number) =>
   Math.min(STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX, Math.max(1, Math.round(value)));
 const toRadians = (value: number) => (value * Math.PI) / 180;
+const resolveAspectRatio = (value: number | undefined) =>
+  Number.isFinite(value) && value > 0 ? value : 1;
 
 const loadImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -100,7 +125,7 @@ const canvasToBlob = (canvas: HTMLCanvasElement, mimeType: string): Promise<Blob
   });
 
 /**
- * Resolves a square output size using the longest source edge across visible layers.
+ * Resolves a longest-edge output size from visible source layers.
  */
 export const resolveStageFlattenOutputSizePx = (images: StageFlattenImageDimensions[]): number => {
   const longestEdge = images.reduce((maxEdge, image) => {
@@ -114,20 +139,93 @@ export const resolveStageFlattenOutputSizePx = (images: StageFlattenImageDimensi
 };
 
 /**
- * Resolves contain-fit draw size for a source image inside a square stage.
+ * Resolves output dimensions from source bounds and an optional aspect ratio.
+ */
+export const resolveStageFlattenOutputDimensions = ({
+  images,
+  outputAspectRatio,
+}: {
+  images: StageFlattenImageDimensions[];
+  outputAspectRatio?: number;
+}): StageFlattenOutputDimensions => {
+  const longestEdge = resolveStageFlattenOutputSizePx(images);
+  const aspectRatio = resolveAspectRatio(outputAspectRatio);
+  if (aspectRatio >= 1) {
+    return {
+      width: longestEdge,
+      height: clampOutputSize(longestEdge / aspectRatio),
+    };
+  }
+  return {
+    width: clampOutputSize(longestEdge * aspectRatio),
+    height: longestEdge,
+  };
+};
+
+/**
+ * Resolves contain-fit draw size for a source image inside a stage.
+ */
+export const resolveContainSizeForStage = (
+  sourceWidth: number,
+  sourceHeight: number,
+  stageWidth: number,
+  stageHeight: number
+) => {
+  const safeStageWidth = clampOutputSize(stageWidth);
+  const safeStageHeight = clampOutputSize(stageHeight);
+  const safeWidth = Math.max(1, Math.round(sourceWidth));
+  const safeHeight = Math.max(1, Math.round(sourceHeight));
+  const containScale = Math.min(safeStageWidth / safeWidth, safeStageHeight / safeHeight);
+  return {
+    drawWidth: safeWidth * containScale,
+    drawHeight: safeHeight * containScale,
+  };
+};
+
+/**
+ * Backward-compatible square-stage contain helper.
  */
 export const resolveContainSizeForSquareStage = (
   sourceWidth: number,
   sourceHeight: number,
   stageSize: number
-) => {
-  const safeStageSize = clampOutputSize(stageSize);
-  const safeWidth = Math.max(1, Math.round(sourceWidth));
-  const safeHeight = Math.max(1, Math.round(sourceHeight));
-  const containScale = Math.min(safeStageSize / safeWidth, safeStageSize / safeHeight);
+) => resolveContainSizeForStage(sourceWidth, sourceHeight, stageSize, stageSize);
+
+/**
+ * Converts viewport camera values into output-canvas coordinates.
+ */
+export const resolveStageFlattenCameraTransform = ({
+  camera,
+  outputWidth,
+  outputHeight,
+}: {
+  camera?: StageFlattenCameraTransformInput | null;
+  outputWidth: number;
+  outputHeight: number;
+}): StageFlattenResolvedCameraTransform => {
+  const outputWidthSafe = Math.max(1, outputWidth);
+  const outputHeightSafe = Math.max(1, outputHeight);
+  const viewportWidth =
+    Number.isFinite(camera?.viewportWidth) && (camera?.viewportWidth as number) > 0
+      ? (camera?.viewportWidth as number)
+      : outputWidthSafe;
+  const viewportHeight =
+    Number.isFinite(camera?.viewportHeight) && (camera?.viewportHeight as number) > 0
+      ? (camera?.viewportHeight as number)
+      : outputHeightSafe;
+  const normalizedOffsetX =
+    Number.isFinite(camera?.offsetX) && viewportWidth > 0
+      ? (camera?.offsetX as number) / viewportWidth
+      : 0;
+  const normalizedOffsetY =
+    Number.isFinite(camera?.offsetY) && viewportHeight > 0
+      ? (camera?.offsetY as number) / viewportHeight
+      : 0;
+
   return {
-    drawWidth: safeWidth * containScale,
-    drawHeight: safeHeight * containScale,
+    scale: clampCameraScale(Number.isFinite(camera?.scale) ? (camera?.scale as number) : 1),
+    offsetX: normalizedOffsetX * outputWidthSafe,
+    offsetY: normalizedOffsetY * outputHeightSafe,
   };
 };
 
@@ -136,7 +234,8 @@ export const resolveContainSizeForSquareStage = (
  */
 export const buildStageFlattenDrawPlan = ({
   decodedLayers,
-  outputSizePx,
+  outputWidth,
+  outputHeight,
 }: {
   decodedLayers: Array<{
     width: number;
@@ -149,15 +248,21 @@ export const buildStageFlattenDrawPlan = ({
       rotationDeg: number;
     };
   }>;
-  outputSizePx: number;
+  outputWidth: number;
+  outputHeight: number;
 }): StageFlattenDrawInstruction[] =>
   decodedLayers.map((layer) => {
-    const containSize = resolveContainSizeForSquareStage(layer.width, layer.height, outputSizePx);
+    const containSize = resolveContainSizeForStage(
+      layer.width,
+      layer.height,
+      outputWidth,
+      outputHeight
+    );
     return {
       drawWidth: containSize.drawWidth,
       drawHeight: containSize.drawHeight,
-      translateX: layer.transform.translateXRatio * outputSizePx,
-      translateY: layer.transform.translateYRatio * outputSizePx,
+      translateX: layer.transform.translateXRatio * outputWidth,
+      translateY: layer.transform.translateYRatio * outputHeight,
       opacity: clampOpacity(layer.opacity),
       scale: clampScale(layer.transform.scale),
       rotationDeg: Number.isFinite(layer.transform.rotationDeg) ? layer.transform.rotationDeg : 0,
@@ -165,11 +270,15 @@ export const buildStageFlattenDrawPlan = ({
   });
 
 /**
- * Flattens visible layers exactly in primary-stage 1:1 framing semantics.
+ * Flattens visible layers in primary-stage framing semantics.
  */
 export const composePrimaryStageLayersToBlob = async (
   layers: ExpertEditStageFlattenLayer[],
-  options?: { mimeType?: string }
+  options?: {
+    mimeType?: string;
+    outputAspectRatio?: number;
+    camera?: StageFlattenCameraTransformInput | null;
+  }
 ): Promise<Blob> => {
   const populatedLayers = layers.filter(
     (layer): layer is ExpertEditStageFlattenLayer & { imageUrl: string } =>
@@ -205,22 +314,30 @@ export const composePrimaryStageLayersToBlob = async (
     })
   );
 
-  const outputSizePx = resolveStageFlattenOutputSizePx(
-    decodedLayers.map(({ image }) => ({
+  const outputDimensions = resolveStageFlattenOutputDimensions({
+    images: decodedLayers.map(({ image }) => ({
       width: Math.max(1, image.naturalWidth || image.width || 1),
       height: Math.max(1, image.naturalHeight || image.height || 1),
-    }))
-  );
+    })),
+    outputAspectRatio: options?.outputAspectRatio,
+  });
+  const outputWidth = outputDimensions.width;
+  const outputHeight = outputDimensions.height;
+  const cameraTransform = resolveStageFlattenCameraTransform({
+    camera: options?.camera,
+    outputWidth,
+    outputHeight,
+  });
 
   const canvas = document.createElement("canvas");
-  canvas.width = outputSizePx;
-  canvas.height = outputSizePx;
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
   const context = canvas.getContext("2d");
   if (!context) {
     throw new Error("Canvas context unavailable for stage flatten.");
   }
 
-  context.clearRect(0, 0, outputSizePx, outputSizePx);
+  context.clearRect(0, 0, outputWidth, outputHeight);
 
   const drawInstructions = buildStageFlattenDrawPlan({
     decodedLayers: decodedLayers.map(({ image, opacity, transform }) => ({
@@ -229,7 +346,8 @@ export const composePrimaryStageLayersToBlob = async (
       opacity,
       transform,
     })),
-    outputSizePx,
+    outputWidth,
+    outputHeight,
   });
 
   decodedLayers.forEach(({ image }, index) => {
@@ -238,9 +356,13 @@ export const composePrimaryStageLayersToBlob = async (
     context.save();
     context.globalAlpha = instruction.opacity;
     context.translate(
-      outputSizePx / 2 + instruction.translateX,
-      outputSizePx / 2 + instruction.translateY
+      outputWidth / 2 + cameraTransform.offsetX,
+      outputHeight / 2 + cameraTransform.offsetY
     );
+    if (cameraTransform.scale !== 1) {
+      context.scale(cameraTransform.scale, cameraTransform.scale);
+    }
+    context.translate(instruction.translateX, instruction.translateY);
     if (instruction.rotationDeg !== 0) {
       context.rotate(toRadians(instruction.rotationDeg));
     }

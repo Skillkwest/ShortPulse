@@ -3,6 +3,10 @@
  * Manages per-layer masks, brush/lasso compositing, and overlay/marching-ants rendering.
  */
 import React from "react";
+import {
+  resolveStageFlattenCameraTransform,
+  type StageFlattenCameraTransformInput,
+} from "../../logic/expertEditStageFlatten";
 
 export type InpaintPaintMode = "brush" | "lasso" | "auto";
 export type InpaintSelectionMode = "select" | "unselect";
@@ -64,6 +68,7 @@ type ExportMaskBlobParams = {
   targetWidth: number;
   targetHeight: number;
   mimeType?: "image/png" | "image/jpeg";
+  camera?: StageFlattenCameraTransformInput | null;
 };
 
 type UseInpaintMaskControllerResult = {
@@ -1395,7 +1400,7 @@ export const useInpaintMaskController = ({
   }, [ensureMaskCanvasForLayer, imageHasInteractiveMask, invertLayerMask, selectedLayerId]);
 
   const exportSelectedLayerMaskBlob = React.useCallback(
-    async ({ targetWidth, targetHeight, mimeType = "image/png" }: ExportMaskBlobParams) => {
+    async ({ targetWidth, targetHeight, mimeType = "image/png", camera }: ExportMaskBlobParams) => {
       if (!selectedLayerId) return null;
       const maskMeta = maskMetaRef.current.get(selectedLayerId);
       if (!maskMeta?.hasContent) return null;
@@ -1409,9 +1414,6 @@ export const useInpaintMaskController = ({
       const exportCtx = exportCanvas.getContext("2d");
       if (!exportCtx) return null;
 
-      exportCtx.fillStyle = "black";
-      exportCtx.fillRect(0, 0, width, height);
-
       // Inpaint drawing is intentionally dropzone-wide, but only the visible image area
       // is exported for provider submit so the mask aligns with flattened image pixels.
       const exportSourceWindow = resolveMaskExportSourceWindow({
@@ -1420,7 +1422,14 @@ export const useInpaintMaskController = ({
         maskHeight: maskCanvas.height,
       });
       if (!exportSourceWindow) return null;
-      exportCtx.drawImage(
+
+      const stageMaskCanvas = document.createElement("canvas");
+      stageMaskCanvas.width = width;
+      stageMaskCanvas.height = height;
+      const stageMaskCtx = stageMaskCanvas.getContext("2d");
+      if (!stageMaskCtx) return null;
+      stageMaskCtx.clearRect(0, 0, width, height);
+      stageMaskCtx.drawImage(
         maskCanvas,
         exportSourceWindow.sx,
         exportSourceWindow.sy,
@@ -1431,6 +1440,24 @@ export const useInpaintMaskController = ({
         width,
         height
       );
+      const cameraTransform = resolveStageFlattenCameraTransform({
+        camera,
+        outputWidth: width,
+        outputHeight: height,
+      });
+
+      exportCtx.fillStyle = "black";
+      exportCtx.fillRect(0, 0, width, height);
+      exportCtx.save();
+      exportCtx.translate(
+        width / 2 + cameraTransform.offsetX,
+        height / 2 + cameraTransform.offsetY
+      );
+      if (cameraTransform.scale !== 1) {
+        exportCtx.scale(cameraTransform.scale, cameraTransform.scale);
+      }
+      exportCtx.drawImage(stageMaskCanvas, -width / 2, -height / 2, width, height);
+      exportCtx.restore();
 
       const blob = await new Promise<Blob | null>((resolve) => {
         exportCanvas.toBlob(resolve, mimeType);

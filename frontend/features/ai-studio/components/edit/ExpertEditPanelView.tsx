@@ -328,13 +328,16 @@ const editLayerUtilityActions = [
     id: "remove-background",
     label: "Remove Background",
     icon: MagicWand,
-    buttonClassName: "edit-expert-preset-action-btn--compose-image",
+    buttonClassName:
+      "edit-expert-preset-action-btn--compose-image edit-expert-preset-action-btn--remove-bg",
+    creditCost: 1,
   },
   {
     id: "flatten-image",
     label: "Flatten Layers",
     icon: StackSimple,
     buttonClassName: "edit-expert-preset-action-btn--compose-image",
+    creditCost: null,
   },
 ] as const;
 type RailTool = "move" | "inpaint" | "video";
@@ -2206,7 +2209,6 @@ export function ExpertEditPanelView({
       try {
         await onRegenerateWithReferenceInputs([selectedLayerInput], {
           modelIdOverride: BRIA_BACKGROUND_REMOVE_MODEL_ID,
-          costOverrideCredits: 0,
         });
       } catch {
         clearRemoveBackgroundPending();
@@ -4463,6 +4465,7 @@ export function ExpertEditPanelView({
           <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
             {editLayerUtilityActions.map((action) => {
               const Icon = action.icon;
+              const actionCreditCost = action.creditCost;
               const isActionDisabled = Boolean(
                 (action.id === REMOVE_BACKGROUND_ACTION_ID &&
                   (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
@@ -4483,8 +4486,20 @@ export function ExpertEditPanelView({
                         : undefined
                   }
                 >
-                  <Icon size={20} weight="regular" />
-                  <span>{action.label}</span>
+                  <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
+                    <Icon size={20} weight="regular" />
+                  </span>
+                  <span className="edit-expert-preset-action-btn-copy">
+                    <span>{action.label}</span>
+                  </span>
+                  {actionCreditCost != null ? (
+                    <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
+                      <span className="edit-expert-preset-action-btn-cost">
+                        <span className="model-chip-icon">✦</span>
+                        <span className="model-chip-credits">{actionCreditCost}</span>
+                      </span>
+                    </span>
+                  ) : null}
                 </button>
               );
             })}

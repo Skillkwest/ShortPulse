@@ -1303,9 +1303,12 @@ describe("ExpertEditPanelView", () => {
 
     const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
     const utilityActions = within(expandedModal).getByLabelText("Layer utility actions");
-    expect(
-      within(utilityActions).getByRole("button", { name: /remove background/i })
-    ).toBeInTheDocument();
+    const removeBackgroundButton = within(utilityActions).getByRole("button", {
+      name: /remove background/i,
+    });
+    expect(removeBackgroundButton).toBeInTheDocument();
+    expect(within(removeBackgroundButton).getByText("✦")).toBeInTheDocument();
+    expect(within(removeBackgroundButton).getByText("1")).toBeInTheDocument();
     expect(
       within(utilityActions).getByRole("button", { name: /flatten layers/i })
     ).toBeInTheDocument();
@@ -3725,7 +3728,6 @@ describe("ExpertEditPanelView", () => {
     expect(options).toEqual(
       expect.objectContaining({
         modelIdOverride: "fal-ai/bria/background/remove",
-        costOverrideCredits: 0,
       })
     );
   });

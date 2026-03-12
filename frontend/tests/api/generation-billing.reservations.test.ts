@@ -41,23 +41,23 @@ describe("generationBilling reservation RPC handling", () => {
     logGenerationFailureMock.mockResolvedValue(undefined);
   });
 
-  it("returns a no-op charge context when billing is explicitly skipped", async () => {
+  it("returns a no-op charge context when skipBilling is explicitly enabled", async () => {
     const req = {
       headers: {
         "x-shortpulse-request-id": "req-free-action",
       },
-      url: "/api/fal/bria-background-remove-submit",
+      url: "/api/fal/free-action-submit",
     };
     const res = createMockResponse();
 
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "fal-ai/bria/background/remove",
+      modelId: "fal-ai/bytedance/seedream/v5/lite/edit",
       payload: {
         image_url: "https://example.com/ref.png",
       },
-      reason: "Fal Bria background remove generation",
+      reason: "Free action generation",
       skipBilling: true,
     });
 
@@ -71,7 +71,7 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
 
     await charge?.markSubmitted("provider-req-1", {
-      route: "/api/fal/bria-background-remove-submit",
+      route: "/api/fal/free-action-submit",
     });
     await charge?.refund("No-op refund");
 

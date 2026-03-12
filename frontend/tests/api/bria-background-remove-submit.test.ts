@@ -32,14 +32,17 @@ vi.mock("../../lib/server/api/falRouteConfig", () => ({
 }));
 
 describe("bria background remove submit route", () => {
-  it("registers Bria submit with billing disabled", async () => {
+  it("registers Bria submit with standard billing enabled", async () => {
     await import("../../pages/api/fal/bria-background-remove-submit");
 
-    expect(createFalSubmitHandlerMock).toHaveBeenCalledWith(
+    const submitConfig = createFalSubmitHandlerMock.mock.calls[0]?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    expect(submitConfig).toEqual(
       expect.objectContaining({
         modelId: "fal-ai/bria/background/remove",
-        skipBilling: true,
       })
     );
+    expect(submitConfig?.skipBilling).not.toBe(true);
   });
 });

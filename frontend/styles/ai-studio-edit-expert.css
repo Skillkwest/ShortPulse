@@ -190,6 +190,12 @@
   line-height: 1;
 }
 
+.edit-expert-preset-action-btn--remove-bg .edit-expert-preset-action-btn-cost .model-chip-credits {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+}
+
 .edit-expert-preset-action-btn--remove-bg .edit-expert-preset-action-btn-copy > span {
   display: block;
   white-space: normal;

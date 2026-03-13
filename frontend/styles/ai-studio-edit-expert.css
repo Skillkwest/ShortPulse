@@ -2696,24 +2696,29 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
+  cursor: default;
 }
 
 .edit-expert-markup-modal {
   --edit-expert-markup-modal-height: min(92vh, 960px);
-  --edit-expert-markup-modal-padding: 12px;
-  --edit-expert-markup-side-column-width: 198px;
+  --edit-expert-markup-modal-padding: 10px;
+  --edit-expert-markup-side-column-width: 200px;
+  --edit-expert-markup-column-inline-pad: 6px;
   --edit-expert-markup-stage-gap: 10px;
   --edit-expert-markup-stage-inline-pad: 6px;
-  --edit-expert-markup-section-padding: 10px;
-  --edit-expert-markup-section-radius: 12px;
-  --edit-expert-markup-control-height: 34px;
-  --edit-expert-markup-control-height-sm: 30px;
-  --edit-expert-markup-control-height-icon: 38px;
-  --edit-expert-markup-control-radius: 10px;
+  --edit-expert-markup-stage-bg: #0f1114;
+  --edit-expert-markup-section-padding: 9px;
+  --edit-expert-markup-section-radius: 10px;
+  --edit-expert-markup-control-height: 32px;
+  --edit-expert-markup-control-height-sm: 32px;
+  --edit-expert-markup-control-height-icon: 32px;
+  --edit-expert-markup-control-radius: 9px;
   --edit-expert-markup-control-gap: 6px;
-  --edit-expert-markup-slider-height: 14px;
-  --edit-expert-markup-slider-track-height: 6px;
-  --edit-expert-markup-slider-thumb-size: 14px;
+  --edit-expert-markup-panel-title-top-space: 16px;
+  --edit-expert-markup-panel-title-gap: 8px;
+  --edit-expert-markup-slider-height: 12px;
+  --edit-expert-markup-slider-track-height: 5px;
+  --edit-expert-markup-slider-thumb-size: 12px;
   position: relative;
   width: min(
     96vw,
@@ -2735,6 +2740,7 @@
     var(--edit-expert-markup-side-column-width);
   align-items: start;
   gap: var(--edit-expert-markup-stage-gap);
+  cursor: default;
 }
 
 .edit-expert-markup-modal-close-btn {
@@ -2772,8 +2778,16 @@
   overflow: hidden;
   max-width: 100%;
   max-height: 100%;
-  background: #0f1114;
+  background: var(--edit-expert-markup-stage-bg);
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.edit-expert-markup-modal-stage * {
+  cursor: inherit;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .edit-expert-markup-modal-controls-compact {
@@ -2792,15 +2806,38 @@
 }
 
 .edit-expert-markup-modal-controls-column {
+  width: var(--edit-expert-markup-side-column-width);
+  max-width: var(--edit-expert-markup-side-column-width);
+  box-sizing: border-box;
+  padding-inline: var(--edit-expert-markup-column-inline-pad);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  align-self: flex-start;
+  justify-self: center;
+  z-index: 6;
+}
+
+.edit-expert-markup-modal-panel-group {
   width: 100%;
   max-width: var(--edit-expert-markup-side-column-width);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  align-self: flex-start;
-  justify-self: center;
-  z-index: 6;
+  gap: var(--edit-expert-markup-panel-title-gap);
+}
+
+.edit-expert-markup-modal-panel-group + .edit-expert-markup-modal-panel-group {
+  margin-top: 10px;
+}
+
+.edit-expert-markup-modal-panel-title {
+  padding-top: var(--edit-expert-markup-panel-title-top-space);
+  padding-inline: 2px;
+}
+
+.edit-expert-markup-modal-panel-group:first-child .edit-expert-markup-modal-panel-title {
+  padding-top: 12px;
 }
 
 .edit-expert-markup-modal-controls-compact--general {
@@ -2827,6 +2864,15 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.edit-expert-markup-modal-general-subtitle {
+  margin: 0;
+  color: rgba(236, 240, 246, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
 .edit-expert-markup-modal-general-row--aspect .aspect-dropdown {
   width: 100%;
 }
@@ -2844,7 +2890,7 @@
   .edit-expert-markup-modal-general-row--aspect
   .aspect-trigger[aria-expanded="true"] {
   border-color: rgba(96, 101, 111, 0.58);
-  background: rgba(12, 16, 24, 0.9);
+  background: var(--edit-expert-markup-stage-bg);
   box-shadow: none;
 }
 
@@ -2904,8 +2950,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 0 8px;
+  gap: 4px;
+  padding: 0 7px;
   cursor: pointer;
   transition:
     border-color 0.16s ease,
@@ -2968,10 +3014,10 @@
   height: var(--edit-expert-markup-control-height);
   min-height: var(--edit-expert-markup-control-height);
   border-radius: var(--edit-expert-markup-control-radius);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding-inline: 10px;
-  gap: 6px;
+  padding-inline: 8px;
+  gap: 5px;
   border-color: rgba(92, 96, 104, 0.275);
   background: rgba(37, 41, 47, 0.64);
 }
@@ -2990,8 +3036,8 @@
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-icon-only-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-mode-btn.is-active {
@@ -3065,7 +3111,7 @@
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-markup-controls-content {
-  gap: 10px;
+  gap: 9px;
   height: auto;
   display: flex;
   flex-direction: column;
@@ -3073,12 +3119,19 @@
 }
 
 .edit-expert-markup-modal-inpaint-content {
+  --edit-expert-markup-invert-btn-border: rgba(113, 118, 128, 0.62);
+  --edit-expert-markup-invert-btn-bg: rgba(44, 48, 56, 0.9);
+  --edit-expert-markup-invert-btn-text: rgba(244, 236, 222, 0.9);
+  --edit-expert-markup-invert-btn-border-hover: rgba(245, 185, 66, 0.98);
+  --edit-expert-markup-invert-btn-bg-hover: rgba(92, 72, 43, 0.95);
+  --edit-expert-markup-invert-btn-text-hover: rgba(255, 246, 224, 0.99);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   border-radius: var(--edit-expert-markup-section-radius);
   border: 1px solid rgba(245, 185, 66, 0.36);
   background: rgba(201, 205, 214, 0.03);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
   padding: var(--edit-expert-markup-section-padding);
 }
 
@@ -3094,10 +3147,10 @@
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-mode-btn {
   min-height: var(--edit-expert-markup-control-height);
   border-radius: var(--edit-expert-markup-control-radius);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding-inline: 10px;
-  gap: 6px;
+  padding-inline: 8px;
+  gap: 5px;
   border-color: rgba(92, 96, 104, 0.275);
 }
 
@@ -3107,8 +3160,8 @@
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-markup-icon-only-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-mode-btn:hover {
@@ -3127,7 +3180,7 @@
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-inpaint-stroke-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: rgba(245, 233, 209, 0.92);
 }
@@ -3166,9 +3219,9 @@
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-markup-modal-inpaint-invert-btn {
-  border-color: rgba(113, 118, 128, 0.62);
-  background: rgba(44, 48, 56, 0.9);
-  color: rgba(244, 236, 222, 0.9);
+  border-color: var(--edit-expert-markup-invert-btn-border);
+  background: var(--edit-expert-markup-invert-btn-bg);
+  color: var(--edit-expert-markup-invert-btn-text);
   transition:
     border-color 0.16s ease,
     background 0.16s ease,
@@ -3178,7 +3231,7 @@
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-markup-modal-inpaint-invert-btn svg {
-  color: rgba(244, 236, 222, 0.9);
+  color: var(--edit-expert-markup-invert-btn-text);
 }
 
 .edit-expert-markup-modal-inpaint-content
@@ -3192,23 +3245,6 @@
   border-color: rgba(245, 185, 66, 0.68);
   background: rgba(76, 62, 41, 0.84);
   color: rgba(251, 237, 205, 0.98);
-}
-
-.edit-expert-markup-modal-inpaint-content
-  .edit-expert-markup-modal-inpaint-invert-btn:hover:not(:disabled),
-.edit-expert-markup-modal-inpaint-content
-  .edit-expert-markup-modal-inpaint-invert-btn:focus-visible:not(:disabled) {
-  border-color: rgba(245, 185, 66, 0.96);
-  color: rgba(255, 244, 218, 0.99);
-}
-
-.edit-expert-markup-modal-inpaint-content
-  .edit-expert-markup-modal-inpaint-invert-btn:hover:not(:disabled)
-  svg,
-.edit-expert-markup-modal-inpaint-content
-  .edit-expert-markup-modal-inpaint-invert-btn:focus-visible:not(:disabled)
-  svg {
-  color: rgba(255, 244, 218, 0.99);
 }
 
 .edit-expert-markup-modal-inpaint-content .edit-expert-markup-modal-inpaint-clear-btn {
@@ -3240,7 +3276,7 @@
 .edit-expert-markup-modal-toolbar-title {
   margin: 0;
   color: rgba(236, 240, 246, 0.9);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.1;
@@ -3249,10 +3285,10 @@
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn {
   min-height: var(--edit-expert-markup-control-height);
   border-radius: var(--edit-expert-markup-control-radius);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 0 10px;
-  gap: 6px;
+  padding: 0 8px;
+  gap: 5px;
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-row {
@@ -3283,8 +3319,14 @@
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-markup-icon-only-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
+}
+
+.edit-expert-markup-modal-inpaint-content .edit-expert-markup-modal-inpaint-clear-btn svg,
+.edit-expert-markup-modal-controls-compact .edit-expert-markup-clear-btn-modal svg {
+  width: 19px;
+  height: 19px;
 }
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-row {
@@ -3301,7 +3343,7 @@
 
 .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-stroke-label,
 .edit-expert-markup-modal-controls-compact .edit-expert-markup-color-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: rgba(236, 240, 246, 0.9);
 }
@@ -3444,19 +3486,21 @@
   top: auto;
   bottom: auto;
   transform: none;
-  width: 100%;
+  width: var(--edit-expert-markup-side-column-width);
   max-width: var(--edit-expert-markup-side-column-width);
+  box-sizing: border-box;
+  padding-inline: var(--edit-expert-markup-column-inline-pad);
   align-self: flex-start;
   justify-self: center;
   margin-inline: auto;
   z-index: 6;
-  gap: 10px;
+  gap: 8px;
 }
 
 .edit-expert-layers-toolbar--modal .edit-expert-layers-toolbar-header-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .edit-expert-layers-toolbar--modal .edit-expert-layers-toolbar-title-card {
@@ -3474,12 +3518,17 @@
 }
 
 .edit-expert-layers-toolbar--modal .edit-expert-preset-action-btn {
-  min-height: 46px;
+  min-height: var(--edit-expert-markup-control-height);
+}
+
+.edit-expert-layers-toolbar--modal .edit-expert-layer-btn,
+.edit-expert-layers-toolbar--modal .edit-expert-layer-input {
+  min-height: var(--edit-expert-markup-control-height);
 }
 
 @media (max-width: 1280px) {
   .edit-expert-markup-modal {
-    --edit-expert-markup-side-column-width: 184px;
+    --edit-expert-markup-side-column-width: 186px;
     --edit-expert-markup-stage-gap: 8px;
     --edit-expert-markup-stage-inline-pad: 5px;
     width: min(
@@ -3493,8 +3542,8 @@
 
   .edit-expert-markup-modal-controls-compact .edit-expert-inpaint-mode-btn {
     min-height: var(--edit-expert-markup-control-height);
-    font-size: 12px;
-    padding-inline: 8px;
+    font-size: 11px;
+    padding-inline: 7px;
   }
 }
 
@@ -3550,6 +3599,32 @@
 
 .edit-expert-inpaint-action-btn:hover {
   border-color: rgba(122, 126, 136, 0.96);
+}
+
+/* Keep modal invert hover/focus resilient against broad action-button hover rules. */
+.edit-expert-markup-modal
+  .edit-expert-markup-modal-inpaint-content
+  .edit-expert-inpaint-action-btn.edit-expert-markup-modal-inpaint-invert-btn:not(:disabled):is(
+    :hover,
+    :focus-visible
+  ) {
+  border-color: var(--edit-expert-markup-invert-btn-border-hover);
+  background: var(--edit-expert-markup-invert-btn-bg-hover);
+  color: var(--edit-expert-markup-invert-btn-text-hover);
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 185, 66, 0.26),
+    0 6px 14px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
+}
+
+.edit-expert-markup-modal
+  .edit-expert-markup-modal-inpaint-content
+  .edit-expert-inpaint-action-btn.edit-expert-markup-modal-inpaint-invert-btn:not(:disabled):is(
+    :hover,
+    :focus-visible
+  )
+  svg {
+  color: var(--edit-expert-markup-invert-btn-text-hover);
 }
 
 .edit-expert-inpaint-stroke-row {
@@ -3841,6 +3916,7 @@
   margin: 0;
   appearance: none;
   -webkit-appearance: none;
+  cursor: pointer;
   height: 12px;
   border-radius: 999px;
   background: transparent;
@@ -3858,6 +3934,7 @@
 .edit-expert-move-zoom-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
+  cursor: pointer;
   width: 12px;
   height: 12px;
   margin-top: calc((6px - 12px) / 2);
@@ -3878,6 +3955,7 @@
 }
 
 .edit-expert-move-zoom-slider::-moz-range-thumb {
+  cursor: pointer;
   width: 12px;
   height: 12px;
   border-radius: 6px;

@@ -73,9 +73,10 @@ import {
   createIdleMarkupDrawPointerSession,
   resolveMarkupPointerPoint,
   resolveMarkupStrokeHit,
-  resolveMarkupStrokePointRadiusPercent,
+  resolveMarkupStrokePointRadiusPx,
+  resolveMarkupStrokePointToSurfacePoint,
   resolveMarkupStrokeSizeRatio,
-  resolveMarkupStrokeWidthPercent,
+  resolveMarkupStrokeWidthPx,
   resolvePointerSampleEvents,
   type MarkupDrawPointerSession,
   type MarkupStroke,
@@ -168,6 +169,8 @@ export type ExpertEditPanelViewProps = {
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
+  layerSessionState?: ExpertEditLayerSessionState | null;
+  onLayerSessionStateChange?: (state: ExpertEditLayerSessionState) => void;
 };
 
 type CharacterPickerModalProps = {
@@ -650,6 +653,30 @@ type LayerTransform = {
   rotationDeg: number;
 };
 
+export type ExpertEditLayerSessionTransform = {
+  translateXRatio: number;
+  translateYRatio: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+export type ExpertEditLayerSessionLayer = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  opacity: number;
+  isAutoNamed: boolean;
+  ownsImageUrl: boolean;
+  transform: ExpertEditLayerSessionTransform;
+};
+
+export type ExpertEditLayerSessionState = {
+  layerIdCounter: number;
+  foundationLayerId: string | null;
+  selectedLayerIndex: number | null;
+  layers: ExpertEditLayerSessionLayer[];
+};
+
 const defaultLayerTransform = (): LayerTransform => ({
   translateXRatio: 0,
   translateYRatio: 0,
@@ -716,7 +743,7 @@ const areMarkupStrokeSnapshotsEqual = (left: MarkupStroke[], right: MarkupStroke
       const leftPoint = leftStroke.points[pointIndex];
       const rightPoint = rightStroke.points[pointIndex];
       if (!leftPoint || !rightPoint) return false;
-      if (leftPoint.xRatio !== rightPoint.xRatio || leftPoint.yRatio !== rightPoint.yRatio) {
+      if (leftPoint.sceneX !== rightPoint.sceneX || leftPoint.sceneY !== rightPoint.sceneY) {
         return false;
       }
     }
@@ -903,6 +930,120 @@ type ExpertEditLayer = {
   isAutoNamed: boolean;
   ownsImageUrl: boolean;
   transform: LayerTransform;
+};
+
+const resolveLayerIdCounterFromLayers = (layers: ExpertEditLayer[]) => {
+  let highestLayerNumber = 1;
+  layers.forEach((layer) => {
+    const match = /^layer-(\d+)$/.exec(layer.id.trim());
+    if (!match) return;
+    const parsed = Number.parseInt(match[1] ?? "", 10);
+    if (!Number.isFinite(parsed)) return;
+    highestLayerNumber = Math.max(highestLayerNumber, parsed);
+  });
+  return Math.max(2, highestLayerNumber + 1);
+};
+
+const cloneLayerForSessionState = (layer: ExpertEditLayer): ExpertEditLayerSessionLayer => ({
+  id: layer.id,
+  name: layer.name,
+  imageUrl: layer.imageUrl,
+  opacity: layer.opacity,
+  isAutoNamed: layer.isAutoNamed,
+  ownsImageUrl: layer.ownsImageUrl,
+  transform: cloneLayerTransform(layer.transform),
+});
+
+const coerceLayerTransformFromSessionState = (
+  value: ExpertEditLayerSessionLayer["transform"] | null | undefined
+): LayerTransform => {
+  if (!value) return defaultLayerTransform();
+  const translateXRatio = Number(value.translateXRatio);
+  const translateYRatio = Number(value.translateYRatio);
+  const scale = Number(value.scale);
+  const rotationDeg = Number(value.rotationDeg);
+  return {
+    translateXRatio: Number.isFinite(translateXRatio) ? translateXRatio : 0,
+    translateYRatio: Number.isFinite(translateYRatio) ? translateYRatio : 0,
+    scale: Number.isFinite(scale) ? scale : 1,
+    rotationDeg: Number.isFinite(rotationDeg) ? rotationDeg : 0,
+  };
+};
+
+const resolveInitialLayerSessionState = ({
+  referenceImageUrl,
+  layerSessionState,
+}: {
+  referenceImageUrl: string | null;
+  layerSessionState: ExpertEditLayerSessionState | null | undefined;
+}) => {
+  const fallbackLayers: ExpertEditLayer[] = [
+    {
+      id: "layer-1",
+      name: formatLayerName(1),
+      imageUrl: referenceImageUrl ?? null,
+      opacity: LAYER_OPACITY_DEFAULT,
+      isAutoNamed: true,
+      ownsImageUrl: false,
+      transform: defaultLayerTransform(),
+    },
+  ];
+  if (!layerSessionState?.layers?.length) {
+    return {
+      layers: fallbackLayers,
+      foundationLayerId: "layer-1",
+      selectedLayerIndex: 0,
+      layerIdCounter: 2,
+    };
+  }
+  const hydratedLayers: ExpertEditLayer[] = layerSessionState.layers
+    .filter((layer): layer is ExpertEditLayerSessionLayer => Boolean(layer?.id))
+    .map((layer, index) => ({
+      id: layer.id,
+      name: layer.name?.trim() ? layer.name : formatLayerName(index + 1),
+      imageUrl: typeof layer.imageUrl === "string" ? layer.imageUrl : null,
+      opacity: clampLayerOpacity(layer.opacity),
+      isAutoNamed: layer.isAutoNamed !== false,
+      ownsImageUrl: layer.ownsImageUrl === true,
+      transform: coerceLayerTransformFromSessionState(layer.transform),
+    }));
+  if (!hydratedLayers.length) {
+    return {
+      layers: fallbackLayers,
+      foundationLayerId: "layer-1",
+      selectedLayerIndex: 0,
+      layerIdCounter: 2,
+    };
+  }
+  const normalizedLayers = enforceLayerStackInvariants({
+    layers: hydratedLayers,
+    foundationLayerId: layerSessionState.foundationLayerId,
+  });
+  const normalizedFoundationLayerId =
+    normalizedLayers.find((layer) => layer.id === layerSessionState.foundationLayerId)?.id ??
+    normalizedLayers[0]?.id ??
+    null;
+  const sessionSelectedLayerIndex = layerSessionState.selectedLayerIndex;
+  const normalizedSelectedLayerIndex =
+    sessionSelectedLayerIndex == null ||
+    sessionSelectedLayerIndex < 0 ||
+    sessionSelectedLayerIndex >= normalizedLayers.length
+      ? normalizedLayers.length > 0
+        ? 0
+        : null
+      : sessionSelectedLayerIndex;
+  const sessionLayerIdCounter = Number(layerSessionState.layerIdCounter);
+  const normalizedLayerIdCounter = Math.max(
+    resolveLayerIdCounterFromLayers(normalizedLayers),
+    Number.isFinite(sessionLayerIdCounter) ? Math.floor(sessionLayerIdCounter) : 2,
+    2
+  );
+  return {
+    layers: normalizedLayers,
+    foundationLayerId: normalizedFoundationLayerId,
+    selectedLayerIndex: normalizedSelectedLayerIndex,
+    layerIdCounter: normalizedLayerIdCounter,
+  };
 };
 
 const layerHasImage = (layer: ExpertEditLayer) =>
@@ -1164,8 +1305,16 @@ export function ExpertEditPanelView({
   onStylesPanelToggle,
   selectedStyleId: controlledSelectedStyleId,
   stylesCatalog,
+  layerSessionState,
+  onLayerSessionStateChange,
 }: ExpertEditPanelViewProps) {
-  const layerIdCounterRef = React.useRef(2);
+  const [initialLayerSessionState] = React.useState(() =>
+    resolveInitialLayerSessionState({
+      referenceImageUrl,
+      layerSessionState,
+    })
+  );
+  const layerIdCounterRef = React.useRef(initialLayerSessionState.layerIdCounter);
   const previousLayersRef = React.useRef<ExpertEditLayer[]>([]);
   const lastDispatchedPrimaryRef = React.useRef<string | null>(referenceImageUrl);
   const previousPrimaryPropRef = React.useRef<string | null>(referenceImageUrl);
@@ -1300,18 +1449,10 @@ export function ExpertEditPanelView({
   const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
   const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
-    {
-      id: "layer-1",
-      name: formatLayerName(1),
-      imageUrl: referenceImageUrl ?? null,
-      opacity: LAYER_OPACITY_DEFAULT,
-      isAutoNamed: true,
-      ownsImageUrl: false,
-      transform: defaultLayerTransform(),
-    },
+    ...initialLayerSessionState.layers,
   ]);
   const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>(
-    () => layers[0]?.id ?? null
+    initialLayerSessionState.foundationLayerId
   );
   const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
     () => ({
@@ -1330,7 +1471,9 @@ export function ExpertEditPanelView({
     present: { layers: [] },
     future: [],
   }));
-  const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
+  const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(
+    initialLayerSessionState.selectedLayerIndex
+  );
   const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
   const [editingLayerValue, setEditingLayerValue] = React.useState("");
   const [draggingLayerIndex, setDraggingLayerIndex] = React.useState<number | null>(null);
@@ -2084,7 +2227,10 @@ export function ExpertEditPanelView({
     primaryDropzoneCursor,
   ]);
   const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
-    const modalCursor = markupViewportCursor ?? primaryDropzoneCursor;
+    const modalCursor =
+      markupViewportCursor ??
+      primaryDropzoneCursor ??
+      (isVideoToolSelected ? "crosshair" : undefined);
     const cursorStyle = modalCursor ? { cursor: modalCursor } : null;
     if (markupModalStageSize) {
       return {
@@ -2103,6 +2249,7 @@ export function ExpertEditPanelView({
       ...(cursorStyle ?? {}),
     };
   }, [
+    isVideoToolSelected,
     markupModalStageSize,
     markupViewportCursor,
     primaryDropzoneAspectRatio,
@@ -2141,32 +2288,51 @@ export function ExpertEditPanelView({
     shouldApplyMarkupViewport,
   ]);
   const renderMarkupStrokeOverlay = React.useCallback(
-    (keyPrefix: string) => {
+    (keyPrefix: string, stageSize: StageViewportSize) => {
       if (!markupStrokes.length) return null;
+      const stageWidth = Math.max(1, stageSize.width);
+      const stageHeight = Math.max(1, stageSize.height);
       return (
         <svg
           className="edit-expert-markup-strokes-overlay"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
+          viewBox={`0 0 ${stageWidth} ${stageHeight}`}
           aria-hidden="true"
         >
           {markupStrokes.map((stroke) => {
-            const strokeWidthPercent = resolveMarkupStrokeWidthPercent(stroke);
+            const strokeWidthPx = resolveMarkupStrokeWidthPx({
+              stroke,
+              stageHeight,
+            });
             if (stroke.points.length <= 1) {
               const point = stroke.points[0];
               if (!point) return null;
+              const pointPx = resolveMarkupStrokePointToSurfacePoint({
+                point,
+                stageWidth,
+                stageHeight,
+              });
               return (
                 <circle
                   key={`${keyPrefix}-${stroke.id}-point`}
-                  cx={point.xRatio * 100}
-                  cy={point.yRatio * 100}
-                  r={resolveMarkupStrokePointRadiusPercent(stroke)}
+                  cx={pointPx.x}
+                  cy={pointPx.y}
+                  r={resolveMarkupStrokePointRadiusPx({
+                    stroke,
+                    stageHeight,
+                  })}
                   fill={stroke.color}
                 />
               );
             }
             const pointsValue = stroke.points
-              .map((point) => `${point.xRatio * 100},${point.yRatio * 100}`)
+              .map((point) => {
+                const pointPx = resolveMarkupStrokePointToSurfacePoint({
+                  point,
+                  stageWidth,
+                  stageHeight,
+                });
+                return `${pointPx.x},${pointPx.y}`;
+              })
               .join(" ");
             return (
               <polyline
@@ -2174,7 +2340,7 @@ export function ExpertEditPanelView({
                 points={pointsValue}
                 fill="none"
                 stroke={stroke.color}
-                strokeWidth={strokeWidthPercent}
+                strokeWidth={strokeWidthPx}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -3048,6 +3214,7 @@ export function ExpertEditPanelView({
       }
       beginMarkupGestureHistory();
       if (selectedMarkupMode === "eraser") {
+        lockGlobalCursor(buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize));
         eraseMarkupStrokesAtPoints([point], stageRect);
         markupDrawPointerSessionRef.current = {
           active: true,
@@ -3057,13 +3224,13 @@ export function ExpertEditPanelView({
         };
         return true;
       }
+      lockGlobalCursor(buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize));
       const strokeId = `markup-stroke-${markupStrokeIdCounterRef.current++}`;
       const stroke: MarkupStroke = {
         id: strokeId,
         color: markupColor,
         sizeRatio: resolveMarkupStrokeSizeRatio({
           strokeSizePx: resolvedMarkupStrokeSize,
-          stageWidth: stageRect.width,
           stageHeight: stageRect.height,
         }),
         points: [point],
@@ -3082,6 +3249,7 @@ export function ExpertEditPanelView({
       eraseMarkupStrokesAtPoints,
       hasPrimaryCompositePreview,
       isVideoToolSelected,
+      lockGlobalCursor,
       markupColor,
       resolvedMarkupStrokeSize,
       markupViewport,
@@ -3151,10 +3319,11 @@ export function ExpertEditPanelView({
         }
       }
       markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
+      unlockGlobalCursor();
       finalizeMarkupGestureHistory();
       return true;
     },
-    [finalizeMarkupGestureHistory]
+    [finalizeMarkupGestureHistory, unlockGlobalCursor]
   );
 
   const endMarkupDrawGestureOnLeave = React.useCallback(
@@ -3170,10 +3339,11 @@ export function ExpertEditPanelView({
         return false;
       }
       markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
+      unlockGlobalCursor();
       finalizeMarkupGestureHistory();
       return true;
     },
-    [finalizeMarkupGestureHistory]
+    [finalizeMarkupGestureHistory, unlockGlobalCursor]
   );
 
   const handleMarkupStageMouseDown = React.useCallback(
@@ -3876,6 +4046,29 @@ export function ExpertEditPanelView({
   }, [layers.length, selectedLayerIndex]);
 
   React.useEffect(() => {
+    if (!onLayerSessionStateChange) return;
+    const normalizedSelectedLayerIndex =
+      layers.length === 0 ||
+      selectedLayerIndex == null ||
+      selectedLayerIndex < 0 ||
+      selectedLayerIndex >= layers.length
+        ? layers.length > 0
+          ? 0
+          : null
+        : selectedLayerIndex;
+    const normalizedLayerIdCounter = Math.max(
+      layerIdCounterRef.current,
+      resolveLayerIdCounterFromLayers(layers)
+    );
+    onLayerSessionStateChange({
+      layerIdCounter: normalizedLayerIdCounter,
+      foundationLayerId,
+      selectedLayerIndex: normalizedSelectedLayerIndex,
+      layers: layers.map((layer) => cloneLayerForSessionState(layer)),
+    });
+  }, [foundationLayerId, layers, onLayerSessionStateChange, selectedLayerIndex]);
+
+  React.useEffect(() => {
     const previousLayers = previousLayersRef.current;
     if (!previousLayers.length) {
       previousLayersRef.current = layers;
@@ -4338,15 +4531,17 @@ export function ExpertEditPanelView({
         revokeObjectUrlSafe(url);
       });
       transientRevokeTimersRef.current.clear();
-      const ownedUrlsOnUnmount = new Set(
-        previousLayersRef.current
-          .filter((layer) => layer.ownsImageUrl && typeof layer.imageUrl === "string")
-          .map((layer) => layer.imageUrl as string)
-      );
-      ownedUrlsOnUnmount.forEach((url) => revokeObjectUrlSafe(url));
+      if (!onLayerSessionStateChange) {
+        const ownedUrlsOnUnmount = new Set(
+          previousLayersRef.current
+            .filter((layer) => layer.ownsImageUrl && typeof layer.imageUrl === "string")
+            .map((layer) => layer.imageUrl as string)
+        );
+        ownedUrlsOnUnmount.forEach((url) => revokeObjectUrlSafe(url));
+      }
       previousLayersRef.current = [];
     },
-    [unlockGlobalCursor]
+    [onLayerSessionStateChange, unlockGlobalCursor]
   );
 
   const handleInpaintCollapseToggle = React.useCallback(() => {
@@ -4498,13 +4693,12 @@ export function ExpertEditPanelView({
   const renderMarkupControlsContent = (scope: "inline" | "modal") => {
     const isModalScope = scope === "modal";
     const isMarkupToolActive = isVideoToolSelected;
-    const modeIconSize = isModalScope ? 18 : 16;
+    const modeIconSize = isModalScope ? 19 : 16;
     const strokeSizeControlId = `edit-expert-markup-stroke-size-${scope}`;
     const colorPickerId = `edit-expert-markup-color-picker-${scope}`;
     const hueSliderId = `edit-expert-markup-color-hue-${scope}`;
     return (
       <div className="edit-expert-markup-controls-content">
-        {isModalScope ? <p className="edit-expert-markup-modal-toolbar-title">Markup</p> : null}
         <div className="edit-expert-inpaint-mode-row" role="group" aria-label="Markup tool mode">
           <button
             type="button"
@@ -4543,7 +4737,7 @@ export function ExpertEditPanelView({
               aria-label="Clear markup strokes"
               onClick={clearMarkupStrokesWithHistory}
             >
-              <TrashSimple size={18} weight="regular" />
+              <TrashSimple size={19} weight="regular" />
             </button>
           ) : (
             <button
@@ -4690,11 +4884,6 @@ export function ExpertEditPanelView({
       : "edit-expert-move-zoom-slider";
     return (
       <div className="edit-expert-move-controls-content">
-        {isModalScope ? (
-          <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--move">
-            Move
-          </p>
-        ) : null}
         <div
           className={`edit-expert-move-mode-row ${isModalScope ? "edit-expert-move-mode-row--modal" : ""}`.trim()}
           role="group"
@@ -4785,9 +4974,6 @@ export function ExpertEditPanelView({
   const renderMarkupModalGeneralPanel = () => {
     return (
       <div className="edit-expert-markup-modal-general-content">
-        <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--general">
-          General
-        </p>
         <div
           className="edit-expert-markup-modal-general-row"
           role="group"
@@ -4826,6 +5012,7 @@ export function ExpertEditPanelView({
           role="group"
           aria-label="Aspect ratio selector"
         >
+          <p className="edit-expert-markup-modal-general-subtitle">Frame</p>
           <AspectDropdown
             aspect={aspect}
             onSelect={onAspectChange}
@@ -4841,13 +5028,10 @@ export function ExpertEditPanelView({
   };
 
   const renderMarkupModalInpaintPanel = () => {
-    const modeIconSize = 18;
+    const modeIconSize = 19;
     const strokeSizeControlId = "edit-expert-markup-modal-inpaint-stroke-size";
     return (
       <div className="edit-expert-markup-modal-inpaint-content">
-        <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--inpaint">
-          In-paint
-        </p>
         <div className="edit-expert-inpaint-mode-row" role="group" aria-label="In-paint tool mode">
           <button
             type="button"
@@ -4883,7 +5067,7 @@ export function ExpertEditPanelView({
             aria-label="Clear in-paint selection"
             onClick={clearInpaintSelectionWithHistory}
           >
-            <TrashSimple size={18} weight="regular" />
+            <TrashSimple size={19} weight="regular" />
           </button>
         </div>
         <div className="edit-expert-inpaint-stroke-row">
@@ -5262,7 +5446,7 @@ export function ExpertEditPanelView({
                     className="edit-expert-inpaint-overlay-canvas"
                     aria-hidden="true"
                   />
-                  {renderMarkupStrokeOverlay("inline")}
+                  {renderMarkupStrokeOverlay("inline", inlineStageViewportSize)}
                   {isRemoveBackgroundPending ? (
                     <div
                       className="edit-expert-primary-layer-loading-overlay"
@@ -5788,7 +5972,7 @@ export function ExpertEditPanelView({
                 className="edit-expert-inpaint-overlay-canvas"
                 aria-hidden="true"
               />
-              {renderMarkupStrokeOverlay("modal")}
+              {renderMarkupStrokeOverlay("modal", markupModalViewportSize)}
             </div>
           </div>
         }

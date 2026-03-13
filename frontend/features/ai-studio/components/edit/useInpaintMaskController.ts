@@ -7,6 +7,12 @@ import {
   resolveStageFlattenCameraTransform,
   type StageFlattenCameraTransformInput,
 } from "../../logic/expertEditStageFlatten";
+import {
+  mapPixelPointBetweenSpacesViaScene,
+  mapPixelRectBetweenSpacesViaScene,
+  resolveIsotropicScaleBetweenSpaces,
+  resolveSceneMappedDrawRect,
+} from "./stageSceneGeometry";
 
 export type InpaintPaintMode = "brush" | "lasso" | "auto";
 export type InpaintSelectionMode = "select" | "unselect";
@@ -193,12 +199,14 @@ const mapSurfacePointToMaskCanvasPoint = ({
   const sourceHeight = Math.max(1, interactionRect.height);
   const targetWidth = Math.max(1, Math.round(maskWidth));
   const targetHeight = Math.max(1, Math.round(maskHeight));
-  const widthScale = targetWidth / sourceWidth;
-  const heightScale = targetHeight / sourceHeight;
-  return {
-    x: clamp(point.x * widthScale, 0, targetWidth),
-    y: clamp(point.y * heightScale, 0, targetHeight),
-  };
+  return mapPixelPointBetweenSpacesViaScene({
+    point,
+    fromWidth: sourceWidth,
+    fromHeight: sourceHeight,
+    toWidth: targetWidth,
+    toHeight: targetHeight,
+    clampToBounds: true,
+  });
 };
 
 export const areInpaintMaskSnapshotsEqual = (
@@ -258,10 +266,16 @@ export const mapLassoPreviewPointsToOverlaySpace = ({
   if (Math.abs(scaleX - 1) < 0.0001 && Math.abs(scaleY - 1) < 0.0001) {
     return points;
   }
-  return points.map((point) => ({
-    x: clamp(point.x * scaleX, 0, overlayWidth),
-    y: clamp(point.y * scaleY, 0, overlayHeight),
-  }));
+  return points.map((point) =>
+    mapPixelPointBetweenSpacesViaScene({
+      point,
+      fromWidth: maskWidth,
+      fromHeight: maskHeight,
+      toWidth: overlayWidth,
+      toHeight: overlayHeight,
+      clampToBounds: true,
+    })
+  );
 };
 
 /**
@@ -302,24 +316,6 @@ const createMaskCanvas = (width: number, height: number) => {
   canvas.width = Math.max(1, Math.round(width));
   canvas.height = Math.max(1, Math.round(height));
   return canvas;
-};
-
-const resizeMaskCanvasPreservingPixels = (
-  canvas: HTMLCanvasElement,
-  width: number,
-  height: number
-): HTMLCanvasElement => {
-  const nextWidth = Math.max(1, Math.round(width));
-  const nextHeight = Math.max(1, Math.round(height));
-  if (canvas.width === nextWidth && canvas.height === nextHeight) {
-    return canvas;
-  }
-  const resized = createMaskCanvas(nextWidth, nextHeight);
-  const resizedCtx = resized.getContext("2d");
-  if (resizedCtx) {
-    resizedCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, nextWidth, nextHeight);
-  }
-  return resized;
 };
 
 const resolveImageRectForContain = (
@@ -687,19 +683,32 @@ const renderOverlayFrame = ({
 
   if (maskCanvas && meta?.hasContent) {
     ctx.save();
-    ctx.drawImage(maskCanvas, 0, 0, width, height);
+    const drawRect = resolveSceneMappedDrawRect({
+      sourceWidth: maskCanvas.width,
+      sourceHeight: maskCanvas.height,
+      targetWidth: width,
+      targetHeight: height,
+    });
+    ctx.drawImage(maskCanvas, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
     ctx.globalCompositeOperation = "source-in";
     ctx.fillStyle = "rgba(255, 0, 60, 0.58)";
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
 
     if (meta.width > 0 && meta.height > 0 && meta.contourSegments.length > 0) {
-      const scaleX = width / meta.width;
-      const scaleY = height / meta.height;
       const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
       const baseOffset = -(phase * MARCHING_ANTS_DASH_OFFSET_STEP);
       const contourStrokeWidth = 1 / dpr;
       const contourPaths = meta.contourPaths;
+      const resolveOverlayPoint = (x: number, y: number) =>
+        mapPixelPointBetweenSpacesViaScene({
+          point: { x, y },
+          fromWidth: meta.width,
+          fromHeight: meta.height,
+          toWidth: width,
+          toHeight: height,
+          clampToBounds: true,
+        });
       const drawContourStroke = (strokeStyle: string, lineDashOffset: number) => {
         ctx.save();
         ctx.strokeStyle = strokeStyle;
@@ -710,11 +719,13 @@ const renderOverlayFrame = ({
         if (contourPaths.length > 0) {
           for (const path of contourPaths) {
             if (path.length < 4) continue;
-            ctx.moveTo((path[0] ?? 0) * scaleX, (path[1] ?? 0) * scaleY);
+            const firstPoint = resolveOverlayPoint(path[0] ?? 0, path[1] ?? 0);
+            ctx.moveTo(firstPoint.x, firstPoint.y);
             for (let pointIndex = 2; pointIndex < path.length; pointIndex += 2) {
               const pathX = path[pointIndex] ?? 0;
               const pathY = path[pointIndex + 1] ?? 0;
-              ctx.lineTo(pathX * scaleX, pathY * scaleY);
+              const mappedPoint = resolveOverlayPoint(pathX, pathY);
+              ctx.lineTo(mappedPoint.x, mappedPoint.y);
             }
           }
         } else {
@@ -723,8 +734,10 @@ const renderOverlayFrame = ({
             const y1 = meta.contourSegments[index + 1] ?? 0;
             const x2 = meta.contourSegments[index + 2] ?? 0;
             const y2 = meta.contourSegments[index + 3] ?? 0;
-            ctx.moveTo(x1 * scaleX, y1 * scaleY);
-            ctx.lineTo(x2 * scaleX, y2 * scaleY);
+            const start = resolveOverlayPoint(x1, y1);
+            const end = resolveOverlayPoint(x2, y2);
+            ctx.moveTo(start.x, start.y);
+            ctx.lineTo(end.x, end.y);
           }
         }
         ctx.stroke();
@@ -876,9 +889,10 @@ export const resolveMaskSpaceScaleFromSurface = ({
   ) {
     return 1;
   }
-  const widthScale = maskWidth / surfaceWidth;
-  const heightScale = maskHeight / surfaceHeight;
-  return (widthScale + heightScale) / 2;
+  return resolveIsotropicScaleBetweenSpaces({
+    fromHeight: surfaceHeight,
+    toHeight: maskHeight,
+  });
 };
 
 /**
@@ -989,15 +1003,6 @@ export const useInpaintMaskController = ({
     (layerId: string) => {
       const existing = maskCanvasesRef.current.get(layerId);
       if (existing) {
-        const resized = resizeMaskCanvasPreservingPixels(
-          existing,
-          dropzoneSize.width,
-          dropzoneSize.height
-        );
-        if (resized !== existing) {
-          maskCanvasesRef.current.set(layerId, resized);
-          return resized;
-        }
         return existing;
       }
       const canvas = createMaskCanvas(dropzoneSize.width, dropzoneSize.height);
@@ -1653,19 +1658,8 @@ export const useInpaintMaskController = ({
 
   React.useEffect(() => {
     if (!dropzoneSize.width || !dropzoneSize.height) return;
-    maskCanvasesRef.current.forEach((canvas, layerId) => {
-      const resized = resizeMaskCanvasPreservingPixels(
-        canvas,
-        dropzoneSize.width,
-        dropzoneSize.height
-      );
-      if (resized !== canvas) {
-        maskCanvasesRef.current.set(layerId, resized);
-        queueLayerAnalysis(layerId, true);
-      }
-    });
     renderOverlayNow();
-  }, [dropzoneSize.height, dropzoneSize.width, queueLayerAnalysis, renderOverlayNow]);
+  }, [dropzoneSize.height, dropzoneSize.width, renderOverlayNow]);
 
   React.useEffect(() => {
     renderOverlayNow();
@@ -1729,8 +1723,15 @@ export const useInpaintMaskController = ({
 
       // Inpaint drawing is intentionally dropzone-wide, but only the visible image area
       // is exported for provider submit so the mask aligns with flattened image pixels.
+      const maskSpaceImageRect = mapPixelRectBetweenSpacesViaScene({
+        rect: imageRect,
+        fromWidth: dropzoneSize.width,
+        fromHeight: dropzoneSize.height,
+        toWidth: maskCanvas.width,
+        toHeight: maskCanvas.height,
+      });
       const exportSourceWindow = resolveMaskExportSourceWindow({
-        imageRect,
+        imageRect: maskSpaceImageRect,
         maskWidth: maskCanvas.width,
         maskHeight: maskCanvas.height,
       });
@@ -1777,7 +1778,7 @@ export const useInpaintMaskController = ({
       });
       return blob;
     },
-    [imageRect, selectedLayerId]
+    [dropzoneSize.height, dropzoneSize.width, imageRect, selectedLayerId]
   );
 
   return {

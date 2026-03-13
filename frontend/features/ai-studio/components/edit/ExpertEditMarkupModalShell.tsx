@@ -69,38 +69,64 @@ export const ExpertEditMarkupModalShell = ({
         aria-modal="true"
         aria-label="Expanded markup canvas"
         onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerMove={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
+        onPointerCancel={(event) => event.stopPropagation()}
+        onPointerLeave={(event) => event.stopPropagation()}
+        onWheel={(event) => event.stopPropagation()}
         onDragEnter={onDragShield}
         onDragOver={onDragShield}
         onDrop={onDragShield}
       >
         <div ref={controlsColumnRef} className="edit-expert-markup-modal-controls-column">
-          <div
-            className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--general"
-            role="group"
-            aria-label="General tools"
-          >
-            {generalPanel}
+          <div className="edit-expert-markup-modal-panel-group">
+            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--general edit-expert-markup-modal-panel-title">
+              General
+            </p>
+            <div
+              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--general"
+              role="group"
+              aria-label="General tools"
+            >
+              {generalPanel}
+            </div>
           </div>
-          <div
-            className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--move"
-            role="group"
-            aria-label="Move tools"
-          >
-            {movePanel}
+          <div className="edit-expert-markup-modal-panel-group">
+            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--move edit-expert-markup-modal-panel-title">
+              Move
+            </p>
+            <div
+              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--move"
+              role="group"
+              aria-label="Move tools"
+            >
+              {movePanel}
+            </div>
           </div>
-          <div
-            className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint"
-            role="group"
-            aria-label="In-paint tools"
-          >
-            {inpaintPanel}
+          <div className="edit-expert-markup-modal-panel-group">
+            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--inpaint edit-expert-markup-modal-panel-title">
+              In-paint
+            </p>
+            <div
+              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint"
+              role="group"
+              aria-label="In-paint tools"
+            >
+              {inpaintPanel}
+            </div>
           </div>
-          <div
-            className="edit-expert-markup-modal-controls-compact"
-            role="group"
-            aria-label="Markup tools"
-          >
-            {markupPanel}
+          <div className="edit-expert-markup-modal-panel-group">
+            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-panel-title">
+              Markup
+            </p>
+            <div
+              className="edit-expert-markup-modal-controls-compact"
+              role="group"
+              aria-label="Markup tools"
+            >
+              {markupPanel}
+            </div>
           </div>
         </div>
         <div

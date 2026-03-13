@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { getAiStudioOutputSnapshot, resetAiStudioOutputStore } from "../aiStudioOutputStore";
 import { useAiStudioState } from "../useAiStudioState";
+import * as ingestionPreparation from "../../reference-ingestion/prepareLibraryMediaIngestionPayload";
 
 const mockUpdateOutputById = vi.fn();
 const mockFindOutputById = vi.fn(() => null);
@@ -284,6 +285,32 @@ describe("useAiStudioState output store bridge", () => {
       })
     );
     expect(refreshSupabaseSignedUrlIfNeededMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces deterministic UI error when media-library payload prep fails before insert", async () => {
+    const prepareSpy = vi
+      .spyOn(ingestionPreparation, "prepareLibraryMediaIngestionPayload")
+      .mockRejectedValueOnce(new Error("prep failed"));
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.addLibraryMediaReference({
+        id: "media-error",
+        url: "https://expired.example.com/ref-error.png",
+        fileType: "image",
+        filename: "ref-error.png",
+        promptText: "Error prompt",
+        source: "upload",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiError).toBe(
+        "Unable to add that media from Media Library right now. Please try again."
+      );
+    });
+    expect(result.current.outputs.length).toBe(0);
+    prepareSpy.mockRestore();
   });
 
   it("supports media-library add -> quick-slot reorder/remove -> archive/restore flow", async () => {

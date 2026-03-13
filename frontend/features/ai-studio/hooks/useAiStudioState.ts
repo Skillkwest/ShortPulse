@@ -26,6 +26,7 @@ import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionS
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
 import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
 import { useAiStudioSessionReferenceDurability } from "./useAiStudioSessionReferenceDurability";
+import type { ExpertEditLayerSessionState } from "../components/edit/ExpertEditPanelView";
 import {
   buildAiStudioSessionSnapshot,
   type AiStudioSessionSnapshot,
@@ -81,6 +82,8 @@ export const useAiStudioState = ({
   const [prompt, setPrompt] = useState<string>("");
   const [editReferenceText, setEditReferenceTextState] = useState<string>("");
   const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
+  const [expertEditLayerSessionState, setExpertEditLayerSessionState] =
+    useState<ExpertEditLayerSessionState | null>(null);
 
   // Output management
   const {
@@ -808,6 +811,7 @@ export const useAiStudioState = ({
     model,
     setOutputs,
     setSharedPrompt,
+    setUiError,
   });
 
   const {
@@ -900,6 +904,8 @@ export const useAiStudioState = ({
     setEditReferenceText,
     videoReferenceText,
     setVideoReferenceText,
+    expertEditLayerSessionState,
+    setExpertEditLayerSessionState,
     setSharedPrompt,
     resolvePreviewUrlById,
     useReferenceImageIndicator,

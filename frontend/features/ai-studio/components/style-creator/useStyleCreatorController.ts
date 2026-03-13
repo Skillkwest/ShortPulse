@@ -8,16 +8,11 @@ import type { StylesLibraryStyleDetails } from "../../types";
 import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import {
-  BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
   BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE,
   EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
   EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE,
 } from "./constants";
-import {
-  buildExtractionFailureResult,
-  isBlockedStyleSourceError,
-  isExpiredStyleSourceError,
-} from "./extraction";
+import { buildExtractionFailureResult } from "./extraction";
 import {
   applyStylePreviewToPendingEdit,
   buildInitialStyleDetails,
@@ -25,10 +20,9 @@ import {
   buildNextCustomStyleName,
   canAcceptStyleLibraryImageDropHint,
   clampStylePromptCharacters,
-  getStyleDropPreviewClassifierReason,
-  isStyleDropPreviewErrorCode,
   isDefaultCustomStyleName,
   isImageFileCandidate,
+  normalizeStyleDropPreviewError,
   normalizeStylePromptFallbackText,
   normalizeStyleDetailsDraft,
   preprocessStyleImageDataUrl,
@@ -294,38 +288,28 @@ export const useStyleCreatorController = ({
           void extractStyleForCreateDraft(extractionSourceImageUrl);
         }
       } catch (error) {
-        const classifierReason = getStyleDropPreviewClassifierReason(error) ?? "unknown";
-        if (isStyleDropPreviewErrorCode(error, "missing-dropped-style-image")) {
+        const normalizedError = normalizeStyleDropPreviewError(error);
+        if (normalizedError.code === "missing-dropped-style-image") {
           setLocalSaveError("Please drop an image reference.");
           return;
         }
-        if (isStyleDropPreviewErrorCode(error, BLOCKED_STYLE_IMAGE_SOURCE_ERROR)) {
+        if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
           trackStyleExtractionOutcome("blocked_source", "create_modal", {
             stage: "preview_source",
             failureClass: "blocked_source",
-            classifierReason,
-            errorMessage: error instanceof Error ? error.message : "unknown_error",
-          });
-          setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
-          return;
-        }
-        if (isStyleDropPreviewErrorCode(error, EXPIRED_STYLE_IMAGE_SOURCE_ERROR)) {
-          trackStyleExtractionOutcome("blocked_source", "create_modal", {
-            stage: "preview_source",
-            failureClass: "blocked_source",
-            classifierReason,
+            classifierReason: normalizedError.classifierReason,
             errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setLocalSaveError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
           return;
         }
-        trackStyleExtractionOutcome("fallback", "create_modal", {
+        trackStyleExtractionOutcome("blocked_source", "create_modal", {
           stage: "preview_source",
-          failureClass: "unknown",
-          classifierReason,
+          failureClass: "blocked_source",
+          classifierReason: normalizedError.classifierReason,
           errorMessage: error instanceof Error ? error.message : "unknown_error",
         });
-        setLocalSaveError("Unable to process that image.");
+        setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
       }
     },
     [extractStyleForCreateDraft, pendingStyleEdit?.mode, resolveInternalStyleDrop]
@@ -439,42 +423,30 @@ export const useStyleCreatorController = ({
           return;
         }
       } catch (error) {
-        const classifierReason = getStyleDropPreviewClassifierReason(error) ?? "unknown";
-        if (isStyleDropPreviewErrorCode(error, "missing-dropped-style-image")) {
+        const normalizedError = normalizeStyleDropPreviewError(error);
+        if (normalizedError.code === "missing-dropped-style-image") {
           setStylesLibraryDropError(
             "Drop an image from your computer, Reference Grid, or Quick Slot Inventory."
           );
           return;
         }
-        if (isBlockedStyleSourceError(error)) {
+        if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
           trackStyleExtractionOutcome("blocked_source", "library_drop", {
             stage: "preview_source",
             failureClass: "blocked_source",
-            classifierReason,
-            errorMessage: error instanceof Error ? error.message : "unknown_error",
-          });
-          setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
-          return;
-        }
-        if (isExpiredStyleSourceError(error)) {
-          trackStyleExtractionOutcome("blocked_source", "library_drop", {
-            stage: "preview_source",
-            failureClass: "blocked_source",
-            classifierReason,
+            classifierReason: normalizedError.classifierReason,
             errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
           return;
         }
-        trackStyleExtractionOutcome("fallback", "library_drop", {
+        trackStyleExtractionOutcome("blocked_source", "library_drop", {
           stage: "preview_source",
-          failureClass: "unknown",
-          classifierReason,
+          failureClass: "blocked_source",
+          classifierReason: normalizedError.classifierReason,
           errorMessage: error instanceof Error ? error.message : "unknown_error",
         });
-        setStylesLibraryDropError(
-          "Unable to process that dropped image. Re-open or re-add the reference image, then drag again."
-        );
+        setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
       } finally {
         setCreateStyleFromDropSubmitting(false);
       }

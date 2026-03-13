@@ -362,16 +362,33 @@ const getFirstUriListValue = (value: string): string => {
 const collectDroppedImageUrlCandidates = (
   transfer: DataTransfer,
   primaryCandidate: string,
-  priorityCandidates: readonly string[] = []
+  priorityCandidates: readonly string[] = [],
+  options?: { preserveNextImageOptimizerUrls?: boolean }
 ): string[] => {
   const candidates: string[] = [];
-  const pushCandidate = (value: string | null | undefined) => {
-    const normalized =
-      normalizeReferenceTransferUrlCandidate(value) ??
-      (typeof value === "string" ? value.trim() : "");
+  const addCandidate = (value: string | null | undefined) => {
+    const normalized = value?.trim() ?? "";
     if (!normalized) return;
     if (!candidates.includes(normalized)) {
       candidates.push(normalized);
+    }
+  };
+  const normalizeOptions =
+    options?.preserveNextImageOptimizerUrls === true
+      ? { unwrapNextImage: false as const }
+      : undefined;
+  const pushCandidate = (value: string | null | undefined) => {
+    const normalizedPrimary =
+      normalizeReferenceTransferUrlCandidate(value, normalizeOptions) ??
+      (typeof value === "string" ? value.trim() : "");
+    if (!normalizedPrimary) return;
+    addCandidate(normalizedPrimary);
+    if (options?.preserveNextImageOptimizerUrls !== true) {
+      return;
+    }
+    const normalizedUnwrapped = normalizeReferenceTransferUrlCandidate(value);
+    if (normalizedUnwrapped && normalizedUnwrapped !== normalizedPrimary) {
+      addCandidate(normalizedUnwrapped);
     }
   };
   priorityCandidates.forEach((candidate) => pushCandidate(candidate));
@@ -430,12 +447,12 @@ const resolveErrorDetails = (
   return { name: "", message, messageLower: message.toLowerCase() };
 };
 
-const classifyDroppedStylePreviewError = (
+export const normalizeStyleDropPreviewError = (
   error: unknown
 ): {
   code: StyleDropPreviewErrorCode;
   classifierReason: StyleDropPreviewClassifierReason;
-} | null => {
+} => {
   if (isStyleDropPreviewErrorCode(error, "missing-dropped-style-image")) {
     return {
       code: "missing-dropped-style-image",
@@ -604,7 +621,7 @@ const classifyDroppedStylePreviewError = (
     return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "unknown" };
   }
 
-  return null;
+  return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "unknown" };
 };
 
 const findDroppedImageFile = (transfer: DataTransfer): File | null => {
@@ -671,34 +688,42 @@ export const resolveDroppedStylePreview = async (
   transfer: DataTransfer,
   options?: ResolveDroppedStylePreviewOptions
 ): Promise<ResolvedDroppedStylePreview> => {
-  const droppedImageFile = findDroppedImageFile(transfer);
-  if (droppedImageFile) {
-    const sourceImageDataUrl = await readFileAsDataUrl(droppedImageFile);
-    const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
-    return {
-      previewImageUrl: processed.previewImageUrl,
-      extractionSourceImageUrl: processed.extractionSourceImageUrl,
-      promptText: "",
-    };
-  }
-  const internalDropPayload = extractInternalReferenceDragPayload(transfer);
-  const internalDropResolution =
-    internalDropPayload && options?.resolveInternalStyleDrop
-      ? await options.resolveInternalStyleDrop(internalDropPayload).catch(() => null)
-      : null;
-  const dragPayload = extractDragDropPayload(transfer);
-  const droppedImageUrl = dragPayload.imageUrl?.trim() ?? "";
-  const droppedImageUrlCandidates = collectDroppedImageUrlCandidates(
-    transfer,
-    droppedImageUrl,
-    internalDropResolution?.imageUrlCandidates ?? []
-  );
-  if (!droppedImageUrlCandidates.length) {
-    throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
-  }
-  const fallbackPromptText = normalizeStylePromptFallbackText(dragPayload.promptText);
-  const internalPromptText = normalizeStylePromptFallbackText(internalDropResolution?.promptText);
   try {
+    const droppedImageFile = findDroppedImageFile(transfer);
+    if (droppedImageFile) {
+      const sourceImageDataUrl = await readFileAsDataUrl(droppedImageFile);
+      const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
+      return {
+        previewImageUrl: processed.previewImageUrl,
+        extractionSourceImageUrl: processed.extractionSourceImageUrl,
+        promptText: "",
+      };
+    }
+    const internalDropPayload = extractInternalReferenceDragPayload(transfer);
+    const internalDropResolution =
+      internalDropPayload && options?.resolveInternalStyleDrop
+        ? await options.resolveInternalStyleDrop(internalDropPayload).catch(() => null)
+        : null;
+    const dragPayload = extractDragDropPayload(transfer);
+    const droppedImageUrl =
+      (internalDropPayload
+        ? normalizeReferenceTransferUrlCandidate(transfer.getData("text/reference-url"), {
+            unwrapNextImage: false,
+          })
+        : null) ??
+      dragPayload.imageUrl?.trim() ??
+      "";
+    const droppedImageUrlCandidates = collectDroppedImageUrlCandidates(
+      transfer,
+      droppedImageUrl,
+      internalDropResolution?.imageUrlCandidates ?? [],
+      { preserveNextImageOptimizerUrls: Boolean(internalDropPayload) }
+    );
+    if (!droppedImageUrlCandidates.length) {
+      throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
+    }
+    const fallbackPromptText = normalizeStylePromptFallbackText(dragPayload.promptText);
+    const internalPromptText = normalizeStylePromptFallbackText(internalDropResolution?.promptText);
     let sourceImageDataUrl: string | null = null;
     let lastReadError: unknown = null;
     for (const candidateUrl of droppedImageUrlCandidates) {
@@ -722,11 +747,8 @@ export const resolveDroppedStylePreview = async (
       promptText: fallbackPromptText || internalPromptText,
     };
   } catch (error) {
-    const classifiedError = classifyDroppedStylePreviewError(error);
-    if (classifiedError) {
-      throw createStyleDropPreviewError(classifiedError.code, classifiedError.classifierReason);
-    }
-    throw error;
+    const normalizedError = normalizeStyleDropPreviewError(error);
+    throw createStyleDropPreviewError(normalizedError.code, normalizedError.classifierReason);
   }
 };
 

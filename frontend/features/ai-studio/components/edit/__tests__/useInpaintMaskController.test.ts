@@ -256,6 +256,19 @@ describe("useInpaintMaskController helpers", () => {
     ).toEqual([{ x: 400, y: 300 }]);
   });
 
+  it("preserves lasso preview scene geometry across aspect changes", () => {
+    const mappedPoints = mapLassoPreviewPointsToOverlaySpace({
+      points: [{ x: 300, y: 150 }],
+      maskWidth: 400,
+      maskHeight: 300,
+      overlayWidth: 300,
+      overlayHeight: 400,
+    });
+    expect(mappedPoints).toHaveLength(1);
+    expect(mappedPoints[0]?.x ?? 0).toBeCloseTo(283.333, 3);
+    expect(mappedPoints[0]?.y ?? 0).toBeCloseTo(200, 3);
+  });
+
   it("returns unchanged lasso preview points when spaces are already matched", () => {
     const points = [
       { x: 10, y: 20 },

@@ -3,6 +3,7 @@
  * Handles Supabase inserts/updates for generations, prompts, and audit events.
  */
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
   resolveImageDimensionsFromMetadata,
@@ -14,6 +15,7 @@ import type { StudioMode } from "../types";
 const BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRY_ATTEMPTS = 2;
+const SERVER_COPY_ROUTE = "/api/media/copy-from-url";
 
 const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "image/png": "png",
@@ -29,6 +31,7 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
 };
 
 const sanitizeFilename = (value: string) => value.replace(/[^\w.-]+/g, "_");
+const URL_PROTOCOL_PATTERN = /^https?:\/\//i;
 
 const clampPrompt = (value?: string | null) => {
   const trimmed = (value ?? "").trim();
@@ -56,6 +59,17 @@ const extensionFromUrl = (url: string) => {
   } catch {
     return "";
   }
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
 };
 
 const resolveExtension = (contentType: string | null, url: string) => {
@@ -111,6 +125,25 @@ const fetchBlobWithTimeout = async (url: string) => {
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Failed to fetch media.");
+};
+
+const isBrowserFetchBlockedError = (error: unknown): boolean => {
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  if (/fetch failed \(\d{3}\)/i.test(message)) return false;
+  return (
+    message.includes("failed to fetch") ||
+    message.includes("network request failed") ||
+    message.includes("networkerror") ||
+    message.includes("network error") ||
+    message.includes("load failed") ||
+    message.includes("fetch failed") ||
+    message.includes("cors") ||
+    message.includes("cross-origin") ||
+    message.includes("securityerror") ||
+    message.includes("operation is insecure") ||
+    message.includes("resource has been blocked")
+  );
 };
 
 const readImageDimensionsFromBlob = async (blob: Blob): Promise<ImageDimensions | null> => {
@@ -195,6 +228,55 @@ export type SaveMediaUrlResult = {
     previewUrl: string | null;
     fullUrl: string | null;
   };
+};
+
+const parseServerCopyResult = (value: unknown): SaveMediaUrlResult | null => {
+  const row = asRecord(value);
+  const deliveryRecord = asRecord(row.delivery);
+  const storagePath = asOptionalString(row.storagePath);
+  if (!storagePath) return null;
+  const fileTypeRaw = asOptionalString(row.fileType)?.toLowerCase();
+  if (fileTypeRaw !== "image" && fileTypeRaw !== "video") return null;
+  return {
+    mediaFileId: asOptionalString(row.mediaFileId),
+    storagePath,
+    fileType: fileTypeRaw as "image" | "video",
+    fileSize: Number.isFinite(Number(row.fileSize)) ? Number(row.fileSize) : 0,
+    delivery: {
+      previewStoragePath: asOptionalString(deliveryRecord.previewStoragePath),
+      fullStoragePath: asOptionalString(deliveryRecord.fullStoragePath),
+      previewUrl: asOptionalString(deliveryRecord.previewUrl),
+      fullUrl: asOptionalString(deliveryRecord.fullUrl),
+    },
+  };
+};
+
+const saveMediaUrlToLibraryViaServerCopy = async (
+  input: SaveMediaUrlInput
+): Promise<SaveMediaUrlResult> => {
+  const response = await fetchWithAuth(SERVER_COPY_ROUTE, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+    shortpulseLogScope: "generation",
+    shortpulseSkipErrorLogging: true,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const payloadRecord = asRecord(payload);
+    const message =
+      asOptionalString(payloadRecord.error) ??
+      asOptionalString(payloadRecord.details) ??
+      `Unable to save media (${response.status}).`;
+    throw new Error(message);
+  }
+  const parsed = parseServerCopyResult(payload);
+  if (!parsed) {
+    throw new Error("Server copy did not return a valid media payload.");
+  }
+  return parsed;
 };
 
 const isDuplicateInsertError = (error: unknown): boolean => {
@@ -305,7 +387,18 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       } satisfies SaveMediaUrlResult;
     }
   }
-  const { blob, contentType } = await fetchBlobWithTimeout(input.url);
+  let blob: Blob;
+  let contentType: string | null;
+  try {
+    const fetched = await fetchBlobWithTimeout(input.url);
+    blob = fetched.blob;
+    contentType = fetched.contentType;
+  } catch (error) {
+    if (URL_PROTOCOL_PATTERN.test(input.url) && isBrowserFetchBlockedError(error)) {
+      return await saveMediaUrlToLibraryViaServerCopy(input);
+    }
+    throw error;
+  }
   const fileType = resolveFileType(contentType, input.mode, input.fileTypeHint);
   const metadataDimensions = resolveImageDimensionsFromMetadata(input.metadata ?? null);
   const decodedDimensions = fileType === "image" ? await readImageDimensionsFromBlob(blob) : null;

@@ -1,5 +1,7 @@
 import type { AdaptiveSurface } from "./types";
 
+const DEFAULT_ADAPTIVE_SURFACES = "reference-grid,media-library-grid,media-library-modal-grid";
+
 const asBool = (value: string | undefined, fallback: boolean): boolean => {
   if (value === "true") return true;
   if (value === "false") return false;
@@ -7,7 +9,7 @@ const asBool = (value: string | undefined, fallback: boolean): boolean => {
 };
 
 const parseSurfaceCsv = (value: string | undefined): Set<AdaptiveSurface> => {
-  const raw = (value ?? "reference-grid").trim();
+  const raw = value?.trim() ? value.trim() : DEFAULT_ADAPTIVE_SURFACES;
   if (!raw) return new Set();
   const allowed = new Set<AdaptiveSurface>([
     "reference-grid",

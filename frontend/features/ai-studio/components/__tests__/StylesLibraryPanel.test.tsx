@@ -837,6 +837,68 @@ describe("StylesLibraryPanel", () => {
     }
   );
 
+  it("falls back unknown preview-source failures to blocked-source guidance with classifier_reason=unknown", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const fetchMock = vi.fn().mockRejectedValue(new Error("Unexpected transport failure"));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          selectedStyleId={null}
+          onSaveStyleDetails={onSaveStyleDetails}
+        />
+      );
+
+      const panel = screen.getByRole("region", { name: "Styles library" });
+      const transfer = {
+        files: [],
+        types: ["text/reference-url", "text/plain"],
+        getData: vi.fn((type: string) => {
+          if (type === "text/reference-url" || type === "text/plain") {
+            return "https://external.example.com/style.jpg";
+          }
+          return "";
+        }),
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer;
+
+      fireEvent.dragEnter(panel, { dataTransfer: transfer });
+      fireEvent.dragOver(panel, { dataTransfer: transfer });
+      fireEvent.drop(panel, { dataTransfer: transfer });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "This image source blocks browser access. Download the image and drop the file directly."
+          )
+        ).toBeInTheDocument();
+      });
+      expect(onSaveStyleDetails).not.toHaveBeenCalled();
+      expect(
+        screen.queryByText(
+          "Unable to process that dropped image. Re-open or re-add the reference image, then drag again."
+        )
+      ).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(reportAppError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            source: "telemetry.ai_studio.style_extraction",
+            message: "style_extraction.blocked_source",
+            metadata: expect.objectContaining({
+              outcome: "blocked_source",
+              flow: "library_drop",
+              classifier_reason: "unknown",
+            }),
+          })
+        );
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("shows deterministic guidance when dropped reference URLs have expired", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
     const fetchMock = vi.fn().mockResolvedValue({

@@ -6,8 +6,8 @@
 import { canUseNextImageOptimizerForUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 
-const FIXED_PANEL_PREVIEW_WIDTH = 512;
-const FIXED_PANEL_PREVIEW_QUALITY = 40;
+const BALANCED_FAST_PREVIEW_WIDTH = 512;
+const BALANCED_FAST_PREVIEW_QUALITY = 34;
 const NEXT_IMAGE_OPTIMIZER_PREFIX = "/_next/image";
 
 const isVideoFile = (fileType?: string | null): boolean =>
@@ -54,10 +54,10 @@ export const resolveMediaLibraryPanelCardPreviewUrl = ({
   if (shouldBypassAdaptivePreview) return baselineUrl;
   if (isVideoFile(fileType)) return baselineUrl;
 
-  const sourceUrl = (signedUrl ?? "").trim();
+  const sourceUrl = (baselineUrl ?? signedUrl ?? "").trim();
   if (!sourceUrl) return baselineUrl;
   if (sourceUrl.startsWith(NEXT_IMAGE_OPTIMIZER_PREFIX)) return baselineUrl;
   if (!canUseNextImageOptimizerForUrl(sourceUrl)) return baselineUrl;
 
-  return `/_next/image?url=${encodeURIComponent(sourceUrl)}&w=${FIXED_PANEL_PREVIEW_WIDTH}&q=${FIXED_PANEL_PREVIEW_QUALITY}`;
+  return `/_next/image?url=${encodeURIComponent(sourceUrl)}&w=${BALANCED_FAST_PREVIEW_WIDTH}&q=${BALANCED_FAST_PREVIEW_QUALITY}`;
 };

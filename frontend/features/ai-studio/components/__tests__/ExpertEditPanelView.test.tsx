@@ -22,6 +22,7 @@ import {
 } from "../../logic/inpaintSubmission";
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
 import type { InpaintMaskSnapshot } from "../edit/useInpaintMaskController";
+import { resolveScenePointFromPixelSpace } from "../edit/stageSceneGeometry";
 
 const { composePrimaryStageLayersToBlobMock } = vi.hoisted(() => ({
   composePrimaryStageLayersToBlobMock: vi.fn(
@@ -177,6 +178,19 @@ const mockElementRect = (element: Element, rect: DOMRect) => {
     value: () => rect,
   });
 };
+
+const parsePolylinePoints = (polyline: SVGPolylineElement) =>
+  (polyline.getAttribute("points") ?? "")
+    .split(/\s+/)
+    .map((pair) => pair.trim())
+    .filter(Boolean)
+    .map((pair) => {
+      const [xRaw, yRaw] = pair.split(",");
+      return {
+        x: Number.parseFloat(xRaw ?? "0"),
+        y: Number.parseFloat(yRaw ?? "0"),
+      };
+    });
 
 describe("ExpertEditPanelView", () => {
   const createObjectURLMock = vi.fn();
@@ -411,6 +425,61 @@ describe("ExpertEditPanelView", () => {
 
     uploadPrimaryFile(container, "layer-1.png");
     expect(flattenButton).not.toBeDisabled();
+  });
+
+  it("hydrates layers from session state and preserves owned layer object urls on unmount", async () => {
+    const onLayerSessionStateChange = vi.fn();
+    const { unmount } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        layerSessionState={{
+          layerIdCounter: 3,
+          foundationLayerId: "layer-1",
+          selectedLayerIndex: 1,
+          layers: [
+            {
+              id: "layer-1",
+              name: "layer 1",
+              imageUrl: "https://example.com/base.png",
+              opacity: 100,
+              isAutoNamed: true,
+              ownsImageUrl: false,
+              transform: {
+                translateXRatio: 0,
+                translateYRatio: 0,
+                scale: 1,
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "layer-2",
+              name: "layer 2",
+              imageUrl: "blob:session-layer-2",
+              opacity: 100,
+              isAutoNamed: true,
+              ownsImageUrl: true,
+              transform: {
+                translateXRatio: 0,
+                translateYRatio: 0,
+                scale: 1,
+                rotationDeg: 0,
+              },
+            },
+          ],
+        }}
+        onLayerSessionStateChange={onLayerSessionStateChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onLayerSessionStateChange).toHaveBeenCalled();
+    });
+    const latestState = onLayerSessionStateChange.mock.calls.at(-1)?.[0];
+    expect(latestState?.layers).toHaveLength(2);
+    expect(latestState?.selectedLayerIndex).toBe(1);
+
+    unmount();
+    expect(revokeObjectURLMock).not.toHaveBeenCalledWith("blob:session-layer-2");
   });
 
   it("keeps Remove Background disabled when generate is globally disabled", () => {
@@ -1180,7 +1249,7 @@ describe("ExpertEditPanelView", () => {
         inpaintModalToolbar.compareDocumentPosition(modalToolbar) & Node.DOCUMENT_POSITION_FOLLOWING
       )
     ).toBe(true);
-    expect(within(generalModalToolbar).getByText(/^general$/i)).toBeInTheDocument();
+    expect(within(expandedModal).getByText(/^general$/i)).toBeInTheDocument();
     const generalUndoButton = within(generalModalToolbar).getByRole("button", {
       name: /undo action/i,
     });
@@ -1194,16 +1263,19 @@ describe("ExpertEditPanelView", () => {
     expect(
       within(generalModalToolbar).getByRole("button", { name: /reset stage/i })
     ).toBeInTheDocument();
-    expect(within(moveModalToolbar).getByText(/^move$/i)).toBeInTheDocument();
+    expect(within(expandedModal).getByText(/^move$/i)).toBeInTheDocument();
     const modalAdjustButton = within(moveModalToolbar).getByRole("button", { name: /^adjust$/i });
     expect(modalAdjustButton).toHaveTextContent(/^adjust$/i);
     expect(modalAdjustButton).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
-    expect(within(inpaintModalToolbar).getByText(/^in-paint$/i)).toBeInTheDocument();
-    expect(within(modalToolbar).getByText(/^markup$/i)).toBeInTheDocument();
+    const inpaintHeading = within(expandedModal).getByText(/^in-paint$/i);
+    const markupHeading = within(expandedModal).getByText(/^markup$/i);
+    expect(inpaintHeading).toBeInTheDocument();
+    expect(markupHeading).toBeInTheDocument();
 
-    const markupTitle = within(modalToolbar).getByText(/^markup$/i);
-    const markupContent = markupTitle.closest(".edit-expert-markup-controls-content");
+    const markupPanelGroup = markupHeading.closest(".edit-expert-markup-modal-panel-group");
+    expect(markupPanelGroup).toBeTruthy();
+    const markupContent = markupPanelGroup?.querySelector(".edit-expert-markup-controls-content");
     expect(markupContent).toBeTruthy();
 
     const topRow = markupContent?.querySelector(".edit-expert-inpaint-mode-row");
@@ -1563,6 +1635,9 @@ describe("ExpertEditPanelView", () => {
     }) as HTMLInputElement;
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     mockElementRect(primaryDropzone, createSquareRect(320));
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
 
     fireEvent.change(strokeSlider, { target: { value: "10" } });
     fireEvent.pointerDown(primaryDropzone, {
@@ -1613,10 +1688,272 @@ describe("ExpertEditPanelView", () => {
     const firstStrokeWidth = Number.parseFloat(strokes[0]?.getAttribute("stroke-width") ?? "0");
     const secondStrokeWidth = Number.parseFloat(strokes[1]?.getAttribute("stroke-width") ?? "0");
     expect(secondStrokeWidth).toBeGreaterThan(firstStrokeWidth);
-    const firstStrokeWidthPx = (firstStrokeWidth / 100) * 320;
-    const secondStrokeWidthPx = (secondStrokeWidth / 100) * 320;
+    const firstStrokeWidthPx = firstStrokeWidth;
+    const secondStrokeWidthPx = secondStrokeWidth;
     expect(firstStrokeWidthPx).toBeCloseTo(10, 1);
     expect(secondStrokeWidthPx).toBeCloseTo(30, 1);
+  });
+
+  it("preserves markup geometry in scene space when switching aspect ratios", async () => {
+    const { rerender } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="16:9"
+        referenceImageUrl="https://example.com/markup-aspect-scene-space.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const stage16x9 = {
+      width: 320,
+      height: 180,
+    };
+    mockElementRect(primaryDropzone, {
+      left: 0,
+      top: 0,
+      width: stage16x9.width,
+      height: stage16x9.height,
+      right: stage16x9.width,
+      bottom: stage16x9.height,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 1201,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 80,
+      clientY: 60,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 1201,
+      pointerType: "mouse",
+      clientX: 220,
+      clientY: 130,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 1201,
+      pointerType: "mouse",
+      clientX: 220,
+      clientY: 130,
+    });
+
+    const firstPolyline = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(firstPolyline).not.toBeNull();
+    const firstPoints = parsePolylinePoints(firstPolyline as SVGPolylineElement);
+    const firstStartScene = resolveScenePointFromPixelSpace({
+      x: firstPoints[0]?.x ?? 0,
+      y: firstPoints[0]?.y ?? 0,
+      spaceWidth: stage16x9.width,
+      spaceHeight: stage16x9.height,
+    });
+    const firstEndScene = resolveScenePointFromPixelSpace({
+      x: firstPoints[firstPoints.length - 1]?.x ?? 0,
+      y: firstPoints[firstPoints.length - 1]?.y ?? 0,
+      spaceWidth: stage16x9.width,
+      spaceHeight: stage16x9.height,
+    });
+
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="9:16"
+        referenceImageUrl="https://example.com/markup-aspect-scene-space.png"
+        referenceText="prompt text"
+      />
+    );
+    const stage9x16 = {
+      width: 180,
+      height: 320,
+    };
+    mockElementRect(primaryDropzone, {
+      left: 0,
+      top: 0,
+      width: stage9x16.width,
+      height: stage9x16.height,
+      right: stage9x16.width,
+      bottom: stage9x16.height,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    const secondPolyline = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(secondPolyline).not.toBeNull();
+    const secondPoints = parsePolylinePoints(secondPolyline as SVGPolylineElement);
+    const secondStartScene = resolveScenePointFromPixelSpace({
+      x: secondPoints[0]?.x ?? 0,
+      y: secondPoints[0]?.y ?? 0,
+      spaceWidth: stage9x16.width,
+      spaceHeight: stage9x16.height,
+    });
+    const secondEndScene = resolveScenePointFromPixelSpace({
+      x: secondPoints[secondPoints.length - 1]?.x ?? 0,
+      y: secondPoints[secondPoints.length - 1]?.y ?? 0,
+      spaceWidth: stage9x16.width,
+      spaceHeight: stage9x16.height,
+    });
+
+    expect(secondStartScene.x).toBeCloseTo(firstStartScene.x, 3);
+    expect(secondStartScene.y).toBeCloseTo(firstStartScene.y, 3);
+    expect(secondEndScene.x).toBeCloseTo(firstEndScene.x, 3);
+    expect(secondEndScene.y).toBeCloseTo(firstEndScene.y, 3);
+  });
+
+  it("preserves modal markup geometry in scene space when switching aspect ratios", async () => {
+    const { rerender } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="16:9"
+        referenceImageUrl="https://example.com/markup-modal-aspect-scene-space.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement | null;
+    expect(modalStage).not.toBeNull();
+
+    const stage16x9 = {
+      width: 320,
+      height: 180,
+    };
+    mockElementRect(
+      modalStage as HTMLDivElement,
+      {
+        left: 0,
+        top: 0,
+        width: stage16x9.width,
+        height: stage16x9.height,
+        right: stage16x9.width,
+        bottom: stage16x9.height,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    );
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    fireEvent.pointerDown(modalStage as HTMLDivElement, {
+      pointerId: 1301,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 85,
+      clientY: 65,
+    });
+    fireEvent.pointerMove(modalStage as HTMLDivElement, {
+      pointerId: 1301,
+      pointerType: "mouse",
+      clientX: 230,
+      clientY: 140,
+    });
+    fireEvent.pointerUp(modalStage as HTMLDivElement, {
+      pointerId: 1301,
+      pointerType: "mouse",
+      clientX: 230,
+      clientY: 140,
+    });
+
+    const firstPolyline = expandedModal.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(firstPolyline).not.toBeNull();
+    const firstPoints = parsePolylinePoints(firstPolyline as SVGPolylineElement);
+    const firstStartScene = resolveScenePointFromPixelSpace({
+      x: firstPoints[0]?.x ?? 0,
+      y: firstPoints[0]?.y ?? 0,
+      spaceWidth: stage16x9.width,
+      spaceHeight: stage16x9.height,
+    });
+    const firstEndScene = resolveScenePointFromPixelSpace({
+      x: firstPoints[firstPoints.length - 1]?.x ?? 0,
+      y: firstPoints[firstPoints.length - 1]?.y ?? 0,
+      spaceWidth: stage16x9.width,
+      spaceHeight: stage16x9.height,
+    });
+
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="9:16"
+        referenceImageUrl="https://example.com/markup-modal-aspect-scene-space.png"
+        referenceText="prompt text"
+      />
+    );
+    const refreshedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const refreshedModalStage = refreshedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement | null;
+    expect(refreshedModalStage).not.toBeNull();
+    const stage9x16 = {
+      width: 180,
+      height: 320,
+    };
+    mockElementRect(
+      refreshedModalStage as HTMLDivElement,
+      {
+        left: 0,
+        top: 0,
+        width: stage9x16.width,
+        height: stage9x16.height,
+        right: stage9x16.width,
+        bottom: stage9x16.height,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    );
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    const secondPolyline = refreshedModal.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(secondPolyline).not.toBeNull();
+    const secondPoints = parsePolylinePoints(secondPolyline as SVGPolylineElement);
+    const secondStartScene = resolveScenePointFromPixelSpace({
+      x: secondPoints[0]?.x ?? 0,
+      y: secondPoints[0]?.y ?? 0,
+      spaceWidth: stage9x16.width,
+      spaceHeight: stage9x16.height,
+    });
+    const secondEndScene = resolveScenePointFromPixelSpace({
+      x: secondPoints[secondPoints.length - 1]?.x ?? 0,
+      y: secondPoints[secondPoints.length - 1]?.y ?? 0,
+      spaceWidth: stage9x16.width,
+      spaceHeight: stage9x16.height,
+    });
+
+    expect(secondStartScene.x).toBeCloseTo(firstStartScene.x, 3);
+    expect(secondStartScene.y).toBeCloseTo(firstStartScene.y, 3);
+    expect(secondEndScene.x).toBeCloseTo(firstEndScene.x, 3);
+    expect(secondEndScene.y).toBeCloseTo(firstEndScene.y, 3);
   });
 
   it("defaults markup color to #F43F5E in inline and expanded markup pickers", async () => {
@@ -2900,6 +3237,132 @@ describe("ExpertEditPanelView", () => {
       pointerType: "mouse",
       clientX: 88,
       clientY: 88,
+    });
+
+    expect(document.body.style.cursor).toBe("");
+    expect(document.documentElement.style.cursor).toBe("");
+  });
+
+  it("locks pen reticle cursor globally during active markup pen drawing in expanded modal and restores on pointer up", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-cursor-lock.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement | null;
+    expect(modalStage).toBeTruthy();
+
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 260,
+      height: 260,
+      right: 260,
+      bottom: 260,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(modalStage as HTMLDivElement, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    expect(document.body.style.cursor).toBe("");
+    expect(document.documentElement.style.cursor).toBe("");
+
+    fireEvent.pointerDown(modalStage as HTMLDivElement, {
+      pointerId: 9111,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 80,
+      clientY: 80,
+    });
+
+    expect(document.body.style.cursor).toContain("data:image/svg+xml");
+    expect(document.documentElement.style.cursor).toContain("data:image/svg+xml");
+
+    fireEvent.pointerUp(modalStage as HTMLDivElement, {
+      pointerId: 9111,
+      pointerType: "mouse",
+      clientX: 120,
+      clientY: 120,
+    });
+
+    expect(document.body.style.cursor).toBe("");
+    expect(document.documentElement.style.cursor).toBe("");
+  });
+
+  it("locks eraser reticle cursor globally during active markup eraser drawing in expanded modal and restores on pointer up", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-eraser-cursor-lock.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalMarkupPanel = within(expandedModal).getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(modalMarkupPanel).getByRole("button", { name: /^eraser$/i }));
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement | null;
+    expect(modalStage).toBeTruthy();
+
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 260,
+      height: 260,
+      right: 260,
+      bottom: 260,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(modalStage as HTMLDivElement, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    expect(document.body.style.cursor).toBe("");
+    expect(document.documentElement.style.cursor).toBe("");
+
+    fireEvent.pointerDown(modalStage as HTMLDivElement, {
+      pointerId: 9112,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 92,
+      clientY: 92,
+    });
+
+    expect(document.body.style.cursor).toContain("data:image/svg+xml");
+    expect(document.documentElement.style.cursor).toContain("data:image/svg+xml");
+
+    fireEvent.pointerUp(modalStage as HTMLDivElement, {
+      pointerId: 9112,
+      pointerType: "mouse",
+      clientX: 118,
+      clientY: 118,
     });
 
     expect(document.body.style.cursor).toBe("");

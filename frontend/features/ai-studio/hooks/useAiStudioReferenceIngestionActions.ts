@@ -20,6 +20,7 @@ type UseAiStudioReferenceIngestionActionsArgs = {
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setSharedPrompt: (value: string) => void;
+  setUiError?: Dispatch<SetStateAction<string | null>>;
 };
 
 type UseAiStudioReferenceIngestionActionsResult = {
@@ -59,7 +60,10 @@ export const useAiStudioReferenceIngestionActions = ({
   model,
   setOutputs,
   setSharedPrompt,
+  setUiError,
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
+  const libraryMediaIngestionErrorMessage =
+    "Unable to add that media from Media Library right now. Please try again.";
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
       const result = buildStudioOutputsFromReferenceInputSync(
@@ -145,26 +149,33 @@ export const useAiStudioReferenceIngestionActions = ({
       fullUrl?: string | null;
     }) => {
       void (async () => {
-        const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
-        const result = buildStudioOutputsFromReferenceInputSync(
-          {
-            kind: "libraryMedia",
-            source: "mediaLibrary",
-            payload: preparedPayload,
-          },
-          {
-            mode,
-            aspect,
-            model,
-            resolveModelLabel,
-            randomId,
+        try {
+          const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
+          const result = buildStudioOutputsFromReferenceInputSync(
+            {
+              kind: "libraryMedia",
+              source: "mediaLibrary",
+              payload: preparedPayload,
+            },
+            {
+              mode,
+              aspect,
+              model,
+              resolveModelLabel,
+              randomId,
+            }
+          );
+          if (!result.outputs.length) {
+            setUiError?.(libraryMediaIngestionErrorMessage);
+            return;
           }
-        );
-        if (!result.outputs.length) return;
-        setOutputs((prev) => [...result.outputs, ...prev]);
+          setOutputs((prev) => [...result.outputs, ...prev]);
+        } catch {
+          setUiError?.(libraryMediaIngestionErrorMessage);
+        }
       })();
     },
-    [aspect, mode, model, setOutputs]
+    [aspect, libraryMediaIngestionErrorMessage, mode, model, setOutputs, setUiError]
   );
 
   const addLibraryPromptReference = useCallback(

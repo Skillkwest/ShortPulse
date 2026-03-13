@@ -979,6 +979,100 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 
+  it("routes media-library marker drops to libraryMedia even when custom MIME payload is missing", () => {
+    const onAddLibraryMediaReference = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      onAddLibraryMediaReference,
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
+    });
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: [
+        "text/shortpulse-media-library-marker",
+        "text/shortpulse-media-library-kind",
+        "text/shortpulse-media-library-id",
+        "text/reference-url",
+        "text/plain",
+        "text/prompt",
+      ],
+      files: makeEmptyFileList(),
+      getData: (type: string) => {
+        if (type === "application/x-shortpulse-media-library-item") return "";
+        if (type === "text/x-shortpulse-media-library-item") return "";
+        if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+        if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+        if (type === "text/shortpulse-media-library-id") return "media-1";
+        if (type === "text/shortpulse-media-library-file-type") return "image";
+        if (type === "text/reference-url") return "https://cdn.example.com/library-image.png";
+        if (type === "text/prompt") return "Library prompt text";
+        if (type === "text/plain") return "Library prompt text";
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onAddLibraryMediaReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-1",
+        url: "https://cdn.example.com/library-image.png",
+        fileType: "image",
+      })
+    );
+    expect(onPasteTextReference).not.toHaveBeenCalled();
+  });
+
+  it("routes marker-based URL-only media-library drops to libraryMedia", () => {
+    const onAddLibraryMediaReference = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      onAddLibraryMediaReference,
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
+    });
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: [
+        "text/shortpulse-media-library-marker",
+        "text/shortpulse-media-library-kind",
+        "text/shortpulse-media-library-id",
+        "text/reference-url",
+      ],
+      files: makeEmptyFileList(),
+      getData: (type: string) => {
+        if (type === "application/x-shortpulse-media-library-item") return "";
+        if (type === "text/x-shortpulse-media-library-item") return "";
+        if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+        if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+        if (type === "text/shortpulse-media-library-id") return "media-2";
+        if (type === "text/reference-url") return "https://cdn.example.com/library-video.mp4";
+        if (type === "text/plain") return "https://cdn.example.com/library-video.mp4";
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onAddLibraryMediaReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-2",
+        url: "https://cdn.example.com/library-video.mp4",
+        fileType: "video",
+      })
+    );
+    expect(onPasteTextReference).not.toHaveBeenCalled();
+  });
+
   it("pre-warms right-column dragover for text drags when browser omits drag types", () => {
     const props = createProps();
     const { container } = render(<AiStudioPageContent {...props} />);

@@ -5,7 +5,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 
 ## Scope
 - In scope:
-  - Media Library route (`/media-library`) and AI Studio Media Library modal.
+  - Media Library route (`/media-library`), AI Studio Media Library panel, and AI Studio Media Library modal.
   - Reference Grid autoplay performance controls.
   - Signed URL hydration and batch signing behavior.
   - Local telemetry inspection for tuning and incident triage.
@@ -24,6 +24,9 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - `frontend/pages/media-library.tsx`
 - AI Studio Media Library modal:
   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- AI Studio Media Library panel:
+  - `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
+  - `frontend/features/ai-studio/logic/mediaLibraryPanelPreviewResolver.ts`
 - Shared route/modal virtualization math:
   - `frontend/features/media-library/logic/mediaGridVirtualization.ts`
 - Reference Grid autoplay budget:
@@ -171,6 +174,11 @@ Key indicators:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist)
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY` (global kill switch)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED` (AI Studio panel-only fixed preview compression experiment)
+  - Panel compaction activation behavior:
+    - AI Studio Media Library panel preview compaction is active when either surface is enabled:
+      - `media-library-grid`
+      - `media-library-modal-grid`
+    - When `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` is unset/blank, fallback defaults include both media-library surfaces.
 - AI Studio shell performance flags:
   - `NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
@@ -266,6 +274,14 @@ Monitor these events during rollout:
 - Symptom: autoplay decode storms.
   - Verify autoplay budget constants and viewport gating behavior.
   - Confirm constrained profile budget is active when expected.
+- Symptom: `All Media` `generations_images` cards fill slowly in AI Studio panel.
+  - Verify panel compaction gates:
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
+    - `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED=true`
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes either `media-library-grid` or `media-library-modal-grid` (recommended: include both).
+  - Run diagnostics script:
+    - `sql/check_media_preview_variant_coverage_and_size.sql`
+  - If `ai_studio` image rows show low variant coverage and high p50/p90 bytes, expect slower first paint for panel cards until derivative rollout is implemented.
 
 ## Release Checklist
 1. `npm -C frontend run lint`

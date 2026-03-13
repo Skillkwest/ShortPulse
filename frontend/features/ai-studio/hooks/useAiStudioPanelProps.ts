@@ -26,6 +26,7 @@ import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
 } from "../components/edit/expertEditPresets";
+import type { ExpertEditLayerSessionState } from "../components/edit/ExpertEditPanelView";
 import { useAiStudioCreatePanelProps } from "./useAiStudioCreatePanelProps";
 import { useAiStudioEditPanelProps } from "./useAiStudioEditPanelProps";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
@@ -113,6 +114,8 @@ export type UseAiStudioPanelPropsParams = {
   onSelectedExpertEditPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   expertEditCustomPresetOverrides?: ExpertEditCustomPresetOverrides;
   onExpertEditCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
+  expertEditLayerSessionState?: ExpertEditLayerSessionState | null;
+  onExpertEditLayerSessionStateChange?: (state: ExpertEditLayerSessionState) => void;
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;
@@ -253,6 +256,8 @@ export const useAiStudioPanelProps = ({
   onSelectedExpertEditPresetIdsChange,
   expertEditCustomPresetOverrides,
   onExpertEditCustomPresetOverridesChange,
+  expertEditLayerSessionState,
+  onExpertEditLayerSessionStateChange,
   videoDurationSeconds,
   videoResolution,
   imageResolution,
@@ -481,6 +486,8 @@ export const useAiStudioPanelProps = ({
     onSelectedPresetIdsChange: onSelectedExpertEditPresetIdsChange,
     customPresetOverrides: expertEditCustomPresetOverrides,
     onCustomPresetOverridesChange: onExpertEditCustomPresetOverridesChange,
+    layerSessionState: expertEditLayerSessionState,
+    onLayerSessionStateChange: onExpertEditLayerSessionStateChange,
   });
 
   const propertiesVideo = useAiStudioVideoPanelProps({

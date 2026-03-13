@@ -31,6 +31,10 @@ Key constraints:
    - Resolve per-surface transforms from normalized state so inline and modal render equivalent framing at different pixel sizes.
    - Replace modal square sizing with aspect-fit stage geometry against modal center-column bounds (letterbox/pillarbox).
    - Remove modal-only aspect-frame overlay and rely on shared stage geometry for aspect framing.
+6. Enforce isotropic scene-space mapping for markup and inpaint geometry:
+   - Persist markup points and inpaint mask sampling in centered, height-normalized scene space.
+   - Map `surface <-> scene` and `scene <-> mask` with one uniform scale + center offset (no independent x/y stretch paths).
+   - Aspect changes are framing-only: content can be clipped by the new frame but is never rescaled to fit.
 
 ## Consequences
 Positive:
@@ -39,6 +43,7 @@ Positive:
 3. Modal UI composition is modularized, reducing `ExpertEditPanelView` responsibility.
 4. Viewport camera semantics are now surface-agnostic and stable under different stage sizes.
 5. Compaction changes can be applied through modal-scoped tokens without changing behavior contracts.
+6. Aspect-ratio switches now preserve stroke/mask geometry across all supported ratios (`1:1`, `16:9`, `9:16`, `4:5`, `5:4`, etc.) with crop-by-frame semantics.
 
 Tradeoffs:
 1. Additional internal hook/component files increase internal module count.

@@ -1,12 +1,66 @@
+/**
+ * Media Library drag payload serialization/parsing helpers.
+ * Supports custom MIME payloads plus text/* fallback markers for degraded browser transfers.
+ */
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
 
 const MEDIA_LIBRARY_DRAG_TYPE = "application/x-shortpulse-media-library-item";
 const MEDIA_LIBRARY_DRAG_TEXT_TYPE = "text/x-shortpulse-media-library-item";
+const MEDIA_LIBRARY_FALLBACK_MARKER_TYPE = "text/shortpulse-media-library-marker";
+const MEDIA_LIBRARY_FALLBACK_KIND_TYPE = "text/shortpulse-media-library-kind";
+const MEDIA_LIBRARY_FALLBACK_ID_TYPE = "text/shortpulse-media-library-id";
+const MEDIA_LIBRARY_FALLBACK_URL_TYPE = "text/shortpulse-media-library-url";
+const MEDIA_LIBRARY_FALLBACK_FILE_TYPE_TYPE = "text/shortpulse-media-library-file-type";
+const MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE =
+  "text/shortpulse-media-library-origin-folder-id";
+const MEDIA_LIBRARY_FALLBACK_FILENAME_TYPE = "text/shortpulse-media-library-filename";
+const MEDIA_LIBRARY_FALLBACK_SOURCE_TYPE = "text/shortpulse-media-library-source";
+const MEDIA_LIBRARY_FALLBACK_PREVIEW_STORAGE_PATH_TYPE =
+  "text/shortpulse-media-library-preview-storage-path";
+const MEDIA_LIBRARY_FALLBACK_FULL_STORAGE_PATH_TYPE =
+  "text/shortpulse-media-library-full-storage-path";
+const MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE = "text/shortpulse-media-library-preview-url";
+const MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE = "text/shortpulse-media-library-full-url";
+const MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE = "text/shortpulse-media-library-prompt";
+const MEDIA_LIBRARY_FALLBACK_TITLE_TYPE = "text/shortpulse-media-library-title";
+const MEDIA_LIBRARY_FALLBACK_MARKER_VALUE = "shortpulse-media-library-v1";
+const URLISH_TEXT_PATTERN = /^(?:data:(?:image|video)\/|blob:|https?:\/\/)/i;
+const VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:[?#].*)?$/i;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>;
 type LibraryPromptPayload = Extract<ReferenceIngestionInput, { kind: "libraryPrompt" }>;
 
 export type MediaLibraryDragPayload = LibraryMediaPayload | LibraryPromptPayload;
+
+const normalizeTransferText = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const getFirstUriListValue = (value: string): string | null =>
+  value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .find((item) => item.length > 0 && !item.startsWith("#")) ?? null;
+
+const inferLibraryMediaFileType = (url: string | null): "image" | "video" => {
+  if (!url) return "image";
+  if (/^data:video\//i.test(url) || VIDEO_URL_PATTERN.test(url)) return "video";
+  return "image";
+};
+
+const resolveFallbackMediaUrl = (transfer: Pick<DataTransfer, "getData">): string | null => {
+  const explicitUrl = normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_URL_TYPE));
+  if (explicitUrl) return explicitUrl;
+  const referenceUrl = normalizeTransferText(transfer.getData("text/reference-url"));
+  if (referenceUrl) return referenceUrl;
+  const uriList = getFirstUriListValue(transfer.getData("text/uri-list"));
+  if (uriList) return uriList;
+  const plainText = normalizeTransferText(transfer.getData("text/plain"));
+  if (plainText && URLISH_TEXT_PATTERN.test(plainText)) return plainText;
+  return null;
+};
 
 const parseDragPayload = (value: string): MediaLibraryDragPayload | null => {
   try {
@@ -23,6 +77,77 @@ const parseDragPayload = (value: string): MediaLibraryDragPayload | null => {
   }
 };
 
+const readFallbackMediaLibraryDragPayload = (
+  transfer: Pick<DataTransfer, "getData">
+): MediaLibraryDragPayload | null => {
+  const marker = normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_MARKER_TYPE));
+  if (marker !== MEDIA_LIBRARY_FALLBACK_MARKER_VALUE) return null;
+  const kind = normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_KIND_TYPE));
+  const id = normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_ID_TYPE));
+  if (!kind || !id) return null;
+
+  if (kind === "libraryMedia") {
+    const url = resolveFallbackMediaUrl(transfer);
+    if (!url) return null;
+    const fileTypeRaw = normalizeTransferText(
+      transfer.getData(MEDIA_LIBRARY_FALLBACK_FILE_TYPE_TYPE)
+    );
+    const fileType: "image" | "video" =
+      fileTypeRaw === "image" || fileTypeRaw === "video"
+        ? fileTypeRaw
+        : inferLibraryMediaFileType(url);
+    return {
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id,
+        url,
+        fileType,
+        originFolderId: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE)
+        ),
+        filename: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_FILENAME_TYPE)),
+        promptText:
+          normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE)) ??
+          normalizeTransferText(transfer.getData("text/prompt")),
+        source: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_SOURCE_TYPE)),
+        previewStoragePath: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_STORAGE_PATH_TYPE)
+        ),
+        fullStoragePath: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_FULL_STORAGE_PATH_TYPE)
+        ),
+        previewUrl: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE)
+        ),
+        fullUrl: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE)),
+      },
+    };
+  }
+
+  if (kind === "libraryPrompt") {
+    const promptText =
+      normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE)) ??
+      normalizeTransferText(transfer.getData("text/prompt")) ??
+      normalizeTransferText(transfer.getData("text/plain"));
+    if (!promptText) return null;
+    return {
+      kind: "libraryPrompt",
+      source: "mediaLibrary",
+      payload: {
+        id,
+        promptText,
+        originFolderId: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE)
+        ),
+        title: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_TITLE_TYPE)),
+      },
+    };
+  }
+
+  return null;
+};
+
 /**
  * Reads a serialized media-library drag payload from a transfer object.
  */
@@ -32,7 +157,20 @@ export const readMediaLibraryDragPayload = (
   if (!transfer) return null;
   const primary = transfer.getData(MEDIA_LIBRARY_DRAG_TYPE);
   const fallback = transfer.getData(MEDIA_LIBRARY_DRAG_TEXT_TYPE);
-  return parseDragPayload(primary || fallback);
+  const parsed = parseDragPayload(primary || fallback);
+  if (parsed) return parsed;
+  return readFallbackMediaLibraryDragPayload(transfer);
+};
+
+const setTransferTextIfPresent = (
+  transfer: Pick<DataTransfer, "setData">,
+  type: string,
+  value: string | null | undefined
+) => {
+  if (!value) return;
+  const trimmed = value.trim();
+  if (!trimmed.length) return;
+  transfer.setData(type, trimmed);
 };
 
 /**
@@ -45,6 +183,61 @@ export const writeMediaLibraryDragPayload = (
   const serialized = JSON.stringify(payload);
   transfer.setData(MEDIA_LIBRARY_DRAG_TYPE, serialized);
   transfer.setData(MEDIA_LIBRARY_DRAG_TEXT_TYPE, serialized);
+  transfer.setData(MEDIA_LIBRARY_FALLBACK_MARKER_TYPE, MEDIA_LIBRARY_FALLBACK_MARKER_VALUE);
+  transfer.setData(MEDIA_LIBRARY_FALLBACK_KIND_TYPE, payload.kind);
+  setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_ID_TYPE, payload.payload.id);
+  if (payload.kind === "libraryMedia") {
+    transfer.setData(MEDIA_LIBRARY_FALLBACK_FILE_TYPE_TYPE, payload.payload.fileType);
+    setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_URL_TYPE, payload.payload.url);
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE,
+      payload.payload.originFolderId
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_FILENAME_TYPE,
+      payload.payload.filename
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE,
+      payload.payload.promptText
+    );
+    setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_SOURCE_TYPE, payload.payload.source);
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_PREVIEW_STORAGE_PATH_TYPE,
+      payload.payload.previewStoragePath
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_FULL_STORAGE_PATH_TYPE,
+      payload.payload.fullStoragePath
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE,
+      payload.payload.previewUrl
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE,
+      payload.payload.fullUrl
+    );
+  } else {
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE,
+      payload.payload.originFolderId
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE,
+      payload.payload.promptText
+    );
+    setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_TITLE_TYPE, payload.payload.title);
+  }
 };
 
 /**
@@ -53,4 +246,5 @@ export const writeMediaLibraryDragPayload = (
 export const getMediaLibraryDragTypes = (): readonly string[] => [
   MEDIA_LIBRARY_DRAG_TYPE,
   MEDIA_LIBRARY_DRAG_TEXT_TYPE,
+  MEDIA_LIBRARY_FALLBACK_MARKER_TYPE,
 ];

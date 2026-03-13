@@ -7,6 +7,20 @@ import { prepareLibraryMediaIngestionPayload } from "../prepareLibraryMediaInges
 
 const getSignedMediaUrlMock = vi.fn();
 const refreshSupabaseSignedUrlIfNeededMock = vi.fn();
+const mediaFilesMaybeSingleMock = vi.fn();
+const mediaFilesSelectMock = vi.fn(() => ({
+  eq: vi.fn(() => ({
+    limit: vi.fn(() => ({
+      maybeSingle: (...args: unknown[]) => mediaFilesMaybeSingleMock(...args),
+    })),
+  })),
+}));
+const mediaFilesFromMock = vi.fn(() => ({
+  select: (...args: unknown[]) => mediaFilesSelectMock(...args),
+}));
+const ensureSupabaseClientMock = vi.fn(() => ({
+  from: (...args: unknown[]) => mediaFilesFromMock(...args),
+}));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
@@ -22,11 +36,19 @@ vi.mock("../../utils/imageUpload", async () => {
   };
 });
 
+vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+}));
+
 describe("prepareLibraryMediaIngestionPayload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     refreshSupabaseSignedUrlIfNeededMock.mockImplementation(async (value: string) => value);
     getSignedMediaUrlMock.mockResolvedValue(null);
+    mediaFilesMaybeSingleMock.mockResolvedValue({
+      data: null,
+      error: null,
+    });
   });
 
   it("refreshes preview/full URLs from storage paths when available", async () => {
@@ -107,5 +129,40 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.url).toBe("https://signed.example.com/fresh.jpg");
     expect(result.previewUrl).toBe("https://signed.example.com/fresh.jpg");
     expect(result.fullUrl).toBe("https://signed.example.com/fresh.jpg");
+  });
+
+  it("falls back to media-id storage path lookup when payload path hints are missing", async () => {
+    mediaFilesMaybeSingleMock.mockResolvedValue({
+      data: {
+        preview_storage_path: "user-1/previews/by-id.jpg",
+        storage_path: "user-1/full/by-id.jpg",
+      },
+      error: null,
+    });
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/previews/by-id.jpg") {
+        return "https://signed.example.com/previews/by-id.jpg";
+      }
+      if (storagePath === "user-1/full/by-id.jpg") {
+        return "https://signed.example.com/full/by-id.jpg";
+      }
+      return null;
+    });
+
+    const result = await prepareLibraryMediaIngestionPayload({
+      id: "media-by-id",
+      url: "https://expired.example.com/by-id.jpg",
+      fileType: "image",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+
+    expect(ensureSupabaseClientMock).toHaveBeenCalledTimes(1);
+    expect(mediaFilesFromMock).toHaveBeenCalledWith("media_files");
+    expect(result.previewStoragePath).toBe("user-1/previews/by-id.jpg");
+    expect(result.fullStoragePath).toBe("user-1/full/by-id.jpg");
+    expect(result.previewUrl).toBe("https://signed.example.com/previews/by-id.jpg");
+    expect(result.fullUrl).toBe("https://signed.example.com/full/by-id.jpg");
+    expect(result.url).toBe("https://signed.example.com/full/by-id.jpg");
   });
 });

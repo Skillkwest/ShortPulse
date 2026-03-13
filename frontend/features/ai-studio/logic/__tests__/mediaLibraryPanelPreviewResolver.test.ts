@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe("resolveMediaLibraryPanelCardPreviewUrl", () => {
-  it("forces fixed panel compression for image previews when enabled", async () => {
+  it("forces balanced-fast panel compression for image previews when enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     const { resolveMediaLibraryPanelCardPreviewUrl } = await importResolver();
 
@@ -28,7 +28,7 @@ describe("resolveMediaLibraryPanelCardPreviewUrl", () => {
 
     expect(resolved).toContain("/_next/image?");
     expect(resolved).toContain("&w=512");
-    expect(resolved).toContain("&q=40");
+    expect(resolved).toContain("&q=34");
     expect(resolved).toContain(encodeURIComponent(signedImageUrl));
   });
 

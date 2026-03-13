@@ -226,7 +226,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const mediaCursorRef = useRef<MediaListCursor | null>(null);
   const promptCursorRef = useRef<PromptListCursor | null>(null);
 
-  const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-modal-grid");
+  const adaptivePreviewQualityEnabled =
+    isAdaptiveSurfaceEnabled("media-library-modal-grid") ||
+    isAdaptiveSurfaceEnabled("media-library-grid");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
     surface: "media-library-modal",
     enabled: adaptivePreviewQualityEnabled,

@@ -5,6 +5,7 @@
  */
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 import type { ReferenceIngestionInput } from "./types";
 
@@ -33,6 +34,48 @@ const signStoragePath = async (storagePath: string | null): Promise<string | nul
   }
 };
 
+const resolveStoragePathsFromMediaId = async (
+  mediaId: string
+): Promise<{
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+}> => {
+  const normalizedMediaId = normalizeText(mediaId);
+  if (!normalizedMediaId) {
+    return {
+      previewStoragePath: null,
+      fullStoragePath: null,
+    };
+  }
+  try {
+    const supabase = ensureSupabaseClient();
+    const { data, error } = await supabase
+      .from("media_files")
+      .select("preview_storage_path, storage_path")
+      .eq("id", normalizedMediaId)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      return {
+        previewStoragePath: null,
+        fullStoragePath: null,
+      };
+    }
+    const previewStoragePath = asCanonicalStoragePath(data?.preview_storage_path);
+    const fullStoragePath =
+      asCanonicalStoragePath(data?.storage_path) ?? previewStoragePath ?? null;
+    return {
+      previewStoragePath,
+      fullStoragePath,
+    };
+  } catch {
+    return {
+      previewStoragePath: null,
+      fullStoragePath: null,
+    };
+  }
+};
+
 const refreshUrlCandidate = async (
   candidate: string | null,
   cache: Map<string, string>
@@ -57,9 +100,20 @@ const refreshUrlCandidate = async (
 export const prepareLibraryMediaIngestionPayload = async (
   payload: LibraryMediaPayload
 ): Promise<LibraryMediaPayload> => {
-  const normalizedPreviewStoragePath = asCanonicalStoragePath(payload.previewStoragePath);
+  const initialPreviewStoragePath = asCanonicalStoragePath(payload.previewStoragePath);
+  const initialFullStoragePath =
+    asCanonicalStoragePath(payload.fullStoragePath) ?? initialPreviewStoragePath;
+  const mediaIdFallbackPaths =
+    !initialPreviewStoragePath && !initialFullStoragePath
+      ? await resolveStoragePathsFromMediaId(payload.id)
+      : { previewStoragePath: null, fullStoragePath: null };
+  const normalizedPreviewStoragePath =
+    initialPreviewStoragePath ?? mediaIdFallbackPaths.previewStoragePath;
   const normalizedFullStoragePath =
-    asCanonicalStoragePath(payload.fullStoragePath) ?? normalizedPreviewStoragePath;
+    initialFullStoragePath ??
+    mediaIdFallbackPaths.fullStoragePath ??
+    normalizedPreviewStoragePath ??
+    null;
 
   const [signedPreviewUrl, signedFullUrl] = await Promise.all([
     signStoragePath(normalizedPreviewStoragePath),

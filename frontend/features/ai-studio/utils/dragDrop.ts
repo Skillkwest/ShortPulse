@@ -126,7 +126,8 @@ export const extractInternalReferenceDragPayload = (
   const width = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_WIDTH_TYPE));
   const height = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_HEIGHT_TYPE));
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
-    transfer.getData("text/reference-url")
+    transfer.getData("text/reference-url"),
+    { unwrapNextImage: false }
   );
   const hasLegacyInternalHints = Boolean(referenceId && sourceSurface);
   if (!originRaw && !hasLegacyInternalHints) return null;
@@ -385,14 +386,22 @@ const unwrapNextImageTransferUrl = (value: string): string => {
   }
 };
 
+type NormalizeReferenceTransferUrlCandidateOptions = {
+  unwrapNextImage?: boolean;
+};
+
 export const normalizeReferenceTransferUrlCandidate = (
-  value: string | null | undefined
+  value: string | null | undefined,
+  options?: NormalizeReferenceTransferUrlCandidateOptions
 ): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
   const withAbsoluteOrigin = toAbsoluteTransferUrl(trimmed);
-  const unwrapped = unwrapNextImageTransferUrl(withAbsoluteOrigin).trim();
+  const shouldUnwrapNextImage = options?.unwrapNextImage ?? true;
+  const unwrapped = (
+    shouldUnwrapNextImage ? unwrapNextImageTransferUrl(withAbsoluteOrigin) : withAbsoluteOrigin
+  ).trim();
   return unwrapped || null;
 };
 

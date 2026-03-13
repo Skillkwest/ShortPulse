@@ -2,9 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { saveMediaUrlToLibrary } from "../mediaLibraryPersistence";
 
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseClient: ensureSupabaseClientMock,
+}));
+
+vi.mock("../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: fetchWithAuthMock,
 }));
 
 const createMediaFileSelectBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => {
@@ -160,6 +165,119 @@ describe("saveMediaUrlToLibrary", () => {
     expect(upload).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(insert).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to server copy when browser fetch is blocked", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const insert = vi.fn();
+    const upload = vi.fn();
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
+        return {
+          select: vi.fn(() => selectBuilder),
+          insert,
+        };
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaFileId: "media-server-copy",
+        storagePath: "user-1/generations/images/server-copy.png",
+        fileType: "image",
+        fileSize: 123,
+        delivery: {
+          previewStoragePath: "user-1/generations/images/server-copy.png",
+          fullStoragePath: "user-1/generations/images/server-copy.png",
+          previewUrl: "https://cdn.shortpulse.test/server-copy-preview.png",
+          fullUrl: "https://cdn.shortpulse.test/server-copy-full.png",
+        },
+      }),
+    });
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.png",
+      mode: "image",
+      source: "upload",
+      index: 0,
+    });
+
+    expect(result.mediaFileId).toBe("media-server-copy");
+    expect(result.storagePath).toBe("user-1/generations/images/server-copy.png");
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+    expect(upload).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("does not use server copy fallback for explicit HTTP download failures", async () => {
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        }),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() =>
+          createMediaFileSelectBuilder(
+            vi.fn().mockResolvedValue({
+              data: null,
+              error: null,
+            })
+          )
+        ),
+      })),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+      })
+    );
+
+    await expect(
+      saveMediaUrlToLibrary({
+        url: "https://cdn.shortpulse.test/missing.png",
+        mode: "image",
+        source: "upload",
+        index: 0,
+      })
+    ).rejects.toThrow("Fetch failed (404)");
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 
   it("persists canonical image dimensions in metadata when saving new image media", async () => {

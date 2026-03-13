@@ -1,11 +1,16 @@
 /**
  * Markup stroke interaction helpers for Expert Edit.
- * Encapsulates stroke geometry, pointer sampling, and draw/erase hit-testing behavior.
+ * Encapsulates scene-space geometry, pointer sampling, and draw/erase hit-testing behavior.
  */
 
+import {
+  resolvePixelPointFromSceneSpace,
+  resolveScenePointFromPixelSpace,
+} from "./stageSceneGeometry";
+
 export type MarkupStrokePoint = {
-  xRatio: number;
-  yRatio: number;
+  sceneX: number;
+  sceneY: number;
 };
 
 export type MarkupStroke = {
@@ -87,33 +92,70 @@ export const resolveMarkupPointerPoint = ({
     x = centerX + (x - centerX - viewportOffsetX) / safeScale;
     y = centerY + (y - centerY - viewportOffsetY) / safeScale;
   }
+  const scenePoint = resolveScenePointFromPixelSpace({
+    x,
+    y,
+    spaceWidth: rect.width,
+    spaceHeight: rect.height,
+  });
   return {
-    xRatio: clampNumber(x / rect.width, 0, 1),
-    yRatio: clampNumber(y / rect.height, 0, 1),
+    sceneX: scenePoint.x,
+    sceneY: scenePoint.y,
   };
 };
 
 export const resolveMarkupStrokeSizeRatio = ({
   strokeSizePx,
-  stageWidth,
   stageHeight,
 }: {
   strokeSizePx: number;
-  stageWidth: number;
   stageHeight: number;
 }) => {
-  const stageMinDimension = Math.max(1, Math.min(stageWidth, stageHeight));
+  const safeStageHeight = Math.max(1, stageHeight);
   return clampNumber(
-    strokeSizePx / stageMinDimension,
+    strokeSizePx / safeStageHeight,
     MARKUP_STROKE_SIZE_RATIO_MIN,
     MARKUP_STROKE_SIZE_RATIO_MAX
   );
 };
 
+export const resolveMarkupStrokeWidthPx = ({
+  stroke,
+  stageHeight,
+}: {
+  stroke: MarkupStroke;
+  stageHeight: number;
+}) => Math.max(0.5, stroke.sizeRatio * Math.max(1, stageHeight));
+
+export const resolveMarkupStrokePointRadiusPx = ({
+  stroke,
+  stageHeight,
+}: {
+  stroke: MarkupStroke;
+  stageHeight: number;
+}) => Math.max(0.5, resolveMarkupStrokeWidthPx({ stroke, stageHeight }) / 2);
+
+export const resolveMarkupStrokePointToSurfacePoint = ({
+  point,
+  stageWidth,
+  stageHeight,
+}: {
+  point: MarkupStrokePoint;
+  stageWidth: number;
+  stageHeight: number;
+}) =>
+  resolvePixelPointFromSceneSpace({
+    point: {
+      x: point.sceneX,
+      y: point.sceneY,
+    },
+    spaceWidth: stageWidth,
+    spaceHeight: stageHeight,
+  });
+
 export const resolveMarkupPointDistancePx = ({
   left,
   right,
-  stageWidth,
   stageHeight,
 }: {
   left: MarkupStrokePoint;
@@ -121,8 +163,9 @@ export const resolveMarkupPointDistancePx = ({
   stageWidth: number;
   stageHeight: number;
 }) => {
-  const deltaX = (left.xRatio - right.xRatio) * stageWidth;
-  const deltaY = (left.yRatio - right.yRatio) * stageHeight;
+  const safeStageHeight = Math.max(1, stageHeight);
+  const deltaX = (left.sceneX - right.sceneX) * safeStageHeight;
+  const deltaY = (left.sceneY - right.sceneY) * safeStageHeight;
   return Math.hypot(deltaX, deltaY);
 };
 
@@ -220,35 +263,41 @@ export const resolveMarkupStrokeHit = ({
   stageHeight: number;
 }) => {
   if (!stroke.points.length) return false;
-  const pointPx = {
-    x: point.xRatio * stageWidth,
-    y: point.yRatio * stageHeight,
-  };
-  const minDimension = Math.max(1, Math.min(stageWidth, stageHeight));
-  const strokeRadius = (stroke.sizeRatio * minDimension) / 2;
+  const pointPx = resolveMarkupStrokePointToSurfacePoint({
+    point,
+    stageWidth,
+    stageHeight,
+  });
+  const strokeRadius = resolveMarkupStrokePointRadiusPx({ stroke, stageHeight });
   const hitRadius = eraserRadiusPx + strokeRadius;
   const first = stroke.points[0];
   if (!first) return false;
   if (stroke.points.length === 1) {
-    return (
-      Math.hypot(pointPx.x - first.xRatio * stageWidth, pointPx.y - first.yRatio * stageHeight) <=
-      hitRadius
-    );
+    const firstPx = resolveMarkupStrokePointToSurfacePoint({
+      point: first,
+      stageWidth,
+      stageHeight,
+    });
+    return Math.hypot(pointPx.x - firstPx.x, pointPx.y - firstPx.y) <= hitRadius;
   }
   for (let index = 1; index < stroke.points.length; index += 1) {
     const previousPoint = stroke.points[index - 1];
     const currentPoint = stroke.points[index];
     if (!previousPoint || !currentPoint) continue;
+    const previousPointPx = resolveMarkupStrokePointToSurfacePoint({
+      point: previousPoint,
+      stageWidth,
+      stageHeight,
+    });
+    const currentPointPx = resolveMarkupStrokePointToSurfacePoint({
+      point: currentPoint,
+      stageWidth,
+      stageHeight,
+    });
     const distance = resolvePointToSegmentDistancePx({
       point: pointPx,
-      start: {
-        x: previousPoint.xRatio * stageWidth,
-        y: previousPoint.yRatio * stageHeight,
-      },
-      end: {
-        x: currentPoint.xRatio * stageWidth,
-        y: currentPoint.yRatio * stageHeight,
-      },
+      start: previousPointPx,
+      end: currentPointPx,
     });
     if (distance <= hitRadius) {
       return true;
@@ -256,9 +305,3 @@ export const resolveMarkupStrokeHit = ({
   }
   return false;
 };
-
-export const resolveMarkupStrokeWidthPercent = (stroke: MarkupStroke) =>
-  Math.max(0.05, Math.min(40, stroke.sizeRatio * 100));
-
-export const resolveMarkupStrokePointRadiusPercent = (stroke: MarkupStroke) =>
-  Math.max(0.08, resolveMarkupStrokeWidthPercent(stroke) / 2);

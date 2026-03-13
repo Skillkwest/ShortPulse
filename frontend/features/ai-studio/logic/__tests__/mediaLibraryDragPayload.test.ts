@@ -36,7 +36,16 @@ describe("mediaLibraryDragPayload", () => {
       },
     });
 
-    expect(setData).toHaveBeenCalledTimes(2);
+    expect(setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-marker",
+      "shortpulse-media-library-v1"
+    );
+    expect(setData).toHaveBeenCalledWith("text/shortpulse-media-library-kind", "libraryMedia");
+    expect(setData).toHaveBeenCalledWith("text/shortpulse-media-library-id", "media-1");
+    expect(setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-url",
+      "https://example.com/a.png"
+    );
     expect(readMediaLibraryDragPayload(transfer)).toEqual({
       kind: "libraryMedia",
       source: "mediaLibrary",
@@ -55,10 +64,43 @@ describe("mediaLibraryDragPayload", () => {
     expect(readMediaLibraryDragPayload(transfer)).toBeNull();
   });
 
+  it("reconstructs library media payloads from text/* fallback marker data", () => {
+    const transfer = {
+      getData: vi.fn((type: string) => {
+        if (type === "application/x-shortpulse-media-library-item") return "";
+        if (type === "text/x-shortpulse-media-library-item") return "";
+        if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+        if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+        if (type === "text/shortpulse-media-library-id") return "media-fallback";
+        if (type === "text/shortpulse-media-library-file-type") return "image";
+        if (type === "text/reference-url") return "https://example.com/fallback.png";
+        if (type === "text/prompt") return "fallback prompt";
+        return "";
+      }),
+    } as unknown as DataTransfer;
+
+    expect(readMediaLibraryDragPayload(transfer)).toEqual({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-fallback",
+        url: "https://example.com/fallback.png",
+        fileType: "image",
+        originFolderId: null,
+        filename: null,
+        promptText: "fallback prompt",
+        source: null,
+        previewStoragePath: null,
+        fullStoragePath: null,
+        previewUrl: null,
+        fullUrl: null,
+      },
+    });
+  });
+
   it("exposes both drag transfer types", () => {
-    expect(getMediaLibraryDragTypes()).toEqual([
-      "application/x-shortpulse-media-library-item",
-      "text/x-shortpulse-media-library-item",
-    ]);
+    expect(getMediaLibraryDragTypes()).toContain("application/x-shortpulse-media-library-item");
+    expect(getMediaLibraryDragTypes()).toContain("text/x-shortpulse-media-library-item");
+    expect(getMediaLibraryDragTypes()).toContain("text/shortpulse-media-library-marker");
   });
 });

@@ -55,8 +55,8 @@ describe("markupStrokeController", () => {
     });
 
     expect(point).not.toBeNull();
-    expect(point?.xRatio ?? 0).toBeCloseTo(0.45, 3);
-    expect(point?.yRatio ?? 0).toBeCloseTo(0.55, 3);
+    expect(point?.sceneX ?? 0).toBeCloseTo(-0.1, 3);
+    expect(point?.sceneY ?? 0).toBeCloseTo(0.05, 3);
   });
 
   it("appends stroke points only after minimum movement threshold", () => {
@@ -64,14 +64,14 @@ describe("markupStrokeController", () => {
       id: "stroke-1",
       color: "#ff4fa3",
       sizeRatio: 0.05,
-      points: [{ xRatio: 0.2, yRatio: 0.2 }],
+      points: [{ sceneX: -0.3, sceneY: -0.3 }],
     };
 
     const nextStroke = appendMarkupStrokePoints({
       stroke,
       samples: [
-        { xRatio: 0.2005, yRatio: 0.2005 },
-        { xRatio: 0.28, yRatio: 0.28 },
+        { sceneX: -0.2995, sceneY: -0.2995 },
+        { sceneX: -0.22, sceneY: -0.22 },
       ],
       stageWidth: 300,
       stageHeight: 300,
@@ -79,7 +79,7 @@ describe("markupStrokeController", () => {
     });
 
     expect(nextStroke.points).toHaveLength(2);
-    expect(nextStroke.points[1]).toEqual({ xRatio: 0.28, yRatio: 0.28 });
+    expect(nextStroke.points[1]).toEqual({ sceneX: -0.22, sceneY: -0.22 });
   });
 
   it("detects stroke hit for eraser and ignores distant points", () => {
@@ -88,21 +88,21 @@ describe("markupStrokeController", () => {
       color: "#22d3ee",
       sizeRatio: 0.05,
       points: [
-        { xRatio: 0.2, yRatio: 0.2 },
-        { xRatio: 0.8, yRatio: 0.8 },
+        { sceneX: -0.3, sceneY: -0.3 },
+        { sceneX: 0.3, sceneY: 0.3 },
       ],
     };
 
     const hit = resolveMarkupStrokeHit({
       stroke,
-      point: { xRatio: 0.5, yRatio: 0.5 },
+      point: { sceneX: 0, sceneY: 0 },
       eraserRadiusPx: 6,
       stageWidth: 300,
       stageHeight: 300,
     });
     const miss = resolveMarkupStrokeHit({
       stroke,
-      point: { xRatio: 0.1, yRatio: 0.85 },
+      point: { sceneX: -0.4, sceneY: 0.35 },
       eraserRadiusPx: 6,
       stageWidth: 300,
       stageHeight: 300,

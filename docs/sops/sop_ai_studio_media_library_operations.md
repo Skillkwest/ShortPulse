@@ -38,6 +38,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - `frontend/pages/api/media/folders/delete.ts`
   - `frontend/pages/api/media/folders/membership-batch.ts`
   - `frontend/pages/api/media/list.ts`
+  - `frontend/pages/api/media/copy-from-url.ts`
   - `frontend/pages/api/media/prompts/list.ts`
   - `frontend/pages/api/ai/media-folder-canvas/[folderId].ts`
   - `frontend/pages/api/ai/media-folder-canvas/save.ts`
@@ -69,6 +70,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - `Prompts` section: prompt cards use text reference-card presentation.
 2. Search and pagination apply consistently to these sections through shared list APIs.
 3. `All Media` media pagination controls are globally discoverable at panel bottom and are not nested inside a single media section.
+4. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
 
 ### 4) Drag/drop and ingest contract
 1. Users can drag images, videos, and prompts from any folder into any folder (subject to membership semantics above).
@@ -143,6 +145,12 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 8. `All Media` completeness backfill:
    - Status: Pending rollout.
    - Current: Backfill and diagnostics exist in SQL (`064` + drift check) but require environment application/runbook execution to converge legacy missing rows.
+9. `All Media` panel preview compaction activation:
+   - Status: Aligned.
+   - Current: Adaptive panel compaction activates when either `media-library-grid` or `media-library-modal-grid` adaptive surface is enabled, with default surface fallback including both media-library surfaces when the allowlist env is unset/blank.
+10. Browser-blocked URL persistence fallback:
+   - Status: Aligned.
+   - Current: `POST /api/media/copy-from-url` provides authenticated trusted-host server-side URL fetch/persist fallback when browser media fetch is blocked by CORS/security/network conditions.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`

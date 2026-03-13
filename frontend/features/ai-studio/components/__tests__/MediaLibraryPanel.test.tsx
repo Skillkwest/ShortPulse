@@ -14,6 +14,11 @@ const mediaGridPropsSpy = vi.fn();
 const deleteMediaFileWithStorageMock = vi.fn();
 const deleteMediaPromptByIdMock = vi.fn();
 const logMediaEventMock = vi.fn();
+const isAdaptiveSurfaceEnabledMock = vi.fn();
+
+vi.mock("../../../../lib/adaptive-media", () => ({
+  isAdaptiveSurfaceEnabled: (...args: unknown[]) => isAdaptiveSurfaceEnabledMock(...args),
+}));
 
 vi.mock("../MediaLibraryFolderCanvas", () => ({
   MediaLibraryFolderCanvas: ({
@@ -277,6 +282,9 @@ describe("MediaLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mediaGridPropsSpy.mockReset();
+    isAdaptiveSurfaceEnabledMock.mockImplementation(
+      (surface: string) => surface === "media-library-modal-grid"
+    );
     deleteMediaFileWithStorageMock.mockResolvedValue(undefined);
     deleteMediaPromptByIdMock.mockResolvedValue(undefined);
     logMediaEventMock.mockResolvedValue(undefined);
@@ -470,6 +478,23 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps).toBeTruthy();
     expect(typeof latestProps.resolveCardPreviewUrl).toBe("function");
   });
+
+  it.each(["media-library-grid", "media-library-modal-grid"] as const)(
+    "enables adaptive preview quality when %s is enabled",
+    async (enabledSurface) => {
+      isAdaptiveSurfaceEnabledMock.mockImplementation(
+        (surface: string) => surface === enabledSurface
+      );
+      render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("mock-media-grid").length).toBeGreaterThan(0);
+      });
+      const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+      expect(latestProps).toBeTruthy();
+      expect(latestProps.adaptivePreviewQualityEnabled).toBe(true);
+    }
+  );
 
   it("downloads media from the panel media hover action", async () => {
     const originalCreateElement = document.createElement.bind(document);

@@ -103,6 +103,24 @@ Mitigation:
   - `upstream_http`: inspect extraction-route payload detail and trusted-host validation.
 - If failures cluster by one model, compare with an alternate vision model using the same input and prompt contract.
 
+## Reference Grid -> Styles drop shows blocked-source guidance
+Symptoms:
+- Styles Library shows: `This image source blocks browser access. Download the image and drop the file directly.`
+- Internal Reference Grid image drag fails even when the card appears fresh.
+
+Checklist:
+- Confirm drag payload is internal (`text/reference-origin=ai-studio-reference-grid`) and includes `text/reference-output-id`.
+- Confirm style intake keeps same-origin `/_next/image` transfer URLs for internal drops (do not unwrap to upstream host before fetch).
+- Confirm fallback persistence route is available:
+  - `POST /api/media/copy-from-url`
+- Confirm trusted-host policy includes required media hosts (Supabase host and configured direct media allowlist as needed).
+- Confirm `media_files` drift is remediated (run `sql/check_media_all_media_completeness_drift.sql`; apply `sql/migrations/064_backfill_media_files_from_storage_objects.sql` when needed).
+
+Mitigation:
+- Re-open/re-add the reference to refresh stale signed URLs.
+- If browser fetch is blocked, rely on server copy fallback (`/api/media/copy-from-url`) instead of direct browser download.
+- If trusted-host validation rejects the URL, add the host through the media direct-preview allowlist policy or use a user-uploaded source file.
+
 ## Expert Edit `@img` prompt references fail or look incorrect
 Symptoms:
 - Clicking Generate with prompt tokens (`@img1..@img3`) shows warning/error and submit does not start.
@@ -353,6 +371,15 @@ Checklist:
   - signed URL requests are only for visible/buffered cards,
   - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
   - device/network constraints are applying reduced sign/autoplay budgets.
+- If AI Studio `All Media` is specifically slow for `generations_images`, run:
+  - `sql/check_media_preview_variant_coverage_and_size.sql`
+  - review `ai_studio` + `image` rows for:
+    - low thumb/preview variant coverage
+    - large `p50_bytes` / `p90_bytes`
+  - verify panel compaction flags:
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
+    - `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED=true`
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid` or `media-library-modal-grid`
 - Inspect open-to-first-media attribution events:
   - `media.route.open_to_first_media`
   - `media.modal.open_to_first_media`

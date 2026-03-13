@@ -231,6 +231,7 @@ Billing safety note:
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.
 - Migration `063_add_media_folder_canvas_states.sql` adds per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion.
 - Migration `064_backfill_media_files_from_storage_objects.sql` backfills missing durable `media_files` rows from `storage.objects` for All Media completeness (idempotent user/path insert checks, transient/character/variant exclusions, and rollback-target metadata tagging).
+- Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 
 ## Media storage scope verification (post-017)
 

@@ -35,6 +35,11 @@ Key constraints:
    - Persist markup points and inpaint mask sampling in centered, height-normalized scene space.
    - Map `surface <-> scene` and `scene <-> mask` with one uniform scale + center offset (no independent x/y stretch paths).
    - Aspect changes are framing-only: content can be clipped by the new frame but is never rescaled to fit.
+7. Hoist Expert Edit session persistence into one versioned contract:
+   - Replace layer-only persistence with `ExpertEditSessionState` (`version`, `layers`, `markup`, `inpaint`).
+   - Persist full markup/inpaint history stacks (`past/present/future`) plus layer stack state in page scope.
+   - Scope persistence to active AI Studio page session workflow/tool switches; reset session payload on `sid` change.
+   - Use semantic equality checks plus single-frame coalescing before parent dispatch to avoid high-frequency state churn during drawing/dragging.
 
 ## Consequences
 Positive:
@@ -44,17 +49,21 @@ Positive:
 4. Viewport camera semantics are now surface-agnostic and stable under different stage sizes.
 5. Compaction changes can be applied through modal-scoped tokens without changing behavior contracts.
 6. Aspect-ratio switches now preserve stroke/mask geometry across all supported ratios (`1:1`, `16:9`, `9:16`, `4:5`, `5:4`, etc.) with crop-by-frame semantics.
+7. Expert Edit layer/markup/inpaint state now survives tool/workflow tab switches in the same AI Studio session while preserving Undo/Redo continuity.
 
 Tradeoffs:
 1. Additional internal hook/component files increase internal module count.
 2. Router/controller boundaries require dependency discipline to avoid over-coupling.
-3. Test maintenance now includes explicit parity coverage for both surfaces.
+3. Test maintenance now includes explicit parity coverage for both surfaces and session-state hydration/remount behavior.
 
 ## Links
 - `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`
 - `frontend/features/ai-studio/components/edit/useExpertEditStageInteractionRouter.ts`
 - `frontend/features/ai-studio/components/edit/useInpaintMaskController.ts`
 - `frontend/features/ai-studio/components/edit/ExpertEditMarkupModalShell.tsx`
+- `frontend/features/ai-studio/components/edit/expertEditSessionState.ts`
+- `frontend/features/ai-studio/hooks/useAiStudioState.ts`
 - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
 - `docs/sops/sop_image_generation.md`
 - `docs/planning/evidence/ai-studio-expert-edit/2026-03-12-markup-modal-parity-matrix.md`
+- `docs/planning/evidence/ai-studio-expert-edit/2026-03-13-expert-edit-session-persistence-markup-inpaint.md`

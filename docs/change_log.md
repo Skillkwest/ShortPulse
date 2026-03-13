@@ -2835,3 +2835,14 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added runtime flags parser (`mediaDerivativesRuntimeFlags`) and focused tests for route behavior + flag parsing.
 - Updated runtime SQL security audit expected-function checks to include derivative RPCs.
 - Synced docs/operations references across README, API internal route inventory, migration runbooks, performance/media SOPs, security checklist, data dictionary, ADR index, and added ADR `0037` for Supabase-first derivative-worker architecture.
+
+## 2026-03-13 (production Supabase credential wiring + migration guardrail)
+- Updated production environment wiring posture for Supabase: documented required Vercel Production keys (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) and GitHub Environment `SUPABASE_DB_URL` targeting in `docs/deployment.md`.
+- Added deployment-time verification guidance for environment scoping (`production` vs `staging`) and retained staging isolation expectations for Vercel Preview.
+- Added temporary migration safety guardrail script `scripts/db_migrate_guardrail.mjs` and rewired `npm run db:migrate` to fail closed until hosted migration authority is unified.
+- Updated `docs/database-migrations.md` with explicit hosted promotion policy: environment-pinned SQL apply required for staging/production and explicit `--project-ref` pinning required for production one-off CLI operations.
+
+## 2026-03-13 (production Supabase cutover handoff log + resume runbook)
+- Added a comprehensive paused-state handoff document at `docs/planning/supabase-production-cutover-handoff-2026-03-13.md` with full execution status, environment topology, validation evidence, open risks, and a phased resume plan.
+- Recorded production cutover evidence in the handoff doc: runtime smoke status, preview isolation status, media drift/constraint status, runtime SQL audit status, and unresolved CI workflow discoverability gap.
+- Updated docs discoverability indexes (`docs/README.md`, `docs/planning/README.md`) so the cutover handoff can be found quickly when resuming implementation.

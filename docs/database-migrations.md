@@ -40,6 +40,12 @@ cd frontend
 npm run db:migrate
 ```
 
+Current guardrail policy:
+- `npm run db:migrate` is intentionally blocked for hosted promotion.
+- Reason: canonical migration authority is `sql/migrations/`, while default Supabase CLI push posture targets `supabase/migrations/`.
+- For hosted staging/production promotion, use environment-pinned SQL apply paths (for example, `psql "$SUPABASE_DB_URL" -f sql/migrations/<NNN_file>.sql`) and the existing environment-gated GitHub workflows.
+- For production-targeted one-off Supabase CLI commands, require explicit target pinning with `--project-ref <production-ref>`.
+
 For reset/testing:
 
 ```bash
@@ -54,6 +60,10 @@ npm run db:reset
 3. Apply production migrations.
 4. Deploy app code dependent on the migration.
 5. Run post-deploy smoke checks.
+
+Safety posture:
+- Keep the local default Supabase link on staging.
+- Do not rely on implicit linked-project targeting for production operations.
 
 ## Rollback strategy
 

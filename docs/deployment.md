@@ -103,6 +103,24 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
   - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED` (emergency only)
 
+### Production Supabase credential wiring (required)
+
+Set the following values in Vercel `Production` (only):
+- `NEXT_PUBLIC_SUPABASE_URL=https://<production-project-ref>.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY=<production-client-key>`
+- `SUPABASE_SERVICE_ROLE_KEY=<production-server-key>`
+
+Keep Vercel `Preview` mapped to staging Supabase values.
+
+Set GitHub Environment secret `SUPABASE_DB_URL` for:
+- `production` -> `postgresql://postgres:<password>@db.<production-project-ref>.supabase.co:5432/postgres?sslmode=require`
+- `staging` -> staging database URL (unchanged)
+
+Verification:
+- `gh secret list --env production` includes `SUPABASE_DB_URL`.
+- `gh secret list --env staging` includes `SUPABASE_DB_URL` and remains staging-scoped.
+- `Media Storage Deploy Gate` runs cleanly for `target_environment=production`.
+
 ### Staging env parity check (recommended)
 
 Before deploying from a staged env export file, validate required keys:
@@ -260,6 +278,11 @@ Use `/api/admin/generation-recovery/replay` only for residual outlier IDs after 
 2. Run migrations in staging and validate app flows.
 3. Apply to production during a controlled deploy window.
 4. Deploy app code after migration success is confirmed.
+
+Guardrail:
+- Do not use implicit local `supabase db push` for hosted promotion.
+- Use environment-pinned SQL apply execution for staging/production.
+- For any production-targeted Supabase CLI one-off, require explicit `--project-ref <production-ref>`.
 
 ## Domain + TLS
 

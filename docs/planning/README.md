@@ -16,6 +16,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ci-policy-checks.md`: CI job inventory, governance checks, and branch-protection mapping.
 - `final-validation-summary.md`: closeout validation matrix and signoff checklist.
 - `backlog.md`: active and upcoming work.
+- `supabase-production-cutover-handoff-2026-03-13.md`: paused-state handoff log for production Supabase cutover (status, evidence, risks, resume runbook).
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.
 - `mvp-pretester-full-audit-remediation-plan.md`: full-app audit remediation runbook for pre-tester release hardening.

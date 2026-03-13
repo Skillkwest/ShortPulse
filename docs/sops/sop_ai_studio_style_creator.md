@@ -108,6 +108,11 @@ Required metadata keys:
 - `model_used`
 - `error_class`
 - `error`
+- `classifier_reason`
+- `resolution_stage`
+- `resolution_reason`
+- `candidate_count`
+- `server_copy_attempted`
 
 Failure class mapping:
 - `timeout`: deadline exceeded.

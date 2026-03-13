@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-02-19
+Last audited: 2026-03-13
 
 How to use:
 - Keep this list execution-focused and current.
@@ -46,6 +46,8 @@ Tooling audit references:
 - [ ] Redesign Character Manager with a more polished UI, modeled after the AI Studio character workflow experience.
 
 ## AI Studio
+- [ ] P0 deferred incident: Reference Grid -> Styles internal image drop reliability remains unresolved; resume only with characterization-first payload capture and golden-path rebaseline.
+  Reference: `docs/known-issues.md` (P0 AI Studio Reference Grid -> Styles drop reliability remains broken, deferred March 13, 2026)
 - [ ] AI Studio: generation runtime stabilization pivot (single runtime entrypoint, no bespoke generation paths). Tracker: `docs/planning/ai-studio-generation-runtime-stabilization.md`.
 - [ ] AI Studio generation runtime stabilization - S0 (Traceability Baseline). `docs/planning/ai-studio-generation-runtime-stabilization.md#s0-traceability-baseline-golden-path-scope`
 - [ ] AI Studio generation runtime stabilization - S1 (Runtime Boundary Lock). `docs/planning/ai-studio-generation-runtime-stabilization.md#s1-runtime-boundary-lock`

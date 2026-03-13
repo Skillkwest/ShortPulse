@@ -169,6 +169,8 @@ Mitigation:
 - If failures cluster by one model, compare with an alternate vision model using the same input and prompt contract.
 
 ## Reference Grid -> Styles drop shows blocked-source guidance
+Known major unresolved incident: see `docs/known-issues.md` (P0 Reference Grid -> Styles drop reliability, deferred March 13, 2026).
+
 Symptoms:
 - Styles Library shows: `This image source blocks browser access. Download the image and drop the file directly.`
 - Internal Reference Grid image drag fails even when the card appears fresh.
@@ -178,6 +180,8 @@ Checklist:
 - Confirm style intake keeps same-origin `/_next/image` transfer URLs for internal drops (do not unwrap to upstream host before fetch).
 - Confirm fallback persistence route is available:
   - `POST /api/media/copy-from-url`
+- Confirm fallback lane toggle is enabled unless intentionally isolating happy-path behavior:
+  - `NEXT_PUBLIC_AI_STUDIO_STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED=true`
 - Confirm trusted-host policy includes required media hosts (Supabase host and configured direct media allowlist as needed).
 - Confirm `media_files` drift is remediated (run `sql/check_media_all_media_completeness_drift.sql`; apply `sql/migrations/064_backfill_media_files_from_storage_objects.sql` when needed).
 

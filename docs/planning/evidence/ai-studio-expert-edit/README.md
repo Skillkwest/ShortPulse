@@ -13,6 +13,9 @@ Central index for evidence artifacts supporting the Expert Edit properties panel
 3. `2026-03-12-aspect-framing-no-distortion-closure.md`
    - Aspect-switch closure artifact for no-distortion framing behavior across inline + modal stages.
    - Captures isotropic scene-space mapping contract and regression validation set.
+4. `2026-03-13-expert-edit-session-persistence-markup-inpaint.md`
+   - Closure artifact for unified Expert Edit page-session persistence (`layers` + `markup` + `inpaint`).
+   - Captures hydration/remount behavior and strict validation command results.
 
 ## Maintenance
 1. Add a dated artifact for any future provider-capability changes that affect Expert Edit guardrails.

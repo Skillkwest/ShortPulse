@@ -35,6 +35,7 @@ Start here for all repository documentation.
 - `docs/contributor-guide.md`
 - `docs/troubleshooting.md`
 - `docs/known-issues.md`
+  - Includes current P0 defer record: AI Studio Reference Grid -> Styles drop reliability blocker (March 13, 2026).
 - `docs/glossary.md`
 - `docs/monitoring.md`
 - `docs/disaster-recovery.md`
@@ -129,6 +130,7 @@ Start here for all repository documentation.
 - `docs/planning/ci-policy-checks.md`
 - `docs/planning/final-validation-summary.md`
 - `docs/planning/backlog.md`
+- `docs/planning/supabase-production-cutover-handoff-2026-03-13.md`
 - `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`
 - `docs/planning/mvp-pretester-full-audit-remediation-plan.md`

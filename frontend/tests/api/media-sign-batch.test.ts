@@ -34,15 +34,15 @@ describe("POST /api/media/sign-batch", () => {
 
   it("signs a user-scoped path that contains ellipses in filename", async () => {
     const path = "user-1/private/images/example...file.png";
-    const createSignedUrlsMock = vi.fn(async () => ({
-      data: [{ path, signedUrl: "https://example.test/signed" }],
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://example.test/signed" },
       error: null,
     }));
 
     getSupabaseAdminMock.mockReturnValue({
       storage: {
         from: vi.fn(() => ({
-          createSignedUrls: createSignedUrlsMock,
+          createSignedUrl: createSignedUrlMock,
         })),
       },
     });
@@ -58,7 +58,7 @@ describe("POST /api/media/sign-batch", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).toHaveBeenCalledWith([path], 3600);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {
@@ -68,15 +68,15 @@ describe("POST /api/media/sign-batch", () => {
   });
 
   it("rejects traversal-style segments while allowing valid requests", async () => {
-    const createSignedUrlsMock = vi.fn(async () => ({
-      data: [],
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://example.test/signed" },
       error: null,
     }));
 
     getSupabaseAdminMock.mockReturnValue({
       storage: {
         from: vi.fn(() => ({
-          createSignedUrls: createSignedUrlsMock,
+          createSignedUrl: createSignedUrlMock,
         })),
       },
     });
@@ -92,21 +92,21 @@ describe("POST /api/media/sign-batch", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ urls: {} });
   });
 
   it("accepts reference-grid telemetry surface labels for cross-surface signing", async () => {
     const path = "user-1/upload/reference-card.png";
-    const createSignedUrlsMock = vi.fn(async () => ({
-      data: [{ path, signedUrl: "https://example.test/reference-signed" }],
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://example.test/reference-signed" },
       error: null,
     }));
     getSupabaseAdminMock.mockReturnValue({
       storage: {
         from: vi.fn(() => ({
-          createSignedUrls: createSignedUrlsMock,
+          createSignedUrl: createSignedUrlMock,
         })),
       },
     });
@@ -126,6 +126,49 @@ describe("POST /api/media/sign-batch", () => {
     await handler(req as never, res as never);
 
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-sign-surface", "reference-grid");
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-sign-preview-profile", "none");
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("applies media-library panel transform profile for image paths", async () => {
+    const path = "user-1/uploads/images/panel-image.jpg";
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://example.test/panel-signed" },
+      error: null,
+    }));
+
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: [path],
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "x-shortpulse-media-sign-preview-profile",
+      "media-library-panel-image-card"
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
+      transform: {
+        width: 512,
+        quality: 50,
+        resize: "contain",
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });

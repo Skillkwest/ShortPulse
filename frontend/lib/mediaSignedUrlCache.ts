@@ -3,6 +3,11 @@
  * Deduplicates concurrent sign requests and reuses URLs until shortly before expiry.
  */
 import { fetchWithAuth } from "./authenticatedFetch";
+import {
+  resolvePreviewProfileForSurface,
+  resolveSignedImageTransform,
+  type MediaPreviewTransformProfile,
+} from "./mediaPreviewTransformProfile";
 import { ensureSupabaseClient } from "./supabaseClient";
 
 type SignedMediaUrlOptions = {
@@ -10,6 +15,7 @@ type SignedMediaUrlOptions = {
   storagePath: string;
   expiresInSeconds?: number;
   forceRefresh?: boolean;
+  previewProfile?: MediaPreviewTransformProfile;
 };
 
 type SignedMediaUrlCacheEntry = {
@@ -25,12 +31,14 @@ type SignedMediaUrlBatchOptions = {
   surface?:
     | "media-library-route"
     | "media-library-modal"
+    | "media-library-panel"
     | "reference-grid"
     | "quick-slot"
     | "character-grid"
     | "detail-modal";
   queryMode?: "default" | "search";
   tab?: string;
+  previewProfile?: MediaPreviewTransformProfile;
 };
 
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
@@ -47,7 +55,11 @@ const BATCH_SIGN_CHUNK_CONCURRENCY = Math.min(
 const signedUrlCache = new Map<string, SignedMediaUrlCacheEntry>();
 const inFlightSignedUrlRequests = new Map<string, Promise<string | null>>();
 
-const cacheKeyFor = (bucket: string, storagePath: string) => `${bucket}:${storagePath}`;
+const cacheKeyFor = (
+  bucket: string,
+  storagePath: string,
+  previewProfile: MediaPreviewTransformProfile
+) => `${bucket}:${storagePath}:${previewProfile}`;
 
 const chunkStoragePaths = (storagePaths: string[], chunkSize: number): string[][] => {
   const chunks: string[][] = [];
@@ -102,18 +114,23 @@ const pruneSignedUrlCache = () => {
 const setCachedUrl = (
   bucket: string,
   storagePath: string,
+  previewProfile: MediaPreviewTransformProfile,
   signedUrl: string,
   expiresInSeconds: number
 ) => {
-  signedUrlCache.set(cacheKeyFor(bucket, storagePath), {
+  signedUrlCache.set(cacheKeyFor(bucket, storagePath, previewProfile), {
     url: signedUrl,
     expiresAtMs: Date.now() + expiresInSeconds * 1000,
   });
   pruneSignedUrlCache();
 };
 
-const getCachedUrl = (bucket: string, storagePath: string): string | null => {
-  const key = cacheKeyFor(bucket, storagePath);
+const getCachedUrl = (
+  bucket: string,
+  storagePath: string,
+  previewProfile: MediaPreviewTransformProfile
+): string | null => {
+  const key = cacheKeyFor(bucket, storagePath, previewProfile);
   const now = Date.now();
   const cached = signedUrlCache.get(key);
   if (!cached) return null;
@@ -130,12 +147,14 @@ const getCachedUrl = (bucket: string, storagePath: string): string | null => {
 const signStoragePathDirect = async (
   bucket: string,
   storagePath: string,
-  expiresInSeconds: number
+  expiresInSeconds: number,
+  previewProfile: MediaPreviewTransformProfile
 ): Promise<string | null> => {
   const supabase = ensureSupabaseClient();
+  const transform = resolveSignedImageTransform(previewProfile, storagePath);
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(storagePath, expiresInSeconds);
+    .createSignedUrl(storagePath, expiresInSeconds, transform ? { transform } : undefined);
   if (error) throw error;
   return data?.signedUrl ?? null;
 };
@@ -144,7 +163,12 @@ const signStoragePathsViaApi = async (
   bucket: string,
   storagePaths: string[],
   expiresInSeconds: number,
-  options?: { surface?: string; queryMode?: string; tab?: string }
+  options?: {
+    surface?: string;
+    queryMode?: string;
+    tab?: string;
+    previewProfile?: MediaPreviewTransformProfile;
+  }
 ): Promise<Record<string, string | null> | null> => {
   if (!storagePaths.length) return {};
   const response = await fetchWithAuth("/api/media/sign-batch", {
@@ -159,6 +183,7 @@ const signStoragePathsViaApi = async (
       surface: options?.surface,
       queryMode: options?.queryMode,
       tab: options?.tab,
+      previewProfile: options?.previewProfile,
     }),
     shortpulseLogScope: "app",
   }).catch(() => null);
@@ -178,11 +203,12 @@ export const getSignedMediaUrl = async ({
   storagePath,
   expiresInSeconds = DEFAULT_SIGNED_URL_TTL_SECONDS,
   forceRefresh = false,
+  previewProfile = "none",
 }: SignedMediaUrlOptions): Promise<string | null> => {
   if (!storagePath) return null;
-  const key = cacheKeyFor(bucket, storagePath);
+  const key = cacheKeyFor(bucket, storagePath, previewProfile);
   if (!forceRefresh) {
-    const cachedUrl = getCachedUrl(bucket, storagePath);
+    const cachedUrl = getCachedUrl(bucket, storagePath, previewProfile);
     if (cachedUrl) return cachedUrl;
   }
 
@@ -192,9 +218,9 @@ export const getSignedMediaUrl = async ({
   }
 
   const task = (async () => {
-    const url = await signStoragePathDirect(bucket, storagePath, expiresInSeconds);
+    const url = await signStoragePathDirect(bucket, storagePath, expiresInSeconds, previewProfile);
     if (url) {
-      setCachedUrl(bucket, storagePath, url, expiresInSeconds);
+      setCachedUrl(bucket, storagePath, previewProfile, url, expiresInSeconds);
     } else {
       signedUrlCache.delete(key);
     }
@@ -220,7 +246,10 @@ export const getSignedMediaUrlsBatch = async ({
   surface,
   queryMode,
   tab,
+  previewProfile,
 }: SignedMediaUrlBatchOptions): Promise<Map<string, string | null>> => {
+  const resolvedPreviewProfile =
+    previewProfile ?? resolvePreviewProfileForSurface(surface ?? undefined);
   const dedupedPaths = Array.from(new Set(storagePaths.map((path) => path.trim()).filter(Boolean)));
   const result = new Map<string, string | null>();
   if (!dedupedPaths.length) return result;
@@ -228,7 +257,7 @@ export const getSignedMediaUrlsBatch = async ({
   const unresolvedPaths: string[] = [];
   for (const path of dedupedPaths) {
     if (!forceRefresh) {
-      const cachedUrl = getCachedUrl(bucket, path);
+      const cachedUrl = getCachedUrl(bucket, path, resolvedPreviewProfile);
       if (cachedUrl) {
         result.set(path, cachedUrl);
         continue;
@@ -244,7 +273,7 @@ export const getSignedMediaUrlsBatch = async ({
   const ownedDeferredByPath = new Map<string, ReturnType<typeof createDeferred<string | null>>>();
   const resolvedOwnedByPath = new Map<string, string | null>();
   for (const path of unresolvedPaths) {
-    const key = cacheKeyFor(bucket, path);
+    const key = cacheKeyFor(bucket, path, resolvedPreviewProfile);
     const inFlight = !forceRefresh ? inFlightSignedUrlRequests.get(key) : undefined;
     if (inFlight && !forceRefresh) {
       pendingSharedByPath.set(path, inFlight);
@@ -272,9 +301,9 @@ export const getSignedMediaUrlsBatch = async ({
 
   const settleOwnedPath = (path: string, signedUrl: string | null) => {
     if (signedUrl) {
-      setCachedUrl(bucket, path, signedUrl, expiresInSeconds);
+      setCachedUrl(bucket, path, resolvedPreviewProfile, signedUrl, expiresInSeconds);
     } else {
-      signedUrlCache.delete(cacheKeyFor(bucket, path));
+      signedUrlCache.delete(cacheKeyFor(bucket, path, resolvedPreviewProfile));
     }
     resolvedOwnedByPath.set(path, signedUrl);
     const deferred = ownedDeferredByPath.get(path);
@@ -298,6 +327,7 @@ export const getSignedMediaUrlsBatch = async ({
               surface,
               queryMode,
               tab,
+              previewProfile: resolvedPreviewProfile,
             }
           );
           if (apiResults) {
@@ -312,9 +342,12 @@ export const getSignedMediaUrlsBatch = async ({
 
         await Promise.all(
           unresolvedChunk.map(async (path) => {
-            const signedUrl = await signStoragePathDirect(bucket, path, expiresInSeconds).catch(
-              () => null
-            );
+            const signedUrl = await signStoragePathDirect(
+              bucket,
+              path,
+              expiresInSeconds,
+              resolvedPreviewProfile
+            ).catch(() => null);
             settleOwnedPath(path, signedUrl ?? null);
           })
         );
@@ -338,5 +371,9 @@ export const getSignedMediaUrlsBatch = async ({
  */
 export const invalidateSignedMediaUrl = (bucket: string, storagePath?: string | null) => {
   if (!storagePath) return;
-  signedUrlCache.delete(cacheKeyFor(bucket, storagePath));
+  const prefix = `${bucket}:${storagePath}:`;
+  for (const key of signedUrlCache.keys()) {
+    if (!key.startsWith(prefix)) continue;
+    signedUrlCache.delete(key);
+  }
 };

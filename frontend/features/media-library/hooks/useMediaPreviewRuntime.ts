@@ -12,6 +12,7 @@ import {
   type SetStateAction,
 } from "react";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { type MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   hydrateMediaPreviewViaStorageDownload,
@@ -74,7 +75,7 @@ type UseMediaPreviewRuntimeResult<TRow extends PreviewRuntimeRowBase> = {
   signPassNonce: number;
   signStoragePath: (
     storagePath: string,
-    options?: { forceRefresh?: boolean }
+    options?: { forceRefresh?: boolean; previewProfile?: MediaPreviewTransformProfile }
   ) => Promise<string | null>;
   signedUrlRetryRef: MutableRefObject<Record<string, number>>;
   visibleMediaIdsRef: MutableRefObject<Set<string>>;
@@ -238,8 +239,10 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   }, []);
 
   const signStoragePath = useCallback(
-    (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
-      signMediaStoragePath(storagePath, options),
+    (
+      storagePath: string,
+      options?: { forceRefresh?: boolean; previewProfile?: MediaPreviewTransformProfile }
+    ): Promise<string | null> => signMediaStoragePath(storagePath, options),
     []
   );
 
@@ -324,6 +327,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
         tab,
         rows,
         applySignedUrlsToTab,
+        surface: "media-library-route",
       }),
     [applySignedUrlsToTab]
   );
@@ -337,6 +341,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
     signedUrlRetryRef,
     objectUrlByMediaIdRef,
     resolveTabForRow: getMediaDataTabForRow,
+    previewProfile: "media-library-route-image-card",
   });
 
   const markFirstMediaPaint = useCallback(

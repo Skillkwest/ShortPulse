@@ -3,6 +3,10 @@
  * Provides tab-filtered keyset paging plus optional first-slice signed URL hydration.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import {
+  resolvePreviewProfileForSurface,
+  resolveSignedImageTransform,
+} from "../../../lib/mediaPreviewTransformProfile";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -18,7 +22,7 @@ import {
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
 } from "../../../lib/server/mediaFoldersService";
 
-type MediaListSurface = "media-library-route" | "media-library-modal";
+type MediaListSurface = "media-library-route" | "media-library-modal" | "media-library-panel";
 type MediaListMediaKind = "all" | "images" | "videos";
 
 type MediaListCursor = {
@@ -61,11 +65,13 @@ const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 
 const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 36,
+  "media-library-panel": 36,
   "media-library-route": 60,
 };
 
 const INITIAL_SIGN_BUDGET_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 6,
+  "media-library-panel": 6,
   "media-library-route": 10,
 };
 const INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL: Partial<Record<MediaQueryDataTab, number>> = {
@@ -101,7 +107,11 @@ const asRecord = (value: unknown): Record<string, unknown> => {
 };
 
 const toSurface = (value: unknown): MediaListSurface | null => {
-  if (value === "media-library-route" || value === "media-library-modal") {
+  if (
+    value === "media-library-route" ||
+    value === "media-library-modal" ||
+    value === "media-library-panel"
+  ) {
     return value;
   }
   return null;
@@ -222,49 +232,44 @@ const resolveInitialSignedById = async ({
   const seedRows = rows.slice(0, signBudget);
   if (!seedRows.length) return {};
 
+  const previewProfile = resolvePreviewProfileForSurface(surface);
   const candidatesById = new Map<string, string[]>();
-  const signPathSet = new Set<string>();
   for (const row of seedRows) {
     const candidates = resolveMediaSigningStoragePaths(row, userId).filter((path) =>
       isSafeScopedPath(path, userId)
     );
     if (!candidates.length) continue;
     candidatesById.set(row.id, candidates);
-    for (const path of candidates) {
-      signPathSet.add(path);
-    }
   }
-  const pathsToSign = Array.from(signPathSet);
-  if (!pathsToSign.length) return {};
+  if (!candidatesById.size) return {};
 
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin.storage
-    .from(MEDIA_BUCKET)
-    .createSignedUrls(pathsToSign, DEFAULT_SIGNED_URL_TTL_SECONDS);
-  if (error) return {};
-
-  const signedByPath = new Map<string, string | null>();
-  for (const item of data ?? []) {
-    const path =
-      typeof (item as { path?: unknown }).path === "string"
-        ? (item as { path: string }).path.trim()
-        : "";
-    if (!path) continue;
-    const signedUrl =
-      typeof (item as { signedUrl?: unknown }).signedUrl === "string"
-        ? ((item as { signedUrl: string }).signedUrl || "").trim()
-        : "";
-    signedByPath.set(path, signedUrl || null);
-  }
-
   const signedById: Record<string, string | null> = {};
-  for (const [id, candidates] of candidatesById.entries()) {
-    const signedUrl = candidates
-      .map((candidate) => signedByPath.get(candidate) ?? null)
-      .find((value) => Boolean(value));
-    if (!signedUrl) continue;
-    signedById[id] = signedUrl;
-  }
+  await Promise.all(
+    seedRows.map(async (row) => {
+      const candidates = candidatesById.get(row.id) ?? [];
+      if (!candidates.length) return;
+      const isImage = (row.file_type ?? "").toLowerCase().startsWith("image");
+      let resolvedUrl: string | null = null;
+      for (const candidate of candidates) {
+        const transform = isImage ? resolveSignedImageTransform(previewProfile, candidate) : null;
+        const { data, error } = await supabaseAdmin.storage
+          .from(MEDIA_BUCKET)
+          .createSignedUrl(
+            candidate,
+            DEFAULT_SIGNED_URL_TTL_SECONDS,
+            transform ? { transform } : undefined
+          );
+        if (error || !data?.signedUrl) continue;
+        resolvedUrl = data.signedUrl;
+        break;
+      }
+      if (resolvedUrl) {
+        signedById[row.id] = resolvedUrl;
+      }
+    })
+  );
+
   return signedById;
 };
 

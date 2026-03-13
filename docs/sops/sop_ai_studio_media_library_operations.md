@@ -151,6 +151,12 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 10. Browser-blocked URL persistence fallback:
    - Status: Aligned.
    - Current: `POST /api/media/copy-from-url` provides authenticated trusted-host server-side URL fetch/persist fallback when browser media fetch is blocked by CORS/security/network conditions.
+11. Signed preview delivery for media-library card surfaces:
+   - Status: Aligned.
+   - Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware transform profiles and do not route signed object URLs through `/_next/image`.
+12. Derivative worker pipeline for image thumbs:
+   - Status: In rollout.
+   - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`
@@ -181,6 +187,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 6. Deletion invariants:
    - Custom folder delete preserves master rows in `All Media`.
    - Root delete permanently removes item from library/storage.
+7. Derivative processing invariants:
+   - New image rows enter derivative queue (`processing_status='pending'`) and transition to `ready` when a thumb variant is generated.
+   - Worker auth is cron-secret/bearer only and must fail closed when disabled.
 
 ## Related docs
 - `docs/sops/sop_media_library_ui.md`
@@ -191,3 +200,4 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
 - `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
 - `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`
+- `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`

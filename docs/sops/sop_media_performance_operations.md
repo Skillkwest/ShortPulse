@@ -18,6 +18,8 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - `frontend/lib/mediaSignedUrlCache.ts`
 - Batch signing API:
   - `frontend/pages/api/media/sign-batch.ts`
+- Resolve-previews API:
+  - `frontend/pages/api/media/resolve-previews.ts`
 - Server-authoritative list API:
   - `frontend/pages/api/media/list.ts`
 - Media Library route:
@@ -68,7 +70,14 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 2. Confirm `POST /api/media/sign-batch` is called during lazy-sign passes.
 3. Confirm response status is `200` and payload contains:
    - `urls: { "<storage_path>": "<signed_url>|null" }`
-4. Confirm failed entries degrade to placeholder (not a blocking error state).
+4. Confirm media-library surfaces (`route/modal/panel`) return `x-shortpulse-media-sign-preview-profile` and transformed signed URLs for images.
+5. Confirm failed entries degrade to placeholder (not a blocking error state).
+
+### 2b) Validate Next Optimizer Bypass Contract
+1. Load media-heavy `All Media` on route/modal/panel.
+2. Confirm image card `src` values stay as Supabase signed URLs and are not rewritten to `/_next/image?...`.
+3. Confirm `/api/media/resolve-previews` responses include `x-shortpulse-media-resolve-preview-profile`.
+4. Confirm detail modal/download remain full-quality (no quality regression).
 
 ### 3) Validate Reference Grid Autoplay Budget
 1. Open AI Studio with multiple visible video cards.
@@ -109,6 +118,7 @@ window.__shortpulseMediaPerf?.signStats();
 Key indicators:
 - `p95_duration_ms` for `media.sign.batch.completed`
 - `failed_ratio` grouped by `surface`/`tab`/`query_mode`
+- `preview_delivery_mode`, `optimizer_bypassed`, `source_class`, and `error_kind` dimensions on `media.sign.batch.completed` / `media.sign.batch.failed`
 - first-card/first-media-paint timing trends
 - open-to-first-media timers:
   - `media.route.open_to_first_media`
@@ -173,7 +183,7 @@ Key indicators:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY`
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist)
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY` (global kill switch)
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED` (AI Studio panel-only fixed preview compression experiment)
+- `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED` (AI Studio panel compression gate; no Next optimizer wrapping for signed object URLs)
   - Panel compaction activation behavior:
     - AI Studio Media Library panel preview compaction is active when either surface is enabled:
       - `media-library-grid`
@@ -281,7 +291,18 @@ Monitor these events during rollout:
     - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes either `media-library-grid` or `media-library-modal-grid` (recommended: include both).
   - Run diagnostics script:
     - `sql/check_media_preview_variant_coverage_and_size.sql`
-  - If `ai_studio` image rows show low variant coverage and high p50/p90 bytes, expect slower first paint for panel cards until derivative rollout is implemented.
+  - If `ai_studio` image rows show low variant coverage and high p50/p90 bytes, enable and verify derivative worker rollout:
+    - `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=true`
+    - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret>`
+    - scheduler/ops call `POST /api/internal/media-derivatives/run`
+    - backlog diagnostics: `sql/check_media_derivative_processing_backlog.sql`
+  - Validate worker metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`) and check `media_files.processing_last_error` for exhausted rows.
+- Symptom: repeated `/_next/image` `500` responses for Supabase signed media URLs.
+  - Verify media-library card previews are not being rewritten to `/_next/image`.
+  - Verify API headers:
+    - `/api/media/sign-batch` -> `x-shortpulse-media-sign-preview-profile`
+    - `/api/media/resolve-previews` -> `x-shortpulse-media-resolve-preview-profile`
+  - If responses are healthy but failures persist, clear stale page state and re-open the media surface to flush previously wrapped URLs.
 
 ## Release Checklist
 1. `npm -C frontend run lint`
@@ -372,6 +393,7 @@ Monitor these events during rollout:
 
 ## Related Docs
 - `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
+- `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
 - `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
 - `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
 - `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`

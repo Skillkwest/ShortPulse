@@ -31,6 +31,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - `backfill_storage_object_id` (origin `storage.objects.id`)
     - `backfill_storage_object_created_at` (origin object timestamp)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `processing_status` (text, default `ready`): pending | processing | ready | failed.
+- `processing_attempts` (int, default `0`): Derivative worker attempt counter (non-negative).
+- `processing_next_retry_at` (timestamptz, nullable): Next derivative claim eligibility timestamp.
+- `processing_last_error` (text, nullable): Last derivative worker failure message.
+- `processing_updated_at` (timestamptz, default `now()`): Last derivative worker status update timestamp.
+- `thumb_variant_path` (text, nullable): Preferred image-card derivative storage path.
+- `poster_variant_path` (text, nullable): Preferred video-poster derivative storage path.
+- `preview_variant_path` (text, nullable): Preferred video-preview derivative storage path.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
@@ -42,6 +50,22 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `character_sheet_id` (legacy `reference_pack_id` is still accepted), and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql` and `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`).
   - `source = character_quickswap` requires `file_type = image`, `storage_path` under `<user_id>/characters/<character_id>/quickswap/...`, and metadata key `character_id` (see `sql/migrations/045_add_character_quickswap_deck.sql`).
   - Legacy All Media convergence: durable missing rows can be diagnosed with `sql/check_media_all_media_completeness_drift.sql` and backfilled with `sql/migrations/064_backfill_media_files_from_storage_objects.sql`.
+  - Migration `065_add_media_derivative_processing_fields.sql` adds derivative retry/lease control fields and an insert-default trigger that marks new image rows `pending` for derivative processing.
+
+### media_asset_variants
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `media_file_id` (uuid): Parent media row with cascade delete.
+- `user_id` (uuid): Owner for RLS scoping and scoped FK parity with `media_files`.
+- `variant_kind` (text): `original | thumb_240 | thumb_480 | poster_720 | preview_loop_360p | playback_720p`.
+- `storage_path` (text): User-scoped variant object path in `media_library`.
+- `mime_type` (text): Stored variant MIME type.
+- `width` / `height` (int, nullable): Variant dimensions.
+- `duration_seconds` (numeric, nullable): Variant duration (video variants).
+- `byte_size` (bigint, nullable): Variant file size.
+- `status` (text): pending | ready | failed.
+- `metadata` (jsonb, default `{}`): Variant generation metadata.
+- `created_at` / `updated_at` (timestamptz).
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### Media usage RPCs
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
@@ -224,6 +248,16 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Claims recovery work using `FOR UPDATE SKIP LOCKED`.
   - Increments `recovery_attempts` and marks claimed rows `recovery_state='recovering'`.
   - Sets `next_recovery_at` lease to prevent concurrent re-claims during active execution.
+
+### media derivative claim/update functions
+- `claim_media_derivative_batch(p_limit, p_max_attempts, p_lease_seconds)`:
+  - Claims image derivative work using `FOR UPDATE SKIP LOCKED`.
+  - Increments `processing_attempts` and marks claimed rows `processing_status='processing'`.
+  - Sets `processing_next_retry_at` lease to prevent concurrent worker claims.
+- `mark_media_derivative_ready(p_media_file_id, p_user_id, p_thumb_variant_path, p_width, p_height)`:
+  - Marks a claimed image row `ready`, updates `thumb_variant_path`, and clears retry/error state.
+- `mark_media_derivative_failed(p_media_file_id, p_user_id, p_error, p_retry_seconds, p_exhausted)`:
+  - Marks derivative processing failure, records last error, and either schedules retry or exhausts retries.
 
 ### fal_webhook_events
 - `id` (uuid, pk): Ingestion event row id.

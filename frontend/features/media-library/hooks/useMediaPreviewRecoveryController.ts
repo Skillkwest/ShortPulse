@@ -3,6 +3,7 @@
  * Handles signed-url refresh, retry caps, and hydrate fallback after preview errors.
  */
 import { useCallback, type MutableRefObject } from "react";
+import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { canRetryMediaPreviewSignedUrl } from "../../../lib/mediaPreviewRuntimePolicy";
 import {
   resolveMediaDirectPreviewUrls,
@@ -29,12 +30,13 @@ type UseMediaPreviewRecoveryControllerArgs<TRow extends PreviewRecoveryRowBase> 
   hydrateViaStorageDownload: (row: TRow) => Promise<string | null>;
   signStoragePath: (
     storagePath: string,
-    options?: { forceRefresh?: boolean }
+    options?: { forceRefresh?: boolean; previewProfile?: MediaPreviewTransformProfile }
   ) => Promise<string | null>;
   signedUrlRetryRef: MutableRefObject<Record<string, number>>;
   objectUrlByMediaIdRef: MutableRefObject<Record<string, string>>;
   resolveTabForRow: (row: TRow) => MediaDataTab;
   beforeRetry?: (params: { row: TRow; failedUrl?: string | null }) => void;
+  previewProfile?: MediaPreviewTransformProfile;
 };
 
 type UseMediaPreviewRecoveryControllerResult<TRow extends PreviewRecoveryRowBase> = {
@@ -55,6 +57,7 @@ export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRo
   objectUrlByMediaIdRef,
   resolveTabForRow,
   beforeRetry,
+  previewProfile = "none",
 }: UseMediaPreviewRecoveryControllerArgs<TRow>): UseMediaPreviewRecoveryControllerResult<TRow> => {
   const refreshSignedUrl = useCallback(
     async (row: TRow): Promise<string | null> => {
@@ -63,7 +66,10 @@ export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRo
       const tab = resolveTabForRow(row);
       try {
         for (const storagePath of signingCandidates) {
-          const nextSignedUrl = await signStoragePath(storagePath, { forceRefresh: true });
+          const nextSignedUrl = await signStoragePath(storagePath, {
+            forceRefresh: true,
+            previewProfile,
+          });
           if (!nextSignedUrl) continue;
           const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
           if (previousObjectUrl) {
@@ -94,6 +100,7 @@ export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRo
       objectUrlByMediaIdRef,
       resolveTabForRow,
       signStoragePath,
+      previewProfile,
     ]
   );
 

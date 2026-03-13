@@ -51,6 +51,49 @@ Checklist:
 Mitigation:
 - Add `images.pexels.com` to trusted image hosts in `frontend/next.config.js` and restart dev server.
 
+## Media Library card previews hit `/_next/image` `500` with Supabase signed URLs
+Symptoms:
+- Browser console shows repeated `GET /_next/image?... 500 (Internal Server Error)` for Supabase signed media URLs.
+- Media cards stall/flash while retries continue.
+
+Checklist:
+- Confirm media-library card images are rendered from signed URLs directly (not `/_next/image?...` wrappers).
+- Confirm transformed signing profile headers are present:
+  - `/api/media/sign-batch` -> `x-shortpulse-media-sign-preview-profile`
+  - `/api/media/resolve-previews` -> `x-shortpulse-media-resolve-preview-profile`
+- Confirm Adaptive V2 panel surfaces are enabled when expected:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid` and/or `media-library-modal-grid`.
+
+Mitigation:
+- Keep media-library preview delivery on Supabase signed URLs (do not re-wrap signed URLs through Next image optimizer).
+- Hard-refresh/re-open the media surface to clear stale wrapped preview state from older sessions.
+
+## Media derivative worker backlog grows or image rows stay `pending`
+Symptoms:
+- New image rows in `media_files` remain `processing_status='pending'` for long periods.
+- `thumb_variant_path` remains null for recently ingested image rows.
+
+Checklist:
+- Confirm worker route and auth:
+  - `POST /api/internal/media-derivatives/run`
+  - `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=true`
+  - valid `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET` (or `CRON_SECRET`) provided.
+- Confirm migrations are applied:
+  - `sql/migrations/065_add_media_derivative_processing_fields.sql`
+  - `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
+- Run derivative backlog diagnostics:
+  - `sql/check_media_derivative_processing_backlog.sql`
+- Confirm runtime SQL security audit includes and passes derivative RPC checks:
+  - `sql/check_runtime_sql_security_audit.sql`
+
+Mitigation:
+- Trigger a guarded manual run:
+  - `curl -X POST -H \"x-shortpulse-cron-secret: <secret>\" http://localhost:3000/api/internal/media-derivatives/run`
+- Inspect response metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`, `errors`).
+- For exhausted rows, inspect `media_files.processing_last_error` and re-queue deliberately by setting:
+  - `processing_status='pending'`, `processing_next_retry_at=now()`, `processing_last_error=null`.
+
 ## Style prompt appears weak on some models (especially Google/Nano Banana edit lanes)
 Symptoms:
 - Style is selected, but outputs mostly follow reference structure with limited style transfer.

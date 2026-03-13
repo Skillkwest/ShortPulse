@@ -1,6 +1,6 @@
 # ShortPulse Unified Decision Log
 
-Last updated: 2026-03-02
+Last updated: 2026-03-13
 
 ## Decision 001
 - Topic: Auth trust boundary.
@@ -205,4 +205,9 @@ Last updated: 2026-03-02
 ## Decision 041
 - Topic: Wave F staging safety-control operational deferment.
 - Decision: As of `2026-03-03`, remaining Wave F staging execution items are explicitly deferred to a later operator window: staging alias parity rerun, staging manual no-sim route matrix, and staging promote/hold/rollback decision packet. Local implementation and contract gates remain accepted as complete for this job.
+- Effective phase: 13.
+
+## Decision 042
+- Topic: Media derivative worker architecture and migration reservation.
+- Decision: Reserve and implement `065`/`066` as the canonical Media Library derivative-processing foundation (retry/lease control fields plus service-role-only claim/update RPCs), and run derivatives through `/api/internal/media-derivatives/run` with cron-secret auth and Supabase-first transformed source ingestion.
 - Effective phase: 13.

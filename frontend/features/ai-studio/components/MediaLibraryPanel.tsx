@@ -9,6 +9,7 @@ import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
+import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
@@ -461,6 +462,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           tab,
           rows: tabRows,
           applySignedUrlsToTab: applySignedUrlsToMediaRows,
+          surface: "media-library-panel",
         });
         unresolvedInTab.forEach((id) => unresolved.add(id));
       }
@@ -470,8 +472,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const signStoragePath = useCallback(
-    (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
-      signMediaStoragePath(storagePath, options),
+    (
+      storagePath: string,
+      options?: {
+        forceRefresh?: boolean;
+        previewProfile?: MediaPreviewTransformProfile;
+      }
+    ): Promise<string | null> => signMediaStoragePath(storagePath, options),
     []
   );
 
@@ -485,6 +492,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       signedUrlRetryRef,
       objectUrlByMediaIdRef,
       resolveTabForRow: getMediaDataTabForRow,
+      previewProfile: "media-library-panel-image-card",
       beforeRetry: ({ row, failedUrl }) => {
         if (!isNextImageOptimizerUrl(failedUrl)) return;
         const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
@@ -519,8 +527,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     visibleMediaIdsRef,
     visibleMediaVersion,
     isSigningPassEnabled: shouldShowMedia,
-    surface: "media-library-modal",
-    unresolvedWarningPrefix: "[media-library-modal]",
+    surface: "media-library-panel",
+    unresolvedWarningPrefix: "[media-library-panel]",
     maxSignAttemptsPerItem: MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
     maxSignCandidatesPerRow: 4,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
@@ -606,7 +614,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           query: normalizedSearch,
           cursor: reset ? null : mediaCursorRef.current,
           limit: MEDIA_PAGE_SIZE,
-          surface: "media-library-modal",
+          surface: "media-library-panel",
           folderId: activeFolderId,
         });
         if (!result) {
@@ -1274,7 +1282,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       activeFolderId,
       canShowFolderItemRemoveAction,
       handleCardDragEnd,
-      handleDeletePromptFromLibrary,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
       handleSelectPromptCard,

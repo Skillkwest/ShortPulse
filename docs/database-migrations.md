@@ -88,6 +88,8 @@ If enabling the derivative-first media optimization architecture (virtualized gr
 12. `sql/migrations/006_backfill_media_variant_hints.sql`
 13. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
 14. `sql/migrations/050_add_media_list_search_cursor_indexes.sql`
+15. `sql/migrations/065_add_media_derivative_processing_fields.sql`
+16. `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
 
 If enabling Character Manager (character sheets + generation history), also apply:
 
@@ -151,7 +153,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 62. `sql/migrations/062_add_dashboard_announcements.sql`
 63. `sql/migrations/063_add_media_folder_canvas_states.sql`
 64. `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
-63. Rollback files:
+65. `sql/migrations/065_add_media_derivative_processing_fields.sql`
+66. `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
+67. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -179,6 +183,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
     - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`
     - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`
+    - `sql/migrations/rollback/065_add_media_derivative_processing_fields_rollback.sql`
+    - `sql/migrations/rollback/066_add_media_derivative_processing_rpcs_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -231,7 +237,10 @@ Billing safety note:
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.
 - Migration `063_add_media_folder_canvas_states.sql` adds per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion.
 - Migration `064_backfill_media_files_from_storage_objects.sql` backfills missing durable `media_files` rows from `storage.objects` for All Media completeness (idempotent user/path insert checks, transient/character/variant exclusions, and rollback-target metadata tagging).
+- Migration `065_add_media_derivative_processing_fields.sql` adds image-derivative retry/lease control fields on `media_files`, an insert-default trigger that marks new image rows `pending`, and claim/backlog indexes for derivative workers.
+- Migration `066_add_media_derivative_processing_rpcs.sql` adds service-role-only derivative claim/update RPCs (`claim_media_derivative_batch`, `mark_media_derivative_ready`, `mark_media_derivative_failed`) using `SKIP LOCKED` claim semantics.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
+- Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
 
 ## Media storage scope verification (post-017)
 

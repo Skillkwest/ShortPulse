@@ -4,6 +4,7 @@
  */
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
 import {
   resolveMediaDirectPreviewUrls,
@@ -48,7 +49,7 @@ type UseMediaPreviewSigningControllerArgs<TRow extends PreviewSigningRowBase> = 
   visibleMediaVersion: number;
   isSigningPassEnabled?: boolean;
   isSignPrefetchEnabled?: boolean;
-  surface?: "media-library-route" | "media-library-modal";
+  surface?: "media-library-route" | "media-library-modal" | "media-library-panel";
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
   maxSignAttemptsPerItem?: number;
@@ -191,6 +192,20 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       mediaSignInFlightRef.current[tabForBatch] = false;
       return;
     }
+    const previewProfile = resolvePreviewProfileForSurface(surface);
+    const previewDeliveryMode =
+      previewProfile === "none" ? "signed-original" : "signed-transform-profile";
+    const sourceClasses = Array.from(
+      new Set(
+        signBatch.map((row) =>
+          typeof row.source === "string" && row.source.trim()
+            ? row.source.trim().toLowerCase()
+            : "unknown"
+        )
+      )
+    );
+    const sourceClass = sourceClasses.length === 1 ? sourceClasses[0] : "mixed";
+    const optimizerBypassed = true;
 
     void getSignedMediaUrlsBatch({
       bucket: BUCKET,
@@ -199,6 +214,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       surface,
       queryMode: queryForBatch ? "search" : "default",
       tab: tabForBatch,
+      previewProfile,
     })
       .then((signedByPath) =>
         signCandidatesByRow.map((entry) => {
@@ -252,10 +268,23 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
           (count, result) => (result.usedFallback ? count + 1 : count),
           0
         );
+        const transformedCount = results.reduce(
+          (count, result) =>
+            typeof result.signedUrl === "string" &&
+            result.signedUrl.includes("/storage/v1/render/image/")
+              ? count + 1
+              : count,
+          0
+        );
         finishSignBatch("media.sign.batch.completed", {
           signed_count: signedById.size,
           failed_count: failedCount,
           fallback_count: fallbackCount,
+          transformed_count: transformedCount,
+          preview_delivery_mode: previewDeliveryMode,
+          optimizer_bypassed: optimizerBypassed,
+          source_class: sourceClass,
+          error_kind: failedCount > 0 ? "unresolved_after_signing" : "none",
           unresolved_after_resolver_count: unresolvedAfterResolverCount,
         });
         if (failedCount > 0) {
@@ -277,6 +306,11 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
             batch_size: results.length,
             failed_count: failedCount,
             fallback_count: fallbackCount,
+            transformed_count: transformedCount,
+            preview_delivery_mode: previewDeliveryMode,
+            optimizer_bypassed: optimizerBypassed,
+            source_class: sourceClass,
+            error_kind: "unresolved_after_signing",
             unresolved_after_resolver_count: unresolvedAfterResolverCount,
             page_index: activeMediaCachePagesLoaded,
             query_mode: queryForBatch ? "search" : "default",

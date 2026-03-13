@@ -3,6 +3,11 @@
  * Requires a bearer-authenticated user and only signs user-scoped storage paths.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import {
+  resolvePreviewProfileForSurface,
+  resolveSignedImageTransform,
+  type MediaPreviewTransformProfile,
+} from "../../../lib/mediaPreviewTransformProfile";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -25,6 +30,7 @@ const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const ALLOWED_SURFACE_VALUES = new Set([
   "media-library-route",
   "media-library-modal",
+  "media-library-panel",
   "reference-grid",
   "quick-slot",
   "character-grid",
@@ -74,6 +80,20 @@ const toSafeTelemetryLabel = (
   return normalized;
 };
 
+const toPreviewProfile = (value: unknown): MediaPreviewTransformProfile | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "none" ||
+    normalized === "media-library-route-image-card" ||
+    normalized === "media-library-modal-image-card" ||
+    normalized === "media-library-panel-image-card"
+  ) {
+    return normalized;
+  }
+  return null;
+};
+
 /**
  * Signs media storage paths in a single call for lower list-render latency.
  */
@@ -107,6 +127,9 @@ export default async function handler(
       "default"
     );
     const telemetryTab = toSafeTelemetryLabel(body?.tab);
+    const requestedPreviewProfile = toPreviewProfile(body?.previewProfile);
+    const resolvedPreviewProfile =
+      requestedPreviewProfile ?? resolvePreviewProfileForSurface(telemetrySurface);
 
     const userPrefix = `${user.id}/`;
     const hasOutOfScopePath = paths.some((path) => !path.startsWith(userPrefix));
@@ -116,32 +139,27 @@ export default async function handler(
 
     const expiresInSeconds = toSafeExpiresInSeconds(body?.expiresInSeconds);
     const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin.storage
-      .from(MEDIA_BUCKET)
-      .createSignedUrls(paths, expiresInSeconds);
-
-    if (error) {
-      return res.status(500).json({
-        error: "Failed to sign media paths",
-        details: error.message,
-      });
-    }
-
     const urls: Record<string, string | null> = {};
     for (const path of paths) {
       urls[path] = null;
     }
-    for (const signedItem of data ?? []) {
-      const path = toSafePath((signedItem as { path?: unknown }).path);
-      if (!path || !(path in urls)) continue;
-      const signedUrl = (signedItem as { signedUrl?: unknown }).signedUrl;
-      urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;
-    }
+    await Promise.all(
+      paths.map(async (path) => {
+        const transform = resolveSignedImageTransform(resolvedPreviewProfile, path);
+        const { data, error } = await supabaseAdmin.storage
+          .from(MEDIA_BUCKET)
+          .createSignedUrl(path, expiresInSeconds, transform ? { transform } : undefined);
+        if (error) return;
+        const signedUrl = data?.signedUrl;
+        urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;
+      })
+    );
 
     res.setHeader("x-shortpulse-media-sign-surface", telemetrySurface);
     res.setHeader("x-shortpulse-media-sign-query-mode", telemetryQueryMode);
     res.setHeader("x-shortpulse-media-sign-tab", telemetryTab);
     res.setHeader("x-shortpulse-media-sign-path-count", String(paths.length));
+    res.setHeader("x-shortpulse-media-sign-preview-profile", resolvedPreviewProfile);
 
     return res.status(200).json({ urls });
   } catch (error) {

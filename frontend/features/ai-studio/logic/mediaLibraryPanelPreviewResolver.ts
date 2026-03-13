@@ -3,15 +3,26 @@
  * Keeps shared adaptive policy untouched while allowing optional fixed compression
  * for panel card rendering experiments.
  */
-import { canUseNextImageOptimizerForUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 
 const BALANCED_FAST_PREVIEW_WIDTH = 512;
 const BALANCED_FAST_PREVIEW_QUALITY = 34;
-const NEXT_IMAGE_OPTIMIZER_PREFIX = "/_next/image";
+const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
 
 const isVideoFile = (fileType?: string | null): boolean =>
   (fileType ?? "").toLowerCase().startsWith("video");
+
+const applyRenderImageParams = (sourceUrl: string): string => {
+  try {
+    const parsed = new URL(sourceUrl);
+    if (!parsed.pathname.includes(SUPABASE_RENDER_IMAGE_PATH)) return sourceUrl;
+    parsed.searchParams.set("width", String(BALANCED_FAST_PREVIEW_WIDTH));
+    parsed.searchParams.set("quality", String(BALANCED_FAST_PREVIEW_QUALITY));
+    return parsed.toString();
+  } catch {
+    return sourceUrl;
+  }
+};
 
 type ResolveMediaLibraryPanelCardPreviewUrlArgs = {
   signedUrl: string | null | undefined;
@@ -56,8 +67,5 @@ export const resolveMediaLibraryPanelCardPreviewUrl = ({
 
   const sourceUrl = (baselineUrl ?? signedUrl ?? "").trim();
   if (!sourceUrl) return baselineUrl;
-  if (sourceUrl.startsWith(NEXT_IMAGE_OPTIMIZER_PREFIX)) return baselineUrl;
-  if (!canUseNextImageOptimizerForUrl(sourceUrl)) return baselineUrl;
-
-  return `/_next/image?url=${encodeURIComponent(sourceUrl)}&w=${BALANCED_FAST_PREVIEW_WIDTH}&q=${BALANCED_FAST_PREVIEW_QUALITY}`;
+  return applyRenderImageParams(sourceUrl);
 };

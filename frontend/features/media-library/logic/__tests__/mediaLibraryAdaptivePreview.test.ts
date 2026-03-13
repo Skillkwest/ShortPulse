@@ -16,7 +16,7 @@ describe("resolveMediaLibraryAdaptiveCardPreviewUrl", () => {
     expect(resolved).toBe(signedImageUrl);
   });
 
-  it("uses pressure-aware adaptive transforms for image previews", () => {
+  it("keeps signed storage URLs unchanged when adaptive preview is enabled", () => {
     const highQuality = resolveMediaLibraryAdaptiveCardPreviewUrl({
       surface: "media-library-grid",
       signedUrl: signedImageUrl,
@@ -32,10 +32,8 @@ describe("resolveMediaLibraryAdaptiveCardPreviewUrl", () => {
       adaptivePreviewQualityEnabled: true,
     });
 
-    expect(highQuality).toContain("/_next/image?");
-    expect(highQuality).toContain("&q=40");
-    expect(balancedQuality).toContain("/_next/image?");
-    expect(balancedQuality).toContain("&q=34");
+    expect(highQuality).toBe(signedImageUrl);
+    expect(balancedQuality).toBe(signedImageUrl);
   });
 
   it("bypasses adaptive transform when fallback mode is active", () => {

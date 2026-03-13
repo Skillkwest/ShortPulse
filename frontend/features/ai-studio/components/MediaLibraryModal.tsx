@@ -9,6 +9,7 @@ import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
+import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
@@ -265,8 +266,10 @@ export function MediaLibraryModal({
   }, []);
 
   const signStoragePath = useCallback(
-    (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
-      signMediaStoragePath(storagePath, options),
+    (
+      storagePath: string,
+      options?: { forceRefresh?: boolean; previewProfile?: MediaPreviewTransformProfile }
+    ): Promise<string | null> => signMediaStoragePath(storagePath, options),
     []
   );
 
@@ -343,6 +346,7 @@ export function MediaLibraryModal({
         tab,
         rows,
         applySignedUrlsToTab,
+        surface: "media-library-modal",
       }),
     [applySignedUrlsToTab]
   );
@@ -357,6 +361,7 @@ export function MediaLibraryModal({
       signedUrlRetryRef,
       objectUrlByMediaIdRef,
       resolveTabForRow: getMediaDataTabForRow,
+      previewProfile: "media-library-modal-image-card",
       beforeRetry: ({ row: file, failedUrl }) => {
         if (!isNextImageOptimizerUrl(failedUrl)) return;
         const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);

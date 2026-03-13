@@ -223,6 +223,8 @@ Start here for all repository documentation.
 - `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
 - `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
 - `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`
+- `docs/adr/0036-media-library-signed-preview-delivery-and-next-optimizer-bypass.md`
+- `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
 
 ## Archive
 - `docs/archive/README.md`

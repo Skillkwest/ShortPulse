@@ -2828,3 +2828,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated `docs/sops/sop_ai_studio_media_library_operations.md` with explicit `All Media` sectioned display contract (prompt text cards + image/video masonry at true aspect ratio), right-click media ingest to Reference Grid, folder membership move/assign semantics, deletion semantics, and folder-canvas domain requirements.
 - Updated dependent references in `docs/sops/sop_media_library_ui.md`, `docs/sops/sop_ai_studio_index.md`, `docs/sops/sop_ai_studio_session_persistence_reference_only.md`, `README.md`, `docs/routes.md`, and `docs/api/api-internal-routes.md` for consistency.
 - Added `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md` and updated ADR/index discoverability (`docs/README.md`, `docs/adr/README.md`, `docs/sops/README.md`).
+
+## 2026-03-13
+- Media Library preview stabilization Phase 2 foundation: added migrations `065_add_media_derivative_processing_fields.sql` and `066_add_media_derivative_processing_rpcs.sql` (with rollback scripts) for derivative retry/lease controls and service-role-only claim/update RPCs.
+- Added internal derivative worker route `POST /api/internal/media-derivatives/run` (`GET` compatible) with cron-secret auth, `SKIP LOCKED` claim execution, transformed-source thumb generation (`thumb_240`, `thumb_480`), variant upserts, and ready/failed status transitions.
+- Added runtime flags parser (`mediaDerivativesRuntimeFlags`) and focused tests for route behavior + flag parsing.
+- Updated runtime SQL security audit expected-function checks to include derivative RPCs.
+- Synced docs/operations references across README, API internal route inventory, migration runbooks, performance/media SOPs, security checklist, data dictionary, ADR index, and added ADR `0037` for Supabase-first derivative-worker architecture.

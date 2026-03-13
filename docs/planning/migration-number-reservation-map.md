@@ -20,6 +20,8 @@ Prevent migration-number collisions across concurrent plan tracks and lock order
 | `048_*` | Safety control-plane grants/hardening/checks | Implemented | `048_harden_agent_safety_policy_control_plane_grants.sql` landed. |
 | `049_*` | Global expert-first beginner-mode default enforcement | Implemented | `049_enforce_expert_default_beginner_mode.sql` landed with rollback pair. |
 | `064_*` | All Media completeness durable-row backfill | Implemented | `064_backfill_media_files_from_storage_objects.sql` landed with diagnostics + rollback pair. |
+| `065_*` | Media derivative retry/lease control fields + backlog indexes | Implemented | `065_add_media_derivative_processing_fields.sql` landed with rollback pair. |
+| `066_*` | Media derivative claim/update service-role RPCs | Implemented | `066_add_media_derivative_processing_rpcs.sql` landed with rollback pair. |
 
 ## Reservation Rules
 1. No migration PR may use `041`-`049` unless mapped here first.

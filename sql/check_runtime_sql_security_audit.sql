@@ -26,6 +26,9 @@ with expected_functions as (
             ('public.get_ai_studio_session_snapshot(uuid,uuid)'),
             ('public.list_ai_studio_sessions(uuid,integer,timestamptz,uuid)'),
             ('public.prune_ai_studio_sessions_expired(integer)'),
+            ('public.claim_media_derivative_batch(integer,integer,integer)'),
+            ('public.mark_media_derivative_ready(uuid,uuid,text,integer,integer)'),
+            ('public.mark_media_derivative_failed(uuid,uuid,text,integer,boolean)'),
             ('public.get_active_agent_safety_policy()'),
             ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
             ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
@@ -153,6 +156,9 @@ with expected_functions as (
             ('public.get_ai_studio_session_snapshot(uuid,uuid)'),
             ('public.list_ai_studio_sessions(uuid,integer,timestamptz,uuid)'),
             ('public.prune_ai_studio_sessions_expired(integer)'),
+            ('public.claim_media_derivative_batch(integer,integer,integer)'),
+            ('public.mark_media_derivative_ready(uuid,uuid,text,integer,integer)'),
+            ('public.mark_media_derivative_failed(uuid,uuid,text,integer,boolean)'),
             ('public.get_active_agent_safety_policy()'),
             ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
             ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')

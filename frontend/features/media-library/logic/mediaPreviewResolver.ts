@@ -3,11 +3,20 @@
  * Encapsulates resolve-previews API request/response handling for reuse across surfaces.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 
 type ResolvePreviewUrlsByMediaIdsArgs = {
   ids: string[];
   expiresInSeconds?: number;
+  surface?:
+    | "media-library-route"
+    | "media-library-modal"
+    | "media-library-panel"
+    | "reference-grid"
+    | "quick-slot"
+    | "character-grid"
+    | "detail-modal";
   fetcher?: typeof fetchWithAuth;
 };
 
@@ -16,7 +25,7 @@ type ResolveSelectionUrlArgs<TRow extends { storage_path?: string | null }> = {
   currentUserId: string | null;
   signStoragePath: (
     storagePath: string,
-    options?: { forceRefresh?: boolean }
+    options?: { forceRefresh?: boolean; previewProfile?: MediaPreviewTransformProfile }
   ) => Promise<string | null>;
 };
 
@@ -44,6 +53,7 @@ export const collectUniqueMediaIds = <TRow extends { id?: string | null }>(
 export const resolveSignedPreviewUrlsByMediaIds = async ({
   ids,
   expiresInSeconds = 3600,
+  surface,
   fetcher = fetchWithAuth,
 }: ResolvePreviewUrlsByMediaIdsArgs): Promise<Map<string, string>> => {
   if (!ids.length) return new Map();
@@ -56,6 +66,7 @@ export const resolveSignedPreviewUrlsByMediaIds = async ({
       body: JSON.stringify({
         ids,
         expiresInSeconds,
+        surface,
       }),
       shortpulseLogScope: "app",
     }).catch(() => null);

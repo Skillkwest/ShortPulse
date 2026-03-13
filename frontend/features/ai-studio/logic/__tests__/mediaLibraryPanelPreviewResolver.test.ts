@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe("resolveMediaLibraryPanelCardPreviewUrl", () => {
-  it("forces balanced-fast panel compression for image previews when enabled", async () => {
+  it("keeps signed object URLs out of Next optimizer wrapping", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     const { resolveMediaLibraryPanelCardPreviewUrl } = await importResolver();
 
@@ -26,10 +26,27 @@ describe("resolveMediaLibraryPanelCardPreviewUrl", () => {
       constantCompressionEnabled: true,
     });
 
-    expect(resolved).toContain("/_next/image?");
-    expect(resolved).toContain("&w=512");
-    expect(resolved).toContain("&q=34");
-    expect(resolved).toContain(encodeURIComponent(signedImageUrl));
+    expect(resolved).toBe(signedImageUrl);
+  });
+
+  it("applies balanced-fast params for supabase render-image URLs", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    const { resolveMediaLibraryPanelCardPreviewUrl } = await importResolver();
+    const renderImageUrl =
+      "https://example.supabase.co/storage/v1/render/image/public/media_library/user-1/cat.jpg?width=1200&quality=90";
+
+    const resolved = resolveMediaLibraryPanelCardPreviewUrl({
+      signedUrl: renderImageUrl,
+      fileType: "image/jpeg",
+      pressureLevel: 1,
+      adaptivePreviewQualityEnabled: true,
+      constantCompressionEnabled: true,
+    });
+
+    expect(resolved).toContain("/storage/v1/render/image/");
+    expect(resolved).toContain("width=512");
+    expect(resolved).toContain("quality=34");
+    expect(resolved).not.toContain("/_next/image?");
   });
 
   it("keeps videos unchanged", async () => {

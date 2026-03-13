@@ -4,6 +4,11 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
+  resolvePreviewProfileForSurface,
+  resolveSignedImageTransform,
+  type MediaPreviewTransformProfile,
+} from "../../../lib/mediaPreviewTransformProfile";
+import {
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
@@ -39,6 +44,15 @@ const MAX_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_MEDIA_IDS = 40;
 const MAX_BASENAME_LOOKUP_CONCURRENCY = 6;
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
+const ALLOWED_SURFACE_VALUES = new Set([
+  "media-library-route",
+  "media-library-modal",
+  "media-library-panel",
+  "reference-grid",
+  "quick-slot",
+  "character-grid",
+  "detail-modal",
+]);
 
 const isUserScopedStoragePath = (path: string, userId: string): boolean => {
   const normalized = path.trim();
@@ -68,6 +82,32 @@ const toSafeExpiresInSeconds = (value: unknown): number => {
   if (normalized < MIN_SIGNED_URL_TTL_SECONDS) return MIN_SIGNED_URL_TTL_SECONDS;
   if (normalized > MAX_SIGNED_URL_TTL_SECONDS) return MAX_SIGNED_URL_TTL_SECONDS;
   return normalized;
+};
+
+const toSafeTelemetryLabel = (
+  value: unknown,
+  allowed?: Set<string>,
+  fallback = "unknown"
+): string => {
+  if (typeof value !== "string") return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (allowed && !allowed.has(normalized)) return fallback;
+  return normalized;
+};
+
+const toPreviewProfile = (value: unknown): MediaPreviewTransformProfile | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "none" ||
+    normalized === "media-library-route-image-card" ||
+    normalized === "media-library-modal-image-card" ||
+    normalized === "media-library-panel-image-card"
+  ) {
+    return normalized;
+  }
+  return null;
 };
 
 const basenameOf = (value: string | null | undefined): string | null => {
@@ -169,6 +209,10 @@ export default async function handler(
     }
 
     const expiresInSeconds = toSafeExpiresInSeconds(body?.expiresInSeconds);
+    const telemetrySurface = toSafeTelemetryLabel(body?.surface, ALLOWED_SURFACE_VALUES);
+    const requestedPreviewProfile = toPreviewProfile(body?.previewProfile);
+    const resolvedPreviewProfile =
+      requestedPreviewProfile ?? resolvePreviewProfileForSurface(telemetrySurface);
     const supabaseAdmin = getSupabaseAdmin();
     const { data: rawRows, error: rowsError } = await supabaseAdmin
       .from("media_files")
@@ -255,29 +299,37 @@ export default async function handler(
     const pathsToSign = Array.from(new Set(Array.from(resolvedPathById.values()))).filter((path) =>
       isUserScopedStoragePath(path, user.id)
     );
+    const rowByResolvedPath = new Map<string, MediaLookupRow>();
+    for (const row of rows) {
+      const resolvedPath = resolvedPathById.get(row.id);
+      if (!resolvedPath) continue;
+      if (!rowByResolvedPath.has(resolvedPath)) {
+        rowByResolvedPath.set(resolvedPath, row);
+      }
+    }
     const signedUrlByPath = new Map<string, string | null>();
     if (pathsToSign.length) {
-      const { data: signedRows, error: signedError } = await supabaseAdmin.storage
-        .from(MEDIA_BUCKET)
-        .createSignedUrls(pathsToSign, expiresInSeconds);
-      if (signedError) {
-        return res.status(500).json({
-          error: "Failed to sign resolved media paths",
-          details: signedError.message,
-        });
-      }
-      for (const signedRow of signedRows ?? []) {
-        const path =
-          typeof (signedRow as { path?: unknown }).path === "string"
-            ? ((signedRow as { path: string }).path || "").trim()
-            : "";
-        if (!path) continue;
-        const signedUrl = (signedRow as { signedUrl?: unknown }).signedUrl;
-        signedUrlByPath.set(
-          path,
-          typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null
-        );
-      }
+      await Promise.all(
+        pathsToSign.map(async (path) => {
+          const row = rowByResolvedPath.get(path) ?? null;
+          const isImage = (row?.file_type ?? "").toLowerCase().startsWith("image");
+          const transform = isImage
+            ? resolveSignedImageTransform(resolvedPreviewProfile, path)
+            : null;
+          const { data, error } = await supabaseAdmin.storage
+            .from(MEDIA_BUCKET)
+            .createSignedUrl(path, expiresInSeconds, transform ? { transform } : undefined);
+          if (error) {
+            signedUrlByPath.set(path, null);
+            return;
+          }
+          const signedUrl = data?.signedUrl;
+          signedUrlByPath.set(
+            path,
+            typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null
+          );
+        })
+      );
     }
 
     const urls: Record<string, string | null> = {};
@@ -301,6 +353,8 @@ export default async function handler(
       "x-shortpulse-media-resolve-fallback-lookups",
       String(Math.max(0, fallbackLookupCount))
     );
+    res.setHeader("x-shortpulse-media-resolve-surface", telemetrySurface);
+    res.setHeader("x-shortpulse-media-resolve-preview-profile", resolvedPreviewProfile);
 
     return res.status(200).json({ urls });
   } catch (error) {

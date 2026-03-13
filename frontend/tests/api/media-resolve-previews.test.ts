@@ -61,12 +61,11 @@ const setupSupabaseAdmin = ({
 }) => {
   let capturedInNames: string[] = [];
   const ilikePatterns: string[] = [];
-  const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
-    data: paths.map((path) => ({
-      path,
+  const createSignedUrlMock = vi.fn(async (path: string) => ({
+    data: {
       signedUrl:
         signedUrlsByPath?.[path] ?? `https://example.test/signed/${encodeURIComponent(path)}`,
-    })),
+    },
     error: null,
   }));
 
@@ -127,13 +126,13 @@ const setupSupabaseAdmin = ({
     }),
     storage: {
       from: vi.fn(() => ({
-        createSignedUrls: createSignedUrlsMock,
+        createSignedUrl: createSignedUrlMock,
       })),
     },
   });
 
   return {
-    createSignedUrlsMock,
+    createSignedUrlMock,
     getCapturedInNames: () => capturedInNames,
     getIlikePatterns: () => ilikePatterns,
   };
@@ -151,7 +150,7 @@ describe("POST /api/media/resolve-previews", () => {
 
   it("signs scoped media paths for user-owned rows", async () => {
     const row = createRow();
-    const { createSignedUrlsMock } = setupSupabaseAdmin({
+    const { createSignedUrlMock } = setupSupabaseAdmin({
       rows: [row],
       existingObjectNames: [row.storage_path as string],
       signedUrlsByPath: {
@@ -169,7 +168,7 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).toHaveBeenCalledWith([row.storage_path], 3600);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600, undefined);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {
@@ -178,13 +177,49 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
+  it("applies panel transform profile when surface is media-library-panel", async () => {
+    const row = createRow({
+      id: "media-panel-1",
+      storage_path: "user-1/uploads/images/panel-image.jpg",
+      file_type: "image/jpeg",
+    });
+    const { createSignedUrlMock } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [row.storage_path as string],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "x-shortpulse-media-resolve-preview-profile",
+      "media-library-panel-image-card"
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600, {
+      transform: {
+        width: 512,
+        quality: 50,
+        resize: "contain",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("never signs out-of-scope storage paths", async () => {
     const row = createRow({
       id: "media-2",
       storage_path: "user-2/images/victim.jpg",
       filename: "victim.jpg",
     });
-    const { createSignedUrlsMock, getCapturedInNames } = setupSupabaseAdmin({
+    const { createSignedUrlMock, getCapturedInNames } = setupSupabaseAdmin({
       rows: [row],
       existingObjectNames: ["user-2/images/victim.jpg"],
     });
@@ -199,7 +234,7 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(getCapturedInNames()).not.toContain("user-2/images/victim.jpg");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -215,7 +250,7 @@ describe("POST /api/media/resolve-previews", () => {
       storage_path: "user-1/images/local.jpg",
       thumb_variant_path: "https://cdn.example.test/media_library/user-2/private/images/pwned.jpg",
     });
-    const { createSignedUrlsMock } = setupSupabaseAdmin({
+    const { createSignedUrlMock } = setupSupabaseAdmin({
       rows: [row],
       existingObjectNames: [],
     });
@@ -230,7 +265,7 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {
@@ -250,7 +285,7 @@ describe("POST /api/media/resolve-previews", () => {
       thumb_variant_path: directUrl,
     });
 
-    const { createSignedUrlsMock } = setupSupabaseAdmin({
+    const { createSignedUrlMock } = setupSupabaseAdmin({
       rows: [row],
       existingObjectNames: [],
     });
@@ -265,7 +300,7 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {
@@ -290,7 +325,7 @@ describe("POST /api/media/resolve-previews", () => {
       filename: "second.jpg",
       storage_path: "user-1/images/second.jpg",
     });
-    const { createSignedUrlsMock, getIlikePatterns } = setupSupabaseAdmin({
+    const { createSignedUrlMock, getIlikePatterns } = setupSupabaseAdmin({
       rows: [rowA, rowB, rowC],
       existingObjectNames: [],
       basenameMatches: {
@@ -310,9 +345,15 @@ describe("POST /api/media/resolve-previews", () => {
     await handler(req as never, res as never);
 
     expect(getIlikePatterns().sort()).toEqual(["user-1/%/second.jpg", "user-1/%/shared.jpg"]);
-    expect(createSignedUrlsMock).toHaveBeenCalledWith(
-      ["user-1/recovered/shared.jpg", "user-1/recovered/second.jpg"],
-      3600
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/recovered/shared.jpg",
+      3600,
+      undefined
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/recovered/second.jpg",
+      3600,
+      undefined
     );
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "2");
   });

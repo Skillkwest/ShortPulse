@@ -5,25 +5,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prepareLibraryMediaIngestionPayload } from "../prepareLibraryMediaIngestionPayload";
 
-const getSignedMediaUrlMock = vi.fn();
-const refreshSupabaseSignedUrlIfNeededMock = vi.fn();
-const mediaFilesMaybeSingleMock = vi.fn();
-const mediaFilesSelectMock = vi.fn(() => ({
-  eq: vi.fn(() => ({
-    limit: vi.fn(() => ({
-      maybeSingle: (...args: unknown[]) => mediaFilesMaybeSingleMock(...args),
+const {
+  getSignedMediaUrlMock,
+  refreshSupabaseSignedUrlIfNeededMock,
+  mediaFilesMaybeSingleMock,
+  mediaFilesSelectMock,
+  mediaFilesFromMock,
+  ensureSupabaseClientMock,
+} = vi.hoisted(() => {
+  const mediaFilesMaybeSingleMock = vi.fn();
+  const mediaFilesSelectMock = vi.fn(() => ({
+    eq: vi.fn(() => ({
+      limit: vi.fn(() => ({
+        maybeSingle: mediaFilesMaybeSingleMock,
+      })),
     })),
-  })),
-}));
-const mediaFilesFromMock = vi.fn(() => ({
-  select: (...args: unknown[]) => mediaFilesSelectMock(...args),
-}));
-const ensureSupabaseClientMock = vi.fn(() => ({
-  from: (...args: unknown[]) => mediaFilesFromMock(...args),
-}));
+  }));
+  const mediaFilesFromMock = vi.fn(() => ({
+    select: mediaFilesSelectMock,
+  }));
+  return {
+    getSignedMediaUrlMock: vi.fn(),
+    refreshSupabaseSignedUrlIfNeededMock: vi.fn(),
+    mediaFilesMaybeSingleMock,
+    mediaFilesSelectMock,
+    mediaFilesFromMock,
+    ensureSupabaseClientMock: vi.fn(() => ({
+      from: mediaFilesFromMock,
+    })),
+  };
+});
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
-  getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
+  getSignedMediaUrl: getSignedMediaUrlMock,
 }));
 
 vi.mock("../../utils/imageUpload", async () => {
@@ -31,13 +45,12 @@ vi.mock("../../utils/imageUpload", async () => {
     await vi.importActual<typeof import("../../utils/imageUpload")>("../../utils/imageUpload");
   return {
     ...actual,
-    refreshSupabaseSignedUrlIfNeeded: (...args: unknown[]) =>
-      refreshSupabaseSignedUrlIfNeededMock(...args),
+    refreshSupabaseSignedUrlIfNeeded: refreshSupabaseSignedUrlIfNeededMock,
   };
 });
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  ensureSupabaseClient: ensureSupabaseClientMock,
 }));
 
 describe("prepareLibraryMediaIngestionPayload", () => {

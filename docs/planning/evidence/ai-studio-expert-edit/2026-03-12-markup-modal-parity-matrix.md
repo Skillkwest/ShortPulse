@@ -27,6 +27,10 @@
    - `useInpaintMaskController` now renders overlay canvases for both surfaces with one mask state.
 3. Modal composition extraction:
    - `ExpertEditMarkupModalShell` handles expanded modal composition; `ExpertEditPanelView` remains orchestration-heavy but less monolithic.
+4. Shared viewport geometry contract:
+   - Viewport offsets are normalized (`offsetXRatio`, `offsetYRatio`) and converted per active surface size.
+   - Modal stage sizing is aspect-fit against center-column bounds (letterbox/pillarbox), replacing modal square sizing.
+   - Modal-only aspect frame overlay path is removed; stage geometry itself now expresses aspect framing.
 
 ## Validation evidence
 
@@ -35,9 +39,14 @@
    - Result: pass (including modal move transform + modal inpaint pointer/overlay coverage).
 2. Shared controller regression tests:
    - `npm -C frontend run test -- useInpaintMaskController.test.ts`
+   - `npm -C frontend run test -- markupStrokeController.test.ts`
 3. Gate checks:
    - `npm -C frontend run lint`
    - `npm -C frontend run build`
+4. Viewport parity checks:
+   - Expanded modal stage no longer renders `.edit-expert-markup-modal-aspect-frame`.
+   - Expanded modal stage dimensions fit selected aspect ratio from available center-column bounds.
+   - Markup pan/zoom persists equivalent framing between inline and modal via normalized viewport offsets.
 
 ## Post-fix status
 
@@ -50,6 +59,7 @@
 | Markup pen/eraser drawing | Yes | Yes | Maintained |
 | Markup pan/wheel zoom | Yes | Yes | Maintained |
 | Shared utility actions / layer ops / aspect sync | Yes | Yes | Maintained |
+| Viewport framing parity (inline vs modal) | Yes | Yes | Closed |
 
 ## Notes
 

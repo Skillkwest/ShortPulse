@@ -1340,15 +1340,17 @@ describe("ExpertEditPanelView", () => {
     const mainAspectTrigger = document.querySelector(
       ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
     ) as HTMLButtonElement | null;
-    const initialModalFrame = expandedModal.querySelector(
-      ".edit-expert-markup-modal-aspect-frame"
+    const initialModalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
     ) as HTMLDivElement | null;
 
     expect(modalAspectTrigger?.textContent ?? "").toContain("1:1");
     expect(mainAspectTrigger?.textContent ?? "").toContain("1:1");
-    expect(initialModalFrame).toBeTruthy();
-    expect(initialModalFrame?.style.width).toBe("100%");
-    expect(initialModalFrame?.style.height).toBe("100%");
+    expect(initialModalStage).toBeTruthy();
+    expect(initialModalStage?.style.aspectRatio).toBe("1 / 1");
+    expect(
+      expandedModal.querySelector(".edit-expert-markup-modal-aspect-frame")
+    ).not.toBeInTheDocument();
 
     fireEvent.click(modalAspectTrigger as HTMLButtonElement);
     fireEvent.click(within(modalAspectGroup).getByRole("option", { name: /16:9/i }));
@@ -1363,15 +1365,93 @@ describe("ExpertEditPanelView", () => {
     const refreshedMainTrigger = document.querySelector(
       ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
     ) as HTMLButtonElement | null;
-    const refreshedModalFrame = refreshedModal.querySelector(
-      ".edit-expert-markup-modal-aspect-frame"
+    const refreshedModalStage = refreshedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
     ) as HTMLDivElement | null;
 
     expect(refreshedModalTrigger?.textContent ?? "").toContain("16:9");
     expect(refreshedMainTrigger?.textContent ?? "").toContain("16:9");
-    expect(refreshedModalFrame).toBeTruthy();
-    expect(refreshedModalFrame?.style.width).toBe("100%");
-    expect(refreshedModalFrame?.style.height).toBe("56.25%");
+    expect(refreshedModalStage).toBeTruthy();
+    expect(refreshedModalStage?.style.aspectRatio).toBe("16 / 9");
+    expect(
+      refreshedModal.querySelector(".edit-expert-markup-modal-aspect-frame")
+    ).not.toBeInTheDocument();
+  });
+
+  it("fits expanded modal stage geometry to the selected aspect ratio", async () => {
+    render(<ExpertEditPanelView {...baseProps} aspect="16:9" />);
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: /markup tools/i })).getByRole("button", {
+        name: /expand markup tools/i,
+      })
+    );
+
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    const controlsColumn = expandedModal.querySelector(
+      ".edit-expert-markup-modal-controls-column"
+    ) as HTMLDivElement | null;
+    const layersPanel = expandedModal.querySelector(
+      ".edit-expert-layers-toolbar--modal"
+    ) as HTMLDivElement | null;
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement | null;
+
+    expect(controlsColumn).toBeTruthy();
+    expect(layersPanel).toBeTruthy();
+    expect(modalStage).toBeTruthy();
+
+    mockElementRect(expandedModal, {
+      left: 0,
+      top: 0,
+      width: 1300,
+      height: 900,
+      right: 1300,
+      bottom: 900,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    mockElementRect(
+      controlsColumn as HTMLDivElement,
+      {
+        left: 0,
+        top: 0,
+        width: 198,
+        height: 900,
+        right: 198,
+        bottom: 900,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    );
+    mockElementRect(
+      layersPanel as HTMLDivElement,
+      {
+        left: 1102,
+        top: 0,
+        width: 198,
+        height: 900,
+        right: 1300,
+        bottom: 900,
+        x: 1102,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    await waitFor(() => {
+      expect((modalStage as HTMLDivElement).style.width).toBe("904px");
+      expect((modalStage as HTMLDivElement).style.height).toBe("508px");
+    });
   });
 
   it("draws markup strokes in the inline stage with the pen tool", async () => {
@@ -4408,9 +4488,10 @@ describe("ExpertEditPanelView", () => {
       void referenceInputs;
       void options;
     });
-    const exportSelectedLayerMaskBlobMock = vi.fn(
-      async (_params?: unknown) => new Blob(["mask"], { type: "image/png" })
-    );
+    const exportSelectedLayerMaskBlobMock = vi.fn(async (params?: unknown) => {
+      void params;
+      return new Blob(["mask"], { type: "image/png" });
+    });
     const useInpaintMaskControllerSpy = vi
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
       .mockReturnValue({

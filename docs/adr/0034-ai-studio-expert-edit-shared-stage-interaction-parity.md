@@ -11,6 +11,7 @@ Key constraints:
 1. Keep existing public component contracts stable (no external prop API changes).
 2. Preserve existing generation contracts (flatten/remove-background/inpaint submit behavior).
 3. Eliminate duplicated interaction logic while keeping surfaces (`inline`, `modal`) behaviorally equivalent.
+4. Remove modal-only viewport geometry paths (square stage + frame overlay) that diverged from inline behavior.
 
 ## Decision
 1. Introduce a shared stage interaction router for both surfaces:
@@ -25,13 +26,19 @@ Key constraints:
 4. Enforce parity and compactness with strict tests:
    - Add modal-stage tests for move transforms and inpaint pointer/overlay behavior.
    - Keep shared-state guarantees (aspect sync, utility actions, layers, markup strokes) under existing test coverage.
+5. Normalize shared viewport camera state across surfaces:
+   - Store camera offsets as `offsetXRatio` / `offsetYRatio` (normalized to active viewport size) with shared `scale`.
+   - Resolve per-surface transforms from normalized state so inline and modal render equivalent framing at different pixel sizes.
+   - Replace modal square sizing with aspect-fit stage geometry against modal center-column bounds (letterbox/pillarbox).
+   - Remove modal-only aspect-frame overlay and rely on shared stage geometry for aspect framing.
 
 ## Consequences
 Positive:
 1. Main stage and modal stage now share core interaction architecture, reducing divergence risk.
 2. Inpaint behavior is consistent across surfaces with one mask source of truth.
 3. Modal UI composition is modularized, reducing `ExpertEditPanelView` responsibility.
-4. Compaction changes can be applied through modal-scoped tokens without changing behavior contracts.
+4. Viewport camera semantics are now surface-agnostic and stable under different stage sizes.
+5. Compaction changes can be applied through modal-scoped tokens without changing behavior contracts.
 
 Tradeoffs:
 1. Additional internal hook/component files increase internal module count.

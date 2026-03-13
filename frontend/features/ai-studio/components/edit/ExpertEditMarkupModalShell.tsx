@@ -8,6 +8,7 @@ type ExpertEditMarkupModalShellProps = {
   isOpen: boolean;
   modalRef: React.Ref<HTMLDivElement>;
   controlsColumnRef: React.Ref<HTMLDivElement>;
+  stageRef?: React.Ref<HTMLDivElement>;
   stageStyle: React.CSSProperties;
   generalPanel: React.ReactNode;
   movePanel: React.ReactNode;
@@ -31,6 +32,7 @@ export const ExpertEditMarkupModalShell = ({
   isOpen,
   modalRef,
   controlsColumnRef,
+  stageRef,
   stageStyle,
   generalPanel,
   movePanel,
@@ -103,6 +105,7 @@ export const ExpertEditMarkupModalShell = ({
         </div>
         <div
           className="edit-expert-markup-modal-stage"
+          ref={stageRef}
           style={stageStyle}
           onMouseDown={onStageMouseDown}
           onAuxClick={onStageAuxClick}

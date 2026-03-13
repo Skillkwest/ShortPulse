@@ -48,8 +48,8 @@ describe("markupStrokeController", () => {
       rect,
       viewport: {
         scale: 2,
-        offsetX: 20,
-        offsetY: -10,
+        offsetXRatio: 0.1,
+        offsetYRatio: -0.1,
       },
       applyViewportTransform: true,
     });

@@ -17,8 +17,8 @@ export type MarkupStroke = {
 
 export type MarkupViewportState = {
   scale: number;
-  offsetX: number;
-  offsetY: number;
+  offsetXRatio: number;
+  offsetYRatio: number;
 };
 
 export type MarkupDrawPointerSession = {
@@ -82,8 +82,10 @@ export const resolveMarkupPointerPoint = ({
     const safeScale = Math.max(0.0001, viewport.scale);
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    x = centerX + (x - centerX - viewport.offsetX) / safeScale;
-    y = centerY + (y - centerY - viewport.offsetY) / safeScale;
+    const viewportOffsetX = viewport.offsetXRatio * rect.width;
+    const viewportOffsetY = viewport.offsetYRatio * rect.height;
+    x = centerX + (x - centerX - viewportOffsetX) / safeScale;
+    y = centerY + (y - centerY - viewportOffsetY) / safeScale;
   }
   return {
     xRatio: clampNumber(x / rect.width, 0, 1),

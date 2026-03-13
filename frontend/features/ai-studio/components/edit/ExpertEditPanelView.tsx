@@ -467,8 +467,10 @@ type MarkupPanPointerSession = {
   pointerId: number | null;
   startClientX: number;
   startClientY: number;
-  startOffsetX: number;
-  startOffsetY: number;
+  startOffsetXRatio: number;
+  startOffsetYRatio: number;
+  stageWidth: number;
+  stageHeight: number;
 };
 
 const clampNumber = (value: number, min: number, max: number) =>
@@ -476,8 +478,8 @@ const clampNumber = (value: number, min: number, max: number) =>
 
 const createDefaultMarkupViewportState = (): MarkupViewportState => ({
   scale: 1,
-  offsetX: 0,
-  offsetY: 0,
+  offsetXRatio: 0,
+  offsetYRatio: 0,
 });
 
 const createIdleMarkupPanPointerSession = (): MarkupPanPointerSession => ({
@@ -485,8 +487,28 @@ const createIdleMarkupPanPointerSession = (): MarkupPanPointerSession => ({
   pointerId: null,
   startClientX: 0,
   startClientY: 0,
-  startOffsetX: 0,
-  startOffsetY: 0,
+  startOffsetXRatio: 0,
+  startOffsetYRatio: 0,
+  stageWidth: 1,
+  stageHeight: 1,
+});
+
+type StageViewportSize = {
+  width: number;
+  height: number;
+};
+
+const resolveStageViewportSize = (rect: DOMRect | null): StageViewportSize => ({
+  width: rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : 1,
+  height: rect && Number.isFinite(rect.height) && rect.height > 0 ? rect.height : 1,
+});
+
+const resolveMarkupViewportOffsetPixels = (
+  viewport: MarkupViewportState,
+  viewportSize: StageViewportSize
+) => ({
+  offsetX: viewport.offsetXRatio * viewportSize.width,
+  offsetY: viewport.offsetYRatio * viewportSize.height,
 });
 
 const clampMarkupViewportScale = (value: number) =>
@@ -1168,6 +1190,7 @@ export function ExpertEditPanelView({
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalControlsRef = React.useRef<HTMLDivElement | null>(null);
+  const markupModalStageRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalLayersRef = React.useRef<HTMLDivElement | null>(null);
   const stageContextMenuRef = React.useRef<HTMLDivElement | null>(null);
   const markupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
@@ -1241,7 +1264,17 @@ export function ExpertEditPanelView({
   );
   const [isMarkupPanDragging, setIsMarkupPanDragging] = React.useState(false);
   const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
-  const [markupModalSquareSize, setMarkupModalSquareSize] = React.useState<number | null>(null);
+  const [inlineStageViewportSize, setInlineStageViewportSize] = React.useState<StageViewportSize>({
+    width: 1,
+    height: 1,
+  });
+  const [markupModalStageSize, setMarkupModalStageSize] = React.useState<StageViewportSize | null>(
+    null
+  );
+  const [markupModalViewportSize, setMarkupModalViewportSize] = React.useState<StageViewportSize>({
+    width: 1,
+    height: 1,
+  });
   const [stageContextMenuState, setStageContextMenuState] = React.useState<{
     isOpen: boolean;
     x: number;
@@ -1990,22 +2023,6 @@ export function ExpertEditPanelView({
     () => parseAspectRatioToken(aspect) ?? 1,
     [aspect]
   );
-  const modalAspectFrameStyle = React.useMemo<React.CSSProperties>(() => {
-    const safeRatio =
-      Number.isFinite(primaryDropzoneAspectRatioValue) && primaryDropzoneAspectRatioValue > 0
-        ? primaryDropzoneAspectRatioValue
-        : 1;
-    if (safeRatio >= 1) {
-      return {
-        width: "100%",
-        height: `${100 / safeRatio}%`,
-      };
-    }
-    return {
-      width: `${safeRatio * 100}%`,
-      height: "100%",
-    };
-  }, [primaryDropzoneAspectRatioValue]);
   const shouldApplyMarkupViewport = isVideoToolSelected && hasPrimaryCompositePreview;
   const primaryStageWidthScale = React.useMemo(
     () => Math.max(primaryDropzoneAspectRatioValue, 0.0001),
@@ -2024,19 +2041,29 @@ export function ExpertEditPanelView({
     if (isMarkupPanSpacePressed) return "grab";
     return undefined;
   }, [isMarkupPanDragging, isMarkupPanSpacePressed, shouldApplyMarkupViewport]);
-  const markupViewportStyle = React.useMemo<React.CSSProperties>(() => {
-    const viewport = shouldApplyMarkupViewport
-      ? markupViewport
-      : {
-          scale: sceneZoomScale,
-          offsetX: 0,
-          offsetY: 0,
-        };
+
+  const inlineMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
+    const viewportScale = shouldApplyMarkupViewport ? markupViewport.scale : sceneZoomScale;
+    const viewportOffset = shouldApplyMarkupViewport
+      ? resolveMarkupViewportOffsetPixels(markupViewport, inlineStageViewportSize)
+      : { offsetX: 0, offsetY: 0 };
     return {
-      transform: `translate3d(${Math.round(viewport.offsetX * 100) / 100}px, ${Math.round(viewport.offsetY * 100) / 100}px, 0) scale(${Math.round(viewport.scale * 10000) / 10000})`,
+      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(viewportScale * 10000) / 10000})`,
       transformOrigin: "center center",
     };
-  }, [markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
+  }, [inlineStageViewportSize, markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
+
+  const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
+    const viewportScale = shouldApplyMarkupViewport ? markupViewport.scale : sceneZoomScale;
+    const viewportOffset = shouldApplyMarkupViewport
+      ? resolveMarkupViewportOffsetPixels(markupViewport, markupModalViewportSize)
+      : { offsetX: 0, offsetY: 0 };
+    return {
+      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(viewportScale * 10000) / 10000})`,
+      transformOrigin: "center center",
+    };
+  }, [markupModalViewportSize, markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
+
   const primaryDropzoneStyle = React.useMemo(() => {
     const style: React.CSSProperties = {
       aspectRatio: primaryDropzoneAspectRatio,
@@ -2059,43 +2086,56 @@ export function ExpertEditPanelView({
   const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
     const modalCursor = markupViewportCursor ?? primaryDropzoneCursor;
     const cursorStyle = modalCursor ? { cursor: modalCursor } : null;
-    if (markupModalSquareSize != null && markupModalSquareSize > 0) {
+    if (markupModalStageSize) {
       return {
-        width: `${markupModalSquareSize}px`,
-        height: `${markupModalSquareSize}px`,
+        width: `${markupModalStageSize.width}px`,
+        height: `${markupModalStageSize.height}px`,
         maxWidth: "100%",
         maxHeight: "100%",
         ...(cursorStyle ?? {}),
       };
     }
     return {
-      aspectRatio: "1 / 1",
+      aspectRatio: primaryDropzoneAspectRatio,
       width: "100%",
       maxWidth: "100%",
       maxHeight: "100%",
       ...(cursorStyle ?? {}),
     };
-  }, [markupModalSquareSize, markupViewportCursor, primaryDropzoneCursor]);
+  }, [
+    markupModalStageSize,
+    markupViewportCursor,
+    primaryDropzoneAspectRatio,
+    primaryDropzoneCursor,
+  ]);
+
   const resolveStageFlattenSnapshot = React.useCallback(() => {
-    const stageRect = primaryDropzoneRef.current?.getBoundingClientRect() ?? null;
-    const viewportWidth =
-      stageRect && Number.isFinite(stageRect.width) && stageRect.width > 0 ? stageRect.width : 1;
-    const viewportHeight =
-      stageRect && Number.isFinite(stageRect.height) && stageRect.height > 0 ? stageRect.height : 1;
+    const modalStageRect = isMarkupExpandSelected
+      ? (markupModalStageRef.current?.getBoundingClientRect() ?? null)
+      : null;
+    const inlineStageRect = primaryDropzoneRef.current?.getBoundingClientRect() ?? null;
+    const activeStageRect =
+      modalStageRect && modalStageRect.width > 0 && modalStageRect.height > 0
+        ? modalStageRect
+        : inlineStageRect;
+    const activeViewportSize = resolveStageViewportSize(activeStageRect);
+    const viewportOffset = shouldApplyMarkupViewport
+      ? resolveMarkupViewportOffsetPixels(markupViewport, activeViewportSize)
+      : { offsetX: 0, offsetY: 0 };
     const camera: StageFlattenCameraTransformInput = {
       scale: sceneZoomScale,
-      offsetX: shouldApplyMarkupViewport ? markupViewport.offsetX : 0,
-      offsetY: shouldApplyMarkupViewport ? markupViewport.offsetY : 0,
-      viewportWidth,
-      viewportHeight,
+      offsetX: viewportOffset.offsetX,
+      offsetY: viewportOffset.offsetY,
+      viewportWidth: activeViewportSize.width,
+      viewportHeight: activeViewportSize.height,
     };
     return {
       outputAspectRatio: primaryDropzoneAspectRatioValue,
       camera,
     };
   }, [
-    markupViewport.offsetX,
-    markupViewport.offsetY,
+    isMarkupExpandSelected,
+    markupViewport,
     primaryDropzoneAspectRatioValue,
     sceneZoomScale,
     shouldApplyMarkupViewport,
@@ -2796,8 +2836,8 @@ export function ExpertEditPanelView({
   const isMarkupViewportAtRest = React.useMemo(
     () =>
       Math.abs(markupViewport.scale - 1) <= MARKUP_VIEWPORT_EPSILON &&
-      Math.abs(markupViewport.offsetX) <= MARKUP_VIEWPORT_EPSILON &&
-      Math.abs(markupViewport.offsetY) <= MARKUP_VIEWPORT_EPSILON,
+      Math.abs(markupViewport.offsetXRatio) <= MARKUP_VIEWPORT_EPSILON &&
+      Math.abs(markupViewport.offsetYRatio) <= MARKUP_VIEWPORT_EPSILON,
     [markupViewport]
   );
   const hasInpaintMaskContent = inpaintHistoryState.present.layers.length > 0;
@@ -2807,8 +2847,26 @@ export function ExpertEditPanelView({
     markupStrokes.length === 0 &&
     !hasInpaintMaskContent;
 
+  const syncViewportSizeByScope = React.useCallback((scope: "inline" | "modal", rect: DOMRect) => {
+    const viewportSize = resolveStageViewportSize(rect);
+    if (scope === "modal") {
+      setMarkupModalViewportSize((previous) =>
+        previous.width === viewportSize.width && previous.height === viewportSize.height
+          ? previous
+          : viewportSize
+      );
+      return viewportSize;
+    }
+    setInlineStageViewportSize((previous) =>
+      previous.width === viewportSize.width && previous.height === viewportSize.height
+        ? previous
+        : viewportSize
+    );
+    return viewportSize;
+  }, []);
+
   const beginMarkupPanGesture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: React.PointerEvent<HTMLDivElement>, scope: "inline" | "modal") => {
       if (!shouldApplyMarkupViewport) {
         return false;
       }
@@ -2820,6 +2878,11 @@ export function ExpertEditPanelView({
         return false;
       }
       event.preventDefault();
+      const stageRect = event.currentTarget.getBoundingClientRect();
+      if (stageRect.width <= 0 || stageRect.height <= 0) {
+        return false;
+      }
+      const stageSize = syncViewportSizeByScope(scope, stageRect);
       if (event.currentTarget.setPointerCapture) {
         event.currentTarget.setPointerCapture(event.pointerId);
       }
@@ -2828,8 +2891,10 @@ export function ExpertEditPanelView({
         pointerId: event.pointerId,
         startClientX: event.clientX,
         startClientY: event.clientY,
-        startOffsetX: markupViewport.offsetX,
-        startOffsetY: markupViewport.offsetY,
+        startOffsetXRatio: markupViewport.offsetXRatio,
+        startOffsetYRatio: markupViewport.offsetYRatio,
+        stageWidth: stageSize.width,
+        stageHeight: stageSize.height,
       };
       setIsMarkupPanDragging(true);
       return true;
@@ -2837,9 +2902,10 @@ export function ExpertEditPanelView({
     [
       isMarkupExpandSelected,
       isMarkupPanSpacePressed,
-      markupViewport.offsetX,
-      markupViewport.offsetY,
+      markupViewport.offsetXRatio,
+      markupViewport.offsetYRatio,
       shouldApplyMarkupViewport,
+      syncViewportSizeByScope,
     ]
   );
 
@@ -2852,10 +2918,12 @@ export function ExpertEditPanelView({
       event.preventDefault();
       const deltaX = event.clientX - session.startClientX;
       const deltaY = event.clientY - session.startClientY;
+      const deltaXRatio = deltaX / Math.max(1, session.stageWidth);
+      const deltaYRatio = deltaY / Math.max(1, session.stageHeight);
       setMarkupViewport((previous) => ({
         ...previous,
-        offsetX: session.startOffsetX + deltaX,
-        offsetY: session.startOffsetY + deltaY,
+        offsetXRatio: session.startOffsetXRatio + deltaXRatio,
+        offsetYRatio: session.startOffsetYRatio + deltaYRatio,
       }));
       return true;
     },
@@ -2899,12 +2967,13 @@ export function ExpertEditPanelView({
   );
 
   const handleMarkupViewportWheel = React.useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
+    (event: React.WheelEvent<HTMLDivElement>, scope: "inline" | "modal") => {
       if (!shouldApplyMarkupViewport) return;
       if (!event.metaKey && !event.ctrlKey) return;
       const stageRect = event.currentTarget.getBoundingClientRect();
       if (stageRect.width <= 0 || stageRect.height <= 0) return;
       event.preventDefault();
+      const stageSize = syncViewportSizeByScope(scope, stageRect);
       const pointerX = event.clientX - stageRect.left;
       const pointerY = event.clientY - stageRect.top;
       const centerX = stageRect.width / 2;
@@ -2917,18 +2986,19 @@ export function ExpertEditPanelView({
         }
         const relativeX = pointerX - centerX;
         const relativeY = pointerY - centerY;
+        const previousOffset = resolveMarkupViewportOffsetPixels(previous, stageSize);
         const nextOffsetX =
-          relativeX - ((relativeX - previous.offsetX) / previous.scale) * nextScale;
+          relativeX - ((relativeX - previousOffset.offsetX) / previous.scale) * nextScale;
         const nextOffsetY =
-          relativeY - ((relativeY - previous.offsetY) / previous.scale) * nextScale;
+          relativeY - ((relativeY - previousOffset.offsetY) / previous.scale) * nextScale;
         return {
           scale: nextScale,
-          offsetX: nextOffsetX,
-          offsetY: nextOffsetY,
+          offsetXRatio: nextOffsetX / stageSize.width,
+          offsetYRatio: nextOffsetY / stageSize.height,
         };
       });
     },
-    [shouldApplyMarkupViewport]
+    [shouldApplyMarkupViewport, syncViewportSizeByScope]
   );
 
   const eraseMarkupStrokesAtPoints = React.useCallback(
@@ -3434,8 +3504,11 @@ export function ExpertEditPanelView({
 
   const markupStageHandlers = React.useMemo(
     () => ({
-      onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-        if (beginMarkupPanGesture(event)) return;
+      onPointerDown: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (beginMarkupPanGesture(event, context.scope)) return;
         beginMarkupDrawGesture(event);
       },
       onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
@@ -3454,8 +3527,11 @@ export function ExpertEditPanelView({
         if (endMarkupPanGestureOnLeave(event)) return;
         endMarkupDrawGestureOnLeave(event);
       },
-      onWheel: (event: React.WheelEvent<HTMLDivElement>) => {
-        handleMarkupViewportWheel(event);
+      onWheel: (
+        event: React.WheelEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        handleMarkupViewportWheel(event, context.scope);
       },
     }),
     [
@@ -4015,14 +4091,48 @@ export function ExpertEditPanelView({
   }, [closeStageContextMenu, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
+    const inlineStageElement = primaryDropzoneRef.current;
+    if (!inlineStageElement) return;
+
+    const updateInlineSize = () => {
+      const nextViewportSize = resolveStageViewportSize(
+        inlineStageElement.getBoundingClientRect() ?? null
+      );
+      setInlineStageViewportSize((previous) =>
+        previous.width === nextViewportSize.width && previous.height === nextViewportSize.height
+          ? previous
+          : nextViewportSize
+      );
+    };
+
+    updateInlineSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      if (typeof window === "undefined") return;
+      window.addEventListener("resize", updateInlineSize);
+      return () => {
+        window.removeEventListener("resize", updateInlineSize);
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateInlineSize();
+    });
+    resizeObserver.observe(inlineStageElement);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [aspect, hasPrimaryCompositePreview, isMarkupExpandSelected]);
+
+  React.useEffect(() => {
     if (!isMarkupExpandSelected) {
-      setMarkupModalSquareSize(null);
+      setMarkupModalStageSize(null);
       return;
     }
     const markupModalElement = markupModalRef.current;
     if (!markupModalElement) return;
 
-    const updateSquareSize = () => {
+    const updateStageSize = () => {
       const modalRect = markupModalElement.getBoundingClientRect();
       const controlsRect = markupModalControlsRef.current?.getBoundingClientRect();
       const layersRect = markupModalLayersRef.current?.getBoundingClientRect();
@@ -4043,27 +4153,46 @@ export function ExpertEditPanelView({
         layersWidth -
         horizontalGap * 2;
       const availableHeight = modalRect.height - paddingTop - paddingBottom;
-      const nextSquareSize = Math.max(0, Math.floor(Math.min(availableWidth, availableHeight)));
-      setMarkupModalSquareSize((previous) => {
-        if (nextSquareSize <= 0) {
-          return previous === null ? previous : null;
+      const safeAspectRatio =
+        Number.isFinite(primaryDropzoneAspectRatioValue) && primaryDropzoneAspectRatioValue > 0
+          ? primaryDropzoneAspectRatioValue
+          : 1;
+      if (availableWidth <= 0 || availableHeight <= 0) {
+        setMarkupModalStageSize((previous) => (previous == null ? previous : null));
+        return;
+      }
+      let fittedWidth = availableWidth;
+      let fittedHeight = fittedWidth / safeAspectRatio;
+      if (fittedHeight > availableHeight) {
+        fittedHeight = availableHeight;
+        fittedWidth = fittedHeight * safeAspectRatio;
+      }
+      const nextStageSize = {
+        width: Math.max(1, Math.floor(fittedWidth)),
+        height: Math.max(1, Math.floor(fittedHeight)),
+      };
+      setMarkupModalStageSize((previous) => {
+        if (!previous) {
+          return nextStageSize;
         }
-        return previous === nextSquareSize ? previous : nextSquareSize;
+        return previous.width === nextStageSize.width && previous.height === nextStageSize.height
+          ? previous
+          : nextStageSize;
       });
     };
 
-    updateSquareSize();
+    updateStageSize();
 
     if (typeof ResizeObserver === "undefined") {
       if (typeof window === "undefined") return;
-      window.addEventListener("resize", updateSquareSize);
+      window.addEventListener("resize", updateStageSize);
       return () => {
-        window.removeEventListener("resize", updateSquareSize);
+        window.removeEventListener("resize", updateStageSize);
       };
     }
 
     const resizeObserver = new ResizeObserver(() => {
-      updateSquareSize();
+      updateStageSize();
     });
     resizeObserver.observe(markupModalElement);
     if (markupModalControlsRef.current) {
@@ -4074,16 +4203,51 @@ export function ExpertEditPanelView({
     }
 
     if (typeof window !== "undefined") {
-      window.addEventListener("resize", updateSquareSize);
+      window.addEventListener("resize", updateStageSize);
     }
 
     return () => {
       resizeObserver.disconnect();
       if (typeof window !== "undefined") {
-        window.removeEventListener("resize", updateSquareSize);
+        window.removeEventListener("resize", updateStageSize);
       }
     };
-  }, [isMarkupExpandSelected]);
+  }, [isMarkupExpandSelected, primaryDropzoneAspectRatioValue]);
+
+  React.useEffect(() => {
+    if (!isMarkupExpandSelected) return;
+    const modalStageElement = markupModalStageRef.current;
+    if (!modalStageElement) return;
+
+    const updateModalViewportSize = () => {
+      const nextViewportSize = resolveStageViewportSize(
+        modalStageElement.getBoundingClientRect() ?? null
+      );
+      setMarkupModalViewportSize((previous) =>
+        previous.width === nextViewportSize.width && previous.height === nextViewportSize.height
+          ? previous
+          : nextViewportSize
+      );
+    };
+
+    updateModalViewportSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      if (typeof window === "undefined") return;
+      window.addEventListener("resize", updateModalViewportSize);
+      return () => {
+        window.removeEventListener("resize", updateModalViewportSize);
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateModalViewportSize();
+    });
+    resizeObserver.observe(modalStageElement);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isMarkupExpandSelected, markupModalStageSize]);
 
   React.useEffect(() => {
     if (!shouldShowInpaintBrushReticle || isMorePresetsSurfaceOpen) {
@@ -5076,7 +5240,7 @@ export function ExpertEditPanelView({
             aria-busy={isPrimaryStageBusy || undefined}
           >
             {hasPrimaryCompositePreview ? (
-              <div className="edit-expert-markup-viewport" style={markupViewportStyle}>
+              <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle}>
                 <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
                   {layers.map((layer, index) =>
                     layer.imageUrl ? (
@@ -5595,13 +5759,14 @@ export function ExpertEditPanelView({
         isOpen={isMarkupExpandSelected}
         modalRef={markupModalRef}
         controlsColumnRef={markupModalControlsRef}
+        stageRef={markupModalStageRef}
         stageStyle={markupModalStageStyle}
         generalPanel={renderMarkupModalGeneralPanel()}
         movePanel={renderMarkupModalMovePanel()}
         inpaintPanel={renderMarkupModalInpaintPanel()}
         markupPanel={renderMarkupControlsContent("modal")}
         stageContent={
-          <div className="edit-expert-markup-viewport" style={markupViewportStyle}>
+          <div className="edit-expert-markup-viewport" style={modalMarkupViewportStyle}>
             <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
               {layers.map((layer, index) =>
                 layer.imageUrl ? (
@@ -5618,11 +5783,6 @@ export function ExpertEditPanelView({
                   />
                 ) : null
               )}
-              <div
-                className="edit-expert-markup-modal-aspect-frame"
-                style={modalAspectFrameStyle}
-                aria-hidden="true"
-              />
               <canvas
                 ref={modalOverlayCanvasRef}
                 className="edit-expert-inpaint-overlay-canvas"

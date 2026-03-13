@@ -9,7 +9,7 @@ Central index for evidence artifacts supporting the Expert Edit properties panel
    - Source policy: official Fal model API docs.
 2. `2026-03-12-markup-modal-parity-matrix.md`
    - Baseline-to-closure parity matrix for Expert Edit main stage vs Markup modal stage.
-   - Includes architecture boundary notes and strict validation command set.
+   - Includes architecture boundary notes, viewport-geometry closure (normalized offsets + aspect-fit modal stage), and strict validation command set.
 
 ## Maintenance
 1. Add a dated artifact for any future provider-capability changes that affect Expert Edit guardrails.

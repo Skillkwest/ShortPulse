@@ -131,6 +131,7 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
   MediaLibraryMediaGrid: (props: {
     activeMedia: Array<{ id: string; filename: string }>;
     onSelectMediaFile: (row: { id: string; filename: string }) => void;
+    onMediaDoubleClick?: (row: { id: string; filename: string }) => void;
     resolveCardPreviewUrl?: (args: {
       signedUrl: string | null | undefined;
       fileType?: string | null;
@@ -171,6 +172,11 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
             <button type="button" onClick={() => props.onSelectMediaFile(row)}>
               Select media {row.filename}
             </button>
+            {props.onMediaDoubleClick ? (
+              <button type="button" onDoubleClick={() => props.onMediaDoubleClick?.(row)}>
+                Open preview media {row.filename}
+              </button>
+            ) : null}
             {props.onMediaContextMenu ? (
               <button
                 type="button"
@@ -389,6 +395,24 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("opens preview modal on all-media media double-click without ingest side effects", async () => {
+    const onSelectMedia = vi.fn();
+    render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Open preview media ref-1.png" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Open preview media ref-1.png" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Preview ref-1.png" })).toBeInTheDocument();
+    });
+    expect(onSelectMedia).not.toHaveBeenCalled();
+  });
+
   it("requires confirmation before deleting root media items", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -505,6 +529,47 @@ describe("MediaLibraryPanel", () => {
       expect(
         screen.getByRole("button", { name: "Select media private-ref-1.png" })
       ).toBeInTheDocument();
+    });
+  });
+
+  it("renders one global all-media paginator footer and loads the next media page from it", async () => {
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "media-1",
+            filename: "ref-1.png",
+            storage_path: "user-1/uploads/ref-1.png",
+            preview_storage_path: "user-1/uploads/ref-1.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-03-02T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/ref-1.png",
+          },
+        ],
+        nextCursor: { createdAt: "2026-03-02T00:00:00.000Z", id: "media-1" },
+        hasMore: true,
+        signedById: new Map<string, string>(),
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map<string, string>(),
+      });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-panel-root-media-paginator")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Load more media" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Load more media" }));
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
     });
   });
 

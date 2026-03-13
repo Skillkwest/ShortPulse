@@ -200,6 +200,19 @@ Checklist:
 - RLS is enabled for `media_files` and policies enforce `user_id = auth.uid()`.
 - You ran the bootstrap scripts in `sql/` (including `sql/create_media_library_tables.sql`) or `docs/supabase_full_schema.sql`.
 
+## AI Studio All Media folder is missing expected legacy/private/generated assets
+Checklist:
+- Confirm listing route is healthy:
+  - `POST /api/media/list` should return rows for `folderId=all_items` with `mediaKind=all`.
+- Run completeness diagnostics:
+  - `sql/check_media_all_media_completeness_drift.sql`
+- Verify durable missing classes are expected (`private_images`, `uploads_images`, `uploads_videos`, `generations_images`, `generations_videos`) and transient/character/variant paths are excluded.
+
+Mitigation:
+- Apply migration `sql/migrations/064_backfill_media_files_from_storage_objects.sql` in staging first.
+- Re-run `sql/check_media_all_media_completeness_drift.sql` and confirm missing counts converge.
+- If rollback is required, run `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql` (removes only migration-tagged rows).
+
 ## Private tab data looks wrong or empty
 Checklist:
 - Run `sql/migrations/003_add_private_media_source.sql`.

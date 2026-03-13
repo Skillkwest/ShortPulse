@@ -45,6 +45,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Folder canvas persistence service: `frontend/lib/server/mediaFolderCanvasService.ts`
 - Schema migration: `sql/migrations/060_add_media_folders_and_membership.sql`
   - `sql/migrations/063_add_media_folder_canvas_states.sql`
+  - `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
+  - `sql/check_media_all_media_completeness_drift.sql`
 
 ## Target Contract
 
@@ -62,10 +64,11 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 ### 3) `all_media` display contract
 1. `All Media` renders as sectioned content:
-   - `Prompts` section: prompt cards use text reference-card presentation.
    - `Images` section: masonry grid preserving each image’s true aspect ratio.
    - `Videos` section: masonry grid preserving each video’s true aspect ratio.
+   - `Prompts` section: prompt cards use text reference-card presentation.
 2. Search and pagination apply consistently to these sections through shared list APIs.
+3. `All Media` media pagination controls are globally discoverable at panel bottom and are not nested inside a single media section.
 
 ### 4) Drag/drop and ingest contract
 1. Users can drag images, videos, and prompts from any folder into any folder (subject to membership semantics above).
@@ -79,6 +82,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ### 5) Right-click behaviors
 1. Right-clicking media (image/video) in `All Media` sends that media to the Reference Grid.
 2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
+3. Double-clicking media (image/video) in `All Media` opens a preview-only detail modal (no ingest side effects).
 
 ### 6) Deletion behavior
 1. Deleting a custom folder removes that folder and its memberships; master items remain in `All Media`.
@@ -93,6 +97,20 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 4. Folder canvases follow main-canvas interaction constraints (pan/zoom/place media/double-click text).
 5. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
 
+### 8) `All Media` completeness policy
+1. `All Media` should include durable user-scoped media represented by `media_files` rows.
+2. Durable storage path classes targeted for backfill:
+   - `<uid>/private/images/*` -> `source=private_upload`, `file_type=image`
+   - `<uid>/uploads/images/*` and legacy `<uid>/images/*` -> `source=upload`, `file_type=image`
+   - `<uid>/uploads/videos/*` and legacy `<uid>/videos/*` -> `source=upload`, `file_type=video`
+   - `<uid>/generations/images/*` -> `source=ai_studio`, `file_type=image`
+   - `<uid>/generations/videos/*` -> `source=ai_studio`, `file_type=video`
+3. Excluded classes:
+   - transient provider-reference paths (`<uid>/images/reference/*`, `<uid>/videos/motion-control/*`)
+   - character-managed paths (`<uid>/characters/*`)
+   - derivative/variant paths (linked `media_asset_variants` rows, `media_files` variant-hint paths, and known variant path classes)
+4. Backfill insertion must be idempotent on `(user_id, storage_path)` and tag inserted rows for rollback targeting.
+
 ## Server Contract Invariants
 - `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
 - `membership-batch` supports `assign`, `unassign`, and `move` actions with ownership validation.
@@ -102,20 +120,29 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ## Current Runtime Delta (as of 2026-03-12)
 1. `All Media` sectioned layout:
    - Status: Aligned.
-   - Current: Prompts/images/videos sections render in panel with prompt text cards and masonry media cards.
-2. Right-click media in `All Media` -> Reference Grid:
+   - Current: Images/videos/prompts sections render in panel with prompt text cards and masonry media cards at true aspect ratio.
+2. `All Media` media pagination discoverability:
+   - Status: Aligned.
+   - Current: Root media pagination controls render in one global footer block (not nested under Videos section).
+3. Right-click media in `All Media` -> Reference Grid:
    - Status: Aligned.
    - Current: Right-click on media cards dispatches media ingestion to Reference Grid.
-3. Drag ghost visibility for Media Library drags:
+4. Double-click media in `All Media` -> preview modal:
+   - Status: Aligned.
+   - Current: Double-click opens preview-only modal for image/video cards and does not dispatch ingestion.
+5. Drag ghost visibility for Media Library drags:
    - Status: Aligned.
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
-4. Delete from `All Media` permanent remove:
+6. Delete from `All Media` permanent remove:
    - Status: Aligned.
    - Current: Root-level delete action permanently removes media/prompt rows from library (including storage cleanup for media).
-5. Folder-canvas independent spaces:
+7. Folder-canvas independent spaces:
    - Status: Partially aligned.
    - Current: Custom folders mount dedicated canvas spaces with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior.
    - Gap: Folder-canvas linked-item removal currently follows canvas delete/selection interactions; dedicated explicit remove controls are deferred.
+8. `All Media` completeness backfill:
+   - Status: Pending rollout.
+   - Current: Backfill and diagnostics exist in SQL (`064` + drift check) but require environment application/runbook execution to converge legacy missing rows.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`
@@ -155,3 +182,4 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 - `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
 - `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
+- `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`

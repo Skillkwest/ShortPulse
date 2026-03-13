@@ -26,6 +26,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/configure_generation_recovery_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/generation-recovery/run`.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
+- `sql/check_media_all_media_completeness_drift.sql`: All Media completeness drift diagnostics for durable storage objects missing `media_files` rows (read-only).
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
 - `sql/check_runtime_sql_security_audit.sql`: runtime RPC security-definer + execute-grant audit (read-only).
 - `sql/check_generation_settlement_integrity.sql`: released-success settlement leakage diagnostics (read-only).
@@ -98,6 +99,7 @@ Current set:
 - `061_backfill_media_image_dimensions_metadata.sql`
 - `062_add_dashboard_announcements.sql`
 - `063_add_media_folder_canvas_states.sql`
+- `064_backfill_media_files_from_storage_objects.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.
@@ -169,6 +171,7 @@ This is expected and not a broken loop; it is convergence to a strict, validated
 ### Media drift checks
 Run:
 - `sql/check_media_storage_scope_drift.sql`
+- `sql/check_media_all_media_completeness_drift.sql` (before/after migration `064`)
 
 Expected:
 - `media_files.storage_path_backslash = 0`
@@ -178,6 +181,7 @@ Expected:
 - `media_files.storage_path_traversal_segment = 0`
 - `media_files.variant_hint_invalid_shape = 0` (when variant hint columns exist)
 - `media_asset_variants.storage_path_invalid_shape = 0` (when `media_asset_variants` exists)
+- `check_media_all_media_completeness_drift` summary converges missing durable counts as expected after migration `064`.
 
 ### Constraint validation status
 ```sql

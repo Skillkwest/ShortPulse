@@ -85,12 +85,14 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
   - Folder membership semantics: root -> custom = assign; custom -> custom = move; custom -> root = unassign.
   - Folder delete removes membership links only; underlying `media_files` and `media_prompts` rows remain.
 - `All Media` display contract:
-  - Prompts render as text reference cards.
   - Images render in masonry preserving true aspect ratio.
   - Videos render in masonry preserving true aspect ratio.
+  - Prompts render as text reference cards.
+  - Root media pagination uses one global All Media footer control for discoverability.
 - Right-click contract:
   - Right-clicking media in `All Media` sends media to Reference Grid.
-- Folder canvas contract (custom folders, behind runtime flag):
+  - Double-clicking media in `All Media` opens a preview-only detail modal (no ingest side effects).
+- Folder canvas contract (custom folders, always enabled):
   - Custom folder body can mount a dedicated folder-scoped canvas surface with independent camera + scene persistence.
   - Folder canvas snapshots persist by `user_id + folder_id` through `/api/ai/media-folder-canvas/[folderId]` and `/api/ai/media-folder-canvas/save`.
   - Right-click on folder-canvas items copies media/text references into Reference Grid.
@@ -102,3 +104,6 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
 - Performance/adaptive parity:
   - Keep `surface: "media-library-modal"` and adaptive/signing budgets unchanged for panel parity in this phase.
   - Preserve stale-refresh non-blocking behavior and placeholder-first rendering.
+- Data completeness ops:
+  - Use `sql/check_media_all_media_completeness_drift.sql` to detect durable storage objects missing `media_files` rows.
+  - Apply `sql/migrations/064_backfill_media_files_from_storage_objects.sql` (with rollback pair) to converge legacy All Media completeness while excluding transient/character/variant paths.

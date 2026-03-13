@@ -70,6 +70,7 @@ import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
 import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
+import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
@@ -182,6 +183,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [pendingLibraryDelete, setPendingLibraryDelete] =
     useState<PendingLibraryDeleteState | null>(null);
   const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = useState(false);
+  const [previewModalFile, setPreviewModalFile] = useState<MediaFileRow | null>(null);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
+  const [previewModalLoading, setPreviewModalLoading] = useState(false);
+  const [previewModalError, setPreviewModalError] = useState<string | null>(null);
 
   const selectedIds = EMPTY_SELECTED_IDS;
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
@@ -209,6 +214,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const visibleMediaIdsRef = useRef<Set<string>>(new Set());
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
+  const previewResolveTokenRef = useRef(0);
 
   const [signPassNonce, setSignPassNonce] = useState(0);
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
@@ -754,6 +760,60 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     void file;
   }, []);
 
+  const resolvePreviewModalUrl = useCallback(
+    async (file: MediaFileRow): Promise<string | null> => {
+      const nextUrl =
+        (await resolveSignedSelectionUrl({
+          row: file,
+          currentUserId: currentUserIdRef.current,
+          signStoragePath,
+        })) ??
+        (await refreshSignedUrl(file)) ??
+        file.signedUrl;
+      const normalized = (nextUrl ?? "").trim();
+      return normalized || null;
+    },
+    [refreshSignedUrl, signStoragePath]
+  );
+
+  const closePreviewModal = useCallback(() => {
+    previewResolveTokenRef.current += 1;
+    setPreviewModalFile(null);
+    setPreviewModalUrl(null);
+    setPreviewModalLoading(false);
+    setPreviewModalError(null);
+  }, []);
+
+  const handleMediaCardDoubleClick = useCallback(
+    (file: MediaFileRow) => {
+      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+      const nextToken = previewResolveTokenRef.current + 1;
+      previewResolveTokenRef.current = nextToken;
+      setPreviewModalFile(file);
+      setPreviewModalUrl((file.signedUrl ?? "").trim() || null);
+      setPreviewModalLoading(true);
+      setPreviewModalError(null);
+      void resolvePreviewModalUrl(file)
+        .then((resolvedUrl) => {
+          if (previewResolveTokenRef.current !== nextToken) return;
+          if (resolvedUrl) {
+            setPreviewModalUrl(resolvedUrl);
+            return;
+          }
+          setPreviewModalError("Failed to load preview.");
+        })
+        .catch(() => {
+          if (previewResolveTokenRef.current !== nextToken) return;
+          setPreviewModalError("Failed to load preview.");
+        })
+        .finally(() => {
+          if (previewResolveTokenRef.current !== nextToken) return;
+          setPreviewModalLoading(false);
+        });
+    },
+    [activeFolderId, resolvePreviewModalUrl]
+  );
+
   const refreshActiveRows = useCallback(async () => {
     if (shouldShowMedia) {
       await loadMediaPage({ reset: true });
@@ -865,7 +925,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     setPendingLibraryDelete(null);
     setDeleteConfirmSubmitting(false);
-  }, [activeFolderId]);
+    closePreviewModal();
+  }, [activeFolderId, closePreviewModal]);
 
   const foldersDropController = useMediaLibraryFolderDropController({
     folders,
@@ -1082,6 +1143,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onSelectMediaFile={(file) => {
           void handleSelectMediaFile(file);
         }}
+        onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
         onMediaContextMenu={handleMediaCardContextMenu}
@@ -1109,7 +1171,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       canShowFolderItemRemoveAction,
       getMediaCardRef,
       handleCardDragEnd,
-      handleDeleteMediaFromLibrary,
+      handleMediaCardDoubleClick,
       handleMediaCardDragStart,
       handleMediaCardContextMenu,
       handleDownloadMediaFile,
@@ -1466,20 +1528,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   {!videosSectionCollapsed ? (
                     <div id="media-library-panel-videos-section">
                       {visibleVideoRows.length > 0 ? renderMediaGrid(visibleVideoRows) : null}
-                      {mediaHasMore ? (
-                        <div className="media-load-more">
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => {
-                              void loadMediaPage({ reset: false });
-                            }}
-                            disabled={mediaLoading}
-                          >
-                            {mediaLoading ? "Loading more..." : "Load more media"}
-                          </button>
-                        </div>
-                      ) : null}
                     </div>
                   ) : null}
                 </section>
@@ -1489,6 +1537,33 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             {!showFolderCanvas && shouldShowPrompts && isRootFolderSelected
               ? renderPromptsSection()
               : null}
+
+            {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (
+              <section
+                className="media-library-panel-section media-library-panel-root-paginator"
+                data-testid="media-library-panel-root-media-paginator"
+              >
+                <div className="media-load-more media-load-more-inline">
+                  <p className="tiny subdued">
+                    Loaded {mediaRows.length}{" "}
+                    {mediaRows.length === 1 ? "media item" : "media items"}
+                    {mediaHasMore ? "." : " (all loaded)."}
+                  </p>
+                  {mediaHasMore ? (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        void loadMediaPage({ reset: false });
+                      }}
+                      disabled={mediaLoading}
+                    >
+                      {mediaLoading ? "Loading more..." : "Load more media"}
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
 
             {!showFolderCanvas && shouldShowMedia && !isRootFolderSelected ? (
               <section className="media-library-panel-section">
@@ -1568,6 +1643,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           </button>
         </div>
       ) : null}
+      <MediaLibraryPanelPreviewModal
+        file={previewModalFile}
+        previewUrl={previewModalUrl}
+        isLoading={previewModalLoading}
+        error={previewModalError}
+        onClose={closePreviewModal}
+      />
       {pendingLibraryDelete ? (
         <div className="art-confirm-backdrop" onClick={closeDeleteConfirm}>
           <div

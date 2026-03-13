@@ -34,6 +34,7 @@ type MediaLibraryMediaGridProps = {
   scrollContainerRef?: MutableRefObject<HTMLElement | null>;
   getMediaCardRef: (fileId: string) => MediaCardRefCallback;
   onSelectMediaFile: (file: MediaFileRow) => void;
+  onMediaDoubleClick?: (file: MediaFileRow) => void;
   onMediaDragStart?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   showRemoveAction?: boolean;
@@ -57,6 +58,7 @@ export function MediaLibraryMediaGrid({
   scrollContainerRef,
   getMediaCardRef,
   onSelectMediaFile,
+  onMediaDoubleClick,
   onMediaDragStart,
   onMediaDragEnd,
   showRemoveAction = false,
@@ -174,6 +176,7 @@ export function MediaLibraryMediaGrid({
                 ref={getMediaCardRef(file.id)}
                 draggable={Boolean(onMediaDragStart)}
                 onClick={() => onSelectMediaFile(file)}
+                onDoubleClick={() => onMediaDoubleClick?.(file)}
                 onDragStart={(event) => onMediaDragStart?.(event, file)}
                 onDragEnd={(event) => onMediaDragEnd?.(event, file)}
                 onContextMenu={(event) => onMediaContextMenu?.(event, file)}

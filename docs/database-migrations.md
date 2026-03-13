@@ -150,6 +150,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 61. `sql/migrations/061_backfill_media_image_dimensions_metadata.sql`
 62. `sql/migrations/062_add_dashboard_announcements.sql`
 63. `sql/migrations/063_add_media_folder_canvas_states.sql`
+64. `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
 63. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
@@ -177,6 +178,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
     - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`
+    - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -228,6 +230,7 @@ Billing safety note:
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.
 - Migration `063_add_media_folder_canvas_states.sql` adds per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion.
+- Migration `064_backfill_media_files_from_storage_objects.sql` backfills missing durable `media_files` rows from `storage.objects` for All Media completeness (idempotent user/path insert checks, transient/character/variant exclusions, and rollback-target metadata tagging).
 
 ## Media storage scope verification (post-017)
 

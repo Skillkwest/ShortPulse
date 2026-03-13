@@ -26,6 +26,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Canonical image dimension keys for masonry surfaces: `width` (px), `height` (px), `aspect_ratio` (`width/height`).
   - Legacy dimension keys may still appear (`image_width`, `image_height`, `pixel_width`, `pixel_height`, nested `dimensions.width/height`) and are normalized by migration `061_backfill_media_image_dimensions_metadata.sql`.
   - Character profile uploads store `character_id` and `role = character_profile` for traceability.
+  - Migration-tagged All Media backfill rows may include:
+    - `backfill_migration = "064_backfill_media_files_from_storage_objects"`
+    - `backfill_storage_object_id` (origin `storage.objects.id`)
+    - `backfill_storage_object_created_at` (origin object timestamp)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now)
@@ -37,6 +41,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Any row with `storage_path` under `<user_id>/private/images/...` must use `source = private_upload`.
   - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `character_sheet_id` (legacy `reference_pack_id` is still accepted), and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql` and `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`).
   - `source = character_quickswap` requires `file_type = image`, `storage_path` under `<user_id>/characters/<character_id>/quickswap/...`, and metadata key `character_id` (see `sql/migrations/045_add_character_quickswap_deck.sql`).
+  - Legacy All Media convergence: durable missing rows can be diagnosed with `sql/check_media_all_media_completeness_drift.sql` and backfilled with `sql/migrations/064_backfill_media_files_from_storage_objects.sql`.
 
 ### Media usage RPCs
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.

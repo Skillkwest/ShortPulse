@@ -343,6 +343,20 @@ describe("dragDrop payload extraction", () => {
     expect(payload?.sourceSurface).toBe("curated");
   });
 
+  it("accepts internal output-id/media-id hints even when origin metadata is absent", () => {
+    const transfer = makeTransfer({
+      "text/reference-output-id": "out-456",
+      "text/reference-media-id": "media-456",
+      "text/reference-url": "https://cdn.example.com/out-456.png",
+    });
+
+    const payload = extractInternalReferenceDragPayload(transfer);
+
+    expect(payload?.origin).toBe(INTERNAL_REFERENCE_DRAG_ORIGIN);
+    expect(payload?.outputId).toBe("out-456");
+    expect(payload?.mediaId).toBe("media-456");
+  });
+
   it("accepts relative image-like paths", () => {
     expect(looksLikeImageUrl("/storage/v1/object/public/media/image.webp?token=1")).toBe(true);
     expect(looksLikeImageUrl("/storage/v1/object/public/media/clip.mp4")).toBe(false);
@@ -396,6 +410,26 @@ describe("dragDrop payload extraction", () => {
     );
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("prefers card preview URL over rendered image URL for transfer payload image/url", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragPreviewUrl = `${window.location.origin}/_next/image?url=https%3A%2F%2Fcdn.example.com%2Fsigned.png&w=512&q=75`;
+    dragNode.dataset.dragImageSrc = "https://cdn.example.com/rendered-current-src.png";
+
+    prepareReferenceDrag(event, {
+      id: "ref-priority-1",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://cdn.example.com/output-preview.png",
+    });
+
+    expect(setData).toHaveBeenCalledWith("image/url", "https://cdn.example.com/signed.png");
   });
 
   it("keeps drag ghosts at a 4:5 aspect ratio", () => {

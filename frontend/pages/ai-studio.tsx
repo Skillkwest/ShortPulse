@@ -291,8 +291,8 @@ export default function AiStudioPage() {
     setEditReferenceText,
     videoReferenceText,
     setVideoReferenceText,
-    expertEditLayerSessionState,
-    setExpertEditLayerSessionState,
+    expertEditSessionState,
+    setExpertEditSessionState,
     setSharedPrompt,
     useReferenceImageIndicator,
     detailOutput,
@@ -343,8 +343,8 @@ export default function AiStudioPage() {
   });
 
   useEffect(() => {
-    setExpertEditLayerSessionState(null);
-  }, [sessionId, setExpertEditLayerSessionState]);
+    setExpertEditSessionState(null);
+  }, [sessionId, setExpertEditSessionState]);
   const resolveSavedMediaIdFromOutput = useCallback(
     (output: StudioOutput | null, imageIndex: number) => {
       if (!output?.savedMediaIds?.length) return null;
@@ -1612,8 +1612,8 @@ export default function AiStudioPage() {
     onSelectedExpertEditPresetIdsChange: setSelectedExpertEditPresetIds,
     expertEditCustomPresetOverrides,
     onExpertEditCustomPresetOverridesChange: setExpertEditCustomPresetOverrides,
-    expertEditLayerSessionState,
-    onExpertEditLayerSessionStateChange: setExpertEditLayerSessionState,
+    expertEditSessionState,
+    onExpertEditSessionStateChange: setExpertEditSessionState,
     videoDurationSeconds,
     videoResolution,
     imageResolution,

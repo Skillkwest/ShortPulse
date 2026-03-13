@@ -11,7 +11,7 @@ import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
 } from "../components/edit/expertEditPresets";
-import type { ExpertEditLayerSessionState } from "../components/edit/ExpertEditPanelView";
+import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 type UseAiStudioEditExpertPanelPropsParams = {
   expertEditEligible: boolean;
@@ -72,8 +72,8 @@ type UseAiStudioEditExpertPanelPropsParams = {
   onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
   onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
-  layerSessionState?: ExpertEditLayerSessionState | null;
-  onLayerSessionStateChange?: (state: ExpertEditLayerSessionState) => void;
+  sessionState?: ExpertEditSessionState | null;
+  onSessionStateChange?: (state: ExpertEditSessionState) => void;
 };
 
 /**
@@ -118,8 +118,8 @@ export const useAiStudioEditExpertPanelProps = ({
   onSelectedPresetIdsChange,
   customPresetOverrides,
   onCustomPresetOverridesChange,
-  layerSessionState,
-  onLayerSessionStateChange,
+  sessionState,
+  onSessionStateChange,
 }: UseAiStudioEditExpertPanelPropsParams): AiStudioEditExpertPanelContract =>
   useMemo(
     () => ({
@@ -181,8 +181,8 @@ export const useAiStudioEditExpertPanelProps = ({
       onSelectedPresetIdsChange,
       customPresetOverrides,
       onCustomPresetOverridesChange,
-      layerSessionState,
-      onLayerSessionStateChange,
+      sessionState,
+      onSessionStateChange,
     }),
     [
       aspect,
@@ -211,8 +211,8 @@ export const useAiStudioEditExpertPanelProps = ({
       resolveOutputPreviewUrl,
       customPresetOverrides,
       onCustomPresetOverridesChange,
-      layerSessionState,
-      onLayerSessionStateChange,
+      sessionState,
+      onSessionStateChange,
       onSelectedPresetIdsChange,
       selectedCharacterId,
       selectedPresetIds,

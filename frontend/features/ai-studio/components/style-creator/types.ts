@@ -38,6 +38,10 @@ export type StyleExtractionTelemetryMetadata = {
   failureClass?: StyleExtractionFailureClass;
   errorMessage?: string;
   classifierReason?: string;
+  resolutionStage?: "primary" | "server_copy_fallback" | null;
+  resolutionReason?: string | null;
+  candidateCount?: number | null;
+  serverCopyAttempted?: boolean | null;
   attemptCount?: number | null;
   probeMs?: number | null;
   openAiMs?: number | null;

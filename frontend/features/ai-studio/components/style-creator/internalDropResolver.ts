@@ -232,8 +232,43 @@ export const resolveStyleInternalDropCandidates = async ({
   const fallbackCandidates: string[] = [];
   pushImageCandidate(fallbackCandidates, payload.referenceUrl);
   if (!initialOutput || initialOutput.mode !== "image") {
-    if (!fallbackCandidates.length) return null;
-    return { imageUrlCandidates: fallbackCandidates, promptText: null };
+    const mediaLookupCandidates: string[] = [];
+    const payloadMediaId = payload.mediaId?.trim() ?? null;
+    let mediaLookupStoragePath: string | null = null;
+    if (payloadMediaId) {
+      mediaLookupStoragePath = await resolveStoragePathFromMediaId(payloadMediaId).catch(
+        () => null
+      );
+      if (mediaLookupStoragePath) {
+        const signedMediaLookupUrl = await resolveSignedStorageUrl(mediaLookupStoragePath).catch(
+          () => null
+        );
+        pushImageCandidate(mediaLookupCandidates, signedMediaLookupUrl);
+      }
+    }
+    fallbackCandidates.forEach((candidate) => pushImageCandidate(mediaLookupCandidates, candidate));
+    if (!mediaLookupCandidates.length) return null;
+    const mediaLookupPreviewUrlHint = mediaLookupCandidates[0] ?? null;
+    return {
+      imageUrlCandidates: mediaLookupCandidates,
+      promptText: null,
+      serverCopyHints: {
+        outputId: resolvedOutputId || null,
+        mediaId: payloadMediaId,
+        imageIndex,
+        generationId: null,
+        taskId: null,
+        previewStoragePathHint: mediaLookupStoragePath,
+        fullStoragePathHint: mediaLookupStoragePath,
+        previewUrlHint: mediaLookupPreviewUrlHint,
+        fullUrlHint: mediaLookupPreviewUrlHint,
+      },
+      resolutionReason: mediaLookupStoragePath
+        ? "saved_media_lookup"
+        : fallbackCandidates.length
+          ? "payload_reference_url"
+          : null,
+    };
   }
 
   let resolvedOutput = initialOutput;
@@ -299,9 +334,34 @@ export const resolveStyleInternalDropCandidates = async ({
     }
   }
 
+  const previewStoragePathHint =
+    asCanonicalStoragePath(asTrimmedString(resolvedOutput.previewStoragePath)) ??
+    asCanonicalStoragePath(asTrimmedString(resolvedOutput.fullStoragePath)) ??
+    null;
+  const fullStoragePathHint =
+    asCanonicalStoragePath(asTrimmedString(resolvedOutput.fullStoragePath)) ??
+    previewStoragePathHint;
+  const previewUrlHint =
+    asTrimmedString(outputPreviewCandidate) ?? asTrimmedString(resolvedOutput.previewUrl);
+  const fullUrlHint =
+    asTrimmedString(indexedResultUrl) ??
+    asTrimmedString(resolvedOutput.resultUrls?.[0]) ??
+    previewUrlHint;
+
   return {
     imageUrlCandidates: candidates,
     promptText: resolvedOutput.prompt || resolvedOutput.previewText || null,
+    serverCopyHints: {
+      outputId: resolvedOutputId || asTrimmedString(resolvedOutput.id),
+      mediaId: resolvedMediaId || payload.mediaId || null,
+      imageIndex,
+      generationId: asTrimmedString(resolvedOutput.generationId),
+      taskId: asTrimmedString(resolvedOutput.taskId),
+      previewStoragePathHint,
+      fullStoragePathHint,
+      previewUrlHint,
+      fullUrlHint,
+    },
     resolutionReason,
   };
 };

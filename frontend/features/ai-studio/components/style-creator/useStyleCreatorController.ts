@@ -20,8 +20,12 @@ import {
   buildNextCustomStyleName,
   canAcceptStyleLibraryImageDropHint,
   clampStylePromptCharacters,
+  getStyleDropPreviewCandidateCount,
   isDefaultCustomStyleName,
   isImageFileCandidate,
+  getStyleDropPreviewResolutionReason,
+  getStyleDropPreviewResolutionStage,
+  getStyleDropPreviewServerCopyAttempted,
   normalizeStyleDropPreviewError,
   normalizeStylePromptFallbackText,
   normalizeStyleDetailsDraft,
@@ -298,6 +302,10 @@ export const useStyleCreatorController = ({
             stage: "preview_source",
             failureClass: "blocked_source",
             classifierReason: normalizedError.classifierReason,
+            resolutionStage: getStyleDropPreviewResolutionStage(error),
+            resolutionReason: getStyleDropPreviewResolutionReason(error),
+            candidateCount: getStyleDropPreviewCandidateCount(error),
+            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
             errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setLocalSaveError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
@@ -307,6 +315,10 @@ export const useStyleCreatorController = ({
           stage: "preview_source",
           failureClass: "blocked_source",
           classifierReason: normalizedError.classifierReason,
+          resolutionStage: getStyleDropPreviewResolutionStage(error),
+          resolutionReason: getStyleDropPreviewResolutionReason(error),
+          candidateCount: getStyleDropPreviewCandidateCount(error),
+          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
           errorMessage: error instanceof Error ? error.message : "unknown_error",
         });
         setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
@@ -435,6 +447,10 @@ export const useStyleCreatorController = ({
             stage: "preview_source",
             failureClass: "blocked_source",
             classifierReason: normalizedError.classifierReason,
+            resolutionStage: getStyleDropPreviewResolutionStage(error),
+            resolutionReason: getStyleDropPreviewResolutionReason(error),
+            candidateCount: getStyleDropPreviewCandidateCount(error),
+            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
             errorMessage: error instanceof Error ? error.message : "unknown_error",
           });
           setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
@@ -444,6 +460,10 @@ export const useStyleCreatorController = ({
           stage: "preview_source",
           failureClass: "blocked_source",
           classifierReason: normalizedError.classifierReason,
+          resolutionStage: getStyleDropPreviewResolutionStage(error),
+          resolutionReason: getStyleDropPreviewResolutionReason(error),
+          candidateCount: getStyleDropPreviewCandidateCount(error),
+          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
           errorMessage: error instanceof Error ? error.message : "unknown_error",
         });
         setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);

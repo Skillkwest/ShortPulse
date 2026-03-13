@@ -23,6 +23,10 @@ import {
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
 import type { InpaintMaskSnapshot } from "../edit/useInpaintMaskController";
 import { resolveScenePointFromPixelSpace } from "../edit/stageSceneGeometry";
+import {
+  EXPERT_EDIT_SESSION_STATE_VERSION,
+  type ExpertEditSessionState,
+} from "../edit/expertEditSessionState";
 
 const { composePrimaryStageLayersToBlobMock } = vi.hoisted(() => ({
   composePrimaryStageLayersToBlobMock: vi.fn(
@@ -191,6 +195,46 @@ const parsePolylinePoints = (polyline: SVGPolylineElement) =>
         y: Number.parseFloat(yRaw ?? "0"),
       };
     });
+
+const createEmptyExpertEditSessionState = (): ExpertEditSessionState => ({
+  version: EXPERT_EDIT_SESSION_STATE_VERSION,
+  layers: {
+    layerIdCounter: 2,
+    foundationLayerId: "layer-1",
+    selectedLayerIndex: 0,
+    layers: [
+      {
+        id: "layer-1",
+        name: "layer 1",
+        imageUrl: "https://example.com/base.png",
+        opacity: 100,
+        isAutoNamed: true,
+        ownsImageUrl: false,
+        transform: {
+          translateXRatio: 0,
+          translateYRatio: 0,
+          scale: 1,
+          rotationDeg: 0,
+        },
+      },
+    ],
+  },
+  markup: {
+    strokes: [],
+    history: {
+      past: [],
+      present: [],
+      future: [],
+    },
+  },
+  inpaint: {
+    history: {
+      past: [],
+      present: { layers: [] },
+      future: [],
+    },
+  },
+});
 
 describe("ExpertEditPanelView", () => {
   const createObjectURLMock = vi.fn();
@@ -427,59 +471,217 @@ describe("ExpertEditPanelView", () => {
     expect(flattenButton).not.toBeDisabled();
   });
 
-  it("hydrates layers from session state and preserves owned layer object urls on unmount", async () => {
-    const onLayerSessionStateChange = vi.fn();
+  it("hydrates unified session state and preserves owned layer object urls on unmount", async () => {
+    const onSessionStateChange = vi.fn();
+    const sessionState = createEmptyExpertEditSessionState();
+    sessionState.layers.layerIdCounter = 3;
+    sessionState.layers.selectedLayerIndex = 1;
+    sessionState.layers.layers = [
+      {
+        id: "layer-1",
+        name: "layer 1",
+        imageUrl: "https://example.com/base.png",
+        opacity: 100,
+        isAutoNamed: true,
+        ownsImageUrl: false,
+        transform: {
+          translateXRatio: 0,
+          translateYRatio: 0,
+          scale: 1,
+          rotationDeg: 0,
+        },
+      },
+      {
+        id: "layer-2",
+        name: "layer 2",
+        imageUrl: "blob:session-layer-2",
+        opacity: 100,
+        isAutoNamed: true,
+        ownsImageUrl: true,
+        transform: {
+          translateXRatio: 0,
+          translateYRatio: 0,
+          scale: 1,
+          rotationDeg: 0,
+        },
+      },
+    ];
+    sessionState.markup = {
+      strokes: [
+        {
+          id: "markup-stroke-1",
+          color: "#f43f5e",
+          sizeRatio: 0.01,
+          points: [
+            { sceneX: -0.12, sceneY: -0.08 },
+            { sceneX: 0.16, sceneY: 0.12 },
+          ],
+        },
+      ],
+      history: {
+        past: [],
+        present: [
+          {
+            id: "markup-stroke-1",
+            color: "#f43f5e",
+            sizeRatio: 0.01,
+            points: [
+              { sceneX: -0.12, sceneY: -0.08 },
+              { sceneX: 0.16, sceneY: 0.12 },
+            ],
+          },
+        ],
+        future: [],
+      },
+    };
+    sessionState.inpaint.history.present = {
+      layers: [
+        {
+          layerId: "layer-1",
+          width: 2,
+          height: 2,
+          alpha: new Uint8ClampedArray([255, 0, 0, 255]),
+        },
+      ],
+    };
     const { unmount } = render(
       <ExpertEditPanelView
         {...baseProps}
-        layerSessionState={{
-          layerIdCounter: 3,
-          foundationLayerId: "layer-1",
-          selectedLayerIndex: 1,
-          layers: [
-            {
-              id: "layer-1",
-              name: "layer 1",
-              imageUrl: "https://example.com/base.png",
-              opacity: 100,
-              isAutoNamed: true,
-              ownsImageUrl: false,
-              transform: {
-                translateXRatio: 0,
-                translateYRatio: 0,
-                scale: 1,
-                rotationDeg: 0,
-              },
-            },
-            {
-              id: "layer-2",
-              name: "layer 2",
-              imageUrl: "blob:session-layer-2",
-              opacity: 100,
-              isAutoNamed: true,
-              ownsImageUrl: true,
-              transform: {
-                translateXRatio: 0,
-                translateYRatio: 0,
-                scale: 1,
-                rotationDeg: 0,
-              },
-            },
-          ],
-        }}
-        onLayerSessionStateChange={onLayerSessionStateChange}
+        sessionState={sessionState}
+        onSessionStateChange={onSessionStateChange}
       />
     );
 
     await waitFor(() => {
-      expect(onLayerSessionStateChange).toHaveBeenCalled();
+      expect(onSessionStateChange).toHaveBeenCalled();
     });
-    const latestState = onLayerSessionStateChange.mock.calls.at(-1)?.[0];
-    expect(latestState?.layers).toHaveLength(2);
-    expect(latestState?.selectedLayerIndex).toBe(1);
+    const latestState = onSessionStateChange.mock.calls.at(-1)?.[0] as ExpertEditSessionState;
+    expect(latestState?.layers.layers).toHaveLength(2);
+    expect(latestState?.layers.selectedLayerIndex).toBe(1);
+    expect(latestState?.markup.history.present).toHaveLength(1);
 
     unmount();
     expect(revokeObjectURLMock).not.toHaveBeenCalledWith("blob:session-layer-2");
+  });
+
+  it("restores inpaint mask history present snapshot from session state on mount", () => {
+    const sessionState = createEmptyExpertEditSessionState();
+    const restoredSnapshot: InpaintMaskSnapshot = {
+      layers: [
+        {
+          layerId: "layer-1",
+          width: 3,
+          height: 3,
+          alpha: new Uint8ClampedArray([0, 255, 0, 255, 0, 255, 0, 255, 0]),
+        },
+      ],
+    };
+    sessionState.inpaint.history.present = restoredSnapshot;
+    const restoreMaskSnapshot = vi.fn();
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot,
+        clearAllMasks: vi.fn(),
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    try {
+      render(<ExpertEditPanelView {...baseProps} sessionState={sessionState} />);
+      expect(restoreMaskSnapshot).toHaveBeenCalledTimes(1);
+      expect(restoreMaskSnapshot).toHaveBeenCalledWith(restoredSnapshot);
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
+  });
+
+  it("preserves markup strokes and history across unmount/remount via unified session state", async () => {
+    const sessionState = createEmptyExpertEditSessionState();
+    const persistedStroke = {
+      id: "markup-stroke-2",
+      color: "#f43f5e",
+      sizeRatio: 0.012,
+      points: [
+        { sceneX: -0.14, sceneY: -0.16 },
+        { sceneX: 0.18, sceneY: 0.11 },
+      ],
+    };
+    sessionState.markup = {
+      strokes: [persistedStroke],
+      history: {
+        past: [[]],
+        present: [persistedStroke],
+        future: [],
+      },
+    };
+    const onSessionStateChange = vi.fn();
+    const firstRender = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-session-persist.png"
+        sessionState={sessionState}
+        onSessionStateChange={onSessionStateChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        document.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBeGreaterThan(0);
+    });
+    await waitFor(() => expect(onSessionStateChange).toHaveBeenCalled());
+    const persistedSessionState = onSessionStateChange.mock.calls.at(-1)?.[0] as
+      | ExpertEditSessionState
+      | undefined;
+    expect(persistedSessionState?.markup.history.present).toHaveLength(1);
+
+    firstRender.unmount();
+
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-session-persist.png"
+        sessionState={persistedSessionState ?? sessionState}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const inlineMarkupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(
+      within(inlineMarkupPanel).getByRole("button", { name: /expand markup tools/i })
+    );
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const undoButton = within(expandedModal).getByRole("button", { name: /undo action/i });
+    await waitFor(() => expect(undoButton).toBeEnabled());
+    fireEvent.click(undoButton);
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBe(0)
+    );
+
+    const redoButton = within(expandedModal).getByRole("button", { name: /redo action/i });
+    await waitFor(() => expect(redoButton).toBeEnabled());
+    fireEvent.click(redoButton);
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBeGreaterThan(0)
+    );
   });
 
   it("keeps Remove Background disabled when generate is globally disabled", () => {

@@ -69,6 +69,7 @@ const installImageAndCanvasMocks = ({
 };
 
 afterEach(() => {
+  vi.clearAllMocks();
   Object.defineProperty(globalThis, "Image", {
     configurable: true,
     writable: true,
@@ -226,9 +227,8 @@ describe("style-creator intake preprocessing", () => {
       const resolved = await resolveDroppedStylePreview(transfer);
       expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
       expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(fetchMock).toHaveBeenNthCalledWith(1, "https://cdn.example.com/non-image-endpoint");
-      expect(fetchMock).toHaveBeenNthCalledWith(2, "https://cdn.example.com/rendered-image.png");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.com/rendered-image.png");
     } finally {
       vi.unstubAllGlobals();
     }
@@ -261,8 +261,7 @@ describe("style-creator intake preprocessing", () => {
       const resolved = await resolveDroppedStylePreview(transfer);
       expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
       expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.com/would-fail-later.png");
+      expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }
@@ -302,6 +301,40 @@ describe("style-creator intake preprocessing", () => {
       });
       expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
       expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("treats output-id/media-id transfer hints as internal even when origin metadata is stripped", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: ["text/reference-output-id", "text/reference-media-id", "text/reference-url"],
+      getData: (type: string) => {
+        if (type === "text/reference-output-id") return "out-321";
+        if (type === "text/reference-media-id") return "media-321";
+        if (type === "text/reference-url") return "https://cdn.example.com/stale-reference.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolveInternalStyleDrop = vi.fn(async () => ({
+      imageUrlCandidates: ["data:image/jpeg;base64,internal-candidate"],
+      promptText: "internal prompt",
+    }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, { resolveInternalStyleDrop });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(resolveInternalStyleDrop).toHaveBeenCalledTimes(1);
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
@@ -399,6 +432,123 @@ describe("style-creator intake preprocessing", () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(fetchMock).toHaveBeenNthCalledWith(1, nextImageUrl, { credentials: "include" });
       expect(fetchMock).toHaveBeenNthCalledWith(2, sourceUrl);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses server copy fallback for blocked internal drops and retries with returned delivery URL", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-123";
+        if (type === "text/reference-url") return "https://cdn.example.com/blocked-reference.png";
+        if (type === "text/plain") return "portrait prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "https://cdn.example.com/copied-reference.png") {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "image/png" },
+          blob: async () => new Blob(["mock-image-bytes"], { type: "image/png" }),
+        };
+      }
+      throw new TypeError("Failed to fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(fetchWithAuth).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        delivery: {
+          previewUrl: "https://cdn.example.com/copied-reference.png",
+          fullUrl: "https://cdn.example.com/copied-reference.png",
+        },
+      }),
+    } as unknown as Response);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, {
+        resolveInternalStyleDrop: async () => ({
+          imageUrlCandidates: ["https://cdn.example.com/blocked-reference.png"],
+          promptText: "internal prompt",
+          serverCopyHints: {
+            outputId: "out-123",
+            mediaId: "media-123",
+            imageIndex: 0,
+            generationId: "gen-123",
+            taskId: "req-123",
+            previewStoragePathHint: "user-1/generations/images/out-123-preview.png",
+            fullStoragePathHint: "user-1/generations/images/out-123-full.png",
+            previewUrlHint: "https://cdn.example.com/preview-hint.png",
+            fullUrlHint: "https://cdn.example.com/full-hint.png",
+          },
+        }),
+      });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(fetchWithAuth).toHaveBeenCalledWith(
+        "/api/media/copy-from-url",
+        expect.objectContaining({
+          method: "POST",
+          shortpulseLogScope: "generation",
+          shortpulseSkipErrorLogging: true,
+        })
+      );
+      expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.com/copied-reference.png");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("returns blocked-source when internal server fallback cannot produce a delivery URL", async () => {
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-123";
+        if (type === "text/reference-url") return "https://cdn.example.com/blocked-reference.png";
+        if (type === "text/plain") return "portrait prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(fetchWithAuth).mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ error: "Untrusted media URL." }),
+    } as unknown as Response);
+
+    try {
+      await expect(resolveDroppedStylePreview(transfer)).rejects.toThrow(
+        "blocked-style-image-source"
+      );
+      expect(fetchWithAuth).toHaveBeenCalledWith(
+        "/api/media/copy-from-url",
+        expect.objectContaining({ method: "POST" })
+      );
     } finally {
       vi.unstubAllGlobals();
     }
@@ -563,6 +713,7 @@ describe("style-creator intake preprocessing", () => {
       await expect(resolveDroppedStylePreview(transfer)).rejects.toThrow(
         "blocked-style-image-source"
       );
+      expect(fetchWithAuth).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }

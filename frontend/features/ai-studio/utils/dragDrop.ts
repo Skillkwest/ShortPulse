@@ -130,7 +130,8 @@ export const extractInternalReferenceDragPayload = (
     { unwrapNextImage: false }
   );
   const hasLegacyInternalHints = Boolean(referenceId && sourceSurface);
-  if (!originRaw && !hasLegacyInternalHints) return null;
+  const hasStrongInternalHints = Boolean(outputId || mediaId);
+  if (!originRaw && !hasLegacyInternalHints && !hasStrongInternalHints) return null;
   if (originRaw && originRaw !== INTERNAL_REFERENCE_DRAG_ORIGIN) return null;
   if (!outputId && !referenceId && !mediaId && !referenceUrl) return null;
   const payload: InternalReferenceDragPayload = {
@@ -710,10 +711,11 @@ export const prepareReferenceDrag = (
   const datasetImageUrl = normalizeReferenceTransferUrlCandidate(previewDataset.imageSrc);
   const datasetPreviewUrl = normalizeReferenceTransferUrlCandidate(previewDataset.previewUrl);
   const datasetSnapshotUrl = normalizeReferenceTransferUrlCandidate(previewDataset.snapshotSrc);
-  const renderedImageUrlCandidate =
+  const resolvedImageTransferUrl =
+    (datasetPreviewUrl && isLikelyImageTransferUrl(datasetPreviewUrl) ? datasetPreviewUrl : null) ??
     (datasetImageUrl && isLikelyImageTransferUrl(datasetImageUrl) ? datasetImageUrl : null) ??
-    (datasetPreviewUrl && isLikelyImageTransferUrl(datasetPreviewUrl) ? datasetPreviewUrl : null);
-  const resolvedImageTransferUrl = renderedImageUrlCandidate ?? imagePreviewUrl ?? null;
+    imagePreviewUrl ??
+    null;
   const resolvedRenderedTransferUrl =
     (datasetSnapshotUrl && isLikelyImageTransferUrl(datasetSnapshotUrl)
       ? datasetSnapshotUrl

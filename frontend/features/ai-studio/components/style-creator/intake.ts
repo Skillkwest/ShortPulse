@@ -29,10 +29,26 @@ const CAMERA_FILENAME_STEM_PATTERN = /^(?:img|dsc|pxl|mvimg|screenshot)[-_ ]?\d[
 const STYLE_IMAGE_OUTPUT_QUALITY = 0.9;
 const REFERENCE_RENDER_URL_TRANSFER_TYPE = "text/reference-render-url";
 const URLISH_TEXT_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
+const SERVER_COPY_ROUTE = "/api/media/copy-from-url";
+const STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED =
+  process.env.NEXT_PUBLIC_AI_STUDIO_STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED !== "false";
+
+export type InternalStyleDropServerCopyHints = {
+  outputId?: string | null;
+  mediaId?: string | null;
+  imageIndex: number;
+  generationId?: string | null;
+  taskId?: string | null;
+  previewStoragePathHint?: string | null;
+  fullStoragePathHint?: string | null;
+  previewUrlHint?: string | null;
+  fullUrlHint?: string | null;
+};
 
 export type ResolvedInternalStyleDrop = {
   imageUrlCandidates: string[];
   promptText?: string | null;
+  serverCopyHints?: InternalStyleDropServerCopyHints;
   resolutionReason?:
     | "output_storage_path"
     | "saved_media_lookup"
@@ -82,15 +98,37 @@ export type StyleDropPreviewClassifierReason =
 type StyleDropPreviewError = Error & {
   styleDropErrorCode?: StyleDropPreviewErrorCode;
   styleDropClassifierReason?: StyleDropPreviewClassifierReason;
+  styleDropResolutionReason?: string | null;
+  styleDropResolutionStage?: "primary" | "server_copy_fallback";
+  styleDropCandidateCount?: number;
+  styleDropServerCopyAttempted?: boolean;
 };
 
 const createStyleDropPreviewError = (
   code: StyleDropPreviewErrorCode,
-  classifierReason: StyleDropPreviewClassifierReason
+  classifierReason: StyleDropPreviewClassifierReason,
+  context?: {
+    resolutionReason?: string | null;
+    resolutionStage?: "primary" | "server_copy_fallback";
+    candidateCount?: number;
+    serverCopyAttempted?: boolean;
+  }
 ): StyleDropPreviewError => {
   const error = new Error(code) as StyleDropPreviewError;
   error.styleDropErrorCode = code;
   error.styleDropClassifierReason = classifierReason;
+  if (context?.resolutionReason !== undefined) {
+    error.styleDropResolutionReason = context.resolutionReason;
+  }
+  if (context?.resolutionStage !== undefined) {
+    error.styleDropResolutionStage = context.resolutionStage;
+  }
+  if (typeof context?.candidateCount === "number" && Number.isFinite(context.candidateCount)) {
+    error.styleDropCandidateCount = Math.max(0, Math.trunc(context.candidateCount));
+  }
+  if (typeof context?.serverCopyAttempted === "boolean") {
+    error.styleDropServerCopyAttempted = context.serverCopyAttempted;
+  }
   return error;
 };
 
@@ -101,6 +139,35 @@ export const getStyleDropPreviewClassifierReason = (
   const reason = (error as StyleDropPreviewError).styleDropClassifierReason;
   if (typeof reason !== "string" || !reason.trim()) return null;
   return reason as StyleDropPreviewClassifierReason;
+};
+
+export const getStyleDropPreviewResolutionReason = (error: unknown): string | null => {
+  if (!error || typeof error !== "object") return null;
+  const reason = (error as StyleDropPreviewError).styleDropResolutionReason;
+  if (typeof reason !== "string") return null;
+  const normalized = reason.trim();
+  return normalized.length ? normalized : null;
+};
+
+export const getStyleDropPreviewResolutionStage = (
+  error: unknown
+): "primary" | "server_copy_fallback" | null => {
+  if (!error || typeof error !== "object") return null;
+  const stage = (error as StyleDropPreviewError).styleDropResolutionStage;
+  return stage === "primary" || stage === "server_copy_fallback" ? stage : null;
+};
+
+export const getStyleDropPreviewCandidateCount = (error: unknown): number | null => {
+  if (!error || typeof error !== "object") return null;
+  const count = (error as StyleDropPreviewError).styleDropCandidateCount;
+  if (typeof count !== "number" || !Number.isFinite(count)) return null;
+  return Math.max(0, Math.trunc(count));
+};
+
+export const getStyleDropPreviewServerCopyAttempted = (error: unknown): boolean | null => {
+  if (!error || typeof error !== "object") return null;
+  const attempted = (error as StyleDropPreviewError).styleDropServerCopyAttempted;
+  return typeof attempted === "boolean" ? attempted : null;
 };
 
 export const isStyleDropPreviewErrorCode = (
@@ -392,6 +459,7 @@ const collectDroppedImageUrlCandidates = (
     }
   };
   priorityCandidates.forEach((candidate) => pushCandidate(candidate));
+  pushCandidate(transfer.getData(REFERENCE_RENDER_URL_TRANSFER_TYPE));
   pushCandidate(primaryCandidate);
   pushCandidate(transfer.getData("text/reference-url"));
   pushCandidate(transfer.getData("image/url"));
@@ -400,9 +468,6 @@ const collectDroppedImageUrlCandidates = (
   if (URLISH_TEXT_PATTERN.test(plainText)) {
     pushCandidate(plainText);
   }
-  // Keep rendered transfer URL as a resilient fallback (stale URL recovery),
-  // but prefer higher-fidelity canonical/source URLs first.
-  pushCandidate(transfer.getData(REFERENCE_RENDER_URL_TRANSFER_TYPE));
   return candidates;
 };
 
@@ -624,6 +689,88 @@ export const normalizeStyleDropPreviewError = (
   return { code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "unknown" };
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const resolveServerCopyDeliveryUrl = (payload: unknown): string | null => {
+  const record = asRecord(payload);
+  const delivery = asRecord(record.delivery);
+  return (
+    normalizeReferenceTransferUrlCandidate(asOptionalString(delivery.previewUrl), {
+      unwrapNextImage: false,
+    }) ??
+    normalizeReferenceTransferUrlCandidate(asOptionalString(delivery.fullUrl), {
+      unwrapNextImage: false,
+    }) ??
+    null
+  );
+};
+
+const isServerCopyCandidateUrl = (value: string): boolean => /^(?:https?:\/\/|\/)/i.test(value);
+
+const collectInternalServerCopySourceUrls = (candidateUrls: readonly string[]): string[] => {
+  const next: string[] = [];
+  for (const candidate of candidateUrls) {
+    const normalized = candidate.trim();
+    if (!normalized || !isServerCopyCandidateUrl(normalized)) continue;
+    if (!next.includes(normalized)) {
+      next.push(normalized);
+    }
+  }
+  return next;
+};
+
+const resolveFallbackImageUrlViaServerCopy = async ({
+  sourceUrl,
+  payload,
+  resolvedInternalDrop,
+  classifierReason,
+}: {
+  sourceUrl: string;
+  payload: InternalReferenceDragPayload;
+  resolvedInternalDrop: ResolvedInternalStyleDrop | null;
+  classifierReason: StyleDropPreviewClassifierReason;
+}): Promise<string | null> => {
+  const hints = resolvedInternalDrop?.serverCopyHints;
+  const response = await fetchWithAuth(SERVER_COPY_ROUTE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: sourceUrl,
+      mode: "image",
+      source: "ai_studio",
+      fileTypeHint: "image",
+      promptText: normalizeStylePromptFallbackText(resolvedInternalDrop?.promptText),
+      generationId: hints?.generationId ?? null,
+      index: hints?.imageIndex ?? Math.max(0, Math.floor(payload.imageIndex ?? 0)),
+      previewStoragePathHint: hints?.previewStoragePathHint ?? null,
+      fullStoragePathHint: hints?.fullStoragePathHint ?? null,
+      previewUrlHint: hints?.previewUrlHint ?? null,
+      fullUrlHint: hints?.fullUrlHint ?? null,
+      metadata: {
+        style_drop_server_copy_fallback: true,
+        style_drop_classifier_reason: classifierReason,
+        style_drop_output_id: hints?.outputId ?? payload.outputId ?? payload.referenceId ?? null,
+        style_drop_task_id: hints?.taskId ?? null,
+        style_drop_media_id: hints?.mediaId ?? payload.mediaId ?? null,
+      },
+    }),
+    shortpulseLogScope: "generation",
+    shortpulseSkipErrorLogging: true,
+  });
+  const routePayload = await response.json().catch(() => null);
+  if (!response.ok) return null;
+  return resolveServerCopyDeliveryUrl(routePayload);
+};
+
 const findDroppedImageFile = (transfer: DataTransfer): File | null => {
   const droppedFiles = Array.from(transfer.files ?? []);
   return droppedFiles.find((file) => isImageFileCandidate(file)) ?? null;
@@ -688,6 +835,10 @@ export const resolveDroppedStylePreview = async (
   transfer: DataTransfer,
   options?: ResolveDroppedStylePreviewOptions
 ): Promise<ResolvedDroppedStylePreview> => {
+  let resolutionReason: string | null = null;
+  let resolutionStage: "primary" | "server_copy_fallback" = "primary";
+  let candidateCount = 0;
+  let serverCopyAttempted = false;
   try {
     const droppedImageFile = findDroppedImageFile(transfer);
     if (droppedImageFile) {
@@ -704,6 +855,7 @@ export const resolveDroppedStylePreview = async (
       internalDropPayload && options?.resolveInternalStyleDrop
         ? await options.resolveInternalStyleDrop(internalDropPayload).catch(() => null)
         : null;
+    resolutionReason = internalDropResolution?.resolutionReason ?? null;
     const dragPayload = extractDragDropPayload(transfer);
     const droppedImageUrl =
       (internalDropPayload
@@ -719,6 +871,7 @@ export const resolveDroppedStylePreview = async (
       internalDropResolution?.imageUrlCandidates ?? [],
       { preserveNextImageOptimizerUrls: Boolean(internalDropPayload) }
     );
+    candidateCount = droppedImageUrlCandidates.length;
     if (!droppedImageUrlCandidates.length) {
       throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
     }
@@ -732,6 +885,33 @@ export const resolveDroppedStylePreview = async (
         break;
       } catch (error) {
         lastReadError = error;
+      }
+    }
+    if (!sourceImageDataUrl && internalDropPayload && STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED) {
+      const normalizedReadError = normalizeStyleDropPreviewError(
+        lastReadError ??
+          createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload")
+      );
+      if (normalizedReadError.code === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
+        resolutionStage = "server_copy_fallback";
+        serverCopyAttempted = true;
+        const serverCopySourceUrls = collectInternalServerCopySourceUrls(droppedImageUrlCandidates);
+        for (const sourceUrl of serverCopySourceUrls) {
+          const fallbackUrl = await resolveFallbackImageUrlViaServerCopy({
+            sourceUrl,
+            payload: internalDropPayload,
+            resolvedInternalDrop: internalDropResolution,
+            classifierReason: normalizedReadError.classifierReason,
+          }).catch(() => null);
+          if (!fallbackUrl) continue;
+          resolutionReason = "server_copy_delivery";
+          try {
+            sourceImageDataUrl = await readDroppedImageDataUrlWithRefreshFallback(fallbackUrl);
+            break;
+          } catch (error) {
+            lastReadError = error;
+          }
+        }
       }
     }
     if (!sourceImageDataUrl) {
@@ -748,7 +928,12 @@ export const resolveDroppedStylePreview = async (
     };
   } catch (error) {
     const normalizedError = normalizeStyleDropPreviewError(error);
-    throw createStyleDropPreviewError(normalizedError.code, normalizedError.classifierReason);
+    throw createStyleDropPreviewError(normalizedError.code, normalizedError.classifierReason, {
+      resolutionReason,
+      resolutionStage,
+      candidateCount,
+      serverCopyAttempted,
+    });
   }
 };
 

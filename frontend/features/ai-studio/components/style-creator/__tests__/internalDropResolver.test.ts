@@ -129,6 +129,50 @@ describe("resolveStyleInternalDropCandidates", () => {
     expect(resolved).toBeNull();
   });
 
+  it("recovers from media-id when output row is missing and still returns signed canonical candidates first", async () => {
+    const resolved = await resolveStyleInternalDropCandidates({
+      payload: makePayload({
+        outputId: "out-missing",
+        mediaId: "media-lookup",
+        referenceUrl: "https://cdn.example.com/stale-reference.png",
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: [],
+        archivedOutputOrder: [],
+        outputById: {},
+        archivedOutputById: {},
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+      saveReferenceToLibrary: () => undefined,
+      persistTimeoutMs: 3500,
+      pollIntervalMs: 120,
+      resolveStoragePathFromMediaId: async (mediaId) =>
+        mediaId === "media-lookup" ? "user-1/generations/images/lookup.png" : null,
+      resolveSignedStorageUrl: async (path) =>
+        path === "user-1/generations/images/lookup.png"
+          ? "https://cdn.example.com/signed/lookup.png"
+          : null,
+    });
+
+    expect(resolved?.imageUrlCandidates).toEqual([
+      "https://cdn.example.com/signed/lookup.png",
+      "https://cdn.example.com/stale-reference.png",
+    ]);
+    expect(resolved?.resolutionReason).toBe("saved_media_lookup");
+    expect(resolved?.serverCopyHints).toEqual({
+      outputId: "out-missing",
+      mediaId: "media-lookup",
+      imageIndex: 0,
+      generationId: null,
+      taskId: null,
+      previewStoragePathHint: "user-1/generations/images/lookup.png",
+      fullStoragePathHint: "user-1/generations/images/lookup.png",
+      previewUrlHint: "https://cdn.example.com/signed/lookup.png",
+      fullUrlHint: "https://cdn.example.com/signed/lookup.png",
+    });
+  });
+
   it("uses media-id storage lookup fallback when output lacks canonical storage paths", async () => {
     const output = makeImageOutput({
       previewStoragePath: null,
@@ -221,5 +265,16 @@ describe("resolveStyleInternalDropCandidates", () => {
       "https://provider.example.com/preview.png",
     ]);
     expect(resolved?.resolutionReason).toBe("generation_index_lookup");
+    expect(resolved?.serverCopyHints).toEqual({
+      outputId: "out-1",
+      mediaId: null,
+      imageIndex: 0,
+      generationId: "gen-1",
+      taskId: "req-1",
+      previewStoragePathHint: null,
+      fullStoragePathHint: null,
+      previewUrlHint: "https://provider.example.com/preview.png",
+      fullUrlHint: "https://provider.example.com/result-index-0.png",
+    });
   });
 });

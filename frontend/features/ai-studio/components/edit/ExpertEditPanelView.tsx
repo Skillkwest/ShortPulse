@@ -63,8 +63,8 @@ import {
 } from "../create/useCreateCharacterModeController";
 import { useAvatarResilience } from "../../hooks/useAvatarResilience";
 import {
-  areInpaintMaskSnapshotsEqual,
   resolveInpaintBrushDiameter,
+  areInpaintMaskSnapshotsEqual,
   type InpaintMaskSnapshot,
   useInpaintMaskController,
 } from "./useInpaintMaskController";
@@ -108,6 +108,21 @@ import {
   sortPresetIdsByCanonicalOrder,
 } from "./expertEditPresets";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
+import {
+  EXPERT_EDIT_SESSION_STATE_VERSION,
+  areExpertEditSessionStatesEqual,
+  areMarkupStrokeSnapshotsEqual,
+  cloneExpertEditSessionState,
+  cloneInpaintHistoryState,
+  cloneInpaintMaskSnapshot,
+  cloneMarkupHistoryState,
+  cloneMarkupStrokesSnapshot,
+  type ExpertEditInpaintHistoryState,
+  type ExpertEditLayerSessionLayer,
+  type ExpertEditLayerSessionState,
+  type ExpertEditSessionState,
+  type ExpertEditMarkupHistoryState,
+} from "./expertEditSessionState";
 
 export type ExpertEditPanelViewProps = {
   expertEditEligible: boolean;
@@ -169,8 +184,8 @@ export type ExpertEditPanelViewProps = {
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
-  layerSessionState?: ExpertEditLayerSessionState | null;
-  onLayerSessionStateChange?: (state: ExpertEditLayerSessionState) => void;
+  sessionState?: ExpertEditSessionState | null;
+  onSessionStateChange?: (state: ExpertEditSessionState) => void;
 };
 
 type CharacterPickerModalProps = {
@@ -653,30 +668,6 @@ type LayerTransform = {
   rotationDeg: number;
 };
 
-export type ExpertEditLayerSessionTransform = {
-  translateXRatio: number;
-  translateYRatio: number;
-  scale: number;
-  rotationDeg: number;
-};
-
-export type ExpertEditLayerSessionLayer = {
-  id: string;
-  name: string;
-  imageUrl: string | null;
-  opacity: number;
-  isAutoNamed: boolean;
-  ownsImageUrl: boolean;
-  transform: ExpertEditLayerSessionTransform;
-};
-
-export type ExpertEditLayerSessionState = {
-  layerIdCounter: number;
-  foundationLayerId: string | null;
-  selectedLayerIndex: number | null;
-  layers: ExpertEditLayerSessionLayer[];
-};
-
 const defaultLayerTransform = (): LayerTransform => ({
   translateXRatio: 0,
   translateYRatio: 0,
@@ -700,17 +691,9 @@ type TransformHistoryState = {
   future: TransformHistoryEntry[];
 };
 
-type MarkupHistoryState = {
-  past: MarkupStroke[][];
-  present: MarkupStroke[];
-  future: MarkupStroke[][];
-};
+type MarkupHistoryState = ExpertEditMarkupHistoryState;
 
-type InpaintHistoryState = {
-  past: InpaintMaskSnapshot[];
-  present: InpaintMaskSnapshot;
-  future: InpaintMaskSnapshot[];
-};
+type InpaintHistoryState = ExpertEditInpaintHistoryState;
 
 const cloneLayerTransform = (transform: LayerTransform): LayerTransform => ({
   translateXRatio: transform.translateXRatio,
@@ -718,38 +701,6 @@ const cloneLayerTransform = (transform: LayerTransform): LayerTransform => ({
   scale: transform.scale,
   rotationDeg: transform.rotationDeg,
 });
-
-const cloneMarkupStrokesSnapshot = (strokes: MarkupStroke[]) =>
-  strokes.map((stroke) => ({
-    ...stroke,
-    points: stroke.points.map((point) => ({ ...point })),
-  }));
-
-const areMarkupStrokeSnapshotsEqual = (left: MarkupStroke[], right: MarkupStroke[]) => {
-  if (left.length !== right.length) return false;
-  for (let strokeIndex = 0; strokeIndex < left.length; strokeIndex += 1) {
-    const leftStroke = left[strokeIndex];
-    const rightStroke = right[strokeIndex];
-    if (!leftStroke || !rightStroke) return false;
-    if (
-      leftStroke.id !== rightStroke.id ||
-      leftStroke.color !== rightStroke.color ||
-      leftStroke.sizeRatio !== rightStroke.sizeRatio
-    ) {
-      return false;
-    }
-    if (leftStroke.points.length !== rightStroke.points.length) return false;
-    for (let pointIndex = 0; pointIndex < leftStroke.points.length; pointIndex += 1) {
-      const leftPoint = leftStroke.points[pointIndex];
-      const rightPoint = rightStroke.points[pointIndex];
-      if (!leftPoint || !rightPoint) return false;
-      if (leftPoint.sceneX !== rightPoint.sceneX || leftPoint.sceneY !== rightPoint.sceneY) {
-        return false;
-      }
-    }
-  }
-  return true;
-};
 
 const isKeyboardEventFromEditableTarget = (event: KeyboardEvent) => {
   const target = event.target;
@@ -972,10 +923,10 @@ const coerceLayerTransformFromSessionState = (
 
 const resolveInitialLayerSessionState = ({
   referenceImageUrl,
-  layerSessionState,
+  layerState,
 }: {
   referenceImageUrl: string | null;
-  layerSessionState: ExpertEditLayerSessionState | null | undefined;
+  layerState: ExpertEditLayerSessionState | null | undefined;
 }) => {
   const fallbackLayers: ExpertEditLayer[] = [
     {
@@ -988,7 +939,7 @@ const resolveInitialLayerSessionState = ({
       transform: defaultLayerTransform(),
     },
   ];
-  if (!layerSessionState?.layers?.length) {
+  if (!layerState?.layers?.length) {
     return {
       layers: fallbackLayers,
       foundationLayerId: "layer-1",
@@ -996,7 +947,7 @@ const resolveInitialLayerSessionState = ({
       layerIdCounter: 2,
     };
   }
-  const hydratedLayers: ExpertEditLayer[] = layerSessionState.layers
+  const hydratedLayers: ExpertEditLayer[] = layerState.layers
     .filter((layer): layer is ExpertEditLayerSessionLayer => Boolean(layer?.id))
     .map((layer, index) => ({
       id: layer.id,
@@ -1017,13 +968,13 @@ const resolveInitialLayerSessionState = ({
   }
   const normalizedLayers = enforceLayerStackInvariants({
     layers: hydratedLayers,
-    foundationLayerId: layerSessionState.foundationLayerId,
+    foundationLayerId: layerState.foundationLayerId,
   });
   const normalizedFoundationLayerId =
-    normalizedLayers.find((layer) => layer.id === layerSessionState.foundationLayerId)?.id ??
+    normalizedLayers.find((layer) => layer.id === layerState.foundationLayerId)?.id ??
     normalizedLayers[0]?.id ??
     null;
-  const sessionSelectedLayerIndex = layerSessionState.selectedLayerIndex;
+  const sessionSelectedLayerIndex = layerState.selectedLayerIndex;
   const normalizedSelectedLayerIndex =
     sessionSelectedLayerIndex == null ||
     sessionSelectedLayerIndex < 0 ||
@@ -1032,7 +983,7 @@ const resolveInitialLayerSessionState = ({
         ? 0
         : null
       : sessionSelectedLayerIndex;
-  const sessionLayerIdCounter = Number(layerSessionState.layerIdCounter);
+  const sessionLayerIdCounter = Number(layerState.layerIdCounter);
   const normalizedLayerIdCounter = Math.max(
     resolveLayerIdCounterFromLayers(normalizedLayers),
     Number.isFinite(sessionLayerIdCounter) ? Math.floor(sessionLayerIdCounter) : 2,
@@ -1043,6 +994,56 @@ const resolveInitialLayerSessionState = ({
     foundationLayerId: normalizedFoundationLayerId,
     selectedLayerIndex: normalizedSelectedLayerIndex,
     layerIdCounter: normalizedLayerIdCounter,
+  };
+};
+
+const resolveMarkupStrokeIdCounterFromStrokes = (strokes: MarkupStroke[]) => {
+  let highestStrokeNumber = 0;
+  strokes.forEach((stroke) => {
+    const match = /^markup-stroke-(\d+)$/.exec(stroke.id.trim());
+    if (!match) return;
+    const parsed = Number.parseInt(match[1] ?? "", 10);
+    if (!Number.isFinite(parsed)) return;
+    highestStrokeNumber = Math.max(highestStrokeNumber, parsed);
+  });
+  return highestStrokeNumber + 1;
+};
+
+const createEmptyMarkupHistoryState = (): MarkupHistoryState => ({
+  past: [],
+  present: [],
+  future: [],
+});
+
+const createEmptyInpaintHistoryState = (): InpaintHistoryState => ({
+  past: [],
+  present: { layers: [] },
+  future: [],
+});
+
+const resolveInitialExpertEditSessionState = ({
+  referenceImageUrl,
+  sessionState,
+}: {
+  referenceImageUrl: string | null;
+  sessionState: ExpertEditSessionState | null | undefined;
+}) => {
+  const layerState = resolveInitialLayerSessionState({
+    referenceImageUrl,
+    layerState: sessionState?.layers,
+  });
+  const markupHistory = sessionState?.markup?.history
+    ? cloneMarkupHistoryState(sessionState.markup.history)
+    : createEmptyMarkupHistoryState();
+  const markupStrokesFromHistory = cloneMarkupStrokesSnapshot(markupHistory.present);
+  const inpaintHistory = sessionState?.inpaint?.history
+    ? cloneInpaintHistoryState(sessionState.inpaint.history)
+    : createEmptyInpaintHistoryState();
+  return {
+    layerState,
+    markupStrokes: markupStrokesFromHistory,
+    markupHistory,
+    inpaintHistory,
   };
 };
 
@@ -1305,17 +1306,20 @@ export function ExpertEditPanelView({
   onStylesPanelToggle,
   selectedStyleId: controlledSelectedStyleId,
   stylesCatalog,
-  layerSessionState,
-  onLayerSessionStateChange,
+  sessionState,
+  onSessionStateChange,
 }: ExpertEditPanelViewProps) {
-  const [initialLayerSessionState] = React.useState(() =>
-    resolveInitialLayerSessionState({
+  const [initialSessionState] = React.useState(() =>
+    resolveInitialExpertEditSessionState({
       referenceImageUrl,
-      layerSessionState,
+      sessionState,
     })
   );
-  const layerIdCounterRef = React.useRef(initialLayerSessionState.layerIdCounter);
+  const layerIdCounterRef = React.useRef(initialSessionState.layerState.layerIdCounter);
   const previousLayersRef = React.useRef<ExpertEditLayer[]>([]);
+  const lastDispatchedSessionStateRef = React.useRef<ExpertEditSessionState | null>(null);
+  const pendingSessionStateRef = React.useRef<ExpertEditSessionState | null>(null);
+  const sessionDispatchFrameRef = React.useRef<number | null>(null);
   const lastDispatchedPrimaryRef = React.useRef<string | null>(referenceImageUrl);
   const previousPrimaryPropRef = React.useRef<string | null>(referenceImageUrl);
   const inpaintCollapseTimerRef = React.useRef<number | null>(null);
@@ -1350,7 +1354,9 @@ export function ExpertEditPanelView({
   const markupDrawPointerSessionRef = React.useRef<MarkupDrawPointerSession>(
     createIdleMarkupDrawPointerSession()
   );
-  const markupStrokeIdCounterRef = React.useRef(1);
+  const markupStrokeIdCounterRef = React.useRef(
+    resolveMarkupStrokeIdCounterFromStrokes(initialSessionState.markupStrokes)
+  );
   const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const promptInputShellRef = React.useRef<HTMLDivElement | null>(null);
   const promptHighlightRef = React.useRef<HTMLDivElement | null>(null);
@@ -1364,6 +1370,9 @@ export function ExpertEditPanelView({
   const inpaintGestureBaselineRef = React.useRef<InpaintMaskSnapshot | null>(null);
   const pendingMarkupHistoryApplyRef = React.useRef<MarkupStroke[] | null>(null);
   const pendingInpaintHistoryApplyRef = React.useRef<InpaintMaskSnapshot | null>(null);
+  const inpaintSessionRestorePendingRef = React.useRef(
+    initialSessionState.inpaintHistory.present.layers.length > 0
+  );
 
   const createLayer = React.useCallback(
     ({
@@ -1436,7 +1445,9 @@ export function ExpertEditPanelView({
   const [moveStageZoomSliderValue, setMoveStageZoomSliderValue] = React.useState(
     MOVE_STAGE_ZOOM_SLIDER_DEFAULT
   );
-  const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>([]);
+  const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>(() =>
+    cloneMarkupStrokesSnapshot(initialSessionState.markupStrokes)
+  );
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
@@ -1449,10 +1460,10 @@ export function ExpertEditPanelView({
   const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
   const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
-    ...initialLayerSessionState.layers,
+    ...initialSessionState.layerState.layers,
   ]);
   const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>(
-    initialLayerSessionState.foundationLayerId
+    initialSessionState.layerState.foundationLayerId
   );
   const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
     () => ({
@@ -1461,18 +1472,14 @@ export function ExpertEditPanelView({
       future: [],
     })
   );
-  const [markupHistoryState, setMarkupHistoryState] = React.useState<MarkupHistoryState>(() => ({
-    past: [],
-    present: [],
-    future: [],
-  }));
-  const [inpaintHistoryState, setInpaintHistoryState] = React.useState<InpaintHistoryState>(() => ({
-    past: [],
-    present: { layers: [] },
-    future: [],
-  }));
+  const [markupHistoryState, setMarkupHistoryState] = React.useState<MarkupHistoryState>(() =>
+    cloneMarkupHistoryState(initialSessionState.markupHistory)
+  );
+  const [inpaintHistoryState, setInpaintHistoryState] = React.useState<InpaintHistoryState>(() =>
+    cloneInpaintHistoryState(initialSessionState.inpaintHistory)
+  );
   const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(
-    initialLayerSessionState.selectedLayerIndex
+    initialSessionState.layerState.selectedLayerIndex
   );
   const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
   const [editingLayerValue, setEditingLayerValue] = React.useState("");
@@ -4045,8 +4052,7 @@ export function ExpertEditPanelView({
     }
   }, [layers.length, selectedLayerIndex]);
 
-  React.useEffect(() => {
-    if (!onLayerSessionStateChange) return;
+  const buildCurrentSessionState = React.useCallback((): ExpertEditSessionState => {
     const normalizedSelectedLayerIndex =
       layers.length === 0 ||
       selectedLayerIndex == null ||
@@ -4060,13 +4066,66 @@ export function ExpertEditPanelView({
       layerIdCounterRef.current,
       resolveLayerIdCounterFromLayers(layers)
     );
-    onLayerSessionStateChange({
-      layerIdCounter: normalizedLayerIdCounter,
-      foundationLayerId,
-      selectedLayerIndex: normalizedSelectedLayerIndex,
-      layers: layers.map((layer) => cloneLayerForSessionState(layer)),
-    });
-  }, [foundationLayerId, layers, onLayerSessionStateChange, selectedLayerIndex]);
+    return {
+      version: EXPERT_EDIT_SESSION_STATE_VERSION,
+      layers: {
+        layerIdCounter: normalizedLayerIdCounter,
+        foundationLayerId,
+        selectedLayerIndex: normalizedSelectedLayerIndex,
+        layers: layers.map((layer) => cloneLayerForSessionState(layer)),
+      },
+      markup: {
+        strokes: cloneMarkupStrokesSnapshot(markupStrokes),
+        history: cloneMarkupHistoryState(markupHistoryState),
+      },
+      inpaint: {
+        history: cloneInpaintHistoryState(inpaintHistoryState),
+      },
+    };
+  }, [
+    foundationLayerId,
+    inpaintHistoryState,
+    layers,
+    markupHistoryState,
+    markupStrokes,
+    selectedLayerIndex,
+  ]);
+
+  React.useEffect(() => {
+    if (!onSessionStateChange) {
+      pendingSessionStateRef.current = null;
+      if (sessionDispatchFrameRef.current != null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(sessionDispatchFrameRef.current);
+        sessionDispatchFrameRef.current = null;
+      }
+      return;
+    }
+    const nextState = buildCurrentSessionState();
+    const lastState = lastDispatchedSessionStateRef.current;
+    if (lastState && areExpertEditSessionStatesEqual(lastState, nextState)) {
+      return;
+    }
+    pendingSessionStateRef.current = nextState;
+    if (sessionDispatchFrameRef.current != null) return;
+    const dispatch = () => {
+      sessionDispatchFrameRef.current = null;
+      const pendingState = pendingSessionStateRef.current;
+      pendingSessionStateRef.current = null;
+      if (!pendingState) return;
+      const previousState = lastDispatchedSessionStateRef.current;
+      if (previousState && areExpertEditSessionStatesEqual(previousState, pendingState)) {
+        return;
+      }
+      const clonedState = cloneExpertEditSessionState(pendingState);
+      lastDispatchedSessionStateRef.current = clonedState;
+      onSessionStateChange(clonedState);
+    };
+    if (typeof window === "undefined") {
+      dispatch();
+      return;
+    }
+    sessionDispatchFrameRef.current = window.requestAnimationFrame(dispatch);
+  }, [buildCurrentSessionState, onSessionStateChange]);
 
   React.useEffect(() => {
     const previousLayers = previousLayersRef.current;
@@ -4463,6 +4522,15 @@ export function ExpertEditPanelView({
   }, [currentTransformHistoryEntry, isTransformPointerDragging]);
 
   React.useEffect(() => {
+    if (!inpaintSessionRestorePendingRef.current) return;
+    restoreInpaintMaskSnapshot(
+      cloneInpaintMaskSnapshot(initialSessionState.inpaintHistory.present)
+    );
+    inpaintSessionRestorePendingRef.current = false;
+  }, [initialSessionState.inpaintHistory.present, restoreInpaintMaskSnapshot]);
+
+  React.useEffect(() => {
+    if (inpaintSessionRestorePendingRef.current) return;
     const snapshot = captureInpaintMaskSnapshot();
     setInpaintHistoryState((previousHistory) =>
       areInpaintMaskSnapshotsEqual(previousHistory.present, snapshot)
@@ -4508,8 +4576,15 @@ export function ExpertEditPanelView({
       pendingHistoryApplyEntryRef.current = null;
       pendingMarkupHistoryApplyRef.current = null;
       pendingInpaintHistoryApplyRef.current = null;
+      pendingSessionStateRef.current = null;
+      lastDispatchedSessionStateRef.current = null;
       markupGestureBaselineRef.current = null;
       inpaintGestureBaselineRef.current = null;
+      inpaintSessionRestorePendingRef.current = false;
+      if (sessionDispatchFrameRef.current != null) {
+        window.cancelAnimationFrame(sessionDispatchFrameRef.current);
+        sessionDispatchFrameRef.current = null;
+      }
       if (inpaintCollapseTimerRef.current != null) {
         window.clearTimeout(inpaintCollapseTimerRef.current);
         inpaintCollapseTimerRef.current = null;
@@ -4531,7 +4606,7 @@ export function ExpertEditPanelView({
         revokeObjectUrlSafe(url);
       });
       transientRevokeTimersRef.current.clear();
-      if (!onLayerSessionStateChange) {
+      if (!onSessionStateChange) {
         const ownedUrlsOnUnmount = new Set(
           previousLayersRef.current
             .filter((layer) => layer.ownsImageUrl && typeof layer.imageUrl === "string")
@@ -4541,7 +4616,7 @@ export function ExpertEditPanelView({
       }
       previousLayersRef.current = [];
     },
-    [onLayerSessionStateChange, unlockGlobalCursor]
+    [onSessionStateChange, unlockGlobalCursor]
   );
 
   const handleInpaintCollapseToggle = React.useCallback(() => {

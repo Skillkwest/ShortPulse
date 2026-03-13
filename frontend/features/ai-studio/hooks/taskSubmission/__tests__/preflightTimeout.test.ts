@@ -10,7 +10,7 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
     expect(budget).toEqual({
       workUnitCount: 0,
-      timeoutMs: 10_000,
+      timeoutMs: 14_000,
     });
   });
 
@@ -21,7 +21,7 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
     expect(budget).toEqual({
       workUnitCount: 1,
-      timeoutMs: 10_000,
+      timeoutMs: 14_000,
     });
   });
 
@@ -36,7 +36,7 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
     expect(budget).toEqual({
       workUnitCount: 3,
-      timeoutMs: 26_000,
+      timeoutMs: 38_000,
     });
   });
 
@@ -51,7 +51,7 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
     expect(budget).toEqual({
       workUnitCount: 12,
-      timeoutMs: 45_000,
+      timeoutMs: 75_000,
     });
   });
 });

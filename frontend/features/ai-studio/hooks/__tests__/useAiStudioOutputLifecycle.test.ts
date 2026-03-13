@@ -191,7 +191,7 @@ describe("useAiStudioOutputLifecycle", () => {
       );
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(16_000);
+        await vi.advanceTimersByTimeAsync(95_000);
       });
 
       expect(result.current.outputs[0]?.taskState).toBe("fail");
@@ -228,7 +228,7 @@ describe("useAiStudioOutputLifecycle", () => {
       );
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(16_000);
+        await vi.advanceTimersByTimeAsync(95_000);
       });
 
       expect(result.current.outputs[0]?.taskState).toBe("fail");

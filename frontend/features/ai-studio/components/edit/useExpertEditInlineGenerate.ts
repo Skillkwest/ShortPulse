@@ -10,6 +10,7 @@ import {
 } from "../../logic/expertEditPromptReferences";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
 
@@ -17,8 +18,10 @@ type RegenerateWithReferenceInputsHandler = (
   referenceInputs: string[],
   options?: {
     inpaintOverride?: InpaintSubmissionOverride | null;
+    modelIdOverride?: string | null;
     displayPromptOverride?: string | null;
     submissionPromptOverride?: string | null;
+    referenceInputsMode?: "merge" | "replace";
   }
 ) => void | Promise<void>;
 
@@ -40,6 +43,7 @@ type UseExpertEditInlineGenerateParams = {
   extraImageUrls: [string | null, string | null, string | null];
   populatedLayerCount: number;
   isInpaintToolSelected: boolean;
+  isMarkupToolSelected: boolean;
   hasSelectedLayerMask: boolean;
   exportSelectedLayerMaskBlob: ExportSelectedLayerMaskBlob;
   onRegenerate: () => void;
@@ -74,6 +78,7 @@ export const useExpertEditInlineGenerate = ({
   extraImageUrls,
   populatedLayerCount,
   isInpaintToolSelected,
+  isMarkupToolSelected,
   hasSelectedLayerMask,
   exportSelectedLayerMaskBlob,
   onRegenerate,
@@ -162,6 +167,7 @@ export const useExpertEditInlineGenerate = ({
               maskInput: inpaintMaskUrl,
               outputFormat: "png",
             },
+            referenceInputsMode: "replace",
             ...promptOverrideOptions,
           });
           return;
@@ -171,7 +177,11 @@ export const useExpertEditInlineGenerate = ({
           onRegenerate();
           return;
         }
-        await onRegenerateWithReferenceInputs(referenceInputs, promptOverrideOptions);
+        await onRegenerateWithReferenceInputs(referenceInputs, {
+          ...promptOverrideOptions,
+          modelIdOverride: isMarkupToolSelected ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID : undefined,
+          referenceInputsMode: "replace",
+        });
       } catch (error) {
         if (flattenedUrl) {
           revokeObjectUrlSafe(flattenedUrl);
@@ -206,6 +216,7 @@ export const useExpertEditInlineGenerate = ({
     exportSelectedLayerMaskBlob,
     hasSelectedLayerMask,
     isInpaintToolSelected,
+    isMarkupToolSelected,
     layers,
     onRegenerate,
     onRegenerateWithReferenceInputs,

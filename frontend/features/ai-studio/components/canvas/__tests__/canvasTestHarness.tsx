@@ -8,7 +8,7 @@ import {
   useAiStudioCanvasWorkspaceState,
   useAiStudioDualCanvasWorkspaceState,
 } from "../useAiStudioCanvasWorkspaceState";
-import type { ResolveCanvasDropReference } from "../canvasTypes";
+import type { PrepareResolvedInternalCanvasDrop, ResolveCanvasDropReference } from "../canvasTypes";
 
 export const createTransfer = (entries: Record<string, string>) =>
   ({
@@ -44,15 +44,18 @@ export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (pa
 export type CanvasHarnessProps = {
   onPinTextReference?: (text: string) => void;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
+  prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
 };
 
 export function CanvasHarness({
   onPinTextReference,
   resolveCanvasDropReference,
+  prepareResolvedInternalCanvasDrop,
 }: CanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const canvasProps = useAiStudioCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
     onPinTextReference,
   });
 
@@ -69,9 +72,11 @@ export function CanvasHarness({
 export function DualCanvasHarness({
   onPinTextReference,
   resolveCanvasDropReference,
+  prepareResolvedInternalCanvasDrop,
 }: CanvasHarnessProps) {
   const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
     onPinTextReference,
   });
 

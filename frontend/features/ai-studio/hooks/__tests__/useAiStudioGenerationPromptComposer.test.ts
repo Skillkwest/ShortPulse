@@ -88,6 +88,25 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
+  it("replaces base reference inputs when override mode is replace", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask, selectedTool: "edit" });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.regenerateOutput({
+        referenceInputsOverride: ["https://example.com/flatten-primary.png"],
+        referenceInputsMode: "replace",
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "edit prompt",
+      ["https://example.com/flatten-primary.png"],
+      expect.objectContaining({ displayPromptOverride: "edit prompt" })
+    );
+  });
+
   it("forwards selected style context metadata to submission options", () => {
     const submitTask = vi.fn();
     const params = createParams({

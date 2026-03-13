@@ -284,6 +284,15 @@
   line-height: 0;
 }
 
+.edit-expert-preset-action-btn-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(16, 20, 26, 0.22);
+  border-top-color: rgba(16, 20, 26, 0.84);
+  animation: edit-expert-primary-layer-loading-spin 0.8s linear infinite;
+}
+
 .edit-expert-preset-action-btn-copy {
   display: inline-flex;
   flex-direction: column;

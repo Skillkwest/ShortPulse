@@ -3,7 +3,7 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CaretDown, FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
+import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
@@ -64,6 +64,7 @@ import {
 } from "../logic/mediaLibraryDragGhost";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import { resolveMediaLibraryPanelCardPreviewUrl } from "../logic/mediaLibraryPanelPreviewResolver";
+import { downloadBlobToFile } from "../logic/referenceDownload";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
@@ -75,6 +76,7 @@ import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibrar
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
+type RootMediaLibraryTab = "images" | "videos" | "prompts";
 
 type FolderContextMenuState = {
   folderId: string;
@@ -116,6 +118,7 @@ type MediaLibraryPanelProps = {
 
 const MEDIA_PAGE_SIZE = 36;
 const PROMPT_PAGE_SIZE = 36;
+const INFINITE_LOAD_BOTTOM_THRESHOLD_PX = 220;
 const ROOT_FOLDER_LABEL = "All Media";
 const EMPTY_SELECTED_IDS = new Set<string>();
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
@@ -163,7 +166,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     deleteFolder,
   } = useMediaLibraryFoldersState();
 
-  const [itemType] = useState<MediaLibraryPanelItemType>("all");
+  const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+  const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("images");
+  const itemType: MediaLibraryPanelItemType = isRootFolderSelected ? rootTab : "all";
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -175,9 +180,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [promptHasMore, setPromptHasMore] = useState(false);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
-  const [isPromptsSectionCollapsed, setPromptsSectionCollapsed] = useState(false);
-  const [isImagesSectionCollapsed, setImagesSectionCollapsed] = useState(false);
-  const [isVideosSectionCollapsed, setVideosSectionCollapsed] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
@@ -195,6 +197,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const signedUrlRetryRef = useRef<Record<string, number>>({});
   const signAttemptRef = useRef<Record<string, number>>({});
   const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
+  const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
   const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const currentUserIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
@@ -216,6 +219,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
   const previewResolveTokenRef = useRef(0);
+  const autoLoadInFlightRef = useRef<{ media: boolean; prompts: boolean }>({
+    media: false,
+    prompts: false,
+  });
 
   const [signPassNonce, setSignPassNonce] = useState(0);
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
@@ -250,6 +257,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
+  const showFolderCanvas =
+    activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);
@@ -833,6 +842,65 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     }
   }, [loadMediaPage, loadPromptPage, shouldShowMedia, shouldShowPrompts]);
 
+  const maybeAutoLoadMore = useCallback(() => {
+    const container = panelBodyRef.current;
+    if (!container || showFolderCanvas) return;
+    if (container.clientHeight <= 0 || container.scrollHeight <= 0) return;
+    const remaining = container.scrollHeight - (container.scrollTop + container.clientHeight);
+    if (!Number.isFinite(remaining) || remaining > INFINITE_LOAD_BOTTOM_THRESHOLD_PX) return;
+
+    if (shouldShowMedia && mediaHasMore && !mediaLoading && !autoLoadInFlightRef.current.media) {
+      autoLoadInFlightRef.current.media = true;
+      void loadMediaPage({ reset: false }).finally(() => {
+        autoLoadInFlightRef.current.media = false;
+      });
+      return;
+    }
+
+    if (
+      shouldShowPrompts &&
+      promptHasMore &&
+      !promptLoading &&
+      !autoLoadInFlightRef.current.prompts
+    ) {
+      autoLoadInFlightRef.current.prompts = true;
+      void loadPromptPage({ reset: false }).finally(() => {
+        autoLoadInFlightRef.current.prompts = false;
+      });
+    }
+  }, [
+    loadMediaPage,
+    loadPromptPage,
+    mediaHasMore,
+    mediaLoading,
+    promptHasMore,
+    promptLoading,
+    shouldShowMedia,
+    shouldShowPrompts,
+    showFolderCanvas,
+  ]);
+
+  useEffect(() => {
+    const container = panelBodyRef.current;
+    if (!container) return;
+    let rafId = 0;
+    const onScroll = () => {
+      if (rafId !== 0) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        maybeAutoLoadMore();
+      });
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      if (rafId !== 0) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [maybeAutoLoadMore]);
+
   const handleRemoveItemFromActiveFolder = useCallback(
     async (item: { kind: "media" | "prompt"; id: string }) => {
       if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
@@ -858,6 +926,33 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             ? membershipError.message
             : "Unable to update folder membership."
         );
+      }
+    },
+    [activeFolderId, refreshActiveRows, setFolderError]
+  );
+
+  const handleAssignItemToActiveFolder = useCallback(
+    async (item: { kind: "media" | "prompt"; id: string }): Promise<boolean> => {
+      if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return false;
+      setMembershipMessage(null);
+      setFolderError(null);
+      try {
+        await applyMediaFolderMembershipBatch({
+          folderId: activeFolderId,
+          action: "assign",
+          mediaIds: item.kind === "media" ? [item.id] : [],
+          promptIds: item.kind === "prompt" ? [item.id] : [],
+        });
+        setMembershipMessage("Added to this folder.");
+        await refreshActiveRows();
+        return true;
+      } catch (membershipError) {
+        setFolderError(
+          membershipError instanceof Error
+            ? membershipError.message
+            : "Unable to update folder membership."
+        );
+        return false;
       }
     },
     [activeFolderId, refreshActiveRows, setFolderError]
@@ -981,14 +1076,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         event.dataTransfer.setData("text/plain", signedUrl);
       }
       event.currentTarget.classList.add("is-dragging");
-      if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) {
-        attachMediaLibraryDragGhost(event, {
-          label: file.filename || "Media",
-          detail: promptText,
-          previewUrl: signedUrl,
-          previewKind: isVideoFile(file.file_type) ? "video" : "image",
-        });
-      }
+      attachMediaLibraryDragGhost(event, {
+        label: file.filename || "Media",
+        detail: promptText,
+        previewUrl: signedUrl,
+        previewKind: isVideoFile(file.file_type) ? "video" : "image",
+      });
     },
     [activeFolderId]
   );
@@ -1014,35 +1107,79 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       event.dataTransfer.setData("text/prompt", promptText);
       event.dataTransfer.setData("text/plain", promptText);
       event.currentTarget.classList.add("is-dragging");
-      if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) {
-        attachMediaLibraryDragGhost(event, {
-          label: prompt.title || "Prompt",
-          detail: promptText,
-          previewKind: "text",
-        });
-      }
+      attachMediaLibraryDragGhost(event, {
+        label: prompt.title || "Prompt",
+        detail: promptText,
+        previewKind: "text",
+      });
     },
     [activeFolderId]
   );
 
   const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLButtonElement>) => {
     event.currentTarget.classList.remove("is-dragging");
-    if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) {
-      clearMediaLibraryDragGhost(event);
+    clearMediaLibraryDragGhost(event);
+  }, []);
+
+  const resolveDownloadBlob = useCallback(async (file: MediaFileRow): Promise<Blob | null> => {
+    const primaryStoragePath = (file.storage_path ?? "").trim();
+    if (primaryStoragePath) {
+      try {
+        const supabase = ensureSupabaseClient();
+        const { data, error: downloadError } = await supabase.storage
+          .from(BUCKET)
+          .download(primaryStoragePath);
+        if (!downloadError && data) {
+          return data as Blob;
+        }
+      } catch {
+        // Fall through to signed-url fetch fallback.
+      }
+    }
+    const signedUrl = (file.signedUrl ?? "").trim();
+    if (!signedUrl) return null;
+    try {
+      const response = await fetch(signedUrl, {
+        method: "GET",
+        credentials: "omit",
+        cache: "no-store",
+      });
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      if (!blob.size) return null;
+      return blob;
+    } catch {
+      return null;
     }
   }, []);
 
-  const handleDownloadMediaFile = useCallback((file: MediaFileRow) => {
-    const signedUrl = (file.signedUrl ?? "").trim();
-    if (!signedUrl) return;
-    const anchor = document.createElement("a");
-    anchor.href = signedUrl;
-    anchor.download = (file.filename ?? "media").trim() || "media";
-    anchor.rel = "noopener";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-  }, []);
+  const handleDownloadMediaFile = useCallback(
+    (file: MediaFileRow) => {
+      const filename = (file.filename ?? "media").trim() || "media";
+      if (mediaDownloadInFlightRef.current[file.id]) return;
+      mediaDownloadInFlightRef.current[file.id] = true;
+      void resolveDownloadBlob(file)
+        .then((blob) => {
+          if (blob) {
+            downloadBlobToFile(blob, filename);
+            return;
+          }
+          const signedUrl = (file.signedUrl ?? "").trim();
+          if (!signedUrl) return;
+          const anchor = document.createElement("a");
+          anchor.href = signedUrl;
+          anchor.download = filename;
+          anchor.rel = "noopener";
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+        })
+        .finally(() => {
+          mediaDownloadInFlightRef.current[file.id] = false;
+        });
+    },
+    [resolveDownloadBlob]
+  );
 
   const handleMediaCardContextMenu = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => {
@@ -1099,15 +1236,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     await deleteFolder(folderId);
   }, [deleteFolder, folderContextMenu]);
 
-  const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
   const activeFolderName =
     orderedFolders.find((folder) => folder.id === activeFolderId)?.name || ROOT_FOLDER_LABEL;
-  const showFolderCanvas =
-    activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
-  const promptsSectionCollapsed = isRootFolderSelected && isPromptsSectionCollapsed;
-  const imagesSectionCollapsed = isRootFolderSelected && isImagesSectionCollapsed;
-  const videosSectionCollapsed = isRootFolderSelected && isVideosSectionCollapsed;
   const resolvePanelCardPreviewUrl = useCallback(
     ({
       signedUrl,
@@ -1200,82 +1331,55 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => (
       <section className="media-library-panel-section">
         <div className="media-library-panel-section-head">
-          {isRootFolderSelected ? (
-            <button
-              type="button"
-              className={`media-library-panel-section-toggle${
-                promptsSectionCollapsed ? " is-collapsed" : ""
-              }`}
-              aria-expanded={!promptsSectionCollapsed}
-              aria-controls="media-library-panel-prompts-section"
-              onClick={() => {
-                setPromptsSectionCollapsed((previous) => !previous);
-              }}
-            >
-              <span className="tiny subdued">
-                Prompts ({visiblePromptRows.length})
-                {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-              </span>
-              <CaretDown
-                size={14}
-                weight="bold"
-                aria-hidden
-                className="media-library-panel-section-toggle-icon"
-              />
-            </button>
-          ) : (
-            <p className="tiny subdued">
-              Prompts ({visiblePromptRows.length})
-              {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-            </p>
-          )}
+          <p className="tiny subdued">
+            Prompts ({visiblePromptRows.length})
+            {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+          </p>
         </div>
-        {!promptsSectionCollapsed && promptLoading && visiblePromptRows.length === 0 ? (
+        {promptLoading && visiblePromptRows.length === 0 ? (
           <p className="tiny subdued">Loading prompts…</p>
         ) : null}
-        {!promptsSectionCollapsed && !promptLoading && visiblePromptRows.length === 0 ? (
+        {!promptLoading && visiblePromptRows.length === 0 ? (
           <p className="tiny subdued">No prompts found for this folder.</p>
         ) : null}
-        {!promptsSectionCollapsed ? (
-          <div id="media-library-panel-prompts-section">
-            {visiblePromptRows.length > 0 ? (
-              <MediaLibraryPromptGrid
-                prompts={visiblePromptRows}
-                sortedPrompts={visiblePromptRows}
-                selectedIds={selectedIds}
-                onSelectPromptCard={handleSelectPromptCard}
-                onPromptDragStart={handlePromptCardDragStart}
-                onPromptDragEnd={handleCardDragEnd}
-                showRemoveAction={canShowFolderItemRemoveAction}
-                showDeleteAction={activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID}
-                onRemovePromptFromFolder={(prompt) => {
-                  void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
+        <div id="media-library-panel-prompts-section">
+          {visiblePromptRows.length > 0 ? (
+            <MediaLibraryPromptGrid
+              prompts={visiblePromptRows}
+              sortedPrompts={visiblePromptRows}
+              selectedIds={selectedIds}
+              onSelectPromptCard={handleSelectPromptCard}
+              onPromptDragStart={handlePromptCardDragStart}
+              onPromptDragEnd={handleCardDragEnd}
+              showRemoveAction={canShowFolderItemRemoveAction}
+              showDeleteAction={activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID}
+              onRemovePromptFromFolder={(prompt) => {
+                void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
+              }}
+              onDeletePromptFromLibrary={(prompt) => {
+                setPendingLibraryDelete({
+                  kind: "prompt",
+                  prompt,
+                });
+              }}
+              variant="reference-card"
+            />
+          ) : null}
+          {promptHasMore ? (
+            <div className="media-load-more">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  void loadPromptPage({ reset: false });
                 }}
-                onDeletePromptFromLibrary={(prompt) => {
-                  setPendingLibraryDelete({
-                    kind: "prompt",
-                    prompt,
-                  });
-                }}
-                variant="reference-card"
-              />
-            ) : null}
-            {promptHasMore ? (
-              <div className="media-load-more">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    void loadPromptPage({ reset: false });
-                  }}
-                  disabled={promptLoading}
-                >
-                  {promptLoading ? "Loading more..." : "Load more prompts"}
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+                disabled={promptLoading}
+              >
+                {promptLoading ? "Loading more..." : "Load more prompts"}
+              </button>
+            </div>
+          ) : null}
+        </div>
       </section>
     ),
     [
@@ -1285,10 +1389,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
       handleSelectPromptCard,
-      isRootFolderSelected,
       promptHasMore,
       promptLoading,
-      promptsSectionCollapsed,
       selectedIds,
       visiblePromptRows,
       loadPromptPage,
@@ -1456,6 +1558,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 onSelectPrompt={onSelectPrompt}
                 onUnassignItem={handleRemoveItemFromActiveFolder}
                 resolveCanvasDropReference={resolveCanvasDropReference}
+                resolveInternalDropItem={resolveInternalDropItem}
+                onAssignDroppedItem={handleAssignItemToActiveFolder}
               />
             ) : null}
 
@@ -1463,82 +1567,91 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               ? renderPromptsSection()
               : null}
 
-            {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (
+            {!showFolderCanvas && isRootFolderSelected ? (
+              <div
+                className="media-library-panel-root-tabs"
+                role="tablist"
+                aria-label="All Media type tabs"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
+                  aria-selected={rootTab === "images"}
+                  aria-controls="media-library-panel-images-section"
+                  onClick={() => setRootTab("images")}
+                >
+                  Images
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={`media-library-panel-root-tab${rootTab === "videos" ? " is-active" : ""}`}
+                  aria-selected={rootTab === "videos"}
+                  aria-controls="media-library-panel-videos-section"
+                  onClick={() => setRootTab("videos")}
+                >
+                  Videos
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
+                  aria-selected={rootTab === "prompts"}
+                  aria-controls="media-library-panel-prompts-section"
+                  onClick={() => setRootTab("prompts")}
+                >
+                  Prompts
+                </button>
+              </div>
+            ) : null}
+
+            {!showFolderCanvas &&
+            shouldShowMedia &&
+            isRootFolderSelected &&
+            itemType === "images" ? (
               <>
                 <section className="media-library-panel-section">
                   <div className="media-library-panel-section-head">
-                    <button
-                      type="button"
-                      className={`media-library-panel-section-toggle${
-                        imagesSectionCollapsed ? " is-collapsed" : ""
-                      }`}
-                      aria-expanded={!imagesSectionCollapsed}
-                      aria-controls="media-library-panel-images-section"
-                      onClick={() => {
-                        setImagesSectionCollapsed((previous) => !previous);
-                      }}
-                    >
-                      <span className="tiny subdued">
-                        Images ({visibleImageRows.length})
-                        {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                      </span>
-                      <CaretDown
-                        size={14}
-                        weight="bold"
-                        aria-hidden
-                        className="media-library-panel-section-toggle-icon"
-                      />
-                    </button>
+                    <p className="tiny subdued">
+                      Images ({visibleImageRows.length})
+                      {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                    </p>
                   </div>
-                  {!imagesSectionCollapsed && mediaLoading && mediaRows.length === 0 ? (
+                  {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading images…</p>
                   ) : null}
-                  {!imagesSectionCollapsed && !mediaLoading && visibleImageRows.length === 0 ? (
+                  {!mediaLoading && visibleImageRows.length === 0 ? (
                     <p className="tiny subdued">No images found for this folder.</p>
                   ) : null}
-                  {!imagesSectionCollapsed ? (
-                    <div id="media-library-panel-images-section">
-                      {visibleImageRows.length > 0 ? renderMediaGrid(visibleImageRows) : null}
-                    </div>
-                  ) : null}
+                  <div id="media-library-panel-images-section">
+                    {visibleImageRows.length > 0 ? renderMediaGrid(visibleImageRows) : null}
+                  </div>
                 </section>
+              </>
+            ) : null}
 
+            {!showFolderCanvas &&
+            shouldShowMedia &&
+            isRootFolderSelected &&
+            itemType === "videos" ? (
+              <>
                 <section className="media-library-panel-section">
                   <div className="media-library-panel-section-head">
-                    <button
-                      type="button"
-                      className={`media-library-panel-section-toggle${
-                        videosSectionCollapsed ? " is-collapsed" : ""
-                      }`}
-                      aria-expanded={!videosSectionCollapsed}
-                      aria-controls="media-library-panel-videos-section"
-                      onClick={() => {
-                        setVideosSectionCollapsed((previous) => !previous);
-                      }}
-                    >
-                      <span className="tiny subdued">
-                        Videos ({visibleVideoRows.length})
-                        {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                      </span>
-                      <CaretDown
-                        size={14}
-                        weight="bold"
-                        aria-hidden
-                        className="media-library-panel-section-toggle-icon"
-                      />
-                    </button>
+                    <p className="tiny subdued">
+                      Videos ({visibleVideoRows.length})
+                      {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                    </p>
                   </div>
-                  {!videosSectionCollapsed && mediaLoading && mediaRows.length === 0 ? (
+                  {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading videos…</p>
                   ) : null}
-                  {!videosSectionCollapsed && !mediaLoading && visibleVideoRows.length === 0 ? (
+                  {!mediaLoading && visibleVideoRows.length === 0 ? (
                     <p className="tiny subdued">No videos found for this folder.</p>
                   ) : null}
-                  {!videosSectionCollapsed ? (
-                    <div id="media-library-panel-videos-section">
-                      {visibleVideoRows.length > 0 ? renderMediaGrid(visibleVideoRows) : null}
-                    </div>
-                  ) : null}
+                  <div id="media-library-panel-videos-section">
+                    {visibleVideoRows.length > 0 ? renderMediaGrid(visibleVideoRows) : null}
+                  </div>
                 </section>
               </>
             ) : null}

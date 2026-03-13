@@ -19,6 +19,8 @@ import {
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   INPAINT_FLUX_FILL_MODEL_LABEL,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
 } from "../../logic/inpaintSubmission";
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
 import type { InpaintMaskSnapshot } from "../edit/useInpaintMaskController";
@@ -1462,11 +1464,15 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
     const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
+    const markupButton = await within(rail).findByRole("button", { name: /^markup$/i });
 
     expect(onEditSubmitIntentChange).toHaveBeenCalledWith("standard");
 
     fireEvent.click(inpaintButton);
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("inpaint");
+
+    fireEvent.click(markupButton);
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("markup");
 
     fireEvent.click(moveButton);
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
@@ -2675,6 +2681,38 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(inpaintButton);
     expect(modelPickerButton).toBeDisabled();
     expect(modelPickerButton).toHaveTextContent(INPAINT_FLUX_FILL_MODEL_LABEL);
+    expect(modelPickerButton.querySelector(".model-chip-logo-img")).toHaveAttribute(
+      "src",
+      "/tiny-logo.png"
+    );
+    fireEvent.click(modelPickerButton);
+    expect(onModelPickerOpen).not.toHaveBeenCalled();
+
+    fireEvent.click(moveButton);
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+  });
+
+  it("locks the model picker to Pulse Markup v1 while Markup is selected", async () => {
+    const onModelPickerOpen = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onModelPickerOpen={onModelPickerOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
+    const markupButton = await within(rail).findByRole("button", { name: /^markup$/i });
+    const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
+
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+
+    fireEvent.click(markupButton);
+    expect(modelPickerButton).toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL);
+    expect(modelPickerButton.querySelector(".model-chip-logo-img")).toHaveAttribute(
+      "src",
+      "/tiny-logo.png"
+    );
     fireEvent.click(modelPickerButton);
     expect(onModelPickerOpen).not.toHaveBeenCalled();
 
@@ -2823,12 +2861,164 @@ describe("ExpertEditPanelView", () => {
     expect(within(stageMenu).getByRole("menuitem", { name: /^recenter$/i })).toBeInTheDocument();
     expect(within(stageMenu).getByRole("menuitem", { name: /^expand$/i })).toBeInTheDocument();
     expect(within(stageMenu).getByRole("menuitem", { name: /^add image$/i })).toBeInTheDocument();
+    expect(within(stageMenu).getByRole("menuitem", { name: /^reset$/i })).toBeInTheDocument();
     expect(
       within(stageMenu).getByRole("menuitem", { name: /^remove image$/i })
     ).toBeInTheDocument();
 
     fireEvent.click(within(stageMenu).getByRole("menuitem", { name: /^expand$/i }));
     expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
+  });
+
+  it("resets stage changes from the context menu", async () => {
+    const emptySnapshot: InpaintMaskSnapshot = { layers: [] };
+    const paintedSnapshot: InpaintMaskSnapshot = {
+      layers: [
+        {
+          layerId: "layer-1",
+          width: 2,
+          height: 2,
+          alpha: new Uint8ClampedArray([255, 0, 0, 0]),
+        },
+      ],
+    };
+    let currentSnapshot = emptySnapshot;
+    const clearAllMasks = vi.fn(() => {
+      currentSnapshot = emptySnapshot;
+    });
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => currentSnapshot),
+        restoreMaskSnapshot: vi.fn((snapshot: InpaintMaskSnapshot) => {
+          currentSnapshot = snapshot;
+        }),
+        clearAllMasks,
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(() => {
+          currentSnapshot = paintedSnapshot;
+        }),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/context-menu-reset.png"
+          referenceText="prompt text"
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+      const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
+      const zoomSlider = within(moveSettingsPanel).getByRole("slider", {
+        name: /zoom stage/i,
+      }) as HTMLInputElement;
+      fireEvent.change(zoomSlider, { target: { value: "100" } });
+      expect(readMarkupViewportTransform()?.scale ?? 0).toBeGreaterThan(1);
+
+      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const rect = {
+        left: 0,
+        top: 0,
+        width: 200,
+        height: 200,
+        right: 200,
+        bottom: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } satisfies DOMRect;
+      Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+        configurable: true,
+        value: () => rect,
+      });
+
+      fireEvent.pointerDown(primaryDropzone, {
+        pointerId: 901,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 30,
+        clientY: 30,
+      });
+      fireEvent.pointerMove(primaryDropzone, {
+        pointerId: 901,
+        pointerType: "mouse",
+        clientX: 100,
+        clientY: 95,
+      });
+      fireEvent.pointerUp(primaryDropzone, {
+        pointerId: 901,
+        pointerType: "mouse",
+        clientX: 100,
+        clientY: 95,
+      });
+
+      const movedFrameBeforeReset = document.querySelector(
+        ".edit-expert-primary-layer-frame"
+      ) as HTMLDivElement;
+      expect(Math.abs(readFrameTranslate(movedFrameBeforeReset).x)).toBeGreaterThan(0.1);
+
+      fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+      fireEvent.pointerDown(primaryDropzone, {
+        pointerId: 902,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 60,
+        clientY: 60,
+      });
+      fireEvent.pointerMove(primaryDropzone, {
+        pointerId: 902,
+        pointerType: "mouse",
+        clientX: 140,
+        clientY: 120,
+      });
+      fireEvent.pointerUp(primaryDropzone, {
+        pointerId: 902,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 140,
+        clientY: 120,
+      });
+      expect(
+        document.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+      ).toBeGreaterThan(0);
+
+      fireEvent.contextMenu(primaryDropzone, { clientX: 140, clientY: 120 });
+      const stageMenu = screen.getByRole("menu", { name: /stage actions/i });
+      fireEvent.click(within(stageMenu).getByRole("menuitem", { name: /^reset$/i }));
+
+      await waitFor(() => expect(clearAllMasks).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(
+          document.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+        ).toBe(0)
+      );
+      expect(screen.queryByRole("menu", { name: /stage actions/i })).not.toBeInTheDocument();
+      expect(readMarkupViewportTransform()?.scale ?? 0).toBeCloseTo(1, 4);
+
+      const movedFrameAfterReset = document.querySelector(
+        ".edit-expert-primary-layer-frame"
+      ) as HTMLDivElement;
+      expect(readFrameTranslate(movedFrameAfterReset).x).toBeCloseTo(0, 1);
+      expect(readFrameTranslate(movedFrameAfterReset).y).toBeCloseTo(0, 1);
+      expect(readFrameScale(movedFrameAfterReset)).toBeCloseTo(1, 4);
+      expect(readFrameRotationDeg(movedFrameAfterReset)).toBeCloseTo(0, 4);
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
   });
 
   it("moves the selected layer inside the primary dropzone when dragging in move mode", async () => {
@@ -4657,6 +4847,39 @@ describe("ExpertEditPanelView", () => {
     expect(onAddSessionMediaReference).not.toHaveBeenCalled();
   });
 
+  it("shows flatten pending feedback while manual flatten is in progress", async () => {
+    let resolveFlatten: ((blob: Blob) => void) | null = null;
+    composePrimaryStageLayersToBlobMock.mockImplementationOnce(
+      () =>
+        new Promise<Blob>((resolve) => {
+          resolveFlatten = resolve;
+        })
+    );
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /flatten layers/i }));
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("button", { name: /flattening layers/i })).toBeDisabled();
+    expect(screen.getByText("Flattening...")).toBeInTheDocument();
+    expect(screen.getByTestId("edit-expert-flatten-loading-overlay")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFlatten?.(new Blob(["flattened-stage"], { type: "image/png" }));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("edit-expert-flatten-loading-overlay")).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /flatten layers/i })).not.toBeDisabled();
+  });
+
   it("manual flatten forwards selected frame ratio to stage flatten without exporting to reference grid", async () => {
     const onAddSessionMediaReference = vi.fn();
     const { container, rerender } = render(
@@ -4806,6 +5029,7 @@ describe("ExpertEditPanelView", () => {
                 modelIdOverride?: string | null;
                 costOverrideCredits?: number | null;
                 hideOutputFromReferenceGrid?: boolean;
+                referenceInputsMode?: "append" | "replace";
               }?,
             ]
           >;
@@ -4819,6 +5043,7 @@ describe("ExpertEditPanelView", () => {
     }
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(referenceInputs).toContain("https://example.com/extra.png");
+    expect(submitOptions?.referenceInputsMode).toBe("replace");
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
   });
 
@@ -4946,6 +5171,52 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
   });
 
+  it("auto-flatten generate forces Nano Banana Pro edit model while Markup is selected", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Add hand-drawn annotations."
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [
+              string[],
+              {
+                modelIdOverride?: string | null;
+                inpaintOverride?: unknown;
+              }?,
+            ]
+          >;
+        };
+      }
+    ).mock.calls;
+    const submitOptions = submissionCalls[0]?.[1];
+    expect(submitOptions?.modelIdOverride).toBe(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID);
+    expect(submitOptions?.inpaintOverride).toBeUndefined();
+  });
+
   it("submits remove background for the active layer image without flattening", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
@@ -4984,6 +5255,7 @@ describe("ExpertEditPanelView", () => {
     expect(options).toEqual(
       expect.objectContaining({
         modelIdOverride: "fal-ai/bria/background/remove",
+        referenceInputsMode: "replace",
       })
     );
   });

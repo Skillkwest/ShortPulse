@@ -20,6 +20,7 @@ import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
+import type { ReferenceInputsMode } from "./useAiStudioGenerationPromptComposer";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type CharacterModeFallbackSummary<TFallbackCode extends string> = {
@@ -52,6 +53,7 @@ type GenerateResult = {
 
 type RegenerateWithDebitOptions = {
   referenceInputsOverride?: string[];
+  referenceInputsMode?: ReferenceInputsMode;
   inpaintOverride?: InpaintSubmissionOverride | null;
   modelIdOverride?: string | null;
   costOverrideCredits?: number | null;
@@ -141,6 +143,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       submissionPromptOverride?: string | null;
       displayPromptOverride?: string | null;
       referenceInputsOverride?: string[];
+      referenceInputsMode?: ReferenceInputsMode;
       characterContextOverride?: StudioOutput["characterContext"];
       styleContextOverride?: StudioOutput["styleContext"];
       outputIdOverride?: string;
@@ -153,6 +156,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     submissionPromptOverride?: string | null;
     displayPromptOverride?: string | null;
     referenceInputsOverride?: string[];
+    referenceInputsMode?: ReferenceInputsMode;
     characterContextOverride?: StudioOutput["characterContext"];
     styleContextOverride?: StudioOutput["styleContext"];
     outputIdOverride?: string;
@@ -719,6 +723,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           characterModeOverrides?.referenceInputsOverride ?? options?.referenceInputsOverride,
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+        ...(options?.referenceInputsMode
+          ? { referenceInputsMode: options.referenceInputsMode }
+          : {}),
         ...(options?.styleContextOverride
           ? { styleContextOverride: options.styleContextOverride }
           : {}),

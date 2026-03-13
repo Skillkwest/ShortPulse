@@ -210,6 +210,7 @@ export function MediaLibraryMediaGrid({
                         className="media-thumb"
                         src={cardPreviewUrl}
                         alt={file.filename}
+                        draggable={false}
                         loading="lazy"
                         decoding="async"
                         style={{ aspectRatio: previewAspectRatio }}

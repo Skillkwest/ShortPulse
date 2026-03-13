@@ -2,7 +2,9 @@
  * Inpaint submission override contract propagated from Expert Edit UI to submit handlers.
  */
 export const INPAINT_FLUX_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
-export const INPAINT_FLUX_FILL_MODEL_LABEL = "FLUX Pro Fill";
+export const INPAINT_FLUX_FILL_MODEL_LABEL = "Pulse Fill v1";
+export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID = "fal-ai/nano-banana-pro/edit";
+export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL = "Pulse Markup v1";
 
 export type InpaintSubmissionOverride = {
   modelId?: string | null;

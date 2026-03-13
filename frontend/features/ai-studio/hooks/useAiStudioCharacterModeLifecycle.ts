@@ -67,12 +67,12 @@ export const useAiStudioCharacterModeLifecycle = ({
   const refreshRequestIdRef = useRef(0);
   const previousSelectedToolRef = useRef<ToolId | null>(selectedTool);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
       isMountedRef.current = false;
-    },
-    []
-  );
+    };
+  }, []);
 
   const applyCharacterOptions = useCallback(
     (items: Awaited<ReturnType<typeof listCharacterManagerCharacters>>) => {

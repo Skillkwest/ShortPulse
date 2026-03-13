@@ -15,10 +15,13 @@ import {
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
+export type ReferenceInputsMode = "merge" | "replace";
+
 export type AiStudioGenerateSubmissionOverrides = {
   submissionPromptOverride?: string | null;
   displayPromptOverride?: string | null;
   referenceInputsOverride?: string[];
+  referenceInputsMode?: ReferenceInputsMode;
   characterContextOverride?: StudioOutput["characterContext"];
   styleContextOverride?: StudioOutput["styleContext"];
   outputIdOverride?: string;
@@ -105,14 +108,22 @@ export const useAiStudioGenerationPromptComposer = ({
 }: UseAiStudioGenerationPromptComposerParams) => {
   const stylePromptFamilyAdapterEnabled = isStylePromptFamilyAdapterEnabled();
   const resolveMergedReferenceInputs = useCallback(
-    (baseInputs: string[], overrideInputs?: string[]) => {
+    (
+      baseInputs: string[],
+      overrideInputs?: string[],
+      overrideMode: ReferenceInputsMode = "merge"
+    ) => {
+      const normalizeReferenceInputs = (candidates: string[]) =>
+        Array.from(
+          new Set(candidates.map((value) => value.trim()).filter((value) => value.length > 0))
+        ).slice(0, 8);
       if (!Array.isArray(overrideInputs)) {
-        return baseInputs.slice(0, 8);
+        return normalizeReferenceInputs(baseInputs);
       }
-      const merged = [...overrideInputs, ...baseInputs]
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0);
-      return Array.from(new Set(merged)).slice(0, 8);
+      if (overrideMode === "replace") {
+        return normalizeReferenceInputs(overrideInputs);
+      }
+      return normalizeReferenceInputs([...overrideInputs, ...baseInputs]);
     },
     []
   );
@@ -160,7 +171,8 @@ export const useAiStudioGenerationPromptComposer = ({
             : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
       const imageInputs = resolveMergedReferenceInputs(
         baseInputs,
-        options?.referenceInputsOverride
+        options?.referenceInputsOverride,
+        options?.referenceInputsMode
       );
       submitTask(compiledSubmissionPrompt, imageInputs, {
         modeOverride: options?.modeOverride,
@@ -237,7 +249,8 @@ export const useAiStudioGenerationPromptComposer = ({
       });
       const imageInputs = resolveMergedReferenceInputs(
         referencePool,
-        options?.referenceInputsOverride
+        options?.referenceInputsOverride,
+        options?.referenceInputsMode
       );
       submitTask(compiledSubmissionPrompt, imageInputs, {
         displayPromptOverride: displayPromptToUse,

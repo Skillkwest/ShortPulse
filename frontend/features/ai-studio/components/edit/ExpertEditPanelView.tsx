@@ -46,10 +46,11 @@ import {
 } from "../../logic/expertEditPromptReferences";
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
 import {
-  resolveEditSubmitIntentFromInpaintSelection,
+  resolveEditSubmitIntentFromRailSelection,
   type EditSubmitIntent,
 } from "../../logic/editSubmitIntent";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
@@ -156,6 +157,7 @@ export type ExpertEditPanelViewProps = {
       hideOutputFromReferenceGrid?: boolean;
       displayPromptOverride?: string | null;
       submissionPromptOverride?: string | null;
+      referenceInputsMode?: "merge" | "replace";
     }
   ) => void | Promise<void>;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
@@ -435,6 +437,7 @@ const STATUS_TOAST_FADE_MS = 220;
 const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
+const FLATTEN_IMAGE_ACTION_ID = "flatten-image";
 const TRANSFORM_HISTORY_LIMIT = 80;
 const LAYER_REORDER_DRAG_MIME = "application/x-shortpulse-layer-index";
 const MARKUP_COLOR_DEFAULT = "#f43f5e";
@@ -458,8 +461,9 @@ const MOVE_STAGE_ZOOM_SLIDER_DEFAULT = 50;
 const MOVE_STAGE_ZOOM_SCALE_MIN = 0.5;
 const MOVE_STAGE_ZOOM_SCALE_MAX = 2;
 const STAGE_CONTEXT_MENU_WIDTH = 164;
-const STAGE_CONTEXT_MENU_HEIGHT = 172;
+const STAGE_CONTEXT_MENU_HEIGHT = 206;
 const STAGE_CONTEXT_MENU_GUTTER = 8;
+const LOCKED_EDIT_TOOL_MODEL_LOGO_SRC = "/tiny-logo.png";
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const MARKUP_STROKE_SIZE_DEFAULT = 4;
 const MARKUP_STROKE_SIZE_MAX = 30;
@@ -1527,6 +1531,7 @@ export function ExpertEditPanelView({
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
   >(null);
+  const [isFlattenPending, setIsFlattenPending] = React.useState(false);
   React.useEffect(() => {
     if (markupStrokeSize === resolvedMarkupStrokeSize) return;
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
@@ -1555,7 +1560,8 @@ export function ExpertEditPanelView({
   );
   const hasPrimaryCompositePreview = populatedLayerCount > 0;
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
-  const isPrimaryStageBusy = isRemoveBackgroundPending || isPrimaryStageGenerating;
+  const isPrimaryStageBusy =
+    isFlattenPending || isRemoveBackgroundPending || isPrimaryStageGenerating;
   const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
   const hostPrimaryImageUrl = React.useMemo(
     () =>
@@ -1646,11 +1652,15 @@ export function ExpertEditPanelView({
     : isInpaintToolSelected
       ? "inpaint"
       : "markup";
-  const isModelPickerLocked = isInpaintToolSelected;
-  const effectiveModelPickerLabel = isModelPickerLocked
+  const isModelPickerLocked = isInpaintToolSelected || isVideoToolSelected;
+  const effectiveModelPickerLabel = isInpaintToolSelected
     ? INPAINT_FLUX_FILL_MODEL_LABEL
-    : stripEditLabel(modelLabel);
-  const effectiveModelPickerLogoSrc = isModelPickerLocked ? undefined : modelLogoSrc;
+    : isVideoToolSelected
+      ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL
+      : stripEditLabel(modelLabel);
+  const effectiveModelPickerLogoSrc = isModelPickerLocked
+    ? LOCKED_EDIT_TOOL_MODEL_LOGO_SRC
+    : modelLogoSrc;
   const collapsedToolsThemeClass = isMoveToolSelected
     ? "is-active-move"
     : isVideoToolSelected
@@ -1866,8 +1876,13 @@ export function ExpertEditPanelView({
 
   React.useEffect(() => {
     if (!onEditSubmitIntentChange) return;
-    onEditSubmitIntentChange(resolveEditSubmitIntentFromInpaintSelection(isInpaintToolSelected));
-  }, [isInpaintToolSelected, onEditSubmitIntentChange]);
+    onEditSubmitIntentChange(
+      resolveEditSubmitIntentFromRailSelection({
+        isInpaintSelected: isInpaintToolSelected,
+        isMarkupSelected: isVideoToolSelected,
+      })
+    );
+  }, [isInpaintToolSelected, isVideoToolSelected, onEditSubmitIntentChange]);
 
   React.useEffect(() => {
     const caretPosition = pendingPromptCaretRef.current;
@@ -2503,7 +2518,9 @@ export function ExpertEditPanelView({
       showStatusToast("Add at least one layer image before flattening.");
       return;
     }
+    if (isFlattenPending) return;
 
+    setIsFlattenPending(true);
     try {
       const flattenSnapshot = resolveStageFlattenSnapshot();
       const exportBlob = await composePrimaryStageLayersToBlob(layers, {
@@ -2531,10 +2548,13 @@ export function ExpertEditPanelView({
       setEditingLayerValue("");
     } catch {
       showStatusToast("Unable to flatten layers.");
+    } finally {
+      setIsFlattenPending(false);
     }
   }, [
     createLayer,
     foundationLayerId,
+    isFlattenPending,
     layers,
     populatedLayerCount,
     resolveStageFlattenSnapshot,
@@ -2558,6 +2578,7 @@ export function ExpertEditPanelView({
       try {
         await onRegenerateWithReferenceInputs([selectedLayerInput], {
           modelIdOverride: BRIA_BACKGROUND_REMOVE_MODEL_ID,
+          referenceInputsMode: "replace",
         });
       } catch {
         clearRemoveBackgroundPending();
@@ -2580,6 +2601,7 @@ export function ExpertEditPanelView({
     extraImageUrls,
     populatedLayerCount,
     isInpaintToolSelected,
+    isMarkupToolSelected: isVideoToolSelected,
     hasSelectedLayerMask,
     exportSelectedLayerMaskBlob,
     onRegenerate,
@@ -3021,18 +3043,39 @@ export function ExpertEditPanelView({
     setIsMarkupPanDragging(false);
   }, []);
 
+  const resetAllMoveToolTransforms = React.useCallback(() => {
+    const baselineEntry = buildTransformHistoryEntry(layers);
+    const nextLayers = layers.map((layer) =>
+      areLayerTransformsEqual(layer.transform, defaultLayerTransform())
+        ? layer
+        : {
+            ...layer,
+            transform: defaultLayerTransform(),
+          }
+    );
+    const nextEntry = buildTransformHistoryEntry(nextLayers);
+    if (areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) return;
+    setLayers(nextLayers);
+    commitTransformHistoryTransition(nextEntry, baselineEntry);
+  }, [commitTransformHistoryTransition, layers]);
+
   const handleResetGeneralAction = React.useCallback(() => {
-    handleRecenterMoveAction();
+    resetAllMoveToolTransforms();
     resetMarkupViewport();
     clearAllInpaintMasksWithHistory();
     clearMarkupStrokesWithHistory();
   }, [
     clearAllInpaintMasksWithHistory,
     clearMarkupStrokesWithHistory,
-    handleRecenterMoveAction,
+    resetAllMoveToolTransforms,
     resetMarkupViewport,
   ]);
 
+  const hasAnyMoveTransformChanges = React.useMemo(
+    () =>
+      layers.some((layer) => !areLayerTransformsEqual(layer.transform, defaultLayerTransform())),
+    [layers]
+  );
   const isMoveTransformCentered = React.useMemo(() => {
     if (!selectedLayer) return true;
     return areLayerTransformsEqual(selectedLayer.transform, defaultLayerTransform());
@@ -3046,7 +3089,7 @@ export function ExpertEditPanelView({
   );
   const hasInpaintMaskContent = inpaintHistoryState.present.layers.length > 0;
   const isGeneralResetDisabled =
-    isMoveTransformCentered &&
+    !hasAnyMoveTransformChanges &&
     isMarkupViewportAtRest &&
     markupStrokes.length === 0 &&
     !hasInpaintMaskContent;
@@ -3827,6 +3870,11 @@ export function ExpertEditPanelView({
     closeStageContextMenu();
     primaryInputRef.current?.click();
   }, [closeStageContextMenu]);
+
+  const handleStageContextMenuReset = React.useCallback(() => {
+    handleResetGeneralAction();
+    closeStageContextMenu();
+  }, [closeStageContextMenu, handleResetGeneralAction]);
 
   const handleStageContextMenuRemoveImage = React.useCallback(() => {
     const selectedLayerId = selectedLayer?.id ?? null;
@@ -5337,20 +5385,23 @@ export function ExpertEditPanelView({
             {editLayerUtilityActions.map((action) => {
               const Icon = action.icon;
               const actionCreditCost = action.creditCost;
+              const isFlattenAction = action.id === FLATTEN_IMAGE_ACTION_ID;
+              const isFlattenActionPending = isFlattenAction && isFlattenPending;
               const isActionDisabled = Boolean(
                 (action.id === REMOVE_BACKGROUND_ACTION_ID &&
                   (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
-                (action.id === "flatten-image" && populatedLayerCount <= 0)
+                (isFlattenAction && (populatedLayerCount <= 0 || isFlattenPending))
               );
               return (
                 <button
                   key={action.id}
                   type="button"
                   className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
-                  aria-label={action.label}
+                  aria-label={isFlattenActionPending ? "Flattening layers" : action.label}
+                  aria-busy={isFlattenActionPending || undefined}
                   disabled={isActionDisabled}
                   onClick={
-                    action.id === "flatten-image"
+                    isFlattenAction
                       ? () => void handleManualFlatten()
                       : action.id === REMOVE_BACKGROUND_ACTION_ID
                         ? handleRemoveBackground
@@ -5358,10 +5409,14 @@ export function ExpertEditPanelView({
                   }
                 >
                   <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
-                    <Icon size={20} weight="regular" />
+                    {isFlattenActionPending ? (
+                      <span className="edit-expert-preset-action-btn-spinner" />
+                    ) : (
+                      <Icon size={20} weight="regular" />
+                    )}
                   </span>
                   <span className="edit-expert-preset-action-btn-copy">
-                    <span>{action.label}</span>
+                    <span>{isFlattenActionPending ? "Flattening..." : action.label}</span>
                   </span>
                   {actionCreditCost != null ? (
                     <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
@@ -5553,7 +5608,27 @@ export function ExpertEditPanelView({
                     aria-hidden="true"
                   />
                   {renderMarkupStrokeOverlay("inline", inlineStageViewportSize)}
-                  {isRemoveBackgroundPending ? (
+                  {isFlattenPending ? (
+                    <div
+                      className="edit-expert-primary-layer-loading-overlay"
+                      data-testid="edit-expert-flatten-loading-overlay"
+                    >
+                      <div
+                        className="edit-expert-primary-layer-loading"
+                        role="status"
+                        aria-label="Flattening layers"
+                        aria-live="polite"
+                      >
+                        <span
+                          className="edit-expert-primary-layer-loading-spinner"
+                          aria-hidden="true"
+                        />
+                        <span className="edit-expert-primary-layer-loading-text">
+                          Flattening layers...
+                        </span>
+                      </div>
+                    </div>
+                  ) : isRemoveBackgroundPending ? (
                     <div
                       className="edit-expert-primary-layer-loading-overlay"
                       data-testid="edit-expert-remove-background-loading-overlay"
@@ -6120,6 +6195,14 @@ export function ExpertEditPanelView({
           </button>
           <button type="button" role="menuitem" onClick={handleStageContextMenuAddImage}>
             Add Image
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            onClick={handleStageContextMenuReset}
+          >
+            Reset
           </button>
           <button
             type="button"

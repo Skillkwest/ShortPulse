@@ -85,10 +85,10 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
   - Folder membership semantics: root -> custom = assign; custom -> custom = move; custom -> root = unassign.
   - Folder delete removes membership links only; underlying `media_files` and `media_prompts` rows remain.
 - `All Media` display contract:
-  - Images render in masonry preserving true aspect ratio.
-  - Videos render in masonry preserving true aspect ratio.
-  - Prompts render as text reference cards.
-  - Root media pagination uses one global All Media footer control for discoverability.
+  - Root-level inline tabs organize content as `Images`, `Videos`, and `Prompts` within `All Media`.
+  - `Images` and `Videos` tabs render masonry preserving true aspect ratio.
+  - `Prompts` tab renders text reference cards.
+  - Root media tabs auto-load the next page when scrolling near the bottom, with one global All Media footer control retained as a manual fallback.
 - Right-click contract:
   - Right-clicking media in `All Media` sends media to Reference Grid.
   - Double-clicking media in `All Media` opens a preview-only detail modal (no ingest side effects).

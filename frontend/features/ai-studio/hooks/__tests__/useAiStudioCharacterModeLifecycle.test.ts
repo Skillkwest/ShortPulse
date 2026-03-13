@@ -1,15 +1,23 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Dispatch, SetStateAction } from "react";
+import {
+  StrictMode,
+  createElement,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { useAiStudioCharacterModeLifecycle } from "../useAiStudioCharacterModeLifecycle";
 import { createDefaultCharacterSheetPresetState } from "../../../character-manager/constants";
 import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
+  type CharacterManagerListItem,
 } from "../../../character-manager/logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../../../character-manager/logic/characterListSyncEvents";
 import { persistSelectedCharacterId } from "../../../character-manager/logic/selectedCharacterPersistence";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import type { ToolId } from "../../types";
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: vi.fn(),
@@ -32,6 +40,9 @@ const getSessionMock = vi.fn(async () => ({
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
+
+const StrictModeWrapper = ({ children }: { children: ReactNode }) =>
+  createElement(StrictMode, null, children);
 
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioCharacterModeLifecycle>[0]> = {}
@@ -127,6 +138,20 @@ const createSnapshotWithPresetReferences = (
     };
   })() as unknown as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>;
 
+const createCharacterListItem = (
+  overrides: Partial<CharacterManagerListItem> = {}
+): CharacterManagerListItem => ({
+  characterId: "char-1",
+  characterName: "Hero",
+  characterStatus: "draft",
+  characterSheetId: "sheet-1",
+  profileImageUrl: null,
+  profileImageTransform: null,
+  characterSheetStatus: "ready",
+  updatedAt: "2026-03-13T00:00:00.000Z",
+  ...overrides,
+});
+
 describe("useAiStudioCharacterModeLifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -193,6 +218,31 @@ describe("useAiStudioCharacterModeLifecycle", () => {
       expect(result.current.characterOptionsById.get("char-1")?.name).toBe("Hero");
       expect(result.current.resolveCharacterOptionById("char-1")?.name).toBe("Hero");
       expect(typeof result.current.refreshCharacterOptions).toBe("function");
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+  });
+
+  it("loads character options inside StrictMode", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: "https://example.com/profile.png",
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    const params = createParams();
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(params), {
+      wrapper: StrictModeWrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.characterOptions).toEqual([
+        {
+          id: "char-1",
+          name: "Hero",
+          profileImageUrl: "https://example.com/profile.png",
+        },
+      ]);
       expect(result.current.isCharacterOptionsLoading).toBe(false);
     });
   });
@@ -407,16 +457,12 @@ describe("useAiStudioCharacterModeLifecycle", () => {
 
   it("refreshes character options when entering a character-enabled tool", async () => {
     let currentRows: Awaited<ReturnType<typeof listCharacterManagerCharacters>> = [
-      {
-        characterId: "char-1",
-        characterName: "Hero",
-        profileImageUrl: null,
-      },
+      createCharacterListItem(),
     ];
     listCharacterManagerCharactersMock.mockImplementation(async () => currentRows);
 
     const { result, rerender } = renderHook(
-      ({ selectedTool }: { selectedTool: Parameters<typeof createParams>[0]["selectedTool"] }) =>
+      ({ selectedTool }: { selectedTool: ToolId | null }) =>
         useAiStudioCharacterModeLifecycle(createParams({ selectedTool })),
       {
         initialProps: {
@@ -430,17 +476,13 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     const refreshCallsBeforeToolSwitch = listCharacterManagerCharactersMock.mock.calls.length;
 
     currentRows = [
-      {
-        characterId: "char-1",
-        characterName: "Hero",
-        profileImageUrl: null,
-      },
-      {
+      createCharacterListItem(),
+      createCharacterListItem({
         characterId: "char-2",
         characterName: "Ayla",
-        profileImageUrl: null,
-      },
-    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>;
+        characterSheetId: "sheet-2",
+      }),
+    ];
     rerender({ selectedTool: "create" });
     await waitFor(() => {
       expect(listCharacterManagerCharactersMock.mock.calls.length).toBeGreaterThan(

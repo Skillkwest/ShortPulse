@@ -11,6 +11,7 @@ const applyMediaFolderMembershipBatchMock = vi.fn();
 const fetchMediaPromptListPageMock = vi.fn();
 const fetchMediaListPageMock = vi.fn();
 const mediaGridPropsSpy = vi.fn();
+const storageDownloadMock = vi.fn();
 const deleteMediaFileWithStorageMock = vi.fn();
 const deleteMediaPromptByIdMock = vi.fn();
 const logMediaEventMock = vi.fn();
@@ -23,8 +24,10 @@ vi.mock("../../../../lib/adaptive-media", () => ({
 vi.mock("../MediaLibraryFolderCanvas", () => ({
   MediaLibraryFolderCanvas: ({
     onUnassignItem,
+    onAssignDroppedItem,
   }: {
     onUnassignItem: (item: { kind: "media" | "prompt"; id: string }) => Promise<void>;
+    onAssignDroppedItem?: (item: { kind: "media" | "prompt"; id: string }) => Promise<boolean>;
   }) => (
     <div data-testid="media-library-folder-canvas-mock">
       <button
@@ -34,6 +37,14 @@ vi.mock("../MediaLibraryFolderCanvas", () => ({
         }}
       >
         Remove prompt Prompt One
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void onAssignDroppedItem?.({ kind: "media", id: "media-drop-1" });
+        }}
+      >
+        Assign dropped media Media One
       </button>
     </div>
   ),
@@ -54,7 +65,7 @@ vi.mock("../../../../lib/supabaseClient", () => ({
     },
     storage: {
       from: () => ({
-        download: async () => ({ data: null, error: new Error("nope") }),
+        download: (...args: unknown[]) => storageDownloadMock(...args),
       }),
     },
   }),
@@ -282,6 +293,10 @@ describe("MediaLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mediaGridPropsSpy.mockReset();
+    storageDownloadMock.mockResolvedValue({
+      data: new Blob(["panel-download"], { type: "image/png" }),
+      error: null,
+    });
     isAdaptiveSurfaceEnabledMock.mockImplementation(
       (surface: string) => surface === "media-library-modal-grid"
     );
@@ -373,6 +388,10 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
     expect(onSelectMedia).not.toHaveBeenCalled();
 
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole("button", { name: "Select prompt Prompt One" }));
     expect(onSelectPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -428,7 +447,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Delete media ref-1.png" })).toBeInTheDocument();
     });
     expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete media ref-1.png" }));
     expect(deleteMediaFileWithStorageMock).not.toHaveBeenCalled();
@@ -444,12 +463,13 @@ describe("MediaLibraryPanel", () => {
       );
     });
     expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(0);
   });
 
   it("cancels root prompt delete when confirmation is dismissed", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delete prompt Prompt One" })).toBeInTheDocument();
     });
@@ -501,6 +521,24 @@ describe("MediaLibraryPanel", () => {
     const anchor = originalCreateElement("a");
     const clickSpy = vi.spyOn(anchor, "click").mockImplementation(() => undefined);
     const removeSpy = vi.spyOn(anchor, "remove").mockImplementation(() => undefined);
+    if (!URL.createObjectURL) {
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        writable: true,
+        value: () => "blob:shortpulse-test-download",
+      });
+    }
+    if (!URL.revokeObjectURL) {
+      Object.defineProperty(URL, "revokeObjectURL", {
+        configurable: true,
+        writable: true,
+        value: () => undefined,
+      });
+    }
+    const createObjectUrlSpy = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:shortpulse-test-download");
+    const revokeObjectUrlSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(((
       tagName: string
     ) => {
@@ -518,13 +556,19 @@ describe("MediaLibraryPanel", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Download media ref-1.png" }));
 
-      expect(clickSpy).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(clickSpy).toHaveBeenCalledTimes(1);
+      });
       expect(removeSpy).toHaveBeenCalledTimes(1);
+      expect(storageDownloadMock).toHaveBeenCalledWith("user-1/uploads/ref-1.png");
+      expect(createObjectUrlSpy).toHaveBeenCalledTimes(1);
       expect(anchor.download).toBe("ref-1.png");
     } finally {
       createElementSpy.mockRestore();
       clickSpy.mockRestore();
       removeSpy.mockRestore();
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
     }
   });
 
@@ -598,6 +642,125 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("auto-loads the next media page when scrolling near the bottom", async () => {
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "media-1",
+            filename: "ref-1.png",
+            storage_path: "user-1/uploads/ref-1.png",
+            preview_storage_path: "user-1/uploads/ref-1.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-03-02T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/ref-1.png",
+          },
+        ],
+        nextCursor: { createdAt: "2026-03-02T00:00:00.000Z", id: "media-1" },
+        hasMore: true,
+        signedById: new Map<string, string>(),
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map<string, string>(),
+      });
+
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    const scrollContainer = container.querySelector(".media-library-panel-body") as HTMLElement;
+    expect(scrollContainer).toBeTruthy();
+
+    Object.defineProperty(scrollContainer, "clientHeight", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(scrollContainer, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(scrollContainer, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 650,
+    });
+
+    fireEvent.scroll(scrollContainer);
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("auto-loads the next prompt page when scrolling near the bottom on Prompts tab", async () => {
+    fetchMediaPromptListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "prompt-1",
+            title: "Prompt One",
+            prompt_text: "Prompt text",
+            mode: "text",
+            source: "manual",
+            created_at: "2026-03-02T00:00:00.000Z",
+            updated_at: "2026-03-02T00:00:00.000Z",
+          },
+        ],
+        nextCursor: { createdAt: "2026-03-02T00:00:00.000Z", id: "prompt-1" },
+        hasMore: true,
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+      });
+
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+    await waitFor(() => {
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    const scrollContainer = container.querySelector(".media-library-panel-body") as HTMLElement;
+    expect(scrollContainer).toBeTruthy();
+
+    Object.defineProperty(scrollContainer, "clientHeight", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(scrollContainer, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(scrollContainer, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 650,
+    });
+
+    fireEvent.scroll(scrollContainer);
+
+    await waitFor(() => {
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("shows remove actions only in custom folders and unassigns dropped items", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -627,35 +790,94 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it("toggles prompts, images, and videos sections from subtitle rows in All Media", async () => {
+  it("assigns internal dropped media ids into the active custom folder canvas", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Prompts (1)" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Images (1)" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Videos (1)" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
+      expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Prompts (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Assign dropped media Media One" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign dropped media Media One" }));
+
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        folderId: "folder-1",
+        action: "assign",
+        mediaIds: ["media-drop-1"],
+        promptIds: [],
+      });
+    });
+  });
+
+  it("switches All Media root tabs between images, videos, and prompts", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tablist", { name: "All Media type tabs" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Prompts" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Images" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Videos" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
+
     expect(
       screen.queryByRole("button", { name: "Select prompt Prompt One" })
     ).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Images (1)" }));
-    expect(
-      screen.queryByRole("button", { name: "Select media ref-1.png" })
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Videos (1)" }));
     expect(
       screen.queryByRole("button", { name: "Select media clip-1.mp4" })
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Prompts (1)" }));
-    expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaKind: "images",
+        folderId: "all_items",
+      })
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Videos" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Select media ref-1.png" })
+    ).not.toBeInTheDocument();
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaKind: "videos",
+        folderId: "all_items",
+      })
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Select media ref-1.png" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Select media clip-1.mp4" })
+    ).not.toBeInTheDocument();
+
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folderId: "all_items",
+      })
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
   });
 
   it("creates a new folder button from the folder strip", async () => {

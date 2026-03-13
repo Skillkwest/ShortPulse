@@ -4,7 +4,7 @@
  */
 import { useCallback, useMemo, useState } from "react";
 import { useCanvasSharedSceneState } from "./canvasSceneState";
-import type { ResolveCanvasDropReference } from "./canvasTypes";
+import type { PrepareResolvedInternalCanvasDrop, ResolveCanvasDropReference } from "./canvasTypes";
 import { CANVAS_DEFAULT_CAMERA } from "./canvasGeometry";
 import type {
   AiStudioDualCanvasWorkspaceState,
@@ -26,10 +26,12 @@ export type {
  */
 export const useAiStudioCanvasWorkspaceState = ({
   resolveCanvasDropReference,
+  prepareResolvedInternalCanvasDrop,
   onPinTextReference,
   onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
+  prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   onPinTextReference?: (text: string) => void;
   onItemLimitReached?: () => void;
 } = {}): CanvasPropertiesPanelProps => {
@@ -45,6 +47,7 @@ export const useAiStudioCanvasWorkspaceState = ({
     instanceId: "main",
     sharedScene,
     resolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
     onPinTextReference,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
@@ -63,10 +66,12 @@ export const useAiStudioCanvasWorkspaceState = ({
  */
 export const useAiStudioDualCanvasWorkspaceState = ({
   resolveCanvasDropReference,
+  prepareResolvedInternalCanvasDrop,
   onPinTextReference,
   onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
+  prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   onPinTextReference?: (text: string) => void;
   onItemLimitReached?: () => void;
 } = {}): AiStudioDualCanvasWorkspaceState => {
@@ -85,6 +90,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     instanceId: "main",
     sharedScene,
     resolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
     onPinTextReference,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
@@ -101,6 +107,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     instanceId: "rail",
     sharedScene,
     resolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
     onPinTextReference,
     isSpacePanActiveRef,
     draftOwnerInstanceId,

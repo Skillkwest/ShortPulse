@@ -16,7 +16,7 @@ import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/st
 import type { StudioOutput } from "../types";
 
 const STALE_LOADING_TIMEOUT_MS = 3 * 60 * 1000;
-const SUBMIT_START_TIMEOUT_MS = 12_000;
+const SUBMIT_START_TIMEOUT_MS = 90_000;
 const QUEUE_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;

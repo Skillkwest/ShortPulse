@@ -17,12 +17,18 @@ import {
   CANVAS_IMAGE_ITEM_WIDTH,
   viewportPointToCanvasWorld,
 } from "./canvasGeometry";
-import type { CanvasCamera, CanvasDropResolution, ResolveCanvasDropReference } from "./canvasTypes";
+import type {
+  CanvasCamera,
+  CanvasDropResolution,
+  PrepareResolvedInternalCanvasDrop,
+  ResolveCanvasDropReference,
+} from "./canvasTypes";
 
 type UseCanvasViewportDropHandlersParams = {
   viewportRef: RefObject<HTMLDivElement | null>;
   camera: CanvasCamera;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
+  prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   addResolvedItem: (
     resolved: CanvasDropResolution,
     worldX: number,
@@ -46,6 +52,7 @@ export const useCanvasViewportDropHandlers = ({
   viewportRef,
   camera,
   resolveCanvasDropReference,
+  prepareResolvedInternalCanvasDrop,
   addResolvedItem,
 }: UseCanvasViewportDropHandlersParams): CanvasDropHandlers => {
   const dragDepthRef = useRef(0);
@@ -60,6 +67,10 @@ export const useCanvasViewportDropHandlers = ({
       if (!resolveCanvasDropReference || !viewportRef.current) return false;
       const resolved = resolveCanvasDropReference(payload);
       if (!resolved) return false;
+      const preparedResolved = prepareResolvedInternalCanvasDrop
+        ? await prepareResolvedInternalCanvasDrop(payload, resolved)
+        : resolved;
+      if (!preparedResolved) return false;
       const rect = viewportRef.current.getBoundingClientRect();
       const normalizedPoint = resolveCanvasDropClientPoint({ clientX, clientY, rect });
       const point = viewportPointToCanvasWorld({
@@ -68,12 +79,18 @@ export const useCanvasViewportDropHandlers = ({
         rect,
         camera,
       });
-      await addResolvedItem(resolved, point.x, point.y, {
+      await addResolvedItem(preparedResolved, point.x, point.y, {
         showLoadingPlaceholder: true,
       });
       return true;
     },
-    [addResolvedItem, camera, resolveCanvasDropReference, viewportRef]
+    [
+      addResolvedItem,
+      camera,
+      prepareResolvedInternalCanvasDrop,
+      resolveCanvasDropReference,
+      viewportRef,
+    ]
   );
 
   const onViewportDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {

@@ -64,12 +64,12 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 5. This model never creates duplicate underlying media/prompt rows for folder moves/assignments.
 
 ### 3) `all_media` display contract
-1. `All Media` renders as sectioned content:
-   - `Images` section: masonry grid preserving each image’s true aspect ratio.
-   - `Videos` section: masonry grid preserving each video’s true aspect ratio.
-   - `Prompts` section: prompt cards use text reference-card presentation.
-2. Search and pagination apply consistently to these sections through shared list APIs.
-3. `All Media` media pagination controls are globally discoverable at panel bottom and are not nested inside a single media section.
+1. `All Media` renders one root-level tab strip with three tabs:
+   - `Images` tab: masonry grid preserving each image’s true aspect ratio.
+   - `Videos` tab: masonry grid preserving each video’s true aspect ratio.
+   - `Prompts` tab: prompt cards use text reference-card presentation.
+2. Search and pagination apply consistently to the active tab through shared list APIs.
+3. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
 4. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
 
 ### 4) Drag/drop and ingest contract
@@ -119,13 +119,13 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Folder delete removes junction memberships, not `media_files`/`media_prompts` rows.
 - Folder list and membership reads are user-scoped only.
 
-## Current Runtime Delta (as of 2026-03-12)
-1. `All Media` sectioned layout:
+## Current Runtime Delta (as of 2026-03-13)
+1. `All Media` inline-tab layout:
    - Status: Aligned.
-   - Current: Images/videos/prompts sections render in panel with prompt text cards and masonry media cards at true aspect ratio.
-2. `All Media` media pagination discoverability:
+   - Current: `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder, with prompt text cards and masonry media cards at true aspect ratio.
+2. `All Media` media pagination behavior:
    - Status: Aligned.
-   - Current: Root media pagination controls render in one global footer block (not nested under Videos section).
+   - Current: Root media tabs auto-load additional pages near the bottom, and one global footer control remains visible as a manual fallback.
 3. Right-click media in `All Media` -> Reference Grid:
    - Status: Aligned.
    - Current: Right-click on media cards dispatches media ingestion to Reference Grid.
@@ -171,9 +171,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 1. Folder lifecycle:
    - Create, rename, delete custom folders.
 2. `All Media` display:
-   - Prompts render as text reference cards.
-   - Images render in masonry with true aspect ratio.
-   - Videos render in masonry with true aspect ratio.
+   - `All Media` root tabs render as `Images`, `Videos`, and `Prompts`.
+   - `Prompts` tab renders text reference cards.
+   - `Images` and `Videos` tabs render masonry with true aspect ratio.
 3. Membership semantics:
    - `All Media -> Custom` assigns membership.
    - `Custom -> All Media` unassigns membership.
@@ -201,3 +201,4 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
 - `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`
 - `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
+- `docs/adr/0038-ai-studio-media-library-all-media-inline-tabs.md`

@@ -40,6 +40,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   handleEditPromptTextChange: (value: string) => void;
   handleImageRegenerateWithDebit: (options?: {
     referenceInputsOverride?: string[];
+    referenceInputsMode?: "merge" | "replace";
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
     costOverrideCredits?: number | null;
@@ -149,6 +150,7 @@ export const useAiStudioEditExpertPanelProps = ({
           hideOutputFromReferenceGrid?: boolean;
           displayPromptOverride?: string | null;
           submissionPromptOverride?: string | null;
+          referenceInputsMode?: "merge" | "replace";
         }
       ) =>
         handleImageRegenerateWithDebit({
@@ -159,6 +161,9 @@ export const useAiStudioEditExpertPanelProps = ({
           hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
           displayPromptOverride: options?.displayPromptOverride,
           submissionPromptOverride: options?.submissionPromptOverride,
+          ...(options?.referenceInputsMode
+            ? { referenceInputsMode: options.referenceInputsMode }
+            : {}),
         }),
       onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,

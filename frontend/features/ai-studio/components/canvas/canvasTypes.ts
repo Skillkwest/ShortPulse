@@ -67,3 +67,11 @@ export type CanvasDropResolution =
 export type ResolveCanvasDropReference = (
   payload: InternalReferenceDragPayload
 ) => CanvasDropResolution | null;
+
+/**
+ * Allows surfaces to mutate or veto resolved internal-reference drops before insertion.
+ */
+export type PrepareResolvedInternalCanvasDrop = (
+  payload: InternalReferenceDragPayload,
+  resolved: CanvasDropResolution
+) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;

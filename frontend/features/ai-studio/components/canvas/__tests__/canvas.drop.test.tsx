@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ResolveCanvasDropReference } from "../canvasTypes";
 import { CanvasHarness, createTransfer, mockViewportRect } from "./canvasTestHarness";
 
@@ -26,6 +26,61 @@ describe("Canvas drop behavior", () => {
     expect(item).toHaveAttribute("data-kind", "image");
     expect(Number(item.getAttribute("data-width"))).toBe(220);
     expect(Number(item.getAttribute("data-height"))).toBeCloseTo(123.75, 2);
+  });
+
+  it("preprocesses internal drops before insertion when a preparer is provided", async () => {
+    const prepareResolvedInternalCanvasDrop = vi.fn(async (_payload, resolved) => {
+      if (resolved.kind !== "image") return resolved;
+      return {
+        ...resolved,
+        alt: "Prepared internal image",
+      };
+    });
+
+    render(<CanvasHarness prepareResolvedInternalCanvasDrop={prepareResolvedInternalCanvasDrop} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "img-1",
+        "text/reference-output-id": "img-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    expect(await screen.findByAltText("Prepared internal image")).toBeInTheDocument();
+    expect(prepareResolvedInternalCanvasDrop).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips insertion when internal-drop preparer returns null", async () => {
+    const prepareResolvedInternalCanvasDrop = vi.fn(async () => null);
+
+    render(<CanvasHarness prepareResolvedInternalCanvasDrop={prepareResolvedInternalCanvasDrop} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "img-1",
+        "text/reference-output-id": "img-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(prepareResolvedInternalCanvasDrop).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByAltText("Reference image")).toBeNull();
+    expect(screen.queryAllByTestId(/canvas-item-/)).toHaveLength(0);
   });
 
   it("uses internal payload dimensions to size image drops before image decode", async () => {

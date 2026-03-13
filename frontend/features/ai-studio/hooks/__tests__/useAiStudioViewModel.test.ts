@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
-import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
+import {
+  INPAINT_FLUX_FILL_MODEL_ID,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+} from "../../logic/inpaintSubmission";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
 
 const makeCostParamsForModel =
@@ -208,8 +211,15 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(inpaintCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
     const balanceCredits = standardCostCredits ?? 0;
 
+    const markupCostCredits = computeCostForModel(
+      MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+    )?.credits;
+    expect(markupCostCredits).not.toBeNull();
+    expect(markupCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
+
     const { result, rerender } = renderHook(
-      ({ intent }: { intent: "standard" | "inpaint" }) =>
+      ({ intent }: { intent: "standard" | "inpaint" | "markup" }) =>
         useAiStudioViewModel({
           ...editInput,
           model: selectedModelId,
@@ -232,6 +242,12 @@ describe("useAiStudioViewModel edit guardrails", () => {
     rerender({ intent: "inpaint" });
 
     expect(result.current.currentCostCredits).toBe(inpaintCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(true);
+    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
+
+    rerender({ intent: "markup" });
+
+    expect(result.current.currentCostCredits).toBe(markupCostCredits);
     expect(result.current.isCreditGuardrail).toBe(true);
     expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
   });

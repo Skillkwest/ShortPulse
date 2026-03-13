@@ -4,9 +4,9 @@
  */
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 
-const PREPARE_REFERENCE_TIMEOUT_BASE_MS = 10_000;
-const PREPARE_REFERENCE_TIMEOUT_PER_WORK_UNIT_MS = 8_000;
-const PREPARE_REFERENCE_TIMEOUT_MAX_MS = 45_000;
+const PREPARE_REFERENCE_TIMEOUT_BASE_MS = 14_000;
+const PREPARE_REFERENCE_TIMEOUT_PER_WORK_UNIT_MS = 12_000;
+const PREPARE_REFERENCE_TIMEOUT_MAX_MS = 75_000;
 
 const hasNonEmptyUrl = (value: string | null | undefined): boolean =>
   typeof value === "string" && value.trim().length > 0;

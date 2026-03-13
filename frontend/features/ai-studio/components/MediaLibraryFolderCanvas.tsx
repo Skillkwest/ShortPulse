@@ -7,6 +7,7 @@ import { CANVAS_DEFAULT_CAMERA } from "./canvas/canvasGeometry";
 import { useAiStudioDualCanvasWorkspaceState } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type {
   CanvasCamera,
+  PrepareResolvedInternalCanvasDrop,
   CanvasSceneItem,
   ResolveCanvasDropReference,
 } from "./canvas/canvasTypes";
@@ -34,6 +35,12 @@ import {
   attachMediaLibraryDragGhost,
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
+import type { InternalReferenceDragPayload } from "../utils/dragDrop";
+
+type ResolvedInternalDropItem = {
+  kind: "media" | "prompt";
+  id: string;
+} | null;
 
 type MediaLibraryFolderCanvasProps = {
   folderId: string;
@@ -53,6 +60,10 @@ type MediaLibraryFolderCanvasProps = {
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
   onUnassignItem: (item: { kind: "media" | "prompt"; id: string }) => Promise<void>;
+  onAssignDroppedItem?: (item: { kind: "media" | "prompt"; id: string }) => Promise<boolean>;
+  resolveInternalDropItem?: (
+    payload: InternalReferenceDragPayload
+  ) => Promise<ResolvedInternalDropItem>;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
 };
 
@@ -65,6 +76,8 @@ export function MediaLibraryFolderCanvas({
   onSelectMedia,
   onSelectPrompt,
   onUnassignItem,
+  onAssignDroppedItem,
+  resolveInternalDropItem,
   resolveCanvasDropReference,
 }: MediaLibraryFolderCanvasProps) {
   const [loadingState, setLoadingState] = useState(true);
@@ -73,27 +86,11 @@ export function MediaLibraryFolderCanvas({
   const [pendingUnassignMembershipItemIds, setPendingUnassignMembershipItemIds] = useState<
     string[]
   >([]);
+  const [pendingAssignedMediaRows, setPendingAssignedMediaRows] = useState<MediaFileRow[]>([]);
 
-  const workspace = useAiStudioDualCanvasWorkspaceState({
-    resolveCanvasDropReference,
-    onPinTextReference: (text) => {
-      const trimmed = text.trim();
-      if (!trimmed) return;
-      onSelectPrompt({
-        id: `folder-canvas-pin:${folderId}:${crypto.randomUUID()}`,
-        promptText: trimmed,
-        title: null,
-      });
-    },
-  });
-
-  const items = workspace.sessionState.items;
-  const mainCanvasProps = workspace.mainCanvasProps;
-  const hydrateSessionState = workspace.hydrateSessionState;
   const suppressRemovalSyncRef = useRef(false);
   const loadedFolderIdRef = useRef<string | null>(null);
   const lastSavedPayloadRef = useRef<string>("");
-  const previousItemsRef = useRef(workspace.sessionState.items);
   const mediaRowsRef = useRef(mediaRows);
   const promptRowsRef = useRef(promptRows);
   const pendingUnassignMembershipItemSet = useMemo(
@@ -104,9 +101,19 @@ export function MediaLibraryFolderCanvas({
   const mediaById = useMemo(() => new Map(mediaRows.map((row) => [row.id, row])), [mediaRows]);
   const promptById = useMemo(() => new Map(promptRows.map((row) => [row.id, row])), [promptRows]);
   const reconciledMediaRows = useMemo(() => {
-    if (pendingUnassignMembershipItemSet.size === 0) return mediaRows;
-    return mediaRows.filter((row) => !pendingUnassignMembershipItemSet.has(`media:${row.id}`));
-  }, [mediaRows, pendingUnassignMembershipItemSet]);
+    const baseRows =
+      pendingUnassignMembershipItemSet.size === 0
+        ? mediaRows
+        : mediaRows.filter((row) => !pendingUnassignMembershipItemSet.has(`media:${row.id}`));
+    if (pendingAssignedMediaRows.length === 0) return baseRows;
+    const rowsById = new Map(baseRows.map((row) => [row.id, row]));
+    pendingAssignedMediaRows.forEach((row) => {
+      if (!rowsById.has(row.id)) {
+        rowsById.set(row.id, row);
+      }
+    });
+    return Array.from(rowsById.values());
+  }, [mediaRows, pendingAssignedMediaRows, pendingUnassignMembershipItemSet]);
   const reconciledPromptRows = useMemo(() => {
     if (pendingUnassignMembershipItemSet.size === 0) return promptRows;
     return promptRows.filter((row) => !pendingUnassignMembershipItemSet.has(`prompt:${row.id}`));
@@ -127,13 +134,106 @@ export function MediaLibraryFolderCanvas({
     });
   }, []);
 
+  const addPendingAssignedMediaRow = useCallback(
+    (item: { mediaId: string; src: string; alt: string }) => {
+      const mediaId = item.mediaId.trim();
+      const src = item.src.trim();
+      if (!mediaId || !src) return;
+      setPendingAssignedMediaRows((previous) => {
+        if (previous.some((row) => row.id === mediaId)) return previous;
+        return [
+          ...previous,
+          {
+            id: mediaId,
+            filename: item.alt.trim() || "Canvas media",
+            storage_path: "",
+            file_type: "image/*",
+            signedUrl: src,
+          },
+        ];
+      });
+    },
+    []
+  );
+
+  const prepareResolvedInternalCanvasDrop = useCallback<PrepareResolvedInternalCanvasDrop>(
+    async (payload, resolved) => {
+      if (resolved.kind !== "image") return resolved;
+      const resolvedMediaId = resolved.mediaId?.trim() ?? "";
+      let mediaId = resolvedMediaId;
+      if (!mediaId) {
+        if (!resolveInternalDropItem) {
+          return resolved;
+        }
+        let resolvedItem: ResolvedInternalDropItem = null;
+        try {
+          resolvedItem = await resolveInternalDropItem(payload);
+        } catch {
+          setSaveError("Unable to resolve dropped reference.");
+          return null;
+        }
+        if (!resolvedItem || resolvedItem.kind !== "media") {
+          setSaveError("Unable to resolve dropped reference.");
+          return null;
+        }
+        mediaId = resolvedItem.id.trim();
+      }
+      if (!mediaId) return resolved;
+      if (onAssignDroppedItem) {
+        const assigned = await onAssignDroppedItem({ kind: "media", id: mediaId });
+        if (!assigned) return null;
+        addPendingAssignedMediaRow({
+          mediaId,
+          src: resolved.src,
+          alt: resolved.alt,
+        });
+      }
+      setSaveError(null);
+      return {
+        ...resolved,
+        mediaId,
+      };
+    },
+    [addPendingAssignedMediaRow, onAssignDroppedItem, resolveInternalDropItem]
+  );
+
+  const workspace = useAiStudioDualCanvasWorkspaceState({
+    resolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
+    onPinTextReference: (text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      onSelectPrompt({
+        id: `folder-canvas-pin:${folderId}:${crypto.randomUUID()}`,
+        promptText: trimmed,
+        title: null,
+      });
+    },
+  });
+
+  const items = workspace.sessionState.items;
+  const mainCanvasProps = workspace.mainCanvasProps;
+  const hydrateSessionState = workspace.hydrateSessionState;
+  const previousItemsRef = useRef(workspace.sessionState.items);
+
   useEffect(() => {
     mediaRowsRef.current = mediaRows;
+    if (!mediaRows.length) return;
+    setPendingAssignedMediaRows((previous) => {
+      if (!previous.length) return previous;
+      const mediaIds = new Set(mediaRows.map((row) => row.id));
+      const next = previous.filter((row) => !mediaIds.has(row.id));
+      return next.length === previous.length ? previous : next;
+    });
   }, [mediaRows]);
 
   useEffect(() => {
     promptRowsRef.current = promptRows;
   }, [promptRows]);
+
+  useEffect(() => {
+    setPendingAssignedMediaRows([]);
+  }, [folderId]);
 
   const hydrateFolderCanvasState = useCallback(
     ({ nextItems, nextCamera }: { nextItems: CanvasSceneItem[]; nextCamera?: CanvasCamera }) => {

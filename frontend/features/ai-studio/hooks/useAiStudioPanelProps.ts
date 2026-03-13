@@ -135,6 +135,7 @@ export type UseAiStudioPanelPropsParams = {
   editReferenceText: string;
   handleImageRegenerateWithDebit: (options?: {
     referenceInputsOverride?: string[];
+    referenceInputsMode?: "merge" | "replace";
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
     costOverrideCredits?: number | null;

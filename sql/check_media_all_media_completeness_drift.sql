@@ -168,6 +168,8 @@ from classified_objects co
 left join public.media_files existing
   on existing.user_id = co.user_id
  and existing.storage_path = co.storage_path
+left join auth.users existing_user
+  on existing_user.id = co.user_id
 left join (
     select distinct
         vp.user_id,
@@ -178,6 +180,7 @@ left join (
   on variant_path.user_id = co.user_id
  and variant_path.storage_path = co.storage_path
 where co.user_id is not null
+  and existing_user.id is not null
   and co.durable_class is not null
   and co.is_transient_path = false
   and co.is_character_path = false

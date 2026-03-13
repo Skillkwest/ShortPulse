@@ -7,7 +7,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
-import { postExtractStyle, prepareStyleImageUrl } from "../../logic/styleExtraction";
+import {
+  postExtractStyle,
+  prepareStyleImageUrl,
+  type StyleExtractionResult,
+} from "../../logic/styleExtraction";
 import { reportAppError } from "../../../../lib/appErrorReporter";
 
 vi.mock("../../logic/styleExtraction", () => ({
@@ -45,14 +49,24 @@ const createStylesWithPlaceholder = (): ExpertEditStyleTile[] => [
   },
 ];
 
+const createStyleExtractionResult = (
+  overrides: Partial<StyleExtractionResult> = {}
+): StyleExtractionResult => ({
+  stylePrompt: "cinematic lighting, shallow depth of field, balanced dynamic range",
+  styleTitle: "Noir Bloom",
+  attemptCount: 1,
+  totalMs: 1100,
+  probeMs: 120,
+  openAiMs: 820,
+  modelUsed: "gpt-4.1-mini",
+  ...overrides,
+});
+
 describe("StylesLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(prepareStyleImageUrl).mockImplementation(async (url: string) => url);
-    vi.mocked(postExtractStyle).mockResolvedValue({
-      stylePrompt: "cinematic lighting, shallow depth of field, balanced dynamic range",
-      styleTitle: "Noir Bloom",
-    });
+    vi.mocked(postExtractStyle).mockResolvedValue(createStyleExtractionResult());
   });
 
   it("renders delete action only for non-placeholder styles", () => {
@@ -475,11 +489,10 @@ describe("StylesLibraryPanel", () => {
 
   it("shows a processing placeholder while creating a style from dropped image", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
-    let resolveExtraction: ((value: { stylePrompt: string; styleTitle: string }) => void) | null =
-      null;
+    let resolveExtraction: ((value: StyleExtractionResult) => void) | null = null;
     vi.mocked(postExtractStyle).mockImplementation(
       () =>
-        new Promise((resolve) => {
+        new Promise<StyleExtractionResult>((resolve) => {
           resolveExtraction = resolve;
         })
     );
@@ -553,10 +566,16 @@ describe("StylesLibraryPanel", () => {
         expect(resolveExtraction).toBeTypeOf("function");
       });
 
-      resolveExtraction?.({
-        stylePrompt: "anime style, warm palette, soft diffusion",
-        styleTitle: "Warm Anime Diffusion",
-      });
+      const finishExtraction = resolveExtraction as ((value: StyleExtractionResult) => void) | null;
+      if (typeof finishExtraction !== "function") {
+        throw new Error("Expected extraction resolver to be initialized.");
+      }
+      finishExtraction(
+        createStyleExtractionResult({
+          stylePrompt: "anime style, warm palette, soft diffusion",
+          styleTitle: "Warm Anime Diffusion",
+        })
+      );
 
       await waitFor(() => {
         expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
@@ -958,11 +977,10 @@ describe("StylesLibraryPanel", () => {
     const originalImage = globalThis.Image;
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
     const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
-    let resolveExtraction: ((value: { stylePrompt: string; styleTitle: string }) => void) | null =
-      null;
+    let resolveExtraction: ((value: StyleExtractionResult) => void) | null = null;
     vi.mocked(postExtractStyle).mockImplementation(
       () =>
-        new Promise<{ stylePrompt: string; styleTitle: string }>((resolve) => {
+        new Promise<StyleExtractionResult>((resolve) => {
           resolveExtraction = resolve;
         })
     );
@@ -1014,16 +1032,16 @@ describe("StylesLibraryPanel", () => {
         expect(saveButton).toBeDisabled();
       });
 
-      const finishExtraction = resolveExtraction as
-        | ((value: { stylePrompt: string; styleTitle: string }) => void)
-        | null;
+      const finishExtraction = resolveExtraction as ((value: StyleExtractionResult) => void) | null;
       if (typeof finishExtraction !== "function") {
         throw new Error("Expected extraction resolver to be initialized.");
       }
-      finishExtraction({
-        stylePrompt: "clean digital illustration, soft gradient shading, polished finish",
-        styleTitle: "Cel Bloom",
-      });
+      finishExtraction(
+        createStyleExtractionResult({
+          stylePrompt: "clean digital illustration, soft gradient shading, polished finish",
+          styleTitle: "Cel Bloom",
+        })
+      );
 
       await waitFor(() => {
         expect(screen.getByRole("button", { name: "Save style" })).not.toBeDisabled();

@@ -4,7 +4,11 @@ import {
   parseAiStudioSessionSnapshotV1,
   selectAiStudioSessionRestoreSnapshot,
 } from "../sessionRestoreCandidate";
-import type { AiStudioSessionSnapshot } from "../sessionSnapshot";
+import type {
+  AiStudioSessionSnapshot,
+  AiStudioSessionSnapshotV1,
+  AiStudioSessionSnapshotV2,
+} from "../sessionSnapshot";
 
 const loadLocalMock = vi.fn();
 const loadRemoteMock = vi.fn();
@@ -19,77 +23,87 @@ vi.mock("../sessionApiClient", () => ({
 
 const SESSION_ID = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
 
-const createSnapshot = (updatedAt: string, schemaVersion: 1 | 2 = 1): AiStudioSessionSnapshot => ({
-  schemaVersion,
-  sessionId: SESSION_ID,
-  updatedAt,
-  workspace: {
-    mode: "image" as const,
-    selectedTool: "create",
-    prompt: "prompt",
-    model: null,
-    aspect: "9:16",
-    referenceImageUrl: null,
-    extraImageUrls: [null, null, null],
-    editReferenceText: "",
-    videoReferenceText: "",
-    videoReferenceMode: "standard",
-    videoDurationSeconds: 6,
-    videoResolution: "1080p",
-    imageResolution: "model_default",
-    videoGenerateAudio: false,
-    videoCameraFixed: false,
-    videoAutoFix: false,
-    klingNegativePrompt: "",
-    klingCfgScale: 0.5,
-    klingShotType: "customize",
-    klingVoiceIds: ["", ""],
-    klingMultiPrompts: [],
-    klingElements: [],
-    motionReferenceVideoUrl: null,
-  },
-  outputs: {
-    active: [],
-    archived: [],
-    activeOutputId: null,
-    curatedReferenceIds: [],
-    removedFromAllRefsIds: [],
-  },
-  agent: {
-    messages: [],
-    input: "",
-    latestAgentPrompt: null,
-    promptOrigin: "manual",
-    chatModeEnabled: true,
-  },
-  ...(schemaVersion === 2
-    ? {
+const createSnapshot = (updatedAt: string, schemaVersion: 1 | 2 = 1): AiStudioSessionSnapshot => {
+  const base: Omit<AiStudioSessionSnapshotV1, "schemaVersion"> = {
+    sessionId: SESSION_ID,
+    updatedAt,
+    workspace: {
+      mode: "image",
+      selectedTool: "create",
+      prompt: "prompt",
+      model: null,
+      aspect: "9:16",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+    },
+    outputs: {
+      active: [],
+      archived: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+    },
+    agent: {
+      messages: [],
+      input: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+    },
+  };
+  if (schemaVersion === 2) {
+    const snapshotV2: AiStudioSessionSnapshotV2 = {
+      schemaVersion: 2,
+      ...base,
+      meta: {
+        generatedAt: updatedAt,
+        checksum: "fnv1a32:test0001",
+      },
+      canvas: {
+        scene: { items: [] },
+        viewports: {
+          main: { x: 0, y: 0, zoom: 1 },
+          rail: { x: 0, y: 0, zoom: 1 },
+        },
+        transient: {
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+        },
         meta: {
-          generatedAt: updatedAt,
-          checksum: "fnv1a32:test0001",
+          schemaVersion: 1,
+          itemCount: 0,
+          truncatedItemCount: 0,
+          skippedNonDurableImageCount: 0,
         },
-        canvas: {
-          scene: { items: [] },
-          viewports: {
-            main: { x: 0, y: 0, zoom: 1 },
-            rail: { x: 0, y: 0, zoom: 1 },
-          },
-          transient: {
-            draftTextEntry: null,
-            textEditSession: null,
-            draftOwnerInstanceId: null,
-            textEditOwnerInstanceId: null,
-          },
-          meta: {
-            schemaVersion: 1,
-            itemCount: 0,
-            truncatedItemCount: 0,
-            skippedNonDurableImageCount: 0,
-          },
-        },
-      }
-    : {}),
-});
+      },
+    };
+    return snapshotV2;
+  }
+
+  const snapshotV1: AiStudioSessionSnapshotV1 = {
+    schemaVersion: 1,
+    ...base,
+  };
+  return snapshotV1;
+};
 
 describe("sessionRestoreCandidate", () => {
   beforeEach(() => {

@@ -46,7 +46,6 @@ describe("mediaFolderCanvasSnapshot", () => {
           filename: "Image One",
           storage_path: "user/upload/images/file-1.png",
           file_type: "image",
-          file_size: 100,
           created_at: "2026-03-11T00:00:00.000Z",
           signedUrl: "https://cdn.example.com/1.png",
         },
@@ -59,7 +58,6 @@ describe("mediaFolderCanvasSnapshot", () => {
           mode: "text",
           source: "manual",
           created_at: "2026-03-11T00:00:00.000Z",
-          updated_at: "2026-03-11T00:00:00.000Z",
         },
       ],
     });
@@ -93,7 +91,6 @@ describe("mediaFolderCanvasSnapshot", () => {
           filename: "Image New",
           storage_path: "user/upload/images/file-new.png",
           file_type: "image",
-          file_size: 100,
           created_at: "2026-03-11T00:00:00.000Z",
           signedUrl: "https://cdn.example.com/new.png",
         },

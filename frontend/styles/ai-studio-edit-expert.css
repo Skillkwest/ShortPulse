@@ -179,6 +179,10 @@
   min-width: 0;
 }
 
+.edit-expert-preset-action-btn--remove-bg .edit-expert-preset-action-btn-icon svg {
+  transform: translateX(-4px);
+}
+
 .edit-expert-preset-action-btn--remove-bg .edit-expert-preset-action-btn-cost-column {
   flex: 0 0 auto;
   margin-left: auto;
@@ -1832,12 +1836,12 @@
 .edit-expert-inpaint-tool-rail-btn.is-selected-video {
   border-color: rgba(170, 101, 239, 0.92);
   background: rgba(37, 41, 47, 0.64);
-  color: rgba(170, 101, 239, 0.92);
+  color: rgba(208, 118, 254, 0.92);
   font-weight: 700;
 }
 
 .edit-expert-inpaint-tool-rail-btn.is-selected-video svg {
-  color: rgba(170, 101, 239, 0.92);
+  color: rgba(208, 118, 254, 0.92);
 }
 
 .edit-expert-inpaint-tool-rail-btn.is-selected-move:hover,
@@ -1850,18 +1854,6 @@
 .edit-expert-inpaint-tool-rail-btn.is-selected-inpaint:focus-visible {
   border-color: rgba(245, 185, 66, 0.92);
   background: rgba(37, 41, 47, 0.64);
-}
-
-.edit-expert-inpaint-tool-rail-btn.is-selected-video:hover,
-.edit-expert-inpaint-tool-rail-btn.is-selected-video:focus-visible {
-  border-color: rgba(170, 101, 239, 0.92);
-  background: rgba(37, 41, 47, 0.64);
-  color: rgba(170, 101, 239, 0.92);
-}
-
-.edit-expert-inpaint-tool-rail-btn.is-selected-video:hover svg,
-.edit-expert-inpaint-tool-rail-btn.is-selected-video:focus-visible svg {
-  color: rgba(170, 101, 239, 0.92);
 }
 
 /* CROP TOOL - Selected State */

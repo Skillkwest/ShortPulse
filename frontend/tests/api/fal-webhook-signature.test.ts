@@ -55,6 +55,7 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   recoveryProbeTimeoutMs: overrides.recoveryProbeTimeoutMs ?? 15000,
   noMediaExhaustMinAgeSeconds: overrides.noMediaExhaustMinAgeSeconds ?? 7200,
   runningExhaustMinAgeSeconds: overrides.runningExhaustMinAgeSeconds ?? 7200,
+  runningHardTimeoutSeconds: overrides.runningHardTimeoutSeconds ?? 0,
 });
 
 const buildFalSignedMessage = ({

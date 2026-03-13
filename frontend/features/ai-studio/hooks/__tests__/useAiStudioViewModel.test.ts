@@ -209,7 +209,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     const balanceCredits = standardCostCredits ?? 0;
 
     const { result, rerender } = renderHook(
-      ({ intent }: { intent?: "standard" | "inpaint" }) =>
+      ({ intent }: { intent: "standard" | "inpaint" }) =>
         useAiStudioViewModel({
           ...editInput,
           model: selectedModelId,
@@ -221,7 +221,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
           editSubmitIntent: intent,
         }),
       {
-        initialProps: { intent: "standard" as const },
+        initialProps: { intent: "standard" },
       }
     );
 
@@ -229,7 +229,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isCreditGuardrail).toBe(false);
     expect(result.current.generationGuardrail).toBeNull();
 
-    rerender({ intent: "inpaint" as const });
+    rerender({ intent: "inpaint" });
 
     expect(result.current.currentCostCredits).toBe(inpaintCostCredits);
     expect(result.current.isCreditGuardrail).toBe(true);

@@ -1,11 +1,11 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioSessionWriteShadow } from "../useAiStudioSessionWriteShadow";
-import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
+import type { AiStudioSessionSnapshotV1 } from "../../logic/sessionSnapshot";
 
 const createSnapshot = (
-  overrides: Partial<AiStudioSessionSnapshot> = {}
-): AiStudioSessionSnapshot => ({
+  overrides: Partial<AiStudioSessionSnapshotV1> = {}
+): AiStudioSessionSnapshotV1 => ({
   schemaVersion: 1,
   sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
   updatedAt: "2026-03-02T00:00:00.000Z",
@@ -146,7 +146,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
     const { rerender } = renderHook(
-      ({ snapshot }: { snapshot: AiStudioSessionSnapshot }) =>
+      ({ snapshot }: { snapshot: AiStudioSessionSnapshotV1 }) =>
         useAiStudioSessionWriteShadow({
           sessionId: sid,
           snapshot,

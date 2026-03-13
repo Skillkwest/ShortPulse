@@ -21,6 +21,7 @@ import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
 } from "../../logic/inpaintSubmission";
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
+import type { InpaintMaskSnapshot } from "../edit/useInpaintMaskController";
 
 const { composePrimaryStageLayersToBlobMock } = vi.hoisted(() => ({
   composePrimaryStageLayersToBlobMock: vi.fn(
@@ -3293,8 +3294,8 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("applies undo and reset general actions to inpaint mutations", async () => {
-    const emptySnapshot = { layers: [] };
-    const paintedSnapshot = {
+    const emptySnapshot: InpaintMaskSnapshot = { layers: [] };
+    const paintedSnapshot: InpaintMaskSnapshot = {
       layers: [
         {
           layerId: "layer-1",
@@ -3305,7 +3306,7 @@ describe("ExpertEditPanelView", () => {
       ],
     };
     let currentSnapshot = emptySnapshot;
-    const restoreMaskSnapshot = vi.fn((snapshot: typeof emptySnapshot) => {
+    const restoreMaskSnapshot = vi.fn((snapshot: InpaintMaskSnapshot) => {
       currentSnapshot = snapshot;
     });
     const clearAllMasks = vi.fn(() => {
@@ -4408,7 +4409,7 @@ describe("ExpertEditPanelView", () => {
       void options;
     });
     const exportSelectedLayerMaskBlobMock = vi.fn(
-      async () => new Blob(["mask"], { type: "image/png" })
+      async (_params?: unknown) => new Blob(["mask"], { type: "image/png" })
     );
     const useInpaintMaskControllerSpy = vi
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")

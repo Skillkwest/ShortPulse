@@ -20,7 +20,11 @@ const createSupabaseMock = ({ userId, storedPreference }: SupabaseMockInput) => 
     error: null,
   }));
   const maybeSingle = vi.fn(async () => ({ data: storedPreference, error: null }));
-  const selectQuery = {
+  type SelectQuery = {
+    eq: (column: string, value: string) => SelectQuery;
+    maybeSingle: typeof maybeSingle;
+  };
+  const selectQuery: SelectQuery = {
     eq: vi.fn(() => selectQuery),
     maybeSingle,
   };

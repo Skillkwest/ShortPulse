@@ -12,10 +12,12 @@ import {
   type SetStateAction,
 } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import type { ToolId } from "../types";
 import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
 } from "../../character-manager/logic/characterManagerPersistence";
+import { subscribeCharacterListChanged } from "../../character-manager/logic/characterListSyncEvents";
 import {
   persistSelectedCharacterId,
   readPersistedSelectedCharacterId,
@@ -38,6 +40,7 @@ export type CharacterSelectOption = {
 const CHARACTER_OPTIONS_REFRESH_INTERVAL_MS = 20 * 60 * 1000;
 
 type UseAiStudioCharacterModeLifecycleParams = {
+  selectedTool: ToolId | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setCharacterModeInjectionBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>>;
   setIsCharacterBundleLoading: Dispatch<SetStateAction<boolean>>;
@@ -47,6 +50,7 @@ type UseAiStudioCharacterModeLifecycleParams = {
  * Returns Character Mode list selection state and keeps bundle side effects in sync.
  */
 export const useAiStudioCharacterModeLifecycle = ({
+  selectedTool,
   setUiError,
   setCharacterModeInjectionBundle,
   setIsCharacterBundleLoading,
@@ -58,6 +62,10 @@ export const useAiStudioCharacterModeLifecycle = ({
   >(undefined);
   const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
   const isMountedRef = useRef(true);
+  const inFlightRefreshPromiseRef = useRef<Promise<CharacterSelectOption[]> | null>(null);
+  const pendingRefreshRequestedRef = useRef(false);
+  const refreshRequestIdRef = useRef(0);
+  const previousSelectedToolRef = useRef<ToolId | null>(selectedTool);
 
   useEffect(
     () => () => {
@@ -81,15 +89,40 @@ export const useAiStudioCharacterModeLifecycle = ({
     },
     []
   );
-  const refreshCharacterOptions = useCallback(async () => {
+  const runCharacterOptionsRefresh = useCallback(async () => {
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
     const items = await listCharacterManagerCharacters();
-    applyCharacterOptions(items);
+    if (requestId === refreshRequestIdRef.current) {
+      applyCharacterOptions(items);
+    }
     return items.map((item) => ({
       id: item.characterId,
       name: item.characterName,
       profileImageUrl: item.profileImageUrl,
     })) as CharacterSelectOption[];
   }, [applyCharacterOptions]);
+  const refreshCharacterOptions = useCallback(async () => {
+    const startRefresh = (): Promise<CharacterSelectOption[]> => {
+      const nextPromise = runCharacterOptionsRefresh().finally(() => {
+        inFlightRefreshPromiseRef.current = null;
+        if (pendingRefreshRequestedRef.current) {
+          pendingRefreshRequestedRef.current = false;
+          void startRefresh().catch(() => {
+            // Best-effort catch-up refresh to collapse bursts while avoiding unhandled rejections.
+          });
+        }
+      });
+      inFlightRefreshPromiseRef.current = nextPromise;
+      return nextPromise;
+    };
+
+    if (inFlightRefreshPromiseRef.current) {
+      pendingRefreshRequestedRef.current = true;
+      return inFlightRefreshPromiseRef.current;
+    }
+    return startRefresh();
+  }, [runCharacterOptionsRefresh]);
   const characterOptionsById = useMemo<ReadonlyMap<string, CharacterSelectOption>>(
     () => new Map(characterOptions.map((option) => [option.id, option])),
     [characterOptions]
@@ -173,6 +206,39 @@ export const useAiStudioCharacterModeLifecycle = ({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [refreshCharacterOptions]);
+
+  useEffect(() => {
+    if (selectedCharacterStorageScope === undefined) {
+      return () => {};
+    }
+    const unsubscribe = subscribeCharacterListChanged(
+      () => {
+        void refreshCharacterOptions().catch(() => {
+          // Cross-surface sync is best-effort and should not block local interactions.
+        });
+      },
+      {
+        userId: selectedCharacterStorageScope,
+      }
+    );
+    return unsubscribe;
+  }, [refreshCharacterOptions, selectedCharacterStorageScope]);
+
+  useEffect(() => {
+    const previousTool = previousSelectedToolRef.current;
+    previousSelectedToolRef.current = selectedTool;
+    const isCharacterSelectionTool =
+      selectedTool === "create" ||
+      selectedTool === "text" ||
+      selectedTool === "edit" ||
+      selectedTool === "image";
+    if (!isCharacterSelectionTool || previousTool === selectedTool) {
+      return;
+    }
+    void refreshCharacterOptions().catch(() => {
+      // Tool-activation refresh is best-effort and should never block panel render.
+    });
+  }, [refreshCharacterOptions, selectedTool]);
 
   useEffect(() => {
     if (selectedCharacterStorageScope === undefined) return;

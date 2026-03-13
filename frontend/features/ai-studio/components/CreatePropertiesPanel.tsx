@@ -131,6 +131,7 @@ type ComposeSendCardProps = {
 type CharacterPickerModalProps = {
   isOpen: boolean;
   characterModeEnabled: boolean;
+  isCharacterOptionsLoading: boolean;
   onClose: () => void;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
@@ -144,6 +145,7 @@ type CharacterPickerModalProps = {
 const CharacterPickerModal = ({
   isOpen,
   characterModeEnabled,
+  isCharacterOptionsLoading,
   onClose,
   characterOptions,
   selectedCharacterId,
@@ -154,6 +156,26 @@ const CharacterPickerModal = ({
   const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
     surfaceId: "create-character-picker-list",
   });
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [refreshError, setRefreshError] = React.useState<string | null>(null);
+  const refreshNow = React.useCallback(async () => {
+    if (!refreshCharacterOptions) return;
+    setRefreshError(null);
+    setIsRefreshing(true);
+    try {
+      await refreshCharacterOptions();
+    } catch {
+      setRefreshError("Unable to refresh character profiles.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refreshCharacterOptions]);
+
+  React.useEffect(() => {
+    if (!isOpen || !characterModeEnabled) return;
+    void refreshNow();
+  }, [characterModeEnabled, isOpen, refreshNow]);
+
   if (!isOpen || !characterModeEnabled) {
     return null;
   }
@@ -254,6 +276,15 @@ const CharacterPickerModal = ({
                   </article>
                 );
               })}
+            </div>
+          ) : isCharacterOptionsLoading || isRefreshing ? (
+            <p className="tiny subdued ai-character-picker-empty">Loading character profiles...</p>
+          ) : refreshError ? (
+            <div className="ai-character-picker-empty">
+              <p className="tiny">{refreshError}</p>
+              <button type="button" className="ghost-btn mini" onClick={() => void refreshNow()}>
+                Retry
+              </button>
             </div>
           ) : (
             <p className="tiny subdued ai-character-picker-empty">
@@ -649,6 +680,7 @@ export function CreatePropertiesPanel({
       <CharacterPickerModal
         isOpen={isCharacterPickerOpen}
         characterModeEnabled={characterModeEnabled}
+        isCharacterOptionsLoading={isCharacterOptionsLoading}
         onClose={closeCharacterPicker}
         characterOptions={characterOptions}
         selectedCharacterId={selectedCharacterId}

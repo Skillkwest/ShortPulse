@@ -101,7 +101,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
   });
 
-  it("refreshes character options when opening the character picker", () => {
+  it("refreshes character options when opening the character picker", async () => {
     const refreshCharacterOptions = vi.fn(async () => []);
     renderPanel({
       beginnerMode: true,
@@ -112,7 +112,61 @@ describe("CreatePropertiesPanel", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
-    expect(refreshCharacterOptions).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(refreshCharacterOptions).toHaveBeenCalled();
+    });
+  });
+
+  it("keeps the picker openable when character mode is on and options are empty", () => {
+    renderPanel({
+      beginnerMode: true,
+      characterModeEnabled: true,
+      characterOptions: [],
+      selectedCharacterId: "",
+      isCharacterOptionsLoading: false,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
+    expect(screen.getByText("No character profiles available.")).toBeInTheDocument();
+  });
+
+  it("shows loading state in the picker when character options are loading", () => {
+    renderPanel({
+      beginnerMode: true,
+      characterModeEnabled: true,
+      characterOptions: [],
+      selectedCharacterId: "",
+      isCharacterOptionsLoading: true,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(screen.getByText("Loading character profiles...")).toBeInTheDocument();
+  });
+
+  it("shows a retry action when picker refresh fails", async () => {
+    const refreshCharacterOptions = vi
+      .fn<() => Promise<Array<{ id: string; name: string; profileImageUrl: string | null }>>>()
+      .mockRejectedValueOnce(new Error("refresh-open-failure-1"))
+      .mockRejectedValueOnce(new Error("refresh-open-failure-2"))
+      .mockResolvedValueOnce([]);
+    renderPanel({
+      beginnerMode: true,
+      characterModeEnabled: true,
+      characterOptions: [],
+      selectedCharacterId: "",
+      refreshCharacterOptions,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    await waitFor(() => {
+      expect(screen.getByText("Unable to refresh character profiles.")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(refreshCharacterOptions).toHaveBeenCalledTimes(3);
+    });
   });
 
   it("falls back to initials for broken picker-list avatars", () => {

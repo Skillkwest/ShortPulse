@@ -41,6 +41,10 @@ import {
 } from "../logic/characterSheetPresetTabs";
 import { validateCharacterReferenceFile } from "../logic/referenceValidation";
 import {
+  publishCharacterListChanged,
+  type CharacterListChangeReason,
+} from "../logic/characterListSyncEvents";
+import {
   persistSelectedCharacterId,
   readPersistedSelectedCharacterId,
 } from "../logic/selectedCharacterPersistence";
@@ -263,22 +267,43 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     });
   }, []);
 
-  const refreshCharacterList = useCallback(async (preferredCharacterId?: string | null) => {
-    const items = await listCharacterManagerCharacters();
-    setCharacters(items);
-    if (!items.length) return null;
+  const refreshCharacterList = useCallback(
+    async (
+      preferredCharacterId?: string | null,
+      options?: {
+        publishSyncEvent?: boolean;
+        reason?: CharacterListChangeReason;
+      }
+    ) => {
+      const items = await listCharacterManagerCharacters();
+      setCharacters(items);
+      if (options?.publishSyncEvent) {
+        publishCharacterListChanged({
+          userId: selectedCharacterStorageScopeRef.current,
+          reason: options.reason ?? "refresh",
+        });
+      }
+      if (!items.length) return null;
 
-    const preferredId = preferredCharacterId?.trim();
-    if (preferredId && items.some((item) => item.characterId === preferredId)) {
-      return preferredId;
-    }
-    return items[0]?.characterId ?? null;
-  }, []);
+      const preferredId = preferredCharacterId?.trim();
+      if (preferredId && items.some((item) => item.characterId === preferredId)) {
+        return preferredId;
+      }
+      return items[0]?.characterId ?? null;
+    },
+    []
+  );
 
   const refreshCharacterListSilently = useCallback(
-    async (preferredCharacterId?: string | null) => {
+    async (
+      preferredCharacterId?: string | null,
+      options?: {
+        publishSyncEvent?: boolean;
+        reason?: CharacterListChangeReason;
+      }
+    ) => {
       try {
-        await refreshCharacterList(preferredCharacterId);
+        await refreshCharacterList(preferredCharacterId, options);
       } catch {
         // Character rail refresh is best-effort and should not break core draft actions.
       }
@@ -442,6 +467,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
               item.characterId === characterId ? { ...item, characterName: trimmed } : item
             )
           );
+          publishCharacterListChanged({
+            userId: selectedCharacterStorageScopeRef.current,
+            reason: "rename",
+          });
         })
         .catch((nextError) => {
           if (namePersistRequestRef.current !== requestId) return;
@@ -619,7 +648,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         });
         setProfileImageUrl(signedUrl);
         setProfileImageTransform(DEFAULT_PROFILE_IMAGE_TRANSFORM);
-        await refreshCharacterListSilently(characterId);
+        await refreshCharacterListSilently(characterId, {
+          publishSyncEvent: true,
+          reason: "profile_image",
+        });
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to save profile image."));
       } finally {
@@ -650,6 +682,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           offsetY: transform.offsetY,
         });
         setProfileImageTransform(persistedTransform);
+        publishCharacterListChanged({
+          userId: selectedCharacterStorageScopeRef.current,
+          reason: "profile_image",
+        });
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to save profile image adjustments."));
@@ -675,7 +711,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       });
       setProfileImageUrl(null);
       setProfileImageTransform(DEFAULT_PROFILE_IMAGE_TRANSFORM);
-      await refreshCharacterListSilently(characterId);
+      await refreshCharacterListSilently(characterId, {
+        publishSyncEvent: true,
+        reason: "profile_image",
+      });
     } catch (nextError) {
       setError(toErrorMessage(nextError, "Failed to remove profile image."));
     } finally {
@@ -1299,7 +1338,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextSlots: snapshot.slots,
         nextUserId: snapshot.userId,
       });
-      await refreshCharacterListSilently(snapshot.characterId);
+      await refreshCharacterListSilently(snapshot.characterId, {
+        publishSyncEvent: true,
+        reason: "create",
+      });
     } catch (nextError) {
       setError(toErrorMessage(nextError, "Failed to create a new character draft."));
     } finally {
@@ -1318,11 +1360,17 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         await deleteCharacterManagerDraft({ characterId: trimmedId });
 
         if (characterId && characterId !== trimmedId) {
-          await refreshCharacterListSilently(characterId);
+          await refreshCharacterListSilently(characterId, {
+            publishSyncEvent: true,
+            reason: "delete",
+          });
           return true;
         }
 
-        const nextCharacterId = await refreshCharacterList(null);
+        const nextCharacterId = await refreshCharacterList(null, {
+          publishSyncEvent: true,
+          reason: "delete",
+        });
         if (nextCharacterId) {
           const snapshot = await loadCharacterManagerDraftByCharacterId(nextCharacterId);
           applySnapshot({

@@ -7,6 +7,7 @@ import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
 } from "../../../character-manager/logic/characterManagerPersistence";
+import { publishCharacterListChanged } from "../../../character-manager/logic/characterListSyncEvents";
 import { persistSelectedCharacterId } from "../../../character-manager/logic/selectedCharacterPersistence";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
 
@@ -35,6 +36,7 @@ const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAc
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioCharacterModeLifecycle>[0]> = {}
 ): Parameters<typeof useAiStudioCharacterModeLifecycle>[0] => ({
+  selectedTool: null,
   setUiError: asDispatch<string | null>(vi.fn()),
   setCharacterModeInjectionBundle: asDispatch(vi.fn()),
   setIsCharacterBundleLoading: asDispatch<boolean>(vi.fn()),
@@ -338,6 +340,115 @@ describe("useAiStudioCharacterModeLifecycle", () => {
       expect(result.current.characterOptions[0]?.profileImageUrl).toBe(
         "https://example.com/profile-refreshed.png"
       );
+    });
+  });
+
+  it("refreshes character options when a Character Manager list-sync event is published", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+    await waitFor(() => {
+      expect(result.current.characterOptions).toHaveLength(1);
+    });
+
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    act(() => {
+      publishCharacterListChanged({
+        userId: "user-1",
+        reason: "create",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.characterOptions.map((item) => item.id)).toEqual(["char-1", "char-2"]);
+    });
+  });
+
+  it("keeps existing options when a refresh fails", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValueOnce([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+    await waitFor(() => {
+      expect(result.current.characterOptions[0]?.id).toBe("char-1");
+    });
+
+    listCharacterManagerCharactersMock.mockRejectedValueOnce(
+      new Error("Transient refresh failure")
+    );
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(result.current.characterOptions[0]?.id).toBe("char-1");
+    });
+  });
+
+  it("refreshes character options when entering a character-enabled tool", async () => {
+    let currentRows: Awaited<ReturnType<typeof listCharacterManagerCharacters>> = [
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+    ];
+    listCharacterManagerCharactersMock.mockImplementation(async () => currentRows);
+
+    const { result, rerender } = renderHook(
+      ({ selectedTool }: { selectedTool: Parameters<typeof createParams>[0]["selectedTool"] }) =>
+        useAiStudioCharacterModeLifecycle(createParams({ selectedTool })),
+      {
+        initialProps: {
+          selectedTool: "character",
+        },
+      }
+    );
+    await waitFor(() => {
+      expect(result.current.characterOptions).toHaveLength(1);
+    });
+    const refreshCallsBeforeToolSwitch = listCharacterManagerCharactersMock.mock.calls.length;
+
+    currentRows = [
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>;
+    rerender({ selectedTool: "create" });
+    await waitFor(() => {
+      expect(listCharacterManagerCharactersMock.mock.calls.length).toBeGreaterThan(
+        refreshCallsBeforeToolSwitch
+      );
+    });
+    await waitFor(() => {
+      expect(result.current.characterOptions).toHaveLength(2);
     });
   });
 });

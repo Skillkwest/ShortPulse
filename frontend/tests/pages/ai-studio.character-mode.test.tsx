@@ -3,11 +3,12 @@
  * Verifies Create workflow prompt/reference injection and stale bundle refresh behavior.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../features/ai-studio/types";
 import { createDefaultCharacterSheetPresetState } from "../../features/character-manager/constants";
 import type { CharacterManagerDraftSnapshot } from "../../features/character-manager/logic/characterManagerPersistence";
+import { publishCharacterListChanged } from "../../features/character-manager/logic/characterListSyncEvents";
 import AiStudioPage from "../../pages/ai-studio";
 
 const {
@@ -60,6 +61,9 @@ const {
       lastProps: null as {
         balanceCredits?: number | null;
         pendingHoldCredits?: number | null;
+        propertiesCreate?: {
+          characterOptions?: Array<{ id: string; name: string; profileImageUrl: string | null }>;
+        };
       } | null,
     };
     return {
@@ -134,6 +138,8 @@ const {
         setEditReferenceText: vi.fn(),
         videoReferenceText: "",
         setVideoReferenceText: vi.fn(),
+        expertEditSessionState: null,
+        setExpertEditSessionState: vi.fn(),
         setSharedPrompt: vi.fn(),
         useReferenceImageIndicator: false,
         detailOutput: null,
@@ -189,6 +195,7 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
       onGenerate: () => void;
       onSelectedCharacterIdChange?: (value: string) => void;
       onCharacterModeEnabledChange?: (value: boolean) => void;
+      characterOptions?: Array<{ id: string; name: string; profileImageUrl: string | null }>;
     };
     balanceCredits?: number | null;
     pendingHoldCredits?: number | null;
@@ -634,6 +641,55 @@ describe("ai-studio page character mode submission", () => {
 
     await waitFor(() => expect(listCharacterManagerCharactersMock).toHaveBeenCalled());
     expect(aiStudioStateMock.setImageResolution).not.toHaveBeenCalled();
+  });
+
+  it("updates Create character options after a cross-surface list-change event", async () => {
+    let currentRows: Array<{
+      characterId: string;
+      characterName: string;
+      profileImageUrl: string | null;
+    }> = [
+      {
+        characterId: "char-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+      },
+    ];
+    listCharacterManagerCharactersMock.mockImplementation(async () => currentRows);
+
+    render(<AiStudioPage />);
+
+    await waitFor(() =>
+      expect(aiStudioPageContentCapture.lastProps?.propertiesCreate?.characterOptions).toHaveLength(
+        1
+      )
+    );
+
+    currentRows = [
+      {
+        characterId: "char-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+      },
+    ];
+
+    act(() => {
+      publishCharacterListChanged({
+        userId: null,
+        reason: "create",
+      });
+    });
+
+    await waitFor(() =>
+      expect(aiStudioPageContentCapture.lastProps?.propertiesCreate?.characterOptions).toHaveLength(
+        2
+      )
+    );
   });
 
   it("tracks pending holds across pending to running and clears after success", async () => {

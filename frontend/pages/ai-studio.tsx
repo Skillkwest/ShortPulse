@@ -1153,6 +1153,7 @@ export default function AiStudioPage() {
     refreshCharacterOptions,
     resolveCharacterOptionById,
   } = useAiStudioCharacterModeLifecycle({
+    selectedTool,
     setUiError,
     setCharacterModeInjectionBundle,
     setIsCharacterBundleLoading,

@@ -54,17 +54,16 @@ export const useCreateCharacterModeController = ({
 }: UseCreateCharacterModeControllerArgs): UseCreateCharacterModeControllerResult => {
   const [isCharacterPickerOpen, setIsCharacterPickerOpen] = React.useState(false);
   const hasCharacterOptions = characterOptions.length > 0;
-  const characterSelectDisabled =
-    isCharacterOptionsLoading || !hasCharacterOptions || !characterModeEnabled;
+  const characterSelectDisabled = !characterModeEnabled;
 
   const closeCharacterPicker = React.useCallback(() => {
     setIsCharacterPickerOpen(false);
   }, []);
   const openCharacterPicker = React.useCallback(() => {
-    if (characterSelectDisabled) return;
+    if (!characterModeEnabled) return;
     onCharacterPickerOpen?.();
     setIsCharacterPickerOpen(true);
-  }, [characterSelectDisabled, onCharacterPickerOpen]);
+  }, [characterModeEnabled, onCharacterPickerOpen]);
 
   const handleCharacterModeEnabledToggle = React.useCallback(() => {
     const nextCharacterModeEnabled = !characterModeEnabled;

@@ -320,7 +320,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
   });
 
-  it("refreshes character options when opening the character picker", () => {
+  it("refreshes character options when opening the character picker", async () => {
     const refreshCharacterOptions = vi.fn(async () => []);
     render(
       <ExpertEditPanelView
@@ -333,7 +333,67 @@ describe("ExpertEditPanelView", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
-    expect(refreshCharacterOptions).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(refreshCharacterOptions).toHaveBeenCalled();
+    });
+  });
+
+  it("keeps the picker openable when character mode is on and options are empty", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        characterModeEnabled
+        characterOptions={[]}
+        selectedCharacterId=""
+        isCharacterOptionsLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
+    expect(screen.getByText("No character profiles available.")).toBeInTheDocument();
+  });
+
+  it("shows loading state in the picker when character options are loading", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        characterModeEnabled
+        characterOptions={[]}
+        selectedCharacterId=""
+        isCharacterOptionsLoading
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(screen.getByText("Loading character profiles...")).toBeInTheDocument();
+  });
+
+  it("shows a retry action when picker refresh fails", async () => {
+    const refreshCharacterOptions = vi
+      .fn<() => Promise<Array<{ id: string; name: string; profileImageUrl: string | null }>>>()
+      .mockRejectedValueOnce(new Error("refresh-open-failure-1"))
+      .mockRejectedValueOnce(new Error("refresh-open-failure-2"))
+      .mockResolvedValueOnce([]);
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        characterModeEnabled
+        characterOptions={[]}
+        selectedCharacterId=""
+        refreshCharacterOptions={refreshCharacterOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    await waitFor(() => {
+      expect(screen.getByText("Unable to refresh character profiles.")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(refreshCharacterOptions).toHaveBeenCalledTimes(3);
+    });
   });
 
   it("recovers broken trigger avatars after one refresh pass", async () => {

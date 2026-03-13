@@ -84,6 +84,8 @@ Checklist:
   - `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
 - Run derivative backlog diagnostics:
   - `sql/check_media_derivative_processing_backlog.sql`
+- Run terminal derivative failure diagnostics:
+  - `sql/check_media_derivative_terminal_failures.sql`
 - Confirm runtime SQL security audit includes and passes derivative RPC checks:
   - `sql/check_runtime_sql_security_audit.sql`
 
@@ -91,8 +93,28 @@ Mitigation:
 - Trigger a guarded manual run:
   - `curl -X POST -H \"x-shortpulse-cron-secret: <secret>\" http://localhost:3000/api/internal/media-derivatives/run`
 - Inspect response metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`, `errors`).
-- For exhausted rows, inspect `media_files.processing_last_error` and re-queue deliberately by setting:
-  - `processing_status='pending'`, `processing_next_retry_at=now()`, `processing_last_error=null`.
+- For exhausted rows, inspect `media_files.processing_last_error` and re-queue deliberately with:
+  - `sql/repair_media_derivative_requeue_terminal_row.sql`
+
+## Media derivative row is terminal-failed with `terminal_transform_400`
+Symptoms:
+- Backlog query shows `processing_status='failed'`, `processing_attempts >= 5`, `processing_next_retry_at is null`.
+- `processing_last_error` includes `terminal_transform_400` or `Transformed source fetch failed (400)`.
+
+Checklist:
+- Confirm queue health first:
+  - `sql/check_media_derivative_processing_backlog.sql` should show `pending=0` and `processing=0`.
+- Confirm terminal count is bounded:
+  - `sql/check_media_derivative_terminal_failures.sql`
+- Verify source object exists and is directly readable via signed source URL (`200`) while transformed fetch still fails (`400`).
+
+Mitigation:
+- Keep row terminal-failed (no retry churn) when transform failure is deterministic for that object.
+- If business-critical, repair the source object (re-upload/regenerate) and then re-queue the row with:
+  - `sql/repair_media_derivative_requeue_terminal_row.sql`
+- Monitoring thresholds:
+  - Warning: terminal failures > 3 or > 0.5% of image rows.
+  - Critical: terminal failures > 20 or > 2% of image rows.
 
 ## Style prompt appears weak on some models (especially Google/Nano Banana edit lanes)
 Symptoms:

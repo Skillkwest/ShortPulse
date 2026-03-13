@@ -28,6 +28,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_media_all_media_completeness_drift.sql`: All Media completeness drift diagnostics for durable storage objects missing `media_files` rows (read-only).
 - `sql/check_media_derivative_processing_backlog.sql`: media derivative backlog/retry diagnostics for image rows (read-only).
+- `sql/check_media_derivative_terminal_failures.sql`: terminal derivative failure diagnostics for image rows exhausted out of retry (read-only).
+- `sql/repair_media_derivative_requeue_terminal_row.sql`: targeted operator requeue for a repaired terminal image row (read-write).
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
 - `sql/check_runtime_sql_security_audit.sql`: runtime RPC security-definer + execute-grant audit (read-only).
 - `sql/check_generation_settlement_integrity.sql`: released-success settlement leakage diagnostics (read-only).

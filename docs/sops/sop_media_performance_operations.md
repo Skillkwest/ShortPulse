@@ -296,7 +296,14 @@ Monitor these events during rollout:
     - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret>`
     - scheduler/ops call `POST /api/internal/media-derivatives/run`
     - backlog diagnostics: `sql/check_media_derivative_processing_backlog.sql`
+    - terminal diagnostics: `sql/check_media_derivative_terminal_failures.sql`
   - Validate worker metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`) and check `media_files.processing_last_error` for exhausted rows.
+  - Terminal handling contract for `terminal_transform_400`:
+    - Keep exhausted deterministic transform failures terminal (`processing_attempts >= 5`, `processing_next_retry_at is null`) to avoid retry churn.
+    - Re-queue only after source asset repair/replacement via `sql/repair_media_derivative_requeue_terminal_row.sql`.
+  - Monitoring thresholds:
+    - Warning: terminal failures > 3 or > 0.5% of image rows.
+    - Critical: terminal failures > 20 or > 2% of image rows.
 - Symptom: repeated `/_next/image` `500` responses for Supabase signed media URLs.
   - Verify media-library card previews are not being rewritten to `/_next/image`.
   - Verify API headers:

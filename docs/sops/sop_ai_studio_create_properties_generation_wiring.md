@@ -80,6 +80,7 @@ sequenceDiagram
 2. Create text-mode branch:
 - Chat mode ON: send to agent (`handleAgentSend`) and stage prompt from agent output.
 - Chat mode OFF: resolve raw prompt via `resolveChatOffCreatePrompt`, then submit generate as Create/Image.
+- Chat mode OFF cost contract: button estimate and submit/debit guardrail use the image-run cost path (`promptReferenceGenerateCostCredits`, model/aspect/image-resolution aware), not text-token cost.
 3. `handleGenerate` preflight:
 - Acquire click lock (700ms).
 - Revalidate credit coverage (`refreshBalance` path when needed).
@@ -170,6 +171,7 @@ When changing Create panel behavior or generation wiring, update all relevant la
 - Manual smoke in `/ai-studio`:
   1. Create expert panel: model/aspect/resolution/character controls render and update.
   2. Chat mode ON/OFF behavior matches expected submit path.
-  3. Model modal ordering is context-correct for Create.
-  4. Generate submission reaches queued/dispatched states and polling converges.
-  5. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.
+  3. In Create `mode=text` with chat OFF, Generate button cost matches image-run cost and debit path.
+  4. Model modal ordering is context-correct for Create.
+  5. Generate submission reaches queued/dispatched states and polling converges.
+  6. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.

@@ -32,6 +32,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Video generation workflow (Create → Video)
 
 1. User selects Create → Video; `VideoPropertiesPanel` renders with aspect + model (video-capable options filtered by mode).
+   - Resolution control is rendered only when the selected model declares `allowedResolutions` in the runtime model catalog; models without declared resolution support hide the selector.
 2. User enters a prompt (and optionally prepares an image reference if the model requires/accepts it).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
@@ -93,6 +94,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Video models are selected from the picker (Fal + Kie video entries; Kie routes are runtime-gated server-side).  
 - Aspect normalization is provider/model-specific (see `pricing.ts` and `hooks/taskSubmission/{videoHandlers,defaultHandlers}.ts`).
 - Cost computation: `computeCostForModel` uses aspect plus duration/resolution/audio defaults for estimate display; charging occurs in server submit APIs. Prompt-refine/describe flows currently report usage but are not debited. Video submit payloads are built by provider handlers after prompt selection is finalized in UI state.
+- For models with no declared resolution capability (for example Fal Kling 3.0 lanes), resolution is treated as unsupported in UI and submit payloads.
 
 ## Supported video models (current)
 

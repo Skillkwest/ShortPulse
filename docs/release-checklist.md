@@ -29,6 +29,12 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 - Storage bucket private; policies require `auth.uid()` path prefixes
 - Verify with two test users (cross-user isolation)
 
+## Deployment target parity (required before scheduler/ops cutover)
+
+- `node scripts/verify_deployment_route_parity.mjs --base-url https://<target-alias-or-url> --token <SHORTPULSE_VERCEL_API_TOKEN>`
+- Verify command output reports `PASS` and includes resolved deployment URL + creation timestamp.
+- Run against each target environment URL (`staging` and `production`) before updating cron/scheduler endpoints or running drain/recovery operations.
+
 ## Documentation (when behavior changes)
 
 - Update `README.md` and relevant `docs/sops/sop_*.md`

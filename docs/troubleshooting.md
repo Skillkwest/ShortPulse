@@ -69,6 +69,31 @@ Mitigation:
 - Keep media-library preview delivery on Supabase signed URLs (do not re-wrap signed URLs through Next image optimizer).
 - Hard-refresh/re-open the media surface to clear stale wrapped preview state from older sessions.
 
+## Internal route returns `404` due alias/deployment drift
+Symptoms:
+- Internal ops routes unexpectedly return `404` on staging/prod aliases (for example `/api/internal/generation-recovery/run` or `/api/internal/media-derivatives/run`).
+- Vercel alias points to an older deployment that does not include current internal route inventory.
+
+Checklist:
+- Run deployment route parity gate:
+  ```bash
+  node scripts/verify_deployment_route_parity.mjs \
+    --base-url https://<target-alias-or-url> \
+    --token <SHORTPULSE_VERCEL_API_TOKEN>
+  ```
+- Inspect resolved deployment details directly:
+  ```bash
+  vercel inspect https://<target-alias-or-url> --format=json --token <SHORTPULSE_VERCEL_API_TOKEN>
+  ```
+- Confirm required routes are present in build output:
+  - `/api/internal/generation-recovery/run`
+  - `/api/internal/media-derivatives/run`
+
+Mitigation:
+- Do not run drain/recovery/derivative operations against aliases that fail route parity.
+- Repoint alias or scheduler URLs to a deployment that passes the parity gate.
+- Re-run parity check and only proceed when it reports `PASS`.
+
 ## Media derivative worker backlog grows or image rows stay `pending`
 Symptoms:
 - New image rows in `media_files` remain `processing_status='pending'` for long periods.
@@ -96,20 +121,27 @@ Mitigation:
 - For exhausted rows, inspect `media_files.processing_last_error` and re-queue deliberately with:
   - `sql/repair_media_derivative_requeue_terminal_row.sql`
 
-## Media derivative row is terminal-failed with `terminal_transform_400`
+## Media derivative row is terminal-failed with local-processing errors
 Symptoms:
 - Backlog query shows `processing_status='failed'`, `processing_attempts >= 5`, `processing_next_retry_at is null`.
-- `processing_last_error` includes `terminal_transform_400` or `Transformed source fetch failed (400)`.
+- `processing_last_error` starts with one of:
+  - `unsupported_input`
+  - `decode_failed`
+  - `upload_failed`
+  - `variant_upsert_failed`
 
 Checklist:
 - Confirm queue health first:
   - `sql/check_media_derivative_processing_backlog.sql` should show `pending=0` and `processing=0`.
 - Confirm terminal count is bounded:
   - `sql/check_media_derivative_terminal_failures.sql`
-- Verify source object exists and is directly readable via signed source URL (`200`) while transformed fetch still fails (`400`).
+- Verify source object exists and is readable.
+- For `decode_failed`, verify source bytes are a decodable image.
+- For `upload_failed`, verify storage write health and bucket permissions.
+- For `variant_upsert_failed`, verify DB relation health and grants.
 
 Mitigation:
-- Keep row terminal-failed (no retry churn) when transform failure is deterministic for that object.
+- Keep row terminal-failed (no retry churn) when failure is deterministic for that object.
 - If business-critical, repair the source object (re-upload/regenerate) and then re-queue the row with:
   - `sql/repair_media_derivative_requeue_terminal_row.sql`
 - Monitoring thresholds:

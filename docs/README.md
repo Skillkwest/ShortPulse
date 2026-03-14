@@ -228,6 +228,7 @@ Start here for all repository documentation.
 - `docs/adr/0036-media-library-signed-preview-delivery-and-next-optimizer-bypass.md`
 - `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
 - `docs/adr/0038-ai-studio-media-library-all-media-inline-tabs.md`
+- `docs/adr/0039-media-library-transform-sunset-and-local-derivative-engine.md`
 
 ## Archive
 - `docs/archive/README.md`

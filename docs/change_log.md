@@ -2846,3 +2846,26 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added a comprehensive paused-state handoff document at `docs/planning/supabase-production-cutover-handoff-2026-03-13.md` with full execution status, environment topology, validation evidence, open risks, and a phased resume plan.
 - Recorded production cutover evidence in the handoff doc: runtime smoke status, preview isolation status, media drift/constraint status, runtime SQL audit status, and unresolved CI workflow discoverability gap.
 - Updated docs discoverability indexes (`docs/README.md`, `docs/planning/README.md`) so the cutover handoff can be found quickly when resuming implementation.
+
+## 2026-03-14 (deployment route-parity hardening gate)
+- Added `scripts/verify_deployment_route_parity.mjs` to validate deployment-target route parity before operational actions (drain/recovery/derivative workflows), with hard-fail behavior when required routes are missing.
+- Script contract:
+  - resolves target via `vercel inspect --format=json`,
+  - validates required internal route inventory (default: generation recovery + media derivatives),
+  - supports repeated `--required-route`,
+  - supports env fallback loading through shared `scripts/lib/load_local_env.mjs`,
+  - prints resolved deployment URL + creation timestamp for alias drift diagnostics.
+- Added focused regression coverage `frontend/tests/api/internal-route-inventory-regression.test.ts` to freeze internal route module inventory/default exports for:
+  - `pages/api/internal/generation-recovery/run.ts`
+  - `pages/api/internal/media-derivatives/run.ts`
+- Updated deployment/release/troubleshooting docs to require route-parity verification before scheduler URL updates and pre/post deploy operations:
+  - `docs/deployment.md`
+  - `docs/release-checklist.md`
+  - `docs/troubleshooting.md`
+
+## 2026-03-14 (media transform sunset + local derivative engine)
+- Added shared signed-transform policy (`frontend/lib/mediaSignedTransformPolicy.ts`) and rewired media signing paths (`/api/media/list`, `/api/media/sign-batch`, `/api/media/resolve-previews`, and client signed-url cache) to require dual explicit flags before applying transforms.
+- Added transform policy env contract (`SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED`, `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED`) and defaulted behavior to transform-off.
+- Reworked derivative processing to local `sharp` generation (`thumb_240`, `thumb_480`) from source-object downloads, removing transformed-source fetch dependence while keeping existing claim/ready/failed RPC contracts unchanged.
+- Added deterministic local derivative failure-class semantics (`unsupported_input`, `decode_failed`, `upload_failed`, `variant_upsert_failed`) and updated focused route/processor/signing tests.
+- Added ADR `docs/adr/0039-media-library-transform-sunset-and-local-derivative-engine.md` and synced related docs (`README.md`, `docs/deployment.md`, `docs/troubleshooting.md`, `docs/sops/sop_media_performance_operations.md`, ADR indexes).

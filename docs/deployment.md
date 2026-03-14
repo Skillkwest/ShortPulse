@@ -37,6 +37,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (optional override; default `300`)
 - CI/CD deploy gate:
   - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`)
+  - `SHORTPULSE_VERCEL_API_TOKEN` (required by `scripts/verify_deployment_route_parity.mjs`; fallback supports `VERCEL_API_TOKEN`)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
   - `NEXT_PUBLIC_AGENT_V2`
@@ -67,6 +68,8 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED` (defaults to `true`; route/modal virtualization gate)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED` (defaults to `true`; route/modal autoplay budget gate)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED` (defaults to `true`; route/modal sign-prefetch gate)
+  - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; server half of dual-flag signed-transform policy)
+  - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; client half of dual-flag signed-transform policy)
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODE` (`legacy|shadow|on`)
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)
@@ -135,6 +138,36 @@ Notes:
 - `core` profile validates baseline deploy keys.
 - `phase04` adds queue/reconciler/read-only rollout keys used by current program phase.
 
+### Deployment route parity gate (required)
+
+Before any scheduler URL updates, manual drain/recovery operations, or post-deploy production checks, verify that the target alias/URL resolves to a deployment containing the required internal routes.
+
+Default required routes:
+- `/api/internal/generation-recovery/run`
+- `/api/internal/media-derivatives/run`
+
+Command examples:
+
+```bash
+node scripts/verify_deployment_route_parity.mjs \
+  --base-url https://<staging-or-prod-alias> \
+  --token <SHORTPULSE_VERCEL_API_TOKEN>
+```
+
+```bash
+node scripts/verify_deployment_route_parity.mjs \
+  --base-url https://<staging-or-prod-alias> \
+  --required-route /api/internal/generation-recovery/run \
+  --required-route /api/internal/media-derivatives/run
+```
+
+Behavior:
+- Hard-fails (non-zero exit) if any required route is missing from deployment build output.
+- Prints resolved deployment URL and deployment creation timestamp to prevent alias/deployment drift mistakes.
+- Supports env fallbacks:
+  - base URL: `SHORTPULSE_STAGING_BASE_URL`, then `APP_BASE_URL`
+  - token: `SHORTPULSE_VERCEL_API_TOKEN`, then `VERCEL_API_TOKEN`
+
 ## Vercel setup
 
 1. Import this repository into Vercel.
@@ -143,6 +176,7 @@ Notes:
 4. Set install command: `npm ci`.
 5. Set output mode to Next.js default.
 6. Add all required environment variables before first production deploy.
+7. Keep API routes on Node runtime for derivative processing (`sharp` is used by `/api/internal/media-derivatives/run`).
 
 ### Preview deployment throttle control (docs-only skip)
 
@@ -159,6 +193,8 @@ To reduce preview deployment churn and avoid quota/rate pressure during document
 ## Recovery scheduler (Supabase Cron)
 
 Use Supabase Cron as the primary scheduler for generation queue dispatch + recovery.
+
+Route-parity gate is mandatory before setting or updating `shortpulse_recovery_run_url` for any environment.
 
 1. Set `SHORTPULSE_FAL_RECONCILER_ENABLED=true`.
 2. Set `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` in Vercel (`Production` and `Preview` as needed).

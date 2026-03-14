@@ -102,7 +102,7 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
   - Prompt listing: `/api/media/prompts/list`
   - Media listing now accepts optional folder and media-kind filters via `/api/media/list`.
 - Performance/adaptive parity:
-  - Panel/list/resolve signing paths are surface-aware (`media-library-route|media-library-modal|media-library-panel`) and apply transform profiles through Supabase signed URLs.
+  - Panel/list/resolve signing paths are surface-aware (`media-library-route|media-library-modal|media-library-panel`) and keep profile telemetry; signed transforms are dual-flag policy gated and disabled by default.
   - Media-library card surfaces should keep Supabase signed URLs directly (do not wrap signed object URLs through `/_next/image`).
   - Derivative worker pipeline (`/api/internal/media-derivatives/run`) claims pending image rows and materializes `thumb_240`/`thumb_480` variants, promoting `thumb_variant_path` for faster subsequent card paint.
   - Preserve stale-refresh non-blocking behavior and placeholder-first rendering.

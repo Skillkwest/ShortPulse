@@ -298,8 +298,8 @@ Monitor these events during rollout:
     - backlog diagnostics: `sql/check_media_derivative_processing_backlog.sql`
     - terminal diagnostics: `sql/check_media_derivative_terminal_failures.sql`
   - Validate worker metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`) and check `media_files.processing_last_error` for exhausted rows.
-  - Terminal handling contract for `terminal_transform_400`:
-    - Keep exhausted deterministic transform failures terminal (`processing_attempts >= 5`, `processing_next_retry_at is null`) to avoid retry churn.
+  - Terminal handling contract for local derivative errors (`unsupported_input`, `decode_failed`, `upload_failed`, `variant_upsert_failed`):
+    - Keep exhausted deterministic failures terminal (`processing_attempts >= 5`, `processing_next_retry_at is null`) to avoid retry churn.
     - Re-queue only after source asset repair/replacement via `sql/repair_media_derivative_requeue_terminal_row.sql`.
   - Monitoring thresholds:
     - Warning: terminal failures > 3 or > 0.5% of image rows.

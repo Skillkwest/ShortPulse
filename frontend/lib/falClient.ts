@@ -60,6 +60,7 @@ export type FalQueueStatusResponse =
       sourceRef: string | null;
       requestId: string;
       provider: string;
+      modelId?: string | null;
     }
   | {
       status: "failed";

@@ -1,8 +1,11 @@
-import { hasMediaPayload, toRecord } from "./falAdapter";
 import {
   dispatchProviderResponseProbeRequest,
   resolveProviderResponseUrls,
 } from "../providerIntegration/statusProviderDispatcher";
+import {
+  providerPayloadHasMedia,
+  readProviderLifecycleStatus,
+} from "../providerIntegration/statusProviderPayload";
 import {
   isProviderCompletedStatus,
   isProviderFailedStatus,
@@ -122,15 +125,25 @@ export const probeResponseUrlsForMedia = async ({
     if (
       !responseProbe.ok ||
       !responseProbeData.isJson ||
-      !hasMediaPayload(responseProbeData.json)
+      !providerPayloadHasMedia({
+        provider,
+        modelId,
+        payload: responseProbeData.json,
+      })
     ) {
       continue;
     }
+    const responseProbeStatus = readProviderLifecycleStatus({
+      provider,
+      modelId,
+      payload: responseProbeData.json,
+    });
     const probeStatus = resolveProviderSuccessfulPayloadStatus({
       provider,
       candidates: [
+        responseProbeStatus,
         responseProbeData.json.status,
-        toRecord(responseProbeData.json).state,
+        responseProbeData.json.state,
         statusHint,
       ],
     });

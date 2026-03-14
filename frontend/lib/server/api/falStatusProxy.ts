@@ -100,6 +100,56 @@ const settleFailure = async ({
   }
 };
 
+const settleCompletedWithoutMedia = async ({
+  userId,
+  requestId,
+  reason,
+  routeLabel,
+  detail,
+}: {
+  userId: string;
+  requestId: string;
+  reason: string;
+  routeLabel: string;
+  detail?: JsonObject;
+}) => {
+  const result = await settleGenerationOutcome({
+    userId,
+    providerRequestId: requestId,
+    outcome: "fail",
+    reason,
+    routeLabel,
+    detail,
+  });
+  if (!result.settled && result.note !== "charge_not_found") {
+    console.error("[falStatusProxy] settlement did not complete", {
+      requestId,
+      routeLabel,
+      note: result.note,
+      sourceRef: result.sourceRef ?? null,
+    });
+  }
+  try {
+    await executeGenerationRecovery({
+      actor: "status_proxy",
+      requestId,
+      userId,
+      routeLabel,
+      observation: {
+        state: "completed",
+        payload: detail ?? null,
+        mediaUrls: [],
+      },
+    });
+  } catch (error) {
+    console.error("[falStatusProxy] failed to sync no-media completed state", {
+      requestId,
+      routeLabel,
+      error: String(error),
+    });
+  }
+};
+
 const respondError = ({
   res,
   requestId,
@@ -228,6 +278,24 @@ export const createFalStatusHandler = ({
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const readPayloadLifecycleStatus = (payload: unknown): string | null =>
+      readProviderLifecycleStatus({
+        provider: providerKey,
+        modelId,
+        payload,
+      });
+    const readPayloadResponseUrl = (payload: unknown): string | null =>
+      readProviderResponseUrl({
+        provider: providerKey,
+        modelId,
+        payload,
+      });
+    const payloadHasMedia = (payload: unknown): boolean =>
+      providerPayloadHasMedia({
+        provider: providerKey,
+        modelId,
+        payload,
+      });
     let queueBaseUrls: string[];
     try {
       queueBaseUrls = resolveProviderStatusBaseUrls({
@@ -375,9 +443,7 @@ export const createFalStatusHandler = ({
           signal: controller.signal,
         });
         const data = await readJsonSafe(response);
-        const candidateStatus = data.isJson
-          ? readProviderLifecycleStatus({ provider: providerKey, payload: data.json })
-          : null;
+        const candidateStatus = data.isJson ? readPayloadLifecycleStatus(data.json) : null;
         const isCandidateCompleted = Boolean(
           candidateStatus &&
           isProviderCompletedStatus({
@@ -403,16 +469,10 @@ export const createFalStatusHandler = ({
           isTerminal: isCandidateCompleted || isCandidateFailed,
           isCompleted: isCandidateCompleted,
           isFailed: isCandidateFailed,
-          hasResponseUrl: data.isJson
-            ? Boolean(readProviderResponseUrl({ provider: providerKey, payload: data.json }))
-            : false,
-          hasMedia: data.isJson
-            ? providerPayloadHasMedia({ provider: providerKey, payload: data.json })
-            : false,
+          hasResponseUrl: data.isJson ? Boolean(readPayloadResponseUrl(data.json)) : false,
+          hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
         };
-        const responseUrl = data.isJson
-          ? readProviderResponseUrl({ provider: providerKey, payload: data.json })
-          : null;
+        const responseUrl = data.isJson ? readPayloadResponseUrl(data.json) : null;
         if (responseUrl) {
           statusResponseUrls.add(responseUrl);
         }
@@ -469,10 +529,7 @@ export const createFalStatusHandler = ({
             provider: providerKey,
             candidates: [
               bestStatusMediaCandidate.probe.status,
-              readProviderLifecycleStatus({
-                provider: providerKey,
-                payload: bestStatusMediaCandidate.data.json,
-              }),
+              readPayloadLifecycleStatus(bestStatusMediaCandidate.data.json),
             ],
           }),
         });
@@ -538,14 +595,8 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const normalizedStatus = readProviderLifecycleStatus({
-        provider: providerKey,
-        payload: statusData.json,
-      });
-      const preferredResponseUrl = readProviderResponseUrl({
-        provider: providerKey,
-        payload: statusData.json,
-      });
+      const normalizedStatus = readPayloadLifecycleStatus(statusData.json);
+      const preferredResponseUrl = readPayloadResponseUrl(statusData.json);
       const orderedResponseUrls = preferredResponseUrl
         ? [
             preferredResponseUrl,
@@ -649,11 +700,7 @@ export const createFalStatusHandler = ({
             signal: controller.signal,
           });
           const probeData = await readJsonSafe(probeResponse);
-          if (
-            !probeResponse.ok ||
-            !probeData.isJson ||
-            !providerPayloadHasMedia({ provider: providerKey, payload: probeData.json })
-          ) {
+          if (!probeResponse.ok || !probeData.isJson || !payloadHasMedia(probeData.json)) {
             continue;
           }
           return captureAndRespondSuccess({
@@ -666,7 +713,7 @@ export const createFalStatusHandler = ({
 
       // Some Fal models return terminal status payloads that already include media while
       // follow-up result probes intermittently lag or fail. Treat that payload as authoritative.
-      if (providerPayloadHasMedia({ provider: providerKey, payload: statusData.json })) {
+      if (payloadHasMedia(statusData.json)) {
         return captureAndRespondSuccess({
           payload: statusData.json,
           payloadStatus: resolveProviderSuccessfulPayloadStatus({
@@ -709,9 +756,7 @@ export const createFalStatusHandler = ({
           signal: controller.signal,
         });
         const data = await readJsonSafe(response);
-        const candidateStatus = data.isJson
-          ? readProviderLifecycleStatus({ provider: providerKey, payload: data.json })
-          : null;
+        const candidateStatus = data.isJson ? readPayloadLifecycleStatus(data.json) : null;
         const candidateHasError = data.isJson
           ? candidateStatus === "error" ||
             candidateStatus === "failed" ||
@@ -726,9 +771,7 @@ export const createFalStatusHandler = ({
           isHttpOk: response.ok,
           status: candidateStatus,
           hasError: candidateHasError,
-          hasMedia: data.isJson
-            ? providerPayloadHasMedia({ provider: providerKey, payload: data.json })
-            : false,
+          hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
         };
         if (probe.isRetryableAlias) {
           retryableResultCandidates.push({ probe, response, data });
@@ -874,17 +917,11 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const resultStatus = readProviderLifecycleStatus({
-        provider: providerKey,
-        payload: resultData.json,
-      });
+      const resultStatus = readPayloadLifecycleStatus(resultData.json);
       const resultErrorMessage = asProviderString(resultData.json.error);
       const explicitResultFailure =
         resultStatus === "error" || resultStatus === "failed" || Boolean(resultErrorMessage);
-      const resultHasMedia = providerPayloadHasMedia({
-        provider: providerKey,
-        payload: resultData.json,
-      });
+      const resultHasMedia = payloadHasMedia(resultData.json);
 
       if (!explicitResultFailure && !resultHasMedia && statusTransientFailuresEnabled) {
         return respondTransientWithTelemetry({
@@ -897,8 +934,29 @@ export const createFalStatusHandler = ({
         });
       }
 
-      if (explicitResultFailure || !resultHasMedia) {
+      if (explicitResultFailure) {
         await settleFailure({
+          userId: user.id,
+          requestId,
+          reason: "Auto-refund: Fal generation failed during result retrieval.",
+          routeLabel,
+          detail: {
+            stage: "result",
+            payload: resultData.json,
+          },
+        });
+        return respondErrorWithLogging({
+          requestId,
+          error: resultErrorMessage || "Generation failed to produce media output",
+          statusCode: 502,
+          source: "api.fal_status.result_missing_media",
+          stage: "result",
+          detail: resultData.json,
+        });
+      }
+
+      if (!resultHasMedia) {
+        await settleCompletedWithoutMedia({
           userId: user.id,
           requestId,
           reason: "Auto-refund: Fal generation completed without usable media.",

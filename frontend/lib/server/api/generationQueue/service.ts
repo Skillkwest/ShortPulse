@@ -80,6 +80,7 @@ export type GenerationQueueStatus =
       sourceRef: string | null;
       requestId: string;
       provider: string;
+      modelId?: string | null;
     }
   | {
       status: "failed";
@@ -457,7 +458,7 @@ export const readGenerationQueueStatus = async ({
   if (generationId) {
     const { data } = await supabase
       .from("ai_generations")
-      .select("id, status, request_id, provider, error_message, metadata")
+      .select("id, status, request_id, provider, model_id, error_message, metadata")
       .eq("user_id", userId)
       .eq("id", generationId)
       .maybeSingle();
@@ -465,7 +466,7 @@ export const readGenerationQueueStatus = async ({
   } else if (sourceRef) {
     const { data } = await supabase
       .from("ai_generations")
-      .select("id, status, request_id, provider, error_message, metadata")
+      .select("id, status, request_id, provider, model_id, error_message, metadata")
       .eq("user_id", userId)
       .contains("metadata", { source_ref: sourceRef })
       .order("created_at", { ascending: false })
@@ -485,12 +486,14 @@ export const readGenerationQueueStatus = async ({
   const queueStatus = parseQueueStatus(queueRow?.status);
 
   if (requestId) {
+    const dispatchedModelId = asString(generationRow?.model_id);
     return {
       status: "dispatched",
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       requestId,
       provider: asString(generationRow?.provider) ?? "fal",
+      ...(dispatchedModelId ? { modelId: dispatchedModelId } : {}),
     };
   }
 

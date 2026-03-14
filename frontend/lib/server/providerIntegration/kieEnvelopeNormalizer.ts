@@ -9,6 +9,7 @@ import { asProviderRecord, asProviderString } from "./canonicalProviderPayload";
 const STATUS_KEYS = ["status", "state"] as const;
 const RESPONSE_URL_KEYS = ["response_url", "responseUrl"] as const;
 const RESULT_JSON_KEYS = ["resultJson", "result_json"] as const;
+const SUCCESS_FLAG_KEYS = ["successFlag", "success_flag"] as const;
 
 const readNumericCode = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value);
@@ -40,17 +41,21 @@ const collectCandidates = (payload: unknown): Record<string, unknown>[] => {
   const data = asProviderRecord(root.data);
   const result = asProviderRecord(root.result);
   const response = asProviderRecord(root.response);
+  const dataResponse = asProviderRecord(data.response);
   const output = asProviderRecord(root.output);
   const meta = asProviderRecord(root.meta);
   return [
     root,
     rootPayload,
     data,
+    dataResponse,
     result,
     response,
     output,
     meta,
     asProviderRecord(data.result),
+    asProviderRecord(dataResponse.result),
+    asProviderRecord(dataResponse.output),
     asProviderRecord(data.output),
     asProviderRecord(result.data),
     asProviderRecord(result.output),
@@ -92,6 +97,16 @@ const readFirstCode = (candidates: Record<string, unknown>[]): number | null => 
   return null;
 };
 
+const readFirstSuccessFlag = (candidates: Record<string, unknown>[]): number | null => {
+  for (const candidate of candidates) {
+    for (const key of SUCCESS_FLAG_KEYS) {
+      const parsed = readNumericCode(candidate[key]);
+      if (parsed !== null) return parsed;
+    }
+  }
+  return null;
+};
+
 const readFirstResultJson = (candidates: Record<string, unknown>[]): Record<string, unknown> => {
   for (const candidate of candidates) {
     for (const key of RESULT_JSON_KEYS) {
@@ -107,6 +122,15 @@ const readFirstResultUrls = (candidates: Record<string, unknown>[]): string[] =>
     const list = candidate.resultUrls ?? candidate.result_urls;
     if (!Array.isArray(list)) continue;
     const urls = list
+      .map((item) => asProviderString(item))
+      .filter((url): url is string => Boolean(url));
+    if (urls.length) return urls;
+  }
+  for (const candidate of candidates) {
+    const response = asProviderRecord(candidate.response);
+    const nestedList = response.resultUrls ?? response.result_urls;
+    if (!Array.isArray(nestedList)) continue;
+    const urls = nestedList
       .map((item) => asProviderString(item))
       .filter((url): url is string => Boolean(url));
     if (urls.length) return urls;
@@ -127,8 +151,11 @@ export const normalizeKieEnvelopePayload = (payload: unknown): Record<string, un
   const status = readFirstString(candidates, STATUS_KEYS);
   const responseUrl = readFirstResponseUrl(candidates);
   const code = readFirstCode(candidates);
+  const successFlag = readFirstSuccessFlag(candidates);
   const resultJson = readFirstResultJson(candidates);
   const resultUrls = readFirstResultUrls(candidates);
+  const data = asProviderRecord(root.data);
+  const dataResponse = asProviderRecord(data.response);
 
   delete normalized.status;
   delete normalized.state;
@@ -145,6 +172,16 @@ export const normalizeKieEnvelopePayload = (payload: unknown): Record<string, un
   }
   if (code !== null && normalized.code === undefined) {
     normalized.code = code;
+  }
+  if (successFlag !== null && normalized.successFlag === undefined) {
+    normalized.successFlag = successFlag;
+    normalized.success_flag = successFlag;
+  }
+  if (
+    Object.keys(dataResponse).length &&
+    Object.keys(asProviderRecord(normalized.response)).length === 0
+  ) {
+    normalized.response = dataResponse;
   }
   if (Object.keys(resultJson).length) {
     normalized.resultJson = resultJson;

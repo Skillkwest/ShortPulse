@@ -48,15 +48,31 @@ const queueStatusRetryDelayMs = (
 
 const resolveDispatchedPollingProvider = ({
   queueStatusProvider,
+  queueStatusModelId,
   submitProvider,
 }: {
   queueStatusProvider: string | null | undefined;
+  queueStatusModelId?: string | null;
   submitProvider: Provider;
 }): Provider => {
   const normalizedProvider = normalizeProviderForPolling(queueStatusProvider, submitProvider);
   // Queue-status can return a generic "fal" provider token even when submit-time routing was model-specific.
   if (normalizedProvider === "fal" && submitProvider.startsWith("fal-")) {
     return submitProvider;
+  }
+  // Queue-status can return a generic "kie" token for dispatched rows.
+  // Use model id when present so kling/veo polling routes cannot drift.
+  if (normalizedProvider === "kie-veo") {
+    const providerToken = queueStatusProvider?.trim().toLowerCase();
+    if (providerToken === "kie") {
+      const modelScopedProvider = normalizeProviderForPolling(queueStatusModelId, submitProvider);
+      if (modelScopedProvider === "kie-kling" || modelScopedProvider === "kie-veo") {
+        return modelScopedProvider;
+      }
+      if (submitProvider === "kie-kling" || submitProvider === "kie-veo") {
+        return submitProvider;
+      }
+    }
   }
   return normalizedProvider;
 };
@@ -127,6 +143,7 @@ export const startQueuedStatusPolling = ({
           queueStatus.generationId || queuedResponse.generationId,
           resolveDispatchedPollingProvider({
             queueStatusProvider: queueStatus.provider,
+            queueStatusModelId: queueStatus.modelId,
             submitProvider: provider,
           })
         );

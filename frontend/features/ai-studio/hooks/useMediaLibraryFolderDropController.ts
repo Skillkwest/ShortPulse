@@ -8,6 +8,7 @@ import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import { extractInternalReferenceDragPayload } from "../utils/dragDrop";
 import {
   applyMediaFolderMembershipBatch,
+  MEDIA_LIBRARY_ROOT_FOLDER_ID,
   type MediaFolder,
   type MediaFolderMembershipBatchResult,
 } from "../logic/mediaLibraryPanelApi";
@@ -265,7 +266,12 @@ export const useMediaLibraryFolderDropController = ({
           if (message) {
             setMembershipMessage(message);
           }
-          await refreshActiveRows();
+          const sourceFolderId = (resolvedItem.sourceFolderId ?? "").trim();
+          const skipActiveRowsRefresh =
+            intent.kind === "assign" && sourceFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+          if (!skipActiveRowsRefresh) {
+            await refreshActiveRows();
+          }
         } catch (error) {
           setFolderError(
             error instanceof Error ? error.message : "Unable to update folder membership."

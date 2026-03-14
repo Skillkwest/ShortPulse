@@ -24,8 +24,17 @@ const kieRetryablePayloadCodes = new Set([
 ]);
 const kieStatusFieldKeys = ["status", "state"] as const;
 const kieResponseUrlFieldKeys = ["response_url", "responseUrl"] as const;
+const kieSuccessFlagFieldKeys = ["successFlag", "success_flag"] as const;
 const kieCompletedCallbackCodes = new Set([200]);
 const kieFailedCallbackCodes = new Set([501]);
+const kieExplicitErrorKeys = [
+  "error_message",
+  "errorMessage",
+  "failMsg",
+  "failCode",
+  "errorCode",
+  "error_code",
+] as const;
 
 const normalizeKieStatusAlias = (status: string): string => {
   const normalized = status.trim().toLowerCase();
@@ -52,17 +61,21 @@ const collectKiePayloadCandidates = (payload: unknown): Record<string, unknown>[
   const data = asProviderRecord(root.data);
   const result = asProviderRecord(root.result);
   const response = asProviderRecord(root.response);
+  const dataResponse = asProviderRecord(data.response);
   const output = asProviderRecord(root.output);
   const meta = asProviderRecord(root.meta);
   return [
     root,
     rootPayload,
     data,
+    dataResponse,
     result,
     response,
     output,
     meta,
     asProviderRecord(data.result),
+    asProviderRecord(dataResponse.result),
+    asProviderRecord(dataResponse.output),
     asProviderRecord(data.output),
     asProviderRecord(result.data),
     asProviderRecord(result.output),
@@ -86,6 +99,45 @@ const readNumericCode = (value: unknown): number | null => {
     }
   }
   return null;
+};
+
+const readFirstSuccessFlag = (candidates: Record<string, unknown>[]): number | null => {
+  for (const candidate of candidates) {
+    for (const key of kieSuccessFlagFieldKeys) {
+      const parsed = readNumericCode(candidate[key]);
+      if (parsed !== null) return parsed;
+    }
+  }
+  return null;
+};
+
+const hasExplicitKieProviderError = (candidates: Record<string, unknown>[]): boolean => {
+  for (const candidate of candidates) {
+    const errorString = asString(candidate.error);
+    if (errorString) return true;
+
+    const errorObject = asProviderRecord(candidate.error);
+    if (
+      asString(errorObject.message) ||
+      asString(errorObject.msg) ||
+      asString(errorObject.code) ||
+      asString(errorObject.errorCode) ||
+      asString(errorObject.error_code)
+    ) {
+      return true;
+    }
+
+    for (const key of kieExplicitErrorKeys) {
+      const value = candidate[key];
+      const numericCode = readNumericCode(value);
+      if (numericCode !== null) {
+        if (numericCode > 0) return true;
+        continue;
+      }
+      if (asString(value)) return true;
+    }
+  }
+  return false;
 };
 
 const hasInvalidFieldType = ({
@@ -154,9 +206,14 @@ export const validateKieStatusPayloadForModel = ({
 export const readKieLifecycleStatus = (payload: unknown): string | null => {
   if (validateKieStatusPayloadForModel({ payload })) return null;
   const root = asProviderRecord(payload);
+  const candidates = collectKiePayloadCandidates(root);
+  const successFlag = readFirstSuccessFlag(candidates);
+  const hasExplicitProviderError = hasExplicitKieProviderError(candidates);
+  if (successFlag === 2 || hasExplicitProviderError) return "failed";
+  if (successFlag === 0) return "running";
+  if (successFlag === 1) return "completed";
   const status = readCanonicalProviderStatus(root);
   if (status) return normalizeKieStatusAlias(status);
-  const candidates = collectKiePayloadCandidates(root);
   for (const candidate of candidates) {
     const code = readNumericCode(candidate.code);
     if (code === null) continue;

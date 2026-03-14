@@ -1,15 +1,15 @@
-# Kie.ai Veo 3.1 Fast Image-to-Video (Dark-Path Contract)
+# Kie.ai Veo 3.1 Fast Image-to-Video (Runtime-Gated Contract)
 
-This document tracks the internal ShortPulse dark-path contract for `kie-ai/veo-3.1-fast-i2v`.
+This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.1-fast-i2v`.
 
 ## Scope
 - Provider: `kie`
 - Model id: `kie-ai/veo-3.1-fast-i2v`
 - Canonical source reference: `https://api.kie.ai/api/v1/veo/generate` (Veo 3.1 API docs)
-- Runtime status: dark path only (not user-selectable, not cutover-enabled)
+- Runtime status: runtime-gated (selectable when Kie integration is enabled and model allowlist gates pass; fail-closed otherwise)
 - Primary-source snapshot: captured from Kie docs on `2026-03-01`
 
-## Current Runtime Contract (Pre-Cutover)
+## Current Runtime Contract
 - Endpoint: `POST /api/v1/veo/generate`
 - Status/details polling:
   - default model-contract endpoint: `https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}`
@@ -17,8 +17,8 @@ This document tracks the internal ShortPulse dark-path contract for `kie-ai/veo-
   - supports optional `{requestId}` template token for query-style endpoints (for example `.../record-info?taskId={requestId}`)
   - falls back to legacy `/{requestId}/status` probing when template is not used
 - Submit aspect field: `aspect_ratio`
-- Allowed aspects (dark-path subset): `16:9`, `9:16`, `Auto`
-- Allowed durations (dark-path subset): `5`, `8` (seconds)
+- Allowed aspects: `16:9`, `9:16`
+- Allowed durations: `5`, `8` (seconds)
 - Allowed resolutions: `720p`, `1080p`
 - Supported submit aliases:
   - image references: `image_url` / `image_urls` / `imageUrl` / `imageUrls`
@@ -36,6 +36,9 @@ This document tracks the internal ShortPulse dark-path contract for `kie-ai/veo-
 1. Kie integration remains disabled by default.
 2. Kie paths fail closed unless model is explicitly allowlisted.
 3. Public `/api/fal/*` routes remain unchanged.
+4. Record-info lifecycle/media normalization is provider-aware:
+   - lifecycle precedence includes `data.successFlag` (`0=running`, `1=completed`, `2=failed`)
+   - terminal no-media responses are classified into recoverable `terminal_success_no_media` recovery semantics instead of hard terminal provider-error classification.
 
 ## Follow-up Required Before Enabling
 1. Refresh primary-source capture immediately before production enablement.

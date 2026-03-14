@@ -2869,3 +2869,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Reworked derivative processing to local `sharp` generation (`thumb_240`, `thumb_480`) from source-object downloads, removing transformed-source fetch dependence while keeping existing claim/ready/failed RPC contracts unchanged.
 - Added deterministic local derivative failure-class semantics (`unsupported_input`, `decode_failed`, `upload_failed`, `variant_upsert_failed`) and updated focused route/processor/signing tests.
 - Added ADR `docs/adr/0039-media-library-transform-sunset-and-local-derivative-engine.md` and synced related docs (`README.md`, `docs/deployment.md`, `docs/troubleshooting.md`, `docs/sops/sop_media_performance_operations.md`, ADR indexes).
+
+## 2026-03-14 (Kie video status reliability hardening)
+- Hardened provider-aware status parsing seams so `modelId` is threaded consistently across status/result/media helpers in `falStatusProxy` and response-url probe runtime.
+- Extended Kie Veo record-info normalization and contracts for `data.successFlag`, `data.response`, and `data.response.resultUrls` to prevent false terminal failures when provider media is present.
+- Split terminal no-media settlement semantics from explicit provider-failure settlement: no-media now syncs recovery as completed-without-media (recoverable `terminal_success_no_media`) while preserving user-facing error behavior and fail-release billing semantics.
+- Added optional `modelId` to dispatched queue-status payloads and client polling provider resolution so generic `kie` dispatches cannot misroute Kling vs Veo polling.
+- Added focused regression tests across status proxy, Kie envelope/status/media contract boundaries, queue polling, and queue-status route payload shape.
+- Updated runtime docs and SOP incident guidance to reflect current Kie Veo runtime-gated state and no-media false-fail guard behavior.

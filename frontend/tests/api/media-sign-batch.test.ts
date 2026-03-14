@@ -29,6 +29,7 @@ const createMockResponse = () => {
 describe("POST /api/media/sign-batch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
   });
 
@@ -131,7 +132,7 @@ describe("POST /api/media/sign-batch", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("applies media-library panel transform profile for image paths", async () => {
+  it("does not apply transforms by default for media-library panel image paths", async () => {
     const path = "user-1/uploads/images/panel-image.jpg";
     const createSignedUrlMock = vi.fn(async () => ({
       data: { signedUrl: "https://example.test/panel-signed" },
@@ -162,6 +163,40 @@ describe("POST /api/media/sign-batch", () => {
       "x-shortpulse-media-sign-preview-profile",
       "media-library-panel-image-card"
     );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("applies transforms only when both transform flags are enabled", async () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+
+    const path = "user-1/uploads/images/panel-image.jpg";
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://example.test/panel-signed" },
+      error: null,
+    }));
+
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: [path],
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
     expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
       transform: {
         width: 512,

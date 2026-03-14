@@ -141,6 +141,7 @@ const setupSupabaseAdmin = ({
 describe("POST /api/media/resolve-previews", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
   });
 
@@ -177,7 +178,7 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
-  it("applies panel transform profile when surface is media-library-panel", async () => {
+  it("does not apply transforms by default when surface is media-library-panel", async () => {
     const row = createRow({
       id: "media-panel-1",
       storage_path: "user-1/uploads/images/panel-image.jpg",
@@ -203,6 +204,35 @@ describe("POST /api/media/resolve-previews", () => {
       "x-shortpulse-media-resolve-preview-profile",
       "media-library-panel-image-card"
     );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600, undefined);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("applies transforms only when both transform flags are enabled", async () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+
+    const row = createRow({
+      id: "media-panel-transform-1",
+      storage_path: "user-1/uploads/images/panel-image.jpg",
+      file_type: "image/jpeg",
+    });
+    const { createSignedUrlMock } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [row.storage_path as string],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
     expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600, {
       transform: {
         width: 512,

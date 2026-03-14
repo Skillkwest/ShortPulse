@@ -1,7 +1,8 @@
 /**
  * Media derivative processor for image `media_files` rows.
- * Generates transformed thumbs, uploads variants, and updates variant metadata rows.
+ * Generates local thumbs, uploads variants, and updates variant metadata rows.
  */
+import sharp from "sharp";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import type { MediaDerivativesRuntimeFlags } from "../api/mediaDerivativesRuntimeFlags";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -10,6 +11,11 @@ const MEDIA_BUCKET = "media_library";
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 
 type SupabaseAdminClient = SupabaseClient;
+type DerivativeErrorCode =
+  | "unsupported_input"
+  | "decode_failed"
+  | "upload_failed"
+  | "variant_upsert_failed";
 
 export type ClaimedMediaDerivativeRow = {
   id: string;
@@ -33,6 +39,8 @@ type DerivativeVariantSpec = {
   storagePath: string;
 };
 
+const DERIVATIVE_MIME_TYPE = "image/webp";
+
 const isSafeStoragePath = (value: unknown): value is string => {
   if (typeof value !== "string") return false;
   const normalized = value.trim();
@@ -43,18 +51,11 @@ const isSafeStoragePath = (value: unknown): value is string => {
   return true;
 };
 
-const toBuffer = async (response: Response): Promise<Buffer> => {
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
-};
+const buildDerivativeErrorMessage = (code: DerivativeErrorCode, detail?: string | null): string =>
+  detail?.trim() ? `${code}: ${detail.trim()}` : code;
 
-const resolveMimeType = (response: Response): string => {
-  const raw = response.headers.get("content-type")?.trim().toLowerCase() ?? "";
-  const contentType = raw.split(";")[0] ?? "";
-  if (!contentType.startsWith("image/")) {
-    return "image/webp";
-  }
-  return contentType;
+const throwDerivativeError = (code: DerivativeErrorCode, detail?: string | null): never => {
+  throw new Error(buildDerivativeErrorMessage(code, detail));
 };
 
 const buildVariantSpecs = (
@@ -83,67 +84,91 @@ const buildVariantSpecs = (
   ];
 };
 
-const signSourceTransform = async ({
+const toBufferFromDownload = async (data: unknown): Promise<Buffer> => {
+  if (!data) return throwDerivativeError("unsupported_input", "source_download_empty");
+  if (Buffer.isBuffer(data)) return data;
+  if (typeof data === "string") return Buffer.from(data);
+  if (data instanceof ArrayBuffer) return Buffer.from(data);
+  if (ArrayBuffer.isView(data)) {
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  }
+  if (typeof (data as { arrayBuffer?: unknown }).arrayBuffer === "function") {
+    const raw = await (data as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer();
+    return Buffer.from(raw);
+  }
+  return throwDerivativeError("unsupported_input", "source_download_unreadable");
+};
+
+const downloadSourceImageBuffer = async ({
   supabaseAdmin,
   sourcePath,
-  expiresInSeconds,
-  width,
-  quality,
 }: {
   supabaseAdmin: SupabaseAdminClient;
   sourcePath: string;
-  expiresInSeconds: number;
-  width: number;
-  quality: number;
-}): Promise<string> => {
-  const { data, error } = await supabaseAdmin.storage
-    .from(MEDIA_BUCKET)
-    .createSignedUrl(sourcePath, expiresInSeconds, {
-      transform: {
-        width,
-        resize: "contain",
-        quality,
-      },
-    });
-  if (error || !data?.signedUrl) {
-    throw new Error(error?.message ?? "Unable to sign transformed source URL.");
+}): Promise<Buffer> => {
+  const { data, error } = await supabaseAdmin.storage.from(MEDIA_BUCKET).download(sourcePath);
+  if (error || !data) {
+    throwDerivativeError("unsupported_input", error?.message ?? "source_download_failed");
   }
-  return data.signedUrl;
+  const buffer = await toBufferFromDownload(data);
+  if (!buffer.byteLength) throwDerivativeError("unsupported_input", "source_download_empty");
+  return buffer;
 };
 
-const uploadVariant = async ({
+const encodeVariantBuffer = async ({
+  sourceBuffer,
+  spec,
+}: {
+  sourceBuffer: Buffer;
+  spec: DerivativeVariantSpec;
+}): Promise<Buffer> => {
+  try {
+    return await sharp(sourceBuffer, { failOn: "error" })
+      .rotate()
+      .resize({
+        width: spec.width,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: spec.quality })
+      .toBuffer();
+  } catch (error) {
+    return throwDerivativeError(
+      "decode_failed",
+      error instanceof Error ? error.message : "encode_failed"
+    );
+  }
+};
+
+const uploadVariantObject = async ({
   supabaseAdmin,
   storagePath,
   body,
-  contentType,
 }: {
   supabaseAdmin: SupabaseAdminClient;
   storagePath: string;
   body: Buffer;
-  contentType: string;
 }): Promise<void> => {
   const { error } = await supabaseAdmin.storage.from(MEDIA_BUCKET).upload(storagePath, body, {
-    contentType,
+    contentType: DERIVATIVE_MIME_TYPE,
     upsert: true,
   });
   if (error) {
-    throw new Error(`Variant upload failed: ${error.message}`);
+    throwDerivativeError("upload_failed", error.message);
   }
 };
 
-const upsertVariantRow = async ({
+const writeVariantRow = async ({
   supabaseAdmin,
   mediaFileId,
   userId,
   spec,
-  contentType,
   byteSize,
 }: {
   supabaseAdmin: SupabaseAdminClient;
   mediaFileId: string;
   userId: string;
   spec: DerivativeVariantSpec;
-  contentType: string;
   byteSize: number;
 }): Promise<void> => {
   const { error } = await supabaseAdmin.from("media_asset_variants").upsert(
@@ -152,13 +177,13 @@ const upsertVariantRow = async ({
       user_id: userId,
       variant_kind: spec.variantKind,
       storage_path: spec.storagePath,
-      mime_type: contentType,
+      mime_type: DERIVATIVE_MIME_TYPE,
       width: spec.width,
       byte_size: byteSize,
       status: "ready",
       metadata: {
         generated_by: "internal-media-derivatives-run",
-        derivative_pipeline: "v2",
+        derivative_pipeline: "v3_local_sharp",
       },
     },
     {
@@ -166,7 +191,7 @@ const upsertVariantRow = async ({
     }
   );
   if (error) {
-    throw new Error(`Variant row upsert failed: ${error.message}`);
+    throwDerivativeError("variant_upsert_failed", error.message);
   }
 };
 
@@ -178,15 +203,13 @@ export const processClaimedMediaDerivative = async ({
   row,
   flags,
   supabaseAdmin,
-  fetchImpl = fetch,
 }: {
   row: ClaimedMediaDerivativeRow;
   flags: MediaDerivativesRuntimeFlags;
   supabaseAdmin: SupabaseAdminClient;
-  fetchImpl?: typeof fetch;
 }): Promise<ProcessMediaDerivativeResult> => {
   if (!isSafeStoragePath(row.storage_path)) {
-    throw new Error("Claim row has an invalid source storage path.");
+    throwDerivativeError("unsupported_input", "invalid_source_storage_path");
   }
   const sourcePath = assertUserScopedMediaStoragePath({
     path: row.storage_path,
@@ -194,41 +217,35 @@ export const processClaimedMediaDerivative = async ({
     label: "Claimed media source path",
   });
 
+  const sourceBuffer = await downloadSourceImageBuffer({
+    supabaseAdmin,
+    sourcePath,
+  });
+
   const specs = buildVariantSpecs(row.user_id, row.id, flags);
   let generatedVariants = 0;
 
   for (const spec of specs) {
-    const signedTransformUrl = await signSourceTransform({
-      supabaseAdmin,
-      sourcePath,
-      expiresInSeconds: flags.sourceSignedUrlTtlSeconds,
-      width: spec.width,
-      quality: spec.quality,
+    const encodedBuffer = await encodeVariantBuffer({
+      sourceBuffer,
+      spec,
     });
-    const response = await fetchImpl(signedTransformUrl, { method: "GET" });
-    if (!response.ok) {
-      throw new Error(`Transformed source fetch failed (${response.status}).`);
-    }
-    const contentType = resolveMimeType(response);
-    const body = await toBuffer(response);
-    if (!body.byteLength) {
-      throw new Error("Transformed derivative payload is empty.");
+    if (!encodedBuffer.byteLength) {
+      throwDerivativeError("decode_failed", "encoded_variant_empty");
     }
 
-    await uploadVariant({
+    await uploadVariantObject({
       supabaseAdmin,
       storagePath: spec.storagePath,
-      body,
-      contentType,
+      body: encodedBuffer,
     });
 
-    await upsertVariantRow({
+    await writeVariantRow({
       supabaseAdmin,
       mediaFileId: row.id,
       userId: row.user_id,
       spec,
-      contentType,
-      byteSize: body.byteLength,
+      byteSize: encodedBuffer.byteLength,
     });
 
     generatedVariants += 1;

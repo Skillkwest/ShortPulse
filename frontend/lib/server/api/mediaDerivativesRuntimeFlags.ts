@@ -9,7 +9,6 @@ export type MediaDerivativesRuntimeFlags = {
   batchSize: number;
   maxAttempts: number;
   leaseSeconds: number;
-  sourceSignedUrlTtlSeconds: number;
   retryBaseSeconds: number;
   retryMaxSeconds: number;
   thumb240Quality: number;
@@ -47,12 +46,6 @@ export const readMediaDerivativesRuntimeFlags = (): MediaDerivativesRuntimeFlags
   batchSize: parseInteger(process.env.SHORTPULSE_MEDIA_DERIVATIVES_BATCH_SIZE, 20, 1),
   maxAttempts: parseInteger(process.env.SHORTPULSE_MEDIA_DERIVATIVES_MAX_ATTEMPTS, 5, 1),
   leaseSeconds: parseInteger(process.env.SHORTPULSE_MEDIA_DERIVATIVES_LEASE_SECONDS, 180, 1),
-  sourceSignedUrlTtlSeconds: parseBoundedInteger(
-    process.env.SHORTPULSE_MEDIA_DERIVATIVES_SOURCE_SIGNED_URL_TTL_SECONDS,
-    300,
-    60,
-    3600
-  ),
   retryBaseSeconds: parseInteger(
     process.env.SHORTPULSE_MEDIA_DERIVATIVES_RETRY_BASE_SECONDS,
     60,

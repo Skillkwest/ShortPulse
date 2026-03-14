@@ -3,10 +3,8 @@
  * Provides tab-filtered keyset paging plus optional first-slice signed URL hydration.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import {
-  resolvePreviewProfileForSurface,
-  resolveSignedImageTransform,
-} from "../../../lib/mediaPreviewTransformProfile";
+import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
+import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -35,6 +33,8 @@ type MediaListRow = {
   filename: string;
   storage_path: string;
   file_type: string | null;
+  width: number | null;
+  height: number | null;
   file_size: number | null;
   source: string | null;
   source_ref: string | null;
@@ -252,7 +252,9 @@ const resolveInitialSignedById = async ({
       const isImage = (row.file_type ?? "").toLowerCase().startsWith("image");
       let resolvedUrl: string | null = null;
       for (const candidate of candidates) {
-        const transform = isImage ? resolveSignedImageTransform(previewProfile, candidate) : null;
+        const transform = isImage
+          ? resolvePolicySignedImageTransform(previewProfile, candidate)
+          : null;
         const { data, error } = await supabaseAdmin.storage
           .from(MEDIA_BUCKET)
           .createSignedUrl(
@@ -388,7 +390,7 @@ export default async function handler(
     }
 
     const selectColumns =
-      "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
+      "id, filename, storage_path, file_type, width, height, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
     const supabaseAdmin = getSupabaseAdmin();
     const buildBaseQuery = () => {
       let queryBuilder = supabaseAdmin

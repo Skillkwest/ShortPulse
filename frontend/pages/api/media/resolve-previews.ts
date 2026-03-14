@@ -3,9 +3,9 @@
  * Resolves candidate object names by media_file id, then returns signed URLs.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import {
   resolvePreviewProfileForSurface,
-  resolveSignedImageTransform,
   type MediaPreviewTransformProfile,
 } from "../../../lib/mediaPreviewTransformProfile";
 import {
@@ -314,7 +314,7 @@ export default async function handler(
           const row = rowByResolvedPath.get(path) ?? null;
           const isImage = (row?.file_type ?? "").toLowerCase().startsWith("image");
           const transform = isImage
-            ? resolveSignedImageTransform(resolvedPreviewProfile, path)
+            ? resolvePolicySignedImageTransform(resolvedPreviewProfile, path)
             : null;
           const { data, error } = await supabaseAdmin.storage
             .from(MEDIA_BUCKET)

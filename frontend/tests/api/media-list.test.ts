@@ -81,6 +81,14 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
     })),
     error: null,
   }));
+  const createSignedUrlMock = vi.fn(async (path: string) => {
+    const batchResult = await createSignedUrlsMock([path]);
+    const first = batchResult.data?.[0];
+    return {
+      data: first?.signedUrl ? { signedUrl: first.signedUrl } : null,
+      error: batchResult.error,
+    };
+  });
 
   const createQueryBuilder = () => {
     const eqFilters: Array<{ column: string; value: string }> = [];
@@ -168,12 +176,14 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
     storage: {
       from: vi.fn(() => ({
         createSignedUrls: createSignedUrlsMock,
+        createSignedUrl: createSignedUrlMock,
       })),
     },
   });
 
   return {
     createSignedUrlsMock,
+    createSignedUrlMock,
   };
 };
 
@@ -419,9 +429,11 @@ describe("POST /api/media/list", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    const signedPaths = createSignedUrlsMock.mock.calls[0]?.[0] as string[] | undefined;
-    expect(signedPaths).toBeDefined();
-    expect(signedPaths).toHaveLength(10);
+    const signedPathCount = createSignedUrlsMock.mock.calls.reduce((count, call) => {
+      const paths = call[0] as string[] | undefined;
+      return count + (Array.isArray(paths) ? paths.length : 0);
+    }, 0);
+    expect(signedPathCount).toBe(10);
   });
 
   it("returns 503 when list API flag is disabled", async () => {

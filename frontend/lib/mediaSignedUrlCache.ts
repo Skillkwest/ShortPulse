@@ -3,9 +3,9 @@
  * Deduplicates concurrent sign requests and reuses URLs until shortly before expiry.
  */
 import { fetchWithAuth } from "./authenticatedFetch";
+import { resolvePolicySignedImageTransform } from "./mediaSignedTransformPolicy";
 import {
   resolvePreviewProfileForSurface,
-  resolveSignedImageTransform,
   type MediaPreviewTransformProfile,
 } from "./mediaPreviewTransformProfile";
 import { ensureSupabaseClient } from "./supabaseClient";
@@ -151,7 +151,7 @@ const signStoragePathDirect = async (
   previewProfile: MediaPreviewTransformProfile
 ): Promise<string | null> => {
   const supabase = ensureSupabaseClient();
-  const transform = resolveSignedImageTransform(previewProfile, storagePath);
+  const transform = resolvePolicySignedImageTransform(previewProfile, storagePath);
   const { data, error } = await supabase.storage
     .from(bucket)
     .createSignedUrl(storagePath, expiresInSeconds, transform ? { transform } : undefined);

@@ -20,14 +20,12 @@ describe("readMediaDerivativesRuntimeFlags", () => {
     expect(flags.enabled).toBe(false);
     expect(flags.batchSize).toBe(20);
     expect(flags.maxAttempts).toBe(5);
-    expect(flags.sourceSignedUrlTtlSeconds).toBe(300);
   });
 
   it("parses and clamps custom values", () => {
     process.env.SHORTPULSE_MEDIA_DERIVATIVES_ENABLED = "true";
     process.env.SHORTPULSE_MEDIA_DERIVATIVES_BATCH_SIZE = "-8";
     process.env.SHORTPULSE_MEDIA_DERIVATIVES_MAX_ATTEMPTS = "7";
-    process.env.SHORTPULSE_MEDIA_DERIVATIVES_SOURCE_SIGNED_URL_TTL_SECONDS = "9000";
     process.env.SHORTPULSE_MEDIA_DERIVATIVES_THUMB_240_QUALITY = "10";
     process.env.SHORTPULSE_MEDIA_DERIVATIVES_THUMB_480_QUALITY = "120";
 
@@ -36,7 +34,6 @@ describe("readMediaDerivativesRuntimeFlags", () => {
     expect(flags.enabled).toBe(true);
     expect(flags.batchSize).toBe(1);
     expect(flags.maxAttempts).toBe(7);
-    expect(flags.sourceSignedUrlTtlSeconds).toBe(3600);
     expect(flags.thumb240Quality).toBe(20);
     expect(flags.thumb480Quality).toBe(100);
   });

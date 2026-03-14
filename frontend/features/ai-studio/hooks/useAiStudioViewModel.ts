@@ -225,8 +225,27 @@ export const useAiStudioViewModel = ({
     );
     return breakdown?.credits ?? null;
   }, [aspect, costParamsForModel, effectiveEditSubmitModelId, isImageTool, pricingImageResolution]);
+  const createTextImageGenerateCostCredits = useMemo(() => {
+    if (!isCreateWorkflowSelected || mode !== "text" || !effectiveEditSubmitModelId) return null;
+    const breakdown = computeCostForModel(
+      effectiveEditSubmitModelId,
+      costParamsForModel({
+        aspect,
+        ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
+      })
+    );
+    return breakdown?.credits ?? null;
+  }, [
+    aspect,
+    costParamsForModel,
+    effectiveEditSubmitModelId,
+    isCreateWorkflowSelected,
+    mode,
+    pricingImageResolution,
+  ]);
   const promptReferenceGenerateCostCredits =
     (isImageTool ? promptGenerateCostCredits : null) ??
+    (isCreateWorkflowSelected && mode === "text" ? createTextImageGenerateCostCredits : null) ??
     modelPickerCostCredits ??
     currentCostCredits;
   const hasSufficientCreditsForPromptReferenceGenerate =

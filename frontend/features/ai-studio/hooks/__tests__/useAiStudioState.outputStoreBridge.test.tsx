@@ -11,6 +11,27 @@ const mockFindOutputById = vi.fn(() => null);
 const mockDeleteOutputFromLifecycle = vi.fn();
 const mockNotifyGenerationFailure = vi.fn();
 const mockUpdateOutputPrompt = vi.fn();
+const generationPromptComposerArgsMock = vi.fn();
+const EDIT_REFERENCE_INPUTS = {
+  referenceImageUrl: "https://example.com/edit-primary.png",
+  extraImageUrls: [
+    "https://example.com/edit-extra-1.png",
+    "https://example.com/edit-extra-2.png",
+    null,
+  ] as [string | null, string | null, string | null],
+};
+const VIDEO_REFERENCE_INPUTS = {
+  referenceImageUrl: "https://example.com/video-primary.png",
+  extraImageUrls: [
+    "https://example.com/video-extra-1.png",
+    "https://example.com/video-extra-2.png",
+    null,
+  ] as [string | null, string | null, string | null],
+};
+const resolveReferenceInputsForToolMock = vi.fn((tool: string | null) => {
+  if (tool === "video" || tool === "kling") return VIDEO_REFERENCE_INPUTS;
+  return EDIT_REFERENCE_INPUTS;
+});
 const getSignedMediaUrlMock = vi.fn();
 const refreshSupabaseSignedUrlIfNeededMock = vi.fn();
 
@@ -34,20 +55,20 @@ vi.mock("../useAiStudioReferenceSelectionState", () => ({
     setSelectedTool: vi.fn(),
     showCreateTools: true,
     setShowCreateTools: vi.fn(),
-    videoReferenceImageUrl: null,
+    videoReferenceImageUrl: VIDEO_REFERENCE_INPUTS.referenceImageUrl,
     motionReferenceVideoUrl: null,
     setMotionReferenceVideoUrl: vi.fn(),
     useReferenceImageIndicator: false,
     setUseReferenceImageIndicator: vi.fn(),
     detailOutputId: null,
     setDetailOutputId: vi.fn(),
-    referenceImageUrl: null,
+    referenceImageUrl: EDIT_REFERENCE_INPUTS.referenceImageUrl,
     setReferenceImageUrl: vi.fn(),
-    extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+    extraImageUrls: EDIT_REFERENCE_INPUTS.extraImageUrls,
     setExtraImageUrl: vi.fn(),
     clearReferenceImages: vi.fn(),
     toggleReferenceIndicator: vi.fn(),
-    resolveReferenceInputsForTool: vi.fn(() => []),
+    resolveReferenceInputsForTool: resolveReferenceInputsForToolMock,
     isModelModalOpen: false,
     modelModalAnchor: null,
     modelModalContext: null,
@@ -102,10 +123,13 @@ vi.mock("../useAiStudioTaskOrchestration", () => ({
 }));
 
 vi.mock("../useAiStudioGenerationPromptComposer", () => ({
-  useAiStudioGenerationPromptComposer: () => ({
-    generateOutput: vi.fn(),
-    regenerateOutput: vi.fn(),
-  }),
+  useAiStudioGenerationPromptComposer: (args: unknown) => {
+    generationPromptComposerArgsMock(args);
+    return {
+      generateOutput: vi.fn(),
+      regenerateOutput: vi.fn(),
+    };
+  },
 }));
 
 const strictWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -132,6 +156,8 @@ describe("useAiStudioState output store bridge", () => {
     mockDeleteOutputFromLifecycle.mockClear();
     mockNotifyGenerationFailure.mockClear();
     mockUpdateOutputPrompt.mockClear();
+    generationPromptComposerArgsMock.mockClear();
+    resolveReferenceInputsForToolMock.mockClear();
     getSignedMediaUrlMock.mockReset();
     refreshSupabaseSignedUrlIfNeededMock.mockReset();
     getSignedMediaUrlMock.mockResolvedValue(null);
@@ -150,6 +176,33 @@ describe("useAiStudioState output store bridge", () => {
       expect(snapshot.outputOrder).toEqual(["out-1"]);
       expect(snapshot.indexes.inFlightIds.has("out-1")).toBe(true);
     });
+  });
+
+  it("filters create/text submission references from edit drop-zone inputs", () => {
+    renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    const composerArgs = generationPromptComposerArgsMock.mock.calls[0]?.[0] as Parameters<
+      typeof useAiStudioState
+    >[0] & {
+      resolveReferenceInputsForTool: (tool: string | null) => {
+        referenceImageUrl: string | null;
+        extraImageUrls: [string | null, string | null, string | null];
+      };
+    };
+    const resolveSubmissionInputs = composerArgs.resolveReferenceInputsForTool;
+
+    expect(resolveSubmissionInputs("create")).toEqual({
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+    });
+    expect(resolveSubmissionInputs("text")).toEqual({
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+    });
+    expect(resolveSubmissionInputs("edit")).toEqual(EDIT_REFERENCE_INPUTS);
+    expect(resolveSubmissionInputs("image")).toEqual(EDIT_REFERENCE_INPUTS);
+    expect(resolveSubmissionInputs("video")).toEqual(VIDEO_REFERENCE_INPUTS);
+    expect(resolveSubmissionInputs("kling")).toEqual(VIDEO_REFERENCE_INPUTS);
   });
 
   it("publishes optimistic placeholders through selector store", async () => {

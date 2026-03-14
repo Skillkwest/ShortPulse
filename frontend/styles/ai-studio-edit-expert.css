@@ -1646,10 +1646,54 @@
   width: var(--edit-expert-secondary-width);
   min-width: var(--edit-expert-secondary-width);
   height: var(--edit-expert-secondary-width);
+  padding: 6px;
+  position: relative;
   border-radius: 10px;
   border: 1px solid rgba(92, 96, 104, 0.9);
   background: rgba(37, 41, 47, 0.64);
   box-shadow: none;
+}
+
+.edit-expert-inpaint-collapse-btn-content {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.edit-expert-inpaint-row:not(.is-collapsed)
+  .edit-expert-inpaint-collapse-btn
+  .edit-expert-inpaint-collapse-btn-content {
+  width: fit-content;
+  height: auto;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 2px;
+  margin-inline: auto;
+  position: static;
+  pointer-events: auto;
+}
+
+.edit-expert-inpaint-collapse-btn-active-tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  gap: 3px;
+  line-height: 1;
+}
+
+.edit-expert-inpaint-collapse-btn-active-tool-label {
+  max-width: calc(var(--edit-expert-secondary-width) - 34px);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn.is-active-move {

@@ -21,6 +21,7 @@ const createParams = (
   agentBusy: false,
   chatModeEnabled: true,
   currentCostCredits: 3,
+  promptReferenceGenerateCostCredits: 25,
   resolveCostCreditsForModel: vi.fn(() => null),
   isGenerateDisabled: false,
   isCreditGuardrail: false,
@@ -219,6 +220,70 @@ describe("useAiStudioGenerationController", () => {
       "shared fallback prompt",
       expect.objectContaining({ modeOverride: "image", selectedToolOverride: "create" })
     );
+  });
+
+  it("uses output-generate credits override for chat-off primary submit", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "shared fallback",
+      agentInput: "raw prompt",
+      chatModeEnabled: false,
+      currentCostCredits: 3,
+      promptReferenceGenerateCostCredits: 11,
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handlePrimarySubmit();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const updater = setOptimisticDebitEntries.mock.calls[0]?.[0] as
+      | ((prev: { credits: number; outputId: string | null }[]) => {
+          credits: number;
+          outputId: string | null;
+        }[])
+      | undefined;
+    expect(typeof updater).toBe("function");
+    expect(updater?.([])?.[0]?.credits).toBe(11);
+  });
+
+  it("uses output-generate credits override for chat-off inline generate", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "shared fallback",
+      agentInput: "raw prompt",
+      chatModeEnabled: false,
+      currentCostCredits: 3,
+      promptReferenceGenerateCostCredits: 9,
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handleChatOffInlineGenerate();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const updater = setOptimisticDebitEntries.mock.calls[0]?.[0] as
+      | ((prev: { credits: number; outputId: string | null }[]) => {
+          credits: number;
+          outputId: string | null;
+        }[])
+      | undefined;
+    expect(typeof updater).toBe("function");
+    expect(updater?.([])?.[0]?.credits).toBe(9);
   });
 
   it("shows explicit error when chat-off inline generate has no prompt input", async () => {

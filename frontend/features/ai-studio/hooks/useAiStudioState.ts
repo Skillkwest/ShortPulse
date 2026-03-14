@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { randomId } from "../logic/ids";
-import { StudioMode, StudioOutput } from "../types";
+import { StudioMode, StudioOutput, ToolId } from "../types";
 import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
 import { resolvePreviewUrlById, resolveModelLabel } from "../logic/stateParsers";
 import { canRerollOutput, isGenerationReplayConfigV1 } from "../logic/generationReplay";
@@ -500,6 +500,18 @@ export const useAiStudioState = ({
       findOutputById,
       setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
     });
+  const resolveSubmissionReferenceInputsForTool = useCallback(
+    (tool: ToolId | null) => {
+      if (tool === "edit" || tool === "image" || tool === "video" || tool === "kling") {
+        return resolveReferenceInputsForTool(tool);
+      }
+      return {
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+      };
+    },
+    [resolveReferenceInputsForTool]
+  );
   const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
     model,
     prompt,
@@ -511,7 +523,7 @@ export const useAiStudioState = ({
     videoReferenceMode,
     useReferenceImageIndicator,
     activeOutputPreviewUrl: activeOutput?.previewUrl ?? null,
-    resolveReferenceInputsForTool,
+    resolveReferenceInputsForTool: resolveSubmissionReferenceInputsForTool,
     submitTask,
   });
   const rerollOutputFromReplay = useCallback(

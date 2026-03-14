@@ -171,8 +171,13 @@ export const useAiStudioCreatePanelProps = ({
   setImageResolution,
   beginnerMode,
   expertCreateUiEligible,
-}: UseAiStudioCreatePanelPropsParams): AiStudioCreatePanelContract =>
-  useMemo(
+}: UseAiStudioCreatePanelPropsParams): AiStudioCreatePanelContract => {
+  const createGenerateCostCredits =
+    mode === "text" && !chatModeEnabled
+      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
+      : currentCostCredits;
+
+  return useMemo(
     () => ({
       mode,
       aspect,
@@ -216,7 +221,7 @@ export const useAiStudioCreatePanelProps = ({
       onPromptChange: handleManualPromptChange,
       onToggleReferenceIndicator: toggleReferenceIndicator,
       isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
-      costCredits: currentCostCredits,
+      costCredits: createGenerateCostCredits,
       outputGenerateCostCredits: promptReferenceGenerateCostCredits,
       hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked,
@@ -257,7 +262,7 @@ export const useAiStudioCreatePanelProps = ({
       aspect,
       beginnerMode,
       characterOptions,
-      currentCostCredits,
+      createGenerateCostCredits,
       currentModelLabel,
       describeInFlightCount,
       expertCreateUiEligible,
@@ -313,3 +318,4 @@ export const useAiStudioCreatePanelProps = ({
       useReferenceImageIndicator,
     ]
   );
+};

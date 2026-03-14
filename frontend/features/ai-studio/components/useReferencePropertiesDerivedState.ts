@@ -162,14 +162,13 @@ export const useReferencePropertiesDerivedState = ({
   }, [modelConfig]);
 
   const resolutionOptions = useMemo(() => {
-    if (!modelConfig?.allowedResolutions) {
-      return VIDEO_RESOLUTION_OPTIONS;
+    if (!modelConfig?.allowedResolutions?.length) {
+      return [];
     }
 
-    const filtered = VIDEO_RESOLUTION_OPTIONS.filter((option) =>
+    return VIDEO_RESOLUTION_OPTIONS.filter((option) =>
       modelConfig.allowedResolutions?.includes(option.value)
     );
-    return filtered.length ? filtered : VIDEO_RESOLUTION_OPTIONS;
   }, [modelConfig]);
 
   const aspectOptionsForModel = useMemo(() => {

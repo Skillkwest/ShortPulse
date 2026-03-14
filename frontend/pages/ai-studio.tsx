@@ -1434,6 +1434,7 @@ export default function AiStudioPage() {
     agentBusy,
     chatModeEnabled,
     currentCostCredits,
+    promptReferenceGenerateCostCredits,
     resolveCostCreditsForModel: resolveModelPickerCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     isCreditGuardrail,

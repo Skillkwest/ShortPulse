@@ -81,6 +81,39 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).not.toBe(defaultCost);
   });
 
+  it("uses image resolution-aware generate cost for create text output generation", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
+      modelId,
+      aspect: "1:1",
+      durationSeconds: 8,
+      resolution: "1K",
+      audio: false,
+      ...overrides,
+    });
+    const expectedCost = computeCostForModel(
+      modelId,
+      costParamsForModel({ aspect: "1:1", resolution: "4K" })
+    )?.credits;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "4K",
+        costParamsForModel,
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+  });
+
   it("blocks generation when both motion inputs are missing", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

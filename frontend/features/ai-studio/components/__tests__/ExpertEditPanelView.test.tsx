@@ -1270,6 +1270,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(lassoBtn);
     expect(lassoBtn).toHaveAttribute("aria-pressed", "true");
     expect(brushBtn).toHaveAttribute("aria-pressed", "false");
+    expect(expandBtn).not.toHaveTextContent(/expand/i);
 
     fireEvent.click(expandBtn);
     expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
@@ -1337,7 +1338,7 @@ describe("ExpertEditPanelView", () => {
 
       const collapseButton = screen.getByRole("button", { name: /expand inpaint controls/i });
       expect(collapseButton).toHaveAttribute("aria-expanded", "false");
-      expect(screen.getByTestId("inpaint-collapse-icon-left")).toBeInTheDocument();
+      expect(within(collapseButton).getByText("Move")).toBeInTheDocument();
 
       fireEvent.click(collapseButton);
       expect(screen.getByRole("button", { name: /collapse inpaint controls/i })).toHaveAttribute(
@@ -1354,7 +1355,9 @@ describe("ExpertEditPanelView", () => {
         "aria-expanded",
         "false"
       );
-      expect(screen.getByTestId("inpaint-collapse-icon-left")).toBeInTheDocument();
+      expect(
+        within(screen.getByRole("button", { name: /expand inpaint controls/i })).getByText("Move")
+      ).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -1437,6 +1440,7 @@ describe("ExpertEditPanelView", () => {
     expect(penButton).toHaveAttribute("aria-pressed", "true");
     expect(eraserButton).toHaveAttribute("aria-pressed", "false");
     expect(expandButton).toHaveAttribute("aria-pressed", "false");
+    expect(expandButton).not.toHaveTextContent(/expand/i);
     expect(markupColorPicker).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(markupColorPicker);
     expect(screen.getByRole("dialog", { name: /markup color picker/i })).toBeInTheDocument();
@@ -2728,6 +2732,7 @@ describe("ExpertEditPanelView", () => {
       render(<ExpertEditPanelView {...baseProps} />);
       const collapsedButton = screen.getByRole("button", { name: /expand inpaint controls/i });
       expect(collapsedButton).toHaveClass("is-active-move");
+      expect(collapsedButton).toHaveTextContent(/move/i);
 
       fireEvent.click(collapsedButton);
       const rail = screen.getByLabelText("Inpaint action tools");
@@ -2736,9 +2741,11 @@ describe("ExpertEditPanelView", () => {
       act(() => {
         vi.advanceTimersByTime(180);
       });
-      expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveClass(
-        "is-active-inpaint"
-      );
+      const collapsedInpaintButton = screen.getByRole("button", {
+        name: /expand inpaint controls/i,
+      });
+      expect(collapsedInpaintButton).toHaveClass("is-active-inpaint");
+      expect(collapsedInpaintButton).toHaveTextContent(/inpaint/i);
     } finally {
       vi.useRealTimers();
     }
@@ -2772,6 +2779,7 @@ describe("ExpertEditPanelView", () => {
     expect(adjustButton).toBeInTheDocument();
     expect(recenterButton).toBeInTheDocument();
     expect(expandButton).toBeInTheDocument();
+    expect(expandButton).not.toHaveTextContent(/expand/i);
     expect(zoomSlider.value).toBe("50");
     expect(modeRow?.children).toHaveLength(3);
     expect(readMarkupViewportTransform()?.scale ?? 0).toBeCloseTo(1, 4);

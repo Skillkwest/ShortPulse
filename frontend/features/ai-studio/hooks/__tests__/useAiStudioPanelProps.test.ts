@@ -178,6 +178,21 @@ describe("useAiStudioPanelProps", () => {
     );
   });
 
+  it("uses output-generate cost for create text when chat mode is off", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          mode: "text",
+          chatModeEnabled: false,
+          currentCostCredits: 2,
+          promptReferenceGenerateCostCredits: 25,
+        })
+      )
+    );
+
+    expect(result.current.propertiesCreate.costCredits).toBe(25);
+  });
+
   it("forwards expert edit flatten callbacks into expert edit panel props", () => {
     const handleImageRegenerateWithDebit = vi.fn();
     const addSessionMediaReference = vi.fn();

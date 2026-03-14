@@ -78,6 +78,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   agentBusy: boolean;
   chatModeEnabled: boolean;
   currentCostCredits: number | null;
+  promptReferenceGenerateCostCredits?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
@@ -182,6 +183,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   agentInput,
   chatModeEnabled,
   currentCostCredits,
+  promptReferenceGenerateCostCredits,
   resolveCostCreditsForModel,
   isGenerateDisabled,
   isCreditGuardrail,
@@ -523,6 +525,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         void handleGenerate(rawPrompt ?? "", {
           modeOverride: "image",
           toolOverride: "create",
+          costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
         });
       }
       return;
@@ -532,10 +535,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     addAgentPromptReference,
     agentInput,
     chatModeEnabled,
+    currentCostCredits,
     handleAgentSend,
     handleGenerate,
     mode,
     prompt,
+    promptReferenceGenerateCostCredits,
     selectedTool,
     setPromptOrigin,
   ]);
@@ -547,8 +552,19 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       allowSharedPromptFallback: true,
     });
     if (rawPrompt) setPromptOrigin("manual");
-    void handleGenerate(rawPrompt ?? "", { modeOverride: "image", toolOverride: "create" });
-  }, [agentInput, handleGenerate, prompt, setPromptOrigin]);
+    void handleGenerate(rawPrompt ?? "", {
+      modeOverride: "image",
+      toolOverride: "create",
+      costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+    });
+  }, [
+    agentInput,
+    currentCostCredits,
+    handleGenerate,
+    prompt,
+    promptReferenceGenerateCostCredits,
+    setPromptOrigin,
+  ]);
 
   const runRegenerateWithDebit = useCallback(
     async (options?: RegenerateWithDebitOptions) => {

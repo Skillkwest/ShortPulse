@@ -6,7 +6,6 @@ import {
   ArrowsInCardinal,
   ArrowsOutSimple,
   ArrowsOutCardinal,
-  CaretLeft,
   CaretRight,
   CircleDashed,
   CircleHalf,
@@ -1666,6 +1665,9 @@ export function ExpertEditPanelView({
     : isVideoToolSelected
       ? "is-active-video"
       : "is-active-inpaint";
+  const activeCollapsedRailTool =
+    inpaintRailTools.find((tool) => tool.id === selectedRailTool) ?? inpaintRailTools[0];
+  const ActiveCollapsedRailToolIcon = activeCollapsedRailTool.icon;
   const sceneZoomScale = markupViewport.scale;
   const handlePromptTextChange = React.useCallback(
     (value: string) => {
@@ -4904,7 +4906,6 @@ export function ExpertEditPanelView({
               aria-label="Expand markup tools"
             >
               <ArrowsOutSimple size={modeIconSize} weight="regular" />
-              <span>Expand</span>
             </button>
           )}
         </div>
@@ -5076,7 +5077,6 @@ export function ExpertEditPanelView({
               }}
             >
               <ArrowsOutSimple size={modeIconSize} weight="regular" />
-              Expand
             </button>
           ) : null}
         </div>
@@ -5741,7 +5741,14 @@ export function ExpertEditPanelView({
                   aria-controls="edit-expert-inpaint-content"
                   onClick={handleInpaintCollapseToggle}
                 >
-                  <CaretLeft size={20} weight="fill" data-testid="inpaint-collapse-icon-left" />
+                  <span className="edit-expert-inpaint-collapse-btn-content" aria-hidden="true">
+                    <span className="edit-expert-inpaint-collapse-btn-active-tool">
+                      <ActiveCollapsedRailToolIcon size={16} weight="bold" />
+                      <span className="edit-expert-inpaint-collapse-btn-active-tool-label">
+                        {activeCollapsedRailTool.label}
+                      </span>
+                    </span>
+                  </span>
                 </button>
               </div>
             ) : null}
@@ -5824,7 +5831,6 @@ export function ExpertEditPanelView({
                           }}
                         >
                           <ArrowsOutSimple size={16} weight="regular" />
-                          <span>Expand</span>
                         </button>
                       </div>
                       <div className="edit-expert-inpaint-stroke-row">

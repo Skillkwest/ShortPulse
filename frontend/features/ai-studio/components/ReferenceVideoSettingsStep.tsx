@@ -78,6 +78,8 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   onKlingShotTypeChange,
   onVideoAutoFixChange,
 }) => {
+  const shouldShowResolutionControl = resolutionOptions.length > 0;
+
   return (
     <>
       {isVideoVariant && !isMotionMode ? (
@@ -91,7 +93,9 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
             <div className="step-header-copy">
               <p className="step-title">Choose Video Settings</p>
               <span className="step-subtitle tiny helper-text">
-                Set duration, resolution, and audio output before generating.
+                {shouldShowResolutionControl
+                  ? "Set duration, resolution, and audio output before generating."
+                  : "Set duration and audio output before generating."}
               </span>
             </div>
             {!beginnerMode ? (
@@ -120,20 +124,22 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
                   ))}
                 </select>
               </div>
-              <div className="control-row compact fixed-select">
-                <label className="input-label">Resolution</label>
-                <select
-                  className="model-select"
-                  value={videoResolutionValue}
-                  onChange={(event) => onVideoResolutionChange?.(event.target.value)}
-                >
-                  {resolutionOptions.map((option) => (
-                    <option value={option.value} key={`resolution-${option.value}`}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {shouldShowResolutionControl ? (
+                <div className="control-row compact fixed-select">
+                  <label className="input-label">Resolution</label>
+                  <select
+                    className="model-select"
+                    value={videoResolutionValue}
+                    onChange={(event) => onVideoResolutionChange?.(event.target.value)}
+                  >
+                    {resolutionOptions.map((option) => (
+                      <option value={option.value} key={`resolution-${option.value}`}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
               <div className="video-settings-toggle-row">
                 <div className="video-settings-toggle-copy">
                   <span className="input-label">Generate audio</span>

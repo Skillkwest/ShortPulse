@@ -209,7 +209,7 @@ export const readKieLifecycleStatus = (payload: unknown): string | null => {
   const candidates = collectKiePayloadCandidates(root);
   const successFlag = readFirstSuccessFlag(candidates);
   const hasExplicitProviderError = hasExplicitKieProviderError(candidates);
-  if (successFlag === 2 || hasExplicitProviderError) return "failed";
+  if (successFlag === 2 || successFlag === 3 || hasExplicitProviderError) return "failed";
   if (successFlag === 0) return "running";
   if (successFlag === 1) return "completed";
   const status = readCanonicalProviderStatus(root);

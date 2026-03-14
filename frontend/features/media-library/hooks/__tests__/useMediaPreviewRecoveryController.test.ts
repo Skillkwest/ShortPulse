@@ -74,7 +74,10 @@ describe("useMediaPreviewRecoveryController", () => {
 
     const refreshed = await result.current.controller.refreshSignedUrl(makeRow());
 
-    expect(signStoragePath).toHaveBeenCalledWith("user-1/upload/one.png", { forceRefresh: true });
+    expect(signStoragePath).toHaveBeenCalledWith("user-1/upload/one.png", {
+      forceRefresh: true,
+      previewProfile: "none",
+    });
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob://old-url");
     expect(applySignedUrlsToTab).toHaveBeenCalledWith(
       "uploaded_images",

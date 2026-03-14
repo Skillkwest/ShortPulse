@@ -96,7 +96,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 1. Each user-created folder owns a unique canvas space.
 2. Each folder canvas has independent scene and camera state.
 3. Folder-canvas state persists durably by `user + folder` across sessions.
-4. Folder canvases follow main-canvas interaction constraints (pan/zoom/place media/double-click text).
+4. Folder canvases follow main-canvas interaction constraints (marquee-select/zoom/place media/double-click text, with pan on `Space` + drag or middle-mouse drag).
 5. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
 
 ### 8) `All Media` completeness policy
@@ -116,6 +116,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ## Server Contract Invariants
 - `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
 - `membership-batch` supports `assign`, `unassign`, and `move` actions with ownership validation.
+- Character-scoped media (`<uid>/characters/%`) is excluded from Media Library list APIs when `SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`.
+- Folder membership/move APIs must reject character-scoped media ids (`409`) to prevent cross-surface coupling drift.
 - Folder delete removes junction memberships, not `media_files`/`media_prompts` rows.
 - Folder list and membership reads are user-scoped only.
 
@@ -157,6 +159,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 12. Derivative worker pipeline for image thumbs:
    - Status: In rollout.
    - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success.
+13. Character-scope containment in Media Library APIs:
+   - Status: Aligned.
+   - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`

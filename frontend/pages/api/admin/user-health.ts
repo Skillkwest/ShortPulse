@@ -5,9 +5,22 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
+import {
+  DEFAULT_DEEP_LOOKBACK_DAYS,
+  MAX_DEEP_LOOKBACK_DAYS,
+  asLookupMode,
+  asPositiveInt,
+  asSingleString,
+  computeStatusCounts,
+  isSchemaCompatibilityError,
+  normalizeQueryError,
+  parseTimestamp,
+  pushUniqueSteps,
+  ratioPercent,
+  type DeepLookupMode as LookupMode,
+  type DeepQueryError as QueryError,
+} from "../../../lib/server/adminUserHealth/deep";
 
-const DEFAULT_LOOKBACK_DAYS = 30;
-const MAX_LOOKBACK_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const AUTH_SEARCH_SCAN_PER_PAGE = 200;
@@ -15,7 +28,6 @@ const AUTH_SEARCH_SCAN_MAX_PAGES = 50;
 const DB_PAGE_SIZE = 1000;
 const DB_MAX_PAGES = 50;
 
-type LookupMode = "auto" | "email" | "user_id";
 type FindingSeverity = "info" | "warning" | "critical";
 type FindingConfidence = "high" | "medium" | "low";
 
@@ -30,11 +42,6 @@ type AuthUser = {
   email?: string | null;
   created_at?: string | null;
   last_sign_in_at?: string | null;
-};
-
-type QueryError = {
-  message?: string;
-  code?: string;
 };
 
 type BalanceRow = {
@@ -244,71 +251,10 @@ type HealthResponse = {
   nextSteps: string[];
 };
 
-const asSingleString = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-  return "";
-};
-
-const asLookupMode = (value: unknown): LookupMode => {
-  const normalized = asSingleString(value).trim().toLowerCase();
-  if (normalized === "email") return "email";
-  if (normalized === "user_id") return "user_id";
-  return "auto";
-};
-
-const asPositiveInt = (value: unknown, fallback: number): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(1, Math.trunc(parsed));
-};
-
-const normalizeQueryError = (error: unknown): QueryError | null => {
-  if (!error || typeof error !== "object") return null;
-  const record = error as Record<string, unknown>;
-  return {
-    message: typeof record.message === "string" ? record.message : undefined,
-    code: typeof record.code === "string" ? record.code : undefined,
-  };
-};
-
-const isSchemaCompatibilityError = (error: QueryError | null): boolean => {
-  if (!error) return false;
-  const code = String(error.code ?? "").toUpperCase();
-  if (code === "42703" || code === "PGRST204" || code === "42P01") return true;
-  const message = String(error.message ?? "").toLowerCase();
-  return (
-    message.includes("does not exist") ||
-    message.includes("could not find the") ||
-    message.includes("schema cache") ||
-    message.includes("failed to parse select parameter")
-  );
-};
-
 const isUuid = (value: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
-const parseTimestamp = (value: string | null | undefined): number | null => {
-  if (!value) return null;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const toDayKey = (timestampMs: number): string => new Date(timestampMs).toISOString().slice(0, 10);
-
-const computeStatusCounts = <T extends { status: string | null }>(
-  rows: T[]
-): Record<string, number> =>
-  rows.reduce<Record<string, number>>((acc, row) => {
-    const key = row.status ? String(row.status) : "unknown";
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
-
-const ratioPercent = (numerator: number, denominator: number): number => {
-  if (denominator <= 0) return 0;
-  return Math.round((numerator / denominator) * 10000) / 100;
-};
 
 const listUsersPage = async (
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
@@ -387,18 +333,6 @@ const fetchAllRowsForSelect = async <TRow>(
   return { rows, error: null };
 };
 
-const pushUniqueSteps = (steps: string[]): string[] => {
-  const seen = new Set<string>();
-  const deduped: string[] = [];
-  steps.forEach((step) => {
-    const normalized = step.trim();
-    if (!normalized || seen.has(normalized)) return;
-    seen.add(normalized);
-    deduped.push(normalized);
-  });
-  return deduped;
-};
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<HealthResponse | { error: string }>
@@ -414,8 +348,8 @@ export default async function handler(
   const lookup = asSingleString(body.lookup).trim();
   const lookupMode = asLookupMode(body.lookupMode);
   const lookbackDays = Math.min(
-    MAX_LOOKBACK_DAYS,
-    asPositiveInt(body.lookbackDays, DEFAULT_LOOKBACK_DAYS)
+    MAX_DEEP_LOOKBACK_DAYS,
+    asPositiveInt(body.lookbackDays, DEFAULT_DEEP_LOOKBACK_DAYS)
   );
 
   if (!lookup) {

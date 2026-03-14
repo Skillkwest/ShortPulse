@@ -23,9 +23,11 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, webhook routes, and authenticated credit snapshot reads at `/api/credits/snapshot` (available + pending reservation holds).
 - Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error`, viewed as grouped incidents via `/api/admin/errors`, and inspected as raw occurrences via `/api/admin/error-events`; admins can update one (`/api/admin/errors-status`) or many (`/api/admin/errors-status-bulk`) incident statuses and smoke-test visibility via `/api/admin/errors-test`.
 - Admin access gating: `/api/admin/access` provides lightweight server-authoritative admin access checks so admin pages do not depend on `/api/admin/users` list fetches for authorization gating.
+- Admin fleet health automation: `/api/internal/admin-user-health-fleet/run` runs a bounded active-user fleet scan (cron-secret protected), persists compact snapshots/findings, and optionally emits report-only incidents (`source=ops.user_health_fleet`).
+- Admin fleet health report API: `/api/admin/user-health-fleet` returns latest (or selected) fleet run summaries, findings, and paginated user snapshots with filter/search support.
 - Dashboard announcements: authenticated users read the active global dashboard bulletin via `/api/announcements/active`; admins manage current state with `/api/admin/announcements/current|publish|clear`.
 - Agent safety control-plane admin APIs: `/api/admin/agent-safety-policy/active`, `/api/admin/agent-safety-policy/activate`, `/api/admin/agent-safety-policy/rollback`, and `/api/admin/agent-safety-policy/version` provide authenticated profile activation/rollback/version controls with cooldown-aware rollback safety.
-- Optional alert tuning: set `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, and `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` to control Admin event-spike thresholds.
+- Optional alert tuning: set `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, and `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` to control Admin event-spike thresholds; set `SHORTPULSE_ADMIN_ALERT_USER_HEALTH_FLEET_CRITICAL_RISK` and `SHORTPULSE_ADMIN_ALERT_USER_HEALTH_FLEET_WARNING_COST_WITHOUT_SUCCESS_CENTS` for fleet report-only incident escalation thresholds.
 
 ## Setup
 
@@ -78,6 +80,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.
 - **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls, per-user recent credit transaction audit (including billed-vs-raw pricing metadata), a live app-error incident feed, and an Announcements tab for publishing/clearing the one active dashboard bulletin.
 - **Admin User Health (`/admin/user-health`)**: Operator diagnostics page for user-level generation + credit-drainage health checks (lookup by user id or email, findings, and recommended next actions).
+- **Admin Fleet Health (`/admin/user-health-fleet`)**: Operator fleet triage page for active-user daily health snapshots, risk/severity/finding filters, and direct drill-down links into per-user health and generation trace workflows.
 
 ## Security
 

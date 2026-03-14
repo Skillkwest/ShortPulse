@@ -28,6 +28,8 @@ const REQUIRED_SIGNATURES = [
   "public.release_stale_provider_attached_generation_reservations(integer,integer,integer)",
   "public.upsert_ai_agent_conversation_state(uuid,text,text,interval,integer)",
   "public.prune_ai_agent_conversation_state_expired(integer)",
+  "public.list_admin_user_health_active_targets(integer,integer)",
+  "public.prune_admin_user_health_history(integer)",
 ] as const;
 
 describe("check_runtime_sql_security_audit.sql", () => {

@@ -19,9 +19,11 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
   - `sql/check_runtime_sql_security_audit.sql`
 - Runtime endpoints:
   - `/api/internal/generation-recovery/run`
+  - `/api/internal/admin-user-health-fleet/run`
   - `/api/fal/queue-status`
   - `/api/fal/webhook` (if enabled)
   - `/api/admin/user-health` (operator diagnostics for per-user generation + drainage health posture)
+  - `/api/admin/user-health-fleet` (operator diagnostics for active-user fleet triage and risk-ranked drill-down)
 
 ## What Happens If Browser Closes Or Crashes
 | Client-visible state at disconnect | Server-side durable state | What continues without client | Expected final outcome |

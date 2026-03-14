@@ -54,7 +54,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   3. `kie-ai/kling-3.0`
   4. `fal-ai/bytedance/seedance/v1.5/pro/image-to-video`
 - `fal-ai/veo3.1/first-last-frame-to-video` is intentionally excluded from standard Video mode and is available only in Keyframes mode (`reference-keyframes` context).
-- Keyframes mode remains explicitly locked to `fal-ai/veo3.1/first-last-frame-to-video`.
+- Keyframes mode supports both `fal-ai/veo3.1/first-last-frame-to-video` and `kie-ai/veo-3.1-fast-i2v`.
 
 ## Reference-based video workflow (Create → Video, image-to-video models)
 
@@ -104,7 +104,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | Fal | `fal-ai/kling-video/v3/pro/text-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Text-to-video queue; per-second pricing (`$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` with voice control). Defaults to 10s with `generate_audio: true` and proxies through `/api/fal/kling-v3-text-submit`. |
 | Fal | `fal-ai/veo3.1/first-last-frame-to-video` | auto default (allowed: auto, 16:9, 9:16) | First/Last Frame queue; requires `first_frame_url` + `last_frame_url`; per-second pricing (`$0.20/$0.40` no-audio/audio at 720p/1080p, `4K` `$0.40/$0.60`). Defaults to 8s @ 720p with audio (330 billed credits under current markup policy). Exposed in Keyframes mode only (not shown in standard Video model picker). |
 | Fal | `fal-ai/veo3.1/image-to-video` | auto default (allowed: auto, 16:9, 9:16) | Image-to-video queue; requires `image_url`; per-second pricing (`$0.20/$0.40` no-audio/audio at 720p/1080p, `4K` `$0.40/$0.60`). Defaults to 8s @ 720p with audio on (330 billed credits under current markup policy). |
-| Kie | `kie-ai/veo-3.1-fast-i2v` | 16:9 default (allowed: 16:9, 9:16) | Image-to-video queue via `/api/fal/kie-veo-submit` + `/api/fal/kie-veo-status`; uses image-first contract (`image_url` / `image_urls`). Pricing uses fixed per-video USD from Kie credits conversion evidence (`$0.30` per generation; default billed 35 credits under current policy). |
+| Kie | `kie-ai/veo-3.1-fast-i2v` | 16:9 default (allowed: 16:9, 9:16) | Image-to-video queue via `/api/fal/kie-veo-submit` + `/api/fal/kie-veo-status`; uses image-first contract (`image_url` / `image_urls`). In Keyframes mode, submits first+last references via `FIRST_AND_LAST_FRAMES_2_VIDEO`. Pricing uses fixed per-video USD from Kie credits conversion evidence (`$0.30` per generation; default billed 35 credits under current policy). |
 | Kie | `kie-ai/kling-3.0` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video queue via `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status`; requires image input (`image_url`/`image_urls`). Pricing uses Kie per-second rates by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off). Default lane (`10s`, `1080p`, audio on) bills 210 credits under current policy. |
 | Fal | `fal-ai/veo3.1` | 16:9 default (allowed: 16:9, 9:16) | Per-second pricing (`$0.20/$0.40` no-audio/audio at 720p/1080p, `4K` `$0.40/$0.60`); defaults to 8s @ 1080p with audio on (330 billed credits under current markup policy). |
 | Fal | `fal-ai/sora-2/text-to-video/pro` | 16:9 default (allowed: 16:9, 9:16) | Per-second pricing by resolution: `720p = $0.30/s`, `1080p = $0.50/s`. Queue accepts 4/8/12s; ShortPulse defaults to 8s @ 1080p (415 billed credits under current markup policy). |

@@ -7,6 +7,7 @@ import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
 import * as falClient from "../../../../lib/falClient";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import {
   handleDefaultModelSubmission,
   handleImageModelSubmission,
@@ -205,6 +206,74 @@ describe("useAiStudioTaskSubmission", () => {
     });
 
     expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1/first-last-frame-to-video");
+    expect(outputs[0]?.taskState).toBe("fail");
+    expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
+    expect(setSaved).toHaveBeenCalledWith(false);
+    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
+    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
+    expect(setUiNotice).not.toHaveBeenCalledWith(
+      expect.stringContaining("No reference media were detected")
+    );
+  });
+
+  it("keeps Kie Veo keyframes strict when last frame is missing", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "keyframes",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Bridge shot morphing between keyframes", [], {
+        modeOverride: "video",
+        selectedToolOverride: "video",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(outputs[0]?.taskState).toBe("fail");
     expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
     expect(setSaved).toHaveBeenCalledWith(false);

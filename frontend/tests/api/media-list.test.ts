@@ -93,6 +93,7 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
   const createQueryBuilder = () => {
     const eqFilters: Array<{ column: string; value: string }> = [];
     const ilikeFilters: Array<{ column: string; pattern: string }> = [];
+    const notLikeFilters: Array<{ column: string; pattern: string }> = [];
     const ltFilters: Array<{ column: string; value: string }> = [];
     const orderFilters: Array<{ column: string; ascending: boolean }> = [];
     let orClause = "";
@@ -100,6 +101,7 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
     const builder: {
       eq: ReturnType<typeof vi.fn>;
       ilike: ReturnType<typeof vi.fn>;
+      not: ReturnType<typeof vi.fn>;
       or: ReturnType<typeof vi.fn>;
       lt: ReturnType<typeof vi.fn>;
       order: ReturnType<typeof vi.fn>;
@@ -111,6 +113,12 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
       }),
       ilike: vi.fn((column: string, pattern: string) => {
         ilikeFilters.push({ column, pattern });
+        return builder;
+      }),
+      not: vi.fn((column: string, operator: string, pattern: string) => {
+        if (operator === "like") {
+          notLikeFilters.push({ column, pattern });
+        }
         return builder;
       }),
       or: vi.fn((clause: string) => {
@@ -138,6 +146,15 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
               String((row as Record<string, unknown>)[filter.column] ?? ""),
               filter.pattern
             )
+          );
+        }
+        for (const filter of notLikeFilters) {
+          filtered = filtered.filter(
+            (row) =>
+              !matchesIlike(
+                String((row as Record<string, unknown>)[filter.column] ?? ""),
+                filter.pattern
+              )
           );
         }
         for (const filter of ltFilters) {
@@ -297,6 +314,68 @@ describe("POST /api/media/list", () => {
           "media-1": "https://signed.test/user-1%2Fupload%2Fcat-shot.png",
         },
       })
+    );
+  });
+
+  it("excludes character-scoped storage paths when containment flag is enabled", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "media-1",
+        user_id: "user-1",
+        filename: "regular.png",
+        storage_path: "user-1/upload/regular.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "media-2",
+        user_id: "user-1",
+        filename: "character.png",
+        storage_path: "user-1/characters/char-1/profile/character.png",
+        file_type: "image/png",
+        file_size: 8,
+        source: "character_reference",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-21T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    vi.stubEnv("SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE", "true");
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "images",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as { rows?: Array<{ id: string }> };
+    expect(payload.rows?.map((row) => row.id)).toEqual(["media-1"]);
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "x-shortpulse-media-list-character-scope-exclusion",
+      "on"
     );
   });
 

@@ -86,6 +86,7 @@ Checklist:
   vercel inspect https://<target-alias-or-url> --format=json --token <SHORTPULSE_VERCEL_API_TOKEN>
   ```
 - Confirm required routes are present in build output:
+  - `/api/internal/admin-user-health-fleet/run`
   - `/api/internal/generation-recovery/run`
   - `/api/internal/media-derivatives/run`
 

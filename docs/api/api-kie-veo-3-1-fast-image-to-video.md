@@ -48,7 +48,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
 2. Kie paths fail closed unless model is explicitly allowlisted.
 3. Public `/api/fal/*` routes remain unchanged.
 4. Record-info lifecycle/media normalization is provider-aware:
-   - lifecycle precedence includes `data.successFlag` (`0=running`, `1=completed`, `2=failed`)
+   - lifecycle precedence includes `data.successFlag` (`0=running`, `1=completed`, `2/3=failed`)
    - terminal no-media responses are classified into recoverable `terminal_success_no_media` recovery semantics instead of hard terminal provider-error classification.
 
 ## Follow-up Required Before Enabling

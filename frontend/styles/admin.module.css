@@ -430,6 +430,52 @@
   font-size: 12px;
 }
 
+.fleetTable {
+  display: grid;
+  gap: 8px;
+}
+
+.fleetHead,
+.fleetRow {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.8fr 1fr 1.1fr 1.2fr 1fr 1.3fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.fleetHead {
+  font-size: 12px;
+  color: var(--admin-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.fleetRow {
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: var(--admin-surface-3);
+  border: 1px solid var(--admin-border-soft);
+}
+
+.fleetRow span {
+  font-size: 13px;
+  min-width: 0;
+}
+
+.fleetActionCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fleetEmpty {
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1px dashed var(--admin-border);
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
 .announcementFormGrid {
   display: grid;
   gap: 10px;
@@ -640,6 +686,15 @@
 
   .manualAdjustActions {
     justify-content: flex-start;
+  }
+
+  .fleetHead {
+    display: none;
+  }
+
+  .fleetRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .adminErrorsHead {

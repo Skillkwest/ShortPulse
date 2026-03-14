@@ -20,6 +20,7 @@ type BatchMockOptions = {
   sourceFolderExists?: boolean;
   targetFolderExists?: boolean;
   ownedMediaIds?: string[];
+  characterScopedMediaIds?: string[];
   ownedPromptIds?: string[];
   existingTargetMediaIds?: string[];
   existingTargetPromptIds?: string[];
@@ -33,6 +34,7 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
   const sourceFolderExists = options.sourceFolderExists ?? true;
   const targetFolderExists = options.targetFolderExists ?? true;
   const ownedMediaIds = options.ownedMediaIds ?? [];
+  const characterScopedMediaIds = options.characterScopedMediaIds ?? [];
   const ownedPromptIds = options.ownedPromptIds ?? [];
   const existingTargetMediaIds = options.existingTargetMediaIds ?? [];
   const existingTargetPromptIds = options.existingTargetPromptIds ?? [];
@@ -49,8 +51,15 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
       error: null,
     };
   });
-  const mediaOwnershipInMock = vi.fn(async () => ({
-    data: ownedMediaIds.map((id) => ({ id })),
+  const mediaOwnershipInMock = vi.fn(async (_column: string, ids: string[]) => ({
+    data: ids
+      .filter((id) => ownedMediaIds.includes(id))
+      .map((id) => ({
+        id,
+        storage_path: characterScopedMediaIds.includes(id)
+          ? `user-1/characters/example/${id}.png`
+          : `user-1/upload/${id}.png`,
+      })),
     error: null,
   }));
   const promptOwnershipInMock = vi.fn(async () => ({
@@ -257,6 +266,24 @@ describe("mediaFoldersService helpers", () => {
         })
       )
     ).rejects.toThrow("One or more item ids are invalid for this user");
+  });
+
+  it("rejects membership batch when any media id is character-scoped", async () => {
+    createSupabaseBatchMock({
+      ownedMediaIds: ["media-1", "media-2"],
+      characterScopedMediaIds: ["media-2"],
+      ownedPromptIds: [],
+    });
+
+    await expect(
+      applyFolderMembershipBatch(
+        createBatchInput({
+          action: "assign",
+          mediaIds: ["media-1", "media-2"],
+          promptIds: [],
+        })
+      )
+    ).rejects.toThrow("Character-scoped media ids are not allowed in media-library folders");
   });
 
   it("assigns media + prompts and returns assigned counts", async () => {

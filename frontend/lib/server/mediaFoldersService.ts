@@ -103,6 +103,37 @@ const toOwnedIdsSet = async ({
   return set;
 };
 
+const toCharacterScopedMediaIdSet = async ({
+  userId,
+  ids,
+}: {
+  userId: string;
+  ids: string[];
+}): Promise<Set<string>> => {
+  if (!ids.length) return new Set();
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("media_files")
+    .select("id, storage_path")
+    .eq("user_id", userId)
+    .in("id", ids);
+  if (error) {
+    throw new Error(error.message || "Failed to validate character-scoped media membership");
+  }
+  const set = new Set<string>();
+  for (const row of data ?? []) {
+    const record = row as Record<string, unknown>;
+    const value = record.id;
+    if (typeof value === "string" && value.trim()) {
+      const storagePath = typeof record.storage_path === "string" ? record.storage_path.trim() : "";
+      if (storagePath.startsWith(`${userId}/characters/`)) {
+        set.add(value.trim());
+      }
+    }
+  }
+  return set;
+};
+
 /**
  * Lists custom folders for a user sorted case-insensitively by name.
  */
@@ -319,6 +350,15 @@ export const applyFolderMembershipBatch = async (
 
   if (ownedMediaIds.size !== mediaIds.length || ownedPromptIds.size !== promptIds.length) {
     throw new Error("One or more item ids are invalid for this user");
+  }
+  if (mediaIds.length) {
+    const characterScopedMediaIds = await toCharacterScopedMediaIdSet({
+      userId,
+      ids: mediaIds,
+    });
+    if (characterScopedMediaIds.size > 0) {
+      throw new Error("Character-scoped media ids are not allowed in media-library folders");
+    }
   }
 
   let mediaAssigned = 0;

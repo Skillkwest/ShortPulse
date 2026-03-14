@@ -310,7 +310,8 @@ describe("generationBilling reservation RPC handling", () => {
         requestId: "req-kie-veo",
         payload: {
           prompt: "sunset shoreline walk",
-          image_url: "https://example.com/ref.png",
+          image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+          generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
           duration: 8,
           resolution: "720p",
           generate_audio: true,

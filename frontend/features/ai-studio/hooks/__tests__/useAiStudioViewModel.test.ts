@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
@@ -180,6 +181,24 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.generationGuardrail).toBe("Add a reference image before generating.");
     expect(result.current.isGenerateDisabled).toBe(true);
     expect(result.current.referenceImageWarning).toBeNull();
+  });
+
+  it("requires both frames in keyframes mode for Kie Veo", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        videoReferenceMode: "keyframes",
+        referenceImageUrl: "https://example.com/first.png",
+        extraImageUrls: [null, null, null],
+        motionReferenceVideoUrl: null,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Add both first and last frame images before generating."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
   });
 });
 

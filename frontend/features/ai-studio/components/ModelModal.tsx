@@ -130,8 +130,9 @@ const modelMeta: Record<string, ModelMeta> = {
   },
   "kie-ai/veo-3.1-fast-i2v": {
     provider: "Kie AI",
-    description: "Kie Veo 3.1 Fast image-to-video supports 5 or 8 second clips at 720p or 1080p.",
-    tags: ["Video", "Image-to-Video", "5-8s", "720p/1080p", "Audio"],
+    description:
+      "Kie Veo 3.1 Fast supports standard image-to-video and first/last-frame transitions for 5 or 8 second clips at 720p or 1080p.",
+    tags: ["Video", "Image-to-Video", "First/Last Frame", "5-8s", "720p/1080p", "Audio"],
   },
   "kie-ai/kling-3.0": {
     provider: "Kie AI",
@@ -309,7 +310,7 @@ const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = 
   "text-image": ["ByteDance", "Google", "Black Forest Labs"],
   "reference-image": ["ByteDance", "Google", "Black Forest Labs"],
   "reference-video": ["Google DeepMind", "Kie AI", "ByteDance", "Kling AI"],
-  "reference-keyframes": ["Google DeepMind"],
+  "reference-keyframes": ["Google DeepMind", "Kie AI"],
 };
 
 const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
@@ -335,7 +336,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
     "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
     "kie-ai/kling-3.0",
   ],
-  "reference-keyframes": ["fal-ai/veo3.1/first-last-frame-to-video"],
+  "reference-keyframes": ["fal-ai/veo3.1/first-last-frame-to-video", "kie-ai/veo-3.1-fast-i2v"],
 };
 
 const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {

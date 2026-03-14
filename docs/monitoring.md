@@ -47,6 +47,20 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - no sustained active workload (`claimed`, `requeued`, `queueClaimed` no longer persistently elevated),
   - `errors = 0` and `queueDispatchErrors = 0` across the configured convergence window.
 
+### Admin fleet health monitoring
+- Daily fleet scan trigger route: `/api/internal/admin-user-health-fleet/run`.
+- Primary fleet read surface: `/api/admin/user-health-fleet` and `/admin/user-health-fleet`.
+- Treat these response/run fields as health signals:
+  - execution: `status`, `targeted`, `processed`, `failed`, `partial`, `durationMs`
+  - exposure: summary totals (`criticalCount`, `highRiskCount`, `totalCostWithoutSuccessCents`, `totalStuckGenerations`, `totalExhaustedQueueRows`)
+  - degradation: `health.degraded` and `health.reason` in the read API.
+- Report-only escalation source:
+  - `ops.user_health_fleet` events in `app_error_events`/`app_error_logs` (no auto-remediation or auto-refund mutations).
+- Baseline expectations:
+  - one completed (or intentionally partial) run per day,
+  - no sustained run-lock condition (`status='running'` without progress),
+  - partial runs and degraded reads should include actionable reason text and operator follow-up.
+
 ## Admin triage controls
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.
 - Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.

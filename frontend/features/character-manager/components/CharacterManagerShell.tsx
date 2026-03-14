@@ -526,7 +526,6 @@ export function CharacterManagerShell({
   const mediaReferenceCacheRef = useRef(
     new Map<string, { storagePath: string; previewUrl: string | null }>()
   );
-  const pendingQuickSwapMediaIdsRef = useRef<Set<string>>(new Set());
   const fileDragDepthRef = useRef(0);
   const pageBusy =
     loading ||
@@ -546,7 +545,6 @@ export function CharacterManagerShell({
     mutating: quickSwapMutating,
     error: quickSwapError,
     appendFiles: appendQuickSwapFilesFromHook,
-    appendExistingMediaReference: appendExistingQuickSwapMediaFromHook,
     removeItem: removeQuickSwapItem,
     restoreItem: restoreQuickSwapItem,
     loadMoreArchived: loadMoreQuickSwapArchived,
@@ -1264,46 +1262,6 @@ export function CharacterManagerShell({
       selectedCharacterId,
     ]
   );
-  const assignResolvedReferenceToCharacterSheetSlot = useCallback(
-    async (
-      characterSheetSlotKey: CharacterSheetDropZoneKey,
-      resolvedReference: ResolvedCharacterDropReference
-    ): Promise<boolean> => {
-      if (!selectedCharacterId) return false;
-      const mediaId = resolvedReference.mediaId.trim();
-      if (!mediaId) return false;
-      const quickSwapItem = quickSwapItemByMediaFileId.get(mediaId) ?? null;
-      let storagePath =
-        resolvedReference.storagePath?.trim() ?? quickSwapItem?.storagePath?.trim() ?? "";
-      let previewUrl = resolvedReference.previewUrl ?? quickSwapItem?.previewUrl ?? null;
-      if (!storagePath || !previewUrl) {
-        const mediaReference = await resolveMediaReferenceById(mediaId);
-        if (mediaReference) {
-          if (!storagePath) storagePath = mediaReference.storagePath;
-          if (!previewUrl) previewUrl = mediaReference.previewUrl;
-        }
-      }
-      if (!storagePath) return false;
-      const nextAssignments = {
-        ...resolvedCharacterSheetPresetAssignments,
-        [characterSheetSlotKey]: {
-          mediaFileId: mediaId,
-          storagePath,
-          previewUrl,
-        },
-      };
-      persistCharacterSheetPresetAssignments(nextAssignments);
-      return true;
-    },
-    [
-      persistCharacterSheetPresetAssignments,
-      quickSwapItemByMediaFileId,
-      resolveMediaReferenceById,
-      resolvedCharacterSheetPresetAssignments,
-      selectedCharacterId,
-    ]
-  );
-
   const handleCharacterSheetFileSelection = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0] ?? null;
@@ -1615,58 +1573,39 @@ export function CharacterManagerShell({
               return;
             }
             const resolvedMediaId = resolvedReference.mediaId.trim();
-            if (!resolvedMediaId) {
-              const previewUrl = resolvedReference.previewUrl?.trim();
-              if (!previewUrl) {
-                void reportAppError({
-                  source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-                  scope: "app",
-                  severity: "low",
-                  message: "character_sheet_drop_reference_missing_preview_url",
-                  metadata: {
-                    target: "character_sheet",
-                    drop_zone_key: characterSheetSlotKey,
-                    output_id: resolvedReference.outputId ?? null,
-                    image_index: resolvedReference.imageIndex ?? null,
-                  },
-                });
-                logCharacterDropBreadcrumb("character_drop_rejected", {
+            let previewUrl = resolvedReference.previewUrl?.trim() || null;
+            if (!previewUrl && resolvedMediaId) {
+              const mediaReference = await resolveMediaReferenceById(resolvedMediaId);
+              previewUrl = mediaReference?.previewUrl?.trim() || null;
+            }
+            if (!previewUrl) {
+              void reportAppError({
+                source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+                scope: "app",
+                severity: "low",
+                message: "character_sheet_drop_reference_missing_preview_url",
+                metadata: {
                   target: "character_sheet",
-                  zone_key: characterSheetSlotKey,
-                  reason: "missing_preview_url",
+                  drop_zone_key: characterSheetSlotKey,
                   output_id: resolvedReference.outputId ?? null,
                   image_index: resolvedReference.imageIndex ?? null,
-                });
-                return;
-              }
-              await setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, {
-                url: previewUrl,
-                mimeType: null,
-                mediaFileId: null,
+                  media_id: resolvedMediaId || null,
+                },
+              });
+              logCharacterDropBreadcrumb("character_drop_rejected", {
+                target: "character_sheet",
+                zone_key: characterSheetSlotKey,
+                reason: "missing_preview_url",
+                output_id: resolvedReference.outputId ?? null,
+                image_index: resolvedReference.imageIndex ?? null,
+                media_id: resolvedMediaId || null,
               });
               return;
             }
-            const assigned = await assignResolvedReferenceToCharacterSheetSlot(
-              characterSheetSlotKey,
-              resolvedReference
-            );
-            if (assigned) return;
-            void reportAppError({
-              source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-              scope: "app",
-              severity: "low",
-              message: "character_sheet_drop_reference_failed_to_assign_media",
-              metadata: {
-                target: "character_sheet",
-                drop_zone_key: characterSheetSlotKey,
-                media_id: resolvedReference.mediaId,
-              },
-            });
-            logCharacterDropBreadcrumb("character_drop_rejected", {
-              target: "character_sheet",
-              zone_key: characterSheetSlotKey,
-              reason: "media_metadata_unavailable",
-              media_id: resolvedReference.mediaId,
+            await setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, {
+              url: previewUrl,
+              mimeType: null,
+              mediaFileId: resolvedMediaId || null,
             });
           } finally {
             setPendingDropTarget((current) =>
@@ -1700,7 +1639,6 @@ export function CharacterManagerShell({
       void setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, droppedReference);
     },
     [
-      assignResolvedReferenceToCharacterSheetSlot,
       assignReferenceToCharacterSheetSlot,
       draggedCharacterSheetZoneKey,
       isDropResolutionBusy,
@@ -1709,6 +1647,7 @@ export function CharacterManagerShell({
       persistCharacterSheetPresetAssignments,
       resolveCharacterDropReference,
       resolveInternalCharacterDrop,
+      resolveMediaReferenceById,
       resolveDraggedQuickSwapItem,
       resolvedCharacterSheetPresetAssignments,
       setCharacterSheetFileFromDroppedReference,
@@ -2044,7 +1983,6 @@ export function CharacterManagerShell({
                       setPendingDropTarget({ target: "quickswap" });
                       setIsDropActive(true);
                       void (async () => {
-                        let pendingMediaId: string | null = null;
                         try {
                           const resolvedReference = await resolveInternalCharacterDrop({
                             transfer,
@@ -2052,86 +1990,13 @@ export function CharacterManagerShell({
                           });
                           if (!resolvedReference) return;
                           const mediaId = resolvedReference.mediaId.trim();
-                          if (!mediaId) {
-                            const previewUrl = resolvedReference.previewUrl?.trim();
-                            if (!previewUrl) {
-                              void reportAppError({
-                                source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-                                scope: "app",
-                                severity: "low",
-                                message: "quickswap_drop_reference_missing_preview_url",
-                                metadata: {
-                                  target: "quickswap",
-                                  output_id: resolvedReference.outputId ?? null,
-                                  image_index: resolvedReference.imageIndex ?? null,
-                                },
-                              });
-                              logCharacterDropBreadcrumb("character_drop_rejected", {
-                                target: "quickswap",
-                                reason: "missing_preview_url",
-                                output_id: resolvedReference.outputId ?? null,
-                                image_index: resolvedReference.imageIndex ?? null,
-                              });
-                              return;
-                            }
-                            const uploaded = await addDroppedReferenceToQuickSwap(
-                              {
-                                url: previewUrl,
-                                mimeType: null,
-                                mediaFileId: null,
-                              },
-                              {
-                                suppressErrorTelemetry: true,
-                              }
-                            );
-                            if (uploaded) return;
-                            void reportAppError({
-                              source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-                              scope: "app",
-                              severity: "low",
-                              message: "quickswap_drop_reference_failed_after_internal_resolve",
-                              metadata: {
-                                target: "quickswap",
-                                output_id: resolvedReference.outputId ?? null,
-                                image_index: resolvedReference.imageIndex ?? null,
-                                reason: "quickswap_upload_failed_without_media_id",
-                              },
-                            });
-                            logCharacterDropBreadcrumb("character_drop_rejected", {
-                              target: "quickswap",
-                              reason: "quickswap_upload_failed_without_media_id",
-                              output_id: resolvedReference.outputId ?? null,
-                              image_index: resolvedReference.imageIndex ?? null,
-                            });
-                            return;
-                          }
                           if (quickSwapItemByMediaFileId.has(mediaId)) return;
-                          if (pendingQuickSwapMediaIdsRef.current.has(mediaId)) return;
-                          pendingMediaId = mediaId;
-                          pendingQuickSwapMediaIdsRef.current.add(mediaId);
-                          const attached = await appendExistingQuickSwapMediaFromHook(mediaId, {
-                            suppressError: true,
-                          });
-                          if (attached) return;
-                          const previewUrl = resolvedReference.previewUrl?.trim();
-                          let nextDroppedReference: DroppedImageReference | null = previewUrl
-                            ? {
-                                url: previewUrl,
-                                mimeType: null,
-                                mediaFileId: mediaId,
-                              }
-                            : null;
-                          if (!nextDroppedReference) {
+                          let previewUrl = resolvedReference.previewUrl?.trim() || null;
+                          if (!previewUrl && mediaId) {
                             const mediaReference = await resolveMediaReferenceById(mediaId);
-                            if (mediaReference?.previewUrl) {
-                              nextDroppedReference = {
-                                url: mediaReference.previewUrl,
-                                mimeType: null,
-                                mediaFileId: mediaId,
-                              };
-                            }
+                            previewUrl = mediaReference?.previewUrl?.trim() || null;
                           }
-                          if (!nextDroppedReference) {
+                          if (!previewUrl) {
                             void reportAppError({
                               source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
                               scope: "app",
@@ -2139,18 +2004,26 @@ export function CharacterManagerShell({
                               message: "quickswap_drop_reference_missing_preview_url",
                               metadata: {
                                 target: "quickswap",
-                                media_id: mediaId,
+                                media_id: mediaId || null,
+                                output_id: resolvedReference.outputId ?? null,
+                                image_index: resolvedReference.imageIndex ?? null,
                               },
                             });
                             logCharacterDropBreadcrumb("character_drop_rejected", {
                               target: "quickswap",
                               reason: "missing_preview_url",
-                              media_id: mediaId,
+                              media_id: mediaId || null,
+                              output_id: resolvedReference.outputId ?? null,
+                              image_index: resolvedReference.imageIndex ?? null,
                             });
                             return;
                           }
                           const uploaded = await addDroppedReferenceToQuickSwap(
-                            nextDroppedReference,
+                            {
+                              url: previewUrl,
+                              mimeType: null,
+                              mediaFileId: mediaId || null,
+                            },
                             {
                               suppressErrorTelemetry: true,
                             }
@@ -2163,18 +2036,20 @@ export function CharacterManagerShell({
                             message: "quickswap_drop_reference_failed_after_internal_resolve",
                             metadata: {
                               target: "quickswap",
-                              media_id: mediaId,
+                              media_id: mediaId || null,
+                              output_id: resolvedReference.outputId ?? null,
+                              image_index: resolvedReference.imageIndex ?? null,
+                              reason: "quickswap_upload_failed",
                             },
                           });
                           logCharacterDropBreadcrumb("character_drop_rejected", {
                             target: "quickswap",
                             reason: "quickswap_upload_failed",
-                            media_id: mediaId,
+                            media_id: mediaId || null,
+                            output_id: resolvedReference.outputId ?? null,
+                            image_index: resolvedReference.imageIndex ?? null,
                           });
                         } finally {
-                          if (pendingMediaId) {
-                            pendingQuickSwapMediaIdsRef.current.delete(pendingMediaId);
-                          }
                           setPendingDropTarget((current) =>
                             current?.target === "quickswap" ? null : current
                           );

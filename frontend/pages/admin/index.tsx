@@ -1168,6 +1168,9 @@ export default function AdminDashboardPage() {
           <Link href="/admin/user-health" className="ghost-btn mini">
             User health
           </Link>
+          <Link href="/admin/user-health-fleet" className="ghost-btn mini">
+            Fleet health
+          </Link>
           <Link href="/admin/generation-trace" className="ghost-btn mini">
             Generation trace
           </Link>

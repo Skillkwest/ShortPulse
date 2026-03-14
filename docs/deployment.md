@@ -143,6 +143,7 @@ Notes:
 Before any scheduler URL updates, manual drain/recovery operations, or post-deploy production checks, verify that the target alias/URL resolves to a deployment containing the required internal routes.
 
 Default required routes:
+- `/api/internal/admin-user-health-fleet/run`
 - `/api/internal/generation-recovery/run`
 - `/api/internal/media-derivatives/run`
 
@@ -157,6 +158,7 @@ node scripts/verify_deployment_route_parity.mjs \
 ```bash
 node scripts/verify_deployment_route_parity.mjs \
   --base-url https://<staging-or-prod-alias> \
+  --required-route /api/internal/admin-user-health-fleet/run \
   --required-route /api/internal/generation-recovery/run \
   --required-route /api/internal/media-derivatives/run
 ```
@@ -280,6 +282,39 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
 Notes:
 - Vercel cron is not required for this route.
 - `CRON_SECRET` remains optional for manual cURL/bearer invocation and non-Supabase fallback workflows.
+
+## Admin fleet scheduler (Supabase Cron)
+
+Use Supabase Cron for the daily admin fleet-health scan route.
+
+1. Set `SHORTPULSE_USER_HEALTH_FLEET_ENABLED=true` and configure:
+   - `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
+2. In Supabase Vault for each environment, create:
+   - `shortpulse_user_health_fleet_run_url` = full endpoint URL (for example `https://<deployment-domain>/api/internal/admin-user-health-fleet/run`)
+   - `shortpulse_user_health_fleet_cron_secret` = same value as `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
+3. Run `sql/configure_admin_user_health_fleet_scheduler_supabase.sql` in the target Supabase project.
+4. Verify scheduler state:
+   ```sql
+   select jobid, jobname, schedule, command, active
+   from cron.job
+   where jobname = 'shortpulse_admin_user_health_fleet_daily';
+   ```
+5. Verify recent execution outcomes:
+   ```sql
+   select jobid, status, start_time, end_time, return_message
+   from cron.job_run_details
+   where jobid = (
+     select jobid
+     from cron.job
+     where jobname = 'shortpulse_admin_user_health_fleet_daily'
+   )
+   order by start_time desc
+   limit 20;
+   ```
+
+Notes:
+- Vercel Cron is not required for this route.
+- Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with generation-recovery operations.
 
 ### Methodical drain cycle (operations)
 

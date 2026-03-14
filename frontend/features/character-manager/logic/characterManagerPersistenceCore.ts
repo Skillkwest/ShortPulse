@@ -47,6 +47,7 @@ export const DEFAULT_CHARACTER_NAME = "New Character";
 export const CHARACTER_REFERENCE_SOURCE = "character_reference";
 export const CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY = "profile_image_storage_path";
 export const CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY = "profile_image_media_file_id";
+export const CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY = "profile_image_character_media_id";
 export const CHARACTER_PROFILE_IMAGE_ZOOM_KEY = "profile_image_zoom";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY = "profile_image_offset_x";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY = "profile_image_offset_y";
@@ -78,7 +79,8 @@ type CharacterCharacterSheetRow = {
 type CharacterReferenceImageRow = {
   id: string;
   slot_key: string;
-  media_file_id: string;
+  media_file_id: string | null;
+  character_media_id?: string | null;
   storage_path: string;
   validation_status: CharacterSlotValidationStatus;
   validation_notes: unknown;
@@ -86,6 +88,15 @@ type CharacterReferenceImageRow = {
 };
 
 type MediaFileRow = {
+  id: string;
+  filename: string | null;
+  storage_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  created_at: string | null;
+};
+
+type CharacterMediaAssetRow = {
   id: string;
   filename: string | null;
   storage_path: string;
@@ -143,6 +154,14 @@ const isMissingRelationError = (error: unknown): boolean =>
     (error as { code?: string }).code === "42P01"
   );
 
+const isMissingColumnError = (error: unknown): boolean =>
+  Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === "42703"
+  );
+
 export const isCharacterReferenceSlotKey = (value: string): value is CharacterReferenceSlotKey =>
   CHARACTER_MANAGER_SLOT_KEYS.includes(value as CharacterReferenceSlotKey);
 
@@ -185,6 +204,8 @@ const toCharacterSheetPresetMediaReference = (
 ): CharacterSheetPresetMediaReference | null => {
   const record = toObjectRecord(value);
   const mediaFileId =
+    asText(record.character_media_id) ??
+    asText(record.characterMediaId) ??
     asText(record.media_file_id) ??
     asText(record.mediaFileId) ??
     asText(record.media_fileId) ??
@@ -310,15 +331,62 @@ const sanitizeFileStem = (filename: string) => {
 };
 
 /**
+ * Creates a character-owned media asset row and returns the persisted id.
+ */
+export const createCharacterMediaAsset = async ({
+  userId,
+  characterId,
+  assetKind,
+  storagePath,
+  filename,
+  fileType,
+  fileSize,
+  metadata,
+}: {
+  userId: string;
+  characterId: string;
+  assetKind: "profile" | "sheet_slot" | "sheet_preset" | "quickswap";
+  storagePath: string;
+  filename: string;
+  fileType: string;
+  fileSize: number;
+  metadata: Record<string, unknown>;
+}): Promise<{ id: string; createdAt: string }> => {
+  const { supabase } = await resolveSupabaseContext();
+  const { data, error } = await supabase
+    .from("character_media_assets")
+    .insert({
+      user_id: userId,
+      character_id: characterId,
+      asset_kind: assetKind,
+      storage_path: storagePath,
+      filename,
+      file_type: fileType,
+      file_size: fileSize,
+      metadata,
+    })
+    .select("id, created_at")
+    .single();
+  if (error || !data?.id) {
+    throw new Error(asErrorMessage(error, "Failed to create character media asset."));
+  }
+  return {
+    id: data.id,
+    createdAt: data.created_at ?? new Date().toISOString(),
+  };
+};
+
+/**
  * Parse persisted profile-image linkage from character metadata.
  */
 export const getCharacterProfileImageMetadata = (
   metadata: unknown
 ): { storagePath: string | null; mediaFileId: string | null } => {
   const record = toObjectRecord(metadata);
+  const characterMediaId = asText(record[CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY]);
   return {
     storagePath: asText(record[CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY]),
-    mediaFileId: asText(record[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY]),
+    mediaFileId: characterMediaId ?? asText(record[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY]),
   };
 };
 
@@ -467,6 +535,7 @@ export const serializeCharacterSheetPresetState = (
           return [
             zone.key,
             {
+              character_media_id: reference.mediaFileId,
               media_file_id: reference.mediaFileId,
               storage_path: reference.storagePath,
             },
@@ -688,27 +757,62 @@ export const cleanupOrphanedMedia = async ({
   storagePath: string | null;
 }) => {
   const { supabase, userId } = await resolveSupabaseContext();
-  const { count: quickSwapCount, error: quickSwapRefError } = await supabase
+  let quickSwapCount = 0;
+  const quickSwapReferencePredicate = `media_file_id.eq.${mediaFileId},character_media_id.eq.${mediaFileId}`;
+  const { count: quickSwapCountWithCharacterMedia, error: quickSwapRefError } = await supabase
     .from("character_quick_swap_items")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .eq("media_file_id", mediaFileId);
-  if (quickSwapRefError && !isMissingRelationError(quickSwapRefError)) {
+    .or(quickSwapReferencePredicate);
+  if (quickSwapRefError && isMissingColumnError(quickSwapRefError)) {
+    const { count: legacyQuickSwapCount, error: legacyQuickSwapRefError } = await supabase
+      .from("character_quick_swap_items")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("media_file_id", mediaFileId);
+    if (legacyQuickSwapRefError && !isMissingRelationError(legacyQuickSwapRefError)) {
+      throw new Error(
+        asErrorMessage(legacyQuickSwapRefError, "Failed to validate quick swap references.")
+      );
+    }
+    quickSwapCount = Number(legacyQuickSwapCount ?? 0);
+  } else {
+    quickSwapCount = Number(quickSwapCountWithCharacterMedia ?? 0);
+  }
+  if (
+    quickSwapRefError &&
+    !isMissingRelationError(quickSwapRefError) &&
+    !isMissingColumnError(quickSwapRefError)
+  ) {
     throw new Error(asErrorMessage(quickSwapRefError, "Failed to validate quick swap references."));
   }
-  if ((quickSwapCount ?? 0) > 0) {
+  if (quickSwapCount > 0) {
     return;
   }
 
+  let referenceCount = 0;
+  const referencePredicate = `media_file_id.eq.${mediaFileId},character_media_id.eq.${mediaFileId}`;
   const { count, error: refCheckError } = await supabase
     .from("character_reference_images")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .eq("media_file_id", mediaFileId);
-  if (refCheckError) {
+    .or(referencePredicate);
+  if (refCheckError && isMissingColumnError(refCheckError)) {
+    const { count: legacyReferenceCount, error: legacyRefCheckError } = await supabase
+      .from("character_reference_images")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("media_file_id", mediaFileId);
+    if (legacyRefCheckError) {
+      throw new Error(asErrorMessage(legacyRefCheckError, "Failed to validate image references."));
+    }
+    referenceCount = Number(legacyReferenceCount ?? 0);
+  } else if (refCheckError) {
     throw new Error(asErrorMessage(refCheckError, "Failed to validate image references."));
+  } else {
+    referenceCount = Number(count ?? 0);
   }
-  if ((count ?? 0) > 0) {
+  if (referenceCount > 0) {
     return;
   }
 
@@ -731,13 +835,27 @@ export const cleanupOrphanedMedia = async ({
     return;
   }
 
-  const { error: deleteMediaError } = await supabase
-    .from("media_files")
+  const { data: deletedCharacterMediaRows, error: deleteCharacterMediaError } = await supabase
+    .from("character_media_assets")
     .delete()
     .eq("user_id", userId)
-    .eq("id", mediaFileId);
-  if (deleteMediaError) {
-    throw new Error(asErrorMessage(deleteMediaError, "Failed to clean up unused media file."));
+    .eq("id", mediaFileId)
+    .select("id");
+  if (deleteCharacterMediaError && !isMissingRelationError(deleteCharacterMediaError)) {
+    throw new Error(
+      asErrorMessage(deleteCharacterMediaError, "Failed to clean up unused character media asset.")
+    );
+  }
+
+  if (!deletedCharacterMediaRows?.length) {
+    const { error: deleteMediaError } = await supabase
+      .from("media_files")
+      .delete()
+      .eq("user_id", userId)
+      .eq("id", mediaFileId);
+    if (deleteMediaError) {
+      throw new Error(asErrorMessage(deleteMediaError, "Failed to clean up unused media file."));
+    }
   }
 
   if (storagePath) {
@@ -753,7 +871,7 @@ export const cleanupOrphanedMedia = async ({
 
 const mapSlotRowsToSlotFileMap = async (
   imageRows: CharacterReferenceImageRow[],
-  mediaRows: MediaFileRow[]
+  mediaRows: Array<MediaFileRow | CharacterMediaAssetRow>
 ): Promise<CharacterSlotFileMap> => {
   const slots = createEmptyCharacterSlotMap();
   if (!imageRows.length) {
@@ -769,14 +887,20 @@ const mapSlotRowsToSlotFileMap = async (
 
   for (const imageRow of imageRows) {
     if (!isCharacterReferenceSlotKey(imageRow.slot_key)) continue;
-    const mediaRow = mediaById.get(imageRow.media_file_id);
+    const mediaReferenceId = (
+      imageRow.character_media_id?.trim() ||
+      imageRow.media_file_id?.trim() ||
+      ""
+    ).trim();
+    if (!mediaReferenceId) continue;
+    const mediaRow = mediaById.get(mediaReferenceId);
     if (!mediaRow) continue;
 
     const signedUrl = signedByPath.get(imageRow.storage_path) ?? null;
     if (!signedUrl) continue;
 
     const slot: CharacterSlotFile = {
-      mediaFileId: imageRow.media_file_id,
+      mediaFileId: mediaReferenceId,
       storagePath: imageRow.storage_path,
       validationStatus: imageRow.validation_status,
       validationNotes: toValidationNotes(imageRow.validation_notes),
@@ -799,13 +923,28 @@ export const loadSlotFilesForCharacterSheet = async (
   characterSheetId: string
 ): Promise<CharacterSlotFileMap> => {
   const { supabase, userId } = await resolveSupabaseContext();
-  const { data: imageRows, error: imagesError } = await supabase
+  let imageRows: unknown[] = [];
+  let imagesError: unknown = null;
+  const imageRowsResponse = await supabase
     .from("character_reference_images")
     .select(
-      "id, slot_key, media_file_id, storage_path, validation_status, validation_notes, updated_at"
+      "id, slot_key, media_file_id, character_media_id, storage_path, validation_status, validation_notes, updated_at"
     )
     .eq("user_id", userId)
     .eq("character_sheet_id", characterSheetId);
+  imageRows = imageRowsResponse.data ?? [];
+  imagesError = imageRowsResponse.error ?? null;
+  if (imagesError && isMissingColumnError(imagesError)) {
+    const legacyImageRowsResponse = await supabase
+      .from("character_reference_images")
+      .select(
+        "id, slot_key, media_file_id, storage_path, validation_status, validation_notes, updated_at"
+      )
+      .eq("user_id", userId)
+      .eq("character_sheet_id", characterSheetId);
+    imageRows = legacyImageRowsResponse.data ?? [];
+    imagesError = legacyImageRowsResponse.error ?? null;
+  }
   if (imagesError) {
     throw new Error(asErrorMessage(imagesError, "Failed to load character reference images."));
   }
@@ -815,17 +954,55 @@ export const loadSlotFilesForCharacterSheet = async (
     return createEmptyCharacterSlotMap();
   }
 
-  const mediaIds = Array.from(new Set(typedImageRows.map((row) => row.media_file_id)));
-  const { data: mediaRows, error: mediaError } = await supabase
-    .from("media_files")
-    .select("id, filename, storage_path, file_type, file_size, created_at")
-    .eq("user_id", userId)
-    .in("id", mediaIds);
-  if (mediaError) {
-    throw new Error(asErrorMessage(mediaError, "Failed to load character media files."));
+  const mediaIds = Array.from(
+    new Set(
+      typedImageRows
+        .map((row) => row.media_file_id?.trim() ?? "")
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  const characterMediaIds = Array.from(
+    new Set(
+      typedImageRows
+        .map((row) => row.character_media_id?.trim() ?? "")
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  let combinedRows: Array<MediaFileRow | CharacterMediaAssetRow> = [];
+  if (mediaIds.length) {
+    const { data: mediaRows, error: mediaError } = await supabase
+      .from("media_files")
+      .select("id, filename, storage_path, file_type, file_size, created_at")
+      .eq("user_id", userId)
+      .in("id", mediaIds);
+    if (mediaError) {
+      throw new Error(asErrorMessage(mediaError, "Failed to load character media files."));
+    }
+    combinedRows = (mediaRows ?? []) as MediaFileRow[];
+  }
+  if (characterMediaIds.length) {
+    const { data: characterMediaRows, error: characterMediaError } = await supabase
+      .from("character_media_assets")
+      .select("id, filename, storage_path, file_type, file_size, created_at")
+      .eq("user_id", userId)
+      .in("id", characterMediaIds);
+    if (characterMediaError && !isMissingRelationError(characterMediaError)) {
+      throw new Error(
+        asErrorMessage(characterMediaError, "Failed to load character media assets.")
+      );
+    }
+    if (characterMediaRows?.length) {
+      const existingIds = new Set(combinedRows.map((row) => row.id));
+      for (const row of characterMediaRows as CharacterMediaAssetRow[]) {
+        if (!existingIds.has(row.id)) {
+          combinedRows.push(row);
+        }
+      }
+    }
   }
 
-  return mapSlotRowsToSlotFileMap(typedImageRows, (mediaRows ?? []) as MediaFileRow[]);
+  return mapSlotRowsToSlotFileMap(typedImageRows, combinedRows);
 };
 
 /**

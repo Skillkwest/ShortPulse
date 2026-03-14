@@ -2,12 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VideoSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
-import { submitFalKlingV3ImageToVideo } from "../../../../../lib/falClient";
+import {
+  submitFalKlingV3ImageToVideo,
+  submitKieVeoImageToVideo,
+} from "../../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../../lib/model-runtime/providerModelIds";
 
 vi.mock("../../../../../lib/falClient", () => ({
   submitFalKlingV3ImageToVideo: vi.fn(),
+  submitKieVeoImageToVideo: vi.fn(),
   submitFalKlingV3Text: vi.fn(),
   submitFalSeedance: vi.fn(),
   submitFalSeedanceI2V: vi.fn(),
@@ -214,6 +219,56 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       expect.stringContaining("Motion reference preparation failed")
     );
     expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "kie-req-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits first+last frame payload in keyframes mode", async () => {
+    const args = makeArgs({
+      finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+      videoReferenceMode: "keyframes",
+      preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: "https://example.com/first.png",
+        image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+        generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      })
+    );
+  });
+
+  it("fails when keyframes mode does not provide both frames", async () => {
+    const args = makeArgs({
+      finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+      videoReferenceMode: "keyframes",
+      preparedImageInputs: ["https://example.com/only-first.png"],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Kie Veo 3.1 Fast I2V keyframes mode requires both first and last frame images."
+    );
+    expect(submitKieVeoImageToVideo).not.toHaveBeenCalled();
   });
 });
 

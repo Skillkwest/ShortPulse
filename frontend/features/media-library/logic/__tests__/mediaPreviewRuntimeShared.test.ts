@@ -37,6 +37,7 @@ describe("mediaPreviewRuntimeShared", () => {
       storagePath: "user-1/upload/media.png",
       expiresInSeconds: 3600,
       forceRefresh: true,
+      previewProfile: "none",
     });
   });
 

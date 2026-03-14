@@ -67,7 +67,7 @@ describe("AiStudioToolbar", () => {
     { button: "Sound", expected: "sound" as const },
     { button: "Canvas", expected: "canvas" as const },
     { button: "Characters", expected: "character" as const },
-    { button: "Presets", expected: "presets" as const },
+    { button: "Prompt Presets", expected: "presets" as const },
     { button: "Styles", expected: "styles" as const },
   ])("routes $button clicks to $expected", ({ button, expected }) => {
     const onSelectTool = vi.fn();
@@ -108,7 +108,7 @@ describe("AiStudioToolbar", () => {
     expect(libraryButtons.map((button) => button.textContent?.trim())).toEqual([
       "Media",
       "Characters",
-      "Presets",
+      "Prompt Presets",
       "Styles",
     ]);
     expect(

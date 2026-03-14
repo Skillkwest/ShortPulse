@@ -19,7 +19,7 @@
   border-radius: 0;
   border: none;
   background-color: transparent;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
 }
 
@@ -30,14 +30,23 @@
     0 22px 36px rgba(0, 0, 0, 0.28);
 }
 
-.canvas-workspace-viewport:active {
-  cursor: grabbing;
+.canvas-workspace-viewport.is-marquee-active {
+  cursor: crosshair;
 }
 
 .canvas-workspace-world {
   position: absolute;
   inset: 0;
   transform-origin: 0 0;
+}
+
+.canvas-workspace-marquee {
+  position: absolute;
+  border: 1px solid rgba(205, 227, 232, 0.433);
+  background: rgba(171, 171, 171, 0.114);
+  box-shadow: 0 0 0 1px rgba(245, 221, 174, 0.2);
+  pointer-events: none;
+  z-index: 9999;
 }
 
 .canvas-workspace-grid {

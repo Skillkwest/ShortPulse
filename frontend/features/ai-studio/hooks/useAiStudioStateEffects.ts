@@ -8,6 +8,7 @@ import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
 import { computeModalPosition } from "../logic/stateParsers";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   isCreateWorkflow,
   isEditWorkflow,
@@ -16,7 +17,10 @@ import {
 } from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
 
-const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
+const KEYFRAME_COMPATIBLE_MODELS = new Set([
+  "fal-ai/veo3.1/first-last-frame-to-video",
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+]);
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 const EDIT_STARTUP_DEFAULT_ASPECT = "1:1";
 

@@ -29,6 +29,8 @@ with expected_functions as (
             ('public.claim_media_derivative_batch(integer,integer,integer)'),
             ('public.mark_media_derivative_ready(uuid,uuid,text,integer,integer)'),
             ('public.mark_media_derivative_failed(uuid,uuid,text,integer,boolean)'),
+            ('public.list_admin_user_health_active_targets(integer,integer)'),
+            ('public.prune_admin_user_health_history(integer)'),
             ('public.get_active_agent_safety_policy()'),
             ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
             ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
@@ -159,6 +161,8 @@ with expected_functions as (
             ('public.claim_media_derivative_batch(integer,integer,integer)'),
             ('public.mark_media_derivative_ready(uuid,uuid,text,integer,integer)'),
             ('public.mark_media_derivative_failed(uuid,uuid,text,integer,boolean)'),
+            ('public.list_admin_user_health_active_targets(integer,integer)'),
+            ('public.prune_admin_user_health_history(integer)'),
             ('public.get_active_agent_safety_policy()'),
             ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
             ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')

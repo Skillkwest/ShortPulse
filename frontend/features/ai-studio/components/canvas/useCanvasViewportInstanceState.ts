@@ -20,6 +20,10 @@ import {
   viewportPointToCanvasWorld,
   zoomCanvasCameraAtViewportPoint,
 } from "./canvasGeometry";
+import {
+  normalizeCanvasRectFromPoints,
+  resolveCanvasMarqueeSelectionIds,
+} from "./canvasMarqueeSelection";
 import { resolveCanvasDropClientPoint } from "./canvasDropController";
 import {
   CANVAS_DOUBLE_TAP_MAX_DISTANCE_PX,
@@ -28,7 +32,13 @@ import {
   resolveViewportTapState,
   type CanvasInteractionPoint,
 } from "./canvasInteractionController";
-import { selectCanvasSceneItem, type CanvasSharedSceneState } from "./canvasSceneState";
+import {
+  getSelectedCanvasSceneItemIds,
+  moveCanvasSceneItemsByIdSet,
+  selectCanvasSceneItem,
+  setCanvasSceneSelectionByIds,
+  type CanvasSharedSceneState,
+} from "./canvasSceneState";
 import type {
   CanvasCamera,
   PrepareResolvedInternalCanvasDrop,
@@ -40,6 +50,7 @@ import {
   type CanvasPointerSession,
 } from "./canvasViewportPointerTypes";
 import type {
+  CanvasMarqueeSelectionBox,
   CanvasPropertiesPanelProps,
   CanvasWorkspaceInstanceId,
 } from "./canvasWorkspaceContracts";
@@ -120,6 +131,9 @@ export const useCanvasViewportInstanceState = ({
   const lastViewportTapRef = useRef<CanvasInteractionPoint | null>(null);
   const lastViewportDraftCreationRef = useRef<CanvasInteractionPoint | null>(null);
   const [internalCamera, setInternalCamera] = useState(CANVAS_DEFAULT_CAMERA);
+  const [marqueeSelectionBox, setMarqueeSelectionBox] = useState<CanvasMarqueeSelectionBox | null>(
+    null
+  );
   const camera = cameraState?.camera ?? internalCamera;
   const setCamera = cameraState?.setCamera ?? setInternalCamera;
   const {
@@ -292,55 +306,85 @@ export const useCanvasViewportInstanceState = ({
         return;
       }
 
-      const shouldPan =
-        event.button === 0 ||
-        shouldStartCanvasPanFromPointerDown({
-          button: event.button,
-          isSpacePanActive: isSpacePanActiveRef.current,
-        });
-      if (!shouldPan) return;
-      clearSelection();
-      clearDraftTextEntry();
-      clearTextEditSession();
-      event.currentTarget.focus();
-      const isImmediatePan =
-        event.button !== 0 ||
-        shouldStartCanvasPanFromPointerDown({
-          button: event.button,
-          isSpacePanActive: isSpacePanActiveRef.current,
-        });
-      if (isImmediatePan) {
+      const shouldPan = shouldStartCanvasPanFromPointerDown({
+        button: event.button,
+        isSpacePanActive: isSpacePanActiveRef.current,
+      });
+      if (shouldPan) {
+        clearSelection();
+        clearDraftTextEntry();
+        clearTextEditSession();
+        setMarqueeSelectionBox(null);
+        event.currentTarget.focus();
         event.preventDefault();
         setPointerCaptureIfAvailable({
           target: event.currentTarget,
           pointerId: event.pointerId,
         });
+        interactionRef.current = {
+          kind: "pan",
+          pointerId: event.pointerId,
+          cameraX: camera.x,
+          cameraY: camera.y,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          isActive: true,
+        };
+        logCanvasGesture("pointerdown.pan", {
+          button: event.button,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        return;
       }
+      if (event.button !== 0) return;
+
+      if (!viewportRef.current) return;
+      const rect = viewportRef.current.getBoundingClientRect();
+      const localX = Math.round((event.clientX - rect.left) * 100) / 100;
+      const localY = Math.round((event.clientY - rect.top) * 100) / 100;
+      const worldPoint = viewportPointToCanvasWorld({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        rect,
+        camera,
+      });
+      clearDraftTextEntry();
+      clearTextEditSession();
+      setMarqueeSelectionBox(null);
+      if (!event.shiftKey) {
+        clearSelection();
+      }
+      event.currentTarget.focus();
       interactionRef.current = {
-        kind: "pan",
+        kind: "marquee",
         pointerId: event.pointerId,
-        cameraX: camera.x,
-        cameraY: camera.y,
+        isAdditive: event.shiftKey,
+        isActive: false,
         startClientX: event.clientX,
         startClientY: event.clientY,
-        isActive: isImmediatePan,
+        startLocalX: localX,
+        startLocalY: localY,
+        startWorldX: worldPoint.x,
+        startWorldY: worldPoint.y,
       };
-      logCanvasGesture("pointerdown.pan-candidate", {
-        isImmediatePan,
+      logCanvasGesture("pointerdown.marquee-candidate", {
+        isAdditive: event.shiftKey,
         button: event.button,
         clientX: event.clientX,
         clientY: event.clientY,
       });
     },
     [
-      camera.x,
-      camera.y,
+      camera,
       clearDraftTextEntry,
       clearSelection,
       clearTextEditSession,
       createDraftTextAtClientPoint,
       isSpacePanActiveRef,
       logCanvasGesture,
+      setMarqueeSelectionBox,
+      viewportRef,
     ]
   );
 
@@ -406,14 +450,52 @@ export const useCanvasViewportInstanceState = ({
   const handleViewportPointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       const interaction = interactionRef.current;
-      if (interaction.kind !== "pan" || interaction.pointerId !== event.pointerId) return;
+      if (interaction.kind === "none") return;
+      if (interaction.pointerId !== event.pointerId) return;
+      if (interaction.kind === "pan") {
+        const travelDistance = Math.hypot(
+          event.clientX - interaction.startClientX,
+          event.clientY - interaction.startClientY
+        );
+        const shouldActivatePan =
+          interaction.isActive || travelDistance >= VIEWPORT_PAN_ACTIVATION_DISTANCE_PX;
+        if (!shouldActivatePan) return;
+        if (!interaction.isActive) {
+          setPointerCaptureIfAvailable({
+            target: event.currentTarget,
+            pointerId: event.pointerId,
+          });
+          interactionRef.current = {
+            ...interaction,
+            isActive: true,
+          };
+          logCanvasGesture("pointermove.activate-pan", {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            travelDistance,
+          });
+        }
+        event.preventDefault();
+        setCamera((currentCamera) => ({
+          ...currentCamera,
+          x:
+            Math.round((interaction.cameraX + event.clientX - interaction.startClientX) * 100) /
+            100,
+          y:
+            Math.round((interaction.cameraY + event.clientY - interaction.startClientY) * 100) /
+            100,
+        }));
+        return;
+      }
+      if (interaction.kind !== "marquee") return;
+
       const travelDistance = Math.hypot(
         event.clientX - interaction.startClientX,
         event.clientY - interaction.startClientY
       );
-      const shouldActivatePan =
+      const shouldActivateMarquee =
         interaction.isActive || travelDistance >= VIEWPORT_PAN_ACTIVATION_DISTANCE_PX;
-      if (!shouldActivatePan) return;
+      if (!shouldActivateMarquee) return;
       if (!interaction.isActive) {
         setPointerCaptureIfAvailable({
           target: event.currentTarget,
@@ -423,36 +505,61 @@ export const useCanvasViewportInstanceState = ({
           ...interaction,
           isActive: true,
         };
-        logCanvasGesture("pointermove.activate-pan", {
-          clientX: event.clientX,
-          clientY: event.clientY,
-          travelDistance,
-        });
       }
-      event.preventDefault();
-      setCamera((currentCamera) => ({
-        ...currentCamera,
-        x: Math.round((interaction.cameraX + event.clientX - interaction.startClientX) * 100) / 100,
-        y: Math.round((interaction.cameraY + event.clientY - interaction.startClientY) * 100) / 100,
-      }));
+      if (!viewportRef.current) return;
+      const rect = viewportRef.current.getBoundingClientRect();
+      const currentLocalX = Math.round((event.clientX - rect.left) * 100) / 100;
+      const currentLocalY = Math.round((event.clientY - rect.top) * 100) / 100;
+      const viewportMarqueeRect = normalizeCanvasRectFromPoints({
+        startX: interaction.startLocalX,
+        startY: interaction.startLocalY,
+        endX: currentLocalX,
+        endY: currentLocalY,
+      });
+      const worldPoint = viewportPointToCanvasWorld({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        rect,
+        camera,
+      });
+      const worldMarqueeRect = normalizeCanvasRectFromPoints({
+        startX: interaction.startWorldX,
+        startY: interaction.startWorldY,
+        endX: worldPoint.x,
+        endY: worldPoint.y,
+      });
+      setMarqueeSelectionBox(viewportMarqueeRect);
+      setItems((currentItems) => {
+        const selectedIds = resolveCanvasMarqueeSelectionIds({
+          items: currentItems,
+          marqueeRect: worldMarqueeRect,
+        });
+        return setCanvasSceneSelectionByIds(currentItems, selectedIds, {
+          mode: interaction.isAdditive ? "add" : "replace",
+        });
+      });
     },
-    [logCanvasGesture, setCamera]
+    [camera, logCanvasGesture, setCamera, setItems, viewportRef]
   );
 
   const handleViewportPointerUp = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       const interaction = interactionRef.current;
-      if (interaction.kind === "pan" && interaction.pointerId === event.pointerId) {
-        const currentTap = {
-          timeStamp: event.timeStamp,
-          clientX: event.clientX,
-          clientY: event.clientY,
-        };
+      if (interaction.kind === "none") return;
+      if (interaction.pointerId !== event.pointerId) return;
+
+      const currentTap = {
+        timeStamp: event.timeStamp,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
+
+      if (interaction.kind === "pan") {
+        const travelDistance = Math.hypot(
+          event.clientX - interaction.startClientX,
+          event.clientY - interaction.startClientY
+        );
         if (!interaction.isActive) {
-          const travelDistance = Math.hypot(
-            event.clientX - interaction.startClientX,
-            event.clientY - interaction.startClientY
-          );
           const tapResolution = resolveViewportTapState({
             previousTap: lastViewportTapRef.current,
             nextTap: currentTap,
@@ -474,10 +581,6 @@ export const useCanvasViewportInstanceState = ({
             });
           }
         } else {
-          const travelDistance = Math.hypot(
-            event.clientX - interaction.startClientX,
-            event.clientY - interaction.startClientY
-          );
           const shouldTreatPanAsTap =
             event.button === 0 &&
             !isSpacePanActiveRef.current &&
@@ -513,30 +616,80 @@ export const useCanvasViewportInstanceState = ({
             logCanvasGesture("pointerup.end-pan", currentTap);
           }
         }
-        interactionRef.current = { kind: "none" };
-        releasePointerCaptureIfHeld({
-          target: event.currentTarget,
-          pointerId: event.pointerId,
-        });
+      } else if (interaction.kind === "marquee") {
+        const travelDistance = Math.hypot(
+          event.clientX - interaction.startClientX,
+          event.clientY - interaction.startClientY
+        );
+        setMarqueeSelectionBox(null);
+        const shouldTreatMarqueeAsTap =
+          event.button === 0 &&
+          travelDistance <= CANVAS_DOUBLE_TAP_MAX_DISTANCE_PX &&
+          !interaction.isAdditive;
+        if (shouldTreatMarqueeAsTap) {
+          const tapResolution = resolveViewportTapState({
+            previousTap: lastViewportTapRef.current,
+            nextTap: currentTap,
+            isSpacePanActive: false,
+            travelDistance,
+          });
+          lastViewportTapRef.current = tapResolution.nextStoredTap;
+          if (tapResolution.shouldCreateDraft) {
+            lastViewportDraftCreationRef.current = currentTap;
+            logCanvasGesture("pointerup.reclassified-marquee.double-tap.create-draft", {
+              ...currentTap,
+              travelDistance,
+            });
+            createDraftTextAtClientPoint(event.clientX, event.clientY);
+          } else {
+            logCanvasGesture("pointerup.reclassified-marquee.double-tap.no-draft", {
+              ...currentTap,
+              travelDistance,
+            });
+          }
+        } else {
+          lastViewportTapRef.current = null;
+          logCanvasGesture("pointerup.end-marquee", {
+            ...currentTap,
+            travelDistance,
+          });
+        }
       }
+
+      interactionRef.current = { kind: "none" };
+      releasePointerCaptureIfHeld({
+        target: event.currentTarget,
+        pointerId: event.pointerId,
+      });
     },
-    [createDraftTextAtClientPoint, isSpacePanActiveRef, logCanvasGesture, setCamera]
+    [
+      createDraftTextAtClientPoint,
+      isSpacePanActiveRef,
+      logCanvasGesture,
+      setCamera,
+      setMarqueeSelectionBox,
+    ]
   );
 
   const handleViewportPointerCancel = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       const interaction = interactionRef.current;
-      if (interaction.kind === "pan" && interaction.pointerId === event.pointerId) {
+      if (interaction.kind === "none") return;
+      if (interaction.pointerId !== event.pointerId) return;
+      if (interaction.kind === "pan" || interaction.kind === "marquee") {
         lastViewportTapRef.current = null;
+        setMarqueeSelectionBox(null);
         interactionRef.current = { kind: "none" };
         releasePointerCaptureIfHeld({
           target: event.currentTarget,
           pointerId: event.pointerId,
         });
-        logCanvasGesture("pointercancel.reset-pan");
+        logCanvasGesture(
+          interaction.kind === "pan" ? "pointercancel.reset-pan" : "pointercancel.reset-marquee"
+        );
       }
     },
-    [logCanvasGesture]
+    [logCanvasGesture, setMarqueeSelectionBox]
   );
 
   const handleItemPointerDown = useCallback(
@@ -551,6 +704,7 @@ export const useCanvasViewportInstanceState = ({
       if (textEditSession?.itemId === itemId && !shouldPan) return;
       event.preventDefault();
       event.stopPropagation();
+      setMarqueeSelectionBox(null);
       clearTextEditSession();
       viewportRef.current?.focus();
       if (typeof event.currentTarget.setPointerCapture === "function") {
@@ -569,11 +723,17 @@ export const useCanvasViewportInstanceState = ({
         return;
       }
       setItems((currentItems) => {
-        const selectedItems = selectCanvasSceneItem(currentItems, itemId);
+        const targetItem = currentItems.find((item) => item.id === itemId);
+        const selectedItems =
+          targetItem?.selected === true
+            ? currentItems
+            : selectCanvasSceneItem(currentItems, itemId);
+        const selectedIds = Array.from(getSelectedCanvasSceneItemIds(selectedItems));
         interactionRef.current = {
           kind: "item-drag",
           pointerId: event.pointerId,
           itemId,
+          selectedItemIds: selectedIds,
           lastClientX: event.clientX,
           lastClientY: event.clientY,
         };
@@ -585,6 +745,7 @@ export const useCanvasViewportInstanceState = ({
       camera.y,
       clearTextEditSession,
       isSpacePanActiveRef,
+      setMarqueeSelectionBox,
       setItems,
       textEditSession?.itemId,
     ]
@@ -621,14 +782,11 @@ export const useCanvasViewportInstanceState = ({
         lastClientY: event.clientY,
       };
       setItems((currentItems) =>
-        currentItems.map((item) =>
-          item.id === itemId
-            ? {
-                ...item,
-                x: Math.round((item.x + deltaX) * 100) / 100,
-                y: Math.round((item.y + deltaY) * 100) / 100,
-              }
-            : item
+        moveCanvasSceneItemsByIdSet(
+          currentItems,
+          new Set(interaction.selectedItemIds),
+          deltaX,
+          deltaY
         )
       );
     },
@@ -702,6 +860,7 @@ export const useCanvasViewportInstanceState = ({
       camera,
       items,
       pendingItems,
+      marqueeSelectionBox,
       viewportRef,
       isDropActive,
       draftTextEntry,
@@ -755,6 +914,7 @@ export const useCanvasViewportInstanceState = ({
       isDropActive,
       isTextEditEditable,
       items,
+      marqueeSelectionBox,
       onDraftTextChange,
       onDraftTextKeyDown,
       onItemContextMenu,

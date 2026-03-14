@@ -224,6 +224,9 @@ export default function AdminUserHealthPage() {
               <Link href="/admin" className="ghost-btn mini">
                 Back to operations
               </Link>
+              <Link href="/admin/user-health-fleet" className="ghost-btn mini">
+                Fleet health
+              </Link>
               <Link href="/admin/generation-trace" className="ghost-btn mini">
                 Generation trace
               </Link>

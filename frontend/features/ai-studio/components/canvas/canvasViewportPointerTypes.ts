@@ -7,6 +7,7 @@ export type CanvasPointerSession =
       kind: "item-drag";
       pointerId: number;
       itemId: string;
+      selectedItemIds: string[];
       lastClientX: number;
       lastClientY: number;
     }
@@ -18,6 +19,18 @@ export type CanvasPointerSession =
       startClientX: number;
       startClientY: number;
       isActive: boolean;
+    }
+  | {
+      kind: "marquee";
+      pointerId: number;
+      isAdditive: boolean;
+      isActive: boolean;
+      startClientX: number;
+      startClientY: number;
+      startLocalX: number;
+      startLocalY: number;
+      startWorldX: number;
+      startWorldY: number;
     };
 
 /**

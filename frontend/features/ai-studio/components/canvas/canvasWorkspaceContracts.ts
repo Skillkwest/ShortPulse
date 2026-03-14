@@ -28,11 +28,19 @@ export type CanvasWorkspaceSessionState = {
   railCamera: CanvasCamera;
 };
 
+export type CanvasMarqueeSelectionBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type CanvasPropertiesPanelProps = {
   instanceId?: CanvasWorkspaceInstanceId;
   camera: CanvasCamera;
   items: CanvasSceneItem[];
   pendingItems: CanvasPendingSceneItem[];
+  marqueeSelectionBox?: CanvasMarqueeSelectionBox | null;
   viewportRef: RefObject<HTMLDivElement>;
   isDropActive: boolean;
   draftTextEntry: { x: number; y: number; value: string } | null;

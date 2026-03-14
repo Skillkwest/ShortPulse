@@ -13,9 +13,14 @@ import type { CharacterQuickSwapItem } from "../types";
 import {
   asErrorMessage,
   cleanupOrphanedMedia,
+  createCharacterMediaAsset,
   loadSlotFilesForCharacterSheet,
   resolveSupabaseContext,
 } from "./characterManagerPersistenceCore";
+import {
+  isCharacterMediaV2ReadsEnabled,
+  isCharacterMediaV2WritesEnabled,
+} from "./characterMediaIsolationFlags";
 
 const MEDIA_BUCKET = "media_library";
 const CHARACTER_QUICKSWAP_SOURCE = "character_quickswap";
@@ -24,7 +29,8 @@ type QuickSwapStatus = "active" | "archived";
 
 type QuickSwapRow = {
   id: string;
-  media_file_id: string;
+  media_file_id: string | null;
+  character_media_id?: string | null;
   storage_path: string;
   status: QuickSwapStatus;
   created_at: string;
@@ -41,6 +47,14 @@ const isMissingRelationError = (error: unknown): boolean =>
     typeof error === "object" &&
     "code" in error &&
     (error as { code?: string }).code === "42P01"
+  );
+
+const isMissingColumnError = (error: unknown): boolean =>
+  Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === "42703"
   );
 
 const isMissingUpsertConflictTargetError = (error: unknown): boolean => {
@@ -133,6 +147,7 @@ const buildArchivedCursorFilter = (cursor: QuickSwapArchivedCursor): string | nu
 
 const hydrateQuickSwapRows = async (rows: QuickSwapRow[]): Promise<CharacterQuickSwapItem[]> => {
   if (!rows.length) return [];
+  const v2ReadsEnabled = isCharacterMediaV2ReadsEnabled();
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: MEDIA_BUCKET,
     storagePaths: rows.map((row) => row.storage_path),
@@ -141,9 +156,15 @@ const hydrateQuickSwapRows = async (rows: QuickSwapRow[]): Promise<CharacterQuic
   for (const row of rows) {
     const previewUrl = signedByPath.get(row.storage_path) ?? null;
     if (!previewUrl) continue;
+    const mediaReferenceId = (
+      v2ReadsEnabled
+        ? row.character_media_id?.trim() || row.media_file_id?.trim() || ""
+        : row.media_file_id?.trim() || row.character_media_id?.trim() || ""
+    ).trim();
+    if (!mediaReferenceId) continue;
     items.push({
       id: row.id,
-      mediaFileId: row.media_file_id,
+      mediaFileId: mediaReferenceId,
       storagePath: row.storage_path,
       previewUrl,
       status: row.status,
@@ -162,15 +183,32 @@ const fetchQuickSwapRows = async (
 ): Promise<QuickSwapRow[]> => {
   const { supabase, userId } = await resolveSupabaseContext();
   const safeLimit = Math.max(1, Math.min(limit, 2000));
-  const { data, error } = await supabase
+  let data: unknown[] | null = null;
+  let error: unknown = null;
+  const nextRowsResponse = await supabase
     .from("character_quick_swap_items")
-    .select("id, media_file_id, storage_path, status, created_at, archived_at")
+    .select("id, media_file_id, character_media_id, storage_path, status, created_at, archived_at")
     .eq("user_id", userId)
     .eq("character_id", characterId)
     .eq("status", status)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(safeLimit);
+  data = nextRowsResponse.data ?? null;
+  error = nextRowsResponse.error ?? null;
+  if (error && isMissingColumnError(error)) {
+    const legacyRowsResponse = await supabase
+      .from("character_quick_swap_items")
+      .select("id, media_file_id, storage_path, status, created_at, archived_at")
+      .eq("user_id", userId)
+      .eq("character_id", characterId)
+      .eq("status", status)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(safeLimit);
+    data = legacyRowsResponse.data ?? null;
+    error = legacyRowsResponse.error ?? null;
+  }
   if (error && !isMissingRelationError(error)) {
     throw new Error(asErrorMessage(error, "Failed to load quick swap references."));
   }
@@ -295,7 +333,7 @@ const removeLegacyQuickSwapItem = async (itemId: string) => {
 
   const { data: existingRow, error: existingError } = await supabase
     .from("character_reference_images")
-    .select("id, media_file_id, storage_path")
+    .select("id, media_file_id, character_media_id, storage_path")
     .eq("user_id", userId)
     .eq("character_sheet_id", parsed.characterSheetId)
     .eq("slot_key", parsed.slotKey)
@@ -313,9 +351,15 @@ const removeLegacyQuickSwapItem = async (itemId: string) => {
   if (deleteError) {
     throw new Error(asErrorMessage(deleteError, "Failed to remove legacy quick swap item."));
   }
+  const mediaReferenceId = (
+    existingRow.character_media_id?.trim() ||
+    existingRow.media_file_id?.trim() ||
+    ""
+  ).trim();
+  if (!mediaReferenceId) return true;
 
   await cleanupOrphanedMedia({
-    mediaFileId: existingRow.media_file_id,
+    mediaFileId: mediaReferenceId,
     storagePath: existingRow.storage_path ?? null,
   });
   return true;
@@ -382,7 +426,7 @@ export const listQuickSwapArchived = async (
 
   let query = supabase
     .from("character_quick_swap_items")
-    .select("id, media_file_id, storage_path, status, created_at, archived_at")
+    .select("id, media_file_id, character_media_id, storage_path, status, created_at, archived_at")
     .eq("user_id", userId)
     .eq("character_id", trimmedCharacterId)
     .eq("status", "archived")
@@ -396,7 +440,28 @@ export const listQuickSwapArchived = async (
     query = query.or(cursorFilter);
   }
 
-  const { data, error } = await query;
+  let data: unknown[] | null = null;
+  let error: unknown = null;
+  const nextRowsResponse = await query;
+  data = nextRowsResponse.data ?? null;
+  error = nextRowsResponse.error ?? null;
+  if (error && isMissingColumnError(error)) {
+    const legacyQuery = supabase
+      .from("character_quick_swap_items")
+      .select("id, media_file_id, storage_path, status, created_at, archived_at")
+      .eq("user_id", userId)
+      .eq("character_id", trimmedCharacterId)
+      .eq("status", "archived")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(fetchSize);
+    const nextCursorFilter = options?.cursor ? buildArchivedCursorFilter(options.cursor) : null;
+    const legacyRowsResponse = nextCursorFilter
+      ? await legacyQuery.or(nextCursorFilter)
+      : await legacyQuery;
+    data = legacyRowsResponse.data ?? null;
+    error = legacyRowsResponse.error ?? null;
+  }
   if (error && !isMissingRelationError(error)) {
     throw new Error(asErrorMessage(error, "Failed to load archived quick swap references."));
   }
@@ -434,6 +499,7 @@ export const appendQuickSwapFiles = async ({
   validateQuickSwapFiles(files);
 
   const { supabase, userId } = await resolveSupabaseContext();
+  const characterMediaWritesEnabled = isCharacterMediaV2WritesEnabled();
 
   for (const file of files) {
     const mimeType = file.type || "image/jpeg";
@@ -455,37 +521,61 @@ export const appendQuickSwapFiles = async ({
       throw new Error(asErrorMessage(uploadError, "Failed to upload quick swap image."));
     }
 
-    const { data: mediaRow, error: mediaError } = await supabase
-      .from("media_files")
-      .insert({
-        user_id: userId,
-        filename: file.name,
-        storage_path: storagePath,
-        file_type: "image",
-        file_size: file.size,
-        source: CHARACTER_QUICKSWAP_SOURCE,
-        metadata: {
-          character_id: trimmedCharacterId,
-        },
-      })
-      .select("id")
-      .single();
-    if (mediaError || !mediaRow) {
-      await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
-      throw new Error(asErrorMessage(mediaError, "Failed to save quick swap image metadata."));
+    let mediaReferenceId: string;
+    if (characterMediaWritesEnabled) {
+      try {
+        const createdAsset = await createCharacterMediaAsset({
+          userId,
+          characterId: trimmedCharacterId,
+          assetKind: "quickswap",
+          storagePath,
+          filename: file.name,
+          fileType: "image",
+          fileSize: file.size,
+          metadata: {
+            role: "character_quickswap",
+          },
+        });
+        mediaReferenceId = createdAsset.id;
+      } catch (nextError) {
+        await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+        throw new Error(asErrorMessage(nextError, "Failed to save quick swap image metadata."));
+      }
+    } else {
+      const { data: mediaRow, error: mediaError } = await supabase
+        .from("media_files")
+        .insert({
+          user_id: userId,
+          filename: file.name,
+          storage_path: storagePath,
+          file_type: "image",
+          file_size: file.size,
+          source: CHARACTER_QUICKSWAP_SOURCE,
+          metadata: {
+            character_id: trimmedCharacterId,
+          },
+        })
+        .select("id")
+        .single();
+      if (mediaError || !mediaRow?.id) {
+        await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+        throw new Error(asErrorMessage(mediaError, "Failed to save quick swap image metadata."));
+      }
+      mediaReferenceId = mediaRow.id;
     }
 
     const { error: quickSwapError } = await supabase.from("character_quick_swap_items").insert({
       user_id: userId,
       character_id: trimmedCharacterId,
-      media_file_id: mediaRow.id,
+      media_file_id: characterMediaWritesEnabled ? null : mediaReferenceId,
+      character_media_id: characterMediaWritesEnabled ? mediaReferenceId : null,
       storage_path: storagePath,
       status: "active",
       archived_at: null,
     });
     if (quickSwapError) {
       await cleanupOrphanedMedia({
-        mediaFileId: mediaRow.id,
+        mediaFileId: mediaReferenceId,
         storagePath,
       });
       if (isMissingRelationError(quickSwapError)) {
@@ -514,6 +604,11 @@ export const appendQuickSwapExistingMediaReference = async ({
   const trimmedCharacterId = characterId.trim();
   const trimmedMediaFileId = mediaFileId.trim();
   if (!trimmedCharacterId || !trimmedMediaFileId) return;
+  if (isCharacterMediaV2WritesEnabled()) {
+    throw new Error(
+      "Attach-existing quick swap references are disabled when Character Media V2 writes are enabled."
+    );
+  }
 
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: mediaRow, error: mediaError } = await supabase
@@ -632,7 +727,7 @@ export const removeQuickSwapItem = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: existingRow, error: existingError } = await supabase
     .from("character_quick_swap_items")
-    .select("id, media_file_id, storage_path")
+    .select("id, media_file_id, character_media_id, storage_path")
     .eq("user_id", userId)
     .eq("character_id", trimmedCharacterId)
     .eq("id", trimmedItemId)
@@ -657,9 +752,15 @@ export const removeQuickSwapItem = async ({
   if (deleteError && isMissingRelationError(deleteError)) {
     return;
   }
+  const mediaReferenceId = (
+    existingRow.character_media_id?.trim() ||
+    existingRow.media_file_id?.trim() ||
+    ""
+  ).trim();
+  if (!mediaReferenceId) return;
 
   await cleanupOrphanedMedia({
-    mediaFileId: existingRow.media_file_id,
+    mediaFileId: mediaReferenceId,
     storagePath: existingRow.storage_path,
   });
 };

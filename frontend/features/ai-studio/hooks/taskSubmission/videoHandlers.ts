@@ -108,13 +108,25 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, "Kie Veo 3.1 Fast I2V requires at least one reference image.");
       return true;
     }
+    const keyframeImageUrls =
+      videoReferenceMode === "keyframes"
+        ? preparedImageInputs.slice(0, 2)
+        : [preparedImageInputs[0]];
+    if (videoReferenceMode === "keyframes" && keyframeImageUrls.length < 2) {
+      notifyGenerationFailure(
+        id,
+        "Kie Veo 3.1 Fast I2V keyframes mode requires both first and last frame images."
+      );
+      return true;
+    }
     const aspectRatio = aspect === "9:16" ? "9:16" : "16:9";
     const duration = requestedDurationSeconds <= 5 ? 5 : 8;
     const resolution = requestedResolution?.toLowerCase().includes("1080") ? "1080p" : "720p";
     const response = await submitKieVeoImageToVideo({
       prompt: cleanedPrompt,
       image_url: preparedImageInputs[0],
-      image_urls: [preparedImageInputs[0]],
+      image_urls: keyframeImageUrls,
+      generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
       aspect_ratio: aspectRatio,
       duration,
       resolution,

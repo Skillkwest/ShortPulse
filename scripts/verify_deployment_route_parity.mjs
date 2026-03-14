@@ -12,6 +12,7 @@ import { loadLocalEnv } from "./lib/load_local_env.mjs";
 const execFileAsync = promisify(execFile);
 
 const DEFAULT_REQUIRED_ROUTES = [
+  "/api/internal/admin-user-health-fleet/run",
   "/api/internal/generation-recovery/run",
   "/api/internal/media-derivatives/run",
 ];
@@ -29,8 +30,7 @@ Options:
   --base-url <url>        Deployment alias/URL to inspect.
                           Fallback env: SHORTPULSE_STAGING_BASE_URL, APP_BASE_URL
   --required-route <path> Required route path (repeatable). If omitted, defaults to:
-                          - ${DEFAULT_REQUIRED_ROUTES[0]}
-                          - ${DEFAULT_REQUIRED_ROUTES[1]}
+${DEFAULT_REQUIRED_ROUTES.map((route) => `                          - ${route}`).join("\n")}
   --token <token>         Vercel API token.
                           Fallback env: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
   --env-file <path>       Optional env file path (repeatable). Parsed by shared loader.

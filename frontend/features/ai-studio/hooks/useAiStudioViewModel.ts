@@ -8,6 +8,7 @@ import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   resolveEffectiveEditSubmitModelId,
   type EditSubmitIntent,
@@ -275,7 +276,8 @@ export const useAiStudioViewModel = ({
     if (isVideoTool && videoReferenceMode === "standard" && !referenceImageUrl) {
       return "Add a reference image before generating.";
     }
-    const isVeoFirstLastModel = model === "fal-ai/veo3.1/first-last-frame-to-video";
+    const isVeoFirstLastModel =
+      model === "fal-ai/veo3.1/first-last-frame-to-video" || model === KIE_VEO_31_FAST_I2V_MODEL_ID;
     const hasBothVeoFrames = Boolean(referenceImageUrl && extraImageUrls[0]);
     if (
       isVideoTool &&

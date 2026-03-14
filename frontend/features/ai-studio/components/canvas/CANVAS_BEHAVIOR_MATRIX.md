@@ -11,8 +11,11 @@ Baseline matrix for canvas interaction hardening. This document is the contract 
 | Text edit                          | Double-click text item                                      | Opens text editor for that item, does not create new draft               |
 | Text pin                           | Click pin button on text item                               | Calls `onPinTextReference(text)` and keeps item unchanged                |
 | Item drag                          | Left drag selected item                                     | Moves item in canvas world space (camera zoom aware)                     |
+| Multi-item drag                    | Left drag when multiple selected                            | Moves the full selected set together                                     |
 | Item drag override                 | Space-pan or middle mouse drag on item                      | Pans camera instead of moving item                                       |
-| Background pan                     | Drag empty viewport                                         | Updates camera x/y without modifying scene items                         |
+| Background marquee                 | Left drag empty viewport                                    | Draws selection box and selects touched items                            |
+| Additive marquee                   | Shift + left drag empty viewport                            | Adds touched items to existing selection                                 |
+| Background pan fallback            | Space + left drag or middle drag on empty viewport          | Updates camera x/y without modifying scene items                         |
 | Wheel zoom                         | Wheel on viewport                                           | Zooms around pointer location                                            |
 | Rail wheel isolation               | Wheel in rail viewport                                      | Prevents window scroll and applies viewport zoom only                    |
 | Drop internal reference            | Reference-grid payload drop                                 | Resolves via `resolveCanvasDropReference`, inserts canvas item           |

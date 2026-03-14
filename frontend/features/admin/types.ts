@@ -297,3 +297,76 @@ export type AdminUserHealthResponse = {
   findings: AdminHealthFinding[];
   nextSteps: string[];
 };
+
+export type AdminUserHealthFleetRiskBand = "low" | "medium" | "high";
+
+export type AdminUserHealthFleetRun = {
+  id: string;
+  triggerSource: "scheduled" | "manual";
+  status: "running" | "completed" | "partial" | "failed";
+  lookbackDays: number;
+  activeWindowDays: number;
+  retentionDays: number;
+  targetCount: number;
+  processedCount: number;
+  failedCount: number;
+  partialData: boolean;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  errorSummary: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
+export type AdminUserHealthFleetSnapshot = {
+  id: string;
+  userId: string;
+  userEmail: string | null;
+  generatedAt: string;
+  highestSeverity: AdminHealthFindingSeverity;
+  riskScore: number;
+  riskBand: AdminUserHealthFleetRiskBand;
+  spendableCents: number;
+  reservedCents: number;
+  failRate24hPercent: number;
+  failCount24h: number;
+  totalCount24h: number;
+  stuckGenerationsCount: number;
+  exhaustedQueueCount: number;
+  costWithoutSuccessCents: number;
+  costWithoutSuccessLinkedCents: number;
+  costWithoutSuccessMissingLinkageCents: number;
+  partialData: boolean;
+  findingCount: number;
+  findings: AdminHealthFinding[];
+};
+
+export type AdminUserHealthFleetSummary = {
+  criticalCount: number;
+  warningCount: number;
+  infoCount: number;
+  highRiskCount: number;
+  mediumRiskCount: number;
+  lowRiskCount: number;
+  totalCostWithoutSuccessCents: number;
+  totalStuckGenerations: number;
+  totalExhaustedQueueRows: number;
+};
+
+export type AdminUserHealthFleetResponse = {
+  run: AdminUserHealthFleetRun | null;
+  summary: AdminUserHealthFleetSummary;
+  snapshots: AdminUserHealthFleetSnapshot[];
+  pagination: AdminPagination;
+  health: {
+    degraded: boolean;
+    reason: string | null;
+  };
+  filters: {
+    runId: string | null;
+    severity: "all" | "critical" | "warning" | "info";
+    findingCode: string;
+    riskBand: "all" | AdminUserHealthFleetRiskBand;
+    search: string;
+  };
+};

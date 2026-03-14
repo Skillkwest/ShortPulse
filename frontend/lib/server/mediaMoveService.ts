@@ -10,7 +10,10 @@ import {
   type MediaMoveDestination,
   validateMoveDestination,
 } from "../../features/media-library/logic/mediaMoveRouting";
-import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
+import {
+  isCharacterScopedMediaStoragePath,
+  isUserScopedMediaStoragePath,
+} from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 export type MediaFileRow = {
@@ -143,6 +146,17 @@ export const moveMediaFileForUser = async ({
         status: 403,
         error: "Forbidden",
         details: "Media storage path is outside user scope",
+      },
+    };
+  }
+  if (isCharacterScopedMediaStoragePath(previousStoragePath, userId)) {
+    return {
+      ok: false,
+      value: {
+        status: 409,
+        error: "Character-scoped media is isolated",
+        details:
+          "Character panel assets are isolated from Media Library move flows and cannot be moved.",
       },
     };
   }

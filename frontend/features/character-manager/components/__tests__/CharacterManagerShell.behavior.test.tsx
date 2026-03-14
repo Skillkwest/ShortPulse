@@ -1139,6 +1139,11 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("accepts an internal reference-grid drop into a Character Sheet zone from an unallowlisted host", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["internal-character-sheet"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-portrait-1",
       previewUrl: "https://example.com/unallowlisted-character-sheet.png",
@@ -1146,42 +1151,40 @@ describe("CharacterManagerShell behavior", () => {
       imageIndex: 0,
       sourceSurface: "all-refs" as const,
     }));
-    supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValueOnce({
-      data: {
-        storage_path: "user-1/library/internal-portrait.png",
-      },
-      error: null,
-    });
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
 
-    render(
-      <CharacterManagerShell
-        resolveCharacterDropReference={resolveCharacterDropReference}
-        surface="panel"
-      />
-    );
-
-    const portraitZone = getCharacterSheetZone("Portrait");
-    const internalDrag = createDataTransfer();
-    addInternalReferenceDragPayload(internalDrag, {
-      outputId: "output-internal-portrait-1",
-      mediaId: "media-internal-portrait-1",
-      sourceSurface: "all-refs",
-      referenceUrl: "https://example.com/unallowlisted-character-sheet.png",
-    });
-    internalDrag.setData(
-      "text/reference-url",
-      "https://example.com/unallowlisted-character-sheet.png"
-    );
-
-    fireEvent.dragOver(portraitZone, { dataTransfer: internalDrag });
-    fireEvent.drop(portraitZone, { dataTransfer: internalDrag });
-
-    await waitFor(() => {
-      expect(resolveCharacterDropReference).toHaveBeenCalled();
-      expect(getZoneImageSrc("Portrait")).toBe(
+      const portraitZone = getCharacterSheetZone("Portrait");
+      const internalDrag = createDataTransfer();
+      addInternalReferenceDragPayload(internalDrag, {
+        outputId: "output-internal-portrait-1",
+        mediaId: "media-internal-portrait-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/unallowlisted-character-sheet.png",
+      });
+      internalDrag.setData(
+        "text/reference-url",
         "https://example.com/unallowlisted-character-sheet.png"
       );
-    });
+
+      fireEvent.dragOver(portraitZone, { dataTransfer: internalDrag });
+      fireEvent.drop(portraitZone, { dataTransfer: internalDrag });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://example.com/unallowlisted-character-sheet.png"
+        );
+        expect(getZoneImageSrc("Portrait")).toBe("https://example.com/preset-1-portrait-1.png");
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("accepts an internal reference-grid drop without media id into a Character Sheet zone", async () => {
@@ -1305,7 +1308,7 @@ describe("CharacterManagerShell behavior", () => {
 
       await waitFor(() => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).not.toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledWith("https://example.com/unallowlisted-quickswap.png");
         expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
       });
     } finally {

@@ -5,6 +5,7 @@
 import type { ModelOption } from "../constants";
 import { modelOptions } from "../constants";
 import type { StudioMode, ToolId } from "../types";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   CREATE_DEFAULT_MODEL_ID,
   CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
@@ -70,7 +71,9 @@ export const resolveAiStudioAllowedModelOptions = ({
   if (selectedTool === "video" || selectedTool === "kling") {
     if (videoReferenceMode === "keyframes") {
       return selectableOptions.filter(
-        (option) => option.value === "fal-ai/veo3.1/first-last-frame-to-video"
+        (option) =>
+          option.value === "fal-ai/veo3.1/first-last-frame-to-video" ||
+          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
       );
     }
     if (videoReferenceMode === "motion") {

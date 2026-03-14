@@ -79,6 +79,30 @@ describe("POST /api/media/folders/membership-batch", () => {
     );
   });
 
+  it("maps character-scoped media isolation failures to 409", async () => {
+    applyFolderMembershipBatchMock.mockRejectedValueOnce(
+      new Error("Character-scoped media ids are not allowed in media-library folders")
+    );
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        action: "assign",
+        mediaIds: ["media-character-1"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Character-scoped media is isolated",
+      })
+    );
+  });
+
   it("returns service result on success", async () => {
     applyFolderMembershipBatchMock.mockResolvedValueOnce({
       folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",

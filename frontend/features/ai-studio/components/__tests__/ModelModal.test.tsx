@@ -174,6 +174,36 @@ describe("ModelModal", () => {
     ]);
   });
 
+  it("orders reference-keyframes chips with Fal Veo first then Kie Veo", () => {
+    const options: ModelOption[] = [
+      {
+        value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        label: "Veo 3.1 Fast I2V (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: "fal-ai/veo3.1/first-last-frame-to-video",
+        label: "Google Veo 3.1 (First/Last Frame)",
+        mediaType: "keyframes",
+      },
+    ];
+    const { container } = render(
+      <ModelModal
+        isOpen
+        position={null}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="reference-keyframes"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual([
+      "Google Veo 3.1 (First/Last Frame)",
+      "Veo 3.1 Fast I2V (Kie)",
+    ]);
+  });
+
   it("uses settings-aware credit resolver when provided", () => {
     render(
       <ModelModal

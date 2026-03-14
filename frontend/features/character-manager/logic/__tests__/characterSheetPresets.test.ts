@@ -247,6 +247,17 @@ describe("characterSheetPresets metadata helpers", () => {
   it("does not delete media/storage when referenced by any preset metadata", async () => {
     const mediaDeleteSpy = vi.fn(async () => ({ error: null }));
     const storageRemoveSpy = vi.fn(async () => ({ error: null }));
+    type CountQuery = {
+      eq: (column: string, value: string) => CountQuery;
+      or: (filters: string) => Promise<{ count: number; error: null }>;
+    };
+    const createCountQuery = (): CountQuery => {
+      const query: CountQuery = {
+        eq: () => query,
+        or: async () => ({ count: 0, error: null }),
+      };
+      return query;
+    };
     ensureSupabaseClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
@@ -256,21 +267,15 @@ describe("characterSheetPresets metadata helpers", () => {
       },
       from: vi.fn((table: string) => {
         if (table === "character_reference_images") {
+          const query = createCountQuery();
           return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(async () => ({ count: 0, error: null })),
-              })),
-            })),
+            select: vi.fn(() => query),
           };
         }
         if (table === "character_quick_swap_items") {
+          const query = createCountQuery();
           return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(async () => ({ count: 0, error: null })),
-              })),
-            })),
+            select: vi.fn(() => query),
           };
         }
         if (table === "characters") {

@@ -2877,3 +2877,28 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added optional `modelId` to dispatched queue-status payloads and client polling provider resolution so generic `kie` dispatches cannot misroute Kling vs Veo polling.
 - Added focused regression tests across status proxy, Kie envelope/status/media contract boundaries, queue polling, and queue-status route payload shape.
 - Updated runtime docs and SOP incident guidance to reflect current Kie Veo runtime-gated state and no-media false-fail guard behavior.
+
+## 2026-03-14 (admin fleet health automation)
+- Added fleet health automation migration `067_add_admin_user_health_fleet_automation.sql` (+ rollback) with compact persistence tables (`admin_user_health_scan_runs`, `admin_user_health_snapshots`, `admin_user_health_snapshot_findings`), retention helper RPC (`prune_admin_user_health_history`), and active-user target resolver RPC (`list_admin_user_health_active_targets`).
+- Added modular server implementation under `frontend/lib/server/adminUserHealth/`:
+  - `deep.ts` shared deep-diagnostics helpers (consumed by `/api/admin/user-health`),
+  - `fleet.ts` set-based active-user scan pipeline (bounded batching, partial-run handling, retention prune, optional report-only incident emission),
+  - `policy.ts` shared findings/risk mapping,
+  - `runtime.ts` fleet env/runtime flag contract,
+  - `types.ts` fleet domain contracts.
+- Added new routes:
+  - `GET|POST /api/internal/admin-user-health-fleet/run` (cron-secret/bearer protected runner),
+  - `GET /api/admin/user-health-fleet` (admin read API for run summary + paginated snapshots).
+- Added dedicated admin page `/admin/user-health-fleet` with severity/risk/finding/search filters, summary cards, degraded-state banner, and drill-down links into `/admin/user-health` and `/admin/generation-trace`.
+- Added focused regression coverage:
+  - `frontend/tests/api/internal-admin-user-health-fleet-run.test.ts`,
+  - `frontend/tests/api/admin-user-health-fleet.test.ts`,
+  - `frontend/tests/lib/admin-user-health-policy.test.ts`,
+  - updated `internal-route-inventory-regression` and runtime SQL audit script tests for new fleet route/functions.
+- Hardened operational parity checks and docs for the new internal route:
+  - updated `scripts/verify_deployment_route_parity.mjs` default required routes,
+  - updated deployment/troubleshooting route parity docs to include `/api/internal/admin-user-health-fleet/run`.
+- Added fleet operations documentation package:
+  - `docs/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`,
+  - `docs/sops/sop_admin_user_health_fleet_operations.md`,
+  - and updated README, routes map, monitoring, internal API inventory, migration docs, SQL SOPs, billing/recovery SOP cross-links, docs indexes, and security checklist.

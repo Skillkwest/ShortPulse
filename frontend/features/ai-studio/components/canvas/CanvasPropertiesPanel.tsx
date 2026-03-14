@@ -14,6 +14,7 @@ export function CanvasPropertiesPanel({
   camera,
   items,
   pendingItems,
+  marqueeSelectionBox,
   viewportRef,
   isDropActive,
   draftTextEntry,
@@ -77,7 +78,9 @@ export function CanvasPropertiesPanel({
     <section className="canvas-properties-panel">
       <div
         ref={viewportRef}
-        className={`canvas-workspace-viewport${isDropActive ? " is-drop-active" : ""}`}
+        className={`canvas-workspace-viewport${isDropActive ? " is-drop-active" : ""}${
+          marqueeSelectionBox ? " is-marquee-active" : ""
+        }`}
         data-testid="canvas-viewport"
         data-canvas-instance={instanceId}
         data-camera-x={camera.x}
@@ -153,7 +156,15 @@ export function CanvasPropertiesPanel({
                 }}
                 draggable={isItemDraggable}
                 onPointerDown={
-                  isEditingTextItem ? undefined : (event) => onItemPointerDown(item.id, event)
+                  isEditingTextItem
+                    ? undefined
+                    : (event) => {
+                        if (isItemDraggable && event.shiftKey) {
+                          event.stopPropagation();
+                          return;
+                        }
+                        onItemPointerDown(item.id, event);
+                      }
                 }
                 onPointerMove={
                   isEditingTextItem ? undefined : (event) => onItemPointerMove(item.id, event)
@@ -259,6 +270,18 @@ export function CanvasPropertiesPanel({
             </article>
           ) : null}
         </div>
+        {marqueeSelectionBox ? (
+          <div
+            className="canvas-workspace-marquee"
+            aria-hidden="true"
+            style={{
+              left: `${marqueeSelectionBox.x}px`,
+              top: `${marqueeSelectionBox.y}px`,
+              width: `${marqueeSelectionBox.width}px`,
+              height: `${marqueeSelectionBox.height}px`,
+            }}
+          />
+        ) : null}
       </div>
     </section>
   );

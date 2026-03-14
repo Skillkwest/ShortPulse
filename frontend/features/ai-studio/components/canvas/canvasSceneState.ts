@@ -15,12 +15,12 @@ import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../logic/sessionSnapshotCanva
 import {
   CANVAS_IMAGE_ITEM_HEIGHT,
   CANVAS_IMAGE_ITEM_WIDTH,
+  CANVAS_TEXT_ITEM_MIN_HEIGHT,
   CANVAS_TEXT_ITEM_WIDTH,
   fitCanvasImageToProxyFrame,
 } from "./canvasGeometry";
 import type { CanvasDropResolution, CanvasSceneItem } from "./canvasTypes";
 
-const CANVAS_TEXT_ITEM_HEIGHT = 120;
 const CANVAS_PENDING_BASE_Z_INDEX = 1_000_000;
 
 export type CanvasPendingSceneItem = {
@@ -118,6 +118,55 @@ export const selectCanvasSceneItem = (
       ...item,
       selected: nextSelected,
       z: nextZ,
+    };
+  });
+  return changed ? nextItems : items;
+};
+
+export const getSelectedCanvasSceneItemIds = (items: CanvasSceneItem[]): Set<string> => {
+  const selectedIds = new Set<string>();
+  items.forEach((item) => {
+    if (item.selected) {
+      selectedIds.add(item.id);
+    }
+  });
+  return selectedIds;
+};
+
+export const setCanvasSceneSelectionByIds = (
+  items: CanvasSceneItem[],
+  selectedIds: Set<string>,
+  options?: { mode?: "replace" | "add" }
+): CanvasSceneItem[] => {
+  const selectionMode = options?.mode ?? "replace";
+  let changed = false;
+  const nextItems = items.map((item) => {
+    const shouldSelect = selectedIds.has(item.id) || (selectionMode === "add" && item.selected);
+    if (item.selected === shouldSelect) return item;
+    changed = true;
+    return {
+      ...item,
+      selected: shouldSelect,
+    };
+  });
+  return changed ? nextItems : items;
+};
+
+export const moveCanvasSceneItemsByIdSet = (
+  items: CanvasSceneItem[],
+  selectedIds: Set<string>,
+  deltaX: number,
+  deltaY: number
+): CanvasSceneItem[] => {
+  if (!selectedIds.size || (!deltaX && !deltaY)) return items;
+  let changed = false;
+  const nextItems = items.map((item) => {
+    if (!selectedIds.has(item.id)) return item;
+    changed = true;
+    return {
+      ...item,
+      x: Math.round((item.x + deltaX) * 100) / 100,
+      y: Math.round((item.y + deltaY) * 100) / 100,
     };
   });
   return changed ? nextItems : items;
@@ -308,7 +357,7 @@ export const useCanvasSharedSceneState = ({
       const pendingHeight =
         resolved.kind === "image"
           ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT)
-          : CANVAS_TEXT_ITEM_HEIGHT;
+          : CANVAS_TEXT_ITEM_MIN_HEIGHT;
       const pendingX = Math.round((worldX - pendingWidth / 2) * 100) / 100;
       const pendingY =
         resolved.kind === "image"

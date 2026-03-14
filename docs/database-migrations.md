@@ -102,6 +102,18 @@ If enabling the derivative-first media optimization architecture (virtualized gr
 15. `sql/migrations/065_add_media_derivative_processing_fields.sql`
 16. `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
 
+If enabling admin fleet health automation (daily active-user triage snapshots), also apply:
+
+17. `sql/migrations/067_add_admin_user_health_fleet_automation.sql`
+
+If enabling Character Panel Media Isolation V2 (character-owned assets decoupled from Media Library), also apply:
+
+18. `sql/migrations/068_add_character_media_assets_isolation.sql`
+
+If enabling provider-attached stale reservation cleanup hardening (service-role-only execute posture), also apply:
+
+19. `sql/migrations/069_harden_provider_attached_stale_cleanup_execute_grants.sql`
+
 If enabling Character Manager (character sheets + generation history), also apply:
 
 14. `sql/migrations/008_add_character_manager_foundation.sql`
@@ -166,7 +178,10 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 64. `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
 65. `sql/migrations/065_add_media_derivative_processing_fields.sql`
 66. `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
-67. Rollback files:
+67. `sql/migrations/067_add_admin_user_health_fleet_automation.sql`
+68. `sql/migrations/068_add_character_media_assets_isolation.sql`
+69. `sql/migrations/069_harden_provider_attached_stale_cleanup_execute_grants.sql`
+70. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -196,6 +211,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`
     - `sql/migrations/rollback/065_add_media_derivative_processing_fields_rollback.sql`
     - `sql/migrations/rollback/066_add_media_derivative_processing_rpcs_rollback.sql`
+    - `sql/migrations/rollback/067_add_admin_user_health_fleet_automation_rollback.sql`
+    - `sql/migrations/rollback/068_add_character_media_assets_isolation_rollback.sql`
+    - `sql/migrations/rollback/069_harden_provider_attached_stale_cleanup_execute_grants_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -250,8 +268,12 @@ Billing safety note:
 - Migration `064_backfill_media_files_from_storage_objects.sql` backfills missing durable `media_files` rows from `storage.objects` for All Media completeness (idempotent user/path insert checks, transient/character/variant exclusions, and rollback-target metadata tagging).
 - Migration `065_add_media_derivative_processing_fields.sql` adds image-derivative retry/lease control fields on `media_files`, an insert-default trigger that marks new image rows `pending`, and claim/backlog indexes for derivative workers.
 - Migration `066_add_media_derivative_processing_rpcs.sql` adds service-role-only derivative claim/update RPCs (`claim_media_derivative_batch`, `mark_media_derivative_ready`, `mark_media_derivative_failed`) using `SKIP LOCKED` claim semantics.
+- Migration `067_add_admin_user_health_fleet_automation.sql` adds scheduled admin fleet-risk snapshot persistence and service-role maintenance RPC posture for the admin-user-health control plane.
+- Migration `068_add_character_media_assets_isolation.sql` adds `character_media_assets`, dual-reference compatibility columns (`character_media_id`) on Character Manager linkage tables, containment-safe integrity checks, and backfill for slot/quickswap/profile/preset character assets.
+- Migration `069_harden_provider_attached_stale_cleanup_execute_grants.sql` hardens `release_stale_provider_attached_generation_reservations` execute posture to service-role-only.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
+- Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.
 
 ## Media storage scope verification (post-017)
 

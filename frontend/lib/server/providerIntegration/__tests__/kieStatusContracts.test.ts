@@ -33,6 +33,7 @@ describe("kieStatusContracts", () => {
     expect(readKieLifecycleStatus({ code: 200, data: { successFlag: 0 } })).toBe("running");
     expect(readKieLifecycleStatus({ data: { successFlag: 1 } })).toBe("completed");
     expect(readKieLifecycleStatus({ data: { successFlag: 2 } })).toBe("failed");
+    expect(readKieLifecycleStatus({ data: { successFlag: 3 } })).toBe("failed");
     expect(readKieLifecycleStatus({ data: { successFlag: 1, failMsg: "provider failed" } })).toBe(
       "failed"
     );

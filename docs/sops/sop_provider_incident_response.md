@@ -83,7 +83,7 @@ Mitigation guidance:
    - verify queue depth drops before resuming stress submits.
    - use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical disconnect/queue/recovery runbook (including `sql/check_generation_queue_blockers.sql` guarded cleanup flow) if backlog remains stuck.
 7. For Kie Veo status incidents, validate record-info normalization before classifying provider failures:
-   - lifecycle precedence must honor `data.successFlag` (`0=running`, `1=completed`, `2=failed`),
+   - lifecycle precedence must honor `data.successFlag` (`0=running`, `1=completed`, `2/3=failed`),
    - response-nested media (`data.response.resultUrls`) must be recognized as terminal-success media,
    - terminal-success/no-media outcomes should map to recoverable `terminal_success_no_media` lifecycle semantics.
 

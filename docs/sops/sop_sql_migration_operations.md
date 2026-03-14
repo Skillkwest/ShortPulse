@@ -25,6 +25,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrate_new_user_plan_default_to_free.sql`: targeted plan-default migration.
 - `sql/update_billing_pricing_catalog_20260210.sql`: catalog price update script.
 - `sql/configure_generation_recovery_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/generation-recovery/run`.
+- `sql/configure_admin_user_health_fleet_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/admin-user-health-fleet/run`.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_media_all_media_completeness_drift.sql`: All Media completeness drift diagnostics for durable storage objects missing `media_files` rows (read-only).
@@ -106,6 +107,9 @@ Current set:
 - `064_backfill_media_files_from_storage_objects.sql`
 - `065_add_media_derivative_processing_fields.sql`
 - `066_add_media_derivative_processing_rpcs.sql`
+- `067_add_admin_user_health_fleet_automation.sql`
+- `068_add_character_media_assets_isolation.sql`
+- `069_harden_provider_attached_stale_cleanup_execute_grants.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

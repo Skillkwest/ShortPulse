@@ -259,6 +259,9 @@ export default function AdminGenerationTracePage() {
           <div className={styles.adminSectionHead}>
             <h2 className={styles.adminSectionTitle}>Query</h2>
             <div className={styles.tabRow}>
+              <Link href="/admin/user-health-fleet" className="ghost-btn mini">
+                Fleet health
+              </Link>
               <Link href="/admin/user-health" className="ghost-btn mini">
                 User health
               </Link>

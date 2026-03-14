@@ -87,6 +87,8 @@ const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean 
 
 const isMediaListApiEnabled = (): boolean =>
   parseBooleanEnv(process.env.SHORTPULSE_MEDIA_LIST_API_ENABLED, true);
+const isCharacterScopeExclusionEnabled = (): boolean =>
+  parseBooleanEnv(process.env.SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE, true);
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (typeof value === "string") {
@@ -356,6 +358,7 @@ export default async function handler(
     const query = normalizeMediaSearchTerm(
       typeof requestBody.query === "string" ? requestBody.query : ""
     );
+    const characterScopeExclusionEnabled = isCharacterScopeExclusionEnabled();
     const cursor = toCursor(requestBody.cursor);
     const limit = clampLimit(surface, requestBody.limit);
     let folderMediaIds: string[] | null = null;
@@ -397,6 +400,9 @@ export default async function handler(
         .from("media_files")
         .select(selectColumns)
         .eq("user_id", user.id);
+      if (characterScopeExclusionEnabled) {
+        queryBuilder = queryBuilder.not("storage_path", "like", `${user.id}/characters/%`);
+      }
       if (folderMediaIds) {
         queryBuilder = queryBuilder.in("id", folderMediaIds);
       }
@@ -465,6 +471,10 @@ export default async function handler(
     res.setHeader("x-shortpulse-media-list-folder-id", folderId);
     res.setHeader("x-shortpulse-media-list-row-count", String(rows.length));
     res.setHeader("x-shortpulse-media-list-query-mode", query ? "search" : "default");
+    res.setHeader(
+      "x-shortpulse-media-list-character-scope-exclusion",
+      characterScopeExclusionEnabled ? "on" : "off"
+    );
     res.setHeader(
       "x-shortpulse-media-list-initial-signed-count",
       String(Object.keys(signedById).length)

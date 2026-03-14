@@ -48,6 +48,16 @@ export const isUserScopedMediaStoragePath = (path: string, userId: string): bool
 };
 
 /**
+ * Returns whether a storage path is in the user-scoped Character Manager namespace.
+ */
+export const isCharacterScopedMediaStoragePath = (path: string, userId: string): boolean => {
+  const normalizedPath = normalize(path);
+  const normalizedUserId = normalize(userId);
+  if (!isUserScopedMediaStoragePath(normalizedPath, normalizedUserId)) return false;
+  return normalizedPath.startsWith(`${normalizedUserId}/characters/`);
+};
+
+/**
  * Validates and returns a normalized user-scoped storage path.
  * Throws when the path is malformed or outside the user namespace.
  */

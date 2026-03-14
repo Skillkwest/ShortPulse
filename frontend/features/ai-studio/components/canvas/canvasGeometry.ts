@@ -15,6 +15,7 @@ export const CANVAS_MAX_ZOOM = 2.5;
 export const CANVAS_IMAGE_ITEM_WIDTH = 220;
 export const CANVAS_IMAGE_ITEM_HEIGHT = 275;
 export const CANVAS_TEXT_ITEM_WIDTH = 260;
+export const CANVAS_TEXT_ITEM_MIN_HEIGHT = 120;
 const CANVAS_IMAGE_PROXY_LONG_EDGE = Math.max(CANVAS_IMAGE_ITEM_WIDTH, CANVAS_IMAGE_ITEM_HEIGHT);
 
 const roundCanvasCoordinate = (value: number): number => Math.round(value * 100) / 100;

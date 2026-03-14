@@ -333,4 +333,31 @@ describe("POST /api/media/move", () => {
     );
     expect(moveMock).not.toHaveBeenCalled();
   });
+
+  it("rejects moves for character-scoped storage paths", async () => {
+    const fileRow = createBaseFile({
+      storage_path: "user-1/characters/char-1/profile/photo.png",
+      source: "character_reference",
+    });
+    const { moveMock } = setupSupabaseAdminMock({ fileRow });
+
+    const req = {
+      method: "POST",
+      body: {
+        fileId: "file-1",
+        destinationTab: "private",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Character-scoped media is isolated",
+      })
+    );
+    expect(moveMock).not.toHaveBeenCalled();
+  });
 });

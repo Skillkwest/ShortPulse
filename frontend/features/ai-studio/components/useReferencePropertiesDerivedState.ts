@@ -79,7 +79,9 @@ export const useReferencePropertiesDerivedState = ({
   const isVeoImageToVideoModel =
     modelId === "fal-ai/veo3.1/image-to-video" || modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
-  const isVeoFirstLastModel = modelId === "fal-ai/veo3.1/first-last-frame-to-video";
+  const isVeoFirstLastModel =
+    modelId === "fal-ai/veo3.1/first-last-frame-to-video" ||
+    (isKeyframesMode && modelId === KIE_VEO_31_FAST_I2V_MODEL_ID);
   const isSeedanceI2VModel = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
   const isVeoModel =
     modelId?.includes("veo3.1") === true ||

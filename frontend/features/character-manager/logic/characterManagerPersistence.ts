@@ -25,6 +25,7 @@ import type {
 } from "../types";
 import {
   asErrorMessage,
+  CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY,
   CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY,
   CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY,
   CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY,
@@ -35,6 +36,7 @@ import {
   CHARACTER_SHEET_ASSIGNMENTS_KEY,
   LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY,
   cleanupOrphanedMedia,
+  createCharacterMediaAsset,
   createCharacterSheetPresetStoragePath,
   createCharacterProfileStoragePath,
   createDraftCharacter,
@@ -55,6 +57,7 @@ import {
   resolveCharacterSheet,
   resolveSupabaseContext,
 } from "./characterManagerPersistenceCore";
+import { isCharacterMediaV2WritesEnabled } from "./characterMediaIsolationFlags";
 import {
   createNormalizedCharacterSheetPresetTabDescriptions,
   createNormalizedCharacterSheetPresetTabLabels,
@@ -460,30 +463,55 @@ export const saveCharacterManagerProfileImage = async (
     throw new Error(asErrorMessage(uploadError, "Failed to upload profile image."));
   }
 
-  const { data: mediaRow, error: mediaInsertError } = await supabase
-    .from("media_files")
-    .insert({
-      user_id: userId,
-      filename: input.file.name,
-      storage_path: storagePath,
-      file_type: "image",
-      file_size: input.file.size,
-      source: "upload",
-      metadata: {
-        character_id: input.characterId,
-        role: "character_profile",
-      },
-    })
-    .select("id")
-    .single();
-  if (mediaInsertError || !mediaRow?.id) {
-    await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
-    throw new Error(asErrorMessage(mediaInsertError, "Failed to save profile image metadata."));
+  const characterMediaWritesEnabled = isCharacterMediaV2WritesEnabled();
+  let mediaReferenceId: string;
+  if (characterMediaWritesEnabled) {
+    try {
+      const createdAsset = await createCharacterMediaAsset({
+        userId,
+        characterId: input.characterId,
+        assetKind: "profile",
+        storagePath,
+        filename: input.file.name,
+        fileType: "image",
+        fileSize: input.file.size,
+        metadata: {
+          role: "character_profile",
+        },
+      });
+      mediaReferenceId = createdAsset.id;
+    } catch (nextError) {
+      await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      throw new Error(asErrorMessage(nextError, "Failed to save profile image metadata."));
+    }
+  } else {
+    const { data: mediaRow, error: mediaInsertError } = await supabase
+      .from("media_files")
+      .insert({
+        user_id: userId,
+        filename: input.file.name,
+        storage_path: storagePath,
+        file_type: "image",
+        file_size: input.file.size,
+        source: "upload",
+        metadata: {
+          character_id: input.characterId,
+          role: "character_profile",
+        },
+      })
+      .select("id")
+      .single();
+    if (mediaInsertError || !mediaRow?.id) {
+      await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      throw new Error(asErrorMessage(mediaInsertError, "Failed to save profile image metadata."));
+    }
+    mediaReferenceId = mediaRow.id;
   }
 
   const nextMetadata = toMetadataRecord(characterRow.metadata);
   nextMetadata[CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY] = storagePath;
-  nextMetadata[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY] = mediaRow.id;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY] = mediaReferenceId;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY] = mediaReferenceId;
   nextMetadata[CHARACTER_PROFILE_IMAGE_ZOOM_KEY] = DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.zoom;
   nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY] =
     DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.offsetX;
@@ -499,13 +527,13 @@ export const saveCharacterManagerProfileImage = async (
     .eq("id", input.characterId);
   if (updateError) {
     await cleanupOrphanedMedia({
-      mediaFileId: mediaRow.id,
+      mediaFileId: mediaReferenceId,
       storagePath,
     });
     throw new Error(asErrorMessage(updateError, "Failed to save profile image on character."));
   }
 
-  if (existingProfile.mediaFileId && existingProfile.mediaFileId !== mediaRow.id) {
+  if (existingProfile.mediaFileId && existingProfile.mediaFileId !== mediaReferenceId) {
     await cleanupOrphanedMedia({
       mediaFileId: existingProfile.mediaFileId,
       storagePath: existingProfile.storagePath,
@@ -553,6 +581,7 @@ export const clearCharacterManagerProfileImage = async ({
   const nextMetadata = toMetadataRecord(characterRow.metadata);
   delete nextMetadata[CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY];
   delete nextMetadata[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY];
+  delete nextMetadata[CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY];
   delete nextMetadata[CHARACTER_PROFILE_IMAGE_ZOOM_KEY];
   delete nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY];
   delete nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY];
@@ -1274,25 +1303,51 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
     throw new Error(asErrorMessage(uploadError, "Failed to upload character preset image."));
   }
 
-  const { data: mediaRow, error: mediaInsertError } = await supabase
-    .from("media_files")
-    .insert({
-      user_id: userId,
-      filename: input.file.name,
-      storage_path: storagePath,
-      file_type: "image",
-      file_size: input.file.size,
-      source: "upload",
-      metadata: {
-        character_id: input.characterId,
-        role: "character_sheet_preset",
-      },
-    })
-    .select("id")
-    .single();
-  if (mediaInsertError || !mediaRow?.id) {
-    await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
-    throw new Error(asErrorMessage(mediaInsertError, "Failed to save character preset metadata."));
+  const characterMediaWritesEnabled = isCharacterMediaV2WritesEnabled();
+  let mediaReferenceId: string;
+  if (characterMediaWritesEnabled) {
+    try {
+      const createdAsset = await createCharacterMediaAsset({
+        userId,
+        characterId: input.characterId,
+        assetKind: "sheet_preset",
+        storagePath,
+        filename: input.file.name,
+        fileType: "image",
+        fileSize: input.file.size,
+        metadata: {
+          role: "character_sheet_preset",
+        },
+      });
+      mediaReferenceId = createdAsset.id;
+    } catch (nextError) {
+      await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      throw new Error(asErrorMessage(nextError, "Failed to save character preset metadata."));
+    }
+  } else {
+    const { data: mediaRow, error: mediaInsertError } = await supabase
+      .from("media_files")
+      .insert({
+        user_id: userId,
+        filename: input.file.name,
+        storage_path: storagePath,
+        file_type: "image",
+        file_size: input.file.size,
+        source: "upload",
+        metadata: {
+          character_id: input.characterId,
+          role: "character_sheet_preset",
+        },
+      })
+      .select("id")
+      .single();
+    if (mediaInsertError || !mediaRow?.id) {
+      await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      throw new Error(
+        asErrorMessage(mediaInsertError, "Failed to save character preset metadata.")
+      );
+    }
+    mediaReferenceId = mediaRow.id;
   }
 
   const signedUrl = await getSignedMediaUrl({
@@ -1305,7 +1360,7 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
   }
 
   return {
-    mediaFileId: mediaRow.id,
+    mediaFileId: mediaReferenceId,
     storagePath,
     previewUrl: signedUrl,
   };
@@ -1328,7 +1383,7 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
 
   const { data: mediaRows, error: mediaRowsError } = await supabase
     .from("character_reference_images")
-    .select("media_file_id, storage_path")
+    .select("media_file_id, character_media_id, storage_path")
     .eq("user_id", userId)
     .eq("character_id", characterId);
   if (mediaRowsError) {
@@ -1337,7 +1392,7 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
 
   const { data: quickSwapRows, error: quickSwapRowsError } = await supabase
     .from("character_quick_swap_items")
-    .select("media_file_id, storage_path")
+    .select("media_file_id, character_media_id, storage_path")
     .eq("user_id", userId)
     .eq("character_id", characterId);
   if (quickSwapRowsError && !isMissingRelationError(quickSwapRowsError)) {
@@ -1350,28 +1405,50 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
   const presetCleanupCandidates = listCharacterSheetPresetMediaReferences(characterRow?.metadata);
   const referenceCleanupCandidates = Array.from(
     new Map(
-      ((mediaRows ?? []) as Array<{ media_file_id: string; storage_path: string | null }>).map(
-        (row) => [
-          row.media_file_id,
-          {
-            mediaFileId: row.media_file_id,
-            storagePath: row.storage_path ?? null,
-          },
-        ]
-      )
+      (
+        (mediaRows ?? []) as Array<{
+          media_file_id: string | null;
+          character_media_id?: string | null;
+          storage_path: string | null;
+        }>
+      ).flatMap((row) => {
+        const mediaReferenceId =
+          row.character_media_id?.trim() || row.media_file_id?.trim() || null;
+        if (!mediaReferenceId) return [];
+        return [
+          [
+            mediaReferenceId,
+            {
+              mediaFileId: mediaReferenceId,
+              storagePath: row.storage_path ?? null,
+            },
+          ] as const,
+        ];
+      })
     ).values()
   );
   const quickSwapCleanupCandidates = Array.from(
     new Map(
-      ((quickSwapRows ?? []) as Array<{ media_file_id: string; storage_path: string | null }>).map(
-        (row) => [
-          row.media_file_id,
-          {
-            mediaFileId: row.media_file_id,
-            storagePath: row.storage_path ?? null,
-          },
-        ]
-      )
+      (
+        (quickSwapRows ?? []) as Array<{
+          media_file_id: string | null;
+          character_media_id?: string | null;
+          storage_path: string | null;
+        }>
+      ).flatMap((row) => {
+        const mediaReferenceId =
+          row.character_media_id?.trim() || row.media_file_id?.trim() || null;
+        if (!mediaReferenceId) return [];
+        return [
+          [
+            mediaReferenceId,
+            {
+              mediaFileId: mediaReferenceId,
+              storagePath: row.storage_path ?? null,
+            },
+          ] as const,
+        ];
+      })
     ).values()
   );
   const cleanupCandidates = profileMedia.mediaFileId
@@ -1414,7 +1491,7 @@ export const saveCharacterManagerSlot = async (
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: existingRow, error: existingRowError } = await supabase
     .from("character_reference_images")
-    .select("id, media_file_id, storage_path")
+    .select("id, media_file_id, character_media_id, storage_path")
     .eq("user_id", userId)
     .eq("character_sheet_id", input.characterSheetId)
     .eq("slot_key", input.slotKey)
@@ -1442,27 +1519,72 @@ export const saveCharacterManagerSlot = async (
     throw new Error(asErrorMessage(uploadError, "Failed to upload reference image."));
   }
 
-  const { data: mediaRow, error: mediaInsertError } = await supabase
-    .from("media_files")
-    .insert({
-      user_id: userId,
-      filename: input.file.name,
-      storage_path: storagePath,
-      file_type: "image",
-      file_size: input.file.size,
-      source: CHARACTER_REFERENCE_SOURCE,
-      metadata: {
-        character_id: input.characterId,
-        character_sheet_id: input.characterSheetId,
-        reference_pack_id: input.characterSheetId,
-        slot_key: input.slotKey,
-      },
-    })
-    .select("id, filename, file_type, file_size, created_at")
-    .single();
-  if (mediaInsertError || !mediaRow) {
-    await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
-    throw new Error(asErrorMessage(mediaInsertError, "Failed to save uploaded image metadata."));
+  const characterMediaWritesEnabled = isCharacterMediaV2WritesEnabled();
+  let mediaRow: {
+    id: string;
+    filename: string;
+    file_type: string;
+    file_size: number;
+    created_at: string;
+  };
+  if (characterMediaWritesEnabled) {
+    try {
+      const createdAsset = await createCharacterMediaAsset({
+        userId,
+        characterId: input.characterId,
+        assetKind: "sheet_slot",
+        storagePath,
+        filename: input.file.name,
+        fileType: "image",
+        fileSize: input.file.size,
+        metadata: {
+          character_sheet_id: input.characterSheetId,
+          reference_pack_id: input.characterSheetId,
+          slot_key: input.slotKey,
+          role: "character_slot",
+        },
+      });
+      mediaRow = {
+        id: createdAsset.id,
+        filename: input.file.name,
+        file_type: "image",
+        file_size: input.file.size,
+        created_at: createdAsset.createdAt,
+      };
+    } catch (nextError) {
+      await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      throw new Error(asErrorMessage(nextError, "Failed to save uploaded image metadata."));
+    }
+  } else {
+    const { data: insertedMediaRow, error: mediaInsertError } = await supabase
+      .from("media_files")
+      .insert({
+        user_id: userId,
+        filename: input.file.name,
+        storage_path: storagePath,
+        file_type: "image",
+        file_size: input.file.size,
+        source: CHARACTER_REFERENCE_SOURCE,
+        metadata: {
+          character_id: input.characterId,
+          character_sheet_id: input.characterSheetId,
+          reference_pack_id: input.characterSheetId,
+          slot_key: input.slotKey,
+        },
+      })
+      .select("id, filename, file_type, file_size, created_at")
+      .single();
+    if (mediaInsertError || !insertedMediaRow) {
+      await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      throw new Error(asErrorMessage(mediaInsertError, "Failed to save uploaded image metadata."));
+    }
+    mediaRow = {
+      id: insertedMediaRow.id,
+      filename: insertedMediaRow.filename ?? input.file.name,
+      file_type: insertedMediaRow.file_type ?? "image",
+      file_size: Number(insertedMediaRow.file_size ?? input.file.size),
+      created_at: insertedMediaRow.created_at ?? new Date().toISOString(),
+    };
   }
 
   const { error: upsertError } = await supabase.from("character_reference_images").upsert(
@@ -1472,7 +1594,8 @@ export const saveCharacterManagerSlot = async (
       reference_pack_id: input.characterSheetId,
       user_id: userId,
       slot_key: input.slotKey,
-      media_file_id: mediaRow.id,
+      media_file_id: characterMediaWritesEnabled ? null : mediaRow.id,
+      character_media_id: characterMediaWritesEnabled ? mediaRow.id : null,
       storage_path: storagePath,
       validation_status: input.validationStatus,
       validation_notes: input.validationNotes,
@@ -1493,10 +1616,15 @@ export const saveCharacterManagerSlot = async (
     throw new Error(asErrorMessage(upsertError, "Failed to assign image to this shot."));
   }
 
-  if (existingRow?.media_file_id && existingRow.media_file_id !== mediaRow.id) {
+  const existingMediaReferenceId = (
+    existingRow?.character_media_id?.trim() ||
+    existingRow?.media_file_id?.trim() ||
+    ""
+  ).trim();
+  if (existingMediaReferenceId && existingMediaReferenceId !== mediaRow.id) {
     await cleanupOrphanedMedia({
-      mediaFileId: existingRow.media_file_id,
-      storagePath: existingRow.storage_path ?? null,
+      mediaFileId: existingMediaReferenceId,
+      storagePath: existingRow?.storage_path ?? null,
     });
   }
 
@@ -1535,7 +1663,7 @@ export const clearCharacterManagerSlot = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: existingRow, error: existingRowError } = await supabase
     .from("character_reference_images")
-    .select("id, media_file_id, storage_path")
+    .select("id, media_file_id, character_media_id, storage_path")
     .eq("user_id", userId)
     .eq("character_sheet_id", characterSheetId)
     .eq("slot_key", slotKey)
@@ -1556,8 +1684,15 @@ export const clearCharacterManagerSlot = async ({
     throw new Error(asErrorMessage(deleteRowError, "Failed to remove shot image."));
   }
 
+  const mediaReferenceId = (
+    existingRow.character_media_id?.trim() ||
+    existingRow.media_file_id?.trim() ||
+    ""
+  ).trim();
+  if (!mediaReferenceId) return;
+
   await cleanupOrphanedMedia({
-    mediaFileId: existingRow.media_file_id,
+    mediaFileId: mediaReferenceId,
     storagePath: existingRow.storage_path ?? null,
   });
 };

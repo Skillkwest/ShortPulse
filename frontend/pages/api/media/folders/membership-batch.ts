@@ -144,6 +144,13 @@ export default async function handler(
           details: "One or more media/prompt ids are not owned by this user.",
         });
       }
+      if (error.message === "Character-scoped media ids are not allowed in media-library folders") {
+        return res.status(409).json({
+          error: "Character-scoped media is isolated",
+          details:
+            "Character panel assets are isolated from Media Library folders and cannot be assigned/moved.",
+        });
+      }
     }
 
     await logApiRouteException({

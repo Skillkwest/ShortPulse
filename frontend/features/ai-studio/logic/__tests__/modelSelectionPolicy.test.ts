@@ -229,7 +229,7 @@ describe("modelSelectionPolicy", () => {
     ]);
   });
 
-  it("keeps keyframes mode restricted to the first/last-frame model", () => {
+  it("keeps keyframes mode restricted to first/last-capable Veo models", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -238,7 +238,10 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual(["fal-ai/veo3.1/first-last-frame-to-video"]);
+    expect(values).toEqual([
+      "fal-ai/veo3.1/first-last-frame-to-video",
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+    ]);
   });
 
   it("keeps edit startup fallback model precedence unchanged", () => {

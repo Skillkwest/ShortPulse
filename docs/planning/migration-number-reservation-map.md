@@ -1,6 +1,6 @@
 # Migration Number Reservation Map
 
-Last updated: 2026-03-12  
+Last updated: 2026-03-14  
 Authority: Working  
 Owner: Engineering
 
@@ -22,6 +22,9 @@ Prevent migration-number collisions across concurrent plan tracks and lock order
 | `064_*` | All Media completeness durable-row backfill | Implemented | `064_backfill_media_files_from_storage_objects.sql` landed with diagnostics + rollback pair. |
 | `065_*` | Media derivative retry/lease control fields + backlog indexes | Implemented | `065_add_media_derivative_processing_fields.sql` landed with rollback pair. |
 | `066_*` | Media derivative claim/update service-role RPCs | Implemented | `066_add_media_derivative_processing_rpcs.sql` landed with rollback pair. |
+| `067_*` | Admin user-health fleet automation persistence + helper RPCs | Implemented | `067_add_admin_user_health_fleet_automation.sql` landed with rollback pair. |
+| `068_*` | Character Panel Media Isolation V2 base table + compatibility linkage | Implemented | `068_add_character_media_assets_isolation.sql` landed with rollback pair. |
+| `069_*` | Provider-attached stale cleanup execute-grant hardening | Implemented | `069_harden_provider_attached_stale_cleanup_execute_grants.sql` landed with rollback pair. |
 
 ## Reservation Rules
 1. No migration PR may use `041`-`049` unless mapped here first.

@@ -50,6 +50,9 @@ export type CanvasHarnessProps = {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
+  isItemDraggable?: boolean;
+  onItemDragStart?: (id: string, event: React.DragEvent<HTMLElement>) => void;
+  onItemDragEnd?: (id: string, event: React.DragEvent<HTMLElement>) => void;
 };
 
 export function CanvasHarness({
@@ -57,6 +60,9 @@ export function CanvasHarness({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   resolveCanvasDropFiles,
+  isItemDraggable = false,
+  onItemDragStart,
+  onItemDragEnd,
 }: CanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const canvasProps = useAiStudioCanvasWorkspaceState({
@@ -71,7 +77,14 @@ export function CanvasHarness({
       <button type="button" onClick={() => setVisible((current) => !current)}>
         Toggle
       </button>
-      {visible ? <CanvasPropertiesPanel {...canvasProps} /> : null}
+      {visible ? (
+        <CanvasPropertiesPanel
+          {...canvasProps}
+          isItemDraggable={isItemDraggable}
+          onItemDragStart={onItemDragStart}
+          onItemDragEnd={onItemDragEnd}
+        />
+      ) : null}
     </div>
   );
 }

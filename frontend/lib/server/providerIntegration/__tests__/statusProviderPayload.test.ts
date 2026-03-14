@@ -103,12 +103,11 @@ describe("statusProviderPayload", () => {
       status: { malformed: true },
       response_url: { malformed: true },
       data: {
-        result: {
-          status: "success",
+        successFlag: 1,
+        responseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_123",
+        response: {
           responseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_123",
-          resultJson: {
-            resultUrls: ["https://cdn.shortpulse.test/kie-envelope.mp4"],
-          },
+          resultUrls: ["https://cdn.shortpulse.test/kie-envelope.mp4"],
         },
       },
     };

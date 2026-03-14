@@ -91,6 +91,135 @@ describe("queueStatusPolling", () => {
     }
   });
 
+  it("resolves generic kie dispatched provider using modelId alias", async () => {
+    vi.useFakeTimers();
+    try {
+      let output = createOutput("out-queued-kie");
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      const notifyGenerationFailure = vi.fn();
+      const onDispatched = vi.fn();
+      fetchFalQueueStatusMock.mockResolvedValueOnce({
+        status: "dispatched",
+        generationId: "gen-queued-kie-1",
+        sourceRef: "src-queued-kie-1",
+        requestId: "req-queued-kie-1",
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+      });
+
+      startQueuedStatusPolling({
+        outputId: "out-queued-kie",
+        provider: "kie-veo",
+        finalModel: "kie-ai/kling-3.0",
+        effectiveTool: "video",
+        queuedResponse: {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-queued-kie-1",
+          generationId: "gen-queued-kie-1",
+          pollAfterMs: 500,
+        },
+        patch: {},
+        queueStatusTimersRef,
+        queueStatusSessionRef,
+        clearQueueStatusPolling,
+        updateOutputById,
+        notifyGenerationFailure,
+        onDispatched,
+      });
+
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(onDispatched).toHaveBeenCalledWith(
+        "req-queued-kie-1",
+        "gen-queued-kie-1",
+        "kie-kling"
+      );
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves submit-time kie provider alias when dispatched modelId is unavailable", async () => {
+    vi.useFakeTimers();
+    try {
+      let output = createOutput("out-queued-kie-fallback");
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      const notifyGenerationFailure = vi.fn();
+      const onDispatched = vi.fn();
+      fetchFalQueueStatusMock.mockResolvedValueOnce({
+        status: "dispatched",
+        generationId: "gen-queued-kie-2",
+        sourceRef: "src-queued-kie-2",
+        requestId: "req-queued-kie-2",
+        provider: "kie",
+      });
+
+      startQueuedStatusPolling({
+        outputId: "out-queued-kie-fallback",
+        provider: "kie-kling",
+        finalModel: "kie-ai/kling-3.0",
+        effectiveTool: "video",
+        queuedResponse: {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-queued-kie-2",
+          generationId: "gen-queued-kie-2",
+          pollAfterMs: 500,
+        },
+        patch: {},
+        queueStatusTimersRef,
+        queueStatusSessionRef,
+        clearQueueStatusPolling,
+        updateOutputById,
+        notifyGenerationFailure,
+        onDispatched,
+      });
+
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(onDispatched).toHaveBeenCalledWith(
+        "req-queued-kie-2",
+        "gen-queued-kie-2",
+        "kie-kling"
+      );
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("fails queued status polling after bounded not_found retries", async () => {
     vi.useFakeTimers();
     try {

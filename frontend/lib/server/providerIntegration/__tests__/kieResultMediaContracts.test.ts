@@ -80,6 +80,21 @@ describe("kieResultMediaContracts", () => {
     expect(klingUrls).toEqual(["https://example.com/generated-video-from-record-info.mp4"]);
   });
 
+  it("extracts veo media URLs from data.response.resultUrls envelope shape", () => {
+    const urls = extractKieResultMediaUrls({
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      payload: {
+        data: {
+          successFlag: 1,
+          response: {
+            resultUrls: ["https://cdn.shortpulse.test/veo-response-nested.mp4"],
+          },
+        },
+      },
+    });
+    expect(urls).toEqual(["https://cdn.shortpulse.test/veo-response-nested.mp4"]);
+  });
+
   it("extracts media URLs when resultJson is already a parsed object", () => {
     const urls = extractKieResultMediaUrls({
       modelId: KIE_KLING_30_MODEL_ID,

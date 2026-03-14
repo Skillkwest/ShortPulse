@@ -214,6 +214,34 @@ describe("GET /api/fal/queue-status", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("returns optional modelId for dispatched queue status responses", async () => {
+    readGenerationQueueStatusMock.mockResolvedValueOnce({
+      status: "dispatched",
+      generationId: "gen-kie-1",
+      sourceRef: "src-kie-1",
+      requestId: "req-kie-1",
+      provider: "kie",
+      modelId: "kie-ai/kling-3.0",
+    });
+    const req = {
+      method: "GET",
+      query: { generationId: "gen-kie-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "dispatched",
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+      })
+    );
+  });
+
   it("logs recovery execution errors and still returns queue status", async () => {
     claimDueQueueStatusRecoveryMock.mockResolvedValueOnce({
       claimed: true,

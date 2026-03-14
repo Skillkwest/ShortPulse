@@ -48,4 +48,26 @@ describe("kieEnvelopeNormalizer", () => {
       resultUrls: ["https://cdn.shortpulse.test/from-string.mp4"],
     });
   });
+
+  it("normalizes veo record-info successFlag and data.response.resultUrls", () => {
+    const normalized = normalizeKieEnvelopePayload({
+      code: 200,
+      msg: "success",
+      data: {
+        taskId: "veo_task_abcdef123456",
+        successFlag: 1,
+        response: {
+          resultUrls: ["https://cdn.shortpulse.test/veo-response-result.mp4"],
+        },
+      },
+    });
+
+    expect(normalized.successFlag).toBe(1);
+    expect(normalized.success_flag).toBe(1);
+    expect(normalized.response).toEqual({
+      resultUrls: ["https://cdn.shortpulse.test/veo-response-result.mp4"],
+    });
+    expect(normalized.resultUrls).toEqual(["https://cdn.shortpulse.test/veo-response-result.mp4"]);
+    expect(normalized.result_urls).toEqual(["https://cdn.shortpulse.test/veo-response-result.mp4"]);
+  });
 });

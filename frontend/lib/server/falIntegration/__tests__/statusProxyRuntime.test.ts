@@ -176,9 +176,13 @@ describe("statusProxyRuntime", () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
-          status: "SUCCESS",
+          code: 200,
+          msg: "success",
           data: {
-            images: [{ url: "https://cdn.shortpulse.test/kie-image.png" }],
+            successFlag: 1,
+            response: {
+              resultUrls: ["https://cdn.shortpulse.test/kie-veo-response.mp4"],
+            },
           },
         }),
         {
@@ -207,7 +211,19 @@ describe("statusProxyRuntime", () => {
         }),
       })
     );
-    expect(result?.payloadStatus).toBe("completed");
+    expect(result).toEqual({
+      payload: {
+        code: 200,
+        msg: "success",
+        data: {
+          successFlag: 1,
+          response: {
+            resultUrls: ["https://cdn.shortpulse.test/kie-veo-response.mp4"],
+          },
+        },
+      },
+      payloadStatus: "completed",
+    });
   });
 
   it("fails closed for kie response probes when model id is missing", async () => {

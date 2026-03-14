@@ -29,8 +29,10 @@ export const kieVeoRecordInfoRunningFixture = {
   msg: "success",
   data: {
     taskId: "veo_task_abcdef123456",
+    successFlag: 0,
     state: "processing",
     response_url: "https://api.kie.ai/api/v1/veo/record-info?taskId=veo_task_abcdef123456",
+    response: null,
   },
 } as const;
 
@@ -39,7 +41,11 @@ export const kieVeoRecordInfoSuccessFixture = {
   msg: "success",
   data: {
     taskId: "veo_task_abcdef123456",
+    successFlag: 1,
     state: "success",
+    response: {
+      resultUrls: ["https://example.com/veo-generated-video.mp4"],
+    },
     result: {
       resultUrls: ["https://example.com/veo-generated-video.mp4"],
     },

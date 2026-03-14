@@ -145,6 +145,7 @@ export const useCanvasViewportDropHandlers = ({
         event.stopPropagation();
         if (mediaLibraryPayload.kind === "libraryMedia") {
           const previewSrc =
+            (mediaLibraryPayload.payload.fullUrl ?? "").trim() ||
             (mediaLibraryPayload.payload.previewUrl ?? "").trim() ||
             (mediaLibraryPayload.payload.url ?? "").trim();
           if (!previewSrc) return;

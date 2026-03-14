@@ -254,6 +254,8 @@ export const buildSeedItemsForFolderCanvas = ({
     const y = Math.floor(index / columns) * yGap;
     const aspect = resolveMediaCardAspectRatio({
       fileType: media.file_type,
+      width: media.width,
+      height: media.height,
       metadata: media.metadata,
     });
     const width = DEFAULT_MEDIA_WIDTH;
@@ -311,7 +313,7 @@ export const reconcileFolderMembershipCanvasItems = ({
 }): CanvasSceneItem[] => {
   const mediaById = new Map(mediaRows.map((row) => [row.id, row]));
   const promptById = new Map(promptRows.map((row) => [row.id, row]));
-  const next = items
+  const normalized = items
     .map((item) => {
       if (item.kind === "image") {
         const mediaId = item.mediaId?.trim() || null;
@@ -321,6 +323,7 @@ export const reconcileFolderMembershipCanvasItems = ({
         const src = (row.signedUrl ?? "").trim() || item.src;
         return {
           ...item,
+          id: `media:${mediaId}`,
           src,
           alt: (row.filename || item.alt).trim(),
         };
@@ -331,10 +334,29 @@ export const reconcileFolderMembershipCanvasItems = ({
       if (!row) return null;
       return {
         ...item,
+        id: `prompt:${promptId}`,
+        outputId: toPromptOutputId(promptId),
         text: row.prompt_text.trim() || item.text,
       };
     })
     .filter((item): item is CanvasSceneItem => Boolean(item));
+
+  const next: CanvasSceneItem[] = [];
+  const membershipIndexById = new Map<string, number>();
+  normalized.forEach((item) => {
+    if (isFolderCanvasMembershipItemId(item.id)) {
+      const existingIndex = membershipIndexById.get(item.id);
+      if (typeof existingIndex === "number") {
+        const existing = next[existingIndex];
+        if (item.z >= existing.z) {
+          next[existingIndex] = item;
+        }
+        return;
+      }
+      membershipIndexById.set(item.id, next.length);
+    }
+    next.push(item);
+  });
 
   const existingIds = new Set(next.map((item) => item.id));
   const existingZ = next.reduce((max, item) => Math.max(max, item.z), 0);
@@ -345,7 +367,12 @@ export const reconcileFolderMembershipCanvasItems = ({
     if (existingIds.has(itemId)) return;
     const src = (row.signedUrl ?? "").trim();
     if (!src) return;
-    const aspect = resolveMediaCardAspectRatio({ fileType: row.file_type, metadata: row.metadata });
+    const aspect = resolveMediaCardAspectRatio({
+      fileType: row.file_type,
+      width: row.width,
+      height: row.height,
+      metadata: row.metadata,
+    });
     const width = DEFAULT_MEDIA_WIDTH;
     next.push({
       id: itemId,

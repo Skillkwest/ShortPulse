@@ -301,6 +301,35 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "image");
   });
 
+  it("uses media-library payload dimensions to preserve landscape ratio on drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "application/x-shortpulse-media-library-item": JSON.stringify({
+          kind: "libraryMedia",
+          source: "mediaLibrary",
+          payload: {
+            id: "media-lib-landscape",
+            url: "https://cdn.example.com/media-lib-landscape.png",
+            previewUrl: "https://cdn.example.com/media-lib-landscape.png",
+            fileType: "image",
+            width: 2000,
+            height: 1000,
+          },
+        }),
+      }),
+      clientX: 260,
+      clientY: 180,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(Number(item.getAttribute("data-width"))).toBe(220);
+    expect(Number(item.getAttribute("data-height"))).toBe(110);
+  });
+
   it("enforces a hard cap of 300 canvas items", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

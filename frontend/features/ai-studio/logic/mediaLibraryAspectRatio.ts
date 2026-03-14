@@ -6,13 +6,18 @@ import { resolveImageDimensionsFromMetadata } from "../../../lib/mediaDimensionM
 
 type MediaAspectRatioInput = {
   fileType?: string | null;
+  width?: number | string | null;
+  height?: number | string | null;
   metadata?: Record<string, unknown> | null;
 };
+
+type MediaDragDimensionsInput = MediaAspectRatioInput;
 
 const MEDIA_IMAGE_FALLBACK_ASPECT_RATIO = 4 / 5;
 const MEDIA_VIDEO_FALLBACK_ASPECT_RATIO = 9 / 16;
 const MEDIA_ASPECT_RATIO_MIN = 0.3;
 const MEDIA_ASPECT_RATIO_MAX = 3;
+const MEDIA_DRAG_DIMENSION_BASE = 1024;
 
 const toPositiveNumber = (value: unknown): number | null => {
   const numericValue = typeof value === "string" ? Number(value) : value;
@@ -40,6 +45,19 @@ const resolveMetadataAspectRatio = (metadata?: Record<string, unknown> | null): 
   return clampAspectRatio(directRatio);
 };
 
+const resolveRowAspectRatio = ({
+  width,
+  height,
+}: {
+  width?: number | string | null;
+  height?: number | string | null;
+}): number | null => {
+  const resolvedWidth = toPositiveNumber(width);
+  const resolvedHeight = toPositiveNumber(height);
+  if (!resolvedWidth || !resolvedHeight) return null;
+  return clampAspectRatio(resolvedWidth / resolvedHeight);
+};
+
 /**
  * Resolves a stable card aspect ratio for media previews.
  * Inputs: media file type and optional metadata payload from stored media rows.
@@ -47,11 +65,47 @@ const resolveMetadataAspectRatio = (metadata?: Record<string, unknown> | null): 
  */
 export const resolveMediaCardAspectRatio = ({
   fileType,
+  width,
+  height,
   metadata,
 }: MediaAspectRatioInput): number => {
+  const rowRatio = resolveRowAspectRatio({ width, height });
+  if (rowRatio) return rowRatio;
   const metadataRatio = resolveMetadataAspectRatio(metadata);
   if (metadataRatio) return metadataRatio;
   return isVideoFileType(fileType)
     ? MEDIA_VIDEO_FALLBACK_ASPECT_RATIO
     : MEDIA_IMAGE_FALLBACK_ASPECT_RATIO;
+};
+
+/**
+ * Resolves intrinsic-like dimensions for drag payloads when native dimensions are missing.
+ * Values are ratio-preserving and only used for Canvas drop sizing heuristics.
+ */
+export const resolveMediaDragDimensions = ({
+  fileType,
+  width,
+  height,
+  metadata,
+}: MediaDragDimensionsInput): { width: number; height: number } => {
+  const resolvedWidth = toPositiveNumber(width);
+  const resolvedHeight = toPositiveNumber(height);
+  if (resolvedWidth && resolvedHeight) {
+    return {
+      width: Math.max(1, Math.round(resolvedWidth)),
+      height: Math.max(1, Math.round(resolvedHeight)),
+    };
+  }
+
+  const aspect = resolveMediaCardAspectRatio({ fileType, width, height, metadata });
+  if (aspect >= 1) {
+    return {
+      width: Math.max(1, Math.round(MEDIA_DRAG_DIMENSION_BASE * aspect)),
+      height: MEDIA_DRAG_DIMENSION_BASE,
+    };
+  }
+  return {
+    width: MEDIA_DRAG_DIMENSION_BASE,
+    height: Math.max(1, Math.round(MEDIA_DRAG_DIMENSION_BASE / Math.max(0.01, aspect))),
+  };
 };

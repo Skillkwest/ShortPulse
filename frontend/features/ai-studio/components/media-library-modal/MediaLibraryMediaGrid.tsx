@@ -71,6 +71,31 @@ export function MediaLibraryMediaGrid({
   onMediaPaint,
   onSignedUrlLoaded,
 }: MediaLibraryMediaGridProps) {
+  const [aspectRatioById, setAspectRatioById] = React.useState<Record<string, number>>({});
+  const cacheAspectRatio = React.useCallback((id: string, ratio: number) => {
+    if (!Number.isFinite(ratio) || ratio <= 0) return;
+    setAspectRatioById((prev) => {
+      if (prev[id] === ratio) return prev;
+      return { ...prev, [id]: ratio };
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const activeIdSet = new Set(activeMedia.map((item) => item.id));
+    setAspectRatioById((prev) => {
+      let changed = false;
+      const next: Record<string, number> = {};
+      for (const [id, ratio] of Object.entries(prev)) {
+        if (!activeIdSet.has(id)) {
+          changed = true;
+          continue;
+        }
+        next[id] = ratio;
+      }
+      return changed ? next : prev;
+    });
+  }, [activeMedia]);
+
   const {
     containerRef: virtualContainerRef,
     isVirtualized,
@@ -79,11 +104,16 @@ export function MediaLibraryMediaGrid({
   } = useMediaMasonryVirtualization({
     items: activeMedia,
     getItemId: (item) => item.id,
-    getAspectRatio: (item) =>
-      resolveMediaCardAspectRatio({
+    getAspectRatio: (item) => {
+      const cachedRatio = aspectRatioById[item.id];
+      if (Number.isFinite(cachedRatio) && cachedRatio > 0) return cachedRatio;
+      return resolveMediaCardAspectRatio({
         fileType: item.file_type,
+        width: item.width ?? null,
+        height: item.height ?? null,
         metadata: item.metadata,
-      }),
+      });
+    },
     enabled: MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
     scrollContainerRef,
     targetColumnWidth: 220,
@@ -136,10 +166,14 @@ export function MediaLibraryMediaGrid({
           const shouldShowCardActions =
             canShowDownloadAction || canShowRemoveAction || canShowDeleteAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
-          const previewAspectRatio = resolveMediaCardAspectRatio({
-            fileType: file.file_type,
-            metadata: file.metadata,
-          });
+          const previewAspectRatio =
+            aspectRatioById[file.id] ??
+            resolveMediaCardAspectRatio({
+              fileType: file.file_type,
+              width: file.width ?? null,
+              height: file.height ?? null,
+              metadata: file.metadata,
+            });
           const cardPreviewUrl = resolveCardPreviewUrl
             ? resolveCardPreviewUrl({
                 signedUrl: file.signedUrl,
@@ -193,7 +227,11 @@ export function MediaLibraryMediaGrid({
                       autoPlay={autoPlayEnabled}
                       preload={autoPlayEnabled ? "metadata" : "none"}
                       style={{ aspectRatio: previewAspectRatio }}
-                      onLoadedMetadata={() => {
+                      onLoadedMetadata={(event) => {
+                        const node = event.currentTarget;
+                        if (node.videoWidth > 0 && node.videoHeight > 0) {
+                          cacheAspectRatio(file.id, node.videoWidth / node.videoHeight);
+                        }
                         onSignedUrlLoaded(file.id);
                       }}
                       onLoadedData={() => {
@@ -214,7 +252,11 @@ export function MediaLibraryMediaGrid({
                         loading="lazy"
                         decoding="async"
                         style={{ aspectRatio: previewAspectRatio }}
-                        onLoad={() => {
+                        onLoad={(event) => {
+                          const node = event.currentTarget;
+                          if (node.naturalWidth > 0 && node.naturalHeight > 0) {
+                            cacheAspectRatio(file.id, node.naturalWidth / node.naturalHeight);
+                          }
                           onSignedUrlLoaded(file.id);
                           onMediaPaint("image");
                         }}

@@ -39,6 +39,17 @@ describe("resolveMediaCardAspectRatio", () => {
     ).toBeCloseTo(1.5, 4);
   });
 
+  it("uses row width/height when metadata dimensions are unavailable", () => {
+    expect(
+      resolveMediaCardAspectRatio({
+        fileType: "image/png",
+        width: 2048,
+        height: 1024,
+        metadata: null,
+      })
+    ).toBe(2);
+  });
+
   it("derives aspect ratio from width and height metadata", () => {
     expect(
       resolveMediaCardAspectRatio({

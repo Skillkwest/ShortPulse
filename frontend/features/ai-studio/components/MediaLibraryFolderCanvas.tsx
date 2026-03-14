@@ -2,6 +2,7 @@
  * Renders the Media Library custom-folder canvas and syncs canvas membership with folder membership.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { CanvasPropertiesPanel } from "./canvas/CanvasPropertiesPanel";
 import { CANVAS_DEFAULT_CAMERA } from "./canvas/canvasGeometry";
 import { useAiStudioDualCanvasWorkspaceState } from "./canvas/useAiStudioCanvasWorkspaceState";
@@ -25,11 +26,13 @@ import {
   reconcileFolderMembershipCanvasItems,
 } from "../logic/mediaFolderCanvasSnapshot";
 import {
+  BUCKET,
   isVideoFile,
   resolveMediaMetadataPromptText,
   type MediaFileRow,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
+import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
   attachMediaLibraryDragGhost,
@@ -87,6 +90,9 @@ export function MediaLibraryFolderCanvas({
     string[]
   >([]);
   const [pendingAssignedMediaRows, setPendingAssignedMediaRows] = useState<MediaFileRow[]>([]);
+  const [fullQualityUrlByMediaId, setFullQualityUrlByMediaId] = useState<Record<string, string>>(
+    {}
+  );
 
   const suppressRemovalSyncRef = useRef(false);
   const loadedFolderIdRef = useRef<string | null>(null);
@@ -98,13 +104,27 @@ export function MediaLibraryFolderCanvas({
     [pendingUnassignMembershipItemIds]
   );
 
-  const mediaById = useMemo(() => new Map(mediaRows.map((row) => [row.id, row])), [mediaRows]);
+  const canvasMediaRows = useMemo(() => {
+    if (!Object.keys(fullQualityUrlByMediaId).length) return mediaRows;
+    return mediaRows.map((row) => {
+      const fullQualityUrl = fullQualityUrlByMediaId[row.id];
+      if (!fullQualityUrl || fullQualityUrl === row.signedUrl) return row;
+      return {
+        ...row,
+        signedUrl: fullQualityUrl,
+      };
+    });
+  }, [fullQualityUrlByMediaId, mediaRows]);
+  const mediaById = useMemo(
+    () => new Map(canvasMediaRows.map((row) => [row.id, row])),
+    [canvasMediaRows]
+  );
   const promptById = useMemo(() => new Map(promptRows.map((row) => [row.id, row])), [promptRows]);
   const reconciledMediaRows = useMemo(() => {
     const baseRows =
       pendingUnassignMembershipItemSet.size === 0
-        ? mediaRows
-        : mediaRows.filter((row) => !pendingUnassignMembershipItemSet.has(`media:${row.id}`));
+        ? canvasMediaRows
+        : canvasMediaRows.filter((row) => !pendingUnassignMembershipItemSet.has(`media:${row.id}`));
     if (pendingAssignedMediaRows.length === 0) return baseRows;
     const rowsById = new Map(baseRows.map((row) => [row.id, row]));
     pendingAssignedMediaRows.forEach((row) => {
@@ -113,7 +133,7 @@ export function MediaLibraryFolderCanvas({
       }
     });
     return Array.from(rowsById.values());
-  }, [mediaRows, pendingAssignedMediaRows, pendingUnassignMembershipItemSet]);
+  }, [canvasMediaRows, pendingAssignedMediaRows, pendingUnassignMembershipItemSet]);
   const reconciledPromptRows = useMemo(() => {
     if (pendingUnassignMembershipItemSet.size === 0) return promptRows;
     return promptRows.filter((row) => !pendingUnassignMembershipItemSet.has(`prompt:${row.id}`));
@@ -217,15 +237,74 @@ export function MediaLibraryFolderCanvas({
   const previousItemsRef = useRef(workspace.sessionState.items);
 
   useEffect(() => {
-    mediaRowsRef.current = mediaRows;
-    if (!mediaRows.length) return;
+    setFullQualityUrlByMediaId({});
+  }, [folderId]);
+
+  useEffect(() => {
+    const currentIds = new Set(mediaRows.map((row) => row.id));
+    setFullQualityUrlByMediaId((previous) => {
+      const entries = Object.entries(previous).filter(([id]) => currentIds.has(id));
+      if (entries.length === Object.keys(previous).length) return previous;
+      return Object.fromEntries(entries);
+    });
+  }, [mediaRows]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const rowsToResolve = mediaRows.filter((row) => {
+      if (isVideoFile(row.file_type)) return false;
+      const storagePath = row.storage_path?.trim() ?? "";
+      if (!storagePath) return false;
+      return !fullQualityUrlByMediaId[row.id];
+    });
+    if (!rowsToResolve.length) return;
+
+    void Promise.all(
+      rowsToResolve.map(async (row) => {
+        const storagePath = row.storage_path?.trim() ?? "";
+        if (!storagePath) return null;
+        const signedUrl = await getSignedMediaUrl({
+          bucket: BUCKET,
+          storagePath,
+          previewProfile: "none",
+        });
+        const normalizedUrl = signedUrl?.trim() ?? "";
+        if (!normalizedUrl) return null;
+        return [row.id, normalizedUrl] as const;
+      })
+    ).then((resolvedEntries) => {
+      if (cancelled) return;
+      const updates = resolvedEntries.filter((entry): entry is readonly [string, string] =>
+        Array.isArray(entry)
+      );
+      if (!updates.length) return;
+      setFullQualityUrlByMediaId((previous) => {
+        let changed = false;
+        const next: Record<string, string> = { ...previous };
+        updates.forEach(([mediaId, url]) => {
+          if (next[mediaId] === url) return;
+          next[mediaId] = url;
+          changed = true;
+        });
+        return changed ? next : previous;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fullQualityUrlByMediaId, mediaRows]);
+
+  useEffect(() => {
+    mediaRowsRef.current = canvasMediaRows;
+    if (!canvasMediaRows.length) return;
     setPendingAssignedMediaRows((previous) => {
       if (!previous.length) return previous;
-      const mediaIds = new Set(mediaRows.map((row) => row.id));
+      const mediaIds = new Set(canvasMediaRows.map((row) => row.id));
       const next = previous.filter((row) => !mediaIds.has(row.id));
       return next.length === previous.length ? previous : next;
     });
-  }, [mediaRows]);
+  }, [canvasMediaRows]);
 
   useEffect(() => {
     promptRowsRef.current = promptRows;
@@ -503,6 +582,12 @@ export function MediaLibraryFolderCanvas({
 
       if (item.kind === "image") {
         const mediaRow = item.mediaId ? mediaById.get(item.mediaId) : null;
+        const dragDimensions = resolveMediaDragDimensions({
+          fileType: mediaRow?.file_type ?? "image",
+          width: mediaRow?.width ?? item.width,
+          height: mediaRow?.height ?? item.height,
+          metadata: mediaRow?.metadata ?? null,
+        });
         writeMediaLibraryDragPayload(event.dataTransfer, {
           kind: "libraryMedia",
           source: "mediaLibrary",
@@ -518,6 +603,8 @@ export function MediaLibraryFolderCanvas({
             fullStoragePath: mediaRow?.storage_path ?? null,
             previewUrl: item.src,
             fullUrl: item.src,
+            width: dragDimensions.width,
+            height: dragDimensions.height,
           },
         });
         event.dataTransfer.effectAllowed = "copy";

@@ -39,6 +39,8 @@ export type ReferenceIngestionInput =
         fullStoragePath?: string | null;
         previewUrl?: string | null;
         fullUrl?: string | null;
+        width?: number;
+        height?: number;
       };
     }
   | {

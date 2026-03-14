@@ -541,6 +541,8 @@ export const useCanvasViewportInstanceState = ({
         button: event.button,
         isSpacePanActive: isSpacePanActiveRef.current,
       });
+      // On macOS, ctrl+primary click is treated as secondary-click context intent.
+      if (!shouldPan && event.button === 0 && event.ctrlKey) return;
       if (!shouldPan && event.button !== 0) return;
       if (textEditSession?.itemId === itemId && !shouldPan) return;
       event.preventDefault();

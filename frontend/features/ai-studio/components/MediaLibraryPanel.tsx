@@ -58,6 +58,7 @@ import {
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
   type PromptListCursor,
 } from "../logic/mediaLibraryPanelApi";
+import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
 import {
   attachMediaLibraryDragGhost,
   clearMediaLibraryDragGhost,
@@ -226,6 +227,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const [signPassNonce, setSignPassNonce] = useState(0);
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
+  const [folderCanvasFullSignedById, setFolderCanvasFullSignedById] = useState<
+    Record<string, string>
+  >({});
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -515,6 +519,39 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         });
       },
     });
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!showFolderCanvas) {
+      setFolderCanvasFullSignedById({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const hydrateFolderCanvasFullUrls = async () => {
+      const nextById: Record<string, string> = {};
+      await Promise.all(
+        mediaRows.map(async (row) => {
+          const resolvedUrl = await resolveSignedSelectionUrl({
+            row,
+            currentUserId: currentUserIdRef.current,
+            signStoragePath,
+          }).catch(() => null);
+          const normalized = (resolvedUrl ?? "").trim();
+          if (!normalized) return;
+          nextById[row.id] = normalized;
+        })
+      );
+      if (cancelled) return;
+      setFolderCanvasFullSignedById(nextById);
+    };
+
+    void hydrateFolderCanvasFullUrls();
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaRows, showFolderCanvas, signStoragePath]);
 
   useMediaPreviewSigningController({
     activeMediaTab,
@@ -1048,6 +1085,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         event.preventDefault();
         return;
       }
+      const dragDimensions = resolveMediaDragDimensions({
+        fileType: file.file_type,
+        width: file.width ?? null,
+        height: file.height ?? null,
+        metadata: file.metadata,
+      });
       const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
@@ -1064,6 +1107,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           fullStoragePath: file.storage_path,
           previewUrl: signedUrl,
           fullUrl: signedUrl,
+          width: dragDimensions.width,
+          height: dragDimensions.height,
         },
       });
       event.dataTransfer.effectAllowed = "copy";
@@ -1238,6 +1283,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const activeFolderName =
     orderedFolders.find((folder) => folder.id === activeFolderId)?.name || ROOT_FOLDER_LABEL;
+  const folderCanvasMediaRows = useMemo(
+    () =>
+      showFolderCanvas
+        ? mediaRows.map((row) => ({
+            ...row,
+            signedUrl: folderCanvasFullSignedById[row.id] ?? row.signedUrl ?? null,
+          }))
+        : mediaRows,
+    [folderCanvasFullSignedById, mediaRows, showFolderCanvas]
+  );
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
   const resolvePanelCardPreviewUrl = useCallback(
     ({
@@ -1552,7 +1607,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             {showFolderCanvas ? (
               <MediaLibraryFolderCanvas
                 folderId={activeFolderId}
-                mediaRows={mediaRows}
+                mediaRows={folderCanvasMediaRows}
                 promptRows={visiblePromptRows}
                 onSelectMedia={onSelectMedia}
                 onSelectPrompt={onSelectPrompt}

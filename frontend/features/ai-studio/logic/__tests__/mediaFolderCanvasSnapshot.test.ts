@@ -66,6 +66,29 @@ describe("mediaFolderCanvasSnapshot", () => {
     expect(seeded.some((item) => item.id === "prompt:prompt-1")).toBe(true);
   });
 
+  it("uses row width/height to preserve landscape sizing in seeded media items", () => {
+    const seeded = buildSeedItemsForFolderCanvas({
+      mediaRows: [
+        {
+          id: "landscape-1",
+          filename: "Landscape One",
+          storage_path: "user/upload/images/landscape-1.jpg",
+          file_type: "image/jpeg",
+          width: 1920,
+          height: 1080,
+          created_at: "2026-03-11T00:00:00.000Z",
+          signedUrl: "https://cdn.example.com/landscape-1.jpg",
+        },
+      ],
+      promptRows: [],
+    });
+    const seededLandscape = seeded.find((item) => item.id === "media:landscape-1");
+    expect(seededLandscape?.kind).toBe("image");
+    if (!seededLandscape || seededLandscape.kind !== "image") return;
+    expect(seededLandscape.width).toBe(280);
+    expect(seededLandscape.height).toBe(158);
+  });
+
   it("reconciles membership items and removes stale linked entries", () => {
     const reconciled = reconcileFolderMembershipCanvasItems({
       items: [
@@ -107,5 +130,114 @@ describe("mediaFolderCanvasSnapshot", () => {
     expect(getPromptIdFromCanvasOutputId("x:abc")).toBeNull();
     expect(isFolderCanvasMembershipItemId("prompt:abc")).toBe(true);
     expect(isFolderCanvasMembershipItemId("text:abc")).toBe(false);
+  });
+
+  it("canonicalizes and dedupes dropped image membership items by media id", () => {
+    const reconciled = reconcileFolderMembershipCanvasItems({
+      items: [
+        {
+          id: "canvas-temp-item",
+          kind: "image",
+          x: 120,
+          y: 80,
+          z: 8,
+          selected: true,
+          outputId: null,
+          sourceSurface: null,
+          mediaId: "file-1",
+          src: "https://cdn.example.com/old-drop.png",
+          alt: "Old drop",
+          width: 220,
+          height: 140,
+        },
+        {
+          id: "media:file-1",
+          kind: "image",
+          x: 0,
+          y: 0,
+          z: 3,
+          selected: false,
+          outputId: null,
+          sourceSurface: null,
+          mediaId: "file-1",
+          src: "https://cdn.example.com/older-seed.png",
+          alt: "Old seed",
+          width: 280,
+          height: 350,
+        },
+      ],
+      mediaRows: [
+        {
+          id: "file-1",
+          filename: "Image One",
+          storage_path: "user/upload/images/file-1.png",
+          file_type: "image",
+          created_at: "2026-03-11T00:00:00.000Z",
+          signedUrl: "https://cdn.example.com/final.png",
+        },
+      ],
+      promptRows: [],
+    });
+
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0]).toMatchObject({
+      id: "media:file-1",
+      mediaId: "file-1",
+      x: 120,
+      y: 80,
+      src: "https://cdn.example.com/final.png",
+      alt: "Image One",
+    });
+  });
+
+  it("canonicalizes and dedupes dropped prompt membership items by prompt id", () => {
+    const reconciled = reconcileFolderMembershipCanvasItems({
+      items: [
+        {
+          id: "canvas-temp-prompt",
+          kind: "text",
+          x: 100,
+          y: 40,
+          z: 6,
+          selected: true,
+          outputId: "prompt:prompt-1",
+          sourceSurface: null,
+          text: "old prompt text",
+          width: 260,
+        },
+        {
+          id: "prompt:prompt-1",
+          kind: "text",
+          x: 0,
+          y: 0,
+          z: 1,
+          selected: false,
+          outputId: "prompt:prompt-1",
+          sourceSurface: null,
+          text: "older prompt text",
+          width: 260,
+        },
+      ],
+      mediaRows: [],
+      promptRows: [
+        {
+          id: "prompt-1",
+          title: "Prompt One",
+          prompt_text: "cinematic sky",
+          mode: "text",
+          source: "manual",
+          created_at: "2026-03-11T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0]).toMatchObject({
+      id: "prompt:prompt-1",
+      outputId: "prompt:prompt-1",
+      x: 100,
+      y: 40,
+      text: "cinematic sky",
+    });
   });
 });

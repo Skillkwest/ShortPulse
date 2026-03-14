@@ -16,6 +16,8 @@ export type MediaFileRow = {
   storage_path: string;
   preview_storage_path?: string;
   file_type: string;
+  width?: number | null;
+  height?: number | null;
   source?: string | null;
   created_at?: string | null;
   metadata?: Record<string, unknown> | null;

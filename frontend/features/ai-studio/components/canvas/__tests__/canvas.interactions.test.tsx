@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   CanvasHarness,
@@ -197,6 +197,32 @@ describe("Canvas interaction behavior", () => {
     expect(Number(item.getAttribute("data-y"))).toBe(startItemY);
     expect(Number(viewport.getAttribute("data-camera-x"))).toBe(45);
     expect(Number(viewport.getAttribute("data-camera-y"))).toBe(45);
+  });
+
+  it("does not consume ctrl+primary pointerdown so context-menu intent can proceed", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Context candidate",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const pointerDown = createEvent.pointerDown(item, {
+      button: 0,
+      ctrlKey: true,
+      pointerId: 122,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent(item, pointerDown);
+
+    expect(pointerDown.defaultPrevented).toBe(false);
   });
 
   it("updates camera position while panning the background", () => {

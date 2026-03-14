@@ -21,6 +21,8 @@ const MEDIA_LIBRARY_FALLBACK_FULL_STORAGE_PATH_TYPE =
   "text/shortpulse-media-library-full-storage-path";
 const MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE = "text/shortpulse-media-library-preview-url";
 const MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE = "text/shortpulse-media-library-full-url";
+const MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE = "text/shortpulse-media-library-width";
+const MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE = "text/shortpulse-media-library-height";
 const MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE = "text/shortpulse-media-library-prompt";
 const MEDIA_LIBRARY_FALLBACK_TITLE_TYPE = "text/shortpulse-media-library-title";
 const MEDIA_LIBRARY_FALLBACK_MARKER_VALUE = "shortpulse-media-library-v1";
@@ -36,6 +38,13 @@ const normalizeTransferText = (value: string | null | undefined): string | null 
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const normalizePositiveNumber = (value: string | null | undefined): number | undefined => {
+  if (typeof value !== "string") return undefined;
+  const parsed = Number.parseFloat(value.trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return parsed;
 };
 
 const getFirstUriListValue = (value: string): string | null =>
@@ -121,6 +130,8 @@ const readFallbackMediaLibraryDragPayload = (
           transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE)
         ),
         fullUrl: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE)),
+        width: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE)),
+        height: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE)),
       },
     };
   }
@@ -171,6 +182,15 @@ const setTransferTextIfPresent = (
   const trimmed = value.trim();
   if (!trimmed.length) return;
   transfer.setData(type, trimmed);
+};
+
+const setTransferNumberIfPresent = (
+  transfer: Pick<DataTransfer, "setData">,
+  type: string,
+  value: number | null | undefined
+) => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return;
+  transfer.setData(type, String(value));
 };
 
 /**
@@ -224,6 +244,12 @@ export const writeMediaLibraryDragPayload = (
       transfer,
       MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE,
       payload.payload.fullUrl
+    );
+    setTransferNumberIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE, payload.payload.width);
+    setTransferNumberIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE,
+      payload.payload.height
     );
   } else {
     setTransferTextIfPresent(

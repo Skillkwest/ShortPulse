@@ -43,6 +43,7 @@ import {
 
 type FalStatusConfig = {
   provider?: string;
+  modelId?: string | null;
   queueBaseUrl: string | string[];
   routeLabel: string;
   timeoutMs?: number;
@@ -123,6 +124,7 @@ const respondError = ({
  */
 export const createFalStatusHandler = ({
   provider = "fal",
+  modelId = null,
   queueBaseUrl,
   routeLabel,
   timeoutMs = 60000,
@@ -226,10 +228,28 @@ export const createFalStatusHandler = ({
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    const queueBaseUrls = resolveProviderStatusBaseUrls({
-      provider: providerKey,
-      configuredBaseUrls: Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl],
-    });
+    let queueBaseUrls: string[];
+    try {
+      queueBaseUrls = resolveProviderStatusBaseUrls({
+        provider: providerKey,
+        configuredBaseUrls: Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl],
+        modelId,
+      });
+    } catch (error) {
+      return await respondErrorWithLogging({
+        requestId,
+        error: "Failed to resolve provider queue status base URLs.",
+        detail: {
+          provider: providerKey,
+          modelId,
+          queueBaseUrl,
+          cause: String(error),
+        },
+        statusCode: 500,
+        source: "api.fal_status.queue_base_url_resolution_failed",
+        stage: "queue_base_url_resolution",
+      });
+    }
     if (!queueBaseUrls.length) {
       return await respondErrorWithLogging({
         requestId,
@@ -608,6 +628,7 @@ export const createFalStatusHandler = ({
       if (!isComplete) {
         const responseUrlProbe = await probeResponseUrlsForMedia({
           provider: providerKey,
+          modelId,
           responseUrls: orderedResponseUrls,
           statusHint: normalizedStatus,
           apiKey,
@@ -669,6 +690,7 @@ export const createFalStatusHandler = ({
       }> = [];
       const responseUrlProbe = await probeResponseUrlsForMedia({
         provider: providerKey,
+        modelId,
         responseUrls: orderedResponseUrls,
         statusHint: normalizedStatus,
         apiKey,

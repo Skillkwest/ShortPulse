@@ -7,8 +7,11 @@ import {
   probeResponseUrlsForMedia,
 } from "../statusProxyRuntime";
 
+const ORIGINAL_ENV = { ...process.env };
+
 describe("statusProxyRuntime", () => {
   afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
     vi.unstubAllGlobals();
   });
 
@@ -163,5 +166,63 @@ describe("statusProxyRuntime", () => {
       expect.any(Object)
     );
     expect(result?.payloadStatus).toBe("completed");
+  });
+
+  it("probes trusted kie response urls when model id is provided", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "SUCCESS",
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/kie-image.png" }],
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await probeResponseUrlsForMedia({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      responseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId=req-kie-1"],
+      statusHint: "running",
+      apiKey: "kie-test-key",
+      signal: new AbortController().signal,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.kie.ai/api/v1/veo/record-info?taskId=req-kie-1",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer kie-test-key",
+        }),
+      })
+    );
+    expect(result?.payloadStatus).toBe("completed");
+  });
+
+  it("fails closed for kie response probes when model id is missing", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+
+    await expect(
+      probeResponseUrlsForMedia({
+        provider: "kie",
+        responseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId=req-kie-1"],
+        statusHint: "running",
+        apiKey: "kie-test-key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow("Kie response probe URL resolution requires modelId.");
   });
 });

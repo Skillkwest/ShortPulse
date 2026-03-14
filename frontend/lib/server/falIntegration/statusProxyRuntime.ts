@@ -97,18 +97,20 @@ export const buildFalStatusTransientPayload = ({
 
 export const probeResponseUrlsForMedia = async ({
   provider = "fal",
+  modelId = null,
   responseUrls,
   statusHint,
   apiKey,
   signal,
 }: {
   provider?: string;
+  modelId?: string | null;
   responseUrls: string[];
   statusHint: string | null;
   apiKey: string;
   signal: AbortSignal;
 }): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
-  const trustedResponseUrls = resolveProviderResponseUrls({ provider, responseUrls });
+  const trustedResponseUrls = resolveProviderResponseUrls({ provider, responseUrls, modelId });
   for (const responseUrl of trustedResponseUrls) {
     const responseProbe = await dispatchProviderResponseProbeRequest({
       provider,

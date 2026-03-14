@@ -160,7 +160,8 @@ export const useAiStudioAgentOrchestration = ({
           selectedOverride: options?.selectedOverride,
           modeHint: options?.modeHint ?? (agentAttachments.length ? "reference" : undefined),
         });
-        if (latestAgentPrompt) {
+        const shouldInjectLatestAgentPrompt = Boolean(latestAgentPrompt) && outboundText.length > 0;
+        if (shouldInjectLatestAgentPrompt) {
           baseContext.activePrompt = latestAgentPrompt;
           baseContext.lastAssistantMessage = latestAgentPrompt;
         }

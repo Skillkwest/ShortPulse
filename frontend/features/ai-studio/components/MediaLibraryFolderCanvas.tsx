@@ -64,6 +64,7 @@ type MediaLibraryFolderCanvasProps = {
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
   onUnassignItem: (item: { kind: "media" | "prompt"; id: string }) => Promise<void>;
   onAssignDroppedItem?: (item: { kind: "media" | "prompt"; id: string }) => Promise<boolean>;
+  onDropFilesToCanvas?: (files: FileList) => Promise<MediaFileRow[]>;
   resolveInternalDropItem?: (
     payload: InternalReferenceDragPayload
   ) => Promise<ResolvedInternalDropItem>;
@@ -80,6 +81,7 @@ export function MediaLibraryFolderCanvas({
   onSelectPrompt,
   onUnassignItem,
   onAssignDroppedItem,
+  onDropFilesToCanvas,
   resolveInternalDropItem,
   resolveCanvasDropReference,
 }: MediaLibraryFolderCanvasProps) {
@@ -176,6 +178,17 @@ export function MediaLibraryFolderCanvas({
     []
   );
 
+  const addPendingAssignedMediaRows = useCallback((rows: MediaFileRow[]) => {
+    if (!rows.length) return;
+    setPendingAssignedMediaRows((previous) => {
+      const rowsById = new Map(previous.map((row) => [row.id, row]));
+      rows.forEach((row) => {
+        rowsById.set(row.id, row);
+      });
+      return Array.from(rowsById.values());
+    });
+  }, []);
+
   const prepareResolvedInternalCanvasDrop = useCallback<PrepareResolvedInternalCanvasDrop>(
     async (payload, resolved) => {
       if (resolved.kind !== "image") return resolved;
@@ -217,9 +230,56 @@ export function MediaLibraryFolderCanvas({
     [addPendingAssignedMediaRow, onAssignDroppedItem, resolveInternalDropItem]
   );
 
+  const resolveCanvasDropFiles = useCallback(
+    async (files: FileList) => {
+      if (!onDropFilesToCanvas) return null;
+      let uploadedRows: MediaFileRow[] = [];
+      try {
+        uploadedRows = await onDropFilesToCanvas(files);
+      } catch (uploadError) {
+        setSaveError(
+          uploadError instanceof Error ? uploadError.message : "Unable to process dropped files."
+        );
+        return null;
+      }
+
+      const imageRows = uploadedRows.filter((row) => !isVideoFile(row.file_type));
+      if (!imageRows.length) {
+        setSaveError("Only image files can be dropped onto this canvas.");
+        return null;
+      }
+
+      addPendingAssignedMediaRows(imageRows);
+      setSaveError(null);
+      return imageRows
+        .map((row) => {
+          const src = (row.signedUrl ?? "").trim();
+          if (!src) return null;
+          const dragDimensions = resolveMediaDragDimensions({
+            fileType: row.file_type,
+            width: row.width ?? null,
+            height: row.height ?? null,
+            metadata: row.metadata ?? null,
+          });
+          return {
+            kind: "image" as const,
+            outputId: null,
+            mediaId: row.id,
+            src,
+            alt: (row.filename || "Canvas media").trim(),
+            width: dragDimensions.width,
+            height: dragDimensions.height,
+          };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+    },
+    [addPendingAssignedMediaRows, onDropFilesToCanvas]
+  );
+
   const workspace = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    resolveCanvasDropFiles,
     onPinTextReference: (text) => {
       const trimmed = text.trim();
       if (!trimmed) return;

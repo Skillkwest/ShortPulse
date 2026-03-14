@@ -8,14 +8,24 @@ const createMediaFolderMock = vi.fn();
 const renameMediaFolderMock = vi.fn();
 const deleteMediaFolderMock = vi.fn();
 const applyMediaFolderMembershipBatchMock = vi.fn();
+const uploadMediaFileMock = vi.fn();
 const fetchMediaPromptListPageMock = vi.fn();
 const fetchMediaListPageMock = vi.fn();
 const mediaGridPropsSpy = vi.fn();
+const folderCanvasPropsSpy = vi.fn();
 const storageDownloadMock = vi.fn();
 const deleteMediaFileWithStorageMock = vi.fn();
 const deleteMediaPromptByIdMock = vi.fn();
 const logMediaEventMock = vi.fn();
 const isAdaptiveSurfaceEnabledMock = vi.fn();
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
 
 vi.mock("../../../../lib/adaptive-media", () => ({
   isAdaptiveSurfaceEnabled: (...args: unknown[]) => isAdaptiveSurfaceEnabledMock(...args),
@@ -23,31 +33,54 @@ vi.mock("../../../../lib/adaptive-media", () => ({
 
 vi.mock("../MediaLibraryFolderCanvas", () => ({
   MediaLibraryFolderCanvas: ({
+    mediaRows,
+    promptRows,
     onUnassignItem,
     onAssignDroppedItem,
+    onDropFilesToCanvas,
   }: {
+    mediaRows: Array<{ id: string }>;
+    promptRows: Array<{ id: string }>;
     onUnassignItem: (item: { kind: "media" | "prompt"; id: string }) => Promise<void>;
     onAssignDroppedItem?: (item: { kind: "media" | "prompt"; id: string }) => Promise<boolean>;
-  }) => (
-    <div data-testid="media-library-folder-canvas-mock">
-      <button
-        type="button"
-        onClick={() => {
-          void onUnassignItem({ kind: "prompt", id: "prompt-1" });
-        }}
-      >
-        Remove prompt Prompt One
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          void onAssignDroppedItem?.({ kind: "media", id: "media-drop-1" });
-        }}
-      >
-        Assign dropped media Media One
-      </button>
-    </div>
-  ),
+    onDropFilesToCanvas?: (files: FileList) => Promise<unknown>;
+  }) => {
+    folderCanvasPropsSpy({ mediaRows, promptRows });
+    const file = new File(["canvas"], "canvas-drop.png", { type: "image/png" });
+    const fileList = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    return (
+      <div data-testid="media-library-folder-canvas-mock">
+        <button
+          type="button"
+          onClick={() => {
+            void onUnassignItem({ kind: "prompt", id: "prompt-1" });
+          }}
+        >
+          Remove prompt Prompt One
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void onAssignDroppedItem?.({ kind: "media", id: "media-drop-1" });
+          }}
+        >
+          Assign dropped media Media One
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void onDropFilesToCanvas?.(fileList);
+          }}
+        >
+          Drop files on folder canvas
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
@@ -139,6 +172,7 @@ vi.mock("../../logic/mediaLibraryPanelApi", async () => {
     deleteMediaFolder: (...args: unknown[]) => deleteMediaFolderMock(...args),
     applyMediaFolderMembershipBatch: (...args: unknown[]) =>
       applyMediaFolderMembershipBatchMock(...args),
+    uploadMediaFile: (...args: unknown[]) => uploadMediaFileMock(...args),
     fetchMediaPromptListPage: (...args: unknown[]) => fetchMediaPromptListPageMock(...args),
   };
 });
@@ -293,6 +327,7 @@ describe("MediaLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mediaGridPropsSpy.mockReset();
+    folderCanvasPropsSpy.mockReset();
     storageDownloadMock.mockResolvedValue({
       data: new Blob(["panel-download"], { type: "image/png" }),
       error: null,
@@ -303,6 +338,17 @@ describe("MediaLibraryPanel", () => {
     deleteMediaFileWithStorageMock.mockResolvedValue(undefined);
     deleteMediaPromptByIdMock.mockResolvedValue(undefined);
     logMediaEventMock.mockResolvedValue(undefined);
+    uploadMediaFileMock.mockResolvedValue({
+      id: "uploaded-1",
+      filename: "upload.png",
+      storage_path: "user-1/images/upload.png",
+      preview_storage_path: "user-1/images/upload.png",
+      file_type: "image/png",
+      file_size: 128,
+      source: "upload",
+      created_at: "2026-03-05T00:00:00.000Z",
+      signedUrl: "https://cdn.example.com/upload.png",
+    });
     listMediaFoldersMock.mockResolvedValue([
       {
         id: "folder-1",
@@ -777,6 +823,8 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
     });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove prompt Prompt One" }));
 
@@ -788,6 +836,8 @@ describe("MediaLibraryPanel", () => {
         promptIds: ["prompt-1"],
       });
     });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
   });
 
   it("assigns internal dropped media ids into the active custom folder canvas", async () => {
@@ -815,6 +865,238 @@ describe("MediaLibraryPanel", () => {
         promptIds: [],
       });
     });
+  });
+
+  it("uploads desktop files dropped on a folder tile and assigns them to that folder", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const file = new File(["desktop"], "desktop-drop.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const transfer = {
+      files,
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+
+    fireEvent.drop(folderTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+    });
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: ["uploaded-1"],
+        promptIds: [],
+      });
+    });
+  });
+
+  it("prioritizes media-library drag payload over transfer files on folder tile drops", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const file = new File(["desktop"], "desktop-drop.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const payload = JSON.stringify({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-1",
+        url: "https://cdn.example.com/ref-1.png",
+        fileType: "image",
+        originFolderId: "all_items",
+      },
+    });
+    const transfer = {
+      files,
+      types: ["Files", "application/x-shortpulse-media-library-item"],
+      getData: (type: string) =>
+        type === "application/x-shortpulse-media-library-item" ||
+        type === "text/x-shortpulse-media-library-item"
+          ? payload
+          : "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+
+    fireEvent.drop(folderTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: ["media-1"],
+        promptIds: [],
+      });
+    });
+    expect(uploadMediaFileMock).not.toHaveBeenCalled();
+  });
+
+  it("uploads desktop files dropped on folder canvas and assigns them to the active folder", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Campaign")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Drop files on folder canvas" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Drop files on folder canvas" }));
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file: expect.objectContaining({ name: "canvas-drop.png" }),
+        destinationTab: "uploaded_images",
+      });
+    });
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: ["uploaded-1"],
+        promptIds: [],
+      });
+    });
+  });
+
+  it("defers folder-canvas mount until custom-folder media and prompt scopes resolve", async () => {
+    const deferredFolderMediaPage = createDeferred<{
+      rows: Array<Record<string, unknown>>;
+      nextCursor: null;
+      hasMore: boolean;
+      signedById: Map<string, string>;
+    }>();
+    const deferredFolderPromptPage = createDeferred<{
+      rows: Array<Record<string, unknown>>;
+      nextCursor: null;
+      hasMore: boolean;
+    }>();
+
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "media-root-1",
+            filename: "root-ref.png",
+            storage_path: "user-1/uploads/root-ref.png",
+            preview_storage_path: "user-1/uploads/root-ref.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-03-02T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/root-ref.png",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map<string, string>(),
+      })
+      .mockImplementationOnce(() => deferredFolderMediaPage.promise);
+    fetchMediaPromptListPageMock.mockImplementationOnce(() => deferredFolderPromptPage.promise);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Campaign")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media root-ref.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Loading folder canvas...")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("media-library-folder-canvas-mock")).not.toBeInTheDocument();
+
+    await act(async () => {
+      deferredFolderMediaPage.resolve({
+        rows: [
+          {
+            id: "media-folder-1",
+            filename: "folder-ref.png",
+            storage_path: "user-1/uploads/folder-ref.png",
+            preview_storage_path: "user-1/uploads/folder-ref.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-03-03T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/folder-ref.png",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map<string, string>(),
+      });
+      deferredFolderPromptPage.resolve({
+        rows: [
+          {
+            id: "prompt-folder-1",
+            title: "Folder Prompt",
+            prompt_text: "Folder prompt text",
+            mode: "text",
+            source: "manual",
+            created_at: "2026-03-03T00:00:00.000Z",
+            updated_at: "2026-03-03T00:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-folder-canvas-mock")).toBeInTheDocument();
+    });
+
+    const latestCanvasProps = folderCanvasPropsSpy.mock.calls.at(-1)?.[0] as
+      | {
+          mediaRows: Array<{ id: string }>;
+          promptRows: Array<{ id: string }>;
+        }
+      | undefined;
+    expect(latestCanvasProps).toBeTruthy();
+    expect(latestCanvasProps?.mediaRows.map((row) => row.id)).toEqual(["media-folder-1"]);
+    expect(latestCanvasProps?.promptRows.map((row) => row.id)).toEqual(["prompt-folder-1"]);
   });
 
   it("switches All Media root tabs between images, videos, and prompts", async () => {

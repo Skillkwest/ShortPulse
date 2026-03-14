@@ -36,6 +36,7 @@ type UseMediaLibraryFolderDropControllerArgs = {
   setMembershipMessage: (value: string | null) => void;
   refreshActiveRows: () => Promise<void>;
   resolveInternalDropItem?: ResolveInternalDropItem;
+  onDropFilesToFolder?: (folderId: string, files: FileList) => Promise<void>;
 };
 
 type UseMediaLibraryFolderDropControllerResult = {
@@ -70,6 +71,11 @@ const hasMediaLibraryTransferHints = (transfer: DataTransfer): boolean =>
 
 const hasInternalReferenceTransferHints = (transfer: DataTransfer): boolean =>
   INTERNAL_REFERENCE_TRANSFER_HINT_TYPES.some((type) => hasTransferType(transfer, type));
+
+const hasDesktopFileTransferHints = (transfer: DataTransfer): boolean => {
+  if (hasTransferType(transfer, "Files")) return true;
+  return (transfer.files?.length ?? 0) > 0;
+};
 
 const buildFeedbackArgs = ({
   intentKind,
@@ -127,6 +133,7 @@ export const useMediaLibraryFolderDropController = ({
   setMembershipMessage,
   refreshActiveRows,
   resolveInternalDropItem,
+  onDropFilesToFolder,
 }: UseMediaLibraryFolderDropControllerArgs): UseMediaLibraryFolderDropControllerResult => {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
 
@@ -160,19 +167,25 @@ export const useMediaLibraryFolderDropController = ({
     [resolveInternalDropItem]
   );
 
-  const handleFolderDragOver = useCallback((folderId: string, event: DragEvent<HTMLElement>) => {
-    const transfer = event.dataTransfer;
-    if (!transfer) return;
-    const maybeLibraryPayload =
-      hasMediaLibraryTransferHints(transfer) || readMediaLibraryDragPayload(transfer);
-    const maybeInternalPayload =
-      hasInternalReferenceTransferHints(transfer) || extractInternalReferenceDragPayload(transfer);
-    if (!maybeLibraryPayload && !maybeInternalPayload) return;
-    event.preventDefault();
-    event.stopPropagation();
-    transfer.dropEffect = "copy";
-    setHoveredFolderId(folderId);
-  }, []);
+  const handleFolderDragOver = useCallback(
+    (folderId: string, event: DragEvent<HTMLElement>) => {
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+      const maybeLibraryPayload =
+        hasMediaLibraryTransferHints(transfer) || readMediaLibraryDragPayload(transfer);
+      const maybeInternalPayload =
+        hasInternalReferenceTransferHints(transfer) ||
+        extractInternalReferenceDragPayload(transfer);
+      const maybeDesktopFiles =
+        hasDesktopFileTransferHints(transfer) && Boolean(onDropFilesToFolder);
+      if (!maybeLibraryPayload && !maybeInternalPayload && !maybeDesktopFiles) return;
+      event.preventDefault();
+      event.stopPropagation();
+      transfer.dropEffect = "copy";
+      setHoveredFolderId(folderId);
+    },
+    [onDropFilesToFolder]
+  );
 
   const handleFolderDragLeave = useCallback((folderId: string) => {
     setHoveredFolderId((previous) => (previous === folderId ? null : previous));
@@ -199,71 +212,95 @@ export const useMediaLibraryFolderDropController = ({
         setFolderError("Unable to resolve dropped reference.");
         return;
       }
+      if (resolvedItem) {
+        const intent = resolveFolderDropIntent({
+          sourceFolderId: resolvedItem.sourceFolderId ?? null,
+          targetFolderId: folderId,
+        });
+        if (intent.kind === "noop") return;
+
+        const sourceFolderName =
+          intent.kind === "move" || intent.kind === "unassign"
+            ? (folders.find((folder) => folder.id === intent.sourceFolderId)?.name ?? null)
+            : null;
+        const targetFolderName =
+          intent.kind === "assign" || intent.kind === "move"
+            ? (folders.find((folder) => folder.id === intent.targetFolderId)?.name ?? null)
+            : null;
+
+        try {
+          let result: MediaFolderMembershipBatchResult;
+          if (intent.kind === "assign") {
+            result = await applyMediaFolderMembershipBatch({
+              action: "assign",
+              folderId: intent.targetFolderId,
+              mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
+              promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
+            });
+          } else if (intent.kind === "unassign") {
+            result = await applyMediaFolderMembershipBatch({
+              action: "unassign",
+              folderId: intent.sourceFolderId,
+              mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
+              promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
+            });
+          } else {
+            result = await applyMediaFolderMembershipBatch({
+              action: "move",
+              sourceFolderId: intent.sourceFolderId,
+              targetFolderId: intent.targetFolderId,
+              mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
+              promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
+            });
+          }
+          const message = resolveFolderDropFeedbackMessage(
+            buildFeedbackArgs({
+              intentKind: intent.kind,
+              itemKind: resolvedItem.kind,
+              result,
+              sourceFolderName,
+              targetFolderName,
+            })
+          );
+          if (message) {
+            setMembershipMessage(message);
+          }
+          await refreshActiveRows();
+        } catch (error) {
+          setFolderError(
+            error instanceof Error ? error.message : "Unable to update folder membership."
+          );
+        }
+        return;
+      }
+      const droppedFiles = transfer.files;
+      if (droppedFiles && droppedFiles.length > 0) {
+        if (!onDropFilesToFolder) {
+          setFolderError("Unable to resolve dropped reference.");
+          return;
+        }
+        try {
+          await onDropFilesToFolder(folderId, droppedFiles);
+        } catch (uploadError) {
+          setFolderError(
+            uploadError instanceof Error ? uploadError.message : "Unable to process dropped files."
+          );
+        }
+        return;
+      }
       if (!resolvedItem) {
         setFolderError("Unable to resolve dropped reference.");
         return;
       }
-
-      const intent = resolveFolderDropIntent({
-        sourceFolderId: resolvedItem.sourceFolderId ?? null,
-        targetFolderId: folderId,
-      });
-      if (intent.kind === "noop") return;
-
-      const sourceFolderName =
-        intent.kind === "move" || intent.kind === "unassign"
-          ? (folders.find((folder) => folder.id === intent.sourceFolderId)?.name ?? null)
-          : null;
-      const targetFolderName =
-        intent.kind === "assign" || intent.kind === "move"
-          ? (folders.find((folder) => folder.id === intent.targetFolderId)?.name ?? null)
-          : null;
-
-      try {
-        let result: MediaFolderMembershipBatchResult;
-        if (intent.kind === "assign") {
-          result = await applyMediaFolderMembershipBatch({
-            action: "assign",
-            folderId: intent.targetFolderId,
-            mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
-            promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
-          });
-        } else if (intent.kind === "unassign") {
-          result = await applyMediaFolderMembershipBatch({
-            action: "unassign",
-            folderId: intent.sourceFolderId,
-            mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
-            promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
-          });
-        } else {
-          result = await applyMediaFolderMembershipBatch({
-            action: "move",
-            sourceFolderId: intent.sourceFolderId,
-            targetFolderId: intent.targetFolderId,
-            mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
-            promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
-          });
-        }
-        const message = resolveFolderDropFeedbackMessage(
-          buildFeedbackArgs({
-            intentKind: intent.kind,
-            itemKind: resolvedItem.kind,
-            result,
-            sourceFolderName,
-            targetFolderName,
-          })
-        );
-        if (message) {
-          setMembershipMessage(message);
-        }
-        await refreshActiveRows();
-      } catch (error) {
-        setFolderError(
-          error instanceof Error ? error.message : "Unable to update folder membership."
-        );
-      }
     },
-    [folders, refreshActiveRows, resolveDropItem, setFolderError, setMembershipMessage]
+    [
+      folders,
+      onDropFilesToFolder,
+      refreshActiveRows,
+      resolveDropItem,
+      setFolderError,
+      setMembershipMessage,
+    ]
   );
 
   return {

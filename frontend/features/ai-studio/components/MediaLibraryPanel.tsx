@@ -56,6 +56,8 @@ import {
   applyMediaFolderMembershipBatch,
   fetchMediaPromptListPage,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
+  uploadMediaFile,
+  type MediaUploadDestinationTab,
   type PromptListCursor,
 } from "../logic/mediaLibraryPanelApi";
 import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
@@ -125,6 +127,14 @@ const EMPTY_SELECTED_IDS = new Set<string>();
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
+const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
+
+const isTransformedImagePreviewUrl = (value: string | null | undefined): boolean => {
+  const normalized = (value ?? "").trim();
+  if (!normalized) return false;
+  if (isNextImageOptimizerUrl(normalized)) return true;
+  return normalized.includes(SUPABASE_RENDER_IMAGE_PATH);
+};
 
 const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKind => {
   if (itemType === "images") return "images";
@@ -135,6 +145,13 @@ const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKi
 const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab => {
   if (itemType === "videos") return "uploaded_videos";
   return "uploaded_images";
+};
+
+const resolveUploadDestinationTabForFile = (file: File): MediaUploadDestinationTab | null => {
+  const mimeType = file.type.toLowerCase();
+  if (mimeType.startsWith("video/")) return "uploaded_videos";
+  if (mimeType.startsWith("image/")) return "uploaded_images";
+  return null;
 };
 
 const createdAtTime = (value: string | null | undefined): number => {
@@ -181,9 +198,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [promptHasMore, setPromptHasMore] = useState(false);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
+  const [resolvedMediaScopeKey, setResolvedMediaScopeKey] = useState<string | null>(null);
+  const [resolvedPromptScopeKey, setResolvedPromptScopeKey] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
-  const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
+  const [, setMembershipMessage] = useState<string | null>(null);
   const [pendingLibraryDelete, setPendingLibraryDelete] =
     useState<PendingLibraryDeleteState | null>(null);
   const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = useState(false);
@@ -250,6 +269,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => normalizeMediaSearchTerm(debouncedSearch),
     [debouncedSearch]
   );
+  const activeRowsScopeKey = `${activeFolderId}|${itemType}|${normalizedSearch}`;
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
   const visibleImageRows = useMemo(
     () => mediaRows.filter((row) => !isVideoFile(row.file_type)),
@@ -263,6 +283,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
   const showFolderCanvas =
     activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
+  const mediaScopeResolved = !shouldShowMedia || resolvedMediaScopeKey === activeRowsScopeKey;
+  const promptScopeResolved = !shouldShowPrompts || resolvedPromptScopeKey === activeRowsScopeKey;
+  const folderCanvasDataReady = showFolderCanvas && mediaScopeResolved && promptScopeResolved;
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);
@@ -646,12 +669,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const loadMediaPage = useCallback(
     async ({ reset }: { reset: boolean }) => {
+      const scopeKey = activeRowsScopeKey;
       const requestToken = mediaRequestTokenRef.current + 1;
       mediaRequestTokenRef.current = requestToken;
       setMediaLoading(true);
       if (reset) {
+        setMediaRows([]);
         setMediaCursor(null);
         setMediaHasMore(false);
+        setResolvedMediaScopeKey(null);
       }
       try {
         const result = await fetchMediaListPage<MediaFileRow>({
@@ -683,6 +709,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setMediaRows(nextRows);
         setMediaCursor(result.nextCursor);
         setMediaHasMore(result.hasMore);
+        setResolvedMediaScopeKey(scopeKey);
         setError(null);
       } catch (loadError) {
         if (mediaRequestTokenRef.current !== requestToken) return;
@@ -693,17 +720,20 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         }
       }
     },
-    [activeFolderId, itemType, normalizedSearch]
+    [activeFolderId, activeRowsScopeKey, itemType, normalizedSearch]
   );
 
   const loadPromptPage = useCallback(
     async ({ reset }: { reset: boolean }) => {
+      const scopeKey = activeRowsScopeKey;
       const requestToken = promptRequestTokenRef.current + 1;
       promptRequestTokenRef.current = requestToken;
       setPromptLoading(true);
       if (reset) {
+        setPromptRows([]);
         setPromptCursor(null);
         setPromptHasMore(false);
+        setResolvedPromptScopeKey(null);
       }
       try {
         const result = await fetchMediaPromptListPage({
@@ -729,6 +759,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setPromptRows(nextRows);
         setPromptCursor(result.nextCursor);
         setPromptHasMore(result.hasMore);
+        setResolvedPromptScopeKey(scopeKey);
         setError(null);
       } catch (loadError) {
         if (promptRequestTokenRef.current !== requestToken) return;
@@ -739,7 +770,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         }
       }
     },
-    [activeFolderId, normalizedSearch]
+    [activeFolderId, activeRowsScopeKey, normalizedSearch]
   );
 
   useEffect(() => {
@@ -750,6 +781,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setMediaRows([]);
       setMediaHasMore(false);
       setMediaCursor(null);
+      setResolvedMediaScopeKey(null);
     }
     if (shouldShowPrompts) {
       void loadPromptPage({ reset: true });
@@ -757,6 +789,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setPromptRows([]);
       setPromptHasMore(false);
       setPromptCursor(null);
+      setResolvedPromptScopeKey(null);
     }
   }, [
     activeFolderId,
@@ -956,7 +989,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         } else {
           setPromptRows((previous) => previous.filter((row) => row.id !== item.id));
         }
-        await refreshActiveRows();
       } catch (membershipError) {
         setFolderError(
           membershipError instanceof Error
@@ -965,7 +997,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         );
       }
     },
-    [activeFolderId, refreshActiveRows, setFolderError]
+    [activeFolderId, setFolderError]
   );
 
   const handleAssignItemToActiveFolder = useCallback(
@@ -993,6 +1025,103 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       }
     },
     [activeFolderId, refreshActiveRows, setFolderError]
+  );
+
+  const uploadDroppedFilesToFolder = useCallback(
+    async ({
+      targetFolderId,
+      files,
+    }: {
+      targetFolderId: string;
+      files: FileList;
+    }): Promise<MediaFileRow[]> => {
+      const droppedFiles = Array.from(files);
+      if (!droppedFiles.length) return [];
+
+      setFolderError(null);
+      setMembershipMessage(null);
+
+      const uploadCandidates = droppedFiles
+        .map((file) => ({
+          file,
+          destinationTab: resolveUploadDestinationTabForFile(file),
+        }))
+        .filter(
+          (candidate): candidate is { file: File; destinationTab: MediaUploadDestinationTab } =>
+            candidate.destinationTab !== null
+        );
+      if (!uploadCandidates.length) {
+        throw new Error("Only image and video files can be dropped here.");
+      }
+
+      const uploadedRows: MediaFileRow[] = [];
+      for (const candidate of uploadCandidates) {
+        const uploaded = await uploadMediaFile({
+          file: candidate.file,
+          destinationTab: candidate.destinationTab,
+        });
+        uploadedRows.push({
+          id: uploaded.id,
+          filename: uploaded.filename,
+          storage_path: uploaded.storage_path,
+          preview_storage_path: uploaded.preview_storage_path,
+          file_type: uploaded.file_type,
+          source: uploaded.source,
+          created_at: uploaded.created_at,
+          metadata: null,
+          signedUrl: uploaded.signedUrl,
+        });
+      }
+
+      if (targetFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && uploadedRows.length > 0) {
+        await applyMediaFolderMembershipBatch({
+          action: "assign",
+          folderId: targetFolderId,
+          mediaIds: uploadedRows.map((row) => row.id),
+          promptIds: [],
+        });
+      }
+
+      const targetFolderName =
+        targetFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+          ? ROOT_FOLDER_LABEL
+          : (folders.find((folder) => folder.id === targetFolderId)?.name ?? "folder");
+      const uploadedCount = uploadedRows.length;
+      const skippedCount = Math.max(0, droppedFiles.length - uploadedCount);
+      setMembershipMessage(
+        skippedCount > 0
+          ? `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}. Skipped ${skippedCount} unsupported file${skippedCount === 1 ? "" : "s"}.`
+          : `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}.`
+      );
+
+      if (targetFolderId === activeFolderId && uploadedRows.length > 0) {
+        setMediaRows((previous) => {
+          const byId = new Map(previous.map((row) => [row.id, row]));
+          uploadedRows.forEach((row) => {
+            byId.set(row.id, row);
+          });
+          const nextRows = Array.from(byId.values());
+          nextRows.sort((left, right) => {
+            const createdDelta = createdAtTime(right.created_at) - createdAtTime(left.created_at);
+            if (createdDelta !== 0) return createdDelta;
+            return right.id.localeCompare(left.id);
+          });
+          return nextRows;
+        });
+      }
+
+      try {
+        await refreshActiveRows();
+      } catch (refreshError) {
+        setFolderError(
+          refreshError instanceof Error
+            ? refreshError.message
+            : "Uploaded media, but failed to refresh folder contents."
+        );
+      }
+      return uploadedRows;
+    },
+    [activeFolderId, folders, refreshActiveRows, setFolderError]
   );
 
   const handleDeleteMediaFromLibrary = useCallback(
@@ -1076,6 +1205,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setMembershipMessage,
     refreshActiveRows,
     resolveInternalDropItem,
+    onDropFilesToFolder: async (folderId, files) => {
+      await uploadDroppedFilesToFolder({
+        targetFolderId: folderId,
+        files,
+      });
+    },
   });
 
   const handleMediaCardDragStart = useCallback(
@@ -1288,7 +1423,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       showFolderCanvas
         ? mediaRows.map((row) => ({
             ...row,
-            signedUrl: folderCanvasFullSignedById[row.id] ?? row.signedUrl ?? null,
+            signedUrl: (() => {
+              const fullSignedUrl = folderCanvasFullSignedById[row.id] ?? null;
+              if (fullSignedUrl) return fullSignedUrl;
+              if (isVideoFile(row.file_type)) return row.signedUrl ?? null;
+              return isTransformedImagePreviewUrl(row.signedUrl) ? null : (row.signedUrl ?? null);
+            })(),
           }))
         : mediaRows,
     [folderCanvasFullSignedById, mediaRows, showFolderCanvas]
@@ -1599,12 +1739,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         </div>
 
         <div className="media-library-panel-content-panel" style={foldersSplit.bottomSectionStyle}>
-          {membershipMessage ? <p className="tiny subdued">{membershipMessage}</p> : null}
-
           <div className="media-library-panel-body" ref={panelBodyRef}>
             {error ? <p className="tiny subdued">{error}</p> : null}
 
-            {showFolderCanvas ? (
+            {showFolderCanvas && !folderCanvasDataReady ? (
+              <p className="tiny subdued">Loading folder canvas...</p>
+            ) : null}
+
+            {showFolderCanvas && folderCanvasDataReady ? (
               <MediaLibraryFolderCanvas
                 folderId={activeFolderId}
                 mediaRows={folderCanvasMediaRows}
@@ -1615,6 +1757,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 resolveCanvasDropReference={resolveCanvasDropReference}
                 resolveInternalDropItem={resolveInternalDropItem}
                 onAssignDroppedItem={handleAssignItemToActiveFolder}
+                onDropFilesToCanvas={async (files) =>
+                  await uploadDroppedFilesToFolder({
+                    targetFolderId: activeFolderId,
+                    files,
+                  })
+                }
               />
             ) : null}
 

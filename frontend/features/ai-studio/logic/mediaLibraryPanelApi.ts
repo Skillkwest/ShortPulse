@@ -59,6 +59,26 @@ export type PromptListPageResult = {
   hasMore: boolean;
 };
 
+export type MediaUploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
+
+export type MediaUploadRow = {
+  id: string;
+  filename: string;
+  storage_path: string;
+  preview_storage_path: string;
+  file_type: string;
+  file_size: number | null;
+  source: string | null;
+  created_at: string;
+  signedUrl: string;
+};
+
+type MediaUploadResponse = {
+  file?: Partial<MediaUploadRow>;
+  error?: string;
+  details?: string;
+};
+
 export type MediaFolderCanvasState = {
   folderId: string;
   schemaVersion: number;
@@ -99,6 +119,40 @@ const toPromptRow = (value: unknown): PromptListRow | null => {
     source: typeof row.source === "string" ? row.source : null,
     created_at: createdAt,
     updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
+  };
+};
+
+const toMediaUploadRow = (value: unknown): MediaUploadRow | null => {
+  const row = asRecord(value);
+  const id = asString(row.id);
+  const filename = asString(row.filename);
+  const storagePath = asString(row.storage_path);
+  const previewStoragePath = asString(row.preview_storage_path) || storagePath;
+  const fileType = asString(row.file_type);
+  const createdAt = asString(row.created_at);
+  const signedUrl = asString(row.signedUrl);
+  if (
+    !id ||
+    !filename ||
+    !storagePath ||
+    !previewStoragePath ||
+    !fileType ||
+    !createdAt ||
+    !signedUrl
+  ) {
+    return null;
+  }
+  const rawFileSize = Number(row.file_size);
+  return {
+    id,
+    filename,
+    storage_path: storagePath,
+    preview_storage_path: previewStoragePath,
+    file_type: fileType,
+    file_size: Number.isFinite(rawFileSize) ? Math.max(0, Math.trunc(rawFileSize)) : null,
+    source: asString(row.source) || null,
+    created_at: createdAt,
+    signedUrl,
   };
 };
 
@@ -386,4 +440,38 @@ export const saveMediaFolderCanvasState = async ({
     saveSeq: Number.isFinite(resolvedSaveSeq) ? Math.max(0, Math.trunc(resolvedSaveSeq)) : 0,
     updatedAt: asString(payload.updatedAt),
   };
+};
+
+/**
+ * Uploads one file via the server-authoritative Media Library API.
+ */
+export const uploadMediaFile = async ({
+  file,
+  destinationTab,
+}: {
+  file: File;
+  destinationTab: MediaUploadDestinationTab;
+}): Promise<MediaUploadRow> => {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("destinationTab", destinationTab);
+
+  const response = await fetchWithAuth("/api/media/upload", {
+    method: "POST",
+    body,
+    shortpulseLogScope: "app",
+  });
+
+  const payload = (await response.json().catch(() => null)) as MediaUploadResponse | null;
+  if (!response.ok) {
+    throw new Error(
+      asString(payload?.details) || asString(payload?.error) || "Unable to upload media."
+    );
+  }
+
+  const row = toMediaUploadRow(payload?.file);
+  if (!row) {
+    throw new Error("Upload API returned an invalid media payload.");
+  }
+  return row;
 };

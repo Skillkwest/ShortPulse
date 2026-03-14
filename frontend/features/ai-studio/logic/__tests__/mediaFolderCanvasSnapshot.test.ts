@@ -85,8 +85,8 @@ describe("mediaFolderCanvasSnapshot", () => {
     const seededLandscape = seeded.find((item) => item.id === "media:landscape-1");
     expect(seededLandscape?.kind).toBe("image");
     if (!seededLandscape || seededLandscape.kind !== "image") return;
-    expect(seededLandscape.width).toBe(280);
-    expect(seededLandscape.height).toBe(158);
+    expect(seededLandscape.width).toBe(320);
+    expect(seededLandscape.height).toBe(180);
   });
 
   it("reconciles membership items and removes stale linked entries", () => {

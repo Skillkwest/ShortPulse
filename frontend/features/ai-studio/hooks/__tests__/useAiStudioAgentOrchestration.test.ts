@@ -150,6 +150,51 @@ describe("useAiStudioAgentOrchestration", () => {
     );
   });
 
+  it("does not inject latest agent prompt context for true image-only sends", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
+    const getAgentContext = vi.fn(() => ({
+      focusedSource: "agent-output" as const,
+    }));
+    const params = createParams({
+      prompt: "   ",
+      agentInput: "   ",
+      latestAgentPrompt: "stale canonical prompt",
+      lastAssistantMessage: "stale canonical prompt",
+      sendToAgent,
+      agentAttachments: [
+        {
+          id: "img-1",
+          kind: "image",
+          referenceId: "ref-image-1",
+          imageUrl: "https://cdn.test/image.png",
+          text: null,
+          aspect: null,
+        },
+      ],
+      markAttachmentDelivery: vi.fn(),
+      getAgentContext,
+    });
+
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "",
+        payloadText: "",
+      })
+    );
+    const firstSendCall = ((sendToAgent.mock.calls as unknown[][])[0]?.[0] ?? null) as {
+      context?: Record<string, unknown>;
+    } | null;
+    const context = firstSendCall?.context;
+    expect(context?.activePrompt ?? null).toBeNull();
+    expect(context?.lastAssistantMessage ?? null).toBeNull();
+  });
+
   it("keeps agent-output focus when prompt references are attached and canonical context exists", async () => {
     const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
     const params = createParams({

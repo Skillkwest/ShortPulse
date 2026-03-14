@@ -23,6 +23,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Enforce per-user isolation: RLS on `saved_creators`, `media_files`, and private `media_library` bucket paths (`auth.uid()` scoped).
 - Protected routes: `/dashboard`, `/performance*`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`, `/character*`, `/admin`.
 - Reuse `frontend/lib/supabaseClient` and `useProtectedRoute` instead of ad-hoc clients.
+- Use Supabase CLI for Supabase access and avoid Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 
 ## File hygiene
 - Every file needs a top-level purpose comment; exported functions/components get doc comments when not obvious.

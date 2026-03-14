@@ -2,8 +2,11 @@
  * Edit submit-intent helpers.
  * Keeps expert-edit inpaint intent mapping centralized for orchestration and pricing coherence.
  */
-import { INPAINT_FLUX_FILL_MODEL_ID } from "./inpaintSubmission";
-import { MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID } from "./inpaintSubmission";
+import {
+  INPAINT_FLUX_FILL_MODEL_ID,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  isMarkupModelLockEnabled,
+} from "./inpaintSubmission";
 import { isEditWorkflow } from "./workflowIdentity";
 import type { ToolId } from "../types";
 
@@ -48,7 +51,7 @@ export const resolveEffectiveEditSubmitModelId = ({
   if (isEditWorkflow(selectedTool) && editSubmitIntent === "inpaint") {
     return INPAINT_FLUX_FILL_MODEL_ID;
   }
-  if (isEditWorkflow(selectedTool) && editSubmitIntent === "markup") {
+  if (isEditWorkflow(selectedTool) && editSubmitIntent === "markup" && isMarkupModelLockEnabled()) {
     return MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID;
   }
   return selectedModelId;

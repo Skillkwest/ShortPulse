@@ -8,6 +8,7 @@ Provide a single operational guide for SQL work in this repo: what each SQL area
 - Ordered migrations under `sql/migrations/`.
 - Rollback scripts under `sql/migrations/rollback/`.
 - Diagnostics and repair loops for Media Library isolation.
+- Supabase CLI-driven operations with explicit hosted targets (no Docker-based local Supabase workflow commands).
 
 ## SQL Layout And Intent
 
@@ -128,7 +129,11 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 - Expect `failing_checks = 0` before phase/deploy signoff.
 
 6. Lint SQL before merge when migrations/functions changed.
-- Run: `supabase db lint --local --schema public --fail-on warning`.
+- Run: `supabase db lint --linked --schema public --fail-on warning`.
+- Alternative for explicit DB target pinning: `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning`.
+
+7. Do not use Docker-based local Supabase commands in agent workflows.
+- Avoid `supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, and direct `docker` commands.
 
 ## Standard Runbooks
 

@@ -133,6 +133,7 @@ Start here for all repository documentation.
 - `docs/planning/supabase-production-cutover-handoff-2026-03-13.md`
 - `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`
+- `docs/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
 - `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 - `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`
 - `docs/planning/mvp-ui-ux-sprint-ticket-breakdown.md`

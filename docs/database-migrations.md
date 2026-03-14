@@ -5,6 +5,12 @@ Purpose: define a consistent migration workflow for Supabase schema changes.
 For operator run order, diagnostics loops, and common SQL error playbooks, use:
 - `docs/sops/sop_sql_migration_operations.md`
 
+## Supabase tooling policy
+
+- Use Supabase CLI for Supabase access in this repo.
+- Do not use Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
+- For hosted operations, require explicit target pinning (`--linked`, `--project-ref`, or `--db-url`).
+
 ## Migration layout
 
 - Canonical folder: `sql/migrations/`
@@ -27,7 +33,8 @@ For operator run order, diagnostics loops, and common SQL error playbooks, use:
    cd frontend
    npm run validate
    npm run build
-   npx supabase db lint --local --schema public --fail-on warning
+   npx supabase db lint --linked --schema public --fail-on warning
+   # or: npx supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning
    ```
 3. Validate impacted flows (auth, AI Studio billing/debits, media library, admin routes).
 
@@ -45,13 +52,7 @@ Current guardrail policy:
 - Reason: canonical migration authority is `sql/migrations/`, while default Supabase CLI push posture targets `supabase/migrations/`.
 - For hosted staging/production promotion, use environment-pinned SQL apply paths (for example, `psql "$SUPABASE_DB_URL" -f sql/migrations/<NNN_file>.sql`) and the existing environment-gated GitHub workflows.
 - For production-targeted one-off Supabase CLI commands, require explicit target pinning with `--project-ref <production-ref>`.
-
-For reset/testing:
-
-```bash
-cd frontend
-npm run db:reset
-```
+- Do not run `npm run db:reset` in normal agent workflows; this command defaults to local Docker-backed reset behavior.
 
 ## Production deploy workflow
 

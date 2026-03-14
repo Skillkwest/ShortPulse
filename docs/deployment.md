@@ -318,6 +318,7 @@ Use `/api/admin/generation-recovery/replay` only for residual outlier IDs after 
 Guardrail:
 - Do not use implicit local `supabase db push` for hosted promotion.
 - Use environment-pinned SQL apply execution for staging/production.
+- Do not use Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands) for hosted operations.
 - For any production-targeted Supabase CLI one-off, require explicit `--project-ref <production-ref>`.
 
 ## Domain + TLS

@@ -9,7 +9,9 @@ import type { MediaFileRow, PromptRow } from "./mediaLibraryModalModel";
 export const MEDIA_FOLDER_CANVAS_SCHEMA_VERSION = 1;
 const PROMPT_OUTPUT_ID_PREFIX = "prompt:";
 const DEFAULT_TEXT_WIDTH = 260;
-const DEFAULT_MEDIA_WIDTH = 280;
+const DEFAULT_MEDIA_LONG_EDGE = 320;
+const MAX_MEDIA_LONG_EDGE = 420;
+const MIN_MEDIA_SHORT_EDGE = 160;
 const MAX_TEXT_LENGTH = 4000;
 
 type FolderCanvasSnapshotItem =
@@ -97,6 +99,29 @@ export const getPromptIdFromCanvasOutputId = (value: string | null | undefined):
 export const isFolderCanvasMembershipItemId = (itemId: string): boolean =>
   itemId.startsWith("media:") || itemId.startsWith("prompt:");
 
+const resolveSeedImageSize = (aspect: number): { width: number; height: number } => {
+  const safeAspect = Math.min(3, Math.max(0.2, Number.isFinite(aspect) ? aspect : 1));
+  let width = safeAspect >= 1 ? DEFAULT_MEDIA_LONG_EDGE : DEFAULT_MEDIA_LONG_EDGE * safeAspect;
+  let height = safeAspect >= 1 ? DEFAULT_MEDIA_LONG_EDGE / safeAspect : DEFAULT_MEDIA_LONG_EDGE;
+
+  const shortEdge = Math.min(width, height);
+  if (shortEdge < MIN_MEDIA_SHORT_EDGE && shortEdge > 0) {
+    const shortEdgeScale = MIN_MEDIA_SHORT_EDGE / shortEdge;
+    width *= shortEdgeScale;
+    height *= shortEdgeScale;
+  }
+  const longEdge = Math.max(width, height);
+  if (longEdge > MAX_MEDIA_LONG_EDGE) {
+    const longEdgeScale = MAX_MEDIA_LONG_EDGE / longEdge;
+    width *= longEdgeScale;
+    height *= longEdgeScale;
+  }
+  return {
+    width: Math.max(120, Math.round(width)),
+    height: Math.max(120, Math.round(height)),
+  };
+};
+
 const toCanvasSceneItem = (item: FolderCanvasSnapshotItem): CanvasSceneItem | null => {
   if (item.kind === "image") {
     const src = item.src.trim();
@@ -113,8 +138,8 @@ const toCanvasSceneItem = (item: FolderCanvasSnapshotItem): CanvasSceneItem | nu
       mediaId: item.mediaId,
       src,
       alt: item.alt,
-      width: Math.max(40, asFinite(item.width, DEFAULT_MEDIA_WIDTH)),
-      height: Math.max(40, asFinite(item.height, DEFAULT_MEDIA_WIDTH)),
+      width: Math.max(40, asFinite(item.width, DEFAULT_MEDIA_LONG_EDGE)),
+      height: Math.max(40, asFinite(item.height, DEFAULT_MEDIA_LONG_EDGE)),
     };
   }
   const text = normalizePromptText(item.text);
@@ -179,8 +204,8 @@ const normalizeSnapshotItems = (value: unknown): CanvasSceneItem[] => {
         x: asFinite(row.x),
         y: asFinite(row.y),
         z: Math.trunc(asFinite(row.z)),
-        width: asFinite(row.width, DEFAULT_MEDIA_WIDTH),
-        height: asFinite(row.height, DEFAULT_MEDIA_WIDTH),
+        width: asFinite(row.width, DEFAULT_MEDIA_LONG_EDGE),
+        height: asFinite(row.height, DEFAULT_MEDIA_LONG_EDGE),
         selected: row.selected === true,
       });
       if (item) items.push(item);
@@ -244,8 +269,8 @@ export const buildSeedItemsForFolderCanvas = ({
   const items: CanvasSceneItem[] = [];
   let z = 1;
   const columns = 4;
-  const xGap = 320;
-  const yGap = 220;
+  const xGap = 360;
+  const yGap = 340;
 
   mediaRows.forEach((media, index) => {
     const src = (media.signedUrl ?? "").trim();
@@ -258,8 +283,7 @@ export const buildSeedItemsForFolderCanvas = ({
       height: media.height,
       metadata: media.metadata,
     });
-    const width = DEFAULT_MEDIA_WIDTH;
-    const height = Math.max(120, Math.round(width / Math.max(0.2, aspect)));
+    const size = resolveSeedImageSize(aspect);
     items.push({
       id: `media:${media.id}`,
       kind: "image",
@@ -272,8 +296,8 @@ export const buildSeedItemsForFolderCanvas = ({
       mediaId: media.id,
       src,
       alt: (media.filename || "Canvas media").trim(),
-      width,
-      height,
+      width: size.width,
+      height: size.height,
     });
     z += 1;
   });
@@ -373,7 +397,7 @@ export const reconcileFolderMembershipCanvasItems = ({
       height: row.height,
       metadata: row.metadata,
     });
-    const width = DEFAULT_MEDIA_WIDTH;
+    const size = resolveSeedImageSize(aspect);
     next.push({
       id: itemId,
       kind: "image",
@@ -386,8 +410,8 @@ export const reconcileFolderMembershipCanvasItems = ({
       mediaId: row.id,
       src,
       alt: (row.filename || "Canvas media").trim(),
-      width,
-      height: Math.max(120, Math.round(width / Math.max(0.2, aspect))),
+      width: size.width,
+      height: size.height,
     });
     nextZ += 1;
   });

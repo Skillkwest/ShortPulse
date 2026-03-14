@@ -27,6 +27,7 @@ npm run build
 - Follow `docs/dev-ground-rules.md` and `docs/conventions.md`.
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
 - Keep user data isolated (Supabase RLS + private storage); never expose service-role keys.
+- Supabase operations policy: use Supabase CLI for Supabase access; do not use Docker-based Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.

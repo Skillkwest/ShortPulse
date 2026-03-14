@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
@@ -37,6 +37,14 @@ const baseInput = {
   balanceCredits: null,
   costParamsForModel: makeCostParamsForModel("fal-ai/kling-video/v3/pro/image-to-video"),
 };
+
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "false");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("useAiStudioViewModel motion guardrails", () => {
   it("uses active video settings for prompt-reference generate cost", () => {
@@ -244,13 +252,6 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(inpaintCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
     const balanceCredits = standardCostCredits ?? 0;
 
-    const markupCostCredits = computeCostForModel(
-      MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
-      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
-    )?.credits;
-    expect(markupCostCredits).not.toBeNull();
-    expect(markupCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
-
     const { result, rerender } = renderHook(
       ({ intent }: { intent: "standard" | "inpaint" | "markup" }) =>
         useAiStudioViewModel({
@@ -277,6 +278,51 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.currentCostCredits).toBe(inpaintCostCredits);
     expect(result.current.isCreditGuardrail).toBe(true);
     expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
+
+    rerender({ intent: "markup" });
+
+    expect(result.current.currentCostCredits).toBe(standardCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(false);
+    expect(result.current.generationGuardrail).toBeNull();
+  });
+
+  it("switches edit cost and credit guardrail to Pulse Markup v1 when markup lock flag is enabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
+    const selectedModelId = "fal-ai/flux-2/klein/9b";
+    const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
+    const standardCostCredits = computeCostForModel(
+      selectedModelId,
+      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+    )?.credits;
+    const markupCostCredits = computeCostForModel(
+      MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+    )?.credits;
+    expect(standardCostCredits).not.toBeNull();
+    expect(markupCostCredits).not.toBeNull();
+    expect(markupCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
+    const balanceCredits = standardCostCredits ?? 0;
+
+    const { result, rerender } = renderHook(
+      ({ intent }: { intent: "standard" | "inpaint" | "markup" }) =>
+        useAiStudioViewModel({
+          ...editInput,
+          model: selectedModelId,
+          aspect: "1:1",
+          prompt: "Clean up edges and relight subtly",
+          referenceImageUrl: "https://example.com/reference.png",
+          costParamsForModel: editCostParamsForModel,
+          balanceCredits,
+          editSubmitIntent: intent,
+        }),
+      {
+        initialProps: { intent: "standard" },
+      }
+    );
+
+    expect(result.current.currentCostCredits).toBe(standardCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(false);
+    expect(result.current.generationGuardrail).toBeNull();
 
     rerender({ intent: "markup" });
 

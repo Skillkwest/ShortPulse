@@ -2,7 +2,15 @@
  * AI Studio agent bridge hook.
  * Centralizes page-level agent wiring so the page composes a smaller surface.
  */
-import { useCallback, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useAiAgent } from "../../ai-agent/useAiAgent";
 import type {
   AgentActions,
@@ -219,6 +227,14 @@ export const useAiStudioAgentBridge = ({
     resetAgentComposer,
     setAgentActions,
   });
+
+  useEffect(() => {
+    resetAgentComposer({ preserveInput: true, preserveAttachments: false });
+    setLatestAgentPrompt(null);
+    setPromptOrigin("manual");
+    setAgentActions(undefined);
+    setIsAgentChatOpen(false);
+  }, [mode, resetAgentComposer, selectedTool, sessionId]);
 
   const handleAssistantMessageEdit = useCallback(
     ({ messageId, content }: AgentAssistantMessageEditRequest): boolean => {

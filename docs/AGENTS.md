@@ -12,3 +12,4 @@ Inherit the root startup contract in `../AGENTS.md` first, then apply the scoped
 ## When to update docs
 - Routes, navigation, or page behavior changes: update `../README.md` and the relevant SOP.
 - Supabase changes (tables/RLS/storage): update `supabase_full_schema.sql`, `data-dictionary.md`, and `security-checklist.md`.
+- Supabase workflow docs: enforce CLI-first instructions and explicitly avoid Docker-based local Supabase commands.

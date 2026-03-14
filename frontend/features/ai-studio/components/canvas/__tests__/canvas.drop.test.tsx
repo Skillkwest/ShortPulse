@@ -4,6 +4,49 @@ import type { ResolveCanvasDropReference } from "../canvasTypes";
 import { CanvasHarness, createTransfer, mockViewportRect } from "./canvasTestHarness";
 
 describe("Canvas drop behavior", () => {
+  it("creates image items from desktop file drops when file resolver is provided", async () => {
+    const resolveCanvasDropFiles = vi.fn(async () => [
+      {
+        kind: "image" as const,
+        outputId: null,
+        mediaId: "media-file-drop-1",
+        src: "https://example.com/file-drop.png",
+        alt: "Desktop file image",
+        width: 1280,
+        height: 720,
+      },
+    ]);
+
+    render(<CanvasHarness resolveCanvasDropFiles={resolveCanvasDropFiles} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const file = new File(["desktop"], "desktop-drop.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const transfer = {
+      files,
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "copy",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(viewport, {
+      dataTransfer: transfer,
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(resolveCanvasDropFiles).toHaveBeenCalledWith(files);
+    });
+    expect(await screen.findByAltText("Desktop file image")).toBeInTheDocument();
+  });
+
   it("creates an image item from an internal reference-grid drop", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
@@ -24,8 +67,8 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByAltText("Reference image")).toBeInTheDocument();
     const item = screen.getByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "image");
-    expect(Number(item.getAttribute("data-width"))).toBe(220);
-    expect(Number(item.getAttribute("data-height"))).toBeCloseTo(123.75, 2);
+    expect(Number(item.getAttribute("data-width"))).toBe(275);
+    expect(Number(item.getAttribute("data-height"))).toBeCloseTo(154.69, 2);
   });
 
   it("preprocesses internal drops before insertion when a preparer is provided", async () => {
@@ -117,8 +160,8 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByAltText("Payload-sized image")).toBeInTheDocument();
     const item = screen.getByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-width"))).toBe(220);
-    expect(Number(item.getAttribute("data-height"))).toBe(110);
+    expect(Number(item.getAttribute("data-width"))).toBe(275);
+    expect(Number(item.getAttribute("data-height"))).toBe(137.5);
   });
 
   it("delays unknown-size image placeholder until dimensions resolve, then matches final ratio", async () => {
@@ -179,18 +222,18 @@ describe("Canvas drop behavior", () => {
         expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
       });
       expect(Number(pendingItem.getAttribute("style")?.match(/width:\s*([0-9.]+)px/)?.[1])).toBe(
-        220
+        275
       );
       expect(Number(pendingItem.getAttribute("style")?.match(/height:\s*([0-9.]+)px/)?.[1])).toBe(
-        123.75
+        154.69
       );
       act(() => {
         pendingFrameCallback?.(16);
       });
       expect(await screen.findByAltText("Slow reference image")).toBeInTheDocument();
       const finalItem = screen.getByTestId(/canvas-item-/);
-      expect(Number(finalItem.getAttribute("data-width"))).toBe(220);
-      expect(Number(finalItem.getAttribute("data-height"))).toBe(123.75);
+      expect(Number(finalItem.getAttribute("data-width"))).toBe(275);
+      expect(Number(finalItem.getAttribute("data-height"))).toBe(154.69);
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
       });
@@ -326,8 +369,8 @@ describe("Canvas drop behavior", () => {
     });
 
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-width"))).toBe(220);
-    expect(Number(item.getAttribute("data-height"))).toBe(110);
+    expect(Number(item.getAttribute("data-width"))).toBe(275);
+    expect(Number(item.getAttribute("data-height"))).toBe(137.5);
   });
 
   it("enforces a hard cap of 300 canvas items", async () => {

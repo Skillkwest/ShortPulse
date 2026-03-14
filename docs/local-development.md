@@ -61,6 +61,12 @@ npm install
 npm run dev
 ```
 
+## Supabase tooling policy
+
+- Use Supabase CLI for Supabase access in this repo.
+- Do not use Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
+- For hosted schema operations, use explicit target pinning (`--linked` or `--db-url`) as described in `docs/database-migrations.md`.
+
 ## Bootstrap Supabase (optional)
 
 - Minimal scripts: `sql/create_saved_creators_table.sql` and `sql/storage_policies.sql`

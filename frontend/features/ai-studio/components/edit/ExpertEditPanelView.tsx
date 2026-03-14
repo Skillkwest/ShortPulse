@@ -46,6 +46,7 @@ import {
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
+  isMarkupModelLockEnabled,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
 import {
@@ -1651,10 +1652,11 @@ export function ExpertEditPanelView({
     : isInpaintToolSelected
       ? "inpaint"
       : "markup";
-  const isModelPickerLocked = isInpaintToolSelected || isVideoToolSelected;
+  const shouldLockMarkupModelPicker = isVideoToolSelected && isMarkupModelLockEnabled();
+  const isModelPickerLocked = isInpaintToolSelected || shouldLockMarkupModelPicker;
   const effectiveModelPickerLabel = isInpaintToolSelected
     ? INPAINT_FLUX_FILL_MODEL_LABEL
-    : isVideoToolSelected
+    : shouldLockMarkupModelPicker
       ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL
       : stripEditLabel(modelLabel);
   const effectiveModelPickerLogoSrc = isModelPickerLocked

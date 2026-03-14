@@ -11,6 +11,7 @@ import {
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  isMarkupModelLockEnabled,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
 
@@ -179,7 +180,10 @@ export const useExpertEditInlineGenerate = ({
         }
         await onRegenerateWithReferenceInputs(referenceInputs, {
           ...promptOverrideOptions,
-          modelIdOverride: isMarkupToolSelected ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID : undefined,
+          modelIdOverride:
+            isMarkupToolSelected && isMarkupModelLockEnabled()
+              ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID
+              : undefined,
           referenceInputsMode: "replace",
         });
       } catch (error) {

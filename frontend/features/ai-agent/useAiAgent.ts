@@ -86,13 +86,24 @@ export const useAiAgent = ({
   const [error, setError] = useState<string | null>(null);
   const messagesRef = useRef<AgentMessage[]>(initialMessages);
   const clientSessionKeyRef = useRef<string>();
+  const sessionIdentityRef = useRef<string | null>(null);
   if (!clientSessionKeyRef.current) {
     clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
   }
   const canonicalPromptRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const identity = `${sessionNamespace}::${conversationId?.trim() ?? ""}`;
+    const previousIdentity = sessionIdentityRef.current;
     clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
+    if (previousIdentity && previousIdentity !== identity) {
+      setMessages([]);
+      messagesRef.current = [];
+      canonicalPromptRef.current = null;
+      setError(null);
+      setIsSending(false);
+    }
+    sessionIdentityRef.current = identity;
   }, [conversationId, sessionNamespace]);
 
   useEffect(() => {

@@ -32,6 +32,7 @@ import { selectCanvasSceneItem, type CanvasSharedSceneState } from "./canvasScen
 import type {
   CanvasCamera,
   PrepareResolvedInternalCanvasDrop,
+  ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "./canvasTypes";
 import {
@@ -85,6 +86,7 @@ type UseCanvasViewportInstanceStateParams = {
   sharedScene: CanvasSharedSceneState;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
+  resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
   isSpacePanActiveRef: MutableRefObject<boolean>;
   draftOwnerInstanceId: CanvasWorkspaceInstanceId | null;
@@ -104,6 +106,7 @@ export const useCanvasViewportInstanceState = ({
   sharedScene,
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  resolveCanvasDropFiles,
   onPinTextReference,
   isSpacePanActiveRef,
   draftOwnerInstanceId,
@@ -166,6 +169,7 @@ export const useCanvasViewportInstanceState = ({
     camera,
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    resolveCanvasDropFiles,
     addResolvedItem,
   });
 

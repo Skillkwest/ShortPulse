@@ -285,6 +285,7 @@ describe("ExpertEditPanelView", () => {
   };
 
   beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "false");
     objectUrlCounter = 0;
     composePrimaryStageLayersToBlobMock.mockClear();
     createObjectURLMock.mockReset();
@@ -2697,7 +2698,36 @@ describe("ExpertEditPanelView", () => {
     expect(modelPickerButton).toHaveTextContent("Nano Banana");
   });
 
-  it("locks the model picker to Pulse Markup v1 while Markup is selected", async () => {
+  it("keeps the model picker unlocked while Markup is selected", async () => {
+    const onModelPickerOpen = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onModelPickerOpen={onModelPickerOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
+    const markupButton = await within(rail).findByRole("button", { name: /^markup$/i });
+    const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
+
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+
+    fireEvent.click(markupButton);
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton.querySelector(".model-chip-logo-img")).not.toHaveAttribute(
+      "src",
+      "/tiny-logo.png"
+    );
+    fireEvent.click(modelPickerButton);
+    expect(onModelPickerOpen).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(moveButton);
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+  });
+
+  it("locks the model picker to Pulse Markup v1 while Markup is selected when lock flag is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
     const onModelPickerOpen = vi.fn();
     render(<ExpertEditPanelView {...baseProps} onModelPickerOpen={onModelPickerOpen} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
@@ -5179,7 +5209,54 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
   });
 
-  it("auto-flatten generate forces Nano Banana Pro edit model while Markup is selected", async () => {
+  it("auto-flatten generate does not force model override while Markup is selected by default", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Add hand-drawn annotations."
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [
+              string[],
+              {
+                modelIdOverride?: string | null;
+                inpaintOverride?: unknown;
+              }?,
+            ]
+          >;
+        };
+      }
+    ).mock.calls;
+    const submitOptions = submissionCalls[0]?.[1];
+    expect(submitOptions?.modelIdOverride).toBeUndefined();
+    expect(submitOptions?.inpaintOverride).toBeUndefined();
+  });
+
+  it("auto-flatten generate forces Nano Banana Pro edit model while Markup is selected when lock flag is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {

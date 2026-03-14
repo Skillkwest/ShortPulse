@@ -13,6 +13,7 @@ const DRAG_TEXT_HINT_PATTERN =
 export const canAcceptCanvasDropTransfer = (transfer: DataTransfer | null | undefined): boolean => {
   if (!transfer) return false;
   if (extractInternalReferenceDragPayload(transfer)) return true;
+  if (Array.from(transfer.types || []).includes("Files")) return true;
   return Array.from(transfer.types || []).some((type) => DRAG_TEXT_HINT_PATTERN.test(type));
 };
 

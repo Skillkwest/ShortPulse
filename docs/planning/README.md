@@ -19,6 +19,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `supabase-production-cutover-handoff-2026-03-13.md`: paused-state handoff log for production Supabase cutover (status, evidence, risks, resume runbook).
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.
+- `ai-studio-model-pricing-audit-checklist-2026-03-14.md`: family-by-family model pricing research checklist with per-model source links, current vs recalculated credits, and approval gates.
 - `mvp-pretester-full-audit-remediation-plan.md`: full-app audit remediation runbook for pre-tester release hardening.
 - `mvp-ui-ux-stabilization-remediation-plan.md`: standalone UI/UX stabilization and remediation runbook for pre-tester quality hardening.
 - `mvp-ui-ux-sprint-ticket-breakdown.md`: sprint-ready ticket register (one ticket per UI/UX remediation checklist item, with owner and estimate).

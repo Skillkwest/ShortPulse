@@ -21,6 +21,7 @@ import type {
   CanvasCamera,
   CanvasDropResolution,
   PrepareResolvedInternalCanvasDrop,
+  ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "./canvasTypes";
 
@@ -29,6 +30,7 @@ type UseCanvasViewportDropHandlersParams = {
   camera: CanvasCamera;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
+  resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   addResolvedItem: (
     resolved: CanvasDropResolution,
     worldX: number,
@@ -53,6 +55,7 @@ export const useCanvasViewportDropHandlers = ({
   camera,
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  resolveCanvasDropFiles,
   addResolvedItem,
 }: UseCanvasViewportDropHandlersParams): CanvasDropHandlers => {
   const dragDepthRef = useRef(0);
@@ -93,33 +96,50 @@ export const useCanvasViewportDropHandlers = ({
     ]
   );
 
-  const onViewportDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!canAcceptCanvasDropTransfer(event.dataTransfer)) return;
-    event.preventDefault();
-    dragDepthRef.current += 1;
-    setIsDropActive(true);
-  }, []);
+  const canHandleViewportTransfer = useCallback(
+    (transfer: DataTransfer | null | undefined): boolean => {
+      if (!transfer) return false;
+      const hasFiles =
+        (transfer.files?.length ?? 0) > 0 || Array.from(transfer.types || []).includes("Files");
+      if (hasFiles) return Boolean(resolveCanvasDropFiles);
+      return canAcceptCanvasDropTransfer(transfer);
+    },
+    [resolveCanvasDropFiles]
+  );
+
+  const onViewportDragEnter = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!canHandleViewportTransfer(event.dataTransfer)) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDropActive(true);
+    },
+    [canHandleViewportTransfer]
+  );
 
   const onViewportDragOver = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
-      if (!canAcceptCanvasDropTransfer(event.dataTransfer)) return;
+      if (!canHandleViewportTransfer(event.dataTransfer)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       if (!isDropActive) {
         setIsDropActive(true);
       }
     },
-    [isDropActive]
+    [canHandleViewportTransfer, isDropActive]
   );
 
-  const onViewportDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!canAcceptCanvasDropTransfer(event.dataTransfer)) return;
-    event.preventDefault();
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) {
-      setIsDropActive(false);
-    }
-  }, []);
+  const onViewportDragLeave = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!canHandleViewportTransfer(event.dataTransfer)) return;
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setIsDropActive(false);
+      }
+    },
+    [canHandleViewportTransfer]
+  );
 
   const onViewportDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
@@ -139,6 +159,24 @@ export const useCanvasViewportDropHandlers = ({
         rect,
         camera,
       });
+      const droppedFiles = transfer.files;
+      if (droppedFiles && droppedFiles.length > 0 && resolveCanvasDropFiles) {
+        event.preventDefault();
+        event.stopPropagation();
+        void (async () => {
+          const resolvedItems = await resolveCanvasDropFiles(droppedFiles);
+          if (!resolvedItems?.length) return;
+          const offsetStep = 24;
+          for (let index = 0; index < resolvedItems.length; index += 1) {
+            const resolvedItem = resolvedItems[index];
+            const offset = index * offsetStep;
+            await addResolvedItem(resolvedItem, point.x + offset, point.y + offset, {
+              showLoadingPlaceholder: true,
+            });
+          }
+        })();
+        return;
+      }
       const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
       if (mediaLibraryPayload) {
         event.preventDefault();
@@ -226,7 +264,7 @@ export const useCanvasViewportDropHandlers = ({
         }
       );
     },
-    [addResolvedItem, camera, handleResolvedInternalDrop, viewportRef]
+    [addResolvedItem, camera, handleResolvedInternalDrop, resolveCanvasDropFiles, viewportRef]
   );
 
   return {

@@ -17,6 +17,7 @@ Use this document to keep the expectations clear whenever I’m making changes i
 13. **Comment intentionally.** Every file needs a top-level comment covering purpose, responsibilities, and how it fits the system. Public functions get doc-style comments (purpose, inputs, outputs, side effects). Inline comments explain intent or edge cases—never restate obvious code.
 14. **Plan-first refactors.** For structural changes: audit first, propose the modular plan (folders/files and responsibilities), then execute incrementally and validate that structure/line limits are met.
 15. **Keep structure manageable.** Use feature/domain folders, avoid deep nesting and circular deps, isolate side effects, and keep business logic out of UI glue.
+16. **Use Supabase CLI and avoid Docker for Supabase ops.** For Supabase access in this repo, use Supabase CLI with explicit hosted targets; do not run Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 
 ## Canonical run commands (always respond with these)
 - **Frontend startup** (new terminal):

@@ -16,6 +16,7 @@ Inherit the root startup contract in `../AGENTS.md` first, then apply the scoped
 - Don’t edit `node_modules/` or generated output (`.next/`).
 - Don’t introduce external backend services without an explicit product decision; server-side logic in `pages/api/*` is already part of this repo’s architecture.
 - Don’t add secrets to the repo; never paste `.env.local` contents.
+- Don’t run Docker-based Supabase local stack commands (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands); use Supabase CLI with explicit hosted targets.
 
 ## Validation
 

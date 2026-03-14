@@ -75,3 +75,10 @@ export type PrepareResolvedInternalCanvasDrop = (
   payload: InternalReferenceDragPayload,
   resolved: CanvasDropResolution
 ) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;
+
+/**
+ * Allows surfaces to convert dropped desktop files into one or more Canvas insert items.
+ */
+export type ResolveCanvasDropFiles = (
+  files: FileList
+) => Promise<CanvasDropResolution[] | null> | CanvasDropResolution[] | null;

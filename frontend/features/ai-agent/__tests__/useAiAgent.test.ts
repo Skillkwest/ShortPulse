@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiAgent } from "../useAiAgent";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
@@ -225,6 +225,54 @@ describe("useAiAgent", () => {
       clientSessionKey?: string;
     };
     expect(bodyA2.clientSessionKey).toBe(keyA);
+  });
+
+  it("clears in-memory history and canonical prompt when sessionNamespace changes", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "old assistant output",
+          canonicalPrompt: "old canonical prompt",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: "new assistant output" }),
+      } as Response);
+
+    const hook = renderHook(
+      ({ namespace }) => useAiAgent({ enabled: true, sessionNamespace: namespace }),
+      { initialProps: { namespace: "ai-studio:session-a:create:text" } }
+    );
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "first turn",
+        payloadText: "first turn",
+      });
+    });
+
+    expect(hook.result.current.messages.length).toBeGreaterThan(0);
+
+    hook.rerender({ namespace: "ai-studio:session-b:create:text" });
+    await waitFor(() => {
+      expect(hook.result.current.messages).toEqual([]);
+    });
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "second turn",
+        payloadText: "second turn",
+      });
+    });
+
+    const secondBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+      canonicalPrompt?: string | null;
+    };
+    expect(secondBody.messages).toEqual([{ role: "user", content: "second turn" }]);
+    expect(secondBody.canonicalPrompt ?? null).toBeNull();
   });
 
   it("treats refusal payloads as assistant responses without setting error", async () => {

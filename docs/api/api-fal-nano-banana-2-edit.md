@@ -53,7 +53,8 @@ Example payload:
   - `0.5K x0.75`, `1K x1`, `2K x1.5`, `4K x2`
   - `enable_web_search` adds `$0.015`
 - Credit conversion:
-  - `rawCredits = ceil(usd / 0.01)`
+  - `markedCredits = usd * 100 * 1.03`
+  - `rawCredits = ceil(markedCredits)`
   - `credits = ceil(rawCredits / 5) * 5`
 
 ## Defaults we ship

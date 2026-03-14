@@ -162,3 +162,138 @@ export type AdminDashboardAnnouncement = {
   publishedAt: string | null;
   updatedAt: string | null;
 };
+
+export type AdminHealthFindingSeverity = "info" | "warning" | "critical";
+export type AdminHealthFindingConfidence = "high" | "medium" | "low";
+
+export type AdminHealthFinding = {
+  code: string;
+  severity: AdminHealthFindingSeverity;
+  confidence: AdminHealthFindingConfidence;
+  summary: string;
+  details: string;
+  recommendedActions: string[];
+};
+
+export type AdminHealthWindowSummary = {
+  window: "24h" | "7d" | "30d";
+  totalDebitCents: number;
+  generationDebitCents: number;
+  nonGenerationDebitCents: number;
+  avgPerDayCents: number;
+};
+
+export type AdminUserHealthResponse = {
+  generatedAt: string;
+  lookbackDays: number;
+  target: {
+    lookup: string;
+    lookupMode: "auto" | "email" | "user_id";
+    userId: string;
+    email: string | null;
+    createdAt: string | null;
+    lastSignInAt: string | null;
+  };
+  compatibility: {
+    generationsSelectUsed: string;
+    reservationsSupported: boolean;
+    queueSupported: boolean;
+    ledgerLegacySchema: boolean;
+    warnings: string[];
+  };
+  credits: {
+    availableCents: number;
+    reservedCents: number;
+    spendableCents: number;
+    balanceUpdatedAt: string | null;
+    totalGrantsCents: number;
+    totalDebitsCentsAbs: number;
+    generationDebitsCentsAbs: number;
+  };
+  drainage: {
+    windows: AdminHealthWindowSummary[];
+    dailyDebits: Array<{
+      day: string;
+      totalDebitCents: number;
+      generationDebitCents: number;
+    }>;
+    topDebitSources: Array<{ source: string; cents: number }>;
+    costWithoutSuccessfulGeneration: {
+      debitCents: number;
+      rowCount: number;
+      sample: Array<{
+        sourceRef: string | null;
+        amountCents: number;
+        reason: string;
+        generationStatus: string | null;
+        bucket: "linked_non_success_generation" | "missing_linkage_data";
+      }>;
+      linkedNonSuccessGeneration: {
+        debitCents: number;
+        rowCount: number;
+        sample: Array<{
+          sourceRef: string | null;
+          amountCents: number;
+          reason: string;
+          generationStatus: string | null;
+        }>;
+      };
+      missingLinkageData: {
+        debitCents: number;
+        rowCount: number;
+        sample: Array<{
+          sourceRef: string | null;
+          amountCents: number;
+          reason: string;
+          generationStatus: string | null;
+        }>;
+      };
+    };
+  };
+  generations: {
+    total: number;
+    byStatus: Record<string, number>;
+    last24h: { total: number; success: number; fail: number; failRatePercent: number };
+    last7d: { total: number; success: number; fail: number; failRatePercent: number };
+    last30d: { total: number; success: number; fail: number; failRatePercent: number };
+    topFailReasonsLookback: Array<{ reason: string; count: number }>;
+    stuckOver2hCount: number;
+    stuckOver2hSample: Array<{
+      id: string;
+      status: string | null;
+      recoveryState: string | null;
+      requestId: string | null;
+      modelId: string | null;
+      createdAt: string | null;
+      ageHours: number | null;
+      nextRecoveryAt: string | null;
+    }>;
+  };
+  reservations: {
+    total: number;
+    byStatus: Record<string, number>;
+    reservedWithProviderOver2hCount: number;
+    reservedWithoutProviderOver15mCount: number;
+    topCapturedModels: Array<{ modelId: string; cents: number }>;
+  };
+  queue: {
+    total: number;
+    byStatus: Record<string, number>;
+    exhaustedCount: number;
+    exhaustedWithReleasedReservationCount: number;
+    exhaustedWithChargeCount: number;
+    oldestCreatedAt: string | null;
+    recentExhaustedSample: Array<{
+      queueId: string;
+      sourceRef: string | null;
+      modelId: string | null;
+      errorCode: string | null;
+      generationStatus: string | null;
+      reservationStatus: string | null;
+      chargeCount: number;
+      createdAt: string | null;
+    }>;
+  };
+  findings: AdminHealthFinding[];
+  nextSteps: string[];
+};

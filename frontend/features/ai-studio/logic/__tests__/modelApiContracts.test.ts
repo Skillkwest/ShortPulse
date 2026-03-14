@@ -21,7 +21,7 @@ describe("model API contracts", () => {
     const contracts = listModelApiContracts();
     expect(contracts.length).toBeGreaterThan(0);
     contracts.forEach((contract) => {
-      expect(contract.verifiedAt).toBe("2026-02-17");
+      expect(contract.verifiedAt).toBe("2026-03-14");
     });
   });
 

@@ -32,6 +32,17 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
   - `FIRST_AND_LAST_FRAMES_2_VIDEO` supports `1-2` images.
   - `REFERENCE_2_VIDEO` supports `1-3` images and requires `aspect_ratio=16:9`.
 
+## Pricing (ShortPulse runtime)
+- Evidence source: user-provided Kie pricing dashboard capture dated `2026-03-14`.
+- Kie row for Veo fast i2v: `60` Kie credits / generation with `Our Price = $0.30`.
+- Kie credit conversion shown in evidence: `1 Kie credit ~= $0.005` (matches `$0.30` for `60` credits).
+- Runtime pricing basis: fixed `$0.30` per generation (independent of duration/resolution inputs currently exposed in UI).
+- ShortPulse conversion policy:
+  - `markedCredits = usd * 100 * 1.03`
+  - `rawCredits = ceil(markedCredits)`
+  - `credits = ceil(rawCredits / 5) * 5`
+- Default lane outcome: `$0.30` -> `rawCredits=31` -> `35` billed credits.
+
 ## Guardrails
 1. Kie integration remains disabled by default.
 2. Kie paths fail closed unless model is explicitly allowlisted.
@@ -43,4 +54,3 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
 ## Follow-up Required Before Enabling
 1. Refresh primary-source capture immediately before production enablement.
 2. Confirm status/result payload shape parity in provider integration tests.
-3. Re-validate pricing assumptions before any production enablement.

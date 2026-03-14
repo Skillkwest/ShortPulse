@@ -21,6 +21,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
   - `/api/internal/generation-recovery/run`
   - `/api/fal/queue-status`
   - `/api/fal/webhook` (if enabled)
+  - `/api/admin/user-health` (operator diagnostics for per-user generation + drainage health posture)
 
 ## What Happens If Browser Closes Or Crashes
 | Client-visible state at disconnect | Server-side durable state | What continues without client | Expected final outcome |

@@ -91,8 +91,8 @@ Sample response:
 
 ## Pricing (ShortPulse)
 - Provider rate: **$0.15 per image**.
-- Conversion: `rawCredits = ceil(usd / 0.01)`, billed credits `= ceil(rawCredits / 5) * 5`.
-- Current outcomes: 1K/2K = 15 credits, 4K = 30 credits, and enabling `enable_web_search` adds $0.015 then rounds to the next 5-credit step.
+- Conversion: `markedCredits = usd * 100 * 1.03`, `rawCredits = ceil(markedCredits)`, billed credits `= ceil(rawCredits / 5) * 5`.
+- Current outcomes: 1K/2K = 20 credits, 4K = 35 credits, and enabling `enable_web_search` adds $0.015 then rounds to the next 5-credit step.
 
 ## Defaults we ship
 - `num_images`: 1.

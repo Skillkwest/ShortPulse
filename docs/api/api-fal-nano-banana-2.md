@@ -54,7 +54,8 @@ Example payload:
   - `4K` -> `x2`
 - Web search surcharge: `+$0.015` when enabled.
 - Credit conversion:
-  - `rawCredits = ceil(usd / 0.01)`
+  - `markedCredits = usd * 100 * 1.03`
+  - `rawCredits = ceil(markedCredits)`
   - `credits = ceil(rawCredits / 5) * 5`
 
 ## Defaults we ship

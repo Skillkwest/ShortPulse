@@ -671,7 +671,7 @@ const registry: Record<string, ModelConfig> = {
     maxDurationSeconds: 10,
     defaultResolution: contractDefaultResolution(KIE_KLING_30_MODEL_ID, "1080p"),
     defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(KIE_KLING_30_MODEL_ID, ["1080p"]),
+    allowedResolutions: contractAllowedResolutions(KIE_KLING_30_MODEL_ID, ["720p", "1080p"]),
     allowedDurations: contractAllowedDurations(KIE_KLING_30_MODEL_ID, [5, 10]),
     supportsImageToVideo: true,
   },

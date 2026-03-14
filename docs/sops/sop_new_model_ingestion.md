@@ -4,17 +4,18 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
 
 ## Inputs to collect
 - API docs: submit/status endpoints, auth header, required/optional fields, defaults (aspect, format, guidance/steps, safety).
-- Pricing rule: per-image, per-MP (tiered), per-duration, or per-token; $→credits conversion (`rawCredits = ceil(usd / 0.01)`, `credits = ceil(rawCredits / 5) * 5`).
+- Pricing rule: per-image, per-MP (tiered), per-duration, or per-token; $→credits conversion with markup (`markedCredits = usd * 100 * 1.03`, `rawCredits = ceil(markedCredits)`, default `credits = ceil(rawCredits / 5) * 5`; exception models may use `credits = rawCredits`).
 - Allowed aspects/sizes: enum list and width/height map if MP-based.
 - Output schema: result URLs/fields needed for preview/result parsing.
 
 ## Implementation steps
 1) **Pricing metadata**
-   - `frontend/features/ai-studio/logic/modelSizes.ts`: add/extend aspect → size map if MP-based.
-   - `frontend/features/ai-studio/logic/pricingTypes.ts`: add a pricing strategy id.
-   - `frontend/features/ai-studio/logic/pricingStrategies.ts`: add strategy fn for the pricing rule (per-image/per-MP/per-duration/tiered) and register it.
+   - `frontend/lib/model-runtime/modelSizes.ts`: add/extend aspect → size map if MP-based.
+   - `frontend/lib/model-runtime/pricingTypes.ts`: add a pricing strategy id.
+   - `frontend/lib/model-runtime/pricingStrategies.ts`: add strategy fn for the pricing rule (per-image/per-MP/per-duration/tiered) and register it.
+   - `frontend/lib/model-runtime/pricingCredits.ts`: use shared conversion helper for markup + rounding policy.
 2) **Model registry + UI options**
-   - `frontend/features/ai-studio/logic/modelRegistry.ts`: add `ModelConfig` with `id`, `label`, `provider`, `mediaType`, `defaultAspect`, `allowedAspects`, `pricingStrategy`, optional `sizeMap`, and any default runtime params (`defaultDurationSeconds`, `defaultResolution`, `defaultAudio`).
+   - `frontend/lib/model-runtime/modelRegistry.ts`: add `ModelConfig` with `id`, `label`, `provider`, `mediaType`, `defaultAspect`, `allowedAspects`, `pricingStrategy`, optional `sizeMap`, and any default runtime params (`defaultDurationSeconds`, `defaultResolution`, `defaultAudio`).
    - `frontend/lib/model-runtime/modelCatalog.ts`: add/update payload validation and capability metadata when the model introduces new submit fields/contracts.
    - `frontend/features/ai-studio/constants.ts`: add `modelOptions` entry (UI label) and aspect clamps/allowed sets if needed.
    - `frontend/features/ai-studio/components/ModelModal.tsx`: ensure grouping/order if a new section is needed (cost chips use `computeCostForModel` automatically).
@@ -42,19 +43,25 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
    - Smoke in dev: select model → see cost on Generate → submit → poll completes → preview/result URLs populate.
 
 ## Guardrails / tests
-- Add a coverage test to ensure every registry entry with a pricing strategy returns a cost:
-  - `frontend/features/ai-studio/logic/__tests__/modelPricingCoverage.test.ts`:
-    - Iterate `listModelConfigs()`, call `computeCostForModel(id, { aspect: config.defaultAspect })`, assert non-null when a strategy exists.
+- Add a coverage test to ensure every registry entry with a pricing strategy returns policy-compliant costs across supported settings:
+  - `frontend/features/ai-studio/logic/__tests__/modelPricingCoverage.test.ts`.
 - Optional lint: script to check every `docs/api-*.md` is listed in `docs/README.md`.
 
 ## Templates (copy/paste)
 - **Per-image pricing strategy**
   ```ts
   const MY_MODEL_USD = 0.02;
-  const computeMyModelCost: StrategyFn = () => {
-    const rawCredits = Math.max(1, Math.ceil(MY_MODEL_USD / CREDIT_VALUE_USD));
-    const credits = Math.ceil(rawCredits / 5) * 5;
-    return { credits, usd: credits * CREDIT_VALUE_USD, megapixels: 0, width: 0, height: 0 };
+  const computeMyModelCost: StrategyFn = ({ modelId }) => {
+    const quantized = convertUsdToCredits({ modelId, usdRaw: MY_MODEL_USD });
+    return {
+      credits: quantized.credits,
+      usd: quantized.billedUsd,
+      rawCredits: quantized.rawCredits,
+      usdRaw: MY_MODEL_USD,
+      megapixels: 0,
+      width: 0,
+      height: 0,
+    };
   };
   ```
 - **Per-MP tiered strategy**
@@ -69,9 +76,16 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
     const mp = (size.width * size.height) / 1_000_000;
     const units = Math.max(1, Math.ceil(mp));
     const usdRaw = FIRST_MP_USD + Math.max(0, units - 1) * ADDITIONAL_MP_USD;
-    const rawCredits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-    const credits = Math.ceil(rawCredits / 5) * 5;
-    return { credits, usd: credits * CREDIT_VALUE_USD, megapixels: mp, width: size.width, height: size.height };
+    const quantized = convertUsdToCredits({ modelId, usdRaw });
+    return {
+      credits: quantized.credits,
+      usd: quantized.billedUsd,
+      rawCredits: quantized.rawCredits,
+      usdRaw,
+      megapixels: mp,
+      width: size.width,
+      height: size.height,
+    };
   };
   ```
 - **Fal proxy (submit)**
@@ -109,7 +123,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
   Status: ...
   Input: prompt, aspect/size, format, safety, defaults
   Output: result URLs, fields
-  Pricing: <formula>, rawCredits = ceil(usd/0.01), credits = ceil(rawCredits/5)*5
+  Pricing: <formula>, markedCredits = usd*100*1.03, rawCredits = ceil(markedCredits), credits = ceil(rawCredits/5)*5 (or exception rounding if applicable)
   Defaults we use: aspect fallback, format, safety, steps/guidance (if any)
   ```
 

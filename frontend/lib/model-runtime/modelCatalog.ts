@@ -41,7 +41,7 @@ export type ModelCatalogEntry = {
   payloadValidation?: ModelPayloadValidationSpec;
 };
 
-const VERIFIED_AT = "2026-02-17";
+const VERIFIED_AT = "2026-03-14";
 
 const catalog: Record<string, ModelCatalogEntry> = {
   "fal-ai/flux-2/klein/9b": {
@@ -866,7 +866,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
     defaultDurationSeconds: 10,
     allowedDurations: [5, 10],
     defaultResolution: "1080p",
-    allowedResolutions: ["1080p"],
+    allowedResolutions: ["720p", "1080p"],
     kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
     kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
     kieTimeoutMs: 60000,
@@ -876,7 +876,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
       requiredAnyOfStringArrayFields: ["image_urls"],
       enumFields: {
         aspect_ratio: ["16:9", "9:16", "1:1"],
-        resolution: ["1080p"],
+        resolution: ["720p", "1080p"],
       },
       optionalBooleanFields: ["generate_audio"],
       optionalNumberFields: ["duration", "cfg_scale"],

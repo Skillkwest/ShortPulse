@@ -867,6 +867,106 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("preserves panel scroll position after custom-folder refresh flows", async () => {
+    const deferredRefresh = createDeferred<{
+      rows: Array<{
+        id: string;
+        filename: string;
+        storage_path: string;
+        preview_storage_path: string;
+        file_type: string;
+        source: string;
+        created_at: string;
+        metadata: null;
+        signedUrl: string;
+      }>;
+      nextCursor: null;
+      hasMore: boolean;
+      signedById: Map<string, string>;
+    }>();
+    const mediaRowsPayload = {
+      rows: [
+        {
+          id: "media-1",
+          filename: "ref-1.png",
+          storage_path: "user-1/uploads/ref-1.png",
+          preview_storage_path: "user-1/uploads/ref-1.png",
+          file_type: "image/png",
+          source: "upload",
+          created_at: "2026-03-02T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/ref-1.png",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+    };
+    fetchMediaListPageMock.mockReset();
+    fetchMediaListPageMock
+      .mockResolvedValueOnce(mediaRowsPayload)
+      .mockResolvedValueOnce(mediaRowsPayload)
+      .mockImplementationOnce(async () => deferredRefresh.promise);
+
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const scrollContainer = container.querySelector(".media-library-panel-body") as HTMLElement;
+    expect(scrollContainer).toBeTruthy();
+
+    let scrollTopValue = 740;
+    const scrollHeightValue = 2600;
+    Object.defineProperty(scrollContainer, "clientHeight", {
+      configurable: true,
+      value: 560,
+    });
+    Object.defineProperty(scrollContainer, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeightValue,
+    });
+    Object.defineProperty(scrollContainer, "scrollTop", {
+      configurable: true,
+      get: () => scrollTopValue,
+      set: (value: number) => {
+        scrollTopValue = value;
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Assign dropped media Media One" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign dropped media Media One" }));
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        folderId: "folder-1",
+        action: "assign",
+        mediaIds: ["media-drop-1"],
+        promptIds: [],
+      });
+    });
+
+    // Simulate the browser snapping to top while rows are being refreshed.
+    scrollTopValue = 0;
+
+    await act(async () => {
+      deferredRefresh.resolve(mediaRowsPayload);
+    });
+
+    await waitFor(() => {
+      expect(scrollTopValue).toBe(740);
+    });
+  });
+
   it("uploads desktop files dropped on a folder tile and assigns them to that folder", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -963,6 +1063,7 @@ describe("MediaLibraryPanel", () => {
         promptIds: [],
       });
     });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
   });
 

@@ -9,7 +9,7 @@ Use this guide to submit and poll Sora 2 Pro text-to-video jobs via the Fal queu
 ## Submit (Text → Video)
 `POST https://queue.fal.run/fal-ai/sora-2/text-to-video/pro`
 
-Example (10s pricing tier, 8s requested to match the Fal duration enum):
+Example (default 8s @ 1080p):
 ```bash
 curl --request POST \
   --url https://queue.fal.run/fal-ai/sora-2/text-to-video/pro \
@@ -28,7 +28,7 @@ curl --request POST \
 - `prompt` (string, required): Scene description.
 - `resolution` (enum): `1080p` (default) or `720p`.
 - `aspect_ratio` (enum): `16:9` (default) or `9:16`.
-- `duration` (enum): `4`, `8`, or `12` seconds. AI Studio requests `8` seconds by default while pricing at the 10s tier for consistency.
+- `duration` (enum): `4`, `8`, or `12` seconds. AI Studio requests `8` seconds by default.
 - `delete_video` (boolean): Whether to delete after generation (defaults true per Fal docs).
 
 ## Status
@@ -49,9 +49,17 @@ curl --request POST \
 
 ## Defaults we apply (AI Studio)
 - Aspect: `16:9` (allowed: `16:9`, `9:16`).
-- Duration: 8s requested (Fal enum 4/8/12); priced using the 10s high-tier in `sora-2-pro-per-second`.
+- Duration: 8s requested (Fal enum 4/8/12).
 - Resolution: `1080p` default; audio on by default (model returns audio).
 - Proxy routes: `/api/fal/sora-submit` for submit; `/api/fal/sora-status` for status/result.
+
+## Pricing (USD -> credits)
+- Provider rate: `720p = $0.30/s`, `1080p = $0.50/s`.
+- Credits are derived from provider USD with markup and nearest-5 quantization:
+  - `markedCredits = usd * 100 * 1.03`
+  - `rawCredits = ceil(markedCredits)`
+  - `credits = ceil(rawCredits / 5) * 5`
+- Example default lane: `8s @ 1080p` -> `$4.00` -> `rawCredits = 412` -> `415` billed credits.
 
 ## Notes
 - Keep prompts safe for public URLs and avoid leaking PII.

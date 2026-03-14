@@ -3,35 +3,36 @@
  */
 import { getModelConfig } from "./modelRegistry";
 import { resolveAspectSize } from "./modelSizes";
+import { convertUsdToCredits } from "./pricingCredits";
 import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes";
-
-/**
- * Rounds a credit value up to the nearest 5.
- * Examples: 4 → 5, 7 → 10, 12 → 15, 23 → 25
- */
-const roundCreditsToNearest5 = (credits: number): number => {
-  return Math.ceil(credits / 5) * 5;
-};
+import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
 
 const FAL_COST_PER_MP_USD = 0.025;
 const FLUX2_COST_PER_MP_USD = 0.012;
+const FLUX2_KLEIN_COST_PER_MP_USD = 0.006;
+const FLUX2_EDIT_INPUT_MP = 1;
 const FLUX2_PRO_FIRST_MP_USD = 0.03;
 const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
+const FLUX2_PRO_EDIT_NORMALIZED_INPUT_MP = 1;
+const FLUX_PRO_FILL_COST_PER_MP_USD = 0.05;
+const BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD = 0.018;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 const GPT_IMAGE_PER_IMAGE_USD = 0.04;
-const CREDIT_VALUE_USD = 0.01;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
 const VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.2;
 const VEO_AUDIO_RATE_4K_USD_PER_SECOND = 0.6;
 const VEO_NO_AUDIO_RATE_4K_USD_PER_SECOND = 0.4;
-const KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND = 0.224;
-const KLING_3_RATE_AUDIO_ON_USD_PER_SECOND = 0.336;
-const KLING_3_RATE_AUDIO_VOICE_USD_PER_SECOND = 0.392;
-const SORA2_PRO_STANDARD_10S_USD_PER_SECOND = 0.15; // 150 credits / 10s
-const SORA2_PRO_STANDARD_15S_USD_PER_SECOND = 0.18; // 270 credits / 15s
-const SORA2_PRO_HIGH_10S_USD_PER_SECOND = 0.33; // 330 credits / 10s
-const SORA2_PRO_HIGH_15S_USD_PER_SECOND = 0.42; // 630 credits / 15s
+const KLING_3_FAL_RATE_AUDIO_OFF_USD_PER_SECOND = 0.112;
+const KLING_3_FAL_RATE_AUDIO_ON_USD_PER_SECOND = 0.168;
+const KLING_3_FAL_RATE_AUDIO_VOICE_USD_PER_SECOND = 0.196;
+const KLING_3_KIE_RATE_AUDIO_OFF_1080P_USD_PER_SECOND = 0.135;
+const KLING_3_KIE_RATE_AUDIO_ON_1080P_USD_PER_SECOND = 0.2;
+const KLING_3_KIE_RATE_AUDIO_OFF_720P_USD_PER_SECOND = 0.1;
+const KLING_3_KIE_RATE_AUDIO_ON_720P_USD_PER_SECOND = 0.15;
+const KIE_VEO_31_FAST_I2V_PER_VIDEO_USD = 0.3;
+const SORA2_PRO_720P_USD_PER_SECOND = 0.3;
+const SORA2_PRO_1080P_USD_PER_SECOND = 0.5;
 const SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN = 2.4;
 const SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN = 1.2;
 const SEEDANCE_DEFAULT_FPS = 24;
@@ -43,57 +44,31 @@ const SEEDANCE_RESOLUTION_MAP = {
 
 type StrategyFn = (params: PricingParams) => CostBreakdown | null;
 
-const quantizeCreditsFromUsd = (usdRaw: number) => {
-  const rawCredits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(rawCredits);
-  return {
-    rawCredits,
-    credits,
-    billedUsd: credits * CREDIT_VALUE_USD,
-  };
-};
-
 const toCostBreakdown = ({
+  modelId,
   usdRaw,
   megapixels,
   width,
   height,
+  applyMarkup,
 }: {
+  modelId: string;
   usdRaw: number;
   megapixels: number;
   width: number;
   height: number;
+  applyMarkup?: boolean;
 }): CostBreakdown => {
-  const quantized = quantizeCreditsFromUsd(usdRaw);
+  const quantized = convertUsdToCredits({
+    usdRaw,
+    modelId,
+    applyMarkup: applyMarkup ?? true,
+  });
   return {
     credits: quantized.credits,
     usd: quantized.billedUsd,
     rawCredits: quantized.rawCredits,
     usdRaw,
-    megapixels,
-    width,
-    height,
-  };
-};
-
-const toFixedCreditBreakdown = ({
-  credits,
-  megapixels,
-  width,
-  height,
-}: {
-  credits: number;
-  megapixels: number;
-  width: number;
-  height: number;
-}): CostBreakdown => {
-  const normalizedCredits = Math.max(1, Math.trunc(credits));
-  const billedUsd = normalizedCredits * CREDIT_VALUE_USD;
-  return {
-    credits: normalizedCredits,
-    usd: billedUsd,
-    rawCredits: normalizedCredits,
-    usdRaw: billedUsd,
     megapixels,
     width,
     height,
@@ -143,6 +118,7 @@ const computeFalPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHei
   const roundedMp = Math.ceil(megapixels);
   const usdRaw = roundedMp * FAL_COST_PER_MP_USD;
   return toCostBreakdown({
+    modelId,
     usdRaw,
     megapixels,
     width: size.width,
@@ -155,8 +131,12 @@ const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageH
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FLUX2_COST_PER_MP_USD;
+  const usdRaw =
+    modelId === "fal/flux-2/edit"
+      ? (FLUX2_EDIT_INPUT_MP + megapixels) * FLUX2_COST_PER_MP_USD
+      : megapixels * FLUX2_COST_PER_MP_USD;
   return toCostBreakdown({
+    modelId,
     usdRaw,
     megapixels,
     width: size.width,
@@ -169,8 +149,13 @@ const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, i
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  return toFixedCreditBreakdown({
-    credits: 1,
+  const usdRaw =
+    modelId === "fal-ai/bria/background/remove"
+      ? BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD
+      : megapixels * FLUX2_KLEIN_COST_PER_MP_USD;
+  return toCostBreakdown({
+    modelId,
+    usdRaw,
     megapixels,
     width: size.width,
     height: size.height,
@@ -182,9 +167,21 @@ const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, ima
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const roundedMp = Math.max(1, Math.ceil(megapixels));
-  const usdRaw = FLUX2_PRO_FIRST_MP_USD + Math.max(0, roundedMp - 1) * FLUX2_PRO_ADDITIONAL_MP_USD;
+  const roundedOutputMp = Math.max(1, Math.ceil(megapixels));
+  const usdRaw = (() => {
+    if (modelId === "fal-ai/flux-pro/v1/fill") {
+      return roundedOutputMp * FLUX_PRO_FILL_COST_PER_MP_USD;
+    }
+    if (modelId === "fal/flux-2-pro/edit") {
+      // Provider pricing includes output first MP plus additional rounded output+input MP.
+      // Runtime normalizes edit input to 1 MP for deterministic debit parity.
+      const additionalUnits = Math.max(0, roundedOutputMp - 1) + FLUX2_PRO_EDIT_NORMALIZED_INPUT_MP;
+      return FLUX2_PRO_FIRST_MP_USD + additionalUnits * FLUX2_PRO_ADDITIONAL_MP_USD;
+    }
+    return FLUX2_PRO_FIRST_MP_USD + Math.max(0, roundedOutputMp - 1) * FLUX2_PRO_ADDITIONAL_MP_USD;
+  })();
   return toCostBreakdown({
+    modelId,
     usdRaw,
     megapixels,
     width: size.width,
@@ -192,8 +189,9 @@ const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, ima
   });
 };
 
-const computeGoogleNanoBananaPerImageCost: StrategyFn = () => {
+const computeGoogleNanoBananaPerImageCost: StrategyFn = ({ modelId }) => {
   return toCostBreakdown({
+    modelId,
     usdRaw: GOOGLE_NANO_BANANA_PER_IMAGE_USD,
     megapixels: 0,
     width: 0,
@@ -201,8 +199,9 @@ const computeGoogleNanoBananaPerImageCost: StrategyFn = () => {
   });
 };
 
-const computeGptImagePerImageCost: StrategyFn = () => {
+const computeGptImagePerImageCost: StrategyFn = ({ modelId }) => {
   return toCostBreakdown({
+    modelId,
     usdRaw: GPT_IMAGE_PER_IMAGE_USD,
     megapixels: 0,
     width: 0,
@@ -210,7 +209,11 @@ const computeGptImagePerImageCost: StrategyFn = () => {
   });
 };
 
-const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputTokens = 0 }) => {
+const computeGpt41NanoPerTokenCost: StrategyFn = ({
+  modelId,
+  inputTokens = 0,
+  outputTokens = 0,
+}) => {
   // Rates are per 1M tokens: input $0.10, output $0.025.
   const INPUT_USD_PER_M = 0.1;
   const OUTPUT_USD_PER_M = 0.025;
@@ -218,6 +221,7 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputToken
     (Math.max(0, inputTokens) / 1_000_000) * INPUT_USD_PER_M +
     (Math.max(0, outputTokens) / 1_000_000) * OUTPUT_USD_PER_M;
   return toCostBreakdown({
+    modelId,
     usdRaw: totalUsd,
     megapixels: 0,
     width: 0,
@@ -225,10 +229,11 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputToken
   });
 };
 
-const computeSeedreamPerImageCost: StrategyFn = ({ resolution }) => {
+const computeSeedreamPerImageCost: StrategyFn = ({ modelId, resolution }) => {
   const baseUsd = 0.04;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
   return toCostBreakdown({
+    modelId,
     usdRaw: baseUsd * resolutionMultiplier,
     megapixels: 0,
     width: 0,
@@ -236,8 +241,9 @@ const computeSeedreamPerImageCost: StrategyFn = ({ resolution }) => {
   });
 };
 
-const computeSeedream5LitePerImageCost: StrategyFn = () => {
+const computeSeedream5LitePerImageCost: StrategyFn = ({ modelId }) => {
   return toCostBreakdown({
+    modelId,
     usdRaw: 0.035,
     megapixels: 0,
     width: 0,
@@ -245,7 +251,7 @@ const computeSeedream5LitePerImageCost: StrategyFn = () => {
   });
 };
 
-const computeNanoBanana2PerImageCost: StrategyFn = ({ resolution, webSearch }) => {
+const computeNanoBanana2PerImageCost: StrategyFn = ({ modelId, resolution, webSearch }) => {
   const baseUsd = 0.08;
   const normalizedResolution = (resolution ?? "1K").trim().toUpperCase();
   const resolutionMultiplier =
@@ -258,6 +264,7 @@ const computeNanoBanana2PerImageCost: StrategyFn = ({ resolution, webSearch }) =
           : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
   return toCostBreakdown({
+    modelId,
     usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
     megapixels: 0,
     width: 0,
@@ -265,11 +272,12 @@ const computeNanoBanana2PerImageCost: StrategyFn = ({ resolution, webSearch }) =
   });
 };
 
-const computeNanoBananaPerImageCost: StrategyFn = ({ resolution, webSearch }) => {
+const computeNanoBananaPerImageCost: StrategyFn = ({ modelId, resolution, webSearch }) => {
   const baseUsd = 0.15;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
   return toCostBreakdown({
+    modelId,
     usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
     megapixels: 0,
     width: 0,
@@ -281,13 +289,37 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
   const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
   const hasAudio = resolveDefaultAudio(params, true);
   const usesVoiceControl = params.voiceControl === true;
+  const isKieModel = params.modelId === KIE_KLING_30_MODEL_ID;
+  const rates = isKieModel
+    ? (() => {
+        const res = resolveDefaultResolution(params, "1080p").toLowerCase();
+        const is720p = res.includes("720");
+        return {
+          audioOff: is720p
+            ? KLING_3_KIE_RATE_AUDIO_OFF_720P_USD_PER_SECOND
+            : KLING_3_KIE_RATE_AUDIO_OFF_1080P_USD_PER_SECOND,
+          audioOn: is720p
+            ? KLING_3_KIE_RATE_AUDIO_ON_720P_USD_PER_SECOND
+            : KLING_3_KIE_RATE_AUDIO_ON_1080P_USD_PER_SECOND,
+          // Kie pricing evidence does not publish a separate voice-control tier.
+          audioVoice: is720p
+            ? KLING_3_KIE_RATE_AUDIO_ON_720P_USD_PER_SECOND
+            : KLING_3_KIE_RATE_AUDIO_ON_1080P_USD_PER_SECOND,
+        };
+      })()
+    : {
+        audioOff: KLING_3_FAL_RATE_AUDIO_OFF_USD_PER_SECOND,
+        audioOn: KLING_3_FAL_RATE_AUDIO_ON_USD_PER_SECOND,
+        audioVoice: KLING_3_FAL_RATE_AUDIO_VOICE_USD_PER_SECOND,
+      };
   const usdPerSecond = hasAudio
     ? usesVoiceControl
-      ? KLING_3_RATE_AUDIO_VOICE_USD_PER_SECOND
-      : KLING_3_RATE_AUDIO_ON_USD_PER_SECOND
-    : KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND;
+      ? rates.audioVoice
+      : rates.audioOn
+    : rates.audioOff;
   const usd = usdPerSecond * duration;
   return toCostBreakdown({
+    modelId: params.modelId,
     usdRaw: usd,
     megapixels: 0,
     width: 0,
@@ -296,6 +328,16 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
 };
 
 const computeVeoPerSecondCost: StrategyFn = (params) => {
+  if (params.modelId === KIE_VEO_31_FAST_I2V_MODEL_ID) {
+    return toCostBreakdown({
+      modelId: params.modelId,
+      usdRaw: KIE_VEO_31_FAST_I2V_PER_VIDEO_USD,
+      megapixels: 0,
+      width: 0,
+      height: 0,
+    });
+  }
+
   const duration = resolveDefaultDuration(params, 8);
   const res = resolveDefaultResolution(params, "1080p").toLowerCase();
   const hasAudio = resolveDefaultAudio(params, true);
@@ -309,6 +351,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
       : VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND;
   const usd = usdPerSecond * duration;
   return toCostBreakdown({
+    modelId: params.modelId,
     usdRaw: usd,
     megapixels: 0,
     width: 0,
@@ -317,20 +360,14 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
 };
 
 const computeSora2ProPerSecondCost: StrategyFn = (params) => {
-  const duration = resolveDefaultDuration(params, 10);
-  // Sora pricing supports 10s or 15s; clamp to those tiers for pricing consistency.
-  const tierDuration = duration <= 10 ? 10 : 15;
-  const res = resolveDefaultResolution(params, "High").toLowerCase();
-  const isStandard = res.includes("720") || res.includes("standard");
-  const usdPerSecond = isStandard
-    ? tierDuration === 10
-      ? SORA2_PRO_STANDARD_10S_USD_PER_SECOND
-      : SORA2_PRO_STANDARD_15S_USD_PER_SECOND
-    : tierDuration === 10
-      ? SORA2_PRO_HIGH_10S_USD_PER_SECOND
-      : SORA2_PRO_HIGH_15S_USD_PER_SECOND;
-  const usd = usdPerSecond * tierDuration;
+  const duration = resolveDefaultDuration(params, 8);
+  const res = resolveDefaultResolution(params, "1080p").toLowerCase();
+  const usdPerSecond = res.includes("720")
+    ? SORA2_PRO_720P_USD_PER_SECOND
+    : SORA2_PRO_1080P_USD_PER_SECOND;
+  const usd = usdPerSecond * duration;
   return toCostBreakdown({
+    modelId: params.modelId,
     usdRaw: usd,
     megapixels: 0,
     width: 0,
@@ -369,6 +406,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
   const tokens = (resolution.width * resolution.height * SEEDANCE_DEFAULT_FPS * duration) / 1024;
   const usdRaw = (tokens / 1_000_000) * ratePerMillionTokens;
   return toCostBreakdown({
+    modelId: params.modelId,
     usdRaw,
     megapixels: 0,
     width: resolution.width,

@@ -54,8 +54,13 @@ ShortPulse catalog model id: `fal/flux-2-pro/edit`.
 - `timings`, `seed`, `prompt`, `has_nsfw_concepts`.
 
 ## Pricing (ShortPulse)
-- Same as FLUX 2 PRO text-to-image: **$0.03 for the first megapixel**, **$0.015 for each additional (rounded up) megapixel**.
-- Credits are valued at $0.01 each with a 5-credit step: `rawCredits = ceil(usd / 0.01)`, `credits = ceil(rawCredits / 5) * 5`.
+- Provider pricing: **$0.03 for the first megapixel of output**, plus **$0.015 per extra megapixel of input and output** (rounded up to nearest MP).
+- Runtime normalization for deterministic debit parity: edit input is treated as normalized `1 MP`; output MP is rounded up from selected output size.
+- Credit conversion:
+  - `markedCredits = usd * 100 * 1.03`
+  - `rawCredits = ceil(markedCredits)`
+  - `credits = ceil(rawCredits / 5) * 5`
+- Default lane (`4:3` output) outcome: `$0.06` -> `rawCredits=7` -> `10` billed credits.
 - Aspect → size map matches text-to-image; default aspect `4:3` (1024x768 class), see `falSizeForAspect`.
 
 ## Defaults we use in AI Studio

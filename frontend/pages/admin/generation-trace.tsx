@@ -258,9 +258,14 @@ export default function AdminGenerationTracePage() {
         <section className={styles.adminSection}>
           <div className={styles.adminSectionHead}>
             <h2 className={styles.adminSectionTitle}>Query</h2>
-            <Link href="/admin" className="ghost-btn mini">
-              Back to operations
-            </Link>
+            <div className={styles.tabRow}>
+              <Link href="/admin/user-health" className="ghost-btn mini">
+                User health
+              </Link>
+              <Link href="/admin" className="ghost-btn mini">
+                Back to operations
+              </Link>
+            </div>
           </div>
           <form onSubmit={loadTrace} style={{ display: "grid", gap: 12 }}>
             <input

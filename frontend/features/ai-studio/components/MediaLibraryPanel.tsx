@@ -160,6 +160,13 @@ const createdAtTime = (value: string | null | undefined): number => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const waitForAnimationFrame = async (): Promise<void> => {
+  if (typeof window === "undefined") return;
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+};
+
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
@@ -904,12 +911,37 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const refreshActiveRows = useCallback(async () => {
+    const container = panelBodyRef.current;
+    const shouldPreserveScroll = Boolean(container);
+    const previousScrollTop = container?.scrollTop ?? 0;
+    const previousBottomGap = container
+      ? Math.max(0, container.scrollHeight - (container.scrollTop + container.clientHeight))
+      : 0;
+    const wasNearBottom =
+      shouldPreserveScroll && previousBottomGap <= INFINITE_LOAD_BOTTOM_THRESHOLD_PX;
+
     if (shouldShowMedia) {
       await loadMediaPage({ reset: true });
     }
     if (shouldShowPrompts) {
       await loadPromptPage({ reset: true });
     }
+
+    if (!shouldPreserveScroll) return;
+    await waitForAnimationFrame();
+    await waitForAnimationFrame();
+    const nextContainer = panelBodyRef.current;
+    if (!nextContainer) return;
+    const nextMaxTop = Math.max(0, nextContainer.scrollHeight - nextContainer.clientHeight);
+    if (wasNearBottom) {
+      const nextTop = Math.max(
+        0,
+        nextContainer.scrollHeight - nextContainer.clientHeight - previousBottomGap
+      );
+      nextContainer.scrollTop = Math.min(nextTop, nextMaxTop);
+      return;
+    }
+    nextContainer.scrollTop = Math.min(Math.max(previousScrollTop, 0), nextMaxTop);
   }, [loadMediaPage, loadPromptPage, shouldShowMedia, shouldShowPrompts]);
 
   const maybeAutoLoadMore = useCallback(() => {

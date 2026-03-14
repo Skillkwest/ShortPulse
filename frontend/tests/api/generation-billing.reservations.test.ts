@@ -133,7 +133,7 @@ describe("generationBilling reservation RPC handling", () => {
     expect(debitPayload.sourceRef).toBe("req-ambiguous");
     expect(debitPayload.metadata.pricing_breakdown).toEqual({
       usd_raw: 0.04,
-      raw_credits: 4,
+      raw_credits: 5,
       billed_credits: 5,
       billed_usd: 0.05,
     });
@@ -263,6 +263,16 @@ describe("generationBilling reservation RPC handling", () => {
         },
       },
       {
+        modelId: "fal/flux-2-pro/edit",
+        route: "/api/fal/flux2pro-edit-submit",
+        requestId: "req-flux2-pro-edit",
+        payload: {
+          prompt: "cinematic portrait",
+          image_urls: ["https://example.com/ref.png"],
+          image_size: { width: 1024, height: 1024 },
+        },
+      },
+      {
         modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
         route: "/api/fal/seedream-submit",
         requestId: "req-seedream",
@@ -280,6 +290,30 @@ describe("generationBilling reservation RPC handling", () => {
           duration: 11,
           resolution: "720p",
           aspect_ratio: "16:9",
+        },
+      },
+      {
+        modelId: "kie-ai/kling-3.0",
+        route: "/api/fal/kie-kling-submit",
+        requestId: "req-kie-kling",
+        payload: {
+          prompt: "city drone sweep",
+          image_url: "https://example.com/ref.png",
+          duration: 10,
+          resolution: "1080p",
+          generate_audio: true,
+        },
+      },
+      {
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        route: "/api/fal/kie-veo-submit",
+        requestId: "req-kie-veo",
+        payload: {
+          prompt: "sunset shoreline walk",
+          image_url: "https://example.com/ref.png",
+          duration: 8,
+          resolution: "720p",
+          generate_audio: true,
         },
       },
     ] as const;

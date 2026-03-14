@@ -1165,6 +1165,9 @@ export default function AdminDashboardPage() {
           >
             Announcements
           </button>
+          <Link href="/admin/user-health" className="ghost-btn mini">
+            User health
+          </Link>
           <Link href="/admin/generation-trace" className="ghost-btn mini">
             Generation trace
           </Link>
@@ -1367,6 +1370,18 @@ export default function AdminDashboardPage() {
                   >
                     {adjustSubmitting ? "Applying…" : "Apply"}
                   </button>
+                  <Link
+                    href={
+                      selectedUserId
+                        ? `/admin/user-health?lookup=${encodeURIComponent(
+                            selectedUserId
+                          )}&lookupMode=user_id`
+                        : "/admin/user-health"
+                    }
+                    className="ghost-btn mini"
+                  >
+                    Open health check
+                  </Link>
                 </div>
               </div>
               {adjustResult ? <p className="tiny subdued">{adjustResult}</p> : null}

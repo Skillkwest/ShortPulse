@@ -60,17 +60,18 @@ Example response:
 - `cfg_scale`: `0.5`.
 - `multi_prompt` + `voice_ids`: not set (multi-shot + voice control are not exposed in the UI yet).
 
-## Pricing (USD → credits)
+## Pricing (USD -> credits)
 
-Credits are derived with 5-credit step rounding:
-- `rawCredits = ceil(usd / 0.01)`
+Credits are derived from provider USD with markup and 5-credit quantization:
+- `markedCredits = usd * 100 * 1.03`
+- `rawCredits = ceil(markedCredits)`
 - `credits = ceil(rawCredits / 5) * 5`
 
-- Audio off: `$0.224` per second.
-- Audio on: `$0.336` per second.
-- Audio + voice control: `$0.392` per second (only when `voice_ids` are used).
+- Audio off: `$0.112` per second.
+- Audio on: `$0.168` per second.
+- Audio + voice control: `$0.196` per second (only when `voice_ids` are used).
 
-Example: a 5s clip with audio on and voice control costs `$1.96` → `rawCredits = 196` → `200` credits billed.
+Example: a 5s clip with audio on and voice control costs `$0.98` -> `rawCredits = 101` -> `105` credits billed.
 
 ## Example request (proxy)
 

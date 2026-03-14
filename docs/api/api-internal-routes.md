@@ -45,6 +45,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/users` | `GET` | Admin bearer | List users + plan/credit snapshots with pagination/search. Returns spendable credits (`available - reserved`) plus available/reserved fields so Admin matches AI Studio credit math. | `frontend/pages/api/admin/users.ts` |
 | `/api/admin/credits/adjust` | `POST` | Admin bearer | Manual credit adjustments (bounded, audited). | `frontend/pages/api/admin/credits/adjust.ts`, `docs/sops/sop_billing_credits_operations.md` |
 | `/api/admin/credits/ledger` | `GET` | Admin bearer | Fetch recent credit ledger transactions for one user, including generation pricing breakdown metadata (`raw` vs `billed`) when present. Supports optional `source` filter (example: `source=generation_charge`). | `frontend/pages/api/admin/credits/ledger.ts`, `docs/sops/sop_billing_credits_operations.md` |
+| `/api/admin/user-health` | `POST` | Admin bearer | Run a user-level generation/queue/reservation/ledger health report by `lookup` (email or user id) with findings and recommended next actions. | `frontend/pages/api/admin/user-health.ts`, `docs/sops/sop_billing_credits_operations.md`, `docs/sops/sop_generation_recovery_diagnostics.md` |
 | `/api/admin/announcements/current` | `GET` | Admin bearer | Return the currently active dashboard announcement (`announcement` object or `null`) for admin workspace controls. | `frontend/pages/api/admin/announcements/current.ts`, `frontend/lib/server/api/dashboardAnnouncements.ts` |
 | `/api/admin/announcements/publish` | `POST` | Admin bearer | Publish/activate a dashboard announcement with validated `title` + `message`; previous active row is superseded. | `frontend/pages/api/admin/announcements/publish.ts`, `frontend/lib/server/api/dashboardAnnouncements.ts` |
 | `/api/admin/announcements/clear` | `POST` | Admin bearer | Clear/deactivate the currently active dashboard announcement. | `frontend/pages/api/admin/announcements/clear.ts`, `frontend/lib/server/api/dashboardAnnouncements.ts` |
@@ -83,6 +84,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - Admission deny path immediately releases reservation (`release_generation_reservation_by_source_ref`).
   - Queue-enabled over-cap path accepts submit as queued (`202`, `code: GENERATION_QUEUED`) and defers provider submit to server dispatcher.
   - Queue handoff polling contract (`GET /api/fal/queue-status`) returns `queued | dispatched | failed | not_found`.
+  - `dispatched` queue-status responses include `provider` and may include optional `modelId` for provider/model-aware client polling route resolution.
   - Queue-status dispatch kick is rollout-controlled:
     - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true` (legacy side-effect mode).
     - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=false` (read-only queue-dispatch mode).

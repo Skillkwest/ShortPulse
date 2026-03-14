@@ -138,7 +138,7 @@ Use this per model:
 | `fal-ai/veo3.1` | https://fal.ai/models/fal-ai/veo3.1/api | `pricingInfoOverride`: `$0.20/s` (no audio) / `$0.40/s` (audio) for 720p/1080p; 4K `$0.40/s` (no audio) / `$0.60/s` (audio) | `320` | `330` (default `8s`, `1080p`, audio on) | `+10` | Rates match existing formula basis; delta driven by locked +3% markup policy. |
 | `fal-ai/veo3.1/image-to-video` | https://fal.ai/models/fal-ai/veo3.1/image-to-video/api | Same per-second schedule as Veo 3.1 base lane (`pricingInfoOverride`) | `320` | `330` (default `8s`, `720p`, audio on) | `+10` | Keep dynamic resolution/audio schedule; apply locked markup/rounding conversion. |
 | `fal-ai/veo3.1/first-last-frame-to-video` | https://fal.ai/models/fal-ai/veo3.1/first-last-frame-to-video/api | Same per-second schedule as Veo 3.1 base lane (`pricingInfoOverride`) | `320` | `330` (default `8s`, `720p`, audio on) | `+10` | Keep keyframe lane on same Veo schedule and policy conversion. |
-| `kie-ai/veo-3.1-fast-i2v` | User-provided Kie pricing dashboard evidence (2026-03-14), https://docs.kie.ai/veo3-api/generate-veo-3-video | Kie evidence row: `60 credits / video`, `Our Price = $0.30`; Kie conversion in evidence: `1 credit ~= $0.005` | `200` | `35` (fixed `$0.30` per video; policy applies +3% then nearest-5) | `-165` | Unblocked via user evidence; runtime now prices this lane as fixed per-generation USD under shared policy conversion. |
+| `kie-ai/veo-3.1-fast-i2v` | User-provided Kie pricing dashboard evidence (2026-03-14), https://docs.kie.ai/veo3-api/generate-veo-3-video | Kie evidence rows (Fast): `text-to-video`, `image-to-video`, `reference-to-video` each `60 credits / video`, `Our Price = $0.30`; conversion: `1 credit ~= $0.005` | `200` | `35` (fixed `$0.30` per video; policy applies +3% then nearest-5) | `-165` | Unblocked via user evidence; ShortPulse `FIRST_AND_LAST_FRAMES_2_VIDEO` keyframes path is priced on the same fixed Fast lane basis under shared conversion policy. |
 
 ## 8) Sora Family
 ### Checklist
@@ -147,7 +147,7 @@ Use this per model:
 ### Notes
 | Model | Official Pricing URL(s) | Provider Pricing Input (USD) | Current Repo Credits | Recalculated Credits | Delta | Decision/Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `fal-ai/sora-2/text-to-video/pro` | https://fal.ai/models/fal-ai/sora-2/text-to-video/pro/api | `pricingInfoOverride`: `$0.30/s` for 720p, `$0.50/s` for 1080p | `330` | `415` (default `8s`, `1080p`) | `+85` | Existing tiered runtime schedule is materially stale versus provider’s current per-second resolution rates. |
+| `fal-ai/sora-2/text-to-video/pro` | https://fal.ai/models/fal-ai/sora-2/text-to-video/pro/api | Provider metadata: endpoint billing `second @ $0.5` with `pricingInfoOverride` `$0.30/s` for 720p and `$0.50/s` for 1080p | `330` | `415` (default `8s`, `1080p`) | `+85` | Existing tiered runtime schedule is materially stale versus provider’s current per-second resolution rates. |
 
 ## 9) OpenAI Text Helper
 ### Checklist
@@ -161,8 +161,8 @@ Use this per model:
 ---
 
 ## Final Validation Gate
-- [ ] Every active model has a filled pricing URL and input basis.
-- [ ] Every model has current vs recalculated credits documented.
-- [ ] Exceptions were applied only to approved models.
-- [ ] Family-by-family approvals completed.
-- [ ] Implementation diffs prepared from approved checklist values only.
+- [x] Every active model has a filled pricing URL and input basis.
+- [x] Every model has current vs recalculated credits documented.
+- [x] Exceptions were applied only to approved models.
+- [x] Family-by-family approvals completed.
+- [x] Implementation diffs prepared from approved checklist values only.

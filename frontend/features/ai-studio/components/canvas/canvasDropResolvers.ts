@@ -2,7 +2,8 @@
  * Canvas drop URL resolvers.
  * Normalizes and validates image URL candidates so canvas drops never prefer non-renderable paths.
  */
-import { resolveReferenceTransferUrl } from "../../utils/dragDrop";
+import { isRenderableAdaptiveUrl } from "../../../../lib/adaptive-media";
+import { looksLikeVideoUrl } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 
 type CanvasImageUrlResolutionInput = {
@@ -15,16 +16,12 @@ type CanvasImageUrlResolutionInput = {
 };
 
 const normalizeRenderableImageUrl = (value: string | null | undefined): string | null => {
-  const resolved = resolveReferenceTransferUrl(
-    {
-      previewUrl: value ?? undefined,
-      fullStoragePath: null,
-      previewStoragePath: null,
-      resultUrls: [],
-    },
-    "image"
-  );
-  return resolved ?? null;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!isRenderableAdaptiveUrl(trimmed)) return null;
+  if (looksLikeVideoUrl(trimmed)) return null;
+  return trimmed;
 };
 
 /**
@@ -40,7 +37,18 @@ export const resolveCanvasDropImageSourceUrl = ({
     output.resultUrls?.[Math.max(0, Math.floor(imageIndex))] ?? null
   );
   if (indexedResultUrl) return indexedResultUrl;
-  const outputResolvedUrl = resolveReferenceTransferUrl(output, "image");
-  if (outputResolvedUrl) return outputResolvedUrl;
-  return normalizeRenderableImageUrl(payloadReferenceUrl);
+
+  const fallbackCandidates = [
+    output.previewUrl,
+    output.fullStoragePath,
+    output.previewStoragePath,
+    ...(output.resultUrls ?? []),
+    payloadReferenceUrl,
+  ];
+
+  for (const candidate of fallbackCandidates) {
+    const normalized = normalizeRenderableImageUrl(candidate);
+    if (normalized) return normalized;
+  }
+  return null;
 };

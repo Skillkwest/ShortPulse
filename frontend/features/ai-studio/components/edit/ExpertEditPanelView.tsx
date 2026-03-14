@@ -46,6 +46,7 @@ import {
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
+  isMarkupCollapsedOpenModalEnabled,
   isMarkupModelLockEnabled,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
@@ -1653,6 +1654,7 @@ export function ExpertEditPanelView({
       ? "inpaint"
       : "markup";
   const shouldLockMarkupModelPicker = isVideoToolSelected && isMarkupModelLockEnabled();
+  const shouldOpenMarkupModalFromCollapsedTools = isMarkupCollapsedOpenModalEnabled();
   const isModelPickerLocked = isInpaintToolSelected || shouldLockMarkupModelPicker;
   const effectiveModelPickerLabel = isInpaintToolSelected
     ? INPAINT_FLUX_FILL_MODEL_LABEL
@@ -1723,58 +1725,14 @@ export function ExpertEditPanelView({
     imageResolutionValue,
     onImageResolutionChange,
   });
-  const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
-    surfaceId: "edit-character-picker-trigger",
-  });
-  const handleCharacterPickerOpenRefresh = React.useCallback(() => {
-    void refreshCharacterOptions?.();
-  }, [refreshCharacterOptions]);
-
-  const {
-    isCharacterPickerOpen,
-    openCharacterPicker,
-    closeCharacterPicker,
-    handleCharacterModeEnabledToggle,
-    characterSelectDisabled,
-    selectedCharacterName,
-    selectedCharacterProfileImageUrl,
-    selectedCharacterInitials,
-  } = useCreateCharacterModeController({
+  const { isCharacterPickerOpen, closeCharacterPicker } = useCreateCharacterModeController({
     beginnerMode: false,
     characterModeEnabled,
     characterOptions,
     selectedCharacterId,
     isCharacterOptionsLoading,
-    onCharacterPickerOpen: handleCharacterPickerOpenRefresh,
     onCharacterModeEnabledChange,
   });
-  const selectedCharacterAvatarUrl = resolveAvatarUrl(
-    selectedCharacterId,
-    resolveCharacterAvatarUrlById?.(selectedCharacterId) ?? selectedCharacterProfileImageUrl ?? null
-  );
-  const isCharacterSelectionEmpty = !selectedCharacterAvatarUrl && !selectedCharacterInitials;
-  const handleSelectedCharacterAvatarError = React.useCallback(() => {
-    void handleAvatarError({
-      avatarId: selectedCharacterId,
-      recoverAvatarUrl: async () => {
-        const refreshedOptions = await refreshCharacterOptions?.();
-        const refreshedAvatarUrl =
-          refreshedOptions?.find((item) => item.id === selectedCharacterId)?.profileImageUrl ??
-          null;
-        return (
-          refreshedAvatarUrl?.trim() ?? resolveCharacterAvatarUrlById?.(selectedCharacterId) ?? null
-        );
-      },
-    });
-  }, [
-    handleAvatarError,
-    refreshCharacterOptions,
-    resolveCharacterAvatarUrlById,
-    selectedCharacterId,
-  ]);
-  const handleSelectedCharacterAvatarLoad = React.useCallback(() => {
-    clearAvatarFailure(selectedCharacterId);
-  }, [clearAvatarFailure, selectedCharacterId]);
 
   const inputRefs = [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] as const;
   const promptTextValue = referenceText ?? "";
@@ -3864,11 +3822,41 @@ export function ExpertEditPanelView({
     closeStageContextMenu();
   }, [closeStageContextMenu, handleRecenterMoveAction]);
 
+  const openMarkupModal = React.useCallback(
+    (tool?: RailTool) => {
+      if (tool && tool !== selectedRailTool) {
+        setSelectedRailTool(tool);
+      }
+      if (shouldOpenMarkupModalFromCollapsedTools) {
+        if (inpaintCollapseTimerRef.current != null) {
+          window.clearTimeout(inpaintCollapseTimerRef.current);
+          inpaintCollapseTimerRef.current = null;
+        }
+        setIsInpaintCollapsed(true);
+        setIsInpaintCollapsing(false);
+      }
+      setIsMarkupExpandSelected(true);
+    },
+    [selectedRailTool, shouldOpenMarkupModalFromCollapsedTools]
+  );
+
+  const closeMarkupModal = React.useCallback(() => {
+    setIsMarkupExpandSelected(false);
+    if (shouldOpenMarkupModalFromCollapsedTools) {
+      if (inpaintCollapseTimerRef.current != null) {
+        window.clearTimeout(inpaintCollapseTimerRef.current);
+        inpaintCollapseTimerRef.current = null;
+      }
+      setIsInpaintCollapsed(true);
+      setIsInpaintCollapsing(false);
+      setSelectedRailTool("move");
+    }
+  }, [shouldOpenMarkupModalFromCollapsedTools]);
+
   const handleStageContextMenuExpand = React.useCallback(() => {
-    setSelectedRailTool("video");
-    setIsMarkupExpandSelected(true);
+    openMarkupModal("video");
     closeStageContextMenu();
-  }, [closeStageContextMenu]);
+  }, [closeStageContextMenu, openMarkupModal]);
 
   const handleStageContextMenuAddImage = React.useCallback(() => {
     closeStageContextMenu();
@@ -4357,13 +4345,13 @@ export function ExpertEditPanelView({
     if (!isMarkupExpandSelected || typeof window === "undefined") return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      setIsMarkupExpandSelected(false);
+      closeMarkupModal();
     };
     window.addEventListener("keydown", handleEscape);
     return () => {
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [isMarkupExpandSelected]);
+  }, [closeMarkupModal, isMarkupExpandSelected]);
 
   React.useEffect(() => {
     if (!isMarkupExpandSelected || typeof window === "undefined") return;
@@ -4703,6 +4691,11 @@ export function ExpertEditPanelView({
   );
 
   const handleInpaintCollapseToggle = React.useCallback(() => {
+    if (isInpaintCollapsed && shouldOpenMarkupModalFromCollapsedTools) {
+      openMarkupModal();
+      return;
+    }
+
     if (inpaintCollapseTimerRef.current != null) {
       window.clearTimeout(inpaintCollapseTimerRef.current);
       inpaintCollapseTimerRef.current = null;
@@ -4720,7 +4713,7 @@ export function ExpertEditPanelView({
       setIsInpaintCollapsing(false);
       inpaintCollapseTimerRef.current = null;
     }, INPAINT_COLLAPSE_ANIMATION_MS);
-  }, [isInpaintCollapsed]);
+  }, [isInpaintCollapsed, openMarkupModal, shouldOpenMarkupModalFromCollapsedTools]);
 
   const handleCommitLayerRename = React.useCallback(
     (index: number) => {
@@ -4904,7 +4897,13 @@ export function ExpertEditPanelView({
                 isMarkupExpandSelected ? "is-active" : ""
               }`}
               aria-pressed={isMarkupExpandSelected}
-              onClick={() => setIsMarkupExpandSelected((previous) => !previous)}
+              onClick={() => {
+                if (isMarkupExpandSelected) {
+                  closeMarkupModal();
+                  return;
+                }
+                openMarkupModal("video");
+              }}
               aria-label="Expand markup tools"
             >
               <ArrowsOutSimple size={modeIconSize} weight="regular" />
@@ -5073,10 +5072,7 @@ export function ExpertEditPanelView({
               type="button"
               className="edit-expert-move-mode-btn edit-expert-move-expand-btn"
               aria-label="Expand markup tools"
-              onClick={() => {
-                setSelectedRailTool("video");
-                setIsMarkupExpandSelected(true);
-              }}
+              onClick={() => openMarkupModal("video")}
             >
               <ArrowsOutSimple size={modeIconSize} weight="regular" />
             </button>
@@ -5305,7 +5301,7 @@ export function ExpertEditPanelView({
               type="button"
               className="edit-expert-markup-modal-close-btn"
               aria-label="Close expanded markup canvas"
-              onClick={() => setIsMarkupExpandSelected(false)}
+              onClick={closeMarkupModal}
             >
               <X size={14} weight="bold" />
             </button>
@@ -5827,10 +5823,7 @@ export function ExpertEditPanelView({
                           type="button"
                           className="edit-expert-inpaint-mode-btn edit-expert-inpaint-expand-btn"
                           aria-label="Expand markup tools"
-                          onClick={() => {
-                            setSelectedRailTool("video");
-                            setIsMarkupExpandSelected(true);
-                          }}
+                          onClick={() => openMarkupModal("video")}
                         >
                           <ArrowsOutSimple size={16} weight="regular" />
                         </button>
@@ -6022,62 +6015,6 @@ export function ExpertEditPanelView({
       </div>
       <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
         <div className="create-expert-controls">
-          <div
-            className={`create-expert-control create-expert-character-mode-control ${
-              characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
-            }`}
-          >
-            <div className="create-expert-character-mode-meta">
-              <p className="create-expert-character-mode-title">Character</p>
-              <button
-                type="button"
-                className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${
-                  characterModeEnabled ? "is-active" : ""
-                }`}
-                aria-pressed={characterModeEnabled}
-                aria-label={
-                  characterModeEnabled ? "Disable character mode" : "Enable character mode"
-                }
-                onClick={handleCharacterModeEnabledToggle}
-              >
-                <span className="audio-toggle-track" aria-hidden="true">
-                  <span className="audio-toggle-dot" />
-                </span>
-              </button>
-            </div>
-            {characterModeEnabled ? (
-              <button
-                type="button"
-                className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
-                  isCharacterSelectionEmpty ? "is-empty" : ""
-                } ${isCharacterPickerOpen ? "is-open" : ""}`}
-                aria-haspopup="dialog"
-                aria-expanded={isCharacterPickerOpen}
-                aria-label="Open character picker"
-                disabled={characterSelectDisabled}
-                onClick={openCharacterPicker}
-              >
-                {selectedCharacterAvatarUrl ? (
-                  <Image
-                    src={selectedCharacterAvatarUrl}
-                    alt={`${selectedCharacterName} profile`}
-                    className="ai-character-picker-trigger-avatar"
-                    width={20}
-                    height={20}
-                    unoptimized
-                    onError={handleSelectedCharacterAvatarError}
-                    onLoad={handleSelectedCharacterAvatarLoad}
-                  />
-                ) : selectedCharacterInitials ? (
-                  <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
-                    {selectedCharacterInitials}
-                  </span>
-                ) : null}
-                <span className="model-picker-name">{selectedCharacterName}</span>
-              </button>
-            ) : null}
-          </div>
-
           <div className="create-expert-control create-expert-model-control">
             <button
               type="button"
@@ -6166,7 +6103,7 @@ export function ExpertEditPanelView({
           </div>
         }
         layersPanel={renderLayersToolbar("modal")}
-        onClose={() => setIsMarkupExpandSelected(false)}
+        onClose={closeMarkupModal}
         onDragShield={handleMarkupModalDragShield}
         onStageMouseDown={handleMarkupStageMouseDown}
         onStageAuxClick={handleMarkupStageAuxClick}

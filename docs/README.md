@@ -99,6 +99,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
+- `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
 - `docs/sops/sop_new_model_ingestion.md`
@@ -135,6 +136,7 @@ Start here for all repository documentation.
 - `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`
 - `docs/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
+- `docs/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`
 - `docs/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`
 - `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 - `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`

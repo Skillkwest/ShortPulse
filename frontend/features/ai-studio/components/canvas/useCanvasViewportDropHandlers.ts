@@ -2,6 +2,7 @@
  * Encapsulates drag/drop behavior for a single Canvas viewport instance.
  */
 import { useCallback, useRef, useState, type DragEvent, type RefObject } from "react";
+import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractInternalReferenceDragPayload,
@@ -61,6 +62,31 @@ export const useCanvasViewportDropHandlers = ({
   const dragDepthRef = useRef(0);
   const [isDropActive, setIsDropActive] = useState(false);
 
+  const logUnresolvedInternalDrop = useCallback(
+    (
+      payload: InternalReferenceDragPayload,
+      reason: "resolve_miss" | "resolver_exception",
+      errorMessage?: string
+    ) => {
+      addBreadcrumb({
+        type: "ui",
+        level: "warn",
+        message: "canvas.internal_drop.unresolved",
+        data: {
+          reason,
+          outputId: payload.outputId ?? null,
+          referenceId: payload.referenceId ?? null,
+          mediaId: payload.mediaId ?? null,
+          sourceSurface: payload.sourceSurface ?? null,
+          imageIndex: payload.imageIndex,
+          hasReferenceUrl: Boolean(payload.referenceUrl),
+          errorMessage: errorMessage ?? null,
+        },
+      });
+    },
+    []
+  );
+
   const handleResolvedInternalDrop = useCallback(
     async (
       payload: InternalReferenceDragPayload,
@@ -99,10 +125,14 @@ export const useCanvasViewportDropHandlers = ({
   const canHandleViewportTransfer = useCallback(
     (transfer: DataTransfer | null | undefined): boolean => {
       if (!transfer) return false;
-      const hasFiles =
-        (transfer.files?.length ?? 0) > 0 || Array.from(transfer.types || []).includes("Files");
-      if (hasFiles) return Boolean(resolveCanvasDropFiles);
-      return canAcceptCanvasDropTransfer(transfer);
+      if (canAcceptCanvasDropTransfer(transfer)) return true;
+      const transferTypes = Array.from(transfer.types || []);
+      const hasFilesType = transferTypes.includes("Files");
+      const hasDroppedFiles = (transfer.files?.length ?? 0) > 0;
+      if (hasDroppedFiles || hasFilesType) {
+        return Boolean(resolveCanvasDropFiles);
+      }
+      return false;
     },
     [resolveCanvasDropFiles]
   );
@@ -244,7 +274,24 @@ export const useCanvasViewportDropHandlers = ({
       if (internalPayload) {
         event.preventDefault();
         event.stopPropagation();
-        void handleResolvedInternalDrop(internalPayload, event.clientX, event.clientY);
+        void (async () => {
+          try {
+            const wasHandled = await handleResolvedInternalDrop(
+              internalPayload,
+              event.clientX,
+              event.clientY
+            );
+            if (!wasHandled) {
+              logUnresolvedInternalDrop(internalPayload, "resolve_miss");
+            }
+          } catch (error) {
+            logUnresolvedInternalDrop(
+              internalPayload,
+              "resolver_exception",
+              error instanceof Error ? error.message : String(error)
+            );
+          }
+        })();
         return;
       }
       const droppedText = extractCanvasDroppedText(event.dataTransfer);
@@ -264,7 +311,14 @@ export const useCanvasViewportDropHandlers = ({
         }
       );
     },
-    [addResolvedItem, camera, handleResolvedInternalDrop, resolveCanvasDropFiles, viewportRef]
+    [
+      addResolvedItem,
+      camera,
+      handleResolvedInternalDrop,
+      logUnresolvedInternalDrop,
+      resolveCanvasDropFiles,
+      viewportRef,
+    ]
   );
 
   return {

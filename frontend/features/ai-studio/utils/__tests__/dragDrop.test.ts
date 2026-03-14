@@ -8,6 +8,7 @@ import {
   extractInternalReferenceDragPayload,
   extractDragDropPayload,
   extractVideoDragDropPayload,
+  hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
   isVideoDragTransfer,
   looksLikeImageUrl,
@@ -120,6 +121,16 @@ describe("dragDrop payload extraction", () => {
     });
 
     expect(isVideoDragTransfer(transfer)).toBe(true);
+  });
+
+  it("detects internal reference drag hints from transfer types when dragover data is unavailable", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "",
+      "text/reference-output-id": "",
+      "text/reference-origin": "",
+    });
+
+    expect(hasInternalReferenceDragTypeHints(transfer)).toBe(true);
   });
 
   it("writes source-surface metadata for internal reference drags", () => {
@@ -693,6 +704,24 @@ describe("dragDrop payload extraction", () => {
       "https://example.com/fallback-full.png"
     );
     expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/fallback-full.png");
+  });
+
+  it("preserves root-relative preview URLs in internal drag payloads for image outputs", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-relative-preview",
+      prompt: "",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "/api/media/preview?id=123",
+    });
+
+    expect(setData).toHaveBeenCalledWith("text/reference-url", "/api/media/preview?id=123");
+    expect(setData).toHaveBeenCalledWith("image/url", "/api/media/preview?id=123");
   });
 
   it("resolves best transfer URL in priority order", () => {

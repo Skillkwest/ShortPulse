@@ -286,6 +286,7 @@ describe("ExpertEditPanelView", () => {
 
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "false");
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED", "false");
     objectUrlCounter = 0;
     composePrimaryStageLayersToBlobMock.mockClear();
     createObjectURLMock.mockReset();
@@ -323,7 +324,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
   });
 
-  it("refreshes character options when opening the character picker", async () => {
+  it("hides character toggle and picker controls in the edit selector row", () => {
     const refreshCharacterOptions = vi.fn(async () => []);
     render(
       <ExpertEditPanelView
@@ -335,105 +336,11 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
-    await waitFor(() => {
-      expect(refreshCharacterOptions).toHaveBeenCalled();
-    });
-  });
-
-  it("keeps the picker openable when character mode is on and options are empty", () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        characterModeEnabled
-        characterOptions={[]}
-        selectedCharacterId=""
-        isCharacterOptionsLoading={false}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
-    expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
-    expect(screen.getByText("No character profiles available.")).toBeInTheDocument();
-  });
-
-  it("shows loading state in the picker when character options are loading", () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        characterModeEnabled
-        characterOptions={[]}
-        selectedCharacterId=""
-        isCharacterOptionsLoading
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
-    expect(screen.getByText("Loading character profiles...")).toBeInTheDocument();
-  });
-
-  it("shows a retry action when picker refresh fails", async () => {
-    const refreshCharacterOptions = vi
-      .fn<() => Promise<Array<{ id: string; name: string; profileImageUrl: string | null }>>>()
-      .mockRejectedValueOnce(new Error("refresh-open-failure-1"))
-      .mockRejectedValueOnce(new Error("refresh-open-failure-2"))
-      .mockResolvedValueOnce([]);
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        characterModeEnabled
-        characterOptions={[]}
-        selectedCharacterId=""
-        refreshCharacterOptions={refreshCharacterOptions}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
-    await waitFor(() => {
-      expect(screen.getByText("Unable to refresh character profiles.")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-    await waitFor(() => {
-      expect(refreshCharacterOptions).toHaveBeenCalledTimes(3);
-    });
-  });
-
-  it("recovers broken trigger avatars after one refresh pass", async () => {
-    let refreshedAvatarUrl: string | null = "broken-avatar";
-    const refreshCharacterOptions = vi.fn(async () => {
-      refreshedAvatarUrl = "https://cdn.test/edit-recovered-avatar.png";
-      return [
-        {
-          id: "char-1",
-          name: "Taylor",
-          profileImageUrl: refreshedAvatarUrl,
-        },
-      ];
-    });
-    const resolveCharacterAvatarUrlById = vi.fn((characterId: string | null | undefined) =>
-      characterId === "char-1" ? refreshedAvatarUrl : null
-    );
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        characterModeEnabled
-        characterOptions={[{ id: "char-1", name: "Taylor", profileImageUrl: "broken-avatar" }]}
-        selectedCharacterId="char-1"
-        refreshCharacterOptions={refreshCharacterOptions}
-        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
-      />
-    );
-
-    const triggerAvatar = screen.getByAltText("Taylor profile");
-    fireEvent.error(triggerAvatar);
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Taylor profile").getAttribute("src")).toBe(
-        "https://cdn.test/edit-recovered-avatar.png"
-      );
-    });
-    expect(refreshCharacterOptions).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /enable character mode/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /disable character mode/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /open character picker/i })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: /choose character/i })).toBeNull();
+    expect(refreshCharacterOptions).not.toHaveBeenCalled();
   });
 
   it("updates primary dropzone aspect ratio from the edit aspect selector value", () => {
@@ -1362,6 +1269,38 @@ describe("ExpertEditPanelView", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("opens expanded markup modal from collapsed tools when prototype flag is enabled and re-collapses on close", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED", "true");
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const collapsedButton = screen.getByRole("button", { name: /expand inpaint controls/i });
+    expect(collapsedButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(collapsedButton);
+    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
+    expect(expandedModal).toBeInTheDocument();
+    expect(screen.queryByLabelText("Inpaint action tools")).toBeNull();
+    expect(screen.queryByRole("button", { name: /collapse inpaint controls/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    fireEvent.click(within(expandedModal).getByRole("button", { name: /^brush$/i }));
+
+    fireEvent.click(
+      within(expandedModal).getByRole("button", { name: /close expanded markup canvas/i })
+    );
+    expect(screen.queryByRole("dialog", { name: /expanded markup canvas/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /collapse inpaint controls/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    expect(
+      within(screen.getByRole("button", { name: /expand inpaint controls/i })).getByText("Move")
+    ).toBeInTheDocument();
   });
 
   it("renders Move/Inpaint/Markup rail buttons with Move selected by default", async () => {

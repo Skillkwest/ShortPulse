@@ -20,6 +20,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.
 - `ai-studio-model-pricing-audit-checklist-2026-03-14.md`: family-by-family model pricing research checklist with per-model source links, current vs recalculated credits, and approval gates.
+- `ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`: execution checklist for pricing recalibration Phase B (implementation) and Phase C (docs/metadata sync), including parity and no-regression gates.
 - `admin-user-health-fleet-implementation-plan-2026-03-14.md`: implementation contract for daily active-user fleet health triage (set-based scan pipeline, bounded runtime, persistence, and operator workflows).
 - `mvp-pretester-full-audit-remediation-plan.md`: full-app audit remediation runbook for pre-tester release hardening.
 - `mvp-ui-ux-stabilization-remediation-plan.md`: standalone UI/UX stabilization and remediation runbook for pre-tester quality hardening.

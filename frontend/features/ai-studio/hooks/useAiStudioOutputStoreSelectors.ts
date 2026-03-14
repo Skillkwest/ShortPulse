@@ -18,9 +18,19 @@ export const useAiStudioOutputStoreSelectors = ({
 }: UseAiStudioOutputStoreSelectorsArgs) => {
   const selectActiveOutputs = useCallback(() => outputs, [outputs]);
   const selectArchivedOutputs = useCallback(() => archivedOutputs, [archivedOutputs]);
-  const getOutputById = useCallback((id: string) => {
-    return getAiStudioOutputById(id);
-  }, []);
+  const getOutputById = useCallback(
+    (id: string) => {
+      const storeMatch = getAiStudioOutputById(id);
+      if (storeMatch) return storeMatch;
+      if (!id) return null;
+      return (
+        outputs.find((output) => output.id === id) ??
+        archivedOutputs.find((output) => output.id === id) ??
+        null
+      );
+    },
+    [archivedOutputs, outputs]
+  );
   const subscribeOutputs = useCallback((listener: () => void) => {
     return subscribeAiStudioOutputs(listener);
   }, []);

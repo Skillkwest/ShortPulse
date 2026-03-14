@@ -2902,3 +2902,25 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`,
   - `docs/sops/sop_admin_user_health_fleet_operations.md`,
   - and updated README, routes map, monitoring, internal API inventory, migration docs, SQL SOPs, billing/recovery SOP cross-links, docs indexes, and security checklist.
+
+## 2026-03-14 (AI Studio right-rail styles density update)
+- Updated the shared right-rail Styles grid density from 3 to 4 tiles per row for Expert Edit and Expert Create workflows.
+- Added a narrow-viewport fallback that restores 3 columns at `max-width: 1320px` to avoid over-compressed tiles when the rail is constrained.
+- Kept scope CSS-only in `frontend/styles/ai-studio-reference-grid-split.css` with no changes to selection/state behavior.
+
+## 2026-03-14 (admin fleet staging setup walkthrough)
+- Added `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md` with a simple end-to-end checklist for staging setup.
+- Documented exactly where each value is sourced (`Staging Vercel` vs `Staging Supabase`) and provided copy/paste SQL for Vault upserts and verification queries.
+- Added quick symptom-based troubleshooting (`401`, `404`, no run rows) and explicit guidance about Vercel protection blocking Supabase cron callbacks.
+- Updated SOP indexes in `docs/README.md` and `docs/sops/README.md` to include the new walkthrough.
+
+## 2026-03-14 (AI Studio pricing recalibration Phase B/C checklist)
+- Added `docs/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md` as the operational runbook for remaining pricing recalibration phases.
+- Captured Phase B implementation gates (shared conversion, dynamic-settings preservation, cross-layer parity, and test commands) and Phase C docs/metadata sync gates.
+- Updated planning indexes in `docs/planning/README.md` and `docs/README.md` for discoverability.
+
+## 2026-03-14 (AI Studio pricing recalibration Phase B/C execution closeout)
+- Completed Phase B/C checklist execution and marked all gates complete in:
+  - `docs/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`
+  - `docs/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
+- Re-ran full targeted pricing/debit parity suite (`115` tests) and docs integrity checks; all gates passed.

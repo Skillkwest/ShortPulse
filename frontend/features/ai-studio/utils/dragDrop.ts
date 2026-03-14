@@ -1,5 +1,6 @@
 import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
+import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 
 const imageUrlPattern = /^(data:image\/|blob:|https?:\/\/)/i;
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
@@ -69,6 +70,14 @@ const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
+const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
+  "text/reference-id",
+  "text/reference-output-id",
+  "text/reference-media-id",
+  "text/reference-origin",
+  "text/reference-url",
+  "text/reference-source-surface",
+]);
 
 export type InternalReferenceDragPayload = {
   version: number;
@@ -108,6 +117,20 @@ const parseReferenceDimension = (value: string | null | undefined): number | und
 const normalizeReferenceTransferId = (value: string | null | undefined): string | null => {
   const candidate = (value ?? "").trim();
   return candidate.length ? candidate : null;
+};
+
+const normalizeTransferTypes = (transfer: DataTransfer): string[] =>
+  Array.from(transfer.types || [])
+    .map((type) => type.trim().toLowerCase())
+    .filter(Boolean);
+
+export const hasInternalReferenceDragTypeHints = (
+  transfer: DataTransfer | null | undefined
+): boolean => {
+  if (!transfer) return false;
+  return normalizeTransferTypes(transfer).some((type) =>
+    INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS.has(type)
+  );
 };
 
 export const extractInternalReferenceDragPayload = (
@@ -440,7 +463,11 @@ export const looksLikeImageUrl = (value?: string) => {
   if (!value) return false;
   const normalized = normalizeReferenceTransferUrlCandidate(value) ?? value.trim();
   if (isVideoUrl(normalized)) return false;
-  return imageUrlPattern.test(normalized) || RELATIVE_MEDIA_PATH_HINT_PATTERN.test(normalized);
+  return (
+    isRenderableAdaptiveUrl(normalized) ||
+    imageUrlPattern.test(normalized) ||
+    RELATIVE_MEDIA_PATH_HINT_PATTERN.test(normalized)
+  );
 };
 
 export const looksLikeVideoUrl = (value?: string) => {

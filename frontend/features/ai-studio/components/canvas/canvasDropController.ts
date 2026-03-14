@@ -2,7 +2,10 @@
  * Canvas drop payload helpers.
  * Parses accepted transfer payloads and resolves safe viewport drop coordinates.
  */
-import { extractInternalReferenceDragPayload } from "../../utils/dragDrop";
+import {
+  extractInternalReferenceDragPayload,
+  hasInternalReferenceDragTypeHints,
+} from "../../utils/dragDrop";
 
 const DRAG_TEXT_HINT_PATTERN =
   /^text\/(?:plain|prompt|x-moz-url|html|uri-list)|application\/json$/i;
@@ -12,8 +15,8 @@ const DRAG_TEXT_HINT_PATTERN =
  */
 export const canAcceptCanvasDropTransfer = (transfer: DataTransfer | null | undefined): boolean => {
   if (!transfer) return false;
+  if (hasInternalReferenceDragTypeHints(transfer)) return true;
   if (extractInternalReferenceDragPayload(transfer)) return true;
-  if (Array.from(transfer.types || []).includes("Files")) return true;
   return Array.from(transfer.types || []).some((type) => DRAG_TEXT_HINT_PATTERN.test(type));
 };
 

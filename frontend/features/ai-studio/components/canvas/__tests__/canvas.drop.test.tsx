@@ -1,9 +1,46 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { clearBreadcrumbs, getBreadcrumbsSnapshot } from "../../../../../lib/clientBreadcrumbs";
 import type { ResolveCanvasDropReference } from "../canvasTypes";
 import { CanvasHarness, createTransfer, mockViewportRect } from "./canvasTestHarness";
 
 describe("Canvas drop behavior", () => {
+  it("activates drop state during dragover for internal custom-type payloads", () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const transfer = {
+      files: { length: 0, item: () => null } as unknown as FileList,
+      types: ["text/reference-id", "text/reference-output-id", "text/reference-origin"],
+      getData: () => "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragOver(viewport, { dataTransfer: transfer });
+
+    expect(viewport).toHaveClass("is-drop-active");
+  });
+
+  it("does not block internal dragover packets when browser includes Files type with zero files", () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const transfer = {
+      files: { length: 0, item: () => null } as unknown as FileList,
+      types: ["Files", "text/reference-id", "text/reference-output-id", "text/reference-origin"],
+      getData: () => "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragOver(viewport, { dataTransfer: transfer });
+
+    expect(viewport).toHaveClass("is-drop-active");
+  });
+
   it("creates image items from desktop file drops when file resolver is provided", async () => {
     const resolveCanvasDropFiles = vi.fn(async () => [
       {
@@ -124,6 +161,37 @@ describe("Canvas drop behavior", () => {
     });
     expect(screen.queryByAltText("Reference image")).toBeNull();
     expect(screen.queryAllByTestId(/canvas-item-/)).toHaveLength(0);
+  });
+
+  it("records a breadcrumb when an internal drop payload cannot be resolved", async () => {
+    clearBreadcrumbs();
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "missing-output",
+        "text/reference-output-id": "missing-output",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      const breadcrumbs = getBreadcrumbsSnapshot().filter(
+        (crumb) => crumb.message === "canvas.internal_drop.unresolved"
+      );
+      expect(breadcrumbs.length).toBeGreaterThan(0);
+      const latest = breadcrumbs[breadcrumbs.length - 1];
+      expect(latest.level).toBe("warn");
+      expect(latest.data?.reason).toBe("resolve_miss");
+      expect(latest.data?.outputId).toBe("missing-output");
+    });
+    clearBreadcrumbs();
   });
 
   it("uses internal payload dimensions to size image drops before image decode", async () => {

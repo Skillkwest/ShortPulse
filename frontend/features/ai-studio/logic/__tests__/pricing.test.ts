@@ -150,6 +150,23 @@ describe("computeCostForModel (Veo 3.1)", () => {
     expect(cost?.rawCredits).toBe(31);
     expect(cost?.credits).toBe(35);
   });
+
+  it("keeps kie-ai/veo-3.1-fast-i2v pricing invariant across duration/resolution/audio inputs", () => {
+    const cases = [
+      { durationSeconds: 5, resolution: "720p", audio: true },
+      { durationSeconds: 8, resolution: "720p", audio: false },
+      { durationSeconds: 5, resolution: "1080p", audio: true },
+      { durationSeconds: 8, resolution: "1080p", audio: false },
+    ] as const;
+
+    for (const params of cases) {
+      const cost = computeCostForModel("kie-ai/veo-3.1-fast-i2v", params);
+      expect(cost).not.toBeNull();
+      expect(cost?.usdRaw).toBeCloseTo(0.3, 6);
+      expect(cost?.rawCredits).toBe(31);
+      expect(cost?.credits).toBe(35);
+    }
+  });
 });
 
 describe("computeCostForModel (Kling 3.0)", () => {

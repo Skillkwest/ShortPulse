@@ -56,4 +56,30 @@ describe("resolveCanvasDropImageSourceUrl", () => {
 
     expect(sourceUrl).toBe("https://example.com/payload-fallback.png");
   });
+
+  it("accepts root-relative renderable preview URLs for image drops", () => {
+    const sourceUrl = resolveCanvasDropImageSourceUrl({
+      output: makeOutput({
+        previewUrl: "/api/media/preview?id=123",
+        resultUrls: [],
+      }),
+      imageIndex: 0,
+      payloadReferenceUrl: null,
+    });
+
+    expect(sourceUrl).toBe("/api/media/preview?id=123");
+  });
+
+  it("rejects video-like payload fallback URLs for image drops", () => {
+    const sourceUrl = resolveCanvasDropImageSourceUrl({
+      output: makeOutput({
+        previewUrl: "",
+        resultUrls: [],
+      }),
+      imageIndex: 0,
+      payloadReferenceUrl: "/api/media/video.mp4",
+    });
+
+    expect(sourceUrl).toBeNull();
+  });
 });

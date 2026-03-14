@@ -173,6 +173,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   19. Viewport/camera contract is shared across inline + modal surfaces: camera state uses one `scale` plus normalized offsets (`offsetXRatio`, `offsetYRatio`) resolved per active surface bounds, modal stage geometry is aspect-fit (no modal-only square/frame path), and flatten/inpaint camera payloads must use active surface viewport dimensions while preserving output aspect contracts.
   20. Aspect-selector changes are framing-only: markup stroke geometry and inpaint mask geometry are stored in isotropic scene space and remapped per frame, so switching ratios (`1:1`, `16:9`, `9:16`, `4:5`, `5:4`, etc.) can clip content but must never stretch/squish it.
   21. Expert Edit session persistence is unified and page-scoped: layer stack state plus markup/inpaint histories persist across workflow/tool tab switches within the active AI Studio session, including Undo/Redo stacks; the payload resets when `sid` changes.
+  22. Prototype flag `NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED=true` changes collapsed `Tools` click behavior to open expanded Markup modal directly and forces tools back to collapsed on modal close.
 - Prompt guard policy for Edit submit is model-capability driven (`editPromptPolicy`); unknown capability defaults to prompt required.
 - Token workflow details are maintained in `docs/sops/sop_ai_studio_expert_edit_prompt_references.md` (canonical SOP for grammar, UI behavior, preflight, and compilation rules).
 

@@ -478,9 +478,15 @@
 
 .reference-styles-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 2px 4px 8px;
+}
+
+@media (max-width: 1320px) {
+  .reference-styles-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .reference-styles-tile {

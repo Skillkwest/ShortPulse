@@ -117,11 +117,11 @@ export const ExpertEditMarkupModalShell = ({
             </div>
           </div>
           <div className="edit-expert-markup-modal-panel-group">
-            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-panel-title">
+            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--markup edit-expert-markup-modal-panel-title">
               Markup
             </p>
             <div
-              className="edit-expert-markup-modal-controls-compact"
+              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--markup"
               role="group"
               aria-label="Markup tools"
             >

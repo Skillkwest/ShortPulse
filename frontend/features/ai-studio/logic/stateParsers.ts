@@ -451,12 +451,48 @@ export const extractFalMediaUrls = (status: unknown): string[] => {
 };
 
 export const extractResultUrls = (resultJson: unknown, fallback?: unknown): string[] => {
-  const extractGenericUrls = (value: unknown): string[] => {
+  const extractGenericUrls = (value: unknown, depth = 0): string[] => {
+    if (depth > 3) return [];
     const record = toRecord(value);
     const directUrls = asStringArray(record.resultUrls);
     if (directUrls.length) return directUrls;
+    const snakeCaseDirectUrls = asStringArray(record.result_urls);
+    if (snakeCaseDirectUrls.length) return snakeCaseDirectUrls;
+    const responseResultUrls = asStringArray(
+      toRecord(record.response).resultUrls ?? toRecord(record.response).result_urls
+    );
+    if (responseResultUrls.length) return responseResultUrls;
+    const dataResultUrls = asStringArray(
+      toRecord(record.data).resultUrls ?? toRecord(record.data).result_urls
+    );
+    if (dataResultUrls.length) return dataResultUrls;
+    const dataResponseResultUrls = asStringArray(
+      toRecord(toRecord(record.data).response).resultUrls ??
+        toRecord(toRecord(record.data).response).result_urls
+    );
+    if (dataResponseResultUrls.length) return dataResponseResultUrls;
     const infoUrls = asStringArray(toRecord(record.info).result_urls);
     if (infoUrls.length) return infoUrls;
+    const encodedResultPayloads = [
+      record.resultJson,
+      record.result_json,
+      toRecord(record.data).resultJson,
+      toRecord(record.data).result_json,
+      toRecord(record.response).resultJson,
+      toRecord(record.response).result_json,
+      toRecord(record.output).resultJson,
+      toRecord(record.output).result_json,
+    ];
+    for (const encodedPayload of encodedResultPayloads) {
+      if (typeof encodedPayload !== "string" || !encodedPayload.trim().length) continue;
+      try {
+        const parsed = JSON.parse(encodedPayload);
+        const parsedUrls = extractGenericUrls(parsed, depth + 1);
+        if (parsedUrls.length) return parsedUrls;
+      } catch {
+        // Ignore non-JSON provider fields.
+      }
+    }
     const videosFromRoot = extractUrlObjects(record.videos);
     if (videosFromRoot.length) return videosFromRoot;
     const videosFromData = extractUrlObjects(toRecord(record.data).videos);

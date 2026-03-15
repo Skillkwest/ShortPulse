@@ -60,6 +60,7 @@ import {
   type MediaUploadDestinationTab,
   type PromptListCursor,
 } from "../logic/mediaLibraryPanelApi";
+import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
 import {
   attachMediaLibraryDragGhost,
@@ -77,6 +78,7 @@ import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
 type RootMediaLibraryTab = "images" | "videos" | "prompts";
@@ -128,6 +130,14 @@ const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
 const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
+
+const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
+  try {
+    transfer.setData(type, value);
+  } catch {
+    // Some browser engines reject specific transfer MIME types; keep drag active.
+  }
+};
 
 const isTransformedImagePreviewUrl = (value: string | null | undefined): boolean => {
   const normalized = (value ?? "").trim();
@@ -220,6 +230,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const selectedIds = EMPTY_SELECTED_IDS;
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
+  useAiStudioModalActivity("media-library-panel-delete-confirm", Boolean(pendingLibraryDelete));
 
   const signedUrlRetryRef = useRef<Record<string, number>>({});
   const signAttemptRef = useRef<Record<string, number>>({});
@@ -720,7 +731,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setError(null);
       } catch (loadError) {
         if (mediaRequestTokenRef.current !== requestToken) return;
-        setError(loadError instanceof Error ? loadError.message : "Unable to load media.");
+        setError(toMediaLibraryErrorText(loadError, "Unable to load media."));
       } finally {
         if (mediaRequestTokenRef.current === requestToken) {
           setMediaLoading(false);
@@ -770,7 +781,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setError(null);
       } catch (loadError) {
         if (promptRequestTokenRef.current !== requestToken) return;
-        setError(loadError instanceof Error ? loadError.message : "Unable to load prompts.");
+        setError(toMediaLibraryErrorText(loadError, "Unable to load prompts."));
       } finally {
         if (promptRequestTokenRef.current === requestToken) {
           setPromptLoading(false);
@@ -1023,9 +1034,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         }
       } catch (membershipError) {
         setFolderError(
-          membershipError instanceof Error
-            ? membershipError.message
-            : "Unable to update folder membership."
+          toMediaLibraryErrorText(membershipError, "Unable to update folder membership.")
         );
       }
     },
@@ -1049,9 +1058,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         return true;
       } catch (membershipError) {
         setFolderError(
-          membershipError instanceof Error
-            ? membershipError.message
-            : "Unable to update folder membership."
+          toMediaLibraryErrorText(membershipError, "Unable to update folder membership.")
         );
         return false;
       }
@@ -1146,9 +1153,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         await refreshActiveRows();
       } catch (refreshError) {
         setFolderError(
-          refreshError instanceof Error
-            ? refreshError.message
-            : "Uploaded media, but failed to refresh folder contents."
+          toMediaLibraryErrorText(
+            refreshError,
+            "Uploaded media, but failed to refresh folder contents."
+          )
         );
       }
       return uploadedRows;
@@ -1170,9 +1178,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           surface: "ai-studio-media-library-panel",
         });
       } catch (deleteError) {
-        setFolderError(
-          deleteError instanceof Error ? deleteError.message : "Unable to delete media."
-        );
+        setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete media."));
       }
     },
     [activeFolderId, setFolderError]
@@ -1191,9 +1197,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           surface: "ai-studio-media-library-panel",
         });
       } catch (deleteError) {
-        setFolderError(
-          deleteError instanceof Error ? deleteError.message : "Unable to delete prompt."
-        );
+        setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete prompt."));
       }
     },
     [activeFolderId, setFolderError]
@@ -1279,13 +1283,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         },
       });
       event.dataTransfer.effectAllowed = "copy";
-      event.dataTransfer.setData("text/reference-url", signedUrl);
-      event.dataTransfer.setData("text/uri-list", signedUrl);
+      setTransferDataSafe(event.dataTransfer, "text/reference-url", signedUrl);
+      setTransferDataSafe(event.dataTransfer, "text/uri-list", signedUrl);
       if (promptText.trim()) {
-        event.dataTransfer.setData("text/prompt", promptText);
-        event.dataTransfer.setData("text/plain", promptText);
+        setTransferDataSafe(event.dataTransfer, "text/prompt", promptText);
+        setTransferDataSafe(event.dataTransfer, "text/plain", promptText);
       } else {
-        event.dataTransfer.setData("text/plain", signedUrl);
+        setTransferDataSafe(event.dataTransfer, "text/plain", signedUrl);
       }
       event.currentTarget.classList.add("is-dragging");
       attachMediaLibraryDragGhost(event, {
@@ -1316,8 +1320,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         },
       });
       event.dataTransfer.effectAllowed = "copy";
-      event.dataTransfer.setData("text/prompt", promptText);
-      event.dataTransfer.setData("text/plain", promptText);
+      setTransferDataSafe(event.dataTransfer, "text/prompt", promptText);
+      setTransferDataSafe(event.dataTransfer, "text/plain", promptText);
       event.currentTarget.classList.add("is-dragging");
       attachMediaLibraryDragGhost(event, {
         label: prompt.title || "Prompt",
@@ -1970,35 +1974,37 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         </div>
       </div>
       {folderContextMenu ? (
-        <div
-          ref={folderContextMenuRef}
-          className="media-library-panel-folder-context-menu"
-          role="menu"
-          aria-label={`${folderContextMenu.folderName} folder actions`}
-          style={{
-            top: `${folderContextMenu.y}px`,
-            left: `${folderContextMenu.x}px`,
-          }}
-        >
-          <button
-            type="button"
-            className="media-library-panel-folder-context-menu-item"
-            role="menuitem"
-            onClick={handleContextRename}
-          >
-            Rename folder
-          </button>
-          <button
-            type="button"
-            className="media-library-panel-folder-context-menu-item is-destructive"
-            role="menuitem"
-            onClick={() => {
-              void handleContextDelete();
+        <AiStudioModalLayer>
+          <div
+            ref={folderContextMenuRef}
+            className="media-library-panel-folder-context-menu"
+            role="menu"
+            aria-label={`${folderContextMenu.folderName} folder actions`}
+            style={{
+              top: `${folderContextMenu.y}px`,
+              left: `${folderContextMenu.x}px`,
             }}
           >
-            Delete folder
-          </button>
-        </div>
+            <button
+              type="button"
+              className="media-library-panel-folder-context-menu-item"
+              role="menuitem"
+              onClick={handleContextRename}
+            >
+              Rename folder
+            </button>
+            <button
+              type="button"
+              className="media-library-panel-folder-context-menu-item is-destructive"
+              role="menuitem"
+              onClick={() => {
+                void handleContextDelete();
+              }}
+            >
+              Delete folder
+            </button>
+          </div>
+        </AiStudioModalLayer>
       ) : null}
       <MediaLibraryPanelPreviewModal
         file={previewModalFile}
@@ -2008,42 +2014,44 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onClose={closePreviewModal}
       />
       {pendingLibraryDelete ? (
-        <div className="art-confirm-backdrop" onClick={closeDeleteConfirm}>
-          <div
-            className="art-confirm-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Confirm delete from All Media"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <p className="art-confirm-title">Delete from All Media?</p>
-            <p className="art-confirm-copy">
-              {pendingLibraryDelete.kind === "media"
-                ? "This permanently deletes the selected media from your library."
-                : "This permanently deletes the selected prompt from your library."}
-            </p>
-            <div className="art-confirm-actions">
-              <button
-                type="button"
-                className="art-action-btn"
-                onClick={closeDeleteConfirm}
-                disabled={deleteConfirmSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="art-action-btn art-action-btn-danger"
-                onClick={() => {
-                  void confirmDeleteFromLibrary();
-                }}
-                disabled={deleteConfirmSubmitting}
-              >
-                {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
-              </button>
+        <AiStudioModalLayer>
+          <div className="art-confirm-backdrop" onClick={closeDeleteConfirm}>
+            <div
+              className="art-confirm-card"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm delete from All Media"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="art-confirm-title">Delete from All Media?</p>
+              <p className="art-confirm-copy">
+                {pendingLibraryDelete.kind === "media"
+                  ? "This permanently deletes the selected media from your library."
+                  : "This permanently deletes the selected prompt from your library."}
+              </p>
+              <div className="art-confirm-actions">
+                <button
+                  type="button"
+                  className="art-action-btn"
+                  onClick={closeDeleteConfirm}
+                  disabled={deleteConfirmSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="art-action-btn art-action-btn-danger"
+                  onClick={() => {
+                    void confirmDeleteFromLibrary();
+                  }}
+                  disabled={deleteConfirmSubmitting}
+                >
+                  {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </AiStudioModalLayer>
       ) : null}
     </section>
   );

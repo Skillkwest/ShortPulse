@@ -37,12 +37,9 @@ const createArgs = (
   allowedModelValues: ["fal-ai/bytedance/seedream/v4.5/edit", "fal-ai/nano-banana-pro/edit"],
   isCharacterModeEnabled: true,
   mode: "image",
-  isModelModalOpen: false,
-  modelModalAnchor: null,
   setDetailOutputId: vi.fn(),
   setIsModelModalOpen: vi.fn(),
   setModelModalAnchor: vi.fn(),
-  setModelModalPosition: vi.fn(),
   hasPendingWorkflowRestore: false,
   ...overrides,
 });

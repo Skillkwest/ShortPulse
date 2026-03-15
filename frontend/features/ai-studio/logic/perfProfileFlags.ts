@@ -201,3 +201,8 @@ export const PERF_FLAG_RAF_STATUS_FLUSH = resolveBooleanFlag(
   process.env.NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH,
   PROFILE_DEFAULTS.rafStatusFlush
 );
+
+export const PERF_FLAG_MODAL_STABILITY_V1 = resolveBooleanFlag(
+  process.env.NEXT_PUBLIC_AI_STUDIO_MODAL_STABILITY_V1,
+  false
+);

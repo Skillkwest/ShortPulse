@@ -18,7 +18,7 @@
   border: 1px solid rgba(201, 205, 214, 0.22);
   background: rgba(17, 20, 26, 0.98);
   box-shadow: 0 18px 32px rgba(0, 0, 0, 0.48);
-  z-index: 1700;
+  z-index: var(--ai-studio-z-modal-context-surface);
 }
 
 .edit-expert-stage-context-menu button {
@@ -2742,7 +2742,7 @@
 .edit-expert-markup-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1600;
+  z-index: var(--ai-studio-z-modal-backdrop);
   background: rgba(7, 10, 16, 0.78);
   backdrop-filter: blur(4px);
   display: flex;
@@ -2774,6 +2774,7 @@
   --edit-expert-markup-slider-track-height: 5px;
   --edit-expert-markup-slider-thumb-size: 12px;
   position: relative;
+  z-index: var(--ai-studio-z-modal-content);
   width: min(
     96vw,
     calc(
@@ -4367,10 +4368,112 @@
 }
 
 .edit-expert-panel .edit-expert-selector-row .create-expert-controls {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: none;
   justify-content: center;
   margin-inline: auto;
-  max-width: 100%;
+  padding-inline: 0;
+}
+
+.edit-expert-generation-mode-tabs {
+  flex: 0 0 auto;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  --edit-expert-generation-mode-slots: 3;
+  --edit-expert-generation-mode-pad: 2px;
+  --edit-expert-generation-mode-slot-width: calc(
+    (100% - (var(--edit-expert-generation-mode-pad) * 2)) / var(--edit-expert-generation-mode-slots)
+  );
+  min-height: var(--create-expert-selector-height);
+  height: var(--create-expert-selector-height);
+  padding: var(--edit-expert-generation-mode-pad);
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  border-radius: 8px;
+  background: var(--create-expert-selector-bg);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(var(--edit-expert-generation-mode-slots), minmax(0, 1fr));
+  gap: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.edit-expert-generation-mode-indicator {
+  position: absolute;
+  top: var(--edit-expert-generation-mode-pad);
+  left: var(--edit-expert-generation-mode-pad);
+  width: var(--edit-expert-generation-mode-slot-width);
+  height: calc(100% - (var(--edit-expert-generation-mode-pad) * 2));
+  box-sizing: border-box;
+  border: 1px solid rgba(122, 126, 136, 0.92);
+  border-radius: 8px;
+  background: rgba(62, 66, 74, 0.92);
+  transform: translate3d(calc(var(--edit-expert-generation-mode-index, 0) * 100%), 0, 0);
+  transition: transform 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.edit-expert-generation-mode-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  min-height: 0;
+  height: 100%;
+  border-radius: 8px;
+  color: rgba(201, 205, 214, 0.84);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.edit-expert-generation-mode-tab:not(.is-active):hover {
+  background: rgba(52, 56, 64, 0.56);
+  color: rgba(240, 243, 249, 0.9);
+}
+
+.edit-expert-generation-mode-tab.is-active {
+  border-color: transparent;
+  background: transparent;
+  color: #f0f3f9;
+}
+
+.edit-expert-generation-mode-tab:focus {
+  outline: none;
+}
+
+.edit-expert-generation-mode-tab:focus-visible {
+  outline: 1px solid rgba(201, 205, 214, 0.62);
+  outline-offset: -2px;
+  border-color: rgba(201, 205, 214, 0.62);
+}
+
+@media (max-width: 1200px) {
+  .edit-expert-generation-mode-tabs {
+    width: 216px;
+    min-width: 216px;
+    max-width: 216px;
+  }
+
+  .edit-expert-generation-mode-tab {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edit-expert-generation-mode-indicator {
+    transition: none;
+  }
 }
 
 .edit-expert-panel .create-expert-character-mode-control {

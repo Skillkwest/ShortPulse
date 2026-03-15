@@ -429,7 +429,7 @@
 
 .media-library-panel-folder-context-menu {
   position: fixed;
-  z-index: 1400;
+  z-index: var(--ai-studio-z-modal-context-surface);
   min-width: 156px;
   display: flex;
   flex-direction: column;
@@ -465,7 +465,7 @@
 .media-library-panel-preview-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1500;
+  z-index: var(--ai-studio-z-modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -479,6 +479,7 @@
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
+  z-index: var(--ai-studio-z-modal-content);
   border: 1px solid rgba(201, 205, 214, 0.16);
   border-radius: 12px;
   background: rgb(12, 14, 20);

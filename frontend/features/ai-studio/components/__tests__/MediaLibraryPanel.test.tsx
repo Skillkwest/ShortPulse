@@ -867,6 +867,32 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("normalizes transient network failures when assigning dropped media to a folder", async () => {
+    applyMediaFolderMembershipBatchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Campaign")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Assign dropped media Media One" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign dropped media Media One" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Network issue while contacting the Media Library. Please retry.")
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  });
+
   it("preserves panel scroll position after custom-folder refresh flows", async () => {
     const deferredRefresh = createDeferred<{
       rows: Array<{
@@ -1263,6 +1289,24 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("normalizes transient network failures when loading prompts", async () => {
+    fetchMediaPromptListPageMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Network issue while contacting the Media Library. Please retry.")
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  });
+
   it("creates a new folder button from the folder strip", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -1475,6 +1519,31 @@ describe("MediaLibraryPanel", () => {
     const transfer = {
       getData: () => "",
       types: ["application/x-shortpulse-media-library-item"],
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+    expect(folderTile.classList.contains("is-drop-hover")).toBe(false);
+
+    fireEvent.dragOver(folderTile, { dataTransfer: transfer });
+    expect(folderTile.classList.contains("is-drop-hover")).toBe(true);
+  });
+
+  it("shows folder tile drop highlight for media drag fallback transfer hints", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const transfer = {
+      getData: () => "",
+      types: ["text/reference-url", "text/uri-list"],
       dropEffect: "none",
       effectAllowed: "copy",
     } as unknown as DataTransfer;

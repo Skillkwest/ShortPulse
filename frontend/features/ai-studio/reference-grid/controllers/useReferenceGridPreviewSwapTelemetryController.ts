@@ -19,6 +19,7 @@ type UseReferenceGridPreviewSwapTelemetryControllerArgs = {
   visibleCardItems: PreviewSwapCard[];
   renderedItemCount: number;
   outputsLength: number;
+  suspendVisualTelemetry?: boolean;
   previousVisiblePreviewUrlByIdRef: MutableRefObject<Record<string, string | null>>;
   previewSwapTelemetryRef: MutableRefObject<{
     windowStartedAtMs: number;
@@ -35,6 +36,7 @@ export const useReferenceGridPreviewSwapTelemetryController = ({
   visibleCardItems,
   renderedItemCount,
   outputsLength,
+  suspendVisualTelemetry = false,
   previousVisiblePreviewUrlByIdRef,
   previewSwapTelemetryRef,
   setPreviewSwapMetrics,
@@ -42,11 +44,17 @@ export const useReferenceGridPreviewSwapTelemetryController = ({
   useEffect(() => {
     if (typeof performance === "undefined") return;
     const nextVisibleUrlById: Record<string, string | null> = {};
+    visibleCardItems.forEach((card) => {
+      nextVisibleUrlById[card.item.id] = card.cardPreviewUrl ?? null;
+    });
+    if (suspendVisualTelemetry) {
+      previousVisiblePreviewUrlByIdRef.current = nextVisibleUrlById;
+      return;
+    }
     const previousVisibleUrlById = previousVisiblePreviewUrlByIdRef.current;
     let swappedCount = 0;
     visibleCardItems.forEach((card) => {
-      const nextUrl = card.cardPreviewUrl ?? null;
-      nextVisibleUrlById[card.item.id] = nextUrl;
+      const nextUrl = nextVisibleUrlById[card.item.id] ?? null;
       const previousUrl = previousVisibleUrlById[card.item.id];
       if (typeof previousUrl !== "string") return;
       if (previousUrl === nextUrl) return;
@@ -89,6 +97,7 @@ export const useReferenceGridPreviewSwapTelemetryController = ({
     previewSwapTelemetryRef,
     renderedItemCount,
     setPreviewSwapMetrics,
+    suspendVisualTelemetry,
     visibleCardItems,
   ]);
 

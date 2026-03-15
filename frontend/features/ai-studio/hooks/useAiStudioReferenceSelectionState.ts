@@ -4,10 +4,7 @@
  */
 import { useCallback, useState } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
-import { computeModalPosition } from "../logic/stateParsers";
 import type { ToolId } from "../types";
-
-type ModelModalPosition = { top: number; left: number };
 
 type UseAiStudioReferenceSelectionStateParams = {
   activeOutputPreviewUrl: string | null;
@@ -35,7 +32,6 @@ export const useAiStudioReferenceSelectionState = ({
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
   const [modelModalAnchor, setModelModalAnchor] = useState<string | null>(null);
   const [modelModalContext, setModelModalContext] = useState<ModelModalContext | null>(null);
-  const [modelModalPosition, setModelModalPosition] = useState<ModelModalPosition | null>(null);
 
   const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
   const referenceImageUrl = isVideoReferenceTool ? videoReferenceImageUrl : imageReferenceImageUrl;
@@ -104,10 +100,9 @@ export const useAiStudioReferenceSelectionState = ({
   }, [activeOutputPreviewUrl]);
 
   const openModelModal = useCallback(
-    (anchorId: string, target: HTMLElement, context: ModelModalContext | null = null) => {
+    (anchorId: string, _target: HTMLElement, context: ModelModalContext | null = null) => {
       setModelModalAnchor(anchorId);
       setModelModalContext(context);
-      setModelModalPosition(computeModalPosition(target));
       setIsModelModalOpen(true);
     },
     []
@@ -146,10 +141,8 @@ export const useAiStudioReferenceSelectionState = ({
     isModelModalOpen,
     modelModalAnchor,
     modelModalContext,
-    modelModalPosition,
     setIsModelModalOpen,
     setModelModalAnchor,
-    setModelModalPosition,
     openModelModal,
     closeModelModal,
   };

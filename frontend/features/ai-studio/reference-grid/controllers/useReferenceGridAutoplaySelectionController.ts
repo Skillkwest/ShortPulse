@@ -18,6 +18,7 @@ const areIdListsEqual = (left: string[], right: string[]) =>
 
 type UseReferenceGridAutoplaySelectionControllerArgs = {
   activeOutputId: string | null;
+  suspendAutoplaySelection?: boolean;
   outputs: StudioOutput[];
   virtualRowHeight: number;
   strictPreviewLadder: boolean;
@@ -43,6 +44,7 @@ type UseReferenceGridAutoplaySelectionControllerResult = {
  */
 export const useReferenceGridAutoplaySelectionController = ({
   activeOutputId,
+  suspendAutoplaySelection = false,
   outputs,
   virtualRowHeight,
   strictPreviewLadder,
@@ -59,6 +61,7 @@ export const useReferenceGridAutoplaySelectionController = ({
   autoplayEnabledIds,
 }: UseReferenceGridAutoplaySelectionControllerArgs): UseReferenceGridAutoplaySelectionControllerResult => {
   const recomputeAutoplayBudget = useCallback(() => {
+    if (suspendAutoplaySelection) return;
     const visibleOutputIdSet = new Set<string>();
     videoVisibleKeySetRef.current.forEach((key) => {
       const outputId = videoOutputIdByKeyRef.current.get(key);
@@ -99,6 +102,7 @@ export const useReferenceGridAutoplaySelectionController = ({
     runNonUrgentUpdate,
     setAutoplayEnabledIds,
     strictPreviewLadder,
+    suspendAutoplaySelection,
     videoAttachBudget,
     videoOutputIdByKeyRef,
     videoVisibleKeySetRef,

@@ -30,13 +30,16 @@ async function waitForNonAuthRoute(page, timeoutMs) {
 }
 
 async function signIn(page, email, password) {
-  const signInTab = page.getByRole("button", { name: /^Sign in$/i }).first();
-  if (await signInTab.isVisible().catch(() => false)) {
+  const signInTab = page.getByRole("tab", { name: /^Sign in$/i }).first();
+  if (
+    (await signInTab.isVisible().catch(() => false)) &&
+    (await signInTab.getAttribute("aria-selected").catch(() => null)) !== "true"
+  ) {
     await signInTab.click();
   }
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
-  await page.getByRole("button", { name: /^Sign in$/i }).click();
+  await page.locator("button.auth-submit").click();
 }
 
 async function main() {

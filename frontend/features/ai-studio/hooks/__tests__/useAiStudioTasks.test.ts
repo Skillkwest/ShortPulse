@@ -6,6 +6,8 @@ import {
   fetchFalBriaBackgroundRemoveStatus,
   fetchFalSeedreamStatus,
   fetchFalStatus,
+  fetchKieKlingImageToVideoStatus,
+  fetchKieVeoImageToVideoStatus,
 } from "../../../../lib/falClient";
 
 vi.mock("../../../../lib/clientBreadcrumbs", () => ({
@@ -32,6 +34,8 @@ vi.mock("../../../../lib/falClient", () => ({
   fetchFalSeedreamStatus: vi.fn(),
   fetchFalVeoStatus: vi.fn(),
   fetchFalVeoImageToVideoStatus: vi.fn(),
+  fetchKieVeoImageToVideoStatus: vi.fn(),
+  fetchKieKlingImageToVideoStatus: vi.fn(),
 }));
 
 const makeOutput = (): StudioOutput => ({
@@ -48,6 +52,14 @@ const makeOutput = (): StudioOutput => ({
 
 const asFalStatusResponse = (value: unknown): Awaited<ReturnType<typeof fetchFalStatus>> =>
   value as Awaited<ReturnType<typeof fetchFalStatus>>;
+const asKieVeoStatusResponse = (
+  value: unknown
+): Awaited<ReturnType<typeof fetchKieVeoImageToVideoStatus>> =>
+  value as Awaited<ReturnType<typeof fetchKieVeoImageToVideoStatus>>;
+const asKieKlingStatusResponse = (
+  value: unknown
+): Awaited<ReturnType<typeof fetchKieKlingImageToVideoStatus>> =>
+  value as Awaited<ReturnType<typeof fetchKieKlingImageToVideoStatus>>;
 
 const flushQueuedOutputUpdates = async () => {
   await Promise.resolve();
@@ -58,6 +70,8 @@ describe("useAiStudioTasks", () => {
   const fetchFalStatusMock = vi.mocked(fetchFalStatus);
   const fetchFalBriaBackgroundRemoveStatusMock = vi.mocked(fetchFalBriaBackgroundRemoveStatus);
   const fetchFalSeedreamStatusMock = vi.mocked(fetchFalSeedreamStatus);
+  const fetchKieVeoImageToVideoStatusMock = vi.mocked(fetchKieVeoImageToVideoStatus);
+  const fetchKieKlingImageToVideoStatusMock = vi.mocked(fetchKieKlingImageToVideoStatus);
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -356,6 +370,107 @@ describe("useAiStudioTasks", () => {
     );
     expect(output.previewUrl).toBe("https://cdn.test/bria-output.png");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
+
+  it("marks Kie Veo outputs successful from data.response.resultUrls payloads", async () => {
+    fetchKieVeoImageToVideoStatusMock.mockImplementationOnce(async () =>
+      asKieVeoStatusResponse({
+        status: "completed",
+        data: {
+          successFlag: 1,
+          response: {
+            resultUrls: ["https://cdn.test/kie-veo-result.mp4"],
+          },
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("kie-veo-task-1", "out-1", 0, "kie-veo");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchKieVeoImageToVideoStatusMock).toHaveBeenCalledWith("kie-veo-task-1");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "kie-veo-task-1",
+        provider: "kie-veo",
+        resultUrls: ["https://cdn.test/kie-veo-result.mp4"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/kie-veo-result.mp4");
+  });
+
+  it("marks Kie Kling outputs successful from data.resultJson payloads", async () => {
+    fetchKieKlingImageToVideoStatusMock.mockImplementationOnce(async () =>
+      asKieKlingStatusResponse({
+        data: {
+          state: "success",
+          resultJson: JSON.stringify({
+            resultUrls: ["https://cdn.test/kie-kling-result.mp4"],
+          }),
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("kie-kling-task-1", "out-1", 0, "kie-kling");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchKieKlingImageToVideoStatusMock).toHaveBeenCalledWith("kie-kling-task-1");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "kie-kling-task-1",
+        provider: "kie-kling",
+        resultUrls: ["https://cdn.test/kie-kling-result.mp4"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/kie-kling-result.mp4");
   });
 
   it("treats done states as terminal and enters no-media finalization retries", async () => {

@@ -23,6 +23,7 @@ import {
   PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER,
   PERF_FLAG_REFERENCE_GRID_TELEMETRY_BACKPRESSURE,
   PERF_FLAG_REFERENCE_GRID_TRANSITION_NONURGENT,
+  PERF_FLAG_MODAL_STABILITY_V1,
 } from "../logic/perfProfileFlags";
 import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrationBudget";
 import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatchdog";
@@ -58,6 +59,7 @@ import { useReferenceGridHydrationQueueController } from "../reference-grid/cont
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
+import { useAiStudioAnyModalOpen } from "./modal-layer/AiStudioModalLayer";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -243,6 +245,8 @@ export function ReferenceGrid({
       }),
     [allOutputs, curatedReferenceIds, removedFromAllRefsIds]
   );
+  const isAnyModalOpen = useAiStudioAnyModalOpen();
+  const suspendBackgroundVisualWork = PERF_FLAG_MODAL_STABILITY_V1 && isAnyModalOpen;
   const panelVisibilityResolved = React.useMemo(
     () => ({
       canvas: panelVisibility?.canvas ?? DEFAULT_PANEL_VISIBILITY.canvas,
@@ -585,6 +589,7 @@ export function ReferenceGrid({
   const { imageHydrationState, enqueueImageHydration, pruneHydrationQueueToCandidateIds } =
     useReferenceGridImageHydrationController({
       decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+      suspendHydrationProcessing: suspendBackgroundVisualWork,
       adaptivePreviewRoutingEnabled,
       imageDecodeBudget: mediaWorkBudget.imageDecodeBudget,
       activeOutputId,
@@ -676,6 +681,7 @@ export function ReferenceGrid({
   const archiveCount = archivedOutputs.length;
   const { recomputeAutoplayBudget } = useReferenceGridAutoplaySelectionController({
     activeOutputId,
+    suspendAutoplaySelection: suspendBackgroundVisualWork,
     outputs,
     virtualRowHeight: virtualMetrics.rowHeight,
     strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
@@ -725,6 +731,7 @@ export function ReferenceGrid({
     visibleCardItems,
     renderedItemCount,
     outputsLength: outputs.length,
+    suspendVisualTelemetry: suspendBackgroundVisualWork,
     previousVisiblePreviewUrlByIdRef,
     previewSwapTelemetryRef,
     setPreviewSwapMetrics,
@@ -742,6 +749,7 @@ export function ReferenceGrid({
 
   useReferenceGridHydrationQueueController({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+    suspendHydrationQueue: suspendBackgroundVisualWork,
     activeOutputId,
     outputs,
     visibleCardItems,
@@ -760,6 +768,7 @@ export function ReferenceGrid({
 
   useReferenceGridAutoplayBudgetController({
     smallScreenQuery: REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY,
+    suspendAutoplayBudget: suspendBackgroundVisualWork,
     autoplayMaxDesktop: REFERENCE_AUTOPLAY_MAX_DESKTOP,
     autoplayMaxSmallScreen: REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN,
     autoplayMaxConstrained: REFERENCE_AUTOPLAY_MAX_CONSTRAINED,
@@ -910,6 +919,14 @@ export function ReferenceGrid({
     onSaveToLibrary,
     onDownload,
   });
+
+  const wasBackgroundWorkSuspendedRef = React.useRef(suspendBackgroundVisualWork);
+  React.useEffect(() => {
+    if (wasBackgroundWorkSuspendedRef.current && !suspendBackgroundVisualWork) {
+      recomputeAutoplayBudget();
+    }
+    wasBackgroundWorkSuspendedRef.current = suspendBackgroundVisualWork;
+  }, [recomputeAutoplayBudget, suspendBackgroundVisualWork]);
 
   return (
     <div

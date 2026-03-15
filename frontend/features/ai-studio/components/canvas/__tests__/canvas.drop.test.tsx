@@ -84,6 +84,55 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByAltText("Desktop file image")).toBeInTheDocument();
   });
 
+  it("prioritizes internal reference payloads over file fallback when both are present", async () => {
+    const resolveCanvasDropFiles = vi.fn(async () => [
+      {
+        kind: "image" as const,
+        outputId: null,
+        mediaId: "media-file-drop-1",
+        src: "https://example.com/file-drop.png",
+        alt: "Desktop file image",
+        width: 1280,
+        height: 720,
+      },
+    ]);
+
+    render(<CanvasHarness resolveCanvasDropFiles={resolveCanvasDropFiles} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const file = new File(["desktop"], "desktop-drop.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const transfer = {
+      files,
+      types: ["Files", "text/reference-id", "text/reference-output-id", "text/reference-origin"],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-version") return "1";
+        if (type === "text/reference-id") return "img-1";
+        if (type === "text/reference-output-id") return "img-1";
+        if (type === "text/reference-source-surface") return "all-refs";
+        return "";
+      },
+      dropEffect: "copy",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(viewport, {
+      dataTransfer: transfer,
+      clientX: 300,
+      clientY: 200,
+    });
+
+    expect(await screen.findByAltText("Reference image")).toBeInTheDocument();
+    expect(resolveCanvasDropFiles).not.toHaveBeenCalled();
+    expect(screen.queryByAltText("Desktop file image")).toBeNull();
+  });
+
   it("creates an image item from an internal reference-grid drop", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

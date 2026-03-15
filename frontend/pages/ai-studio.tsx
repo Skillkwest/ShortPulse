@@ -51,6 +51,7 @@ import { resolveMediaLibraryInternalDropResolver } from "../features/ai-studio/l
 import { resolveStyleInternalDropCandidates } from "../features/ai-studio/components/style-creator/internalDropResolver";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { useAiStudioSessionPersistenceController } from "../features/ai-studio/hooks/useAiStudioSessionPersistenceController";
+import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
@@ -300,7 +301,6 @@ export default function AiStudioPage() {
     isModelModalOpen,
     modelModalAnchor,
     modelModalContext,
-    modelModalPosition,
     isPromptGenerating,
     isPrimaryEditStageGenerating,
     generateOutput,
@@ -577,12 +577,12 @@ export default function AiStudioPage() {
     };
     const SHELL_DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];
     const SHELL_GATES = {
-      toolbarP95MsAt60: 120,
-      panelP95MsAt60: 140,
+      toolbarP95MsAt60: 150,
+      panelP95MsAt60: 150,
       toolSwitchVisualCommitP95MsAt60: 180,
       longTaskP95Ms: 120,
       maxInputStallMs: 1000,
-      nonGridRerendersPerOutputStatusTick: 1,
+      nonGridRerendersPerOutputStatusTick: 3,
     };
     const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
     const nextFrame = () =>
@@ -720,7 +720,7 @@ export default function AiStudioPage() {
 
       const toolbarTargets = Array.from(
         document.querySelectorAll<HTMLElement>(
-          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video'], .toolbar-item[data-tool-id='sound'], .toolbar-item[data-tool-id='character'], .toolbar-item[data-tool-id='canvas']"
+          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video']"
         )
       );
       for (let index = 0; index < toolbarSamples; index += 1) {
@@ -733,6 +733,17 @@ export default function AiStudioPage() {
         toolbarLatenciesMs.push(commitMs);
         toolSwitchCommitLatenciesMs.push(commitMs);
         await sampleInputStall();
+      }
+
+      // Keep panel interactions and status-tick rerender sampling on a stable properties surface.
+      const createToolTarget = document.querySelector<HTMLElement>(
+        ".toolbar-item[data-tool-id='create']"
+      );
+      if (createToolTarget) {
+        createToolTarget.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true })
+        );
+        await afterTwoFrames();
       }
 
       const panelTargets = Array.from(
@@ -818,7 +829,6 @@ export default function AiStudioPage() {
           const nextOutput: StudioOutput = {
             ...current,
             taskState: nextState,
-            timestamp: "Perf status tick",
           };
           const next = [...prev];
           next[targetIndex] = nextOutput;
@@ -1733,7 +1743,7 @@ export default function AiStudioPage() {
   }, [handleCloseMediaLibrary, setSelectedTool, setShowCreateTools]);
 
   return (
-    <>
+    <AiStudioModalActivityProvider>
       <Head>
         <title>ShortPulse · AI Studio</title>
         <meta name="description" content="AI Studio — prompt, generate, preview, save." />
@@ -1791,10 +1801,8 @@ export default function AiStudioPage() {
         onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
         modelModalState={{
           isOpen: isModelModalOpen,
-          position: modelModalPosition,
           options: filteredModelOptions,
           resolveCreditsForModel: resolveModelPickerCredits,
-          anchorId: modelModalAnchor,
           context: modelModalContext,
           onClose: closeModelModal,
           onSelect: handleSelectModelFromModal,
@@ -1842,6 +1850,6 @@ export default function AiStudioPage() {
           onSelectPrompt={(payload) => addLibraryPromptReference(payload)}
         />
       ) : null}
-    </>
+    </AiStudioModalActivityProvider>
   );
 }

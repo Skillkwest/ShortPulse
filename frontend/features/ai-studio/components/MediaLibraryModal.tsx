@@ -52,6 +52,7 @@ import {
   resolveAndApplySignedPreviewUrlsByRows,
   signMediaStoragePath,
 } from "../../media-library/logic/mediaPreviewRuntimeShared";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type MediaLibraryModalProps = {
   isOpen: boolean;
@@ -77,6 +78,7 @@ export function MediaLibraryModal({
   onSelectMedia,
   onSelectPrompt,
 }: MediaLibraryModalProps) {
+  useAiStudioModalActivity("media-library-modal", isOpen);
   const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -578,78 +580,80 @@ export function MediaLibraryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="media-library-modal-backdrop" onClick={onClose}>
-      <div
-        className="media-library-modal media-library-modal-packed"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Media library"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <MediaLibraryModalControls
-          activeTab={activeTab}
-          isMediaTab={isMediaTab}
-          search={search}
-          onClose={onClose}
-          onTabChange={setActiveTab}
-          onSearchChange={setSearch}
-        />
+    <AiStudioModalLayer>
+      <div className="media-library-modal-backdrop" onClick={onClose}>
+        <div
+          className="media-library-modal media-library-modal-packed"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Media library"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <MediaLibraryModalControls
+            activeTab={activeTab}
+            isMediaTab={isMediaTab}
+            search={search}
+            onClose={onClose}
+            onTabChange={setActiveTab}
+            onSearchChange={setSearch}
+          />
 
-        <div className="media-library-modal-body" ref={modalBodyRef}>
-          {showBlockingLoading ? <p className="tiny subdued">Loading media library…</p> : null}
-          {showBackgroundRefreshing ? <p className="tiny subdued">Refreshing media…</p> : null}
-          {error ? <p className="tiny subdued">{error}</p> : null}
+          <div className="media-library-modal-body" ref={modalBodyRef}>
+            {showBlockingLoading ? <p className="tiny subdued">Loading media library…</p> : null}
+            {showBackgroundRefreshing ? <p className="tiny subdued">Refreshing media…</p> : null}
+            {error ? <p className="tiny subdued">{error}</p> : null}
 
-          {!showBlockingLoading && !error && activeTab === "saved_prompts" ? (
-            <MediaLibraryPromptGrid
-              prompts={prompts}
-              sortedPrompts={sortedPrompts}
-              selectedIds={selectedIds}
-              onSelectPromptCard={handleSelectPromptCard}
-            />
-          ) : null}
-
-          {!showBlockingLoading && !error && isMediaTab ? (
-            <>
-              <MediaLibraryMediaGrid
-                activeMedia={activeMedia}
+            {!showBlockingLoading && !error && activeTab === "saved_prompts" ? (
+              <MediaLibraryPromptGrid
+                prompts={prompts}
+                sortedPrompts={sortedPrompts}
                 selectedIds={selectedIds}
-                optimizerFallbackMediaIds={optimizerFallbackMediaIds}
-                adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
-                adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
-                scrollContainerRef={modalBodyRef as React.MutableRefObject<HTMLElement | null>}
-                getMediaCardRef={getMediaCardRef}
-                onSelectMediaFile={(file) => {
-                  void handleSelectMediaFile(file);
-                }}
-                onMediaPreviewError={handleMediaPreviewError}
-                onMediaPaint={markFirstMediaPaint}
-                onSignedUrlLoaded={(id) => {
-                  signedUrlRetryRef.current[id] = 0;
-                }}
+                onSelectPromptCard={handleSelectPromptCard}
               />
-              {hasMoreMediaPages ? (
-                <div className="media-load-more" ref={loadMoreSentinelRef}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      if (!activeMediaTab) return;
-                      void fetchMediaTabPage(activeMediaTab, {
-                        query: activeMediaQuery,
-                        reason: "load_more",
-                      });
-                    }}
-                    disabled={loadingMoreMedia}
-                  >
-                    {loadingMoreMedia ? "Loading more..." : "Load more"}
-                  </button>
-                </div>
-              ) : null}
-            </>
-          ) : null}
+            ) : null}
+
+            {!showBlockingLoading && !error && isMediaTab ? (
+              <>
+                <MediaLibraryMediaGrid
+                  activeMedia={activeMedia}
+                  selectedIds={selectedIds}
+                  optimizerFallbackMediaIds={optimizerFallbackMediaIds}
+                  adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+                  adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
+                  scrollContainerRef={modalBodyRef as React.MutableRefObject<HTMLElement | null>}
+                  getMediaCardRef={getMediaCardRef}
+                  onSelectMediaFile={(file) => {
+                    void handleSelectMediaFile(file);
+                  }}
+                  onMediaPreviewError={handleMediaPreviewError}
+                  onMediaPaint={markFirstMediaPaint}
+                  onSignedUrlLoaded={(id) => {
+                    signedUrlRetryRef.current[id] = 0;
+                  }}
+                />
+                {hasMoreMediaPages ? (
+                  <div className="media-load-more" ref={loadMoreSentinelRef}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        if (!activeMediaTab) return;
+                        void fetchMediaTabPage(activeMediaTab, {
+                          query: activeMediaQuery,
+                          reason: "load_more",
+                        });
+                      }}
+                      disabled={loadingMoreMedia}
+                    >
+                      {loadingMoreMedia ? "Loading more..." : "Load more"}
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
         </div>
       </div>
-    </div>
+    </AiStudioModalLayer>
   );
 }

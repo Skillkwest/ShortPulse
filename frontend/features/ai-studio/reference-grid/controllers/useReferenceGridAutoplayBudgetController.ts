@@ -14,6 +14,7 @@ type NavigatorWithConnection = Navigator & {
 
 type UseReferenceGridAutoplayBudgetControllerArgs = {
   smallScreenQuery: string;
+  suspendAutoplayBudget?: boolean;
   autoplayMaxDesktop: number;
   autoplayMaxSmallScreen: number;
   autoplayMaxConstrained: number;
@@ -30,6 +31,7 @@ type UseReferenceGridAutoplayBudgetControllerArgs = {
  */
 export const useReferenceGridAutoplayBudgetController = ({
   smallScreenQuery,
+  suspendAutoplayBudget = false,
   autoplayMaxDesktop,
   autoplayMaxSmallScreen,
   autoplayMaxConstrained,
@@ -53,6 +55,7 @@ export const useReferenceGridAutoplayBudgetController = ({
         }
       | undefined;
     const refreshBudget = () => {
+      if (suspendAutoplayBudget) return;
       const isSmallScreen = window.matchMedia(smallScreenQuery).matches;
       const saveData = nav.connection?.saveData === true;
       const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
@@ -95,5 +98,6 @@ export const useReferenceGridAutoplayBudgetController = ({
     setAutoplayEnabledIds,
     setDesiredVideoAttachBudget,
     smallScreenQuery,
+    suspendAutoplayBudget,
   ]);
 };

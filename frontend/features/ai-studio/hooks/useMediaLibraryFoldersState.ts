@@ -12,6 +12,7 @@ import {
   type MediaFolder,
   type MediaFolderId,
 } from "../logic/mediaLibraryPanelApi";
+import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 
 const ROOT_FOLDER_LABEL = "All Media";
 const FOLDERS_REQUEST_TIMEOUT_MS = 12_000;
@@ -129,7 +130,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
       });
     } catch (loadError) {
       if (foldersRequestTokenRef.current !== requestToken) return;
-      setFolderError(loadError instanceof Error ? loadError.message : "Unable to load folders.");
+      setFolderError(toMediaLibraryErrorText(loadError, "Unable to load folders."));
     }
   }, []);
 
@@ -185,9 +186,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
       throw new Error("Unable to allocate an available folder name.");
     } catch (createError) {
       setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
-      setFolderError(
-        createError instanceof Error ? createError.message : "Unable to create folder."
-      );
+      setFolderError(toMediaLibraryErrorText(createError, "Unable to create folder."));
     } finally {
       setCreatingFolder(false);
       creatingFolderInFlightRef.current = false;
@@ -222,9 +221,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
       setEditingFolderId(null);
       setEditingFolderName("");
     } catch (renameError) {
-      setFolderError(
-        renameError instanceof Error ? renameError.message : "Unable to rename folder."
-      );
+      setFolderError(toMediaLibraryErrorText(renameError, "Unable to rename folder."));
     } finally {
       setSavingFolderEdit(false);
     }
@@ -246,9 +243,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
           setEditingFolderName("");
         }
       } catch (deleteError) {
-        setFolderError(
-          deleteError instanceof Error ? deleteError.message : "Unable to delete folder."
-        );
+        setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete folder."));
       }
     },
     [editingFolderId]

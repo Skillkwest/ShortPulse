@@ -380,6 +380,9 @@ const AiStudioAlertBanner = ({
   </div>
 );
 
+const normalizeAlertText = (value: string | null | undefined): string =>
+  (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
 const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   uiError,
   uiNotice,
@@ -390,11 +393,27 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   onDismissCharacterError,
   onDismissFailure,
 }: AiStudioAlertsStackProps) {
+  const normalizedUiError = normalizeAlertText(uiError);
+  const suppressUiErrorForFailureStack =
+    normalizedUiError.length > 0 &&
+    visibleFailures.some((item) => {
+      const modelLabel = item.model || item.modelId || "Generation";
+      const detail = item.errorDetail ?? item.errorMessage ?? "";
+      const normalizedDetail = normalizeAlertText(detail);
+      if (!normalizedDetail) return false;
+      const normalizedModelLabel = normalizeAlertText(modelLabel);
+      return (
+        normalizedUiError === normalizedDetail ||
+        normalizedUiError === `${normalizedModelLabel} failed: ${normalizedDetail}`
+      );
+    });
+  const effectiveUiError = suppressUiErrorForFailureStack ? null : uiError;
+
   return (
     <>
-      {uiError ? (
+      {effectiveUiError ? (
         <AiStudioAlertBanner
-          message={uiError}
+          message={effectiveUiError}
           variant="error"
           role="alert"
           live="assertive"
@@ -421,37 +440,26 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
       ) : null}
       {visibleFailures.length ? (
         <div className="ai-error-stack" role="alert" aria-live="polite">
-          <div className="ai-error-stack-header">
-            <p className="eyebrow" style={{ margin: 0, fontSize: "11px", opacity: 0.8 }}>
-              Generation issues
-            </p>
-            <span className="error-count-pill">{visibleFailures.length}</span>
-          </div>
-          <div className="ai-error-card-grid">
+          <ul className="ai-error-list">
             {visibleFailures.map((item) => {
               const modelLabel = item.model || item.modelId || "Generation";
               return (
-                <div key={item.id} className="ai-error-card">
-                  <div className="ai-error-card-body">
-                    <p className="ai-error-card-title">{modelLabel}</p>
-                    <p className="ai-error-card-message">{item.errorDetail ?? item.errorMessage}</p>
-                    <p className="ai-error-card-meta">
-                      Prompt: <span className="ai-error-card-prompt">{item.prompt}</span>
-                    </p>
+                <li key={item.id} className="ai-error-row">
+                  <div className="ai-error-row-copy">
+                    <p className="ai-error-row-title">{modelLabel}</p>
+                    <p className="ai-error-row-message">{item.errorDetail ?? item.errorMessage}</p>
                   </div>
-                  <div className="ai-error-card-actions">
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => onDismissFailure(item.id)}
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
+                  <button
+                    type="button"
+                    className="ai-alert-banner__dismiss ai-error-row-dismiss"
+                    onClick={() => onDismissFailure(item.id)}
+                  >
+                    Dismiss
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       ) : null}
     </>
@@ -522,12 +530,10 @@ export type AiStudioPageContentProps = {
   onOpenMediaLibrary?: () => void;
   modelModalState: {
     isOpen: boolean;
-    position: { top: number; left: number } | null;
     options: ModelOption[];
     resolveCreditsForModel?: (modelId: string) => number | null;
     onClose: () => void;
     onSelect: (value: string) => void;
-    anchorId?: string | null;
     context?: ModelModalContext | null;
   };
   agentChat: AgentChatProps;
@@ -1291,12 +1297,10 @@ export function AiStudioPageContent({
       </main>
       <ModelModal
         isOpen={modelModalState.isOpen}
-        position={modelModalState.position}
         onClose={modelModalState.onClose}
         onSelect={modelModalState.onSelect}
         options={modelModalState.options}
         resolveCreditsForModel={modelModalState.resolveCreditsForModel}
-        anchorId={modelModalState.anchorId}
         context={modelModalState.context}
       />
       <DetailModal

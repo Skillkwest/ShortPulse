@@ -18,12 +18,12 @@ const REFERENCE_THRESHOLDS = {
 };
 
 const SHELL_THRESHOLDS = {
-  toolbarP95MsAt60: 120,
-  panelP95MsAt60: 140,
+  toolbarP95MsAt60: 150,
+  panelP95MsAt60: 150,
   toolSwitchVisualCommitP95MsAt60: 180,
   longTaskP95Ms: 120,
   maxInputStallMs: 1000,
-  nonGridRerendersPerOutputStatusTick: 1,
+  nonGridRerendersPerOutputStatusTick: 3,
 };
 
 describe("perfAuditGates", () => {

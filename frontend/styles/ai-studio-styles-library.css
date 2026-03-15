@@ -358,7 +358,7 @@
 .styles-library-delete-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  z-index: var(--ai-studio-z-modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -374,6 +374,7 @@
   padding: 22px;
   display: flex;
   flex-direction: column;
+  z-index: var(--ai-studio-z-modal-content);
   gap: 14px;
   font-family: inherit;
 }
@@ -599,6 +600,7 @@
   padding: 14px;
   display: flex;
   flex-direction: column;
+  z-index: var(--ai-studio-z-modal-content);
   gap: 10px;
 }
 

@@ -12,8 +12,12 @@ import {
   INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   isMarkupModelLockEnabled,
+  isMarkupStrokeSecondaryReferenceEnabled,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
+import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
+import { composeFlattenedMarkupReferenceBlob } from "../../logic/expertEditMarkupReference";
+import type { MarkupStroke } from "./markupStrokeController";
 
 type RegenerateWithReferenceInputsHandler = (
   referenceInputs: string[],
@@ -42,9 +46,9 @@ type UseExpertEditInlineGenerateParams = {
   layers: ExpertEditStageFlattenLayer[];
   promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
+  markupStrokes: MarkupStroke[];
   populatedLayerCount: number;
-  isInpaintToolSelected: boolean;
-  isMarkupToolSelected: boolean;
+  editSubmitIntent: EditSubmitIntent;
   hasSelectedLayerMask: boolean;
   exportSelectedLayerMaskBlob: ExportSelectedLayerMaskBlob;
   onRegenerate: () => void;
@@ -77,9 +81,9 @@ export const useExpertEditInlineGenerate = ({
   layers,
   promptText,
   extraImageUrls,
+  markupStrokes,
   populatedLayerCount,
-  isInpaintToolSelected,
-  isMarkupToolSelected,
+  editSubmitIntent,
   hasSelectedLayerMask,
   exportSelectedLayerMaskBlob,
   onRegenerate,
@@ -92,12 +96,16 @@ export const useExpertEditInlineGenerate = ({
   resolveStageFlattenSnapshot,
 }: UseExpertEditInlineGenerateParams) => {
   const buildFlattenReferenceInputs = React.useCallback(
-    (flattenedPrimaryUrl: string) => {
+    (flattenedPrimaryUrl: string, flattenedMarkupReferenceUrl?: string | null) => {
       const candidates = [
         flattenedPrimaryUrl,
-        ...extraImageUrls.map((value) => value?.trim() ?? "").filter((value) => value.length > 0),
+        flattenedMarkupReferenceUrl ?? "",
+        ...extraImageUrls.map((value) => value ?? ""),
       ];
-      const deduped = Array.from(new Set(candidates));
+      const normalizedCandidates = candidates
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+      const deduped = Array.from(new Set(normalizedCandidates));
       return deduped.slice(0, MAX_REFERENCE_INPUTS);
     },
     [extraImageUrls]
@@ -118,8 +126,11 @@ export const useExpertEditInlineGenerate = ({
       }
 
       let flattenedUrl: string | null = null;
+      let flattenedMarkupReferenceUrl: string | null = null;
       let inpaintMaskUrl: string | null = null;
       try {
+        const isInpaintSubmitSelected = editSubmitIntent === "inpaint";
+        const isMarkupSubmitSelected = editSubmitIntent === "markup";
         const flattenSnapshot = resolveStageFlattenSnapshot?.();
         const flattenedBlob = await composePrimaryStageLayersToBlob(layers, {
           mimeType: "image/png",
@@ -127,7 +138,24 @@ export const useExpertEditInlineGenerate = ({
           camera: flattenSnapshot?.camera,
         });
         flattenedUrl = URL.createObjectURL(flattenedBlob);
-        const referenceInputs = buildFlattenReferenceInputs(flattenedUrl);
+        const shouldAttachMarkupReference =
+          isMarkupSubmitSelected &&
+          markupStrokes.length > 0 &&
+          isMarkupStrokeSecondaryReferenceEnabled();
+        if (shouldAttachMarkupReference) {
+          const flattenedMarkupReferenceBlob = await composeFlattenedMarkupReferenceBlob({
+            flattenedBlob,
+            markupStrokes,
+            resolveBlobDimensions,
+          });
+          if (flattenedMarkupReferenceBlob) {
+            flattenedMarkupReferenceUrl = URL.createObjectURL(flattenedMarkupReferenceBlob);
+          }
+        }
+        const referenceInputs = buildFlattenReferenceInputs(
+          flattenedUrl,
+          flattenedMarkupReferenceUrl
+        );
         const compiledPrompt = compileExpertEditSubmissionPrompt({
           displayPrompt: promptText,
           secondarySlots: extraImageUrls,
@@ -140,7 +168,7 @@ export const useExpertEditInlineGenerate = ({
             }
           : undefined;
 
-        if (isInpaintToolSelected) {
+        if (isInpaintSubmitSelected) {
           if (!onRegenerateWithReferenceInputs) {
             showStatusToast("Inpaint generate is unavailable in this session.");
             return;
@@ -181,7 +209,7 @@ export const useExpertEditInlineGenerate = ({
         await onRegenerateWithReferenceInputs(referenceInputs, {
           ...promptOverrideOptions,
           modelIdOverride:
-            isMarkupToolSelected && isMarkupModelLockEnabled()
+            isMarkupSubmitSelected && isMarkupModelLockEnabled()
               ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID
               : undefined,
           referenceInputsMode: "replace",
@@ -194,6 +222,10 @@ export const useExpertEditInlineGenerate = ({
         if (inpaintMaskUrl) {
           revokeObjectUrlSafe(inpaintMaskUrl);
           inpaintMaskUrl = null;
+        }
+        if (flattenedMarkupReferenceUrl) {
+          revokeObjectUrlSafe(flattenedMarkupReferenceUrl);
+          flattenedMarkupReferenceUrl = null;
         }
         showStatusToast(resolveFlattenFailureToastMessage(error));
       } finally {
@@ -211,6 +243,13 @@ export const useExpertEditInlineGenerate = ({
             revokeObjectUrlSafe(inpaintMaskUrl);
           }
         }
+        if (flattenedMarkupReferenceUrl) {
+          if (onRegenerateWithReferenceInputs) {
+            scheduleTransientObjectUrlRevoke(flattenedMarkupReferenceUrl);
+          } else {
+            revokeObjectUrlSafe(flattenedMarkupReferenceUrl);
+          }
+        }
       }
     };
     void run();
@@ -219,9 +258,9 @@ export const useExpertEditInlineGenerate = ({
     extraImageUrls,
     exportSelectedLayerMaskBlob,
     hasSelectedLayerMask,
-    isInpaintToolSelected,
-    isMarkupToolSelected,
+    editSubmitIntent,
     layers,
+    markupStrokes,
     onRegenerate,
     onRegenerateWithReferenceInputs,
     promptText,

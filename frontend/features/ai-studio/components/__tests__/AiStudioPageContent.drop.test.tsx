@@ -257,11 +257,9 @@ const createProps = (
   onAddLibraryPromptReference: vi.fn(),
   modelModalState: {
     isOpen: false,
-    position: null,
     options: [],
     onClose: vi.fn(),
     onSelect: vi.fn(),
-    anchorId: null,
     context: null,
   },
   agentChat: {
@@ -468,6 +466,83 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(errorBanner).toHaveClass("ai-alert-banner--error");
     expect(noticeBanner).toHaveClass("ai-alert-banner--warning");
     expect(characterBanner).toHaveClass("ai-alert-banner--error");
+  });
+
+  it("suppresses duplicate top-level generation ui error when failure stack shows the same issue", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          uiError:
+            "Nano Banana Pro failed: Preparation timed out before generation started. Please retry.",
+          visibleFailures: [
+            {
+              id: "failure-1",
+              model: "Nano Banana Pro",
+              modelId: "fal-ai/nano-banana-pro",
+              prompt: "keep this hidden",
+              errorMessage: "Preparation timed out before generation started. Please retry.",
+              errorDetail: "Preparation timed out before generation started. Please retry.",
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(
+      screen.queryByText(
+        "Nano Banana Pro failed: Preparation timed out before generation started. Please retry."
+      )
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Generation issues")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Preparation timed out before generation started. Please retry.")
+    ).toBeInTheDocument();
+  });
+
+  it("keeps top-level ui error when it does not match generation failure details", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          uiError: "Unable to save media to the library.",
+          visibleFailures: [
+            {
+              id: "failure-3",
+              model: "Nano Banana Pro",
+              modelId: "fal-ai/nano-banana-pro",
+              prompt: "hidden prompt",
+              errorMessage: "Preparation timed out before generation started. Please retry.",
+              errorDetail: "Preparation timed out before generation started. Please retry.",
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText("Unable to save media to the library.")).toBeInTheDocument();
+    expect(screen.queryByText("Generation issues")).not.toBeInTheDocument();
+  });
+
+  it("renders generation issues without nested cards or prompt rows", () => {
+    const { container } = render(
+      <AiStudioPageContent
+        {...createProps({
+          visibleFailures: [
+            {
+              id: "failure-2",
+              model: "Nano Banana Pro",
+              modelId: "fal-ai/nano-banana-pro",
+              prompt: "remove this prompt display",
+              errorMessage: "Preparation timed out before generation started. Please retry.",
+              errorDetail: "Preparation timed out before generation started. Please retry.",
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(container.querySelector(".ai-error-card")).toBeNull();
+    expect(screen.queryByText("Prompt:")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
   });
 
   it("routes workflows to panel surfaces and renders Canvas as a dedicated panel", () => {

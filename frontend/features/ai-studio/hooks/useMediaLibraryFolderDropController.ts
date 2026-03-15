@@ -12,6 +12,7 @@ import {
   type MediaFolder,
   type MediaFolderMembershipBatchResult,
 } from "../logic/mediaLibraryPanelApi";
+import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
   resolveFolderDropFeedbackMessage,
@@ -57,6 +58,15 @@ const INTERNAL_REFERENCE_TRANSFER_HINT_TYPES = [
   "text/reference-source-surface",
 ] as const;
 
+const MEDIA_LIBRARY_FALLBACK_TRANSFER_HINT_TYPES = [
+  "text/reference-url",
+  "text/uri-list",
+  "text/prompt",
+  "text/shortpulse-media-library-id",
+  "text/shortpulse-media-library-kind",
+  "text/shortpulse-media-library-marker",
+] as const;
+
 const hasTransferType = (transfer: DataTransfer, type: string): boolean => {
   const rawTypes = transfer.types as unknown;
   if (!rawTypes) return false;
@@ -68,7 +78,8 @@ const hasTransferType = (transfer: DataTransfer, type: string): boolean => {
 };
 
 const hasMediaLibraryTransferHints = (transfer: DataTransfer): boolean =>
-  getMediaLibraryDragTypes().some((type) => hasTransferType(transfer, type));
+  getMediaLibraryDragTypes().some((type) => hasTransferType(transfer, type)) ||
+  MEDIA_LIBRARY_FALLBACK_TRANSFER_HINT_TYPES.some((type) => hasTransferType(transfer, type));
 
 const hasInternalReferenceTransferHints = (transfer: DataTransfer): boolean =>
   INTERNAL_REFERENCE_TRANSFER_HINT_TYPES.some((type) => hasTransferType(transfer, type));
@@ -273,9 +284,7 @@ export const useMediaLibraryFolderDropController = ({
             await refreshActiveRows();
           }
         } catch (error) {
-          setFolderError(
-            error instanceof Error ? error.message : "Unable to update folder membership."
-          );
+          setFolderError(toMediaLibraryErrorText(error, "Unable to update folder membership."));
         }
         return;
       }
@@ -288,9 +297,7 @@ export const useMediaLibraryFolderDropController = ({
         try {
           await onDropFilesToFolder(folderId, droppedFiles);
         } catch (uploadError) {
-          setFolderError(
-            uploadError instanceof Error ? uploadError.message : "Unable to process dropped files."
-          );
+          setFolderError(toMediaLibraryErrorText(uploadError, "Unable to process dropped files."));
         }
         return;
       }

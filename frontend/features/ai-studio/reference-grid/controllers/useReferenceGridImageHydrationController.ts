@@ -41,6 +41,7 @@ type EnqueueImageHydrationOptions = {
 
 type UseReferenceGridImageHydrationControllerArgs = {
   decodeBudgetEnabled: boolean;
+  suspendHydrationProcessing?: boolean;
   adaptivePreviewRoutingEnabled: boolean;
   imageDecodeBudget: number;
   activeOutputId: string | null;
@@ -59,6 +60,7 @@ const MAX_FAILED_OPTIMIZER_SOURCE_CACHE_SIZE = 256;
 
 export const useReferenceGridImageHydrationController = ({
   decodeBudgetEnabled,
+  suspendHydrationProcessing = false,
   adaptivePreviewRoutingEnabled,
   imageDecodeBudget,
   activeOutputId,
@@ -276,6 +278,10 @@ export const useReferenceGridImageHydrationController = ({
 
   const processHydrationQueue = useCallback(() => {
     if (!decodeBudgetEnabled || typeof window === "undefined") return;
+    if (suspendHydrationProcessing) {
+      syncImageHydrationState();
+      return;
+    }
     const maxInflight = imageDecodeBudget;
     while (
       hydrationInflightIdSetRef.current.size < maxInflight &&
@@ -344,6 +350,7 @@ export const useReferenceGridImageHydrationController = ({
     recordOptimizerFailoverError,
     rememberFailedOptimizerSource,
     scheduleHydrationFlush,
+    suspendHydrationProcessing,
     syncImageHydrationState,
   ]);
 
@@ -457,6 +464,12 @@ export const useReferenceGridImageHydrationController = ({
   useEffect(() => {
     processHydrationQueueRef.current = processHydrationQueue;
   }, [processHydrationQueue]);
+
+  useEffect(() => {
+    if (!decodeBudgetEnabled) return;
+    if (suspendHydrationProcessing) return;
+    processHydrationQueue();
+  }, [decodeBudgetEnabled, processHydrationQueue, suspendHydrationProcessing]);
 
   useEffect(() => {
     if (!decodeBudgetEnabled) return;

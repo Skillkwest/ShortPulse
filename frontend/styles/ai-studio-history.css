@@ -122,7 +122,7 @@
 }
 
 .ai-sessions-modal-backdrop {
-  z-index: 980;
+  z-index: var(--ai-studio-z-modal-backdrop);
 }
 
 .ai-sessions-modal {

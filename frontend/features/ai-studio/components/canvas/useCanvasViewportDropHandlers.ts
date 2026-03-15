@@ -189,20 +189,26 @@ export const useCanvasViewportDropHandlers = ({
         rect,
         camera,
       });
-      const droppedFiles = transfer.files;
-      if (droppedFiles && droppedFiles.length > 0 && resolveCanvasDropFiles) {
+      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      if (internalPayload) {
         event.preventDefault();
         event.stopPropagation();
         void (async () => {
-          const resolvedItems = await resolveCanvasDropFiles(droppedFiles);
-          if (!resolvedItems?.length) return;
-          const offsetStep = 24;
-          for (let index = 0; index < resolvedItems.length; index += 1) {
-            const resolvedItem = resolvedItems[index];
-            const offset = index * offsetStep;
-            await addResolvedItem(resolvedItem, point.x + offset, point.y + offset, {
-              showLoadingPlaceholder: true,
-            });
+          try {
+            const wasHandled = await handleResolvedInternalDrop(
+              internalPayload,
+              event.clientX,
+              event.clientY
+            );
+            if (!wasHandled) {
+              logUnresolvedInternalDrop(internalPayload, "resolve_miss");
+            }
+          } catch (error) {
+            logUnresolvedInternalDrop(
+              internalPayload,
+              "resolver_exception",
+              error instanceof Error ? error.message : String(error)
+            );
           }
         })();
         return;
@@ -270,26 +276,20 @@ export const useCanvasViewportDropHandlers = ({
         );
         return;
       }
-      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
-      if (internalPayload) {
+      const droppedFiles = transfer.files;
+      if (droppedFiles && droppedFiles.length > 0 && resolveCanvasDropFiles) {
         event.preventDefault();
         event.stopPropagation();
         void (async () => {
-          try {
-            const wasHandled = await handleResolvedInternalDrop(
-              internalPayload,
-              event.clientX,
-              event.clientY
-            );
-            if (!wasHandled) {
-              logUnresolvedInternalDrop(internalPayload, "resolve_miss");
-            }
-          } catch (error) {
-            logUnresolvedInternalDrop(
-              internalPayload,
-              "resolver_exception",
-              error instanceof Error ? error.message : String(error)
-            );
+          const resolvedItems = await resolveCanvasDropFiles(droppedFiles);
+          if (!resolvedItems?.length) return;
+          const offsetStep = 24;
+          for (let index = 0; index < resolvedItems.length; index += 1) {
+            const resolvedItem = resolvedItems[index];
+            const offset = index * offsetStep;
+            await addResolvedItem(resolvedItem, point.x + offset, point.y + offset, {
+              showLoadingPlaceholder: true,
+            });
           }
         })();
         return;

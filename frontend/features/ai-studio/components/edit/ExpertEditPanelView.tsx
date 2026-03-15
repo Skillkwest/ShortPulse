@@ -46,6 +46,7 @@ import {
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
+  isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
   isMarkupModelLockEnabled,
   type InpaintSubmissionOverride,
@@ -90,6 +91,7 @@ import { ExpertEditMarkupModalShell } from "./ExpertEditMarkupModalShell";
 import { useExpertEditStageInteractionRouter } from "./useExpertEditStageInteractionRouter";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { StylesControl } from "../StylesControl";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
@@ -238,125 +240,132 @@ const CharacterPickerModal = ({
     if (!isOpen || !characterModeEnabled) return;
     void refreshNow();
   }, [characterModeEnabled, isOpen, refreshNow]);
+  useAiStudioModalActivity("edit-character-picker-modal", isOpen && characterModeEnabled);
 
   if (!isOpen || !characterModeEnabled) {
     return null;
   }
 
   return (
-    <>
-      <div className="model-modal-backdrop ai-character-picker-backdrop" onClick={onClose} />
-      <div
-        className="model-modal ai-character-picker-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Choose character"
-      >
-        <div className="model-modal-header">
-          <div className="model-modal-title-group">
-            <h3 className="model-modal-title">Character Picker</h3>
-            <p className="model-modal-subtitle">
-              Select a character profile from Character Manager.
-            </p>
+    <AiStudioModalLayer>
+      <>
+        <div className="model-modal-backdrop ai-character-picker-backdrop" onClick={onClose} />
+        <div
+          className="model-modal ai-character-picker-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choose character"
+        >
+          <div className="model-modal-header">
+            <div className="model-modal-title-group">
+              <h3 className="model-modal-title">Character Picker</h3>
+              <p className="model-modal-subtitle">
+                Select a character profile from Character Manager.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="ghost-btn mini model-modal-close"
+              aria-label="Close character picker"
+              onClick={onClose}
+            >
+              ×
+            </button>
           </div>
-          <button
-            type="button"
-            className="ghost-btn mini model-modal-close"
-            aria-label="Close character picker"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </div>
-        <div className="model-modal-scroll">
-          {characterOptions.length > 0 ? (
-            <div className="ai-character-picker-grid" role="list" aria-label="Character options">
-              {characterOptions.map((option) => {
-                const isActive = option.id === selectedCharacterId;
-                const resolvedAvatarUrl = resolveAvatarUrl(
-                  option.id,
-                  resolveCharacterAvatarUrlById?.(option.id) ?? option.profileImageUrl ?? null
-                );
-                return (
-                  <article
-                    key={option.id}
-                    role="listitem"
-                    className={`ai-character-list-card ai-character-picker-card ${
-                      isActive ? "is-active" : ""
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      className="ai-character-list-select-btn"
-                      aria-pressed={isActive}
-                      onClick={() => {
-                        onSelectedCharacterIdChange?.(option.id);
-                        onClose();
-                      }}
+          <div className="model-modal-scroll">
+            {characterOptions.length > 0 ? (
+              <div className="ai-character-picker-grid" role="list" aria-label="Character options">
+                {characterOptions.map((option) => {
+                  const isActive = option.id === selectedCharacterId;
+                  const resolvedAvatarUrl = resolveAvatarUrl(
+                    option.id,
+                    resolveCharacterAvatarUrlById?.(option.id) ?? option.profileImageUrl ?? null
+                  );
+                  return (
+                    <article
+                      key={option.id}
+                      role="listitem"
+                      className={`ai-character-list-card ai-character-picker-card ${
+                        isActive ? "is-active" : ""
+                      }`}
                     >
-                      <div className="ai-character-list-main">
-                        <span className="ai-character-list-avatar" aria-hidden="true">
-                          {resolvedAvatarUrl ? (
-                            <Image
-                              src={resolvedAvatarUrl}
-                              alt=""
-                              className="ai-character-list-avatar-image"
-                              width={44}
-                              height={44}
-                              unoptimized
-                              onLoad={() => {
-                                clearAvatarFailure(option.id);
-                              }}
-                              onError={() => {
-                                void handleAvatarError({
-                                  avatarId: option.id,
-                                  recoverAvatarUrl: async () => {
-                                    const refreshedOptions = await refreshCharacterOptions?.();
-                                    const refreshedAvatarUrl =
-                                      refreshedOptions?.find((item) => item.id === option.id)
-                                        ?.profileImageUrl ?? null;
-                                    return (
-                                      refreshedAvatarUrl?.trim() ??
-                                      resolveCharacterAvatarUrlById?.(option.id) ??
-                                      null
-                                    );
-                                  },
-                                });
-                              }}
-                            />
-                          ) : (
-                            <span className="ai-character-list-avatar-initials">
-                              {getCreateCharacterInitials(option.name)}
-                            </span>
-                          )}
-                        </span>
-                        <div className="ai-character-list-copy">
-                          <p className="metric-label tiny">{isActive ? "Selected" : "Character"}</p>
-                          <p className="ai-character-list-name">{option.name}</p>
+                      <button
+                        type="button"
+                        className="ai-character-list-select-btn"
+                        aria-pressed={isActive}
+                        onClick={() => {
+                          onSelectedCharacterIdChange?.(option.id);
+                          onClose();
+                        }}
+                      >
+                        <div className="ai-character-list-main">
+                          <span className="ai-character-list-avatar" aria-hidden="true">
+                            {resolvedAvatarUrl ? (
+                              <Image
+                                src={resolvedAvatarUrl}
+                                alt=""
+                                className="ai-character-list-avatar-image"
+                                width={44}
+                                height={44}
+                                unoptimized
+                                onLoad={() => {
+                                  clearAvatarFailure(option.id);
+                                }}
+                                onError={() => {
+                                  void handleAvatarError({
+                                    avatarId: option.id,
+                                    recoverAvatarUrl: async () => {
+                                      const refreshedOptions = await refreshCharacterOptions?.();
+                                      const refreshedAvatarUrl =
+                                        refreshedOptions?.find((item) => item.id === option.id)
+                                          ?.profileImageUrl ?? null;
+                                      return (
+                                        refreshedAvatarUrl?.trim() ??
+                                        resolveCharacterAvatarUrlById?.(option.id) ??
+                                        null
+                                      );
+                                    },
+                                  });
+                                }}
+                              />
+                            ) : (
+                              <span className="ai-character-list-avatar-initials">
+                                {getCreateCharacterInitials(option.name)}
+                              </span>
+                            )}
+                          </span>
+                          <div className="ai-character-list-copy">
+                            <p className="metric-label tiny">
+                              {isActive ? "Selected" : "Character"}
+                            </p>
+                            <p className="ai-character-list-name">{option.name}</p>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-          ) : isCharacterOptionsLoading || isRefreshing ? (
-            <p className="tiny subdued ai-character-picker-empty">Loading character profiles...</p>
-          ) : refreshError ? (
-            <div className="ai-character-picker-empty">
-              <p className="tiny">{refreshError}</p>
-              <button type="button" className="ghost-btn mini" onClick={() => void refreshNow()}>
-                Retry
-              </button>
-            </div>
-          ) : (
-            <p className="tiny subdued ai-character-picker-empty">
-              No character profiles available.
-            </p>
-          )}
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : isCharacterOptionsLoading || isRefreshing ? (
+              <p className="tiny subdued ai-character-picker-empty">
+                Loading character profiles...
+              </p>
+            ) : refreshError ? (
+              <div className="ai-character-picker-empty">
+                <p className="tiny">{refreshError}</p>
+                <button type="button" className="ghost-btn mini" onClick={() => void refreshNow()}>
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <p className="tiny subdued ai-character-picker-empty">
+                No character profiles available.
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    </>
+      </>
+    </AiStudioModalLayer>
   );
 };
 
@@ -400,6 +409,14 @@ const editLayerUtilityActions = [
   },
 ] as const;
 type RailTool = "move" | "inpaint" | "video";
+const editGenerationModeOptions: ReadonlyArray<{
+  id: EditSubmitIntent;
+  label: string;
+}> = [
+  { id: "standard", label: "Standard" },
+  { id: "inpaint", label: "Inpaint" },
+  { id: "markup", label: "Markup" },
+];
 const inpaintRailTools: ReadonlyArray<{
   id: RailTool;
   label: string;
@@ -552,10 +569,28 @@ type StageViewportSize = {
   height: number;
 };
 
+const isResolvedStageViewportSize = (size: StageViewportSize) => size.width > 1 && size.height > 1;
+
 const resolveStageViewportSize = (rect: DOMRect | null): StageViewportSize => ({
   width: rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : 1,
   height: rect && Number.isFinite(rect.height) && rect.height > 0 ? rect.height : 1,
 });
+
+const resolveRenderableStageViewportSize = ({
+  preferredSize,
+  stageElement,
+}: {
+  preferredSize: StageViewportSize;
+  stageElement: HTMLDivElement | null;
+}) => {
+  if (isResolvedStageViewportSize(preferredSize)) {
+    return preferredSize;
+  }
+  if (!stageElement) {
+    return preferredSize;
+  }
+  return resolveStageViewportSize(stageElement.getBoundingClientRect() ?? null);
+};
 
 const resolveMarkupViewportOffsetPixels = (
   viewport: MarkupViewportState,
@@ -1320,6 +1355,7 @@ export function ExpertEditPanelView({
   onEditSubmitIntentChange,
   onRegenerate,
   onRegenerateWithReferenceInputs,
+  onAddSessionMediaReference,
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
@@ -1438,6 +1474,9 @@ export function ExpertEditPanelView({
   );
 
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
+  const isGenerationModeToggleEnabled = isEditGenerationModeToggleEnabled();
+  const [selectedGenerationMode, setSelectedGenerationMode] =
+    React.useState<EditSubmitIntent>("standard");
   const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
   const [markupStrokeSize, setMarkupStrokeSize] = React.useState(MARKUP_STROKE_SIZE_DEFAULT);
@@ -1469,6 +1508,7 @@ export function ExpertEditPanelView({
     width: 1,
     height: 1,
   });
+  const [markupModalDomVersion, setMarkupModalDomVersion] = React.useState(0);
   const [stageContextMenuState, setStageContextMenuState] = React.useState<{
     isOpen: boolean;
     x: number;
@@ -1529,6 +1569,38 @@ export function ExpertEditPanelView({
   const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
   const [activeTransformDragMode, setActiveTransformDragMode] =
     React.useState<TransformDragMode>("move");
+  const syncMarkupModalTrackedRef = React.useCallback(
+    (refObject: React.MutableRefObject<HTMLDivElement | null>, node: HTMLDivElement | null) => {
+      if (refObject.current === node) return;
+      refObject.current = node;
+      setMarkupModalDomVersion((previous) => previous + 1);
+    },
+    []
+  );
+  const handleMarkupModalRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      syncMarkupModalTrackedRef(markupModalRef, node);
+    },
+    [syncMarkupModalTrackedRef]
+  );
+  const handleMarkupModalControlsRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      syncMarkupModalTrackedRef(markupModalControlsRef, node);
+    },
+    [syncMarkupModalTrackedRef]
+  );
+  const handleMarkupModalStageRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      syncMarkupModalTrackedRef(markupModalStageRef, node);
+    },
+    [syncMarkupModalTrackedRef]
+  );
+  const handleMarkupModalLayersRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      syncMarkupModalTrackedRef(markupModalLayersRef, node);
+    },
+    [syncMarkupModalTrackedRef]
+  );
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
   >(null);
@@ -1646,6 +1718,32 @@ export function ExpertEditPanelView({
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isVideoToolSelected = selectedRailTool === "video";
+  const railSelectionSubmitIntent = React.useMemo(
+    () =>
+      resolveEditSubmitIntentFromRailSelection({
+        isInpaintSelected: isInpaintToolSelected,
+        isMarkupSelected: isVideoToolSelected,
+      }),
+    [isInpaintToolSelected, isVideoToolSelected]
+  );
+  const effectiveEditSubmitIntent = isGenerationModeToggleEnabled
+    ? selectedGenerationMode
+    : railSelectionSubmitIntent;
+  const effectiveGenerationModeIndex = React.useMemo(() => {
+    const resolvedIndex = editGenerationModeOptions.findIndex(
+      (modeOption) => modeOption.id === effectiveEditSubmitIntent
+    );
+    return resolvedIndex >= 0 ? resolvedIndex : 0;
+  }, [effectiveEditSubmitIntent]);
+  const generationModeTabsStyle = React.useMemo(
+    () =>
+      ({
+        "--edit-expert-generation-mode-index": effectiveGenerationModeIndex,
+      }) as React.CSSProperties,
+    [effectiveGenerationModeIndex]
+  );
+  const isInpaintSubmitMode = effectiveEditSubmitIntent === "inpaint";
+  const isMarkupSubmitMode = effectiveEditSubmitIntent === "markup";
   const isInpaintLikeToolSelected = isInpaintToolSelected || isVideoToolSelected;
   const isMoveToolSelected = selectedRailTool === "move";
   const activeStageInteractionMode = isMoveToolSelected
@@ -1653,10 +1751,10 @@ export function ExpertEditPanelView({
     : isInpaintToolSelected
       ? "inpaint"
       : "markup";
-  const shouldLockMarkupModelPicker = isVideoToolSelected && isMarkupModelLockEnabled();
+  const shouldLockMarkupModelPicker = isMarkupSubmitMode && isMarkupModelLockEnabled();
   const shouldOpenMarkupModalFromCollapsedTools = isMarkupCollapsedOpenModalEnabled();
-  const isModelPickerLocked = isInpaintToolSelected || shouldLockMarkupModelPicker;
-  const effectiveModelPickerLabel = isInpaintToolSelected
+  const isModelPickerLocked = isInpaintSubmitMode || shouldLockMarkupModelPicker;
+  const effectiveModelPickerLabel = isInpaintSubmitMode
     ? INPAINT_FLUX_FILL_MODEL_LABEL
     : shouldLockMarkupModelPicker
       ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL
@@ -1838,13 +1936,8 @@ export function ExpertEditPanelView({
 
   React.useEffect(() => {
     if (!onEditSubmitIntentChange) return;
-    onEditSubmitIntentChange(
-      resolveEditSubmitIntentFromRailSelection({
-        isInpaintSelected: isInpaintToolSelected,
-        isMarkupSelected: isVideoToolSelected,
-      })
-    );
-  }, [isInpaintToolSelected, isVideoToolSelected, onEditSubmitIntentChange]);
+    onEditSubmitIntentChange(effectiveEditSubmitIntent);
+  }, [effectiveEditSubmitIntent, onEditSubmitIntentChange]);
 
   React.useEffect(() => {
     const caretPosition = pendingPromptCaretRef.current;
@@ -2303,10 +2396,24 @@ export function ExpertEditPanelView({
     shouldApplyMarkupViewport,
   ]);
   const renderMarkupStrokeOverlay = React.useCallback(
-    (keyPrefix: string, stageSize: StageViewportSize) => {
+    (
+      keyPrefix: string,
+      stageSize: StageViewportSize,
+      stageElement: HTMLDivElement | null = null
+    ) => {
       if (!markupStrokes.length) return null;
-      const stageWidth = Math.max(1, stageSize.width);
-      const stageHeight = Math.max(1, stageSize.height);
+      const resolvedStageSize = resolveRenderableStageViewportSize({
+        preferredSize: stageSize,
+        stageElement,
+      });
+      const effectiveStageSize =
+        keyPrefix === "modal" &&
+        !isResolvedStageViewportSize(resolvedStageSize) &&
+        isResolvedStageViewportSize(inlineStageViewportSize)
+          ? inlineStageViewportSize
+          : resolvedStageSize;
+      const stageWidth = Math.max(1, effectiveStageSize.width);
+      const stageHeight = Math.max(1, effectiveStageSize.height);
       return (
         <svg
           className="edit-expert-markup-strokes-overlay"
@@ -2364,7 +2471,7 @@ export function ExpertEditPanelView({
         </svg>
       );
     },
-    [markupStrokes]
+    [inlineStageViewportSize, markupStrokes]
   );
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
@@ -2491,6 +2598,9 @@ export function ExpertEditPanelView({
         camera: flattenSnapshot.camera,
       });
       const flattenedLayerUrl = URL.createObjectURL(exportBlob);
+      const flattenedReferenceUrl = onAddSessionMediaReference
+        ? URL.createObjectURL(exportBlob)
+        : null;
       const layerOne =
         layers.find((layer) => layer.id === foundationLayerId) ??
         layers[0] ??
@@ -2508,6 +2618,12 @@ export function ExpertEditPanelView({
       setSelectedLayerIndex(0);
       setEditingLayerIndex(null);
       setEditingLayerValue("");
+      if (flattenedReferenceUrl) {
+        onAddSessionMediaReference?.({
+          url: flattenedReferenceUrl,
+          mimeType: exportBlob.type || "image/png",
+        });
+      }
     } catch {
       showStatusToast("Unable to flatten layers.");
     } finally {
@@ -2518,6 +2634,7 @@ export function ExpertEditPanelView({
     foundationLayerId,
     isFlattenPending,
     layers,
+    onAddSessionMediaReference,
     populatedLayerCount,
     resolveStageFlattenSnapshot,
     showStatusToast,
@@ -2561,9 +2678,9 @@ export function ExpertEditPanelView({
     layers,
     promptText: promptTextValue,
     extraImageUrls,
+    markupStrokes,
     populatedLayerCount,
-    isInpaintToolSelected,
-    isMarkupToolSelected: isVideoToolSelected,
+    editSubmitIntent: effectiveEditSubmitIntent,
     hasSelectedLayerMask,
     exportSelectedLayerMaskBlob,
     onRegenerate,
@@ -3853,6 +3970,19 @@ export function ExpertEditPanelView({
     }
   }, [shouldOpenMarkupModalFromCollapsedTools]);
 
+  const handleGenerationModeChange = React.useCallback((nextMode: EditSubmitIntent) => {
+    setSelectedGenerationMode(nextMode);
+    if (nextMode === "standard") {
+      setSelectedRailTool("move");
+      return;
+    }
+    if (nextMode === "inpaint") {
+      setSelectedRailTool("inpaint");
+      return;
+    }
+    setSelectedRailTool("video");
+  }, []);
+
   const handleStageContextMenuExpand = React.useCallback(() => {
     openMarkupModal("video");
     closeStageContextMenu();
@@ -4535,7 +4665,7 @@ export function ExpertEditPanelView({
         window.removeEventListener("resize", updateStageSize);
       }
     };
-  }, [isMarkupExpandSelected, primaryDropzoneAspectRatioValue]);
+  }, [isMarkupExpandSelected, markupModalDomVersion, primaryDropzoneAspectRatioValue]);
 
   React.useEffect(() => {
     if (!isMarkupExpandSelected) return;
@@ -4570,7 +4700,7 @@ export function ExpertEditPanelView({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [isMarkupExpandSelected, markupModalStageSize]);
+  }, [isMarkupExpandSelected, markupModalDomVersion, markupModalStageSize]);
 
   React.useEffect(() => {
     if (!shouldShowInpaintBrushReticle || isMorePresetsSurfaceOpen) {
@@ -5286,7 +5416,7 @@ export function ExpertEditPanelView({
     const shouldShowUtilityActions = true;
     return (
       <div
-        ref={isModalScope ? markupModalLayersRef : undefined}
+        ref={isModalScope ? handleMarkupModalLayersRef : undefined}
         className={`edit-expert-layers-toolbar ${
           isModalScope ? "edit-expert-layers-toolbar--modal" : ""
         }`.trim()}
@@ -5605,7 +5735,11 @@ export function ExpertEditPanelView({
                     className="edit-expert-inpaint-overlay-canvas"
                     aria-hidden="true"
                   />
-                  {renderMarkupStrokeOverlay("inline", inlineStageViewportSize)}
+                  {renderMarkupStrokeOverlay(
+                    "inline",
+                    inlineStageViewportSize,
+                    primaryDropzoneRef.current
+                  )}
                   {isFlattenPending ? (
                     <div
                       className="edit-expert-primary-layer-loading-overlay"
@@ -6015,6 +6149,30 @@ export function ExpertEditPanelView({
       </div>
       <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
         <div className="create-expert-controls">
+          {isGenerationModeToggleEnabled ? (
+            <div
+              className="edit-expert-generation-mode-tabs"
+              role="tablist"
+              aria-label="Generation mode"
+              style={generationModeTabsStyle}
+            >
+              <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
+              {editGenerationModeOptions.map((modeOption) => (
+                <button
+                  key={modeOption.id}
+                  type="button"
+                  className={`edit-expert-generation-mode-tab ${
+                    effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
+                  }`}
+                  role="tab"
+                  aria-selected={effectiveEditSubmitIntent === modeOption.id}
+                  onClick={() => handleGenerationModeChange(modeOption.id)}
+                >
+                  {modeOption.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="create-expert-control create-expert-model-control">
             <button
               type="button"
@@ -6067,9 +6225,9 @@ export function ExpertEditPanelView({
 
       <ExpertEditMarkupModalShell
         isOpen={isMarkupExpandSelected}
-        modalRef={markupModalRef}
-        controlsColumnRef={markupModalControlsRef}
-        stageRef={markupModalStageRef}
+        modalRef={handleMarkupModalRef}
+        controlsColumnRef={handleMarkupModalControlsRef}
+        stageRef={handleMarkupModalStageRef}
         stageStyle={markupModalStageStyle}
         generalPanel={renderMarkupModalGeneralPanel()}
         movePanel={renderMarkupModalMovePanel()}
@@ -6098,7 +6256,11 @@ export function ExpertEditPanelView({
                 className="edit-expert-inpaint-overlay-canvas"
                 aria-hidden="true"
               />
-              {renderMarkupStrokeOverlay("modal", markupModalViewportSize)}
+              {renderMarkupStrokeOverlay(
+                "modal",
+                markupModalViewportSize,
+                markupModalStageRef.current
+              )}
             </div>
           </div>
         }

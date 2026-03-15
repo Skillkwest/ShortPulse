@@ -17,6 +17,7 @@ import {
 } from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
 import { stripEditLabel } from "../utils/modelLabels";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 export type ModelModalContext =
   | "reference-image"
@@ -27,12 +28,10 @@ export type ModelModalContext =
 
 type ModelModalProps = {
   isOpen: boolean;
-  position: { top: number; left: number } | null;
   onClose: () => void;
   onSelect: (value: string) => void;
   options?: ModelOption[];
   resolveCreditsForModel?: (modelId: string) => number | null;
-  anchorId?: string | null;
   context?: ModelModalContext | null;
 };
 
@@ -354,6 +353,7 @@ export function ModelModal({
   resolveCreditsForModel,
   context,
 }: ModelModalProps) {
+  useAiStudioModalActivity("model-modal", isOpen);
   const [searchQuery, setSearchQuery] = useState("");
   const [, setRecentValues] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
@@ -586,94 +586,101 @@ export function ModelModal({
   };
 
   return (
-    <div className="model-modal-backdrop" onClick={onClose}>
-      <div
-        className="model-modal"
-        role="dialog"
-        aria-modal="true"
-        ref={modalRef}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="model-modal-header">
-          <div className="model-modal-title-group">
-            <p className="model-modal-title">{modalTitle}</p>
-            <p className="model-modal-subtitle">Choose a model for this workflow.</p>
-          </div>
-          <div className="model-modal-header-actions">
-            <div className="model-modal-search">
-              <MagnifyingGlass aria-hidden className="model-search-icon" size={14} weight="bold" />
-              <input
-                className="model-search-input"
-                type="search"
-                placeholder="Search models"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
+    <AiStudioModalLayer>
+      <div className="model-modal-backdrop" onClick={onClose}>
+        <div
+          className="model-modal"
+          role="dialog"
+          aria-modal="true"
+          ref={modalRef}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="model-modal-header">
+            <div className="model-modal-title-group">
+              <p className="model-modal-title">{modalTitle}</p>
+              <p className="model-modal-subtitle">Choose a model for this workflow.</p>
             </div>
-            <button
-              type="button"
-              className="ghost-btn mini model-modal-close"
-              onClick={onClose}
-              aria-label="Close model picker"
-            >
-              Close
-            </button>
+            <div className="model-modal-header-actions">
+              <div className="model-modal-search">
+                <MagnifyingGlass
+                  aria-hidden
+                  className="model-search-icon"
+                  size={14}
+                  weight="bold"
+                />
+                <input
+                  className="model-search-input"
+                  type="search"
+                  placeholder="Search models"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </div>
+              <button
+                type="button"
+                className="ghost-btn mini model-modal-close"
+                onClick={onClose}
+                aria-label="Close model picker"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="model-modal-scroll">{renderSection("Models", orderedOptions)}</div>
-        {chipTooltip ? (
-          <div
-            className={`model-chip-tooltip ${chipTooltip.placement === "below" ? "is-below" : "is-above"}`}
-            style={
-              {
-                top: chipTooltip.top,
-                left: chipTooltip.left,
-                "--tooltip-arrow-offset": `${chipTooltip.arrowOffset}px`,
-              } as React.CSSProperties
-            }
-            role="tooltip"
-          >
-            <div className="model-chip-tooltip-header">
-              <div>
-                <p className="model-chip-tooltip-title">{getDisplayLabel(chipTooltip.modelId)}</p>
-                {modelMeta[chipTooltip.modelId]?.provider ? (
-                  <p className="model-chip-tooltip-provider">
-                    {modelMeta[chipTooltip.modelId]?.provider}
-                  </p>
-                ) : null}
+          <div className="model-modal-scroll">{renderSection("Models", orderedOptions)}</div>
+          {chipTooltip ? (
+            <div
+              className={`model-chip-tooltip ${chipTooltip.placement === "below" ? "is-below" : "is-above"}`}
+              style={
+                {
+                  top: chipTooltip.top,
+                  left: chipTooltip.left,
+                  "--tooltip-arrow-offset": `${chipTooltip.arrowOffset}px`,
+                } as React.CSSProperties
+              }
+              role="tooltip"
+            >
+              <div className="model-chip-tooltip-header">
+                <div>
+                  <p className="model-chip-tooltip-title">{getDisplayLabel(chipTooltip.modelId)}</p>
+                  {modelMeta[chipTooltip.modelId]?.provider ? (
+                    <p className="model-chip-tooltip-provider">
+                      {modelMeta[chipTooltip.modelId]?.provider}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              {modelMeta[chipTooltip.modelId]?.description ? (
+                <p className="model-chip-tooltip-description">
+                  {modelMeta[chipTooltip.modelId]?.description}
+                </p>
+              ) : null}
+              <div className="model-chip-tooltip-meta">
+                {(() => {
+                  const tooltipTags = resolveTooltipTags(chipTooltip.modelId, tooltipContextTag);
+                  if (!tooltipTags.length) {
+                    return null;
+                  }
+                  return (
+                    <div className="model-chip-tooltip-tags">
+                      {tooltipTags.map((tag) => (
+                        <span key={`${chipTooltip.modelId}-${tag}`} className="model-chip-tag">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <span className="model-chip-tooltip-credits">
+                  <span aria-hidden="true" className="model-chip-tooltip-sparkle">
+                    ✦
+                  </span>{" "}
+                  {formatCredits(chipTooltip.modelId)} credits
+                </span>
               </div>
             </div>
-            {modelMeta[chipTooltip.modelId]?.description ? (
-              <p className="model-chip-tooltip-description">
-                {modelMeta[chipTooltip.modelId]?.description}
-              </p>
-            ) : null}
-            <div className="model-chip-tooltip-meta">
-              {(() => {
-                const tooltipTags = resolveTooltipTags(chipTooltip.modelId, tooltipContextTag);
-                if (!tooltipTags.length) {
-                  return null;
-                }
-                return (
-                  <div className="model-chip-tooltip-tags">
-                    {tooltipTags.map((tag) => (
-                      <span key={`${chipTooltip.modelId}-${tag}`} className="model-chip-tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                );
-              })()}
-              <span className="model-chip-tooltip-credits">
-                <span aria-hidden="true" className="model-chip-tooltip-sparkle">
-                  ✦
-                </span>{" "}
-                {formatCredits(chipTooltip.modelId)} credits
-              </span>
-            </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
-    </div>
+    </AiStudioModalLayer>
   );
 }

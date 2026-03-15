@@ -65,19 +65,6 @@ describe("useAiStudioReferenceSelectionState", () => {
       })
     );
     const anchor = document.createElement("button");
-    Object.defineProperty(anchor, "getBoundingClientRect", {
-      value: () => ({
-        top: 10,
-        right: 20,
-        height: 30,
-        left: 0,
-        bottom: 40,
-        width: 20,
-        x: 0,
-        y: 10,
-        toJSON: () => ({}),
-      }),
-    });
 
     act(() => {
       result.current.setReferenceImageUrl("https://example.com/image-ref.png");
@@ -94,7 +81,6 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.isModelModalOpen).toBe(true);
     expect(result.current.modelModalAnchor).toBe("model-trigger");
     expect(result.current.modelModalContext).toBe("reference-image");
-    expect(result.current.modelModalPosition).toEqual({ top: 25, left: 36 });
 
     act(() => {
       result.current.closeModelModal();

@@ -37,7 +37,6 @@ describe("ModelModal", () => {
     render(
       <ModelModal
         isOpen
-        position={null}
         onClose={vi.fn()}
         onSelect={vi.fn()}
         options={baseOptions}
@@ -69,7 +68,6 @@ describe("ModelModal", () => {
     const { container } = render(
       <ModelModal
         isOpen
-        position={null}
         onClose={vi.fn()}
         onSelect={vi.fn()}
         options={options}
@@ -107,7 +105,6 @@ describe("ModelModal", () => {
     const { container } = render(
       <ModelModal
         isOpen
-        position={null}
         onClose={vi.fn()}
         onSelect={vi.fn()}
         options={options}
@@ -157,7 +154,6 @@ describe("ModelModal", () => {
     const { container } = render(
       <ModelModal
         isOpen
-        position={null}
         onClose={vi.fn()}
         onSelect={vi.fn()}
         options={options}
@@ -190,7 +186,6 @@ describe("ModelModal", () => {
     const { container } = render(
       <ModelModal
         isOpen
-        position={null}
         onClose={vi.fn()}
         onSelect={vi.fn()}
         options={options}
@@ -208,7 +203,6 @@ describe("ModelModal", () => {
     render(
       <ModelModal
         isOpen
-        position={null}
         onClose={vi.fn()}
         onSelect={vi.fn()}
         options={[
@@ -232,7 +226,6 @@ describe("ModelModal", () => {
     render(
       <ModelModal
         isOpen
-        position={null}
         onClose={vi.fn()}
         onSelect={vi.fn()}
         options={baseOptions}

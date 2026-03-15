@@ -121,7 +121,7 @@
     radial-gradient(circle at 20% 20%, rgba(37, 169, 191, 0.08), transparent 35%),
     radial-gradient(circle at 80% 30%, rgba(0, 214, 255, 0.08), transparent 38%),
     rgba(5, 7, 13, 0.55);
-  z-index: 1200;
+  z-index: var(--ai-studio-z-modal-backdrop);
   backdrop-filter: blur(6px);
 }
 
@@ -143,7 +143,7 @@
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(14px);
-  z-index: 1210;
+  z-index: var(--ai-studio-z-modal-content);
 }
 
 .model-modal::after {
@@ -428,7 +428,7 @@
   font-size: 12px;
   line-height: 1.4;
   pointer-events: none;
-  z-index: 1220;
+  z-index: var(--ai-studio-z-modal-context-surface);
 }
 
 .model-chip-tooltip {
@@ -444,7 +444,7 @@
   color: #f5f9ff;
   padding: 14px 16px;
   backdrop-filter: blur(10px);
-  z-index: 1220;
+  z-index: var(--ai-studio-z-modal-context-surface);
   transform-origin: top;
   overflow: hidden;
 }

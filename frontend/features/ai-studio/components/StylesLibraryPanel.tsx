@@ -13,6 +13,7 @@ import {
 } from "./style-creator/constants";
 import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 const NONE_STYLE_ID = "__none_style__";
 const NONE_STYLE_TILE: ExpertEditStyleTile = {
@@ -99,6 +100,8 @@ export function StylesLibraryPanel({
   const stylePromptCharacterCount = pendingStyleEdit?.details.stylePrompt.length ?? 0;
   const stylePromptNearLimit = stylePromptCharacterCount >= STYLE_PROMPT_NEAR_LIMIT_CHARACTERS;
   const stylePromptAtLimit = stylePromptCharacterCount >= STYLE_PROMPT_MAX_CHARACTERS;
+  const isAnyStylesModalOpen = Boolean(pendingStyleEdit || pendingDeleteStyle);
+  useAiStudioModalActivity("styles-library-modal", isAnyStylesModalOpen);
 
   return (
     <section
@@ -250,254 +253,260 @@ export function StylesLibraryPanel({
         </div>
       </div>
       {pendingStyleEdit ? (
-        <div
-          className="styles-library-edit-modal-backdrop"
-          role="presentation"
-          onClick={closeEditModal}
-        >
+        <AiStudioModalLayer>
           <div
-            className="styles-library-edit-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="styles-edit-title"
-            onClick={(event) => event.stopPropagation()}
+            className="styles-library-edit-modal-backdrop"
+            role="presentation"
+            onClick={closeEditModal}
           >
-            <p id="styles-edit-title" className="styles-library-edit-title">
-              {pendingStyleEdit.mode === "create" ? "Add style" : "Edit style"}
-            </p>
-            <p className="styles-library-edit-copy tiny subdued">
-              {pendingStyleEdit.mode === "create" ? (
-                <>
-                  Enter details for <strong>{pendingStyleEdit.styleTitle}</strong>.
-                </>
-              ) : (
-                <>
-                  Update <strong>{pendingStyleEdit.styleTitle}</strong> details.
-                </>
-              )}
-            </p>
-            <label className="styles-library-edit-field">
-              <span className="styles-library-edit-label">Style</span>
-              <input
-                type="text"
-                className="styles-library-edit-input"
-                value={pendingStyleEdit.details.style}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setPendingStyleEdit((previous) => {
-                    if (!previous) return previous;
-                    return {
-                      ...previous,
-                      details: {
-                        ...previous.details,
-                        style: nextValue,
-                        title: nextValue,
-                        referenceImageName: nextValue,
-                      },
-                    };
-                  });
-                }}
-              />
-            </label>
-            <div className="styles-library-edit-field">
-              <span className="styles-library-edit-label">Reference Image</span>
-              <div
-                className={`styles-library-edit-dropzone ${
-                  stylePreviewDropActive ? "is-drop-active" : ""
-                } ${pendingEditPreviewImageUrl ? "has-preview" : ""}`.trim()}
-                role="button"
-                tabIndex={0}
-                aria-label="Drop reference image or click to upload"
-                onClick={() => stylePreviewFileInputRef.current?.click()}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter" && event.key !== " ") return;
-                  event.preventDefault();
-                  stylePreviewFileInputRef.current?.click();
-                }}
-                onDragEnter={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setStylePreviewDropActive(true);
-                }}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  event.dataTransfer.dropEffect = "copy";
-                  setStylePreviewDropActive(true);
-                }}
-                onDragLeave={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  const nextTarget = event.relatedTarget;
-                  if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
-                    return;
-                  }
-                  setStylePreviewDropActive(false);
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setStylePreviewDropActive(false);
-                  void applyStylePreviewFromTransfer(event.dataTransfer);
-                }}
-              >
+            <div
+              className="styles-library-edit-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="styles-edit-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p id="styles-edit-title" className="styles-library-edit-title">
+                {pendingStyleEdit.mode === "create" ? "Add style" : "Edit style"}
+              </p>
+              <p className="styles-library-edit-copy tiny subdued">
+                {pendingStyleEdit.mode === "create" ? (
+                  <>
+                    Enter details for <strong>{pendingStyleEdit.styleTitle}</strong>.
+                  </>
+                ) : (
+                  <>
+                    Update <strong>{pendingStyleEdit.styleTitle}</strong> details.
+                  </>
+                )}
+              </p>
+              <label className="styles-library-edit-field">
+                <span className="styles-library-edit-label">Style</span>
                 <input
-                  ref={stylePreviewFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="styles-library-edit-dropzone-input"
+                  type="text"
+                  className="styles-library-edit-input"
+                  value={pendingStyleEdit.details.style}
                   onChange={(event) => {
-                    const [file] = Array.from(event.target.files ?? []);
-                    event.target.value = "";
-                    if (!file) return;
-                    void applyStylePreviewFile(file);
+                    const nextValue = event.target.value;
+                    setPendingStyleEdit((previous) => {
+                      if (!previous) return previous;
+                      return {
+                        ...previous,
+                        details: {
+                          ...previous.details,
+                          style: nextValue,
+                          title: nextValue,
+                          referenceImageName: nextValue,
+                        },
+                      };
+                    });
+                  }}
+                />
+              </label>
+              <div className="styles-library-edit-field">
+                <span className="styles-library-edit-label">Reference Image</span>
+                <div
+                  className={`styles-library-edit-dropzone ${
+                    stylePreviewDropActive ? "is-drop-active" : ""
+                  } ${pendingEditPreviewImageUrl ? "has-preview" : ""}`.trim()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Drop reference image or click to upload"
+                  onClick={() => stylePreviewFileInputRef.current?.click()}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    stylePreviewFileInputRef.current?.click();
+                  }}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setStylePreviewDropActive(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.dataTransfer.dropEffect = "copy";
+                    setStylePreviewDropActive(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const nextTarget = event.relatedTarget;
+                    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+                      return;
+                    }
+                    setStylePreviewDropActive(false);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setStylePreviewDropActive(false);
+                    void applyStylePreviewFromTransfer(event.dataTransfer);
+                  }}
+                >
+                  <input
+                    ref={stylePreviewFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="styles-library-edit-dropzone-input"
+                    onChange={(event) => {
+                      const [file] = Array.from(event.target.files ?? []);
+                      event.target.value = "";
+                      if (!file) return;
+                      void applyStylePreviewFile(file);
+                    }}
+                  />
+                  <span
+                    className="styles-library-edit-dropzone-preview"
+                    style={
+                      pendingEditPreviewImageUrl
+                        ? {
+                            backgroundImage: resolveStylePreviewBackgroundImage(
+                              pendingEditPreviewImageUrl
+                            ),
+                          }
+                        : undefined
+                    }
+                    aria-hidden="true"
+                  >
+                    {!pendingEditPreviewImageUrl ? (
+                      <span className="styles-library-edit-dropzone-upload" aria-hidden="true">
+                        <UploadSimple size={24} weight="bold" />
+                        <span className="styles-library-edit-dropzone-upload-copy tiny">
+                          Upload image
+                        </span>
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="styles-library-edit-dropzone-copy">
+                    Drop an image here, or click to upload.
+                  </span>
+                  <span className="styles-library-edit-dropzone-hint tiny subdued">
+                    Image is center-cropped to a square and used on the style card.
+                  </span>
+                </div>
+              </div>
+              <div className="styles-library-edit-field">
+                <label className="styles-library-edit-label" htmlFor={stylePromptInputId}>
+                  Style Prompt
+                </label>
+                <textarea
+                  id={stylePromptInputId}
+                  className="styles-library-edit-textarea"
+                  rows={5}
+                  maxLength={STYLE_PROMPT_MAX_CHARACTERS}
+                  value={pendingStyleEdit.details.stylePrompt}
+                  onChange={(event) => {
+                    const nextValue = event.target.value.slice(0, STYLE_PROMPT_MAX_CHARACTERS);
+                    setPendingStyleEdit((previous) => {
+                      if (!previous) return previous;
+                      return {
+                        ...previous,
+                        details: {
+                          ...previous.details,
+                          stylePrompt: nextValue,
+                        },
+                      };
+                    });
                   }}
                 />
                 <span
-                  className="styles-library-edit-dropzone-preview"
-                  style={
-                    pendingEditPreviewImageUrl
-                      ? {
-                          backgroundImage: resolveStylePreviewBackgroundImage(
-                            pendingEditPreviewImageUrl
-                          ),
-                        }
-                      : undefined
-                  }
-                  aria-hidden="true"
+                  className={`styles-library-edit-counter tiny subdued ${
+                    stylePromptNearLimit ? "is-near-limit" : ""
+                  } ${stylePromptAtLimit ? "is-limit-reached" : ""}`.trim()}
+                  aria-live="polite"
                 >
-                  {!pendingEditPreviewImageUrl ? (
-                    <span className="styles-library-edit-dropzone-upload" aria-hidden="true">
-                      <UploadSimple size={24} weight="bold" />
-                      <span className="styles-library-edit-dropzone-upload-copy tiny">
-                        Upload image
-                      </span>
-                    </span>
-                  ) : null}
-                </span>
-                <span className="styles-library-edit-dropzone-copy">
-                  Drop an image here, or click to upload.
-                </span>
-                <span className="styles-library-edit-dropzone-hint tiny subdued">
-                  Image is center-cropped to a square and used on the style card.
+                  {stylePromptCharacterCount} / {STYLE_PROMPT_MAX_CHARACTERS}
                 </span>
               </div>
-            </div>
-            <div className="styles-library-edit-field">
-              <label className="styles-library-edit-label" htmlFor={stylePromptInputId}>
-                Style Prompt
-              </label>
-              <textarea
-                id={stylePromptInputId}
-                className="styles-library-edit-textarea"
-                rows={5}
-                maxLength={STYLE_PROMPT_MAX_CHARACTERS}
-                value={pendingStyleEdit.details.stylePrompt}
-                onChange={(event) => {
-                  const nextValue = event.target.value.slice(0, STYLE_PROMPT_MAX_CHARACTERS);
-                  setPendingStyleEdit((previous) => {
-                    if (!previous) return previous;
-                    return {
-                      ...previous,
-                      details: {
-                        ...previous.details,
-                        stylePrompt: nextValue,
-                      },
-                    };
-                  });
-                }}
-              />
-              <span
-                className={`styles-library-edit-counter tiny subdued ${
-                  stylePromptNearLimit ? "is-near-limit" : ""
-                } ${stylePromptAtLimit ? "is-limit-reached" : ""}`.trim()}
-                aria-live="polite"
-              >
-                {stylePromptCharacterCount} / {STYLE_PROMPT_MAX_CHARACTERS}
-              </span>
-            </div>
-            {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting ? (
-              <p className="styles-library-edit-copy tiny subdued">Analyzing style...</p>
-            ) : null}
-            {pendingStyleEdit.mode === "create" && stylePromptExtractionError ? (
-              <p className="styles-library-edit-error tiny">{stylePromptExtractionError}</p>
-            ) : null}
-            {saveError ? <p className="styles-library-edit-error tiny">{saveError}</p> : null}
-            {localSaveError ? (
-              <p className="styles-library-edit-error tiny">{localSaveError}</p>
-            ) : null}
-            <div className="styles-library-edit-actions">
-              <button
-                type="button"
-                className="ghost-btn mini styles-library-edit-action-btn"
-                onClick={closeEditModal}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini styles-library-edit-action-btn styles-library-edit-save"
-                disabled={
-                  editSubmitting ||
-                  (pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting)
-                }
-                onClick={() => {
-                  void handleSaveStyleDetails();
-                }}
-              >
-                {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting
-                  ? "Analyzing style..."
-                  : editSubmitting
-                    ? "Saving..."
-                    : pendingStyleEdit.mode === "create"
-                      ? "Save style"
-                      : "Save changes"}
-              </button>
+              {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting ? (
+                <p className="styles-library-edit-copy tiny subdued">Analyzing style...</p>
+              ) : null}
+              {pendingStyleEdit.mode === "create" && stylePromptExtractionError ? (
+                <p className="styles-library-edit-error tiny">{stylePromptExtractionError}</p>
+              ) : null}
+              {saveError ? <p className="styles-library-edit-error tiny">{saveError}</p> : null}
+              {localSaveError ? (
+                <p className="styles-library-edit-error tiny">{localSaveError}</p>
+              ) : null}
+              <div className="styles-library-edit-actions">
+                <button
+                  type="button"
+                  className="ghost-btn mini styles-library-edit-action-btn"
+                  onClick={closeEditModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini styles-library-edit-action-btn styles-library-edit-save"
+                  disabled={
+                    editSubmitting ||
+                    (pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting)
+                  }
+                  onClick={() => {
+                    void handleSaveStyleDetails();
+                  }}
+                >
+                  {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting
+                    ? "Analyzing style..."
+                    : editSubmitting
+                      ? "Saving..."
+                      : pendingStyleEdit.mode === "create"
+                        ? "Save style"
+                        : "Save changes"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </AiStudioModalLayer>
       ) : null}
       {pendingDeleteStyle ? (
-        <div
-          className="styles-library-delete-modal-backdrop"
-          role="presentation"
-          onClick={closeDeleteModal}
-        >
+        <AiStudioModalLayer>
           <div
-            className="styles-library-delete-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="styles-delete-title"
-            onClick={(event) => event.stopPropagation()}
+            className="styles-library-delete-modal-backdrop"
+            role="presentation"
+            onClick={closeDeleteModal}
           >
-            <p id="styles-delete-title" className="styles-library-delete-title">
-              Delete style?
-            </p>
-            <p className="styles-library-delete-copy tiny subdued">
-              Remove <strong>{pendingDeleteStyle.title}</strong> from your style library
-              permanently?
-            </p>
-            {deleteError ? <p className="styles-library-delete-error tiny">{deleteError}</p> : null}
-            {localDeleteError ? (
-              <p className="styles-library-delete-error tiny">{localDeleteError}</p>
-            ) : null}
-            <div className="styles-library-delete-actions">
-              <button type="button" className="ghost-btn mini" onClick={closeDeleteModal}>
-                No
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini styles-library-delete-confirm"
-                disabled={deleteSubmitting}
-                onClick={() => {
-                  void handleDeleteConfirm();
-                }}
-              >
-                {deleteSubmitting ? "Deleting..." : "Yes, delete"}
-              </button>
+            <div
+              className="styles-library-delete-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="styles-delete-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p id="styles-delete-title" className="styles-library-delete-title">
+                Delete style?
+              </p>
+              <p className="styles-library-delete-copy tiny subdued">
+                Remove <strong>{pendingDeleteStyle.title}</strong> from your style library
+                permanently?
+              </p>
+              {deleteError ? (
+                <p className="styles-library-delete-error tiny">{deleteError}</p>
+              ) : null}
+              {localDeleteError ? (
+                <p className="styles-library-delete-error tiny">{localDeleteError}</p>
+              ) : null}
+              <div className="styles-library-delete-actions">
+                <button type="button" className="ghost-btn mini" onClick={closeDeleteModal}>
+                  No
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini styles-library-delete-confirm"
+                  disabled={deleteSubmitting}
+                  onClick={() => {
+                    void handleDeleteConfirm();
+                  }}
+                >
+                  {deleteSubmitting ? "Deleting..." : "Yes, delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </AiStudioModalLayer>
       ) : null}
     </section>
   );

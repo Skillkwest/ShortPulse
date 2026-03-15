@@ -7,7 +7,6 @@ import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
-import { computeModalPosition } from "../logic/stateParsers";
 import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   isCreateWorkflow,
@@ -25,7 +24,6 @@ const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 const EDIT_STARTUP_DEFAULT_ASPECT = "1:1";
 
 type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
-type ModelModalPosition = { top: number; left: number };
 
 type UseAiStudioStateEffectsArgs = {
   promptRef: MutableRefObject<HTMLTextAreaElement | null>;
@@ -59,12 +57,9 @@ type UseAiStudioStateEffectsArgs = {
   allowedModelValues: string[];
   isCharacterModeEnabled: boolean;
   mode: StudioMode;
-  isModelModalOpen: boolean;
-  modelModalAnchor: string | null;
   setDetailOutputId: (value: string | null) => void;
   setIsModelModalOpen: (value: boolean) => void;
   setModelModalAnchor: (value: string | null) => void;
-  setModelModalPosition: (value: ModelModalPosition | null) => void;
   hasPendingWorkflowRestore: boolean;
 };
 
@@ -103,12 +98,9 @@ export const useAiStudioStateEffects = ({
   allowedModelValues,
   isCharacterModeEnabled,
   mode,
-  isModelModalOpen,
-  modelModalAnchor,
   setDetailOutputId,
   setIsModelModalOpen,
   setModelModalAnchor,
-  setModelModalPosition,
   hasPendingWorkflowRestore,
 }: UseAiStudioStateEffectsArgs) => {
   const editStartupAspectInitializedRef = useRef(false);
@@ -412,33 +404,9 @@ export const useAiStudioStateEffects = ({
       }
     };
 
-    const handleReposition = () => {
-      if (!isModelModalOpen || !modelModalAnchor) return;
-      const anchorEl = document.querySelector<HTMLElement>(
-        `[data-model-anchor='${modelModalAnchor}']`
-      );
-      if (anchorEl) {
-        setModelModalPosition(computeModalPosition(anchorEl));
-      } else {
-        setIsModelModalOpen(false);
-        setModelModalAnchor(null);
-      }
-    };
-
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("resize", handleReposition);
-    window.addEventListener("scroll", handleReposition, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("resize", handleReposition);
-      window.removeEventListener("scroll", handleReposition, true);
     };
-  }, [
-    isModelModalOpen,
-    modelModalAnchor,
-    setDetailOutputId,
-    setIsModelModalOpen,
-    setModelModalAnchor,
-    setModelModalPosition,
-  ]);
+  }, [setDetailOutputId, setIsModelModalOpen, setModelModalAnchor]);
 };

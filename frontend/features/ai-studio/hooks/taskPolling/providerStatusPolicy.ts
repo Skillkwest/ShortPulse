@@ -7,9 +7,9 @@ import type { StudioOutput } from "../../types";
 export type PollStatus = {
   status?: unknown;
   state?: unknown;
-  data?: { status?: unknown; result?: { status?: unknown } };
-  result?: { status?: unknown };
-  output?: { status?: unknown };
+  data?: { status?: unknown; state?: unknown; result?: { status?: unknown; state?: unknown } };
+  result?: { status?: unknown; state?: unknown };
+  output?: { status?: unknown; state?: unknown };
   resultJson?: unknown;
   raw?: unknown;
   error?: unknown;
@@ -172,18 +172,26 @@ export const resolveProviderStatusState = (status: PollStatus): ProviderStatusSt
     status?.status?.toString().toLowerCase() ??
     status?.state?.toString().toLowerCase() ??
     status?.data?.status?.toString().toLowerCase() ??
+    status?.data?.state?.toString().toLowerCase() ??
     status?.result?.status?.toString().toLowerCase() ??
+    status?.result?.state?.toString().toLowerCase() ??
     status?.output?.status?.toString().toLowerCase() ??
+    status?.output?.state?.toString().toLowerCase() ??
     status?.data?.result?.status?.toString().toLowerCase() ??
+    status?.data?.result?.state?.toString().toLowerCase() ??
     "pending";
   const state = stateRaw === "succeeded" ? "success" : stateRaw;
   const hasExplicitState =
     status?.status != null ||
     status?.state != null ||
     status?.data?.status != null ||
+    status?.data?.state != null ||
     status?.result?.status != null ||
+    status?.result?.state != null ||
     status?.output?.status != null ||
-    status?.data?.result?.status != null;
+    status?.output?.state != null ||
+    status?.data?.result?.status != null ||
+    status?.data?.result?.state != null;
   return { state, hasExplicitState };
 };
 

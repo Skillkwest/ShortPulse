@@ -11,6 +11,7 @@ import { downloadUrlToFile } from "../logic/referenceDownload";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -38,6 +39,7 @@ export function DetailModal({
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
 }: DetailModalProps) {
+  useAiStudioModalActivity("detail-modal", Boolean(output));
   const imageVesselRef = useRef<HTMLDivElement | null>(null);
   const imagePanDragRef = useRef<{
     pointerId: number;
@@ -749,283 +751,288 @@ export function DetailModal({
   if (!output) return null;
 
   return (
-    <div className="reference-modal-backdrop" onClick={handleCloseModal}>
-      {/* Background blurred reflect */}
-      {displayPreviewUrl && (
+    <AiStudioModalLayer>
+      <div className="reference-modal-backdrop" onClick={handleCloseModal}>
+        {/* Background blurred reflect */}
+        {displayPreviewUrl && (
+          <div
+            className="reference-modal-bg-reflect"
+            style={{ backgroundImage: `url(${displayPreviewUrl})` }}
+          />
+        )}
+
         <div
-          className="reference-modal-bg-reflect"
-          style={{ backgroundImage: `url(${displayPreviewUrl})` }}
-        />
-      )}
-
-      <div
-        className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Reference details"
-        style={detailModalStyle}
-        onClick={(event) => event.stopPropagation()}
-      >
-        {/* Floating Top Bar (Controls) */}
-        {!isPromptOnly && (
-          <div className="art-modal-top-controls">
-            <div className="art-modal-meta-pill">
-              <span className="art-meta-item">{mediaType}</span>
-              {!isNonGeneratedLoadedMedia && output.aspect && (
-                <span className="art-meta-divider">/</span>
-              )}
-              {!isNonGeneratedLoadedMedia && output.aspect && (
-                <span className="art-meta-item">{output.aspect}</span>
-              )}
-              {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
-                <span className="art-meta-divider">/</span>
-              )}
-              {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
-                <span className="art-meta-item art-meta-filename" title={uploadedHeaderFilename}>
-                  {uploadedHeaderFilename}
-                </span>
-              )}
-              {!isNonGeneratedLoadedMedia && !isUploadedReference && displayModelLabel && (
-                <span className="art-meta-divider">/</span>
-              )}
-              {!isNonGeneratedLoadedMedia && !isUploadedReference && (
-                <span className="art-meta-item truncate-model">{displayModelLabel}</span>
-              )}
-            </div>
-
-            <div className="art-modal-action-row">
-              {displayPreviewUrl && (
-                <button
-                  type="button"
-                  className="art-action-btn"
-                  onClick={handleDownload}
-                  title="Download"
-                >
-                  Download
-                </button>
-              )}
-              <button
-                type="button"
-                className="art-action-btn art-action-btn-danger"
-                onClick={handleRequestDelete}
-              >
-                <TrashSimple size={16} weight="bold" aria-hidden />
-                Delete
-              </button>
-              <button type="button" className="art-close-btn" onClick={handleCloseModal}>
-                ×
-              </button>
-            </div>
-          </div>
-        )}
-
-        {isPromptOnly && (
-          <div className="art-prompt-only-header">
-            <span className="reference-filename">Prompt</span>
-            <div className="art-modal-action-row">
-              {onSavePrompt ? (
-                <button
-                  type="button"
-                  className={`art-action-btn prompt-save-modal-btn ${isPromptLibrarySaved ? "is-saved" : ""}`}
-                  onClick={handleSavePromptToLibrary}
-                  disabled={!trimmedPrompt || isPromptLibrarySaved}
-                >
-                  {isPromptLibrarySaved ? "Saved" : "Save Prompt"}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="art-action-btn art-action-btn-danger"
-                onClick={handleRequestDelete}
-              >
-                <TrashSimple size={16} weight="bold" aria-hidden />
-                Delete
-              </button>
-              <button type="button" className="art-close-btn" onClick={handleCloseModal}>
-                ×
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="art-modal-main-content">
-          {isPromptOnly ? (
-            <div className="art-prompt-only-container">
-              <textarea
-                className="art-prompt-textarea large"
-                ref={promptOnlyTextareaRef}
-                value={draftPrompt}
-                onChange={handlePromptChange}
-                readOnly={!isPromptEditable}
-                rows={12}
-                placeholder="Describe your adjustments..."
-              />
-              <div className="art-modal-footer">
-                <button
-                  type="button"
-                  className={`primary-btn wide art-prompt-save-btn ${isPromptOnlySaved ? "is-saved" : ""}`}
-                  onClick={handlePromptOnlySaveAndClose}
-                  disabled={!canSave || !isPromptEditable || isPromptOnlySaved}
-                >
-                  {isPromptOnlySaved ? "Saved. Closing..." : "Save & Apply Changes"}
-                </button>
-                {isPromptOnlySaved ? (
-                  <p className="art-save-feedback" role="status" aria-live="polite">
-                    Changes saved successfully.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <>
-              <div
-                ref={imageVesselRef}
-                className={imageVesselClassName}
-                onWheel={isImageOutput ? handleImageWheel : undefined}
-                onDoubleClick={isImageOutput ? handleImageDoubleClick : undefined}
-                onPointerDown={isImageOutput ? handleImagePointerDown : undefined}
-                onPointerMove={isImageOutput ? handleImagePointerMove : undefined}
-                onPointerUp={isImageOutput ? handleImagePointerUp : undefined}
-                onPointerCancel={isImageOutput ? handleImagePointerUp : undefined}
-              >
-                {displayPreviewUrl ? (
-                  isVideoOutput ? (
-                    <video
-                      className="art-hero-image"
-                      src={displayPreviewUrl}
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      style={aspectStyle}
-                      onLoadedMetadata={(event) => {
-                        handlePreviewAspectLoad(
-                          event.currentTarget.videoWidth,
-                          event.currentTarget.videoHeight
-                        );
-                      }}
-                    />
-                  ) : (
-                    <>
-                      {/* Generated media URL can be provider-specific and not allowlisted. */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        className="art-hero-image"
-                        src={displayPreviewUrl}
-                        alt={output.prompt}
-                        style={imageStyle}
-                        draggable={false}
-                        onDragStart={(event) => event.preventDefault()}
-                        onLoad={handleImageLoad}
-                        onError={() => {
-                          void tryAdvancePreviewCandidate();
-                        }}
-                      />
-                    </>
-                  )
-                ) : (
-                  <div className="art-text-placeholder">
-                    <p>{output.previewText ?? output.prompt}</p>
-                  </div>
+          className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Reference details"
+          style={detailModalStyle}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {/* Floating Top Bar (Controls) */}
+          {!isPromptOnly && (
+            <div className="art-modal-top-controls">
+              <div className="art-modal-meta-pill">
+                <span className="art-meta-item">{mediaType}</span>
+                {!isNonGeneratedLoadedMedia && output.aspect && (
+                  <span className="art-meta-divider">/</span>
+                )}
+                {!isNonGeneratedLoadedMedia && output.aspect && (
+                  <span className="art-meta-item">{output.aspect}</span>
+                )}
+                {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
+                  <span className="art-meta-divider">/</span>
+                )}
+                {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
+                  <span className="art-meta-item art-meta-filename" title={uploadedHeaderFilename}>
+                    {uploadedHeaderFilename}
+                  </span>
+                )}
+                {!isNonGeneratedLoadedMedia && !isUploadedReference && displayModelLabel && (
+                  <span className="art-meta-divider">/</span>
+                )}
+                {!isNonGeneratedLoadedMedia && !isUploadedReference && (
+                  <span className="art-meta-item truncate-model">{displayModelLabel}</span>
                 )}
               </div>
 
-              {/* Floating Prompt Blade */}
-              <div className="art-prompt-blade">
-                <div className="art-blade-inner">
-                  {hasCharacterContext ? (
-                    <div className="art-character-chip" aria-label="Character used for generation">
-                      {shouldRenderCharacterAvatar ? (
-                        // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          className="art-character-chip-avatar"
-                          src={characterAvatarUrl ?? ""}
-                          alt={`${characterName} profile`}
-                          onLoad={() => {
-                            clearAvatarFailure(characterAvatarRecoveryId);
-                          }}
-                          onError={() => {
-                            void handleAvatarError({
-                              avatarId: characterAvatarRecoveryId,
-                              recoverAvatarUrl: refreshCharacterAvatar,
-                            });
-                          }}
-                        />
-                      ) : (
-                        <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
-                          {characterInitials}
-                        </span>
-                      )}
-                      <div className="art-character-chip-copy">
-                        <span className="art-character-chip-label">Character</span>
-                        <span className="art-character-chip-name">{characterName}</span>
-                      </div>
-                    </div>
+              <div className="art-modal-action-row">
+                {displayPreviewUrl && (
+                  <button
+                    type="button"
+                    className="art-action-btn"
+                    onClick={handleDownload}
+                    title="Download"
+                  >
+                    Download
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="art-action-btn art-action-btn-danger"
+                  onClick={handleRequestDelete}
+                >
+                  <TrashSimple size={16} weight="bold" aria-hidden />
+                  Delete
+                </button>
+                <button type="button" className="art-close-btn" onClick={handleCloseModal}>
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isPromptOnly && (
+            <div className="art-prompt-only-header">
+              <span className="reference-filename">Prompt</span>
+              <div className="art-modal-action-row">
+                {onSavePrompt ? (
+                  <button
+                    type="button"
+                    className={`art-action-btn prompt-save-modal-btn ${isPromptLibrarySaved ? "is-saved" : ""}`}
+                    onClick={handleSavePromptToLibrary}
+                    disabled={!trimmedPrompt || isPromptLibrarySaved}
+                  >
+                    {isPromptLibrarySaved ? "Saved" : "Save Prompt"}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="art-action-btn art-action-btn-danger"
+                  onClick={handleRequestDelete}
+                >
+                  <TrashSimple size={16} weight="bold" aria-hidden />
+                  Delete
+                </button>
+                <button type="button" className="art-close-btn" onClick={handleCloseModal}>
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="art-modal-main-content">
+            {isPromptOnly ? (
+              <div className="art-prompt-only-container">
+                <textarea
+                  className="art-prompt-textarea large"
+                  ref={promptOnlyTextareaRef}
+                  value={draftPrompt}
+                  onChange={handlePromptChange}
+                  readOnly={!isPromptEditable}
+                  rows={12}
+                  placeholder="Describe your adjustments..."
+                />
+                <div className="art-modal-footer">
+                  <button
+                    type="button"
+                    className={`primary-btn wide art-prompt-save-btn ${isPromptOnlySaved ? "is-saved" : ""}`}
+                    onClick={handlePromptOnlySaveAndClose}
+                    disabled={!canSave || !isPromptEditable || isPromptOnlySaved}
+                  >
+                    {isPromptOnlySaved ? "Saved. Closing..." : "Save & Apply Changes"}
+                  </button>
+                  {isPromptOnlySaved ? (
+                    <p className="art-save-feedback" role="status" aria-live="polite">
+                      Changes saved successfully.
+                    </p>
                   ) : null}
-                  {hasStyleContext ? (
-                    <div className="art-character-chip" aria-label="Style used for generation">
-                      {shouldRenderStyleAvatar ? (
-                        // Style previews can point to external URLs and signed Supabase assets.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          className="art-character-chip-avatar"
-                          src={stylePreviewImageUrl ?? ""}
-                          alt={`${styleName} style`}
-                          onError={() => {
-                            if (!outputId) return;
-                            setStyleAvatarLoadErrorByOutput({ outputId, value: true });
-                          }}
-                        />
-                      ) : (
-                        <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
-                          {styleInitials}
-                        </span>
-                      )}
-                      <div className="art-character-chip-copy">
-                        <span className="art-character-chip-label">Style</span>
-                        <span className="art-character-chip-name">{styleName}</span>
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className="art-blade-header">
-                    <span className="art-label">PROMPT</span>
-                  </div>
-                  <textarea
-                    className="art-blade-textarea"
-                    ref={promptTextareaRef}
-                    value={promptBladeValue}
-                    onChange={handlePromptChange}
-                    readOnly={!isPromptEditable}
-                    rows={3}
-                  />
                 </div>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-      {isDeleteConfirmOpen ? (
-        <div className="art-confirm-backdrop" onClick={handleCancelDelete}>
-          <div className="art-confirm-card" onClick={(event) => event.stopPropagation()}>
-            <p className="art-confirm-title">Delete this reference?</p>
-            <p className="art-confirm-copy">Are you sure you want to delete this? Yes or no?</p>
-            <div className="art-confirm-actions">
-              <button type="button" className="art-action-btn" onClick={handleCancelDelete}>
-                No
-              </button>
-              <button
-                type="button"
-                className="art-action-btn art-action-btn-danger"
-                onClick={handleConfirmDelete}
-              >
-                Yes, delete
-              </button>
-            </div>
+            ) : (
+              <>
+                <div
+                  ref={imageVesselRef}
+                  className={imageVesselClassName}
+                  onWheel={isImageOutput ? handleImageWheel : undefined}
+                  onDoubleClick={isImageOutput ? handleImageDoubleClick : undefined}
+                  onPointerDown={isImageOutput ? handleImagePointerDown : undefined}
+                  onPointerMove={isImageOutput ? handleImagePointerMove : undefined}
+                  onPointerUp={isImageOutput ? handleImagePointerUp : undefined}
+                  onPointerCancel={isImageOutput ? handleImagePointerUp : undefined}
+                >
+                  {displayPreviewUrl ? (
+                    isVideoOutput ? (
+                      <video
+                        className="art-hero-image"
+                        src={displayPreviewUrl}
+                        controls
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        style={aspectStyle}
+                        onLoadedMetadata={(event) => {
+                          handlePreviewAspectLoad(
+                            event.currentTarget.videoWidth,
+                            event.currentTarget.videoHeight
+                          );
+                        }}
+                      />
+                    ) : (
+                      <>
+                        {/* Generated media URL can be provider-specific and not allowlisted. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className="art-hero-image"
+                          src={displayPreviewUrl}
+                          alt={output.prompt}
+                          style={imageStyle}
+                          draggable={false}
+                          onDragStart={(event) => event.preventDefault()}
+                          onLoad={handleImageLoad}
+                          onError={() => {
+                            void tryAdvancePreviewCandidate();
+                          }}
+                        />
+                      </>
+                    )
+                  ) : (
+                    <div className="art-text-placeholder">
+                      <p>{output.previewText ?? output.prompt}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Floating Prompt Blade */}
+                <div className="art-prompt-blade">
+                  <div className="art-blade-inner">
+                    {hasCharacterContext ? (
+                      <div
+                        className="art-character-chip"
+                        aria-label="Character used for generation"
+                      >
+                        {shouldRenderCharacterAvatar ? (
+                          // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className="art-character-chip-avatar"
+                            src={characterAvatarUrl ?? ""}
+                            alt={`${characterName} profile`}
+                            onLoad={() => {
+                              clearAvatarFailure(characterAvatarRecoveryId);
+                            }}
+                            onError={() => {
+                              void handleAvatarError({
+                                avatarId: characterAvatarRecoveryId,
+                                recoverAvatarUrl: refreshCharacterAvatar,
+                              });
+                            }}
+                          />
+                        ) : (
+                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
+                            {characterInitials}
+                          </span>
+                        )}
+                        <div className="art-character-chip-copy">
+                          <span className="art-character-chip-label">Character</span>
+                          <span className="art-character-chip-name">{characterName}</span>
+                        </div>
+                      </div>
+                    ) : null}
+                    {hasStyleContext ? (
+                      <div className="art-character-chip" aria-label="Style used for generation">
+                        {shouldRenderStyleAvatar ? (
+                          // Style previews can point to external URLs and signed Supabase assets.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className="art-character-chip-avatar"
+                            src={stylePreviewImageUrl ?? ""}
+                            alt={`${styleName} style`}
+                            onError={() => {
+                              if (!outputId) return;
+                              setStyleAvatarLoadErrorByOutput({ outputId, value: true });
+                            }}
+                          />
+                        ) : (
+                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
+                            {styleInitials}
+                          </span>
+                        )}
+                        <div className="art-character-chip-copy">
+                          <span className="art-character-chip-label">Style</span>
+                          <span className="art-character-chip-name">{styleName}</span>
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="art-blade-header">
+                      <span className="art-label">PROMPT</span>
+                    </div>
+                    <textarea
+                      className="art-blade-textarea"
+                      ref={promptTextareaRef}
+                      value={promptBladeValue}
+                      onChange={handlePromptChange}
+                      readOnly={!isPromptEditable}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      ) : null}
-    </div>
+        {isDeleteConfirmOpen ? (
+          <div className="art-confirm-backdrop" onClick={handleCancelDelete}>
+            <div className="art-confirm-card" onClick={(event) => event.stopPropagation()}>
+              <p className="art-confirm-title">Delete this reference?</p>
+              <p className="art-confirm-copy">Are you sure you want to delete this? Yes or no?</p>
+              <div className="art-confirm-actions">
+                <button type="button" className="art-action-btn" onClick={handleCancelDelete}>
+                  No
+                </button>
+                <button
+                  type="button"
+                  className="art-action-btn art-action-btn-danger"
+                  onClick={handleConfirmDelete}
+                >
+                  Yes, delete
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </AiStudioModalLayer>
   );
 }

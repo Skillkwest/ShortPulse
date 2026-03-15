@@ -14,13 +14,16 @@ const COUNTS = [40, 60];
 const CLICK_SAMPLES = 24;
 
 async function signIn(page) {
-  const signInTab = page.getByRole("button", { name: /^Sign in$/i }).first();
-  if (await signInTab.isVisible().catch(() => false)) {
+  const signInTab = page.getByRole("tab", { name: /^Sign in$/i }).first();
+  if (
+    (await signInTab.isVisible().catch(() => false)) &&
+    (await signInTab.getAttribute("aria-selected").catch(() => null)) !== "true"
+  ) {
     await signInTab.click();
   }
   await page.locator("#email").fill(EMAIL);
   await page.locator("#password").fill(PASSWORD);
-  await page.getByRole("button", { name: /^Sign in$/i }).click();
+  await page.locator("button.auth-submit").click();
 }
 
 async function waitForNonAuthRoute(page, timeoutMs) {

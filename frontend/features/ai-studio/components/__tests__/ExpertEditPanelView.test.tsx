@@ -30,17 +30,30 @@ import {
   type ExpertEditSessionState,
 } from "../edit/expertEditSessionState";
 
-const { composePrimaryStageLayersToBlobMock } = vi.hoisted(() => ({
-  composePrimaryStageLayersToBlobMock: vi.fn(
-    async () => new Blob(["flattened-stage"], { type: "image/png" })
-  ),
-}));
+const { composePrimaryStageLayersToBlobMock, composeFlattenedMarkupReferenceBlobMock } = vi.hoisted(
+  () => ({
+    composePrimaryStageLayersToBlobMock: vi.fn(
+      async () => new Blob(["flattened-stage"], { type: "image/png" })
+    ),
+    composeFlattenedMarkupReferenceBlobMock: vi.fn(
+      async () => new Blob(["flattened-markup"], { type: "image/png" })
+    ),
+  })
+);
 
 vi.mock("../../logic/expertEditStageFlatten", async () => {
   const actual = await vi.importActual("../../logic/expertEditStageFlatten");
   return {
     ...(actual as Record<string, unknown>),
     composePrimaryStageLayersToBlob: composePrimaryStageLayersToBlobMock,
+  };
+});
+
+vi.mock("../../logic/expertEditMarkupReference", async () => {
+  const actual = await vi.importActual("../../logic/expertEditMarkupReference");
+  return {
+    ...(actual as Record<string, unknown>),
+    composeFlattenedMarkupReferenceBlob: composeFlattenedMarkupReferenceBlobMock,
   };
 });
 
@@ -238,6 +251,28 @@ const createEmptyExpertEditSessionState = (): ExpertEditSessionState => ({
   },
 });
 
+const createSessionStateWithMarkupStroke = (): ExpertEditSessionState => {
+  const sessionState = createEmptyExpertEditSessionState();
+  const stroke = {
+    id: "markup-stroke-seeded",
+    color: "#f43f5e",
+    sizeRatio: 0.012,
+    points: [
+      { sceneX: -0.12, sceneY: -0.1 },
+      { sceneX: 0.22, sceneY: 0.18 },
+    ],
+  };
+  sessionState.markup = {
+    strokes: [stroke],
+    history: {
+      past: [],
+      present: [stroke],
+      future: [],
+    },
+  };
+  return sessionState;
+};
+
 describe("ExpertEditPanelView", () => {
   const createObjectURLMock = vi.fn();
   const revokeObjectURLMock = vi.fn();
@@ -287,8 +322,11 @@ describe("ExpertEditPanelView", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "false");
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED", "false");
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "false");
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "false");
     objectUrlCounter = 0;
     composePrimaryStageLayersToBlobMock.mockClear();
+    composeFlattenedMarkupReferenceBlobMock.mockClear();
     createObjectURLMock.mockReset();
     revokeObjectURLMock.mockReset();
     createObjectURLMock.mockImplementation((value: unknown) => {
@@ -1422,6 +1460,30 @@ describe("ExpertEditPanelView", () => {
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
   });
 
+  it("shows selector-row generation mode tabs and publishes intent from tabs when toggle flag is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    const onEditSubmitIntentChange = vi.fn();
+    render(
+      <ExpertEditPanelView {...baseProps} onEditSubmitIntentChange={onEditSubmitIntentChange} />
+    );
+
+    const tablist = screen.getByRole("tablist", { name: /generation mode/i });
+    const standardTab = within(tablist).getByRole("tab", { name: /^standard$/i });
+    const inpaintTab = within(tablist).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(tablist).getByRole("tab", { name: /^markup$/i });
+
+    expect(standardTab).toHaveAttribute("aria-selected", "true");
+    expect(onEditSubmitIntentChange).toHaveBeenCalledWith("standard");
+
+    fireEvent.click(inpaintTab);
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("inpaint");
+    expect(inpaintTab).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(markupTab);
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("markup");
+    expect(markupTab).toHaveAttribute("aria-selected", "true");
+  });
+
   it("opens the expanded markup canvas modal from the expand button", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
@@ -2168,6 +2230,90 @@ describe("ExpertEditPanelView", () => {
     expect(secondEndScene.y).toBeCloseTo(firstEndScene.y, 3);
   });
 
+  it("falls back to inline geometry when modal stage metrics are unresolved", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-modal-unresolved-geometry.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 1401,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 88,
+      clientY: 90,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 1401,
+      pointerType: "mouse",
+      clientX: 232,
+      clientY: 236,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 1401,
+      pointerType: "mouse",
+      clientX: 232,
+      clientY: 236,
+    });
+    const inlineStroke = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(inlineStroke).not.toBeNull();
+    const inlineStrokeWidth = Number.parseFloat(inlineStroke?.getAttribute("stroke-width") ?? "0");
+    expect(inlineStrokeWidth).toBeGreaterThan(0);
+
+    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement | null;
+    expect(modalStage).not.toBeNull();
+
+    mockElementRect(
+      modalStage as HTMLDivElement,
+      {
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0,
+        right: 0,
+        bottom: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    await waitFor(() => {
+      const modalStroke = expandedModal.querySelector(
+        ".edit-expert-markup-strokes-overlay polyline"
+      ) as SVGPolylineElement | null;
+      expect(modalStroke).not.toBeNull();
+      const modalStrokeWidth = Number.parseFloat(modalStroke?.getAttribute("stroke-width") ?? "0");
+      expect(modalStrokeWidth).toBeGreaterThan(0);
+      expect(modalStrokeWidth).toBeCloseTo(inlineStrokeWidth, 2);
+    });
+  });
+
   it("defaults markup color to #F43F5E in inline and expanded markup pickers", async () => {
     render(
       <ExpertEditPanelView
@@ -2690,6 +2836,32 @@ describe("ExpertEditPanelView", () => {
     expect(onModelPickerOpen).not.toHaveBeenCalled();
 
     fireEvent.click(moveButton);
+    expect(modelPickerButton).not.toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+  });
+
+  it("locks the model picker from selector-row generation mode tabs when mode toggle is enabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
+    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
+
+    expect(modelPickerButton).not.toBeDisabled();
+
+    fireEvent.click(inpaintTab);
+    expect(modelPickerButton).toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent(INPAINT_FLUX_FILL_MODEL_LABEL);
+
+    fireEvent.click(markupTab);
+    expect(modelPickerButton).toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL);
+
+    fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
     expect(modelPickerButton).toHaveTextContent("Nano Banana");
   });
@@ -4803,7 +4975,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("button", { name: /remove primary image/i })).not.toBeInTheDocument();
   });
 
-  it("manual flatten collapses to layer 1 without emitting a session media reference", async () => {
+  it("manual flatten collapses to layer 1 and emits a session media reference", async () => {
     const onAddSessionMediaReference = vi.fn();
     const { container } = render(
       <ExpertEditPanelView {...baseProps} onAddSessionMediaReference={onAddSessionMediaReference} />
@@ -4821,7 +4993,11 @@ describe("ExpertEditPanelView", () => {
     expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
-    expect(onAddSessionMediaReference).not.toHaveBeenCalled();
+    expect(onAddSessionMediaReference).toHaveBeenCalledTimes(1);
+    expect(onAddSessionMediaReference).toHaveBeenCalledWith({
+      url: expect.stringMatching(/^blob:flatten-/),
+      mimeType: "image/png",
+    });
   });
 
   it("shows flatten pending feedback while manual flatten is in progress", async () => {
@@ -4857,7 +5033,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: /flatten layers/i })).not.toBeDisabled();
   });
 
-  it("manual flatten forwards selected frame ratio to stage flatten without exporting to reference grid", async () => {
+  it("manual flatten forwards selected frame ratio to stage flatten and exports to reference grid", async () => {
     const onAddSessionMediaReference = vi.fn();
     const { container, rerender } = render(
       <ExpertEditPanelView {...baseProps} onAddSessionMediaReference={onAddSessionMediaReference} />
@@ -4893,7 +5069,11 @@ describe("ExpertEditPanelView", () => {
     } | null;
     expect(flattenOptions?.mimeType).toBe("image/png");
     expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(16 / 9, 4);
-    expect(onAddSessionMediaReference).not.toHaveBeenCalled();
+    expect(onAddSessionMediaReference).toHaveBeenCalledTimes(1);
+    expect(onAddSessionMediaReference).toHaveBeenCalledWith({
+      url: expect.stringMatching(/^blob:flatten-/),
+      mimeType: "image/png",
+    });
   });
 
   it("manual flatten forwards current layer transforms to stage flatten helper", async () => {
@@ -5146,6 +5326,132 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.displayPromptOverride).toBe("Put @img1 in the background.");
     expect(submitOptions?.submissionPromptOverride).toContain("Put Figure 2 in the background.");
     expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
+  });
+
+  it("auto-flatten generate includes a markup-composite secondary reference when flag is enabled and strokes exist", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "true");
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Add annotation refinements."
+        sessionState={createSessionStateWithMarkupStroke()}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composeFlattenedMarkupReferenceBlobMock).toHaveBeenCalledTimes(1);
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [
+              string[],
+              {
+                referenceInputsMode?: "merge" | "replace";
+                inpaintOverride?: unknown;
+              }?,
+            ]
+          >;
+        };
+      }
+    ).mock.calls;
+    const submittedReferences = submissionCalls[0]?.[0] ?? [];
+    const submitOptions = submissionCalls[0]?.[1];
+    expect(submittedReferences).toHaveLength(2);
+    expect(submittedReferences[0]).toMatch(/^blob:flatten-/);
+    expect(submittedReferences[1]).toMatch(/^blob:flatten-/);
+    expect(submitOptions?.referenceInputsMode).toBe("replace");
+    expect(submitOptions?.inpaintOverride).toBeUndefined();
+  });
+
+  it("auto-flatten generate skips markup-composite secondary reference when Markup mode is not selected", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "true");
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Keep details aligned."
+        sessionState={createSessionStateWithMarkupStroke()}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composeFlattenedMarkupReferenceBlobMock).not.toHaveBeenCalled();
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[]]>;
+        };
+      }
+    ).mock.calls;
+    const submittedReferences = submissionCalls[0]?.[0] ?? [];
+    expect(submittedReferences).toHaveLength(1);
+    expect(submittedReferences[0]).toMatch(/^blob:flatten-/);
+  });
+
+  it("auto-flatten generate skips markup-composite secondary reference when flag is disabled", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Add annotation refinements."
+        sessionState={createSessionStateWithMarkupStroke()}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composeFlattenedMarkupReferenceBlobMock).not.toHaveBeenCalled();
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[]]>;
+        };
+      }
+    ).mock.calls;
+    const submittedReferences = submissionCalls[0]?.[0] ?? [];
+    expect(submittedReferences).toHaveLength(1);
+    expect(submittedReferences[0]).toMatch(/^blob:flatten-/);
   });
 
   it("auto-flatten generate does not force model override while Markup is selected by default", async () => {

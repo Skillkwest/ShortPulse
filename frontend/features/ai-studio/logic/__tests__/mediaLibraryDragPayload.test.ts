@@ -103,4 +103,42 @@ describe("mediaLibraryDragPayload", () => {
     expect(getMediaLibraryDragTypes()).toContain("text/x-shortpulse-media-library-item");
     expect(getMediaLibraryDragTypes()).toContain("text/shortpulse-media-library-marker");
   });
+
+  it("keeps writing fallback payload fields when custom MIME transfer writes fail", () => {
+    const setData = vi.fn((type: string) => {
+      if (
+        type === "application/x-shortpulse-media-library-item" ||
+        type === "text/x-shortpulse-media-library-item"
+      ) {
+        throw new Error("unsupported transfer type");
+      }
+    });
+    const transfer = {
+      setData,
+      getData: vi.fn(() => ""),
+    } as unknown as DataTransfer;
+
+    expect(() =>
+      writeMediaLibraryDragPayload(transfer, {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-safe-write",
+          url: "https://example.com/safe-write.png",
+          fileType: "image",
+        },
+      })
+    ).not.toThrow();
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-marker",
+      "shortpulse-media-library-v1"
+    );
+    expect(setData).toHaveBeenCalledWith("text/shortpulse-media-library-kind", "libraryMedia");
+    expect(setData).toHaveBeenCalledWith("text/shortpulse-media-library-id", "media-safe-write");
+    expect(setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-url",
+      "https://example.com/safe-write.png"
+    );
+  });
 });

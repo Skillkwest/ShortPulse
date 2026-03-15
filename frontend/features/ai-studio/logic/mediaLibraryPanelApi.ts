@@ -1,5 +1,6 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { MediaListCursor } from "../../media-library/logic/mediaListApi";
+import { isTransientMediaLibraryNetworkError } from "./mediaLibraryErrorText";
 
 export const MEDIA_LIBRARY_ROOT_FOLDER_ID = "all_items" as const;
 
@@ -88,6 +89,9 @@ export type MediaFolderCanvasState = {
   updatedAt: string;
 };
 
+const TRANSIENT_NETWORK_RETRY_ATTEMPTS = 2;
+const TRANSIENT_NETWORK_RETRY_BASE_DELAY_MS = 180;
+
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as Record<string, unknown>;
@@ -156,14 +160,42 @@ const toMediaUploadRow = (value: unknown): MediaUploadRow | null => {
   };
 };
 
+const sleep = async (ms: number): Promise<void> =>
+  await new Promise((resolve) => {
+    globalThis.setTimeout(resolve, Math.max(0, Math.trunc(ms)));
+  });
+
+const withTransientNetworkRetry = async <T>(
+  operation: () => Promise<T>,
+  attempts = TRANSIENT_NETWORK_RETRY_ATTEMPTS
+): Promise<T> => {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const hasRemainingAttempts = attempt < attempts;
+      if (!hasRemainingAttempts || !isTransientMediaLibraryNetworkError(error)) {
+        throw error;
+      }
+      await sleep(TRANSIENT_NETWORK_RETRY_BASE_DELAY_MS * attempt);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Unexpected Media Library retry error.");
+};
+
 /**
  * Loads user-owned custom folders.
  */
 export const listMediaFolders = async (): Promise<MediaFolder[]> => {
-  const response = await fetchWithAuth("/api/media/folders/list", {
-    method: "GET",
-    shortpulseLogScope: "app",
-  });
+  const response = await withTransientNetworkRetry(
+    async () =>
+      await fetchWithAuth("/api/media/folders/list", {
+        method: "GET",
+        shortpulseLogScope: "app",
+      })
+  );
   if (!response.ok) {
     throw new Error("Unable to load media folders.");
   }
@@ -279,21 +311,24 @@ export const deleteMediaFolder = async (folderId: string): Promise<void> => {
 export const applyMediaFolderMembershipBatch = async (
   input: MediaFolderMembershipBatch
 ): Promise<MediaFolderMembershipBatchResult> => {
-  const response = await fetchWithAuth("/api/media/folders/membership-batch", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      action: input.action,
-      folderId: input.folderId,
-      sourceFolderId: input.sourceFolderId,
-      targetFolderId: input.targetFolderId,
-      mediaIds: input.mediaIds ?? [],
-      promptIds: input.promptIds ?? [],
-    }),
-    shortpulseLogScope: "app",
-  });
+  const response = await withTransientNetworkRetry(
+    async () =>
+      await fetchWithAuth("/api/media/folders/membership-batch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: input.action,
+          folderId: input.folderId,
+          sourceFolderId: input.sourceFolderId,
+          targetFolderId: input.targetFolderId,
+          mediaIds: input.mediaIds ?? [],
+          promptIds: input.promptIds ?? [],
+        }),
+        shortpulseLogScope: "app",
+      })
+  );
   if (!response.ok) {
     const payload = asRecord(await response.json().catch(() => ({})));
     throw new Error(asString(payload.error) || "Unable to update folder membership.");
@@ -342,19 +377,22 @@ export const fetchMediaPromptListPage = async ({
   cursor: PromptListCursor | null;
   limit: number;
 }): Promise<PromptListPageResult> => {
-  const response = await fetchWithAuth("/api/media/prompts/list", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      folderId,
-      query,
-      cursor,
-      limit,
-    }),
-    shortpulseLogScope: "app",
-  });
+  const response = await withTransientNetworkRetry(
+    async () =>
+      await fetchWithAuth("/api/media/prompts/list", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          folderId,
+          query,
+          cursor,
+          limit,
+        }),
+        shortpulseLogScope: "app",
+      })
+  );
   if (!response.ok) {
     const payload = asRecord(await response.json().catch(() => ({})));
     throw new Error(asString(payload.error) || "Unable to load prompts.");
@@ -376,12 +414,12 @@ export const fetchMediaPromptListPage = async ({
 export const getMediaFolderCanvasState = async (
   folderId: string
 ): Promise<MediaFolderCanvasState | null> => {
-  const response = await fetchWithAuth(
-    `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`,
-    {
-      method: "GET",
-      shortpulseLogScope: "app",
-    }
+  const response = await withTransientNetworkRetry(
+    async () =>
+      await fetchWithAuth(`/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`, {
+        method: "GET",
+        shortpulseLogScope: "app",
+      })
   );
   if (!response.ok) {
     const payload = asRecord(await response.json().catch(() => ({})));
@@ -416,18 +454,21 @@ export const saveMediaFolderCanvasState = async ({
   schemaVersion: number;
   snapshot: Record<string, unknown>;
 }): Promise<{ schemaVersion: number; saveSeq: number; updatedAt: string }> => {
-  const response = await fetchWithAuth("/api/ai/media-folder-canvas/save", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      folderId,
-      schemaVersion,
-      snapshot,
-    }),
-    shortpulseLogScope: "app",
-  });
+  const response = await withTransientNetworkRetry(
+    async () =>
+      await fetchWithAuth("/api/ai/media-folder-canvas/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          folderId,
+          schemaVersion,
+          snapshot,
+        }),
+        shortpulseLogScope: "app",
+      })
+  );
   if (!response.ok) {
     const payload = asRecord(await response.json().catch(() => ({})));
     throw new Error(asString(payload.error) || "Unable to save folder canvas state.");

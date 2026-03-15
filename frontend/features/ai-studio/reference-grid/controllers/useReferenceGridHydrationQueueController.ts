@@ -16,6 +16,7 @@ import {
 
 type UseReferenceGridHydrationQueueControllerArgs = {
   decodeBudgetEnabled: boolean;
+  suspendHydrationQueue?: boolean;
   activeOutputId: string | null;
   outputs: StudioOutput[];
   visibleCardItems: ReferenceGridVisibleCardItem[];
@@ -46,6 +47,7 @@ type UseReferenceGridHydrationQueueControllerArgs = {
  */
 export const useReferenceGridHydrationQueueController = ({
   decodeBudgetEnabled,
+  suspendHydrationQueue = false,
   activeOutputId,
   outputs,
   visibleCardItems,
@@ -63,6 +65,7 @@ export const useReferenceGridHydrationQueueController = ({
 }: UseReferenceGridHydrationQueueControllerArgs): void => {
   useEffect(() => {
     if (!decodeBudgetEnabled) return;
+    if (suspendHydrationQueue) return;
     const candidateIdSet = new Set<string>();
     if (activeOutputId) {
       const activeOutput = outputs.find((item) => item.id === activeOutputId);
@@ -201,6 +204,7 @@ export const useReferenceGridHydrationQueueController = ({
     pruneHydrationQueueToCandidateIds,
     quickSlotAdaptiveSurfaceEnabled,
     strictPreviewLadder,
+    suspendHydrationQueue,
     virtualRowHeight,
     visibleCardItems,
   ]);

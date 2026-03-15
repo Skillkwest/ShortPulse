@@ -40,6 +40,19 @@ const normalizeTransferText = (value: string | null | undefined): string | null 
   return trimmed.length ? trimmed : null;
 };
 
+const safeTransferSetData = (
+  transfer: Pick<DataTransfer, "setData">,
+  type: string,
+  value: string
+): boolean => {
+  try {
+    transfer.setData(type, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const normalizePositiveNumber = (value: string | null | undefined): number | undefined => {
   if (typeof value !== "string") return undefined;
   const parsed = Number.parseFloat(value.trim());
@@ -181,7 +194,7 @@ const setTransferTextIfPresent = (
   if (!value) return;
   const trimmed = value.trim();
   if (!trimmed.length) return;
-  transfer.setData(type, trimmed);
+  safeTransferSetData(transfer, type, trimmed);
 };
 
 const setTransferNumberIfPresent = (
@@ -190,7 +203,7 @@ const setTransferNumberIfPresent = (
   value: number | null | undefined
 ) => {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return;
-  transfer.setData(type, String(value));
+  safeTransferSetData(transfer, type, String(value));
 };
 
 /**
@@ -201,13 +214,19 @@ export const writeMediaLibraryDragPayload = (
   payload: MediaLibraryDragPayload
 ): void => {
   const serialized = JSON.stringify(payload);
-  transfer.setData(MEDIA_LIBRARY_DRAG_TYPE, serialized);
-  transfer.setData(MEDIA_LIBRARY_DRAG_TEXT_TYPE, serialized);
-  transfer.setData(MEDIA_LIBRARY_FALLBACK_MARKER_TYPE, MEDIA_LIBRARY_FALLBACK_MARKER_VALUE);
-  transfer.setData(MEDIA_LIBRARY_FALLBACK_KIND_TYPE, payload.kind);
+  // Write resilient text/* fallback fields first so folder-drop operations still work
+  // on browsers that reject custom or non-text transfer MIME types.
+  safeTransferSetData(
+    transfer,
+    MEDIA_LIBRARY_FALLBACK_MARKER_TYPE,
+    MEDIA_LIBRARY_FALLBACK_MARKER_VALUE
+  );
+  safeTransferSetData(transfer, MEDIA_LIBRARY_FALLBACK_KIND_TYPE, payload.kind);
   setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_ID_TYPE, payload.payload.id);
+  safeTransferSetData(transfer, MEDIA_LIBRARY_DRAG_TEXT_TYPE, serialized);
+  safeTransferSetData(transfer, MEDIA_LIBRARY_DRAG_TYPE, serialized);
   if (payload.kind === "libraryMedia") {
-    transfer.setData(MEDIA_LIBRARY_FALLBACK_FILE_TYPE_TYPE, payload.payload.fileType);
+    safeTransferSetData(transfer, MEDIA_LIBRARY_FALLBACK_FILE_TYPE_TYPE, payload.payload.fileType);
     setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_URL_TYPE, payload.payload.url);
     setTransferTextIfPresent(
       transfer,

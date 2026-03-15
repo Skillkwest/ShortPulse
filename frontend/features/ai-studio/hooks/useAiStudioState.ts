@@ -149,10 +149,8 @@ export const useAiStudioState = ({
     isModelModalOpen,
     modelModalAnchor,
     modelModalContext,
-    modelModalPosition,
     setIsModelModalOpen,
     setModelModalAnchor,
-    setModelModalPosition,
     openModelModal,
     closeModelModal,
   } = useAiStudioReferenceSelectionState({
@@ -367,12 +365,9 @@ export const useAiStudioState = ({
     allowedModelValues,
     isCharacterModeEnabled,
     mode,
-    isModelModalOpen,
-    modelModalAnchor,
     setDetailOutputId,
     setIsModelModalOpen,
     setModelModalAnchor,
-    setModelModalPosition,
     hasPendingWorkflowRestore,
   });
 
@@ -927,7 +922,6 @@ export const useAiStudioState = ({
     isModelModalOpen,
     modelModalAnchor,
     modelModalContext,
-    modelModalPosition,
     generateOutput,
     regenerateOutput,
     rerollOutputFromReplay,

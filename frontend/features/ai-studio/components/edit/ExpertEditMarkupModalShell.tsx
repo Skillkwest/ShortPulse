@@ -3,6 +3,7 @@
  * Keeps modal layout composition separate from ExpertEditPanelView orchestration logic.
  */
 import React from "react";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 
 type ExpertEditMarkupModalShellProps = {
   isOpen: boolean;
@@ -51,101 +52,104 @@ export const ExpertEditMarkupModalShell = ({
   onStagePointerLeave,
   onStageWheel,
 }: ExpertEditMarkupModalShellProps) => {
+  useAiStudioModalActivity("expert-edit-markup-modal", isOpen);
   if (!isOpen) return null;
 
   return (
-    <div
-      className="edit-expert-markup-modal-backdrop"
-      role="presentation"
-      onClick={onClose}
-      onDragEnter={onDragShield}
-      onDragOver={onDragShield}
-      onDrop={onDragShield}
-    >
+    <AiStudioModalLayer>
       <div
-        className="edit-expert-markup-modal"
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Expanded markup canvas"
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
-        onPointerMove={(event) => event.stopPropagation()}
-        onPointerUp={(event) => event.stopPropagation()}
-        onPointerCancel={(event) => event.stopPropagation()}
-        onPointerLeave={(event) => event.stopPropagation()}
-        onWheel={(event) => event.stopPropagation()}
+        className="edit-expert-markup-modal-backdrop"
+        role="presentation"
+        onClick={onClose}
         onDragEnter={onDragShield}
         onDragOver={onDragShield}
         onDrop={onDragShield}
       >
-        <div ref={controlsColumnRef} className="edit-expert-markup-modal-controls-column">
-          <div className="edit-expert-markup-modal-panel-group">
-            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--general edit-expert-markup-modal-panel-title">
-              General
-            </p>
-            <div
-              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--general"
-              role="group"
-              aria-label="General tools"
-            >
-              {generalPanel}
-            </div>
-          </div>
-          <div className="edit-expert-markup-modal-panel-group">
-            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--move edit-expert-markup-modal-panel-title">
-              Move
-            </p>
-            <div
-              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--move"
-              role="group"
-              aria-label="Move tools"
-            >
-              {movePanel}
-            </div>
-          </div>
-          <div className="edit-expert-markup-modal-panel-group">
-            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--inpaint edit-expert-markup-modal-panel-title">
-              In-paint
-            </p>
-            <div
-              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint"
-              role="group"
-              aria-label="In-paint tools"
-            >
-              {inpaintPanel}
-            </div>
-          </div>
-          <div className="edit-expert-markup-modal-panel-group">
-            <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--markup edit-expert-markup-modal-panel-title">
-              Markup
-            </p>
-            <div
-              className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--markup"
-              role="group"
-              aria-label="Markup tools"
-            >
-              {markupPanel}
-            </div>
-          </div>
-        </div>
         <div
-          className="edit-expert-markup-modal-stage"
-          ref={stageRef}
-          style={stageStyle}
-          onMouseDown={onStageMouseDown}
-          onAuxClick={onStageAuxClick}
-          onPointerDown={onStagePointerDown}
-          onPointerMove={onStagePointerMove}
-          onPointerUp={onStagePointerUp}
-          onPointerCancel={onStagePointerCancel}
-          onPointerLeave={onStagePointerLeave}
-          onWheel={onStageWheel}
+          className="edit-expert-markup-modal"
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Expanded markup canvas"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerMove={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          onPointerCancel={(event) => event.stopPropagation()}
+          onPointerLeave={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+          onDragEnter={onDragShield}
+          onDragOver={onDragShield}
+          onDrop={onDragShield}
         >
-          {stageContent}
+          <div ref={controlsColumnRef} className="edit-expert-markup-modal-controls-column">
+            <div className="edit-expert-markup-modal-panel-group">
+              <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--general edit-expert-markup-modal-panel-title">
+                General
+              </p>
+              <div
+                className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--general"
+                role="group"
+                aria-label="General tools"
+              >
+                {generalPanel}
+              </div>
+            </div>
+            <div className="edit-expert-markup-modal-panel-group">
+              <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--move edit-expert-markup-modal-panel-title">
+                Move
+              </p>
+              <div
+                className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--move"
+                role="group"
+                aria-label="Move tools"
+              >
+                {movePanel}
+              </div>
+            </div>
+            <div className="edit-expert-markup-modal-panel-group">
+              <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--inpaint edit-expert-markup-modal-panel-title">
+                In-paint
+              </p>
+              <div
+                className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint"
+                role="group"
+                aria-label="In-paint tools"
+              >
+                {inpaintPanel}
+              </div>
+            </div>
+            <div className="edit-expert-markup-modal-panel-group">
+              <p className="edit-expert-markup-modal-toolbar-title edit-expert-markup-modal-toolbar-title--markup edit-expert-markup-modal-panel-title">
+                Markup
+              </p>
+              <div
+                className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--markup"
+                role="group"
+                aria-label="Markup tools"
+              >
+                {markupPanel}
+              </div>
+            </div>
+          </div>
+          <div
+            className="edit-expert-markup-modal-stage"
+            ref={stageRef}
+            style={stageStyle}
+            onMouseDown={onStageMouseDown}
+            onAuxClick={onStageAuxClick}
+            onPointerDown={onStagePointerDown}
+            onPointerMove={onStagePointerMove}
+            onPointerUp={onStagePointerUp}
+            onPointerCancel={onStagePointerCancel}
+            onPointerLeave={onStagePointerLeave}
+            onWheel={onStageWheel}
+          >
+            {stageContent}
+          </div>
+          {layersPanel}
         </div>
-        {layersPanel}
       </div>
-    </div>
+    </AiStudioModalLayer>
   );
 };

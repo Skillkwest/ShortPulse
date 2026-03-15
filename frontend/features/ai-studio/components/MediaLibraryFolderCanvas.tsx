@@ -16,6 +16,7 @@ import {
   getMediaFolderCanvasState,
   saveMediaFolderCanvasState,
 } from "../logic/mediaLibraryPanelApi";
+import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import {
   buildMediaFolderCanvasSnapshot,
   buildSeedItemsForFolderCanvas,
@@ -237,9 +238,7 @@ export function MediaLibraryFolderCanvas({
       try {
         uploadedRows = await onDropFilesToCanvas(files);
       } catch (uploadError) {
-        setSaveError(
-          uploadError instanceof Error ? uploadError.message : "Unable to process dropped files."
-        );
+        setSaveError(toMediaLibraryErrorText(uploadError, "Unable to process dropped files."));
         return null;
       }
 
@@ -421,7 +420,7 @@ export function MediaLibraryFolderCanvas({
         });
       } catch (loadError) {
         if (cancelled) return;
-        setError(loadError instanceof Error ? loadError.message : "Unable to load folder canvas.");
+        setError(toMediaLibraryErrorText(loadError, "Unable to load folder canvas."));
         loadedFolderIdRef.current = folderId;
         const seededItems = buildSeedItemsForFolderCanvas({
           mediaRows: mediaRowsRef.current,
@@ -580,9 +579,7 @@ export function MediaLibraryFolderCanvas({
         })
         .catch((saveStateError) => {
           setSaveError(
-            saveStateError instanceof Error
-              ? saveStateError.message
-              : "Unable to save folder canvas state."
+            toMediaLibraryErrorText(saveStateError, "Unable to save folder canvas state.")
           );
         });
     }, SAVE_DEBOUNCE_MS);

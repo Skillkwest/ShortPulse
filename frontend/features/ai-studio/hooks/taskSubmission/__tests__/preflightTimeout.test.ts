@@ -16,7 +16,7 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
   it("keeps single-input prep on the base timeout budget", () => {
     const budget = resolvePrepareReferenceTimeoutBudget({
-      imageInputs: ["blob:reference-1"],
+      imageInputs: ["https://cdn.example.com/reference-1.png"],
     });
 
     expect(budget).toEqual({
@@ -27,10 +27,10 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
   it("scales timeout for inpaint base+mask prep work", () => {
     const budget = resolvePrepareReferenceTimeoutBudget({
-      imageInputs: ["blob:reference-1"],
+      imageInputs: ["https://cdn.example.com/reference-1.png"],
       inpaintOverride: {
-        baseImageInput: "blob:inpaint-base",
-        maskInput: "blob:inpaint-mask",
+        baseImageInput: "https://cdn.example.com/inpaint-base.png",
+        maskInput: "https://cdn.example.com/inpaint-mask.png",
       },
     });
 
@@ -42,16 +42,30 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
   it("caps timeout budget for large multi-input preflight batches", () => {
     const budget = resolvePrepareReferenceTimeoutBudget({
-      imageInputs: Array.from({ length: 10 }, (_, index) => `blob:reference-${index}`),
+      imageInputs: Array.from(
+        { length: 10 },
+        (_, index) => `https://cdn.example.com/ref-${index}.png`
+      ),
       inpaintOverride: {
-        baseImageInput: "blob:inpaint-base",
-        maskInput: "blob:inpaint-mask",
+        baseImageInput: "https://cdn.example.com/inpaint-base.png",
+        maskInput: "https://cdn.example.com/inpaint-mask.png",
       },
     });
 
     expect(budget).toEqual({
       workUnitCount: 12,
-      timeoutMs: 75_000,
+      timeoutMs: 120_000,
+    });
+  });
+
+  it("adds local-upload bonus budget for blob/data preflight inputs", () => {
+    const budget = resolvePrepareReferenceTimeoutBudget({
+      imageInputs: ["blob:reference-1", "data:image/png;base64,abc"],
+    });
+
+    expect(budget).toEqual({
+      workUnitCount: 2,
+      timeoutMs: 54_000,
     });
   });
 });

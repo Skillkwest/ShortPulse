@@ -80,12 +80,16 @@ const isAutoRetryEligible = (output: StudioOutput): boolean => {
 const isQueueResumeEligible = (output: StudioOutput): boolean => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   if (!generationId) return false;
-  if (output.queueState !== "queued") return false;
+  // Resume should still run when queue metadata was dropped during client/state transitions.
+  if (output.queueState && output.queueState !== "queued") return false;
   if (typeof output.taskId === "string" && output.taskId.trim().length > 0) return false;
   if (output.previewUrl || output.previewText) return false;
   if (output.taskState === "fail") return false;
   return (
-    output.taskState === "pending" || output.taskState === "running" || output.taskState == null
+    output.taskState === "pending" ||
+    output.taskState === "running" ||
+    output.taskState === "success" ||
+    output.taskState == null
   );
 };
 

@@ -738,6 +738,33 @@ Notes:
 - The API now falls back to legacy direct-debit billing when reservation RPCs are stale/missing so generation can proceed.
 - Applying `013` + `014` is still the durable fix to restore full reservation/capture/release behavior.
 
+## AI Studio generation fails with `Preparation timed out before generation started. Please retry.`
+Symptoms:
+- Output placeholder flips to failed before provider submit starts.
+- UI error banner shows `Preparation timed out before generation started. Please retry.`
+
+Cause:
+- Pre-submit media preparation exceeded the dynamic deadline budget before provider handoff.
+- Common stages: local reference fetch, `/api/upload-image` roundtrip, or signed URL refresh.
+
+Checklist:
+- Inspect `app_error_logs` for `source='generation_preflight_timeout'` and review metadata:
+  - `preflight_work_units`
+  - `preflight_timeout_ms`
+  - `model_id`
+  - `tool`
+- Inspect client breadcrumbs for `generation_preflight_prepare_stage` and identify the failing stage:
+  - `fetch_local_image`
+  - `upload_image_route`
+  - `refresh_signed_url`
+- If `upload_image_route` is timing out, verify auth/session health and `/api/upload-image` latency.
+- If `refresh_signed_url` is failing, reselect references to mint fresh signed URLs.
+
+Mitigation:
+- Retry with fewer local blob/data references in one submit.
+- Re-add stale references and rerun.
+- If repeated on healthy network/session, capture the stage breadcrumb packet and escalate to generation runtime incident triage.
+
 ## Fal validation fails with `file_download_error` / `Failed to download the file`
 Symptoms:
 - Provider response includes validation detail on `image_urls` or motion video URL download failure.

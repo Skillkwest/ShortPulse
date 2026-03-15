@@ -69,6 +69,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Users can drag existing reference cards (images) or drop external image files into the Reference Grid or Studio Preview; dropped files become `StudioOutput` entries with object URLs.
 - Image-to-video models require at least one reference image; Create → Video may be text-only unless a specific model demands an image.  
 - Drag/drop ignores non-image payloads and prefers real URLs over blobs when available.
+- Image-input video submit prep shares the same reference-preflight runtime as image/edit flows (dynamic budget + abortable local fetch/upload/signed-refresh stages). On timeout, submit fails fast with: `"Preparation timed out before generation started. Please retry."`
 
 ## Result ingestion & previews
 

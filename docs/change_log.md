@@ -2924,3 +2924,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`
   - `docs/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
 - Re-ran full targeted pricing/debit parity suite (`115` tests) and docs integrity checks; all gates passed.
+
+## 2026-03-14 (AI Studio preflight timeout docs alignment)
+- Updated image-generation SOP timeout semantics to match runtime behavior: reference prep now uses dynamic budgeting (`base + per-work-unit + local-upload bonus`, capped) and abortable stage execution.
+- Updated Create properties generation wiring SOP to reflect dynamic reference preflight and stage breadcrumb diagnostics (`generation_preflight_prepare_stage`).
+- Updated video-generation SOP to document shared image-input preflight timeout behavior and fail-fast timeout message parity.
+- Added troubleshooting runbook coverage for `Preparation timed out before generation started. Please retry.` including `generation_preflight_timeout` log metadata and stage-level breadcrumb triage for `fetch_local_image`, `upload_image_route`, and `refresh_signed_url`.

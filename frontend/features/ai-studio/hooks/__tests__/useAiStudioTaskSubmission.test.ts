@@ -743,7 +743,7 @@ describe("useAiStudioTaskSubmission", () => {
           modeOverride: "image",
           selectedToolOverride: "edit",
         });
-        await vi.advanceTimersByTimeAsync(15_000);
+        await vi.advanceTimersByTimeAsync(30_000);
         await pending;
       });
 

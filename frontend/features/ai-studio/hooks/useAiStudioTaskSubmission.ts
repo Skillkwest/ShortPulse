@@ -21,8 +21,8 @@ import {
   shouldRequirePromptForEditModel,
 } from "../logic/editPromptPolicy";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
-import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
-import { prepareImageUrlForSubmission } from "../utils/imageUpload";
+import { DeadlineExceededError, withAbortableDeadline } from "../logic/withDeadline";
+import { prepareImageUrlForSubmission, type PrepareImageStageEvent } from "../utils/imageUpload";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -58,6 +58,13 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
+
+const preflightStageLevel = (
+  status: PrepareImageStageEvent["status"]
+): "info" | "warn" | "error" => {
+  if (status === "error") return "warn";
+  return "info";
+};
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
   error.code = "SUBMIT_NOT_STARTED";
@@ -343,6 +350,30 @@ export const useAiStudioTaskSubmission = ({
           imageInputs,
           inpaintOverride: options?.inpaintOverride,
         });
+        const emitPreflightStage = (
+          event: PrepareImageStageEvent,
+          inputRole: "reference" | "inpaint_base" | "inpaint_mask",
+          inputIndex: number
+        ) => {
+          addBreadcrumb({
+            type: "ui",
+            level: preflightStageLevel(event.status),
+            message: "generation_preflight_prepare_stage",
+            data: {
+              output_id: id,
+              model_id: finalModel,
+              tool: effectiveTool,
+              input_role: inputRole,
+              input_index: inputIndex,
+              stage: event.stage,
+              stage_status: event.status,
+              source_kind: event.sourceKind,
+              elapsed_ms: event.elapsedMs,
+              timeout_ms: event.timeoutMs ?? null,
+              detail: event.detail ?? null,
+            },
+          });
+        };
         try {
           addBreadcrumb({
             type: "ui",
@@ -354,14 +385,19 @@ export const useAiStudioTaskSubmission = ({
               tool: effectiveTool,
             },
           });
-          const preflightPrepared = await withDeadline({
+          const preflightPrepared = await withAbortableDeadline({
             timeoutMs: preflightTimeoutBudget.timeoutMs,
             timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
-            run: async () => {
+            run: async (abortSignal) => {
               const preparedReferences = (
                 await Promise.all(
-                  imageInputs.map(async (url) => {
-                    const normalized = await prepareImageUrlForSubmission(url);
+                  imageInputs.map(async (url, index) => {
+                    const normalized = await prepareImageUrlForSubmission(url, {
+                      abortSignal,
+                      onStage: (event) => {
+                        emitPreflightStage(event, "reference", index);
+                      },
+                    });
                     return normalized ?? null;
                   })
                 )
@@ -374,8 +410,18 @@ export const useAiStudioTaskSubmission = ({
                 };
               }
               const [preparedBaseImageInput, preparedMaskInput] = await Promise.all([
-                prepareImageUrlForSubmission(inpaintOverride.baseImageInput),
-                prepareImageUrlForSubmission(inpaintOverride.maskInput),
+                prepareImageUrlForSubmission(inpaintOverride.baseImageInput, {
+                  abortSignal,
+                  onStage: (event) => {
+                    emitPreflightStage(event, "inpaint_base", 0);
+                  },
+                }),
+                prepareImageUrlForSubmission(inpaintOverride.maskInput, {
+                  abortSignal,
+                  onStage: (event) => {
+                    emitPreflightStage(event, "inpaint_mask", 0);
+                  },
+                }),
               ]);
               return {
                 preparedReferences,

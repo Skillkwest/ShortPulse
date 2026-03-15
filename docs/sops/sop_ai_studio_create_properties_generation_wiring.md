@@ -92,7 +92,8 @@ sequenceDiagram
 5. Submission lifecycle in `useAiStudioTaskSubmission`:
 - Re-check submit invariants (`submitInvariants.ts`).
 - Create/reconcile optimistic placeholder output.
-- Prepare reference URLs (deadline-bound preflight).
+- Prepare reference URLs with dynamic deadline budgeting (`base 14s + 12s per extra work unit + 14s per local blob/data input`, capped at 120s) and abortable prep stages.
+- Emit preflight stage breadcrumbs (`generation_preflight_prepare_stage`) per input role/index for timeout diagnostics.
 - Build and persist `generationReplay` snapshot metadata.
 - Resolve handler family (`resolveSubmissionHandlerRoute`) and invoke `handleVideoModelSubmission` / `handleImageModelSubmission` / `handleDefaultModelSubmission`.
 6. Provider handoff handling:

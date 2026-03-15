@@ -58,7 +58,12 @@ describe("imageUpload", () => {
     const signedUrl = await uploadImageToStorage(localUrl);
 
     expect(signedUrl).toBe("https://example.com/signed/reference-1.png");
-    expect(global.fetch).toHaveBeenCalledWith(localUrl);
+    expect(global.fetch).toHaveBeenCalledWith(
+      localUrl,
+      expect.objectContaining({
+        signal: expect.any(Object),
+      })
+    );
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
     const [, options] = fetchWithAuthMock.mock.calls[0] as [string, RequestInit];
     expect(options.method).toBe("POST");
@@ -183,5 +188,49 @@ describe("imageUpload", () => {
     await expect(prepareImageUrlForSubmission(signedUrl)).rejects.toThrow(
       "Reference URL expired and could not be refreshed"
     );
+  });
+
+  it("emits stage telemetry for prepare lifecycle", async () => {
+    const stages: string[] = [];
+    await expect(
+      prepareImageUrlForSubmission("https://example.com/already-public.png", {
+        onStage: (event) => {
+          stages.push(`${event.stage}:${event.status}`);
+        },
+      })
+    ).resolves.toBe("https://example.com/already-public.png");
+
+    expect(stages).toEqual(["prepare_image_url:start", "prepare_image_url:success"]);
+  });
+
+  it("times out stalled upload route requests", async () => {
+    vi.useFakeTimers();
+    try {
+      const localUrl = "blob:stalled-upload";
+      const imageBlob = new Blob(["image-data"], { type: "image/png" });
+      global.fetch = vi.fn().mockResolvedValue(new Response(imageBlob)) as typeof fetch;
+      fetchWithAuthMock.mockImplementation(
+        async (_input: unknown, init?: RequestInit) =>
+          await new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => {
+                reject(new DOMException("Aborted", "AbortError"));
+              },
+              { once: true }
+            );
+            // unresolved unless the timeout-driven abort signal fires
+          })
+      );
+
+      const pending = uploadImageToStorage(localUrl);
+      const rejection = pending.catch((error) => error);
+      await vi.advanceTimersByTimeAsync(46_000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("upload_image_route timed out");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

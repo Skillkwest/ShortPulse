@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { persistAiStudioSessionShadow } from "../logic/sessionShadowPersistence";
+import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 import {
   useAiStudioSessionRestoreCandidate,
   type AiStudioSessionRestoreCandidateState,
@@ -76,17 +77,23 @@ export const useAiStudioSessionPersistenceController = ({
   hydrateFromSessionCanvasSnapshot,
   onPersistenceWarning,
 }: UseAiStudioSessionPersistenceControllerParams): AiStudioSessionPersistenceController => {
+  const { persistenceEnabled, writeShadowEnabled, restoreShadowEnabled } =
+    readAiStudioSessionPersistencePolicy();
   const [skipRestoreApplyForSessionId, setSkipRestoreApplyForSessionId] = useState<string | null>(
     null
   );
 
   const sessionSnapshot = useMemo(
-    () => (sessionId ? buildSessionSnapshot(sessionId) : null),
-    [buildSessionSnapshot, sessionId]
+    () =>
+      persistenceEnabled && writeShadowEnabled && sessionId
+        ? buildSessionSnapshot(sessionId)
+        : null,
+    [buildSessionSnapshot, persistenceEnabled, sessionId, writeShadowEnabled]
   );
 
   const sessionRestoreCandidate = useAiStudioSessionRestoreCandidate({
     sessionId,
+    enabled: persistenceEnabled && restoreShadowEnabled,
   });
 
   useAiStudioSessionRestoreHydration({
@@ -109,6 +116,7 @@ export const useAiStudioSessionPersistenceController = ({
   useAiStudioSessionWriteShadow({
     sessionId,
     snapshot: sessionSnapshot,
+    enabled: persistenceEnabled && writeShadowEnabled,
     persistSnapshot: persistAiStudioSessionShadow,
     onPersistError: handlePersistError,
   });

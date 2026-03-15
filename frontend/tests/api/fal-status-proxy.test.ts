@@ -6,6 +6,8 @@ const logGenerationFailureMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
+const getSupabaseAdminMock = vi.fn();
+let persistedGenerationRows: Array<Record<string, unknown>> = [];
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -23,6 +25,10 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 
 vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
   executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
+}));
+
+vi.mock("../../lib/server/api/supabaseAdmin", () => ({
+  getSupabaseAdmin: () => getSupabaseAdminMock(),
 }));
 
 const createMockResponse = () => ({
@@ -54,6 +60,19 @@ describe("createFalStatusHandler", () => {
       mediaFileIds: [],
       mediaUrls: [],
       processed: true,
+    });
+    persistedGenerationRows = [];
+    getSupabaseAdminMock.mockImplementation(() => {
+      const queryChain = {
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: persistedGenerationRows, error: null }),
+      };
+      return {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue(queryChain),
+        }),
+      };
     });
   });
 
@@ -120,6 +139,93 @@ describe("createFalStatusHandler", () => {
       })
     );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("returns completed payload from persisted successful generation metadata", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    persistedGenerationRows = [
+      {
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+        },
+      },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-persisted-success" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-persisted-success",
+        status: "completed",
+        state: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+        result_urls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+        videos: [{ url: "https://cdn.shortpulse.test/persisted-result.mp4" }],
+      })
+    );
+  });
+
+  it("returns persisted completed payload even when provider key is unavailable", async () => {
+    delete process.env.KIE_API_KEY;
+    delete process.env.SHORTPULSE_KIE_API_KEY;
+    persistedGenerationRows = [
+      {
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/persisted-no-key.mp4"],
+        },
+      },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-persisted-without-key" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-persisted-without-key",
+        status: "completed",
+        state: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/persisted-no-key.mp4"],
+      })
+    );
   });
 
   it("fails closed when queue base URLs are untrusted", async () => {

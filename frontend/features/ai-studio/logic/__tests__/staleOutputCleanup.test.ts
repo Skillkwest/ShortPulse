@@ -118,6 +118,25 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.queueWaitTimeoutIds).toEqual(["out-queued-stale"]);
   });
 
+  it("treats generationId-without-taskId as queued wait even when queueState is missing", () => {
+    const outputs = [
+      makeOutput({
+        id: "out-queued-legacy",
+        generationId: "gen-legacy-queued",
+        queueState: undefined,
+      }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-queued-legacy": { pendingSinceMs: BASE_TIME_MS - config.submitStartTimeoutMs },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
+  });
+
   it("keeps pending lifecycle only while output is unresolved", () => {
     const loadingOutput = makeOutput({ id: "out-progress" });
     const resolvedOutput = makeOutput({

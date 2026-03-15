@@ -7,6 +7,7 @@ import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import { resolveAiStudioSessionSnapshotTitle } from "../logic/sessionSnapshotTitle";
 import { AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES } from "../logic/sessionSnapshotCanvas";
 import { saveAiStudioSessionShadow } from "../logic/sessionSnapshotStorage";
+import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 
 type PersistSnapshotFn = (
   sessionId: string,
@@ -46,8 +47,7 @@ type PendingSnapshotState = {
 
 const DEFAULT_DEBOUNCE_MS = 2500;
 const DEFAULT_MAX_DIRTY_MS = 15000;
-const WRITE_SHADOW_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED !== "false";
+const { writeShadowEnabled: WRITE_SHADOW_ENABLED } = readAiStudioSessionPersistencePolicy();
 
 const utf8ByteLength = (value: string): number => {
   if (typeof TextEncoder !== "undefined") {

@@ -8,9 +8,12 @@ import {
   type AiStudioSessionRestoreSource,
 } from "../logic/sessionRestoreCandidate";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
+import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 
-const RESTORE_CANDIDATE_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED !== "false";
+const {
+  restoreShadowEnabled: RESTORE_CANDIDATE_ENABLED,
+  restoreRemoteEnabled: RESTORE_REMOTE_ENABLED,
+} = readAiStudioSessionPersistencePolicy();
 
 export type AiStudioSessionRestoreCandidateState = {
   status: "idle" | "loading" | "ready";
@@ -43,7 +46,7 @@ export const useAiStudioSessionRestoreCandidate = ({
 
     void loadAiStudioSessionRestoreCandidate({
       sessionId,
-      remoteEnabled: true,
+      remoteEnabled: RESTORE_REMOTE_ENABLED,
     }).then((candidate) => {
       if (cancelled) return;
       setLoadedCandidate({

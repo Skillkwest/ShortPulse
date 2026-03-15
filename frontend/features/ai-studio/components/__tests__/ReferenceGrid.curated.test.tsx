@@ -334,6 +334,7 @@ describe("ReferenceGrid curated split", () => {
 
     const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
     expect(videoNode).toBeTruthy();
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/imported-raf.mp4");
     expect(container.querySelector(".reference-spinner")).toBeTruthy();
     expect(container.querySelector(".reference-hydration-indicator")).toBeNull();
 
@@ -349,6 +350,44 @@ describe("ReferenceGrid curated split", () => {
 
     expect(container.querySelector(".reference-spinner")).toBeTruthy();
 
+    act(() => {
+      flushAllFrames();
+    });
+
+    expect(container.querySelector(".reference-spinner")).toBeNull();
+  });
+
+  it("clears loading for non-selected video cards when autoplay source stays detached", async () => {
+    const { flushAllFrames } = installRafQueue();
+    const importedOutput: StudioOutput = {
+      id: "imported-no-autoplay-video-1",
+      prompt: "Imported video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Library",
+      mediaSource: "library",
+      previewUrl: "https://example.com/imported-no-autoplay.mp4",
+    };
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [importedOutput],
+          activeOutputId: null,
+        })}
+      />
+    );
+
+    const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
+    expect(videoNode).toBeTruthy();
+    expect(videoNode?.getAttribute("src")).toBeNull();
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     act(() => {
       flushAllFrames();
     });

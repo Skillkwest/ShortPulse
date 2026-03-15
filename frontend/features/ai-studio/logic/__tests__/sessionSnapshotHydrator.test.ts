@@ -261,4 +261,36 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agent.promptOrigin).toBe("manual");
     expect(payload.agent.chatModeEnabled).toBe(true);
   });
+
+  it("hydrates queue lifecycle metadata for queued generation restore paths", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-queued",
+              prompt: "queued",
+              mode: "video",
+              aspect: "16:9",
+              model: "fal-ai/veo3.1/image-to-video",
+              status: "ready",
+              timestamp: "Submitting...",
+              generationId: "gen-queued-restore",
+              queueState: "queued",
+              queueEnqueuedAtMs: 1_700_000_456_000,
+              taskState: "pending",
+              generationTraceId: "trace-queued-restore",
+            },
+          ],
+          activeOutputId: "out-queued",
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]?.generationId).toBe("gen-queued-restore");
+    expect(payload.outputs.active[0]?.queueState).toBe("queued");
+    expect(payload.outputs.active[0]?.queueEnqueuedAtMs).toBe(1_700_000_456_000);
+    expect(payload.outputs.active[0]?.generationTraceId).toBe("trace-queued-restore");
+  });
 });

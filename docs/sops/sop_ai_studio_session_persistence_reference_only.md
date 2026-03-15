@@ -17,11 +17,16 @@ This SOP governs default-on operation, validation, and emergency rollback.
 ## Runtime Flags
 Core flags:
 1. `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (default enabled)
-2. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED` (default enabled)
-3. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (default enabled)
-4. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (default enabled)
-5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default enabled)
-6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (default enabled)
+2. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (master client switch; default enabled)
+3. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED` (default enabled)
+4. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (default enabled)
+5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (default enabled)
+6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default enabled)
+7. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (default enabled)
+
+Policy note:
+1. When `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=false`, client persistence is fully disabled regardless of scoped per-lane flags.
+2. Remote restore/list reads require both restore shadow and remote shadow lanes to be enabled.
 
 ## Persistence Contract
 1. Snapshot schema version is `2` (V2 write path).
@@ -88,11 +93,12 @@ Core flags:
 ## Rollback
 Emergency full rollback:
 1. `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED=false`
-2. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED=false`
-3. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=false`
-4. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=false`
-5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=false`
-6. Restart frontend runtime and re-run smoke checks.
+2. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=false`
+3. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED=false`
+4. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=false`
+5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=false`
+6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=false`
+7. Restart frontend runtime and re-run smoke checks.
 
 ## Maintenance
 1. Keep this SOP aligned with:

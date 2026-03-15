@@ -7,11 +7,12 @@ import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { AiStudioSessionRestoreCandidateState } from "./useAiStudioSessionRestoreCandidate";
+import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 
-const RESTORE_APPLY_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED !== "false";
-const RESTORE_APPLY_AGENT_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED !== "false";
+const {
+  restoreApplyEnabled: RESTORE_APPLY_ENABLED,
+  restoreApplyAgentEnabled: RESTORE_APPLY_AGENT_ENABLED,
+} = readAiStudioSessionPersistencePolicy();
 
 type UseAiStudioSessionRestoreHydrationParams = {
   sessionId: string | null;

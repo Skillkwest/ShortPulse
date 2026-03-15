@@ -168,6 +168,12 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => ({
   timestamp: output.timestamp,
   taskId: output.taskId,
   taskState: output.taskState,
+  queueState: output.queueState,
+  queueEnqueuedAtMs:
+    typeof output.queueEnqueuedAtMs === "number" && Number.isFinite(output.queueEnqueuedAtMs)
+      ? output.queueEnqueuedAtMs
+      : undefined,
+  generationTraceId: output.generationTraceId,
   errorMessage: output.errorMessage ?? null,
   errorMessageShort: output.errorMessageShort ?? null,
   resultUrls: output.resultUrls,

@@ -40,6 +40,9 @@ export type AiStudioSessionOutputV1 = {
   timestamp: string;
   taskId?: string;
   taskState?: "pending" | "running" | "success" | "fail";
+  queueState?: "queued" | "dispatched";
+  queueEnqueuedAtMs?: number;
+  generationTraceId?: string;
   errorMessage?: string | null;
   errorMessageShort?: string | null;
   resultUrls?: string[];
@@ -213,6 +216,9 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     timestamp: output.timestamp,
     taskId: output.taskId,
     taskState: output.taskState,
+    queueState: output.queueState,
+    queueEnqueuedAtMs: output.queueEnqueuedAtMs,
+    generationTraceId: output.generationTraceId,
     errorMessage: output.errorMessage ?? null,
     errorMessageShort: output.errorMessageShort ?? null,
     resultUrls: resultUrls.length > 0 ? resultUrls : undefined,

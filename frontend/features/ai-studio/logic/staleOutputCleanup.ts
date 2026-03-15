@@ -45,7 +45,15 @@ const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   );
 };
 
-const isQueuedOutput = (output: StudioOutput): boolean => output.queueState === "queued";
+const isQueuedOutput = (output: StudioOutput): boolean => {
+  if (output.queueState === "queued") return true;
+  const hasGenerationId =
+    typeof output.generationId === "string" && output.generationId.trim().length > 0;
+  const hasTaskId = typeof output.taskId === "string" && output.taskId.trim().length > 0;
+  // Legacy/restored snapshots may miss queueState; generationId-without-taskId still indicates
+  // queue-wait semantics and should not be downgraded to submit-start timeout behavior.
+  return hasGenerationId && !hasTaskId;
+};
 
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>
   output.taskState === "fail" && !output.previewUrl && !output.previewText && !output.taskId;

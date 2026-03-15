@@ -6,6 +6,7 @@ import { useCallback, useEffect, type MutableRefObject } from "react";
 import type { StudioOutput } from "../../types";
 
 type UseReferenceGridVideoLifecycleControllerArgs = {
+  activeOutputId: string | null;
   outputs: StudioOutput[];
   shouldVirtualize: boolean;
   renderedOutputIdSet: Set<string>;
@@ -35,6 +36,7 @@ type UseReferenceGridVideoLifecycleControllerResult = {
  * Returns card-video node registration callback and installs lifecycle effects for autoplay control.
  */
 export const useReferenceGridVideoLifecycleController = ({
+  activeOutputId,
   outputs,
   shouldVirtualize,
   renderedOutputIdSet,
@@ -224,6 +226,14 @@ export const useReferenceGridVideoLifecycleController = ({
         }
         return;
       }
+      if (activeOutputId && outputId === activeOutputId) {
+        const detachTimeout = videoDetachTimeoutByKeyRef.current.get(nodeKey);
+        if (detachTimeout) {
+          window.clearTimeout(detachTimeout);
+          videoDetachTimeoutByKeyRef.current.delete(nodeKey);
+        }
+        return;
+      }
       node.pause();
       if (videoDetachTimeoutByKeyRef.current.has(nodeKey)) return;
       const timeoutId = window.setTimeout(() => {
@@ -240,6 +250,7 @@ export const useReferenceGridVideoLifecycleController = ({
       videoDetachTimeoutByKeyRef.current.set(nodeKey, timeoutId);
     });
   }, [
+    activeOutputId,
     autoplayDetachDelayMs,
     autoplayEnabledIdSet,
     autoplayEnabledIds,

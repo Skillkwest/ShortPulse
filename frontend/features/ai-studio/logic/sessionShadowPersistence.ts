@@ -5,9 +5,7 @@
 import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
 import { saveAiStudioSessionShadow } from "./sessionSnapshotStorage";
 import { saveAiStudioSessionSnapshotViaApi } from "./sessionApiClient";
-
-const REMOTE_SHADOW_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED !== "false";
+import { readAiStudioSessionPersistencePolicy } from "./sessionPersistencePolicy";
 
 /**
  * Persists one write-shadow snapshot locally and optionally mirrors it to server shadow API.
@@ -18,8 +16,9 @@ export const persistAiStudioSessionShadow = async (
   snapshot: AiStudioSessionSnapshot,
   options?: { keepalive?: boolean; title?: string | null }
 ): Promise<void> => {
+  const { remoteShadowEnabled } = readAiStudioSessionPersistencePolicy();
   await saveAiStudioSessionShadow(sessionId, snapshot);
-  if (!REMOTE_SHADOW_ENABLED) return;
+  if (!remoteShadowEnabled) return;
   await saveAiStudioSessionSnapshotViaApi({
     sessionId,
     snapshot,

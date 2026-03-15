@@ -14,6 +14,7 @@ import { loadAiStudioSessionRestoreCandidate } from "../logic/sessionRestoreCand
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { resolveAiStudioSessionSnapshotTitle } from "../logic/sessionSnapshotTitle";
+import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 
 const DEFAULT_SESSIONS_PAGE_SIZE = 20;
 
@@ -37,6 +38,7 @@ export const useAiStudioSessionSwitcher = ({
   hydrateFromSessionAgentSnapshot,
   setSkipRestoreApplyForSessionId,
 }: UseAiStudioSessionSwitcherParams) => {
+  const { persistenceEnabled, remoteShadowEnabled } = readAiStudioSessionPersistencePolicy();
   const router = useRouter();
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
   const [sessions, setSessions] = useState<AiStudioSessionListApiItem[]>([]);
@@ -52,6 +54,12 @@ export const useAiStudioSessionSwitcher = ({
   const switchInFlightRef = useRef(false);
 
   const loadInitialSessions = useCallback(async () => {
+    if (!persistenceEnabled || !remoteShadowEnabled) {
+      setSessions([]);
+      setNextCursor(null);
+      setSessionsLoadError("Session persistence is disabled.");
+      return;
+    }
     setIsLoadingSessions(true);
     setSessionsLoadError(null);
     const requestSeq = sessionListRequestSeqRef.current + 1;
@@ -72,9 +80,10 @@ export const useAiStudioSessionSwitcher = ({
         setIsLoadingSessions(false);
       }
     }
-  }, []);
+  }, [persistenceEnabled, remoteShadowEnabled]);
 
   const loadMoreSessions = useCallback(async () => {
+    if (!persistenceEnabled || !remoteShadowEnabled) return;
     if (!nextCursor || isLoadingSessions || isLoadingMoreSessions) return;
     setIsLoadingMoreSessions(true);
     setSessionsLoadError(null);
@@ -98,11 +107,18 @@ export const useAiStudioSessionSwitcher = ({
     } finally {
       setIsLoadingMoreSessions(false);
     }
-  }, [isLoadingMoreSessions, isLoadingSessions, nextCursor]);
+  }, [
+    isLoadingMoreSessions,
+    isLoadingSessions,
+    nextCursor,
+    persistenceEnabled,
+    remoteShadowEnabled,
+  ]);
 
   const handleOpenSessionsModal = useCallback(() => {
+    if (!persistenceEnabled || !remoteShadowEnabled) return;
     setIsSessionsModalOpen(true);
-  }, []);
+  }, [persistenceEnabled, remoteShadowEnabled]);
 
   const handleCloseSessionsModal = useCallback(() => {
     if (isSwitchingSession) return;
@@ -129,6 +145,10 @@ export const useAiStudioSessionSwitcher = ({
 
   const handleConfirmSessionSwitch = useCallback(async () => {
     if (!pendingSessionSwitch || isSwitchingSession || switchInFlightRef.current) return;
+    if (!persistenceEnabled || !remoteShadowEnabled) {
+      setSwitchError("Session persistence is disabled.");
+      return;
+    }
     if (!sessionId || !sessionSnapshot) {
       setSwitchError("Current session is still initializing. Try again in a moment.");
       return;
@@ -145,7 +165,7 @@ export const useAiStudioSessionSwitcher = ({
       const targetSessionId = pendingSessionSwitch.sessionId;
       const candidate = await loadAiStudioSessionRestoreCandidate({
         sessionId: targetSessionId,
-        remoteEnabled: true,
+        remoteEnabled: remoteShadowEnabled,
       });
       const snapshot = candidate.snapshot;
       if (!snapshot) {
@@ -188,6 +208,8 @@ export const useAiStudioSessionSwitcher = ({
     sessionId,
     sessionSnapshot,
     setSkipRestoreApplyForSessionId,
+    persistenceEnabled,
+    remoteShadowEnabled,
   ]);
 
   useEffect(() => {

@@ -39,6 +39,8 @@ npm run build
 - Before running repo-wide commands (for example `eslint .`, `git status`, broad `rg`), verify no large generated backup/artifact directories exist inside the repo.
 - If unsure about operational approach (cleanup, tool invocation, filesystem-wide commands), pause and verify best practices from authoritative docs first; do not proceed on assumption.
 - If risk remains unclear, ask the user before executing potentially high-impact workspace operations.
+- Temporary files are never source of truth. Treat canonical environment/config files as authoritative; treat temporary copies (for example files in `/tmp`, `.tmp/`, or ad-hoc `.txt` exports) as non-authoritative scratch artifacts.
+- Never use temporary env/text copies to decide, validate, or overwrite variable values unless the user explicitly says to use that specific temp file for that task.
 
 ## Session Startup Contract (mandatory)
 Follow this startup sequence at the start of every new task/session in this repo:

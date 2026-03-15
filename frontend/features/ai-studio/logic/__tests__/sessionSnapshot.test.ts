@@ -123,4 +123,57 @@ describe("sessionSnapshot", () => {
       "https://cdn.shortpulse.dev/output.png",
     ]);
   });
+
+  it("persists queue lifecycle metadata for restore-safe polling semantics", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "video",
+      selectedTool: "video",
+      prompt: "A woman in the desert",
+      model: "fal-ai/veo3.1/image-to-video",
+      aspect: "16:9",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 8,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          generationId: "gen-queued-1",
+          queueState: "queued",
+          queueEnqueuedAtMs: 1_700_000_123_000,
+          taskState: "pending",
+          generationTraceId: "trace-queued-1",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    expect(snapshot.outputs.active[0]?.generationId).toBe("gen-queued-1");
+    expect(snapshot.outputs.active[0]?.queueState).toBe("queued");
+    expect(snapshot.outputs.active[0]?.queueEnqueuedAtMs).toBe(1_700_000_123_000);
+    expect(snapshot.outputs.active[0]?.generationTraceId).toBe("trace-queued-1");
+  });
 });

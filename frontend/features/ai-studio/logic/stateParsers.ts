@@ -212,9 +212,6 @@ const toRecord = (value: unknown): Record<string, unknown> =>
 const asText = (value: unknown): string | null =>
   typeof value === "string" && value.length > 0 ? value : null;
 
-const asStringArray = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-
 const extractDirectUrlFromRecord = (record: Record<string, unknown>): string | null =>
   asText(record.url) ||
   asText(record.download_url) ||
@@ -232,6 +229,12 @@ const extractUrlObjects = (value: unknown): string[] => {
       return extractDirectUrlFromRecord(record);
     })
     .filter((url): url is string => Boolean(url));
+};
+
+const extractResultFieldUrls = (value: unknown): string[] => {
+  const direct = asText(value);
+  if (direct) return [direct];
+  return extractUrlObjects(value);
 };
 
 export const mapAgentReferences = (outputs: OutputLike[], activeOutputId: string | null) => {
@@ -454,24 +457,25 @@ export const extractResultUrls = (resultJson: unknown, fallback?: unknown): stri
   const extractGenericUrls = (value: unknown, depth = 0): string[] => {
     if (depth > 3) return [];
     const record = toRecord(value);
-    const directUrls = asStringArray(record.resultUrls);
+    const directUrls = extractResultFieldUrls(record.resultUrls);
     if (directUrls.length) return directUrls;
-    const snakeCaseDirectUrls = asStringArray(record.result_urls);
+    const snakeCaseDirectUrls = extractResultFieldUrls(record.result_urls);
     if (snakeCaseDirectUrls.length) return snakeCaseDirectUrls;
-    const responseResultUrls = asStringArray(
-      toRecord(record.response).resultUrls ?? toRecord(record.response).result_urls
+    const responseRecord = toRecord(record.response);
+    const responseResultUrls = extractResultFieldUrls(
+      responseRecord.resultUrls ?? responseRecord.result_urls
     );
     if (responseResultUrls.length) return responseResultUrls;
-    const dataResultUrls = asStringArray(
-      toRecord(record.data).resultUrls ?? toRecord(record.data).result_urls
-    );
+    const dataRecord = toRecord(record.data);
+    const dataResultUrls = extractResultFieldUrls(dataRecord.resultUrls ?? dataRecord.result_urls);
     if (dataResultUrls.length) return dataResultUrls;
-    const dataResponseResultUrls = asStringArray(
-      toRecord(toRecord(record.data).response).resultUrls ??
-        toRecord(toRecord(record.data).response).result_urls
+    const dataResponseRecord = toRecord(dataRecord.response);
+    const dataResponseResultUrls = extractResultFieldUrls(
+      dataResponseRecord.resultUrls ?? dataResponseRecord.result_urls
     );
     if (dataResponseResultUrls.length) return dataResponseResultUrls;
-    const infoUrls = asStringArray(toRecord(record.info).result_urls);
+    const infoRecord = toRecord(record.info);
+    const infoUrls = extractResultFieldUrls(infoRecord.result_urls ?? infoRecord.resultUrls);
     if (infoUrls.length) return infoUrls;
     const encodedResultPayloads = [
       record.resultJson,

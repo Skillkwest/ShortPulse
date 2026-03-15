@@ -781,6 +781,7 @@ export function ReferenceGrid({
   });
 
   const { registerVideoNode } = useReferenceGridVideoLifecycleController({
+    activeOutputId,
     outputs,
     shouldVirtualize,
     renderedOutputIdSet,

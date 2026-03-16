@@ -216,4 +216,5 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 1. When adding or renaming an API route, update this file and any impacted SOP/API docs.
 2. If route auth changes, update `frontend/proxy.ts`, this file, and `docs/security-checklist.md` together.
 3. If billing settlement behavior changes, update `docs/sops/sop_billing_credits_operations.md` and `docs/data-dictionary.md`.
-4. Run `npm -C frontend run docs:check` after doc updates.
+4. If operational route ownership/scheduler/runbook mappings change, update `docs/operator-map.md` in the same change.
+5. Run `npm -C frontend run docs:check` after doc updates.

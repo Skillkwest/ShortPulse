@@ -18,10 +18,24 @@ Purpose: active planning artifacts and current execution backlogs.
 - `backlog.md`: active and upcoming work.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
+- `lane-a-master-plan-2026-03-16.md`: Lane A decision-complete gate-recovery and governance-hardening execution plan (`A0` through `A5`) with validation gates and signoff criteria.
+- `lane-b-master-plan-2026-03-16.md`: Lane B decision-complete modularization plan split into `B-Core` (code seams and boundary hardening) and `B-Style` (token/class standardization) with no-regression constraints.
+- `lane-b-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane B slice completion and merge discipline.
 - `real-environment-delivery/README.md`: sequestered mini-project that defines a practical, real-company delivery model (flow, handoffs, and quality gates).
 - `real-environment-delivery/in-practice-flow.md`: seven-step delivery lifecycle from ticket definition through post-release learning.
 - `real-environment-delivery/roles-and-handoffs.md`: role responsibilities, entry/exit handoff criteria, and common failure patterns.
 - `real-environment-delivery/artifacts-and-gates.md`: minimum artifacts, pass/fail quality gates, and maturity rubric for delivery process adoption.
+- `real-environment-delivery/mini-production-sop.md`: governing solo multi-role SOP with lifecycle gates (`A-E`), escalation, and hat-switching protocol.
+- `real-environment-delivery/handbook.md`: practical operator handbook for day-to-day use of the mini ecosystem and templates.
+- `real-environment-delivery/quick-start-cheat-sheet.md`: 5-minute operator cheat sheet for feature and weekly audit execution.
+- `real-environment-delivery/workflow-feature-delivery.md`: checklist-first feature lifecycle execution flow (`request -> release -> feedback`).
+- `real-environment-delivery/workflow-codebase-audit.md`: recurring role-based audit workflow for current codebase quality and remediation planning.
+- `real-environment-delivery/decision-precedence.md`: conflict-resolution hierarchy for multi-role decision collisions.
+- `real-environment-delivery/definition-of-done.md`: global done contract applied across feature and audit workflows.
+- `real-environment-delivery/cadence-and-rituals.md`: recurring operating rhythms (kickoff, pre-merge gate review, observation window, weekly audit).
+- `real-environment-delivery/team-model/README.md`: team-role model index for core roles plus security/design role hats.
+- `real-environment-delivery/templates/README.md`: checklist template index for intake, implementation, review, release, post-release, and audit packets.
+- `real-environment-delivery/dry-runs/README.md`: worked example packet index for initial feature and audit dry runs.
 - `supabase-production-cutover-handoff-2026-03-13.md`: paused-state handoff log for production Supabase cutover (status, evidence, risks, resume runbook).
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.

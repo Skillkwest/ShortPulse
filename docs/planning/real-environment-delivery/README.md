@@ -1,41 +1,54 @@
 # Real Environment Delivery Mini-Project
 
-Purpose: build a practical, company-style operating model for how features move from idea to production in ShortPulse.
+Purpose: build a practical, production-style operating system for solo delivery work using explicit role hats, gate contracts, and reusable templates.
 
-Status: Working (planning artifact).
+Status: Working, non-authoritative planning/lab docs.
 
 ## Why this exists
-- Convert "how real teams work" into concrete, reusable process docs.
-- Clarify handoffs between product, engineering, QA, and ops.
-- Make release quality gates explicit instead of informal.
+- Make delivery flow visible and repeatable.
+- Reduce ambiguity for feature work and quality audits.
+- Keep process lightweight but production-practical.
 
 ## Scope
-- End-to-end delivery flow (idea -> ticket -> implementation -> review -> validation -> release -> monitoring).
-- Roles and ownership boundaries.
-- Required artifacts and decision gates.
+- Feature delivery workflow (request -> release -> learning).
+- Codebase audit workflow (role-based recurring health pass).
+- Team-role charters, decision precedence, and definition of done.
+- Checklist-first templates and dry-run examples.
 
-## Out of scope (for now)
-- Team-specific staffing model and org chart.
-- SLA/SLO numeric commitments.
-- Detailed on-call rotations and pager policy.
+## Core docs
+- `handbook.md`: operator manual for running this ecosystem day-to-day.
+- `quick-start-cheat-sheet.md`: one-page quick-start flow for daily use.
+- `mini-production-sop.md`: governing process contract and gate model.
+- `workflow-feature-delivery.md`: staged execution flow for new features.
+- `workflow-codebase-audit.md`: recurring role-based codebase audit flow.
+- `decision-precedence.md`: conflict resolution hierarchy.
+- `definition-of-done.md`: global completion criteria.
+- `cadence-and-rituals.md`: recurring solo rituals.
 
-## Files in this mini-project
-- `in-practice-flow.md`: real-world 7-step delivery flow with expected outcomes.
-- `roles-and-handoffs.md`: responsibilities, handoff criteria, and anti-patterns by role.
-- `artifacts-and-gates.md`: required artifacts, pass/fail checks, and maturity rubric.
+## Team model
+- `team-model/README.md`
+- `team-model/roles/*`
 
-## How to use this package
-1. Start with `in-practice-flow.md` to align on the baseline operating model.
-2. Use `roles-and-handoffs.md` to assign clear ownership for each step.
-3. Use `artifacts-and-gates.md` to convert agreement into auditable checks.
-4. Promote stable sections to SOPs under `docs/sops/` as they harden.
+## Templates
+- `templates/README.md`
+- `templates/feature-intake-template.md`
+- `templates/implementation-pr-template.md`
+- `templates/review-template.md`
+- `templates/qa-release-template.md`
+- `templates/post-release-template.md`
+- `templates/codebase-audit-template.md`
 
-## External references used for this baseline
-- GitHub Flow and pull request/review mechanics.
-- GitHub branch protection and status checks.
-- Staged/protected deployments and required reviewers.
-- Progressive rollouts/feature flags.
-- SRE-style monitoring and incident response.
-- DORA delivery/reliability metrics.
+## Dry runs
+- `dry-runs/README.md`
+- `dry-runs/feature-delivery-dry-run-001.md`
+- `dry-runs/codebase-audit-dry-run-001.md`
 
-Reference links are listed inline in `artifacts-and-gates.md`.
+## Usage
+1. Start from `mini-production-sop.md`.
+2. Use `workflow-feature-delivery.md` for new requests.
+3. Use `workflow-codebase-audit.md` weekly.
+4. Fill templates under `templates/`.
+5. Record examples in `dry-runs/`.
+
+## Promotion rule
+Keep this package as planning/lab guidance until it proves stable across multiple runs, then promote selected docs to canonical SOPs.

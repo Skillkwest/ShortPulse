@@ -1,0 +1,75 @@
+# Operator Map (Canonical)
+
+Purpose: provide one canonical, cross-system map for how ShortPulse pipelines and services run, fail, recover, and are operated.
+
+## Purpose And Usage
+- Incident response use: identify the affected system row, execute the linked primary runbook, and use listed entrypoints/schedulers for control actions.
+- Onboarding use: trace each platform subsystem from entrypoints to data stores and operational controls.
+- Scope policy: this map is the cross-system authority and links to SOPs/ADRs for detailed procedures and architecture context.
+
+## Owner Registry
+Named-owner baseline policy:
+- Current operating model is single-owner.
+- Every system row must include explicit named primary and backup owners.
+- Until delegation exists, `backup owner` is intentionally the same as `primary owner`.
+
+| owner_id | name | role | ownership scope | backup policy |
+| --- | --- | --- | --- | --- |
+| owner_worldbuilder | worldbuilder | Platform owner and operator | Full platform operational ownership | backup owner equals primary owner |
+
+## System Registry
+Required schema per row:
+- `system_id`, `surface`, `entrypoints`, `scheduler`, `data stores`, `primary signals`, `primary runbook`, `kill switches/flags`, `primary owner`, `backup owner`, `last validated`.
+
+| system_id | surface | entrypoints | scheduler | data stores | primary signals | primary runbook | kill switches/flags | primary owner | backup owner | last validated |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| generation_submit_queue_recovery | AI Studio generation submit, queue dispatch, and recovery loop | `/api/fal/*`, `/api/fal/queue-status`, `/api/internal/generation-recovery/run`, `scripts/run_generation_drain_cycle.mjs` | Supabase Cron `shortpulse_generation_recovery_every_minute` via `sql/configure_generation_recovery_scheduler_supabase.sql` | `ai_generation_submit_queue`, `ai_generations`, `ai_credit_reservations`, `ai_credit_ledger` | `/api/internal/generation-recovery/run` metrics (`claimed`, `requeued`, `errors`, `queueDispatchErrors`) + `/admin` incident stream | [sop_generation_recovery_diagnostics.md](/docs/sops/sop_generation_recovery_diagnostics.md), [sop_provider_incident_response.md](/docs/sops/sop_provider_incident_response.md), [0026-ai-studio-generation-admission-control.md](/docs/adr/0026-ai-studio-generation-admission-control.md) | `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_ADMISSION_MODE`, `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` | worldbuilder | worldbuilder | 2026-03-15 |
+| fal_webhook_shared_recovery_execution | Fal webhook ingestion and shared recovery execution path | `/api/fal/webhook`, `/api/admin/generation-recovery/replay`, `frontend/lib/server/falIntegration/recoveryExecution.ts` | Event-driven webhook + reconciler fallback | `fal_webhook_events`, `ai_generations`, `media_files`, `ai_credit_reservations` | webhook signature failures, webhook inbox idempotency, replay outcomes | [sop_provider_incident_response.md](/docs/sops/sop_provider_incident_response.md), [api-internal-routes.md](/docs/api/api-internal-routes.md), [0021-fal-webhook-inbox-and-shared-recovery-execution.md](/docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md) | `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST`, `SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST` | worldbuilder | worldbuilder | 2026-03-15 |
+| credits_reservation_settlement | Generation credit reservation, capture, and release settlement | `/api/fal/*`, `/api/credits/snapshot`, `/api/admin/credits/adjust`, `/api/admin/credits/ledger` | Inline with submit/status/recovery flows | `ai_credit_balance`, `ai_credit_reservations`, `ai_credit_ledger`, `billing_profiles` | reservation state drift, settlement integrity check output, charge/release anomalies | [sop_billing_credits_operations.md](/docs/sops/sop_billing_credits_operations.md), [sop_generation_recovery_diagnostics.md](/docs/sops/sop_generation_recovery_diagnostics.md), [data-dictionary.md](/docs/data-dictionary.md) | `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`, `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`, `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED` | worldbuilder | worldbuilder | 2026-03-15 |
+| stripe_webhook_billing_adjustments | Stripe webhook application and billing adjustment workflows | `/api/billing/stripe/webhook`, `/api/billing/stripe/checkout`, `/api/billing/stripe/portal`, `/api/admin/credits/adjust` | Stripe webhook delivery + manual replay workflow | `stripe_event_log`, `ai_credit_ledger`, `billing_profiles`, `ai_credit_balance` | webhook signature failures, duplicate-event handling, missing grant incidents | [sop_billing_credits_operations.md](/docs/sops/sop_billing_credits_operations.md), [sop_provider_incident_response.md](/docs/sops/sop_provider_incident_response.md), [security-checklist.md](/docs/security-checklist.md) | `STRIPE_WEBHOOK_SECRET`, `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | worldbuilder | worldbuilder | 2026-03-15 |
+| media_upload_list_sign_resolve | Media upload, listing, signing, and preview-resolution surfaces | `/api/media/upload`, `/api/media/list`, `/api/media/sign-batch`, `/api/media/resolve-previews`, `/api/media/copy-from-url` | Request-driven on demand | `media_files`, `media_asset_variants`, `storage.objects`, `media_folders`, `media_prompts` | media sign failure ratio, open-to-first-media latency, preview resolution errors | [sop_ai_studio_media_library_operations.md](/docs/sops/sop_ai_studio_media_library_operations.md), [sop_media_performance_operations.md](/docs/sops/sop_media_performance_operations.md), [api-internal-routes.md](/docs/api/api-internal-routes.md) | `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED`, `SHORTPULSE_MEDIA_LIST_API_ENABLED`, `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED`, `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` | worldbuilder | worldbuilder | 2026-03-15 |
+| media_derivative_worker | Image derivative claim/process/update worker | `/api/internal/media-derivatives/run`, `frontend/lib/server/mediaDerivatives/processMediaDerivative.ts`, `sql/check_media_derivative_processing_backlog.sql` | Scheduler/manual trigger (cron-secret auth route) | `media_files`, `media_asset_variants`, derivative RPCs from migration `066` | worker metrics (`ready`, `failed`, `exhausted`, `variantRowsUpserted`), backlog and terminal failure checks | [sop_media_performance_operations.md](/docs/sops/sop_media_performance_operations.md), [sop_ai_studio_media_library_operations.md](/docs/sops/sop_ai_studio_media_library_operations.md), [0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md](/docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md) | `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED`, `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`, `SHORTPULSE_MEDIA_DERIVATIVES_MAX_ATTEMPTS` | worldbuilder | worldbuilder | 2026-03-15 |
+| adaptive_media_reference_grid_rendering | Adaptive media policy/resolution and reference-grid rendering runtime | `frontend/lib/adaptive-media/**`, `ReferenceGrid.tsx`, `MediaLibraryModal.tsx`, `npm -C frontend run test:adaptive-v2-gate` | Client runtime + CI change gate | client telemetry buffers, signed URL delivery paths, adaptive policy/resolver modules | adaptive mismatch events, quality downgrade/recovery events, render stability checks | [sop_adaptive_media_change_control.md](/docs/sops/sop_adaptive_media_change_control.md), [sop_media_performance_operations.md](/docs/sops/sop_media_performance_operations.md), [0018-adaptive-media-v2-modular-policy-and-surface-adapters.md](/docs/adr/0018-adaptive-media-v2-modular-policy-and-surface-adapters.md) | `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED`, `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY`, `NEXT_PUBLIC_REFERENCE_GRID_*` | worldbuilder | worldbuilder | 2026-03-15 |
+| ai_agent_safety_control_plane | AI Studio agent runtime and safety policy control plane | `/api/ai/studio-agent`, `/api/ai/generate-prompt`, `/api/ai/describe-image`, `/api/admin/agent-safety-policy/*` | Request-driven runtime + policy state controls | `agent_safety_policy_*` tables/functions, `app_error_events`, `app_error_logs` | safety telemetry events, policy activation/rollback audit records, provider error normalization | [sop_ai_studio_agent.md](/docs/sops/sop_ai_studio_agent.md), [sop_ai_studio_agent_safety_control_plane.md](/docs/sops/sop_ai_studio_agent_safety_control_plane.md), [0028-agent-safety-control-plane-and-modality-profiles.md](/docs/adr/0028-agent-safety-control-plane-and-modality-profiles.md) | `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE`, `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED`, `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` | worldbuilder | worldbuilder | 2026-03-15 |
+| admin_incident_ingestion_triage | Incident ingestion, normalization, and admin triage surfaces | `/api/log/client-error`, `/api/admin/errors`, `/api/admin/error-events`, `/api/admin/errors-status`, `/api/admin/errors-status-bulk`, `/api/admin/errors-test` | Continuous event ingestion; operator-driven status transitions | `app_error_events`, `app_error_logs` | event-volume thresholds, degraded health flags, open high-severity incident counts | [monitoring.md](/docs/monitoring.md), [sop_provider_incident_response.md](/docs/sops/sop_provider_incident_response.md), [troubleshooting.md](/docs/troubleshooting.md) | `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` | worldbuilder | worldbuilder | 2026-03-15 |
+| admin_user_health_fleet | Fleet-level generation/queue/reservation/ledger health scan and read surfaces | `/api/internal/admin-user-health-fleet/run`, `/api/admin/user-health-fleet`, `/api/admin/user-health` | Supabase Cron `shortpulse_admin_user_health_fleet_daily` via `sql/configure_admin_user_health_fleet_scheduler_supabase.sql` | `admin_user_health_scan_runs`, `admin_user_health_snapshots`, `admin_user_health_snapshot_findings` | run status (`completed`/`partial`/`failed`), risk counts, degraded read health | [sop_admin_user_health_fleet_operations.md](/docs/sops/sop_admin_user_health_fleet_operations.md), [sop_admin_user_health_fleet_staging_walkthrough.md](/docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md), [api-internal-routes.md](/docs/api/api-internal-routes.md) | `SHORTPULSE_USER_HEALTH_FLEET_ENABLED`, `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`, `SHORTPULSE_USER_HEALTH_FLEET_TIME_BUDGET_MS` | worldbuilder | worldbuilder | 2026-03-15 |
+| deployment_route_parity_scheduler_controls | Deploy-time route parity verification and scheduler control contracts | `scripts/verify_deployment_route_parity.mjs`, `sql/configure_generation_recovery_scheduler_supabase.sql`, `sql/configure_admin_user_health_fleet_scheduler_supabase.sql` | Supabase Cron + CI/ops gate execution | `cron.job`, `cron.job_run_details`, `vault.decrypted_secrets`, deployment metadata from Vercel API | required-route parity pass/fail, cron run failures, missing vault secrets | [deployment.md](/docs/deployment.md), [troubleshooting.md](/docs/troubleshooting.md), [sop_sql_migration_operations.md](/docs/sops/sop_sql_migration_operations.md) | `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET` | worldbuilder | worldbuilder | 2026-03-15 |
+| security_boundary_auth_rls_storage | Cross-cutting auth/RLS/storage scope guardrails | `frontend/proxy.ts`, `frontend/lib/server/api/auth.ts`, `/api/internal/media-derivatives/run`, `/api/internal/admin-user-health-fleet/run`, `sql/check_runtime_sql_security_audit.sql` | Continuous policy enforcement + pre-release audit checks | Supabase RLS policies, storage policies, security-definer RPC grants, route-level auth checks | SQL audit `failing_checks`, auth boundary incidents, storage scope drift checks | [security-checklist.md](/docs/security-checklist.md), [sop_sql_migration_operations.md](/docs/sops/sop_sql_migration_operations.md), [disaster-recovery.md](/docs/disaster-recovery.md) | `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS`, `SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE`, `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED`, `SHORTPULSE_USER_HEALTH_FLEET_ENABLED` | worldbuilder | worldbuilder | 2026-03-15 |
+
+## Operator Playbooks By Failure Class
+1. Provider degradation or webhook instability
+- Start with [sop_provider_incident_response.md](/docs/sops/sop_provider_incident_response.md).
+- Validate queue/recovery health using [sop_generation_recovery_diagnostics.md](/docs/sops/sop_generation_recovery_diagnostics.md).
+
+2. Queue backlog, stale reservations, or recovery non-convergence
+- Run methodical drain and blocker checks from [sop_generation_recovery_diagnostics.md](/docs/sops/sop_generation_recovery_diagnostics.md).
+- Use `/api/internal/generation-recovery/run` metrics as the convergence authority.
+
+3. Media preview/rendering regressions or derivative backlog
+- Follow [sop_media_performance_operations.md](/docs/sops/sop_media_performance_operations.md).
+- For derivative failures, use backlog/terminal SQL diagnostics and `/api/internal/media-derivatives/run` replay loop.
+
+4. Admin incident ingestion degradation
+- Use [monitoring.md](/docs/monitoring.md) and [troubleshooting.md](/docs/troubleshooting.md) degraded-mode guidance.
+- Preserve `app_error_events` append-only history; resolve via status transitions, not deletion.
+
+5. Scheduler/deployment drift
+- Run route parity checks and scheduler verification in [deployment.md](/docs/deployment.md).
+- Repoint scheduler URLs only to deployments that pass route parity.
+
+6. Security boundary drift
+- Run [security-checklist.md](/docs/security-checklist.md) controls and `sql/check_runtime_sql_security_audit.sql`.
+- If high-risk drift is detected, follow [disaster-recovery.md](/docs/disaster-recovery.md) rollback-first posture.
+
+## Escalation And Maintenance Contract
+Escalation flow:
+1. Identify system row by `system_id`.
+2. Execute the linked `primary runbook`.
+3. Capture evidence (route metrics, SQL diagnostics, timestamps).
+4. If unresolved, escalate using the mapped owner and include evidence packet.
+
+Maintenance rules:
+1. Any change to internal operational routes, scheduler contracts, or major runbook ownership requires a same-PR update to this map.
+2. `docs/operator-map.md` is mandatory and validated in `docs:check` via `scripts/check_operator_map_drift.js`.
+3. Every row must keep non-placeholder owners and a non-future `last validated` date.
+4. Keep this map indexed in [docs/README.md](/docs/README.md) and referenced from [api-internal-routes.md](/docs/api/api-internal-routes.md).

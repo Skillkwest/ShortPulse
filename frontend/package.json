@@ -35,7 +35,7 @@
     "check:naming-legacy-usage": "cd .. && node scripts/check_naming_legacy_usage.js",
     "db:migrate": "cd .. && node scripts/db_migrate_guardrail.mjs",
     "db:reset": "cd .. && supabase db reset",
-    "docs:check": "cd .. && node scripts/check_docs_links.js && node scripts/check_docs_semantic_drift.js && node scripts/check_migration_doc_parity.js && node scripts/check_archive_manifest.js && node scripts/check_model_catalog_parity.js && node scripts/check_naming_canonical_drift.js",
+    "docs:check": "cd .. && node scripts/check_docs_links.js && node scripts/check_docs_semantic_drift.js && node scripts/check_migration_doc_parity.js && node scripts/check_archive_manifest.js && node scripts/check_model_catalog_parity.js && node scripts/check_naming_canonical_drift.js && node scripts/check_operator_map_drift.js",
     "deadcode:check": "knip --production --include files --max-issues 0",
     "deadcode:check:full": "knip --production --include files,exports,dependencies --no-exit-code",
     "latency:protected-route": "cd .. && node scripts/capture_protected_route_latency.mjs",

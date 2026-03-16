@@ -11,16 +11,18 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 - `Completed`
 
 ## Program Snapshot
-| Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint |
-| --- | --- | --- | --- | --- | --- |
-| A | In Progress | Engineering | Gate recovery + docs/dead-code governance cleanup | `validate`/size/deadcode baseline drift | Lane A phase signoff |
-| B | In Progress | Engineering | Ongoing modularization pass (separate execution stream) | Must avoid mixed behavior changes | Next modularization slice closeout |
-| C | Not Started | Engineering | Characterization test expansion for fragile paths | Needs prioritized path list | Test matrix lock |
-| D | Not Started | Engineering | Runtime safety cleanup for core hot paths | Depends on Lane A stability | Warning-to-fix pass |
-| E | In Progress | Engineering | Docs/SOP/ADR parity discipline during foundational work | Requires index and contract synchronization | Governance parity check |
-| F | Not Started | Engineering | Release and CI enforcement hardening | Depends on lane gate definitions | CI policy lock |
+| Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
+| --- | --- | --- | --- | --- | --- | --- |
+| A | In Progress | Engineering | Gate recovery + docs/dead-code governance cleanup | `validate`/size/deadcode baseline drift | Lane A phase signoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
+| B | In Progress | Engineering | Ongoing modularization pass (separate execution stream) | Must avoid mixed behavior changes | Next modularization slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| C | Not Started | Engineering | Characterization test expansion for fragile paths | Needs prioritized path list | Test matrix lock | Planned (pending artifact) |
+| D | Not Started | Engineering | Runtime safety cleanup for core hot paths | Depends on Lane A stability | Warning-to-fix pass | Planned (pending artifact) |
+| E | In Progress | Engineering | Docs/SOP/ADR parity discipline during foundational work | Requires index and contract synchronization | Governance parity check | Planned (pending artifact) |
+| F | Not Started | Engineering | Release and CI enforcement hardening | Depends on lane gate definitions | CI policy lock | Planned (pending artifact) |
 
 ## Lane A Master Checklist
+Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
+
 ### A0: Baseline Lock
 - [ ] Capture baseline outputs for: `deadcode:check:full`, `lint`, `type-check`, `build`, `test`, `docs:check`.
 - [ ] Freeze explicit in-scope files and explicit out-of-scope files.
@@ -81,6 +83,10 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 3. `cd frontend && npm run build`
 4. `cd frontend && npm run docs:check`
 5. `cd frontend && npm run validate` (for Lane A gate recovery slices)
+
+## Lane B Artifacts
+1. Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`
+2. Tracker spec: `docs/planning/lane-b-tracker-spec-2026-03-16.md`
 
 ## Notes Log
 ### 2026-03-16

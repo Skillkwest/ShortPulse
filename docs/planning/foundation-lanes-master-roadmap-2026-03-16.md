@@ -18,14 +18,17 @@ Provide one canonical roadmap for all foundational hardening lanes so execution 
 5. Maintain short-lived, low-risk delivery slices through merge discipline.
 
 ## Lane Catalog
-| Lane | Name | Scope | Primary Output |
-| --- | --- | --- | --- |
-| A | Gate Recovery + Governance Hardening | Red gate recovery, docs/governance drift, dead-code pass, policy/script alignment | Green baseline and enforceable governance contracts |
-| B | Modularization | Responsibility-based splits of oversized hotspots with parity behavior | Smaller modules and reduced coupling |
-| C | Regression Armor | Characterization and contract tests for fragile paths | Deterministic regression detection |
-| D | Runtime Safety + Stability | Core flow warning removal, risky effect patterns, hard-disable cleanup | Safer runtime behavior and lower regression risk |
-| E | Docs + ADR Discipline | SOP/API/architecture/ADR synchronization for core changes | Discoverable and current source-of-truth docs |
-| F | Release + CI Discipline | Merge protections, queue policy, required checks, sweep cadence | Repeatable release confidence |
+| Lane | Name | Scope | Primary Output | Plan Artifact |
+| --- | --- | --- | --- | --- |
+| A | Gate Recovery + Governance Hardening | Red gate recovery, docs/governance drift, dead-code pass, policy/script alignment | Green baseline and enforceable governance contracts | `docs/planning/lane-a-master-plan-2026-03-16.md` |
+| B | Modularization | Responsibility-based splits of oversized hotspots with parity behavior | Smaller modules and reduced coupling | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| C | Regression Armor | Characterization and contract tests for fragile paths | Deterministic regression detection | Planned (pending artifact) |
+| D | Runtime Safety + Stability | Core flow warning removal, risky effect patterns, hard-disable cleanup | Safer runtime behavior and lower regression risk | Planned (pending artifact) |
+| E | Docs + ADR Discipline | SOP/API/architecture/ADR synchronization for core changes | Discoverable and current source-of-truth docs | Planned (pending artifact) |
+| F | Release + CI Discipline | Merge protections, queue policy, required checks, sweep cadence | Repeatable release confidence | Planned (pending artifact) |
+
+## Lane Plan Registry
+Each lane must maintain one canonical plan artifact linked in the Lane Catalog table. The roadmap and tracker are summary control docs; lane-level execution detail lives in the linked artifact.
 
 ## Sequencing Model
 1. `M0 Baseline Lock`: capture baseline runs, freeze Lane A scope, and define non-goals.

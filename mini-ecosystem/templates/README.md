@@ -11,6 +11,11 @@ Status: Active standalone operational templates.
 - `qa-release-template.md`
 - `post-release-template.md`
 - `codebase-audit-template.md`
+- `external-agent-controller-export-template.md`
+- `external-agent-engineer-starter-template.md`
+- `external-agent-senior-reviewer-starter-template.md`
+- `external-agent-qa-release-starter-template.md`
+- `external-agent-return-packet-template.md`
 
 ## Usage rule
 - Keep checklists lightweight and complete.

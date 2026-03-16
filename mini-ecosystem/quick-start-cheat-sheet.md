@@ -36,6 +36,13 @@ Status: Active standalone operational quick-start.
 5. Create dated remediation actions.
 6. Set next audit date.
 
+## External execution flow in 5 steps
+1. Complete gate framing inside Mini Ecosystem.
+2. Fill `external-agent-controller-export-template.md`.
+3. Start external conversation with role starter template.
+4. Require output using `external-agent-return-packet-template.md`.
+5. Convert recommendation into final gate decision and record it.
+
 ## Gate meanings
 - A: Ready to implement.
 - B: Ready for review.
@@ -64,6 +71,7 @@ Work is done when Gates A-E are resolved and no critical unresolved risk remains
 
 ## Reference docs
 - Full manual: `handbook.md`
+- External export contract: `agent-export-contract.md`
 - Conflict rules: `decision-precedence.md`
 - Completion contract: `definition-of-done.md`
 - Operating rhythm: `cadence-and-rituals.md`

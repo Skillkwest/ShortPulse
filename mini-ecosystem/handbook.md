@@ -22,6 +22,7 @@ Status: Active standalone operational handbook.
 5. `definition-of-done.md` (completion contract)
 6. `cadence-and-rituals.md` (operating rhythm)
 7. `performable-core/README.md` (future execution-grade contract layer)
+8. `agent-export-contract.md` (external execution conversation contract)
 
 ## Golden rules
 - Always declare the active hat before making gate decisions.
@@ -74,6 +75,16 @@ Full role contracts live under `team-model/roles/`.
 4. Rank findings (`high/medium/low`).
 5. Convert top findings into dated remediation actions.
 6. Set next audit date.
+
+## How to run external execution agents
+1. Complete intake and gate framing inside Mini Ecosystem first.
+2. Build export packet from `templates/external-agent-controller-export-template.md`.
+3. Use the matching role starter template in a new agent conversation:
+   - `external-agent-engineer-starter-template.md`
+   - `external-agent-senior-reviewer-starter-template.md`
+   - `external-agent-qa-release-starter-template.md`
+4. Require completion output using `external-agent-return-packet-template.md`.
+5. Convert returned recommendation into final gate decision (`PASS/HOLD/FAIL`) in Mini Ecosystem records.
 
 ## Recommended operating cadence
 - Per feature:

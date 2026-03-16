@@ -17,6 +17,7 @@ Status: Active standalone operational docs (separate from canonical product docs
 
 ## Core docs
 - `AGENTS.md`: operating guardrails for Mini Ecosystem changes.
+- `agent-export-contract.md`: contract for exporting Mini Ecosystem decisions to external execution-agent conversations.
 - `handbook.md`: operator manual for day-to-day execution.
 - `quick-start-cheat-sheet.md`: 5-minute operational flow reference.
 - `mini-production-sop.md`: governing lifecycle and gate model.

@@ -31,7 +31,8 @@ As of 2026-03-16 after A1 slices:
 1. `check:naming-legacy-usage` is green with explicit bridge allowlist + ADR-0023 sunset note.
 2. `validate` is green.
 3. SQL lint policy surfaces are aligned to hosted-target Supabase CLI lint commands.
-4. Remaining red blocker for A1 completion: `check:size-budget` on `frontend/pages/ai-studio.tsx` (1880 > 1700).
+4. `check:size-budget` is green after extracting perf-audit runtime from page orchestration into `useAiStudioPerfAuditRuntime`.
+5. Remaining Lane A focus shifted to A2-A4 governance + conservative dead-code cleanup.
 
 ## Phase Plan
 ### A0: Baseline Lock

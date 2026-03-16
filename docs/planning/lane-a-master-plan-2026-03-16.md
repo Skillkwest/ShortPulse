@@ -40,21 +40,19 @@ As of 2026-03-16 after A1 slices:
 2. Capture lint warning baseline for touched surfaces.
 3. Freeze in-scope vs out-of-scope and rollback posture per phase.
 
-### A1: Red Gate Recovery
+### A1: Policy + Validation Gate Recovery
 1. Resolve naming guard failures via explicit bridge allowance policy tied to ADR 0023 sunset tracking (no behavior refactor in Lane A).
 2. Recover size-budget conformance for `frontend/pages/ai-studio.tsx` as a baseline-gate unblock seam owned by Lane A.
 3. Lane A ownership for this seam is limited to gate recovery only; deeper modularization continues in Lane B after baseline green.
 4. Keep `validate` path green without broad suppressions.
-
-### A2: Policy And Governance Alignment
-1. Align Supabase SQL lint workflow references to CLI hosted-target policy across:
+5. Align Supabase SQL lint workflow references to CLI hosted-target policy across:
    - `scripts/run_repo_sweep.sh`
    - `.github/workflows/ci.yml`
    - `.github/pull_request_template.md`
    - `docs/planning/ci-policy-checks.md`
-2. Remove Docker-local Supabase flow references from these governance surfaces.
+6. Remove Docker-local Supabase flow references from these governance surfaces.
 
-### A3: Docs Governance Cleanup
+### A2: Docs/Governance Cleanup
 1. Remove duplicate route rows and stale references in internal API/SOP docs.
 2. Repair active index parity for:
    - `docs/README.md`
@@ -64,10 +62,12 @@ As of 2026-03-16 after A1 slices:
 3. Normalize changelog governance with strict chronology/future-date checks on a canonical section.
 4. Repair known migration-reference drift in active planning docs where guidance points to stale migration numbering.
 
-### A4: Conservative Dead-Code Cleanup
+### A3: Dead-Code Cleanup (Safe Core)
 1. Remove isolated dead files/dependencies with strict gates after each slice.
 2. Update active docs/skills that reference removed runtime wrappers in the same slice.
-3. Prune only high-confidence leaf exports; defer ambiguous/core-orchestration candidates.
+
+### A4: Selective Dead-Code Pruning
+1. Prune only high-confidence leaf exports; defer ambiguous/core-orchestration candidates.
 
 ### A5: Lane A Signoff
 1. Required checks pass.

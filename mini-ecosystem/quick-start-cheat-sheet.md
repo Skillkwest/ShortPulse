@@ -2,7 +2,7 @@
 
 Purpose: fast reference for running the mini ecosystem without reading the full handbook first.
 
-Status: Working, non-authoritative planning/lab quick-start.
+Status: Active standalone operational quick-start.
 
 ## 60-second setup
 1. Open `mini-production-sop.md`.

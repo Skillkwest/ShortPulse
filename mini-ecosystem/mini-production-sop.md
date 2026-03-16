@@ -2,7 +2,7 @@
 
 Purpose: provide a complete, practical operating procedure for running delivery work like a production team while one person wears multiple role hats.
 
-Status: Working, non-authoritative planning/lab SOP.
+Status: Active standalone operational SOP.
 
 ## Operating model
 - One operator, seven role hats, one shared gate system.

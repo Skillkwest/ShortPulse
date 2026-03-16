@@ -2,7 +2,7 @@
 
 Purpose: run a new feature request through a production-style lifecycle with checklist gates.
 
-Status: Working, non-authoritative planning/lab workflow.
+Status: Active standalone operational workflow.
 
 ## Inputs
 - Feature/request trigger.

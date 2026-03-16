@@ -1,4 +1,4 @@
-# In-Practice Delivery Flow (Real Company Baseline)
+# Real Delivery Flow (Company Baseline)
 
 Purpose: define the default delivery path for a feature from initial request through post-release learning.
 
@@ -83,7 +83,7 @@ Exit criteria:
 - Release considered stable for full traffic.
 - Learnings captured in backlog and process docs.
 
-## What "real" looks like in practice
+## What "real" looks like in operation
 - Steps 3-7 are enforced as gates, not optional etiquette.
 - "Done" means merged, validated, released safely, and observed in production.
 - Quality is shared responsibility: engineers, reviewers, QA, and ops each own a gate.

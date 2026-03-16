@@ -2,7 +2,7 @@
 
 Purpose: define repeatable solo operating rhythms that mimic production team behavior with low overhead.
 
-Status: Working, non-authoritative planning/lab ritual guide.
+Status: Active standalone operational ritual guide.
 
 ## Feature kickoff ritual (before coding)
 - [ ] Run feature intake template.

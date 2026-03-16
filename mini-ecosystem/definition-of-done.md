@@ -2,7 +2,7 @@
 
 Purpose: define a single completion standard used by all role hats and workflows.
 
-Status: Working, non-authoritative planning/lab contract.
+Status: Active standalone operational contract.
 
 ## Done criteria
 - [ ] Scope delivered according to acceptance criteria.

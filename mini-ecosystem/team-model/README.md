@@ -2,7 +2,7 @@
 
 Purpose: define the professional-role model used by this mini ecosystem.
 
-Status: Working, non-authoritative planning/lab model.
+Status: Active standalone operational model.
 
 ## Roles in this model
 - Product

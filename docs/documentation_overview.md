@@ -12,6 +12,7 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `docs/design/`: design rationale used by implementation.
 - `docs/archive/`: historical or superseded docs (non-authoritative).
 - `docs/brainstorming/`: early ideas and exploratory notes (non-authoritative).
+- `mini-ecosystem/` (repo root): standalone operational role-based workflow system and performable-core contracts, intentionally separate from `docs/planning/`.
 
 ## Document authority levels
 1. Authoritative:
@@ -19,6 +20,7 @@ Purpose: define the documentation information architecture, ownership rules, and
 
 2. Working:
 - Planning docs and backlogs under `docs/planning/`.
+- Standalone operational system docs under `mini-ecosystem/` (separate entity with no runtime activation by default).
 
 3. Historical:
 - Files in `docs/archive/` and `docs/brainstorming/`.

@@ -1,8 +1,8 @@
 # Mini Ecosystem Handbook
 
-Purpose: explain exactly how to operate the Real Environment Delivery mini ecosystem as a solo operator wearing multiple professional hats.
+Purpose: explain exactly how to operate the Mini Ecosystem as a solo operator wearing multiple professional hats.
 
-Status: Working, non-authoritative planning/lab handbook.
+Status: Active standalone operational handbook.
 
 ## Who this is for
 - You, as a single operator who wants a production-style process.
@@ -128,27 +128,11 @@ Common issues and fixes:
 - "I keep skipping audits"
   - Timebox weekly audit to 30 minutes and only log top three risks.
 
-## First-week adoption guide
-Day 1:
-- Read core map docs and role charters.
-- Run one feature through Gate A and B only.
+## Separation boundary
+This ecosystem is a standalone operational system and remains separate from canonical product SOPs.
 
-Day 2-3:
-- Complete one full feature flow through Gate E.
-
-Day 4-5:
-- Run one full codebase audit packet.
-- Capture top remediation tasks with owner/date.
-
-End of week:
-- Review what felt heavy or unclear.
-- Update templates/checklists for less friction.
-
-## What stays separate from canonical SOPs
-This ecosystem is planning/lab guidance and remains non-authoritative until promoted.
-
-Current separation boundary:
-- Location: `docs/planning/mini-ecosystem/`
+Current boundary:
+- Location: `mini-ecosystem/`
 - No production runtime behavior depends on these docs.
 - No automatic promotion to `docs/sops/` without deliberate decision.
 

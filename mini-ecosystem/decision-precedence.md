@@ -2,7 +2,7 @@
 
 Purpose: resolve role-hat conflicts quickly and consistently when one operator is wearing all roles.
 
-Status: Working, non-authoritative planning/lab policy.
+Status: Active standalone operational policy.
 
 ## Precedence order (highest to lowest)
 1. Security and compliance constraints.

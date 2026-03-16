@@ -8,6 +8,7 @@ Start here for all repository documentation.
 - SOP runbooks live in `docs/sops/`.
 - Product/domain docs live in `docs/product/`.
 - Active planning docs live in `docs/planning/`.
+- Standalone operational system docs live in `mini-ecosystem/` at repo root.
 - Durable architecture decisions live in `docs/adr/`.
 - Design rationale lives in `docs/design/`.
 - Historical/deprecated docs live in `docs/archive/`.
@@ -138,28 +139,7 @@ Start here for all repository documentation.
 - `docs/planning/lane-a-master-plan-2026-03-16.md`
 - `docs/planning/lane-b-master-plan-2026-03-16.md`
 - `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-- `docs/planning/mini-ecosystem/README.md`
-- `docs/planning/mini-ecosystem/in-practice-flow.md`
-- `docs/planning/mini-ecosystem/roles-and-handoffs.md`
-- `docs/planning/mini-ecosystem/artifacts-and-gates.md`
-- `docs/planning/mini-ecosystem/mini-production-sop.md`
-- `docs/planning/mini-ecosystem/handbook.md`
-- `docs/planning/mini-ecosystem/quick-start-cheat-sheet.md`
-- `docs/planning/mini-ecosystem/workflow-feature-delivery.md`
-- `docs/planning/mini-ecosystem/workflow-codebase-audit.md`
-- `docs/planning/mini-ecosystem/decision-precedence.md`
-- `docs/planning/mini-ecosystem/definition-of-done.md`
-- `docs/planning/mini-ecosystem/cadence-and-rituals.md`
-- `docs/planning/mini-ecosystem/team-model/README.md`
-- `docs/planning/mini-ecosystem/templates/README.md`
-- `docs/planning/mini-ecosystem/dry-runs/README.md`
-- `docs/planning/mini-ecosystem/performable-core/README.md`
-- `docs/planning/mini-ecosystem/performable-core/system-charter.md`
-- `docs/planning/mini-ecosystem/performable-core/finding-and-packet-schema.md`
-- `docs/planning/mini-ecosystem/performable-core/severity-and-gate-policy.md`
-- `docs/planning/mini-ecosystem/performable-core/role-execution-contracts.md`
-- `docs/planning/mini-ecosystem/performable-core/orchestration-contract-inactive.md`
-- `docs/planning/mini-ecosystem/performable-core/activation-readiness-checklist.md`
+- `mini-ecosystem/README.md` (standalone operational system, outside `docs/`)
 - `docs/planning/supabase-production-cutover-handoff-2026-03-13.md`
 - `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`

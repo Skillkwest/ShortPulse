@@ -2,7 +2,7 @@
 
 Purpose: run recurring role-based quality audits over the existing codebase using the same production gate discipline.
 
-Status: Working, non-authoritative planning/lab workflow.
+Status: Active standalone operational workflow.
 
 ## Audit cadence target
 - Weekly minimum audit pass.

@@ -53,18 +53,18 @@ Allowed values:
 - `security_reviewer`
 - `product_design`
 
-## JSON-ready template (example)
+## JSON-ready contract skeleton
 ```json
 {
-  "packet_id": "gate-C-2026-03-16-001",
-  "workflow_mode": "feature_delivery",
-  "gate": "C",
-  "decision": "HOLD",
-  "deciding_role": "senior_engineer",
-  "timestamp_utc": "2026-03-16T19:00:00Z",
-  "blocking_findings": ["F-SEC-001"],
-  "notes": "Critical security finding unresolved.",
-  "next_required_action": "Resolve finding F-SEC-001 and re-run review packet."
+  "packet_id": "<string>",
+  "workflow_mode": "<feature_delivery|codebase_audit>",
+  "gate": "<A|B|C|D|E>",
+  "decision": "<PASS|HOLD|FAIL>",
+  "deciding_role": "<role_enum>",
+  "timestamp_utc": "<ISO-8601>",
+  "blocking_findings": ["<finding_id>"],
+  "notes": "<string>",
+  "next_required_action": "<string>"
 }
 ```
 

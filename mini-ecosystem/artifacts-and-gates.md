@@ -52,7 +52,7 @@ Pass conditions:
 ## Suggested next promotions for ShortPulse
 1. Promote Gate D and Gate E into an SOP under `docs/sops/` once validated across several releases.
 2. Add explicit evidence links in PR template (CI run, staging notes, rollout decision).
-3. Define target release observation window by change risk (for example 30-120 minutes).
+3. Define target release observation window by change risk (typically 30-120 minutes).
 
 ## External source references
 - GitHub Flow: https://docs.github.com/en/get-started/using-github/github-flow

@@ -2,7 +2,7 @@
 
 Purpose: provide reusable checklist-first forms for feature delivery and codebase audit workflows.
 
-Status: Working, non-authoritative planning/lab templates.
+Status: Active standalone operational templates.
 
 ## Template inventory
 - `feature-intake-template.md`

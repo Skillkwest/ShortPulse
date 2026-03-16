@@ -147,7 +147,7 @@ End of week:
 This ecosystem is planning/lab guidance and remains non-authoritative until promoted.
 
 Current separation boundary:
-- Location: `docs/planning/real-environment-delivery/`
+- Location: `docs/planning/mini-ecosystem/`
 - No production runtime behavior depends on these docs.
 - No automatic promotion to `docs/sops/` without deliberate decision.
 

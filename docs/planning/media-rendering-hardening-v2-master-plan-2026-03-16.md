@@ -8,6 +8,11 @@ Program type: Parallel hardening track (no feature-bundle mixing)
 ## Summary
 Media Rendering Hardening v2 is a no-regression, no-bloat strangler program for media read/render/upload surfaces.
 
+Rebuild method conformance:
+1. This track follows `docs/planning/foundation-rebuild-playbook-2026-03-16.md`.
+2. Behavior-changing slices are blocked until rebuild entry scorecard evidence is attached.
+3. Cutover and decommission actions must satisfy the playbook security and performance parity contract.
+
 Program goals:
 1. Lock current behavior with characterization evidence before contract changes.
 2. Harden hot-path media contracts first, then long-tail consistency surfaces.

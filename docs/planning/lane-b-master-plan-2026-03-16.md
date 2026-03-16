@@ -58,6 +58,7 @@ As of 2026-03-16:
 3. AI-03: Split `MediaLibraryPanel` into controllers + presentation seams.
 4. AI-04: Split `AiStudioPageContent` into layout/rail composition modules; preserve prop contract.
 5. AI-05: Further slim `/pages/ai-studio.tsx` into page-level wiring hooks; keep orchestrator role only.
+6. AI-05 is merge-blocked until Lane A baseline-green signoff; Lane A retains ownership of immediate size-budget gate recovery for this file.
 
 ### B3: Character Modularization (`B-Core`)
 1. CM-01: Split `CharacterManagerShell` into domain hooks plus presentational shell.
@@ -100,3 +101,4 @@ Lane-level full gate:
 3. Existing completed modularization/governance programs remain baseline and are not reopened unless a touched seam requires it.
 4. No new runtime libraries are introduced in Lane B without ADR-approved exception.
 5. Queue/submit payload contract hardening and claim-collision remediation are out of scope for Lane B and run under Track P1.
+6. Parallel preparatory work is allowed while Lane A is active, but behavior-changing or baseline-dependent Lane B merges remain blocked until Lane A baseline-green signoff.

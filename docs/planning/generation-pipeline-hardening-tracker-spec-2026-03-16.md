@@ -23,6 +23,7 @@ Each slice row must include:
 12. `Rollback Note`
 13. `PR Link`
 14. `Status`
+15. `Rebuild Scope` (`no` by default; `yes` requires playbook scorecard link)
 
 ## Mandatory Slice Checkboxes
 No slice is complete unless all are true:
@@ -33,6 +34,7 @@ No slice is complete unless all are true:
 5. Docs/SOP/ADR updates for touched contract surfaces are shipped.
 6. Evidence links for targeted tests and full gates are attached.
 7. Rollback path is explicit.
+8. If `Rebuild Scope=yes`, rebuild playbook entry criteria + scorecard evidence are attached before implementation.
 
 ## Evidence Requirements
 Attach for each slice:

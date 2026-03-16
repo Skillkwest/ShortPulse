@@ -136,6 +136,7 @@ Start here for all repository documentation.
 - `docs/planning/backlog.md`
 - `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
+- `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
 - `docs/planning/lane-a-master-plan-2026-03-16.md`
 - `docs/planning/lane-b-master-plan-2026-03-16.md`
 - `docs/planning/lane-b-tracker-spec-2026-03-16.md`

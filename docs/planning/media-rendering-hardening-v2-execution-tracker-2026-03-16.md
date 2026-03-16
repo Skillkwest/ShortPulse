@@ -24,6 +24,9 @@ Each row must include exactly:
 10. `rollback`
 11. `status`
 12. `evidence`
+13. `rebuild_entry_scorecard`
+14. `security_boundary_verification`
+15. `performance_parity_thresholds`
 
 ## Program Snapshot
 | phase | status | current_focus | blockers | next_checkpoint |
@@ -59,3 +62,4 @@ Each row must include exactly:
 3. Every row needs explicit rollback note before merge.
 4. Every row requires evidence link before status moves to `Completed`.
 5. Blocked rows must include blocker owner and unblock criterion.
+6. Behavior-changing rows must attach rebuild-entry scorecard, security-boundary verification, and performance-parity thresholds before cutover.

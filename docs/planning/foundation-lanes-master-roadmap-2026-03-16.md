@@ -40,6 +40,15 @@ Lane-level companion execution plans are allowed for concrete slice sequencing. 
 
 Parallel tracks follow the same rule and must publish a master plan plus tracker spec before implementation begins.
 
+## Rebuild Method Contract
+Any lane/track that proposes from-scratch replacement work must follow:
+- `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
+
+Mandatory implications:
+1. Rebuild entry criteria must be satisfied before implementation slices open.
+2. Explicit do-not-rebuild criteria must be checked and recorded in tracker evidence.
+3. Big-bang replacement is disallowed; strangler cutover with rollback is required.
+
 ## Sequencing Model
 1. `M0 Baseline Lock`: capture baseline runs, freeze Lane A scope, and define non-goals.
 2. `M1 Baseline Green`: complete Lane A exit criteria before broad behavior work.
@@ -56,6 +65,11 @@ Parallel tracks follow the same rule and must publish a master plan plus tracker
 4. Lane E updates ship in the same PR as contract/surface changes.
 5. Lane F policies are permanent, not one-time cleanup tasks.
 6. Track P1 must stay isolated from Lane B modularization slices (no mixed PRs).
+7. Any from-scratch replacement scope is blocked unless the rebuild playbook contract is satisfied and evidence-linked.
+
+Dependency exception (explicit):
+1. Downstream lanes may run prep-only work in parallel with Lane A (audit, seam mapping, fixture authoring, docs).
+2. Prep-only parallel work must not merge behavior-changing or baseline-dependent slices until Lane A baseline-green signoff.
 
 ## Delivery Guardrails
 1. One open PR per lane or parallel track at a time.

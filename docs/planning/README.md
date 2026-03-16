@@ -18,6 +18,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `backlog.md`: active and upcoming work.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
+- `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).
 - `lane-a-master-plan-2026-03-16.md`: Lane A decision-complete gate-recovery and governance-hardening execution plan (`A0` through `A5`) with validation gates and signoff criteria.
 - `lane-b-master-plan-2026-03-16.md`: Lane B decision-complete modularization plan split into `B-Core` (code seams and boundary hardening) and `B-Style` (token/class standardization) with no-regression constraints.
 - `lane-b-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane B slice completion and merge discipline.

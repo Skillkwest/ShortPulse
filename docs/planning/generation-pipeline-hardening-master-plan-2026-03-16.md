@@ -11,6 +11,12 @@ Contact map: `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16
 ## Summary
 This is a separate hardening track for generation-pipeline correctness and safety. It is intentionally outside Lane B modularization scope.
 
+Rebuild method contract:
+1. This track is incremental hardening by default, not a from-scratch replacement track.
+2. If any slice proposes replacing a legacy generation seam end-to-end, that slice is blocked until it satisfies:
+   - `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
+   - explicit rebuild entry scorecard evidence in tracker artifacts.
+
 Locked objectives:
 1. One shared server payload contract gate for submit and queue dispatch.
 2. Strict unknown-field rejection, enforced only after contract coverage is complete.

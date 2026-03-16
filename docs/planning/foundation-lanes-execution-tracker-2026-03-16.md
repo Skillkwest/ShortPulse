@@ -14,7 +14,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
 | A | In Progress | Engineering | Gate recovery + docs/dead-code governance cleanup | `validate`/size/deadcode baseline drift | Lane A phase signoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
-| B | In Progress | Engineering | Ongoing modularization pass (separate execution stream) | Must avoid mixed behavior changes | Next modularization slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | Behavior-changing/baseline-dependent merges blocked until Lane A baseline-green signoff | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
 | E | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock | Awaiting E0 baseline evidence packet | Lane E governance baseline lock | `docs/planning/lane-e-master-plan-2026-03-16.md` |
@@ -64,6 +64,8 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 ### Scope
 - Files/modules:
 - Explicit non-goals:
+- Rebuild scope involved (`yes/no`):
+- Rebuild entry scorecard link (required when `yes`):
 
 ### Validation
 - Commands run:
@@ -84,6 +86,12 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 3. `cd frontend && npm run build`
 4. `cd frontend && npm run docs:check`
 5. `cd frontend && npm run validate` (for Lane A gate recovery slices)
+
+## Rebuild Method Artifact
+Mandatory for any from-scratch replacement scope:
+1. `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
+2. Tracker row must include explicit do-not-rebuild decision and rebuild-entry criteria evidence.
+3. Tracker row must include security-boundary verification evidence and performance-parity thresholds before cutover.
 
 ## Lane B Artifacts
 1. Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`
@@ -224,3 +232,4 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 - Added Lane E master plan/tracker artifacts, connected roadmap/tracker/index surfaces, and seeded a Lane E evidence namespace.
 - Added Lane F contact map artifact to seed owner/escalation routing for release and CI discipline planning.
 - Added Lane F master plan/tracker artifacts and seeded a Lane F evidence namespace for CI/release governance execution.
+- Added foundation rebuild playbook artifact and made it mandatory for from-scratch replacement scopes across lanes/tracks.

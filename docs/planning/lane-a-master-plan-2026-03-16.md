@@ -33,8 +33,9 @@ As of 2026-03-16:
 
 ### A1: Red Gate Recovery
 1. Resolve naming guard failures via explicit bridge allowance policy tied to ADR 0023 sunset tracking (no behavior refactor in Lane A).
-2. Recover size-budget conformance for `frontend/pages/ai-studio.tsx` through parity-preserving extraction only.
-3. Keep `validate` path green without broad suppressions.
+2. Recover size-budget conformance for `frontend/pages/ai-studio.tsx` as a baseline-gate unblock seam owned by Lane A.
+3. Lane A ownership for this seam is limited to gate recovery only; deeper modularization continues in Lane B after baseline green.
+4. Keep `validate` path green without broad suppressions.
 
 ### A2: Policy And Governance Alignment
 1. Align Supabase SQL lint workflow references to CLI hosted-target policy across:

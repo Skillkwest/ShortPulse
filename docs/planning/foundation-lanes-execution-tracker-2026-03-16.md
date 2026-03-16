@@ -13,7 +13,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 ## Program Snapshot
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
-| A | In Progress | Engineering | Gate recovery + docs/dead-code governance cleanup | `validate`/size/deadcode baseline drift | Lane A phase signoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
+| A | In Progress | Engineering | Gate recovery + docs/dead-code governance cleanup | size/deadcode baseline drift | Lane A phase signoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
 | B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | Behavior-changing/baseline-dependent merges blocked until Lane A baseline-green signoff | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
@@ -30,9 +30,9 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 - [x] Record rollback posture for each Lane A phase.
 
 ### A1: Policy + Validation Gate Recovery
-- [ ] Resolve naming guard failures without introducing permanent alias drift.
+- [x] Resolve naming guard failures without introducing permanent alias drift.
 - [ ] Align scripts with Supabase CLI policy (remove Docker-local Supabase workflow references).
-- [ ] Reconfirm `validate` path expectations and blockers.
+- [x] Reconfirm `validate` path expectations and blockers.
 
 ### A2: Docs/Governance Cleanup
 - [ ] Normalize changelog structure and chronology policy enforcement.
@@ -100,6 +100,7 @@ Mandatory for any from-scratch replacement scope:
 ## Lane A Evidence
 1. Evidence index: `docs/planning/evidence/lane-a/README.md`
 2. Baseline packet: `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
+3. A1 naming gate packet: `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
 
 ## Lane C Artifacts
 1. Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`
@@ -239,3 +240,5 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 - Added foundation rebuild playbook artifact and made it mandatory for from-scratch replacement scopes across lanes/tracks.
 - Started Lane A A0 baseline lock and captured baseline evidence packet:
   - `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
+- Completed Lane A A1 naming gate recovery slice and validated green `validate` path:
+  - `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`

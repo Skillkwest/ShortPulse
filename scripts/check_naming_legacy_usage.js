@@ -34,6 +34,10 @@ const ALLOWED_FILES = new Set(
     "frontend/features/ai-studio/reference-grid/components/ReferenceGridCard.tsx",
     "frontend/features/ai-studio/reference-grid/components/ReferenceGridSections.tsx",
     "frontend/features/ai-studio/reference-grid/controllers/useReferenceGridDropController.ts",
+    // Temporary compatibility bridge contracts.
+    // TODO(ADR-0023): remove after alias-sunset completion for propertiesText naming.
+    "frontend/features/ai-studio/hooks/contracts/pageContentAdapter.ts",
+    "frontend/features/ai-studio/hooks/contracts/pageContentContracts.ts",
   ].map((value) => path.normalize(value))
 );
 

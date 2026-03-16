@@ -31,6 +31,7 @@ npm run build
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
+- Mini Ecosystem isolation policy: treat `mini-ecosystem/` as a separate entity and exclude it from default audits, inspections, and build-planning context unless the user explicitly requests Mini Ecosystem scope.
 - After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggusted next steps upon completion of your task.
 
 ## Workspace safety guardrails (mandatory)

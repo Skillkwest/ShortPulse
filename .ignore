@@ -19,7 +19,9 @@
 **/.vscode/
 **/*.swp
 
+# Mini Ecosystem isolation (exclude from default AI audit/build context)
+mini-ecosystem/
+
 .env
 .env.*
 !**/.env.example
-

@@ -15,6 +15,8 @@ const IGNORED_DIRS = new Set([
   "test-results",
   "coverage",
   ".turbo",
+  // Mini Ecosystem is intentionally isolated from canonical docs audits.
+  "mini-ecosystem",
 ]);
 
 function walk(dir, out = []) {

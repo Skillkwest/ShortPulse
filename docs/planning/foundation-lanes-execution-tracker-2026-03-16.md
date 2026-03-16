@@ -31,8 +31,9 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 
 ### A1: Policy + Validation Gate Recovery
 - [x] Resolve naming guard failures without introducing permanent alias drift.
-- [ ] Align scripts with Supabase CLI policy (remove Docker-local Supabase workflow references).
+- [x] Align scripts with Supabase CLI policy (remove Docker-local Supabase workflow references).
 - [x] Reconfirm `validate` path expectations and blockers.
+- [ ] Recover size-budget conformance for `frontend/pages/ai-studio.tsx` seam.
 
 ### A2: Docs/Governance Cleanup
 - [ ] Normalize changelog structure and chronology policy enforcement.
@@ -101,6 +102,7 @@ Mandatory for any from-scratch replacement scope:
 1. Evidence index: `docs/planning/evidence/lane-a/README.md`
 2. Baseline packet: `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
 3. A1 naming gate packet: `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
+4. A1 Supabase CLI policy packet: `docs/planning/evidence/lane-a/2026-03-16-a1-02-supabase-cli-policy-alignment.md`
 
 ## Lane C Artifacts
 1. Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`
@@ -242,3 +244,5 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
 - Completed Lane A A1 naming gate recovery slice and validated green `validate` path:
   - `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
+- Completed Lane A A1 policy alignment slice removing Docker-local SQL lint instructions from governed surfaces:
+  - `docs/planning/evidence/lane-a/2026-03-16-a1-02-supabase-cli-policy-alignment.md`

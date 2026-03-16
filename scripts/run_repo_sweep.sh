@@ -112,7 +112,7 @@ else
 fi
 
 if [[ "$RUN_SQL_LINT" == "1" ]]; then
-  run_step "sql_lint" "required" "EXCLUDES='gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'; npx supabase start -x \"$EXCLUDES\" && npx supabase db lint --local --schema public --fail-on warning; STATUS=\$?; npx supabase stop --all --no-backup >/dev/null 2>&1 || true; exit \$STATUS"
+  run_step "sql_lint" "required" "if [[ -z \"\${SUPABASE_DB_URL:-}\" ]]; then echo 'SUPABASE_DB_URL is required when RUN_SQL_LINT=1.'; exit 1; fi; npx supabase db lint --db-url \"\$SUPABASE_DB_URL\" --schema public --fail-on warning"
 else
   skip_step "sql_lint" "RUN_SQL_LINT is not 1"
 fi

@@ -306,6 +306,8 @@ jobs:
       - name: Run SQL lint gate (warn/enforce)
         env:
           SQL_LINT_MODE: ${{ vars.SQL_LINT_MODE }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_URL_FALLBACK: ${{ vars.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
           MODE="${SQL_LINT_MODE:-warn}"
@@ -314,23 +316,20 @@ jobs:
             MODE="warn"
           fi
 
-          # Keep local CI footprint small: start only postgres for linting.
-          EXCLUDES="gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor"
-          cleanup() {
-            npx supabase stop --all --no-backup >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
+          DB_URL="${SUPABASE_DB_URL:-${SUPABASE_DB_URL_FALLBACK:-}}"
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::SUPABASE_DB_URL is not configured; cannot run hosted SQL lint."
+            if [ "$MODE" = "warn" ]; then
+              echo "sql_lint skipped in warn mode (missing SUPABASE_DB_URL)." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "sql_lint failed in enforce mode (missing SUPABASE_DB_URL)." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
           set +e
-          npx supabase start -x "$EXCLUDES"
-          START_STATUS=$?
-          if [ "$START_STATUS" -eq 0 ]; then
-            npx supabase db lint --local --schema public --fail-on warning
-            STATUS=$?
-          else
-            echo "::warning::Failed to start local Supabase services for SQL lint."
-            STATUS="$START_STATUS"
-          fi
+          npx supabase db lint --db-url "$DB_URL" --schema public --fail-on warning
+          STATUS=$?
           set -e
 
           if [ "$STATUS" -eq 0 ]; then

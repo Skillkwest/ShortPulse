@@ -75,10 +75,11 @@ Mode policy:
 
 ## SQL lint gate
 
-- Command: `supabase db lint --local --schema public --fail-on warning`
+- Command: `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning`
+- Alternative command (linked local profile): `supabase db lint --linked --schema public --fail-on warning`
 - Initial mode: warn/evaluate
 - Current mode: `enforce` (re-promoted 2026-02-21 after CI bootstrap fix; validated by runs `22258656706` and `22258746736`)
-- CI bootstrap update (2026-02-21): `sql_lint` workflow now runs `supabase start` (postgres-only footprint via exclude list) before lint and always executes `supabase stop --all --no-backup` cleanup.
+- CI policy update (2026-03-16): `sql_lint` runs against hosted-target pinning (`SUPABASE_DB_URL`) and does not use Docker-local Supabase startup/cleanup.
 
 ## CI install hardening
 

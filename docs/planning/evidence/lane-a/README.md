@@ -19,6 +19,7 @@ Use dated packet names:
 Examples:
 - `2026-03-16-a0-01-baseline-lock.md`
 - `2026-03-16-a1-01-naming-gate-recovery.md`
+- `2026-03-16-a1-02-supabase-cli-policy-alignment.md`
 
 ## Linked docs
 - `docs/planning/lane-a-master-plan-2026-03-16.md`

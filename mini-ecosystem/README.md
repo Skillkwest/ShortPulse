@@ -16,6 +16,7 @@ Status: Active standalone operational docs (separate from canonical product docs
 - Execution-grade schemas and orchestration contracts (inactive until explicitly activated).
 
 ## Core docs
+- `AGENTS.md`: operating guardrails for Mini Ecosystem changes.
 - `handbook.md`: operator manual for day-to-day execution.
 - `quick-start-cheat-sheet.md`: 5-minute operational flow reference.
 - `mini-production-sop.md`: governing lifecycle and gate model.

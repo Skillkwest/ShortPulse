@@ -14,6 +14,9 @@ Execution is split into two coordinated tracks:
 1. `B-Core`: code modularization and boundary hardening for oversized hotspots.
 2. `B-Style`: AI Studio style/token/class standardization after core seams stabilize.
 
+Generation pipeline contract/queue hardening is intentionally separated from Lane B and tracked in:
+- `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`
+
 The default contract is unchanged user behavior, unchanged API response shapes, and small one-seam PRs.
 
 ## Baseline Findings (Audit Snapshot)
@@ -96,3 +99,4 @@ Lane-level full gate:
 2. P0 Reference Grid -> Styles incident remains out of scope except non-behavioral path/import moves required by modularization.
 3. Existing completed modularization/governance programs remain baseline and are not reopened unless a touched seam requires it.
 4. No new runtime libraries are introduced in Lane B without ADR-approved exception.
+5. Queue/submit payload contract hardening and claim-collision remediation are out of scope for Lane B and run under Track P1.

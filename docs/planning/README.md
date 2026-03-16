@@ -117,6 +117,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/ai-studio-expert-edit/README.md`: evidence index for Expert Edit rollout capability and validation artifacts.
 - `evidence/style-adherence/README.md`: evidence index for model-family style adherence evaluations.
 - `evidence/style-adherence/style-adherence-run-template.md`: reusable run packet template for style adherence diagnostics and regression decisions.
+- `evidence/lane-a/README.md`: evidence packet schema and naming contract for Lane A gate-recovery/governance slices.
 - `evidence/lane-c/README.md`: evidence packet schema and naming contract for Lane C regression-armor slices.
 - `evidence/lane-d/README.md`: evidence packet schema and naming contract for Lane D runtime safety and stability slices.
 - `evidence/lane-e/README.md`: evidence packet schema and naming contract for Lane E docs/ADR governance slices.

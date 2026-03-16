@@ -225,6 +225,7 @@ Start here for all repository documentation.
 - `docs/planning/evidence/ai-studio-expert-edit/README.md`
 - `docs/planning/evidence/style-adherence/README.md`
 - `docs/planning/evidence/style-adherence/style-adherence-run-template.md`
+- `docs/planning/evidence/lane-a/README.md`
 - `docs/planning/evidence/lane-c/README.md`
 - `docs/planning/evidence/lane-d/README.md`
 - `docs/planning/evidence/lane-e/README.md`

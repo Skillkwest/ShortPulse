@@ -25,9 +25,9 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 
 ### A0: Baseline Lock
-- [ ] Capture baseline outputs for: `deadcode:check:full`, `lint`, `type-check`, `build`, `test`, `docs:check`.
-- [ ] Freeze explicit in-scope files and explicit out-of-scope files.
-- [ ] Record rollback posture for each Lane A phase.
+- [x] Capture baseline outputs for: `deadcode:check:full`, `lint`, `type-check`, `build`, `test`, `docs:check`.
+- [x] Freeze explicit in-scope files and explicit out-of-scope files.
+- [x] Record rollback posture for each Lane A phase.
 
 ### A1: Policy + Validation Gate Recovery
 - [ ] Resolve naming guard failures without introducing permanent alias drift.
@@ -96,6 +96,10 @@ Mandatory for any from-scratch replacement scope:
 ## Lane B Artifacts
 1. Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`
 2. Tracker spec: `docs/planning/lane-b-tracker-spec-2026-03-16.md`
+
+## Lane A Evidence
+1. Evidence index: `docs/planning/evidence/lane-a/README.md`
+2. Baseline packet: `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
 
 ## Lane C Artifacts
 1. Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`
@@ -233,3 +237,5 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 - Added Lane F contact map artifact to seed owner/escalation routing for release and CI discipline planning.
 - Added Lane F master plan/tracker artifacts and seeded a Lane F evidence namespace for CI/release governance execution.
 - Added foundation rebuild playbook artifact and made it mandatory for from-scratch replacement scopes across lanes/tracks.
+- Started Lane A A0 baseline lock and captured baseline evidence packet:
+  - `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`

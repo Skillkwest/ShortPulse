@@ -4,7 +4,8 @@ Last updated: 2026-03-16
 Status: Active  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
-Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
+Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
+Evidence index: `docs/planning/evidence/lane-a/README.md`
 
 ## Summary
 Lane A restores baseline gate health and hardens governance contracts before deeper structural work. Scope is no-regression and no-bloat by default:

@@ -54,11 +54,12 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 ## Import order
 `globals.css` imports in this order to maintain token availability and predictable overrides:
 1) foundation
-2) ui-patterns
-3) workspace (shared/chrome/dashboard/tools/media/profile)
-4) ai-studio (layout/coming-soon/styles-library/presets-library/canvas/controls/reference-properties)
-5) prefabs (agent core + variants)
-6) ai-studio (properties/text-properties/prompts/prompt-actions/model-picker/history/modals/responsive + expert-create split sheets)
-7) performance (core/detail/responsive)
-8) landing (core/sections)
-9) auth + viewport lock
+2) component system (`components-buttons.css`, `components-cards.css`, `components-inputs.css`, `accessibility.css`)
+3) ui + workspace core (`ui-patterns.css`, `workspace-shared.css`, `workspace-chrome.css`, `workspace-dashboard.css`)
+4) ai-studio primary shell/surfaces (`ai-studio-layout` through `ai-studio-reference-properties`)
+5) prefabs (`prefabs-agent.css`, `prefabs-agent-variants.css`)
+6) ai-studio secondary/editor layers (`ai-studio-properties` through `ai-studio-create-expert-responsive`)
+7) character + workspace route sheets (`character.css`, `character-manager.css`, `workspace-tools.css`, `workspace-media.css`, `workspace-profile.css`)
+8) performance (`performance-core.css`, `performance-detail.css`, `performance-responsive.css`)
+9) landing (`landing-core.css`, `landing-sections.css`)
+10) auth + viewport lock (`auth.css`, `viewport-lock.css`)

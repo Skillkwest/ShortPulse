@@ -113,4 +113,20 @@ describe("useMediaModalImageZoom", () => {
     expect(result.current.isModalImagePanning).toBe(false);
     expect(releasePointerCapture).toHaveBeenCalledWith(7);
   });
+
+  it("does not consume Escape when zoom mode is inactive", () => {
+    const { result } = renderHook(() => useMediaModalImageZoom({ isFocusedImage: true }));
+    const preventDefault = vi.fn();
+
+    act(() => {
+      result.current.handleModalImageKeyDown({
+        key: "Escape",
+        preventDefault,
+      } as unknown as React.KeyboardEvent<HTMLImageElement>);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(result.current.modalImageZoomActive).toBe(false);
+    expect(result.current.modalImageZoomScale).toBe(1);
+  });
 });

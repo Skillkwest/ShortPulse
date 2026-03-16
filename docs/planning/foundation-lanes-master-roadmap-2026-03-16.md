@@ -1,0 +1,71 @@
+# Foundation Lanes Master Roadmap (2026-03-16)
+
+Last updated: 2026-03-16  
+Status: Active
+
+## Purpose
+Provide one canonical roadmap for all foundational hardening lanes so execution stays aligned to:
+- no regressions,
+- no bloat,
+- modular and maintainable architecture,
+- enforceable validation and documentation governance.
+
+## Program Outcomes
+1. Restore and keep CI/local quality gates green.
+2. Reduce structural risk in oversized/high-churn surfaces.
+3. Increase regression detection on fragile workflows before behavior changes.
+4. Keep docs/SOP/ADR coverage synchronized with code changes.
+5. Maintain short-lived, low-risk delivery slices through merge discipline.
+
+## Lane Catalog
+| Lane | Name | Scope | Primary Output |
+| --- | --- | --- | --- |
+| A | Gate Recovery + Governance Hardening | Red gate recovery, docs/governance drift, dead-code pass, policy/script alignment | Green baseline and enforceable governance contracts |
+| B | Modularization | Responsibility-based splits of oversized hotspots with parity behavior | Smaller modules and reduced coupling |
+| C | Regression Armor | Characterization and contract tests for fragile paths | Deterministic regression detection |
+| D | Runtime Safety + Stability | Core flow warning removal, risky effect patterns, hard-disable cleanup | Safer runtime behavior and lower regression risk |
+| E | Docs + ADR Discipline | SOP/API/architecture/ADR synchronization for core changes | Discoverable and current source-of-truth docs |
+| F | Release + CI Discipline | Merge protections, queue policy, required checks, sweep cadence | Repeatable release confidence |
+
+## Sequencing Model
+1. `M0 Baseline Lock`: capture baseline runs, freeze Lane A scope, and define non-goals.
+2. `M1 Baseline Green`: complete Lane A exit criteria before broad behavior work.
+3. `M2 Structural Hardening`: run Lane B with refactor-only slices and parity tests.
+4. `M3 Regression Net Expansion`: run Lane C before touching known-fragile flows.
+5. `M4 Runtime + Governance Convergence`: execute Lane D and Lane E updates per slice.
+6. `M5 Operationalization`: enforce Lane F rules as ongoing defaults.
+
+## Dependency Rules
+1. Lane A is merge-blocking for downstream lanes where baseline checks are required.
+2. Lane B refactor slices must not include behavior changes.
+3. Lane C characterization tests precede any fragile-path behavior edits.
+4. Lane E updates ship in the same PR as contract/surface changes.
+5. Lane F policies are permanent, not one-time cleanup tasks.
+
+## Delivery Guardrails
+1. One open PR per lane at a time.
+2. Small PR slices with explicit acceptance criteria and rollback notes.
+3. No new compatibility aliases unless tracked with owner and sunset criterion.
+4. No broad suppressions/allowlist expansions without ADR-linked rationale.
+5. No docs additions without index updates (`docs/README.md` + section README).
+
+## Required Validation Set
+Run this set for foundational lane merges unless a lane-specific waiver is documented:
+1. `cd frontend && npm run lint`
+2. `cd frontend && npm run type-check`
+3. `cd frontend && npm run build`
+4. `cd frontend && npm run docs:check`
+5. `cd frontend && npm run deadcode:check` (when dead-code scope is touched)
+6. `cd frontend && npm run check:size-budget` (or documented temporary exception)
+7. `cd frontend && npm run validate` (required when Lane A gate-recovery slices merge)
+
+## Evidence Policy
+Each lane slice must record:
+1. commands run,
+2. pass/fail outcome,
+3. scope touched,
+4. rollback note,
+5. follow-up debt (if any) with owner.
+
+Use the companion tracker:
+- `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`

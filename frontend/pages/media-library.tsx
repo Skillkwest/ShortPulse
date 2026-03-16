@@ -642,6 +642,49 @@ export default function MediaLibrary() {
     resetModalImageZoom();
   }, [clearMoveState, closeFileModal, resetModalImageZoom]);
 
+  useEffect(() => {
+    const hasOpenModal = Boolean(
+      deleteTarget || confirmDeleteIds?.length || focusedFile || focusedPrompt
+    );
+    if (!hasOpenModal || typeof window === "undefined") return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+
+      if (deleteTarget) {
+        event.preventDefault();
+        cancelDeleteFile();
+        return;
+      }
+      if (confirmDeleteIds?.length) {
+        event.preventDefault();
+        cancelDeleteSelected();
+        return;
+      }
+      if (focusedPrompt) {
+        event.preventDefault();
+        closePromptModal();
+        return;
+      }
+      if (focusedFile) {
+        event.preventDefault();
+        closeModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [
+    cancelDeleteFile,
+    cancelDeleteSelected,
+    closeModal,
+    closePromptModal,
+    confirmDeleteIds,
+    deleteTarget,
+    focusedFile,
+    focusedPrompt,
+  ]);
+
   return (
     <>
       <Head>

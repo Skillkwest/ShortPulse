@@ -77,15 +77,6 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   overflow-y: hidden;
 }
 
-html:has(.ai-studio-page[data-selected-tool="create"]),
-body:has(.ai-studio-page[data-selected-tool="create"]),
-html:has(.ai-studio-page[data-selected-tool="edit"]),
-body:has(.ai-studio-page[data-selected-tool="edit"]),
-html:has(.ai-studio-page[data-selected-tool="image"]),
-body:has(.ai-studio-page[data-selected-tool="image"]) {
-  overflow-y: hidden;
-}
-
 .ai-studio-page .ai-alert-banner {
   display: flex;
   align-items: flex-start;
@@ -304,8 +295,9 @@ body:has(.ai-studio-page[data-selected-tool="image"]) {
 .ai-studio-page[data-selected-tool="create"],
 .ai-studio-page[data-selected-tool="edit"],
 .ai-studio-page[data-selected-tool="image"] {
-  height: var(--app-fixed-height);
-  overflow: hidden;
+  height: auto;
+  min-height: var(--app-fixed-height);
+  overflow: visible;
 }
 
 .ai-studio-page .generate-rounding-note {

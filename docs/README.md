@@ -132,6 +132,12 @@ Start here for all repository documentation.
 - `docs/planning/ci-policy-checks.md`
 - `docs/planning/final-validation-summary.md`
 - `docs/planning/backlog.md`
+- `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
+- `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
+- `docs/planning/real-environment-delivery/README.md`
+- `docs/planning/real-environment-delivery/in-practice-flow.md`
+- `docs/planning/real-environment-delivery/roles-and-handoffs.md`
+- `docs/planning/real-environment-delivery/artifacts-and-gates.md`
 - `docs/planning/supabase-production-cutover-handoff-2026-03-13.md`
 - `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`
@@ -140,6 +146,7 @@ Start here for all repository documentation.
 - `docs/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`
 - `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 - `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`
+- `docs/planning/mvp-ui-ux-pass-execution-plan-2026-03-16.md`
 - `docs/planning/mvp-ui-ux-sprint-ticket-breakdown.md`
 - `docs/planning/mvp-ui-ux-issue-board.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md`

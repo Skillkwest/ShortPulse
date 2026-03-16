@@ -133,7 +133,7 @@ Checklist:
   Evidence paths: `frontend/styles/components-buttons.css`, `frontend/styles/ui-patterns.css`
 - [ ] Normalize plan naming and palette to fixed product rule (`Free`, `Media`, `Studio`, `Business`).
   Evidence paths: `docs/dev-ground-rules.md`, `frontend/pages/performance.tsx`, `frontend/pages/saved-creators.tsx`, `frontend/pages/media-library.tsx`
-- [ ] Fix self-referential radius tokens and verify downstream consumers render correctly.
+- [x] Fix self-referential radius tokens and verify downstream consumers render correctly.
   Evidence path: `frontend/styles/foundation.css`
 - [ ] Define a single source of truth for global interaction states (hover, focus-visible, disabled, loading).
 - [ ] Add a migration log for any intentional token/value changes affecting multiple pages.
@@ -152,7 +152,7 @@ Checklist:
 - [ ] Set refactor targets for this pass: core UX files under `800` lines; new files under `500` lines unless documented.
 - [ ] Use AI Studio style inventory findings to reduce token sprawl and duplicate style patterns.
   Evidence path: `docs/design/ai-studio-style-inventory.md`
-- [ ] Align documented style import order with actual `globals.css` order (or update docs if order is intentional).
+- [x] Align documented style import order with actual `globals.css` order (or update docs if order is intentional).
   Evidence paths: `docs/styles-structure.md`, `frontend/styles/globals.css`
 
 Exit criteria:
@@ -219,8 +219,8 @@ UX flow checks:
 - `P0` accessibility and semantics: `Not Started`
 - `P0` navigation/dead-end removal: `Not Started`
 - `P0` tooling signal cleanup: `Complete` (`UX6-01` through `UX6-04` complete)
-- `P1` design-system consistency: `Not Started`
-- `P1` modularization/CSS architecture: `Not Started`
+- `P1` design-system consistency: `In Progress` (`UX4-03` complete; remaining design-system consistency tickets pending)
+- `P1` modularization/CSS architecture: `In Progress` (`UX5-04` complete; remaining modularization/style inventory tickets pending)
 - `P1` documentation and ADR capture: `Not Started`
 
 ## Sign-Off Criteria For This Track

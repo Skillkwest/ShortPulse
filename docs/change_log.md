@@ -2930,3 +2930,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated Create properties generation wiring SOP to reflect dynamic reference preflight and stage breadcrumb diagnostics (`generation_preflight_prepare_stage`).
 - Updated video-generation SOP to document shared image-input preflight timeout behavior and fail-fast timeout message parity.
 - Added troubleshooting runbook coverage for `Preparation timed out before generation started. Please retry.` including `generation_preflight_timeout` log metadata and stage-level breadcrumb triage for `fetch_local_image`, `upload_image_route`, and `refresh_signed_url`.
+
+## 2026-03-16
+- Added `docs/planning/mvp-ui-ux-pass-execution-plan-2026-03-16.md`, a tactical pass-by-pass remediation checklist for `UX1`/`UX2`/`UX3` plus modularization kickoff (`UX5-01`) with dated sequencing, acceptance criteria, and validation commands.
+- Updated planning indexes to include the new execution artifact (`docs/README.md`, `docs/planning/README.md`).

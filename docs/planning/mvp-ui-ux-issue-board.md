@@ -50,10 +50,14 @@ Note: this board uses current acting ownership to keep execution unblocked. Repl
 | `UX1-02` to `UX1-05` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint A |
 | `UX2-01` to `UX2-07` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint B |
 | `UX3-01` to `UX3-04` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint B |
-| `UX4-01` to `UX4-05` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint C |
-| `UX5-01` to `UX5-04` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint C |
+| `UX4-03` | `Done` | `worldbuilder` | `worldbuilder` | Sprint C |
+| `UX4-01`, `UX4-02`, `UX4-04`, `UX4-05` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint C |
+| `UX5-04` | `Done` | `worldbuilder` | `worldbuilder` | Sprint C |
+| `UX5-01` to `UX5-03` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint C |
 | `UX6-01` to `UX6-04` | `Done` | `worldbuilder` | `worldbuilder` | Sprint A/B |
 | `UX7-01` to `UX7-04` | `Not Started` | `worldbuilder` | `worldbuilder` | Sprint C |
 
 Evidence for `UX1-01`: `frontend/pages/_app.tsx`, `frontend/styles/viewport-lock.css`, plus post-change capture rerun via `/tmp/ux0_baseline_capture.js` and `/tmp/ux0_keyboard_full.js`.
+Evidence for `UX4-03`: `frontend/styles/foundation.css`.
+Evidence for `UX5-04`: `docs/styles-structure.md`, `frontend/styles/globals.css`.
 Evidence for `UX6-01` through `UX6-04`: `frontend/eslint.config.mjs`, `.github/workflows/ci.yml`, `.github/pull_request_template.md`, and `docs/change_log.md` (2026-02-14 reliability + tooling entries).

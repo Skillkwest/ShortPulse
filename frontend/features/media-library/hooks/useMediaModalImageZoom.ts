@@ -163,8 +163,10 @@ export const useMediaModalImageZoom = ({ isFocusedImage }: UseMediaModalImageZoo
         );
       }
       if (event.key === "Escape") {
-        event.preventDefault();
-        resetModalImageTransform();
+        if (modalImageZoomActive) {
+          event.preventDefault();
+          resetModalImageTransform();
+        }
       }
     },
     [applyModalZoomAtPoint, modalImageZoomActive, resetModalImageTransform]

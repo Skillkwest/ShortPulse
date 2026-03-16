@@ -16,6 +16,12 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ci-policy-checks.md`: CI job inventory, governance checks, and branch-protection mapping.
 - `final-validation-summary.md`: closeout validation matrix and signoff checklist.
 - `backlog.md`: active and upcoming work.
+- `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
+- `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
+- `real-environment-delivery/README.md`: sequestered mini-project that defines a practical, real-company delivery model (flow, handoffs, and quality gates).
+- `real-environment-delivery/in-practice-flow.md`: seven-step delivery lifecycle from ticket definition through post-release learning.
+- `real-environment-delivery/roles-and-handoffs.md`: role responsibilities, entry/exit handoff criteria, and common failure patterns.
+- `real-environment-delivery/artifacts-and-gates.md`: minimum artifacts, pass/fail quality gates, and maturity rubric for delivery process adoption.
 - `supabase-production-cutover-handoff-2026-03-13.md`: paused-state handoff log for production Supabase cutover (status, evidence, risks, resume runbook).
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.
@@ -24,6 +30,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `admin-user-health-fleet-implementation-plan-2026-03-14.md`: implementation contract for daily active-user fleet health triage (set-based scan pipeline, bounded runtime, persistence, and operator workflows).
 - `mvp-pretester-full-audit-remediation-plan.md`: full-app audit remediation runbook for pre-tester release hardening.
 - `mvp-ui-ux-stabilization-remediation-plan.md`: standalone UI/UX stabilization and remediation runbook for pre-tester quality hardening.
+- `mvp-ui-ux-pass-execution-plan-2026-03-16.md`: tactical pass-by-pass execution checklist (2026-03-16 to 2026-03-27) for closing remaining responsive, accessibility, and navigation UX tickets.
 - `mvp-ui-ux-sprint-ticket-breakdown.md`: sprint-ready ticket register (one ticket per UI/UX remediation checklist item, with owner and estimate).
 - `mvp-ui-ux-issue-board.md`: owner-assigned execution board with ticket status, reviewer, and acceptance evidence.
 - `mvp-ui-ux-phase0-baseline-qa-checklist.md`: runbook checklist for UX-0 baseline capture and keyboard/accessibility verification.

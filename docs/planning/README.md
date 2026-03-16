@@ -36,6 +36,13 @@ Purpose: active planning artifacts and current execution backlogs.
 - `mini-ecosystem/team-model/README.md`: team-role model index for core roles plus security/design role hats.
 - `mini-ecosystem/templates/README.md`: checklist template index for intake, implementation, review, release, post-release, and audit packets.
 - `mini-ecosystem/dry-runs/README.md`: worked example packet index for initial feature and audit dry runs.
+- `mini-ecosystem/performable-core/README.md`: inactive execution-grade contract entry point for future role-based performable operation.
+- `mini-ecosystem/performable-core/system-charter.md`: mission/scope and non-negotiable constraints for performable mode.
+- `mini-ecosystem/performable-core/finding-and-packet-schema.md`: canonical finding, gate decision, and handoff packet schemas.
+- `mini-ecosystem/performable-core/severity-and-gate-policy.md`: severity taxonomy and hard gate blocking matrix.
+- `mini-ecosystem/performable-core/role-execution-contracts.md`: deterministic role I/O, mandatory checks, and blocking authority.
+- `mini-ecosystem/performable-core/orchestration-contract-inactive.md`: future execution order and control rules with activation disabled.
+- `mini-ecosystem/performable-core/activation-readiness-checklist.md`: criteria required before enabling performable execution.
 - `supabase-production-cutover-handoff-2026-03-13.md`: paused-state handoff log for production Supabase cutover (status, evidence, risks, resume runbook).
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.

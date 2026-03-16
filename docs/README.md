@@ -153,6 +153,13 @@ Start here for all repository documentation.
 - `docs/planning/mini-ecosystem/team-model/README.md`
 - `docs/planning/mini-ecosystem/templates/README.md`
 - `docs/planning/mini-ecosystem/dry-runs/README.md`
+- `docs/planning/mini-ecosystem/performable-core/README.md`
+- `docs/planning/mini-ecosystem/performable-core/system-charter.md`
+- `docs/planning/mini-ecosystem/performable-core/finding-and-packet-schema.md`
+- `docs/planning/mini-ecosystem/performable-core/severity-and-gate-policy.md`
+- `docs/planning/mini-ecosystem/performable-core/role-execution-contracts.md`
+- `docs/planning/mini-ecosystem/performable-core/orchestration-contract-inactive.md`
+- `docs/planning/mini-ecosystem/performable-core/activation-readiness-checklist.md`
 - `docs/planning/supabase-production-cutover-handoff-2026-03-13.md`
 - `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`

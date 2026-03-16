@@ -21,6 +21,7 @@ Status: Working, non-authoritative planning/lab handbook.
 4. `decision-precedence.md` (conflict resolver)
 5. `definition-of-done.md` (completion contract)
 6. `cadence-and-rituals.md` (operating rhythm)
+7. `performable-core/README.md` (future execution-grade contract layer)
 
 ## Golden rules
 - Always declare the active hat before making gate decisions.
@@ -156,3 +157,11 @@ Current separation boundary:
 - [ ] Keep gate definitions aligned with `mini-production-sop.md`.
 - [ ] Keep role list aligned with `team-model/roles/`.
 - [ ] Update cadence guidance if your working rhythm changes.
+
+## Future activation note
+When you are ready to shift from manual checklist operation to performable role execution, use:
+- `performable-core/finding-and-packet-schema.md`
+- `performable-core/severity-and-gate-policy.md`
+- `performable-core/role-execution-contracts.md`
+- `performable-core/orchestration-contract-inactive.md`
+- `performable-core/activation-readiness-checklist.md`

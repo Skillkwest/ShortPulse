@@ -25,6 +25,15 @@ Status: Working, non-authoritative planning/lab docs.
 - `definition-of-done.md`: global completion criteria.
 - `cadence-and-rituals.md`: recurring solo rituals.
 
+## Performable core (inactive)
+- `performable-core/README.md`: entry point for dormant execution-grade contracts.
+- `performable-core/system-charter.md`: mission/scope for future role-based execution.
+- `performable-core/finding-and-packet-schema.md`: canonical finding + gate/handoff packet structures.
+- `performable-core/severity-and-gate-policy.md`: severity taxonomy and hard gate-blocking behavior.
+- `performable-core/role-execution-contracts.md`: deterministic role outputs, checks, and block authority.
+- `performable-core/orchestration-contract-inactive.md`: future execution order/control rules (`enabled=false`).
+- `performable-core/activation-readiness-checklist.md`: strict preconditions before activation.
+
 ## Team model
 - `team-model/README.md`
 - `team-model/roles/*`

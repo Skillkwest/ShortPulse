@@ -62,6 +62,11 @@ Use templates under `templates/`.
 - Feature changes: `workflow-feature-delivery.md`.
 - Baseline quality audits: `workflow-codebase-audit.md`.
 
+## Performable core extension
+- Execution-grade contracts are defined under `performable-core/`.
+- This layer is intentionally inactive until `activation-readiness-checklist.md` is complete.
+- Role/gate outputs in active mode should converge to `finding-and-packet-schema.md`.
+
 ## Minimum completion rule
 A change is complete only when:
 - Gates A-E are all `PASS`, or

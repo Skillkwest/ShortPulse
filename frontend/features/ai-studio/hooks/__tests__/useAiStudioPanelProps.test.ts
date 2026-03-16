@@ -223,6 +223,45 @@ describe("useAiStudioPanelProps", () => {
     });
   });
 
+  it("keeps create and edit character selectors decoupled", () => {
+    const setCreateSelectedCharacterId = asDispatch<string>(vi.fn());
+    const setEditSelectedCharacterId = asDispatch<string>(vi.fn());
+    const setCreateCharacterModeEnabled = asDispatch<boolean>(vi.fn());
+    const setEditCharacterModeEnabled = asDispatch<boolean>(vi.fn());
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          selectedCharacterId: "char-create",
+          setSelectedCharacterId: setCreateSelectedCharacterId,
+          isCharacterModeEnabled: true,
+          setIsCharacterModeEnabled: setCreateCharacterModeEnabled,
+          editSelectedCharacterId: "char-edit",
+          setEditSelectedCharacterId,
+          isEditCharacterModeEnabled: false,
+          setIsEditCharacterModeEnabled: setEditCharacterModeEnabled,
+        })
+      )
+    );
+
+    expect(result.current.propertiesCreate.selectedCharacterId).toBe("char-create");
+    expect(result.current.propertiesCreate.characterModeEnabled).toBe(true);
+    expect(result.current.propertiesCreate.onSelectedCharacterIdChange).toBe(
+      setCreateSelectedCharacterId
+    );
+    expect(result.current.propertiesCreate.onCharacterModeEnabledChange).toBe(
+      setCreateCharacterModeEnabled
+    );
+
+    expect(result.current.propertiesEditExpert.selectedCharacterId).toBe("char-edit");
+    expect(result.current.propertiesEditExpert.characterModeEnabled).toBe(false);
+    expect(result.current.propertiesEditExpert.onSelectedCharacterIdChange).toBe(
+      setEditSelectedCharacterId
+    );
+    expect(result.current.propertiesEditExpert.onCharacterModeEnabledChange).toBe(
+      setEditCharacterModeEnabled
+    );
+  });
+
   it("forwards edit submit-intent callback into expert edit panel props", () => {
     const onEditSubmitIntentChange = vi.fn();
     const { result } = renderHook(() =>

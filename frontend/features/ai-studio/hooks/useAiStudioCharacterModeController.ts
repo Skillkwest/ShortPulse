@@ -67,9 +67,17 @@ type UseAiStudioCharacterModeControllerParams = {
   selectedCharacterId: string;
   characterModeInjectionBundle: CharacterModeInjectionBundle | null;
   isCharacterBundleLoading: boolean;
+  editCharacterModeEnabled?: boolean;
+  editSelectedCharacterId?: string;
+  editCharacterModeInjectionBundle?: CharacterModeInjectionBundle | null;
+  isEditCharacterBundleLoading?: boolean;
   characterOptions: CharacterOptionSummary[];
   setCharacterModeInjectionBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>>;
   setIsCharacterBundleLoading: Dispatch<SetStateAction<boolean>>;
+  setEditCharacterModeInjectionBundle?: Dispatch<
+    SetStateAction<CharacterModeInjectionBundle | null>
+  >;
+  setIsEditCharacterBundleLoading?: Dispatch<SetStateAction<boolean>>;
   trackCharacterModeEvent: (message: string, data?: Record<string, unknown>) => void;
   bundleStaleAfterMs: number;
 };
@@ -82,13 +90,77 @@ export const useAiStudioCharacterModeController = ({
   selectedCharacterId,
   characterModeInjectionBundle,
   isCharacterBundleLoading,
+  editCharacterModeEnabled,
+  editSelectedCharacterId,
+  editCharacterModeInjectionBundle,
+  isEditCharacterBundleLoading,
   characterOptions,
   setCharacterModeInjectionBundle,
   setIsCharacterBundleLoading,
+  setEditCharacterModeInjectionBundle,
+  setIsEditCharacterBundleLoading,
   trackCharacterModeEvent,
   bundleStaleAfterMs,
 }: UseAiStudioCharacterModeControllerParams) => {
   void bundleStaleAfterMs;
+  const noopSetBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>> = () => {};
+  const noopSetLoading: Dispatch<SetStateAction<boolean>> = () => {};
+  const resolveCharacterScope = useCallback((tool: ToolId | null): "create" | "edit" | null => {
+    if (tool === "create" || tool === "text") return "create";
+    if (tool === "edit" || tool === "image") return "edit";
+    return null;
+  }, []);
+  const resolveCharacterScopeState = useCallback(
+    (tool: ToolId | null) => {
+      const scope = resolveCharacterScope(tool);
+      if (scope === "edit") {
+        return {
+          scope,
+          isEnabled: editCharacterModeEnabled ?? isCharacterModeEnabled,
+          selectedId: editSelectedCharacterId ?? selectedCharacterId,
+          bundle: editCharacterModeInjectionBundle ?? characterModeInjectionBundle,
+          isBundleLoading: isEditCharacterBundleLoading ?? isCharacterBundleLoading,
+          setBundle: setEditCharacterModeInjectionBundle ?? noopSetBundle,
+          setBundleLoading: setIsEditCharacterBundleLoading ?? noopSetLoading,
+        };
+      }
+      if (scope === "create") {
+        return {
+          scope,
+          isEnabled: isCharacterModeEnabled,
+          selectedId: selectedCharacterId,
+          bundle: characterModeInjectionBundle,
+          isBundleLoading: isCharacterBundleLoading,
+          setBundle: setCharacterModeInjectionBundle,
+          setBundleLoading: setIsCharacterBundleLoading,
+        };
+      }
+      return {
+        scope,
+        isEnabled: false,
+        selectedId: "",
+        bundle: null as CharacterModeInjectionBundle | null,
+        isBundleLoading: false,
+        setBundle: noopSetBundle,
+        setBundleLoading: noopSetLoading,
+      };
+    },
+    [
+      characterModeInjectionBundle,
+      editCharacterModeEnabled,
+      editCharacterModeInjectionBundle,
+      editSelectedCharacterId,
+      isCharacterBundleLoading,
+      isCharacterModeEnabled,
+      isEditCharacterBundleLoading,
+      selectedCharacterId,
+      setCharacterModeInjectionBundle,
+      setEditCharacterModeInjectionBundle,
+      setIsCharacterBundleLoading,
+      setIsEditCharacterBundleLoading,
+      resolveCharacterScope,
+    ]
+  );
   const logCharacterModeTelemetry = useCallback(
     (message: string, data?: Record<string, unknown>) => {
       void reportAppError({
@@ -188,62 +260,64 @@ export const useAiStudioCharacterModeController = ({
 
   const refreshCharacterModeInjectionBundleForSubmission = useCallback(
     async (tool: ToolId | null): Promise<CharacterModeInjectionBundle | null> => {
-      const isCharacterModeEligibleTool =
-        tool === "create" || tool === "text" || tool === "edit" || tool === "image";
-      if (!isCharacterModeEnabled || !isCharacterModeEligibleTool) {
-        return characterModeInjectionBundle;
-      }
-      if (!selectedCharacterId) return null;
+      const {
+        scope,
+        isEnabled,
+        selectedId,
+        bundle: currentBundle,
+        setBundle,
+        setBundleLoading,
+      } = resolveCharacterScopeState(tool);
+      if (!scope) return null;
+      if (!isEnabled) return currentBundle;
+      if (!selectedId) return null;
 
-      const currentBundle = characterModeInjectionBundle;
       const bundleAgeMs = currentBundle ? Date.now() - currentBundle.loadedAtMs : 0;
 
-      setIsCharacterBundleLoading(true);
+      setBundleLoading(true);
       trackCharacterModeEvent("character_mode_bundle_refresh_before_submit", {
         reason: "submit_refresh",
-        selected_character_id: selectedCharacterId,
+        character_scope: scope,
+        selected_character_id: selectedId,
         bundle_age_ms: currentBundle ? bundleAgeMs : null,
       });
       try {
         const baseBundle = toCharacterModeInjectionBundle(
-          await loadCharacterManagerDraftByCharacterId(selectedCharacterId)
+          await loadCharacterManagerDraftByCharacterId(selectedId)
         );
-        if (!baseBundle || baseBundle.characterId !== selectedCharacterId) {
-          setCharacterModeInjectionBundle(null);
+        if (!baseBundle || baseBundle.characterId !== selectedId) {
+          setBundle(null);
           return null;
         }
         const refreshedBundle = await refreshBundleReferenceUrlsForSubmission(baseBundle);
         if (!refreshedBundle) {
-          setCharacterModeInjectionBundle(null);
+          setBundle(null);
           return null;
         }
-        setCharacterModeInjectionBundle(refreshedBundle);
+        setBundle(refreshedBundle);
         return refreshedBundle;
       } catch (error) {
         trackCharacterModeEvent("character_mode_bundle_refresh_failed", {
-          selected_character_id: selectedCharacterId,
+          character_scope: scope,
+          selected_character_id: selectedId,
           error:
             error instanceof Error && error.message.trim().length ? error.message : "unknown_error",
         });
         if (isCharacterUnavailableError(error)) {
-          setCharacterModeInjectionBundle(null);
+          setBundle(null);
           return null;
         }
-        if (currentBundle?.characterId === selectedCharacterId) {
+        if (currentBundle?.characterId === selectedId) {
           return currentBundle;
         }
         return null;
       } finally {
-        setIsCharacterBundleLoading(false);
+        setBundleLoading(false);
       }
     },
     [
-      characterModeInjectionBundle,
-      isCharacterModeEnabled,
       refreshBundleReferenceUrlsForSubmission,
-      selectedCharacterId,
-      setCharacterModeInjectionBundle,
-      setIsCharacterBundleLoading,
+      resolveCharacterScopeState,
       toCharacterModeInjectionBundle,
       trackCharacterModeEvent,
     ]
@@ -256,13 +330,13 @@ export const useAiStudioCharacterModeController = ({
       bundleOverride?: CharacterModeInjectionBundle | null,
       userReferenceInputs: string[] = []
     ): CharacterModeSubmissionOverrides => {
-      const isCharacterModeEligibleTool =
-        tool === "create" || tool === "text" || tool === "edit" || tool === "image";
-      if (!isCharacterModeEnabled || !isCharacterModeEligibleTool) return null;
+      const { scope, isEnabled, selectedId, bundle, isBundleLoading } =
+        resolveCharacterScopeState(tool);
+      if (!scope || !isEnabled) return null;
 
-      const bundle = bundleOverride === undefined ? characterModeInjectionBundle : bundleOverride;
-      const characterDescription = bundle?.characterDescription ?? "";
-      const characterReferences = bundle?.sheetReferenceUrls ?? [];
+      const effectiveBundle = bundleOverride === undefined ? bundle : bundleOverride;
+      const characterDescription = effectiveBundle?.characterDescription ?? "";
+      const characterReferences = effectiveBundle?.sheetReferenceUrls ?? [];
       const submissionPrompt = composeCharacterModePrompt({
         characterDescription,
         userPrompt,
@@ -273,12 +347,12 @@ export const useAiStudioCharacterModeController = ({
       );
       const hasCharacterDescription = Boolean(characterDescription.trim());
       const selectedCharacterOption =
-        characterOptions.find((option) => option.id === selectedCharacterId) ?? null;
+        characterOptions.find((option) => option.id === selectedId) ?? null;
       const hasCharacterInjection = hasCharacterDescription || referenceInputs.length > 0;
       const characterContextOverride = hasCharacterInjection
         ? {
             applied: true,
-            characterId: bundle?.characterId ?? selectedCharacterId,
+            characterId: effectiveBundle?.characterId ?? selectedId,
             characterName: selectedCharacterOption?.name ?? null,
             characterProfileImageUrl: selectedCharacterOption?.profileImageUrl ?? null,
           }
@@ -286,14 +360,14 @@ export const useAiStudioCharacterModeController = ({
 
       let notice: string | null = null;
       let fallbackCode: CharacterModeFallbackCode | null = null;
-      if (!selectedCharacterId) {
+      if (!selectedId) {
         notice =
           "Character Mode is enabled with no character selected. Generated without character injection.";
         fallbackCode = "no_character_selected";
-      } else if (isCharacterBundleLoading) {
+      } else if (isBundleLoading) {
         notice = "Character Mode context is still loading. Generated without character injection.";
         fallbackCode = "bundle_loading";
-      } else if (!bundle) {
+      } else if (!effectiveBundle) {
         notice =
           "Selected character context could not be loaded. Generated without character injection.";
         fallbackCode = "bundle_unavailable";
@@ -322,13 +396,7 @@ export const useAiStudioCharacterModeController = ({
         hasCharacterDescription,
       };
     },
-    [
-      characterModeInjectionBundle,
-      characterOptions,
-      isCharacterBundleLoading,
-      isCharacterModeEnabled,
-      selectedCharacterId,
-    ]
+    [characterOptions, resolveCharacterScopeState]
   );
 
   const trackCharacterModeFallback = useCallback(
@@ -341,9 +409,11 @@ export const useAiStudioCharacterModeController = ({
       tool: ToolId | null
     ) => {
       if (!overrides?.fallbackCode) return;
+      const { scope, selectedId } = resolveCharacterScopeState(tool);
       trackCharacterModeEvent("character_mode_injection_fallback", {
         fallback_code: overrides.fallbackCode,
-        selected_character_id: selectedCharacterId || null,
+        character_scope: scope,
+        selected_character_id: selectedId || null,
         tool: tool ?? null,
         has_character_description: overrides.hasCharacterDescription,
         character_reference_count: overrides.characterReferenceCount,
@@ -351,14 +421,15 @@ export const useAiStudioCharacterModeController = ({
       if (TELEMETRY_FALLBACK_CODES.includes(overrides.fallbackCode)) {
         logCharacterModeTelemetry(`character_mode_injection_fallback.${overrides.fallbackCode}`, {
           fallback_code: overrides.fallbackCode,
-          selected_character_id: selectedCharacterId || null,
+          character_scope: scope,
+          selected_character_id: selectedId || null,
           tool: tool ?? null,
           has_character_description: overrides.hasCharacterDescription,
           character_reference_count: overrides.characterReferenceCount,
         });
       }
     },
-    [logCharacterModeTelemetry, selectedCharacterId, trackCharacterModeEvent]
+    [logCharacterModeTelemetry, resolveCharacterScopeState, trackCharacterModeEvent]
   );
 
   return {

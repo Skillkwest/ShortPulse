@@ -214,13 +214,18 @@ export default function AiStudioPage() {
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
   const [optimisticDebitEntries, setOptimisticDebitEntries] = useState<OptimisticDebitEntry[]>([]);
-  const [isCharacterBundleLoading, setIsCharacterBundleLoading] = useState(false);
-  const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(false);
+  const [isCreateCharacterBundleLoading, setIsCreateCharacterBundleLoading] = useState(false);
+  const [isEditCharacterBundleLoading, setIsEditCharacterBundleLoading] = useState(false);
+  const [isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled] = useState(false);
+  const [isEditCharacterModeEnabled, setIsEditCharacterModeEnabled] = useState(false);
+  const [editSelectedCharacterId, setEditSelectedCharacterId] = useState("");
   const [selectedStylePrompt, setSelectedStylePrompt] = useState<string | null>(null);
   const [selectedStyleContext, setSelectedStyleContext] = useState<
     StudioOutput["styleContext"] | null
   >(null);
-  const [characterModeInjectionBundle, setCharacterModeInjectionBundle] =
+  const [createCharacterModeInjectionBundle, setCreateCharacterModeInjectionBundle] =
+    useState<CharacterModeInjectionBundle | null>(null);
+  const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
 
   // Character workflow state (shared with Character tool workflows and error surfaces)
@@ -337,7 +342,7 @@ export default function AiStudioPage() {
     getOutputById,
     getOutputSnapshot,
   } = useAiStudioState({
-    isCharacterModeEnabled,
+    isCharacterModeEnabled: isCreateCharacterModeEnabled,
     selectedStylePrompt,
     selectedStyleContext,
   });
@@ -1157,17 +1162,25 @@ export default function AiStudioPage() {
   }, []);
   const {
     characterOptions,
-    selectedCharacterId,
-    setSelectedCharacterId,
+    selectedCharacterId: createSelectedCharacterId,
+    setSelectedCharacterId: setCreateSelectedCharacterId,
     isCharacterOptionsLoading,
     refreshCharacterOptions,
     resolveCharacterOptionById,
   } = useAiStudioCharacterModeLifecycle({
     selectedTool,
     setUiError,
-    setCharacterModeInjectionBundle,
-    setIsCharacterBundleLoading,
+    setCharacterModeInjectionBundle: setCreateCharacterModeInjectionBundle,
+    setIsCharacterBundleLoading: setIsCreateCharacterBundleLoading,
   });
+  const resolveIsCharacterModeEnabledForTool = useCallback(
+    (tool: ToolId | null): boolean => {
+      if (tool === "create" || tool === "text") return isCreateCharacterModeEnabled;
+      if (tool === "edit" || tool === "image") return isEditCharacterModeEnabled;
+      return false;
+    },
+    [isCreateCharacterModeEnabled, isEditCharacterModeEnabled]
+  );
   const resolveCharacterAvatarUrlById = useCallback(
     (characterId: string | null | undefined): string | null => {
       return resolveCharacterOptionById(characterId)?.profileImageUrl?.trim() ?? null;
@@ -1179,13 +1192,19 @@ export default function AiStudioPage() {
     resolveCharacterModeSubmissionOverrides,
     trackCharacterModeFallback,
   } = useAiStudioCharacterModeController({
-    isCharacterModeEnabled,
-    selectedCharacterId,
-    characterModeInjectionBundle,
-    isCharacterBundleLoading,
+    isCharacterModeEnabled: isCreateCharacterModeEnabled,
+    selectedCharacterId: createSelectedCharacterId,
+    characterModeInjectionBundle: createCharacterModeInjectionBundle,
+    isCharacterBundleLoading: isCreateCharacterBundleLoading,
+    editCharacterModeEnabled: isEditCharacterModeEnabled,
+    editSelectedCharacterId,
+    editCharacterModeInjectionBundle,
+    isEditCharacterBundleLoading,
     characterOptions,
-    setCharacterModeInjectionBundle,
-    setIsCharacterBundleLoading,
+    setCharacterModeInjectionBundle: setCreateCharacterModeInjectionBundle,
+    setIsCharacterBundleLoading: setIsCreateCharacterBundleLoading,
+    setEditCharacterModeInjectionBundle,
+    setIsEditCharacterBundleLoading,
     trackCharacterModeEvent: trackUiEvent,
     bundleStaleAfterMs: CHARACTER_MODE_BUNDLE_STALE_AFTER_MS,
   });
@@ -1344,7 +1363,7 @@ export default function AiStudioPage() {
     editReferenceText,
     videoReferenceText,
     videoReferenceMode,
-    isCharacterModeEnabled,
+    isCharacterModeEnabled: isCreateCharacterModeEnabled,
   });
 
   const {
@@ -1380,10 +1399,10 @@ export default function AiStudioPage() {
     () =>
       shouldDisableGenerateWhileCharacterLoading({
         selectedTool,
-        characterModeEnabled: isCharacterModeEnabled,
-        isCharacterBundleLoading,
+        characterModeEnabled: isCreateCharacterModeEnabled,
+        isCharacterBundleLoading: isCreateCharacterBundleLoading,
       }),
-    [isCharacterBundleLoading, isCharacterModeEnabled, selectedTool]
+    [isCreateCharacterBundleLoading, isCreateCharacterModeEnabled, selectedTool]
   );
   const effectiveGenerationGuardrail =
     generationGuardrail ??
@@ -1438,7 +1457,8 @@ export default function AiStudioPage() {
     selectedTool,
     model,
     setModel,
-    isCharacterModeEnabled,
+    isCharacterModeEnabled: resolveIsCharacterModeEnabledForTool(selectedTool),
+    resolveIsCharacterModeEnabledForTool,
     prompt,
     agentInput,
     agentBusy,
@@ -1534,17 +1554,17 @@ export default function AiStudioPage() {
         isGenerateClickLocked,
         hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
         modelId: model,
-        characterModeEnabled: isCharacterModeEnabled,
-        selectedCharacterId,
+        characterModeEnabled: isCreateCharacterModeEnabled,
+        selectedCharacterId: createSelectedCharacterId,
       }),
     [
       hasSufficientCreditsForPromptReferenceGenerate,
-      isCharacterModeEnabled,
+      isCreateCharacterModeEnabled,
       isGenerateClickLocked,
       effectiveIsGenerateDisabled,
       mode,
       model,
-      selectedCharacterId,
+      createSelectedCharacterId,
       selectedTool,
     ]
   );
@@ -1613,11 +1633,15 @@ export default function AiStudioPage() {
     handleChatOffInlineGenerate,
     savePromptReference,
     characterOptions,
-    selectedCharacterId,
-    setSelectedCharacterId,
+    selectedCharacterId: createSelectedCharacterId,
+    setSelectedCharacterId: setCreateSelectedCharacterId,
     isCharacterOptionsLoading,
-    isCharacterModeEnabled,
-    setIsCharacterModeEnabled,
+    isCharacterModeEnabled: isCreateCharacterModeEnabled,
+    setIsCharacterModeEnabled: setIsCreateCharacterModeEnabled,
+    editSelectedCharacterId,
+    setEditSelectedCharacterId,
+    isEditCharacterModeEnabled,
+    setIsEditCharacterModeEnabled,
     refreshCharacterOptions,
     resolveCharacterAvatarUrlById,
     selectedExpertEditPresetIds,

@@ -533,6 +533,91 @@ describe("useAiStudioCharacterModeController", () => {
     expect(overrides?.submissionPromptOverride).toContain("Character base");
   });
 
+  it("uses edit-scoped character context instead of create-scoped selection", () => {
+    const params = createParams({
+      selectedCharacterId: "char-create",
+      characterModeInjectionBundle: {
+        characterId: "char-create",
+        characterDescription: "Create character description",
+        sheetReferenceStoragePaths: ["user/chars/create.png"],
+        sheetReferenceUrls: ["https://example.com/create.png"],
+        loadedAtMs: Date.now(),
+      },
+      editCharacterModeEnabled: true,
+      editSelectedCharacterId: "char-edit",
+      editCharacterModeInjectionBundle: {
+        characterId: "char-edit",
+        characterDescription: "Edit character description",
+        sheetReferenceStoragePaths: ["user/chars/edit.png"],
+        sheetReferenceUrls: ["https://example.com/edit.png"],
+        loadedAtMs: Date.now(),
+      },
+      characterOptions: [
+        { id: "char-create", name: "Create Hero", profileImageUrl: "https://example.com/c.png" },
+        { id: "char-edit", name: "Edit Hero", profileImageUrl: "https://example.com/e.png" },
+      ],
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "Make the face match the selected edit character",
+      "edit",
+      undefined,
+      ["https://example.com/user-edit-ref.png"]
+    );
+
+    expect(overrides?.submissionPromptOverride).toContain("Edit character description");
+    expect(overrides?.submissionPromptOverride).not.toContain("Create character description");
+    expect(overrides?.characterContextOverride).toEqual(
+      expect.objectContaining({
+        characterId: "char-edit",
+        characterName: "Edit Hero",
+        characterProfileImageUrl: "https://example.com/e.png",
+      })
+    );
+    expect(overrides?.referenceInputsOverride).toEqual([
+      "https://example.com/user-edit-ref.png",
+      "https://example.com/edit.png",
+    ]);
+  });
+
+  it("refreshes edit-scoped bundle using the edit character selection", async () => {
+    const setCreateBundle = vi.fn();
+    const setEditBundle = vi.fn();
+    const setEditLoading = vi.fn();
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...createSnapshotWithPresetReference({
+        description: "Edit scoped description",
+        storagePath: "user/chars/edit-scoped.png",
+      }),
+      characterId: "char-edit",
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/chars/edit-scoped.png", "https://example.com/edit-scoped-fresh.png"]])
+    );
+    const params = createParams({
+      selectedCharacterId: "char-create",
+      setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
+        setCreateBundle
+      ),
+      editCharacterModeEnabled: true,
+      editSelectedCharacterId: "char-edit",
+      setEditCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
+        setEditBundle
+      ),
+      setIsEditCharacterBundleLoading: asDispatch<boolean>(setEditLoading),
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    await result.current.refreshCharacterModeInjectionBundleForSubmission("edit");
+
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-edit");
+    expect(setEditLoading).toHaveBeenCalledWith(true);
+    expect(setEditLoading).toHaveBeenCalledWith(false);
+    expect(setEditBundle).toHaveBeenCalledTimes(1);
+    expect(setCreateBundle).not.toHaveBeenCalled();
+  });
+
   it("does not apply character injection for non-supported workflow tools", () => {
     const params = createParams({
       selectedCharacterId: "char-1",

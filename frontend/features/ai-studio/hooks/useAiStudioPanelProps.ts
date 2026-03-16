@@ -106,6 +106,10 @@ export type UseAiStudioPanelPropsParams = {
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
+  editSelectedCharacterId?: string;
+  setEditSelectedCharacterId?: Dispatch<SetStateAction<string>>;
+  isEditCharacterModeEnabled?: boolean;
+  setIsEditCharacterModeEnabled?: Dispatch<SetStateAction<boolean>>;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
@@ -251,6 +255,10 @@ export const useAiStudioPanelProps = ({
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
+  editSelectedCharacterId = selectedCharacterId,
+  setEditSelectedCharacterId = setSelectedCharacterId,
+  isEditCharacterModeEnabled = isCharacterModeEnabled,
+  setIsEditCharacterModeEnabled = setIsCharacterModeEnabled,
   refreshCharacterOptions = async () => [],
   resolveCharacterAvatarUrlById = () => null,
   selectedExpertEditPresetIds,
@@ -476,11 +484,11 @@ export const useAiStudioPanelProps = ({
     imageResolution,
     setImageResolution,
     characterOptions,
-    selectedCharacterId,
-    setSelectedCharacterId,
+    selectedCharacterId: editSelectedCharacterId,
+    setSelectedCharacterId: setEditSelectedCharacterId,
     isCharacterOptionsLoading,
-    isCharacterModeEnabled,
-    setIsCharacterModeEnabled,
+    isCharacterModeEnabled: isEditCharacterModeEnabled,
+    setIsCharacterModeEnabled: setIsEditCharacterModeEnabled,
     refreshCharacterOptions,
     resolveCharacterAvatarUrlById,
     selectedPresetIds: selectedExpertEditPresetIds,

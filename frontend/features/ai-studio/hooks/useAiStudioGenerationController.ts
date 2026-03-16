@@ -73,6 +73,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   model: string | null;
   setModel: (value: string | null) => void;
   isCharacterModeEnabled: boolean;
+  resolveIsCharacterModeEnabledForTool?: (tool: ToolId | null) => boolean;
   prompt: string;
   agentInput: string;
   agentBusy: boolean;
@@ -179,6 +180,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   model,
   setModel,
   isCharacterModeEnabled,
+  resolveIsCharacterModeEnabledForTool,
   prompt,
   agentInput,
   chatModeEnabled,
@@ -289,12 +291,15 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   const resolveEffectiveSubmitModelId = useCallback(
     (tool: ToolId | null): string | null => {
       if (!isCreateTool(tool)) return model;
+      const characterModeEnabledForTool = resolveIsCharacterModeEnabledForTool
+        ? resolveIsCharacterModeEnabledForTool(tool)
+        : isCharacterModeEnabled;
       return resolveCreateCharacterModeSubmitModel({
         currentModelId: model,
-        isCharacterModeEnabled,
+        isCharacterModeEnabled: characterModeEnabledForTool,
       });
     },
-    [isCharacterModeEnabled, model]
+    [isCharacterModeEnabled, model, resolveIsCharacterModeEnabledForTool]
   );
   const resolveUserReferenceInputsForTool = useCallback(
     (tool: ToolId | null): string[] => {
@@ -315,6 +320,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.toolOverride ?? selectedTool;
+      const isCharacterModeEnabledForTool = resolveIsCharacterModeEnabledForTool
+        ? resolveIsCharacterModeEnabledForTool(effectiveTool)
+        : isCharacterModeEnabled;
       const effectiveModelId = resolveEffectiveSubmitModelId(effectiveTool);
       const wasSubmitModelCoerced =
         effectiveModelId != null && model != null && effectiveModelId !== model;
@@ -386,7 +394,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           trigger: "generate",
           tool: effectiveTool,
           model_id: effectiveModelId,
-          is_character_mode: isCharacterModeEnabled,
+          is_character_mode: isCharacterModeEnabledForTool,
         });
         const characterModeBundleForSubmit = await withDeadline({
           timeoutMs: PREFLIGHT_TIMEOUT_MS,
@@ -406,7 +414,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             trigger: "generate",
             tool: effectiveTool,
             model_id: effectiveModelId,
-            is_character_mode: isCharacterModeEnabled,
+            is_character_mode: isCharacterModeEnabledForTool,
             duration_ms: error.timeoutMs,
             reason_code: "PREFLIGHT_TIMEOUT",
           });
@@ -493,6 +501,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
       resolveUserReferenceInputsForTool,
+      resolveIsCharacterModeEnabledForTool,
       selectedTool,
       setModel,
       setUiError,
@@ -573,6 +582,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         options?.inpaintOverride?.modelId ??
         options?.modelIdOverride ??
         resolveEffectiveSubmitModelId(selectedTool);
+      const isCharacterModeEnabledForTool = resolveIsCharacterModeEnabledForTool
+        ? resolveIsCharacterModeEnabledForTool(selectedTool)
+        : isCharacterModeEnabled;
       const hasSubmitModelOverride = Boolean(
         options?.inpaintOverride?.modelId ?? options?.modelIdOverride
       );
@@ -642,7 +654,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           trigger: "regenerate",
           tool: selectedTool,
           model_id: effectiveSubmitModelId,
-          is_character_mode: isCharacterModeEnabled,
+          is_character_mode: isCharacterModeEnabledForTool,
         });
         const characterModeBundleForSubmit = await withDeadline({
           timeoutMs: PREFLIGHT_TIMEOUT_MS,
@@ -663,7 +675,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             trigger: "regenerate",
             tool: selectedTool,
             model_id: effectiveSubmitModelId,
-            is_character_mode: isCharacterModeEnabled,
+            is_character_mode: isCharacterModeEnabledForTool,
             duration_ms: error.timeoutMs,
             reason_code: "PREFLIGHT_TIMEOUT",
           });
@@ -764,6 +776,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       mode,
       model,
       isCharacterModeEnabled,
+      resolveIsCharacterModeEnabledForTool,
       refreshCharacterModeInjectionBundleForSubmission,
       regenerateOutput,
       resolveGuardrailBlockMessage,

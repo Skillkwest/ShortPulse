@@ -34,8 +34,8 @@ Out of scope:
 | `B3-02` | B-Core | `useCharacterManagerDraft.ts` | Split draft-state orchestration into feature slices while preserving caller contract | `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-checkpoint-review.md` | Checkpoint Complete |
 | `B4-01` | B-Core | `/pages/admin/index.tsx` | Split tab-specific controllers and reduce page coupling | `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-shell-checkpoint-review.md` | Checkpoint Complete |
 | `B4-02` | B-Core | admin health server modules | Split user-health and fleet lifecycle services | `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-health-checkpoint-review.md` | Checkpoint Complete |
-| `B5-01` | B-Style | style token authority | Lock canonical panel/token values and alias policy | `docs/planning/evidence/lane-b/2026-03-17-b5-01-style-token-authority-baseline.md` | In Progress |
-| `B5-02` | B-Style | AI Studio style migration | Migrate scoped literal styles to canonical tokens/classes | `docs/planning/evidence/lane-b/2026-03-16-b5-02-style-migration-slice.md` | Not Started |
+| `B5-01` | B-Style | style token authority | Lock canonical panel/token values and alias policy | `docs/planning/evidence/lane-b/2026-03-17-b5-01-style-token-authority-checkpoint-review.md` | Checkpoint Complete |
+| `B5-02` | B-Style | AI Studio style migration | Migrate scoped literal styles to canonical tokens/classes | `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-neutral-surface-migration.md` | In Progress |
 | `B6-01` | B-Core/B-Style | convergence | Promote guardrails to enforce after two green cycles | `docs/planning/evidence/lane-b/2026-03-16-b6-01-convergence-and-enforcement.md` | Not Started |
 
 Policy:

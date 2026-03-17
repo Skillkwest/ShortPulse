@@ -1,3 +1,7 @@
+/**
+ * Expert Edit panel styles.
+ * Owns the advanced edit workspace surfaces layered on top of the scoped expert tokens.
+ */
 .edit-expert-panel {
   gap: var(--edit-expert-panel-gap);
   min-height: 420px;
@@ -15,9 +19,9 @@
   gap: 2px;
   padding: 6px;
   border-radius: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.22);
-  background: rgba(17, 20, 26, 0.98);
-  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.48);
+  border: 1px solid var(--edit-expert-neutral-border);
+  background: var(--edit-expert-neutral-surface);
+  box-shadow: 0 18px 32px var(--edit-expert-neutral-shadow-strong);
   z-index: var(--ai-studio-z-modal-context-surface);
 }
 
@@ -26,7 +30,7 @@
   border-radius: 7px;
   border: 1px solid transparent;
   background: transparent;
-  color: rgba(239, 243, 250, 0.94);
+  color: var(--edit-expert-neutral-text);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -42,15 +46,15 @@
 .edit-expert-stage-context-menu button:hover,
 .edit-expert-stage-context-menu button:focus-visible {
   outline: none;
-  border-color: rgba(205, 210, 220, 0.26);
-  background: rgba(58, 64, 74, 0.44);
+  border-color: var(--edit-expert-neutral-border-hover);
+  background: var(--edit-expert-neutral-hover);
 }
 
 .edit-expert-stage-context-menu button.is-danger:hover,
 .edit-expert-stage-context-menu button.is-danger:focus-visible {
-  border-color: rgba(238, 112, 133, 0.86);
-  background: rgba(93, 26, 44, 0.72);
-  color: rgba(255, 217, 226, 0.98);
+  border-color: var(--edit-expert-danger-border);
+  background: var(--edit-expert-danger-surface);
+  color: var(--edit-expert-danger-text);
 }
 
 .edit-expert-stage-context-menu button:disabled {
@@ -97,10 +101,10 @@
 .edit-expert-preset-toolbar-title-card {
   position: relative;
   width: 100%;
-  border: 1px solid rgba(201, 205, 214, 0.02);
+  border: 1px solid var(--edit-expert-neutral-border-soft);
   border-radius: 8px;
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
   padding: 8px 12px;
   display: flex;
   align-items: center;
@@ -111,10 +115,10 @@
 .edit-expert-preset-toolbar-card {
   position: relative;
   width: 100%;
-  border: 1px solid rgba(201, 205, 214, 0.02);
+  border: 1px solid var(--edit-expert-neutral-border-soft);
   border-radius: 8px;
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
   padding: 8px 8px;
   display: flex;
   flex-direction: column;
@@ -144,7 +148,7 @@
     var(--edit-expert-accent-end)
   );
   box-shadow: 0 4px 1px rgba(245, 120, 66, 0.437);
-  color: #1a140c;
+  color: var(--edit-expert-ink);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -207,10 +211,14 @@
 }
 
 .edit-expert-preset-action-btn--remove-bg:disabled {
-  border-color: rgba(132, 143, 156, 0.3);
-  background: linear-gradient(135deg, rgba(104, 115, 128, 0.3), rgba(82, 91, 102, 0.3));
+  border-color: var(--edit-expert-disabled-neutral-border);
+  background: linear-gradient(
+    135deg,
+    var(--edit-expert-disabled-neutral-start),
+    var(--edit-expert-disabled-neutral-end)
+  );
   box-shadow: none;
-  color: rgba(174, 184, 196, 0.8);
+  color: var(--edit-expert-disabled-neutral-text);
   cursor: default;
 }
 
@@ -224,15 +232,15 @@
 .edit-expert-preset-action-btn--remove-bg:disabled
   .edit-expert-preset-action-btn-cost
   .model-chip-credits {
-  color: rgba(174, 184, 196, 0.8);
+  color: var(--edit-expert-disabled-neutral-text);
 }
 
 .edit-expert-preset-action-btn--compose-image {
-  border: 1px solid rgba(92, 96, 104, 0.9);
-  background-color: rgba(37, 41, 47, 0.64);
+  border: 1px solid var(--edit-expert-compose-border);
+  background-color: var(--edit-expert-compose-surface);
   background-image: none;
   box-shadow: none;
-  color: #eef2f8;
+  color: var(--edit-expert-neutral-text-strong);
   font-weight: 700;
   cursor: pointer;
 }
@@ -246,7 +254,7 @@
 
 .edit-expert-preset-action-btn--compose-image span,
 .edit-expert-preset-action-btn--compose-image svg {
-  color: #eef2f8;
+  color: var(--edit-expert-neutral-text-strong);
 }
 
 .edit-expert-preset-action-btn--compose-image span {
@@ -254,9 +262,13 @@
 }
 
 .edit-expert-preset-action-btn--compose-image:hover {
-  border-color: rgba(138, 151, 168, 0.55);
-  background: linear-gradient(135deg, rgba(84, 95, 110, 0.94), rgba(62, 72, 86, 0.94));
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+  border-color: var(--edit-expert-compose-hover-border);
+  background: linear-gradient(
+    135deg,
+    var(--edit-expert-compose-hover-start),
+    var(--edit-expert-compose-hover-end)
+  );
+  box-shadow: 0 6px 14px var(--edit-expert-neutral-shadow);
 }
 
 .edit-expert-preset-action-btn--compose-image:hover span,

@@ -100,3 +100,5 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-health-checkpoint-review.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-01-style-token-authority-baseline.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-01-edit-theme-alias-authority-slice.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b5-01-style-token-authority-checkpoint-review.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-neutral-surface-migration.md`

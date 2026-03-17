@@ -153,6 +153,7 @@ Start here for all repository documentation.
 - `docs/planning/lane-e-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-e-execution-plan-2026-03-16.md`
 - `docs/planning/lane-f-master-plan-2026-03-16.md`
+- `docs/planning/lane-f-execution-plan-2026-03-16.md`
 - `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-f-contact-map-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`

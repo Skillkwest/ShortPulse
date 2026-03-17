@@ -39,6 +39,8 @@ Lane-level companion execution plans are allowed for concrete slice sequencing. 
 - Lane B: `docs/planning/lane-b-execution-plan-2026-03-16.md`
 - Lane C: `docs/planning/lane-c-execution-plan-2026-03-16.md`
 - Lane D: `docs/planning/lane-d-execution-plan-2026-03-16.md`
+- Lane E: `docs/planning/lane-e-execution-plan-2026-03-16.md`
+- Lane F: `docs/planning/lane-f-execution-plan-2026-03-16.md`
 
 Parallel tracks follow the same rule and must publish a master plan plus tracker spec before implementation begins.
 Current parallel-track companion execution plan:

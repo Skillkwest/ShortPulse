@@ -1,12 +1,13 @@
 # Lane F Master Plan (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-f-tracker-spec-2026-03-16.md`  
 Contact map: `docs/planning/lane-f-contact-map-2026-03-16.md`  
+Execution plan: `docs/planning/lane-f-execution-plan-2026-03-16.md`  
 Evidence index: `docs/planning/evidence/lane-f/README.md`
 
 ## Summary
@@ -28,8 +29,8 @@ Default contract:
 4. Lane F governs release/CI control planes; lane-local checks must remain no-bloat and no-regression.
 
 ## Baseline Findings (Audit Snapshot)
-As of 2026-03-16:
-1. Lane F artifacts are now published: master plan, tracker spec, contact map, and lane evidence index.
+As of 2026-03-17:
+1. Lane F artifacts are now published: master plan, tracker spec, contact map, execution plan, and lane evidence index.
 2. CI workflow currently defines `17` jobs in `.github/workflows/ci.yml`.
 3. CI policy inventory drift exists:
    - `agent_rollback_verification` is in workflow but missing from `docs/planning/ci-policy-checks.md`.

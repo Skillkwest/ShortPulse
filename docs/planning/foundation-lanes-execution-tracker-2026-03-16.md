@@ -20,7 +20,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
 | D    | Completed   | Engineering | Lane D closeout complete; runtime warning, suppression, hard-disable, logging, and guardrail debt are cleared with full-suite green validation | none                                    | Lane E execution handoff                                                  | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Completed   | Engineering | Lane E closeout complete; index parity, ADR integrity, policy-surface consistency, changelog governance, and convergence evidence are locked | none                                    | Lane F execution handoff                                                  | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
-| F    | Not Started | Engineering | Release and CI discipline baseline lock and policy-inventory parity                                                                      | Awaiting F0 baseline evidence packet    | Lane F CI inventory and required-check contract lock                      | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
+| F    | In Progress | Engineering | `F0-01` baseline lock is complete; `F1-01` CI inventory and required-check parity is next                                               | none                                    | `F1-01` CI inventory and required-check contract lock                     | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
 
 ## Lane A Master Checklist
@@ -156,8 +156,9 @@ Mandatory for any from-scratch replacement scope:
 
 1. Master plan: `docs/planning/lane-f-master-plan-2026-03-16.md`
 2. Tracker spec: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
-3. Contact map: `docs/planning/lane-f-contact-map-2026-03-16.md`
-4. Evidence index: `docs/planning/evidence/lane-f/README.md`
+3. Execution plan: `docs/planning/lane-f-execution-plan-2026-03-16.md`
+4. Contact map: `docs/planning/lane-f-contact-map-2026-03-16.md`
+5. Evidence index: `docs/planning/evidence/lane-f/README.md`
 
 ## Lane C Master Checklist
 

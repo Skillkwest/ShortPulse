@@ -1391,8 +1391,8 @@
   padding: 10px;
   border-radius: 12px;
   border: 1px solid transparent;
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -1421,9 +1421,9 @@
   min-width: calc(var(--edit-expert-secondary-width) - 14px);
   height: calc(var(--edit-expert-secondary-width) - 14px);
   border-radius: 999px;
-  border: 1px solid rgba(201, 205, 214, 0.26);
-  background: rgba(37, 41, 47, 0.64);
-  color: rgba(230, 236, 245, 0.9);
+  border: 1px solid var(--edit-expert-control-border-light);
+  background: var(--edit-expert-control-surface);
+  color: var(--edit-expert-selected-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1483,8 +1483,8 @@
   min-height: 0;
   height: auto;
   border-radius: 12px;
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
   box-sizing: border-box;
   transition:
     background 0.18s ease,
@@ -1514,8 +1514,8 @@
   margin: 0;
   border-radius: 12px;
   border: 1px solid transparent;
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -1574,7 +1574,7 @@
 
 .edit-expert-inpaint-collapse-title {
   margin: 0;
-  color: rgba(225, 232, 242, 0.9);
+  color: var(--edit-expert-neutral-text-muted-strong);
   font-size: 12px;
   font-weight: 600;
   line-height: 1;

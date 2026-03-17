@@ -23,9 +23,11 @@
   --edit-expert-neutral-shadow-strong: rgba(0, 0, 0, 0.48);
   --edit-expert-neutral-text: rgba(239, 243, 250, 0.94);
   --edit-expert-neutral-text-strong: #eef2f8;
+  --edit-expert-neutral-text-muted-strong: rgba(225, 232, 242, 0.9);
   --edit-expert-muted-text: #c9cdd685;
   --edit-expert-selected-text: rgba(230, 236, 245, 0.9);
   --edit-expert-control-border: rgba(92, 96, 104, 0.9);
+  --edit-expert-control-border-light: rgba(201, 205, 214, 0.26);
   --edit-expert-control-border-soft: rgba(92, 96, 104, 0.275);
   --edit-expert-control-surface: rgba(37, 41, 47, 0.64);
   --edit-expert-control-hover-border: rgba(205, 210, 220, 0.2);

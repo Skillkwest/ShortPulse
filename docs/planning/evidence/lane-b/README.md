@@ -105,3 +105,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-secondary-controls-migration.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-rail-controls-migration.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-collapse-mode-controls-migration.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-wrapper-trigger-migration.md`

@@ -14,7 +14,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
 | A | Completed | Engineering | Lane A closeout complete; debt handed off to downstream lanes | none | Lane B execution handoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
-| B | In Progress | Engineering | B2-02 active; B2-01 stop review complete, inpaint controller hotspot mapped, and first hook-behavior characterization slice landed for snapshot/export/clear flows | none | Take the first pure-helper extraction in `useInpaintMaskController.ts` (geometry/mask-space math) | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| B | In Progress | Engineering | B2-02 active; characterization lock is in place and the first production extraction split inpaint geometry/mask-space helpers out of `useInpaintMaskController.ts` | none | Take the next pure-helper extraction in `useInpaintMaskController.ts` (contour/overlay rendering helpers) | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
 | E | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock | Awaiting E0 baseline evidence packet | Lane E governance baseline lock | `docs/planning/lane-e-master-plan-2026-03-16.md` |
@@ -316,6 +316,8 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-controller-hotspot-map.md`
 - Opened B2-02 with a characterization-lock slice covering inpaint snapshot/export/clear hook behavior:
   - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-characterization-lock.md`
+- Continued B2-02 with the first production extraction by moving inpaint geometry and mask-space math into a dedicated helper module:
+  - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-geometry-split.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
   - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 - Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):

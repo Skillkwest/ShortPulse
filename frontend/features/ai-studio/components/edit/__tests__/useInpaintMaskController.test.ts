@@ -9,17 +9,19 @@ import {
   INPAINT_MARCHING_ANTS_DASH_PATTERN,
   INPAINT_MARCHING_ANTS_STEP_MS,
   mapLassoPreviewPointsToOverlaySpace,
-  resolveMaskSpaceScaleFromSurface,
-  resolveInpaintBrushPaintRadius,
-  resolveSceneCanvasPoint,
   resolvePointerSampleEvents,
-  resolveMaskExportSourceWindow,
   resolveNextMarchingAntPhaseState,
   shouldEndPointerSessionOnLeave,
   shouldRenderLassoPreview,
-  toClampedCanvasPoint,
   useInpaintMaskController,
 } from "../useInpaintMaskController";
+import {
+  resolveInpaintBrushPaintRadius,
+  resolveMaskExportSourceWindow,
+  resolveMaskSpaceScaleFromSurface,
+  resolveSceneCanvasPoint,
+  toClampedCanvasPoint,
+} from "../inpaintMaskGeometry";
 
 const makeMaskData = (width: number, height: number, activePixels: Array<[number, number]>) => {
   const data = new Uint8ClampedArray(width * height * 4);

@@ -1,0 +1,246 @@
+import {
+  mapPixelPointBetweenSpacesViaScene,
+  resolveIsotropicScaleBetweenSpaces,
+} from "./stageSceneGeometry";
+
+export type InpaintPoint = {
+  x: number;
+  y: number;
+};
+
+export type InpaintImageRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type MaskExportSourceWindow = {
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+export const resolveSceneCanvasPoint = ({
+  clientX,
+  clientY,
+  rect,
+  sceneScale,
+}: {
+  clientX: number;
+  clientY: number;
+  rect: DOMRect;
+  sceneScale: number;
+}): InpaintPoint => {
+  const rawX = clientX - rect.left;
+  const rawY = clientY - rect.top;
+  if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
+    return { x: rawX, y: rawY };
+  }
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  return {
+    x: centerX + (rawX - centerX) / sceneScale,
+    y: centerY + (rawY - centerY) / sceneScale,
+  };
+};
+
+const toSurfaceCanvasPoint = (
+  event: { clientX: number; clientY: number },
+  rect: DOMRect,
+  sceneScale = 1
+): InpaintPoint | null => {
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+  return resolveSceneCanvasPoint({
+    clientX: event.clientX,
+    clientY: event.clientY,
+    rect,
+    sceneScale,
+  });
+};
+
+export const toClampedCanvasPoint = (
+  event: { clientX: number; clientY: number },
+  rect: DOMRect,
+  sceneScale = 1
+): InpaintPoint => {
+  const rawX = clamp(event.clientX - rect.left, 0, rect.width);
+  const rawY = clamp(event.clientY - rect.top, 0, rect.height);
+  if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
+    return { x: rawX, y: rawY };
+  }
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  const sceneX = centerX + (rawX - centerX) / sceneScale;
+  const sceneY = centerY + (rawY - centerY) / sceneScale;
+  return {
+    x: clamp(sceneX, 0, rect.width),
+    y: clamp(sceneY, 0, rect.height),
+  };
+};
+
+export const mapSurfacePointToMaskCanvasPoint = ({
+  point,
+  interactionRect,
+  maskWidth,
+  maskHeight,
+}: {
+  point: InpaintPoint;
+  interactionRect: DOMRect;
+  maskWidth: number;
+  maskHeight: number;
+}): InpaintPoint => {
+  const sourceWidth = Math.max(1, interactionRect.width);
+  const sourceHeight = Math.max(1, interactionRect.height);
+  const targetWidth = Math.max(1, Math.round(maskWidth));
+  const targetHeight = Math.max(1, Math.round(maskHeight));
+  return mapPixelPointBetweenSpacesViaScene({
+    point,
+    fromWidth: sourceWidth,
+    fromHeight: sourceHeight,
+    toWidth: targetWidth,
+    toHeight: targetHeight,
+    clampToBounds: true,
+  });
+};
+
+export const resolveImageRectForContain = (
+  dropzoneWidth: number,
+  dropzoneHeight: number,
+  naturalWidth: number,
+  naturalHeight: number
+): InpaintImageRect => {
+  if (naturalWidth <= 0 || naturalHeight <= 0 || dropzoneWidth <= 0 || dropzoneHeight <= 0) {
+    return {
+      x: 0,
+      y: 0,
+      width: dropzoneWidth,
+      height: dropzoneHeight,
+    };
+  }
+  const scale = Math.min(dropzoneWidth / naturalWidth, dropzoneHeight / naturalHeight);
+  const width = naturalWidth * scale;
+  const height = naturalHeight * scale;
+  return {
+    x: (dropzoneWidth - width) / 2,
+    y: (dropzoneHeight - height) / 2,
+    width,
+    height,
+  };
+};
+
+export const resolveMaskExportSourceWindow = ({
+  imageRect,
+  maskWidth,
+  maskHeight,
+}: {
+  imageRect: InpaintImageRect | null;
+  maskWidth: number;
+  maskHeight: number;
+}): MaskExportSourceWindow | null => {
+  if (maskWidth <= 0 || maskHeight <= 0) return null;
+  if (!imageRect) {
+    return {
+      sx: 0,
+      sy: 0,
+      sw: maskWidth,
+      sh: maskHeight,
+    };
+  }
+  const sx = clamp(Math.floor(imageRect.x), 0, maskWidth);
+  const sy = clamp(Math.floor(imageRect.y), 0, maskHeight);
+  const endX = clamp(Math.ceil(imageRect.x + imageRect.width), 0, maskWidth);
+  const endY = clamp(Math.ceil(imageRect.y + imageRect.height), 0, maskHeight);
+  const sw = Math.max(0, endX - sx);
+  const sh = Math.max(0, endY - sy);
+  if (sw <= 0 || sh <= 0) return null;
+  return {
+    sx,
+    sy,
+    sw,
+    sh,
+  };
+};
+
+export const resolveInpaintBrushDiameter = (strokeSize: number) => {
+  const clampedStrokeSize = clamp(strokeSize, 1, 100);
+  const mappedDiameter = Math.round(6 + clampedStrokeSize * 0.46);
+  return clamp(mappedDiameter, 8, 52);
+};
+
+export const resolveMaskSpaceScaleFromSurface = ({
+  surfaceWidth,
+  surfaceHeight,
+  maskWidth,
+  maskHeight,
+}: {
+  surfaceWidth: number;
+  surfaceHeight: number;
+  maskWidth: number;
+  maskHeight: number;
+}) => {
+  if (
+    !Number.isFinite(surfaceWidth) ||
+    !Number.isFinite(surfaceHeight) ||
+    !Number.isFinite(maskWidth) ||
+    !Number.isFinite(maskHeight) ||
+    surfaceWidth <= 0 ||
+    surfaceHeight <= 0 ||
+    maskWidth <= 0 ||
+    maskHeight <= 0
+  ) {
+    return 1;
+  }
+  return resolveIsotropicScaleBetweenSpaces({
+    fromHeight: surfaceHeight,
+    toHeight: maskHeight,
+  });
+};
+
+export const resolveInpaintBrushPaintRadius = ({
+  strokeSize,
+  sceneScale,
+  surfaceToMaskScale = 1,
+}: {
+  strokeSize: number;
+  sceneScale: number;
+  surfaceToMaskScale?: number;
+}) => {
+  const diameter = resolveInpaintBrushDiameter(strokeSize);
+  const safeScale = Number.isFinite(sceneScale) && sceneScale > 0 ? sceneScale : 1;
+  const safeSurfaceToMaskScale =
+    Number.isFinite(surfaceToMaskScale) && surfaceToMaskScale > 0 ? surfaceToMaskScale : 1;
+  return (diameter / safeScale / 2) * safeSurfaceToMaskScale;
+};
+
+export const resolveMaskInteractionPoint = ({
+  sampleEvent,
+  interactionRect,
+  maskWidth,
+  maskHeight,
+  sceneScale,
+  clampToBounds,
+}: {
+  sampleEvent: { clientX: number; clientY: number };
+  interactionRect: DOMRect;
+  maskWidth: number;
+  maskHeight: number;
+  sceneScale: number;
+  clampToBounds: boolean;
+}): InpaintPoint | null => {
+  const surfacePoint = clampToBounds
+    ? toClampedCanvasPoint(sampleEvent, interactionRect, sceneScale)
+    : toSurfaceCanvasPoint(sampleEvent, interactionRect, sceneScale);
+  if (!surfacePoint) return null;
+  return mapSurfacePointToMaskCanvasPoint({
+    point: surfacePoint,
+    interactionRect,
+    maskWidth,
+    maskHeight,
+  });
+};

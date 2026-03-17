@@ -1,7 +1,7 @@
 /**
  * Cursor data-URI builders for Expert Edit inpaint/markup tools.
  */
-import { resolveInpaintBrushDiameter } from "./useInpaintMaskController";
+import { resolveInpaintBrushDiameter } from "./inpaintMaskGeometry";
 
 const MARKUP_CURSOR_DIAMETER_MIN = 1;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;

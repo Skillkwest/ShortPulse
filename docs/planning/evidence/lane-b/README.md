@@ -61,3 +61,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-26.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-controller-hotspot-map.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-characterization-lock.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-geometry-split.md`

@@ -263,3 +263,8 @@ export const clampCaretPosition = ({
   caretPosition: number;
   textLength: number;
 }) => Math.max(0, Math.min(textLength, caretPosition));
+
+export const isEventTargetInsideElement = (
+  element: HTMLElement | null,
+  target: EventTarget | null
+) => Boolean(element && target instanceof Node && element.contains(target));

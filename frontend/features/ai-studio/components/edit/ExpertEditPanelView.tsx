@@ -186,6 +186,7 @@ import {
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
   createIdleTransformPointerSession,
+  isEventTargetInsideElement,
   isKeyboardEventFromEditableTarget,
   lockDocumentCursor,
   resolveInpaintCollapseToggleDecision,
@@ -3057,9 +3058,7 @@ export function ExpertEditPanelView({
   }, []);
 
   const isDragTargetInsideMarkupModal = React.useCallback((target: EventTarget | null) => {
-    const modalElement = markupModalRef.current;
-    if (!modalElement || !(target instanceof Node)) return false;
-    return modalElement.contains(target);
+    return isEventTargetInsideElement(markupModalRef.current, target);
   }, []);
 
   const handleMarkupModalRootDragCapture = React.useCallback(
@@ -3371,11 +3370,7 @@ export function ExpertEditPanelView({
   React.useEffect(() => {
     if (!stageContextMenuState.isOpen || typeof document === "undefined") return;
     const handlePointerDown = (event: PointerEvent) => {
-      const menuElement = stageContextMenuRef.current;
-      const targetNode = event.target as Node | null;
-      if (menuElement && targetNode && menuElement.contains(targetNode)) {
-        return;
-      }
+      if (isEventTargetInsideElement(stageContextMenuRef.current, event.target)) return;
       closeStageContextMenu();
     };
     const handleEscape = (event: KeyboardEvent) => {
@@ -3786,10 +3781,7 @@ export function ExpertEditPanelView({
   React.useEffect(() => {
     if (!isMarkupColorPickerOpen || typeof document === "undefined") return;
     const handlePointerDown = (event: PointerEvent) => {
-      const anchor = markupColorPickerAnchorRef.current;
-      const target = event.target as Node | null;
-      if (!anchor || !target) return;
-      if (anchor.contains(target)) return;
+      if (isEventTargetInsideElement(markupColorPickerAnchorRef.current, event.target)) return;
       setIsMarkupColorPickerOpen(false);
     };
     const handleEscape = (event: KeyboardEvent) => {

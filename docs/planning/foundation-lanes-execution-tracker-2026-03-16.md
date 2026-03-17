@@ -19,7 +19,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | B    | Completed   | Engineering | Lane B closeout complete; modularization, style authority, and convergence gates are locked with deferred residuals owner/dated | none                                    | Lane C execution handoff                                                  | `docs/planning/lane-b-master-plan-2026-03-16.md`                        |
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
 | D    | Completed   | Engineering | Lane D closeout complete; runtime warning, suppression, hard-disable, logging, and guardrail debt are cleared with full-suite green validation | none                                    | Lane E execution handoff                                                  | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
-| E    | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock                                                                                         | Awaiting E0 baseline evidence packet    | Lane E governance baseline lock                                           | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
+| E    | In Progress | Engineering | `E0-01` bootstrap baseline is complete; Lane E executable contract is now published and `E1-01` index parity is next                    | none                                    | `E1-01` active index parity contract                                      | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
 | F    | Not Started | Engineering | Release and CI discipline baseline lock and policy-inventory parity                                                                      | Awaiting F0 baseline evidence packet    | Lane F CI inventory and required-check contract lock                      | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
 
@@ -219,12 +219,13 @@ Concrete sequencing: `docs/planning/lane-d-execution-plan-2026-03-16.md`
 
 Canonical plan: `docs/planning/lane-e-master-plan-2026-03-16.md`  
 Tracker contract: `docs/planning/lane-e-tracker-spec-2026-03-16.md`
+Execution plan: `docs/planning/lane-e-execution-plan-2026-03-16.md`
 
 ### E0: Governance Bootstrap
 
-- [ ] Capture baseline outputs for `docs:check` and scoped validation commands.
-- [ ] Wire Lane E artifacts in roadmap/tracker/docs indexes.
-- [ ] Freeze Lane E non-goals and rollback posture.
+- [x] Capture baseline outputs for `docs:check` and scoped validation commands.
+- [x] Wire Lane E artifacts in roadmap/tracker/docs indexes.
+- [x] Freeze Lane E non-goals and rollback posture.
 
 ### E1: Index Parity Contract
 

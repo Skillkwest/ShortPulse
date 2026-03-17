@@ -33,6 +33,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `lane-d-execution-plan-2026-03-16.md`: concrete Lane D slice sequencing with explicit command bundles, acceptance criteria, and evidence packet outputs.
 - `lane-e-master-plan-2026-03-16.md`: Lane E docs/ADR discipline plan for index parity, policy-surface consistency, ADR integrity, and changelog governance hardening.
 - `lane-e-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane E docs/ADR governance slices.
+- `lane-e-execution-plan-2026-03-16.md`: concrete Lane E slice sequencing with explicit command bundles, acceptance criteria, and evidence packet outputs.
 - `lane-f-master-plan-2026-03-16.md`: Lane F release and CI discipline plan for required-check contracts, workflow reliability policy, supply-chain hardening, and environment-protection governance.
 - `lane-f-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane F CI/release governance slices.
 - `lane-f-contact-map-2026-03-16.md`: owner/escalation contact map for Lane F release and CI discipline scope, sourced from `docs/operator-map.md`.

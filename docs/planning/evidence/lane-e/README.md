@@ -25,3 +25,7 @@ Examples:
 ## Linked docs
 - `docs/planning/lane-e-master-plan-2026-03-16.md`
 - `docs/planning/lane-e-tracker-spec-2026-03-16.md`
+- `docs/planning/lane-e-execution-plan-2026-03-16.md`
+
+## Current packets
+- `docs/planning/evidence/lane-e/2026-03-17-e0-01-governance-bootstrap-baseline.md`

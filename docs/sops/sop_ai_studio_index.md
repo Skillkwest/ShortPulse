@@ -27,7 +27,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Canonical model API metadata: `frontend/lib/model-runtime/modelCatalog.ts` (provider model ids, submit/status aliases, validated fields, defaults, provider source URLs, verification dates).
 - UI model metadata: `frontend/features/ai-studio/logic/modelRegistry.ts` (labels, mediaType, pricing strategy, UI capabilities).
 - Pricing dispatcher: `frontend/features/ai-studio/logic/pricing.ts` (`computeCostForModel`, `buildDefaultPricingParams`).
-- Pricing strategies: `frontend/features/ai-studio/logic/pricingStrategies.ts` (per-MP, per-image, per-duration).
+- Pricing strategies: `frontend/lib/model-runtime/pricingStrategies.ts` (per-MP, per-image, per-duration).
 - Create model-selection policy: `frontend/features/ai-studio/logic/modelSelectionPolicy.ts` (shared option filtering + startup default precedence).
 - Create panel contract adapter: `frontend/features/ai-studio/hooks/useAiStudioCreatePanelProps.ts` (maps page orchestration state to `CreatePropertiesPanel` props).
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
@@ -88,7 +88,7 @@ Planned reliability module boundaries:
 - `frontend/lib/server/falIntegration/contracts.ts`
 - `frontend/lib/server/falIntegration/modelProfiles.ts`
 - `frontend/lib/server/falIntegration/submitEngine.ts`
-- `frontend/lib/server/falIntegration/retrievalEngine.ts`
+- `frontend/lib/server/providerIntegration/statusProviderSelection.ts`
 - `frontend/lib/server/falIntegration/falAdapter.ts`
 - `frontend/lib/server/falIntegration/stateMachine.ts`
 - `frontend/lib/server/falIntegration/parity.ts`

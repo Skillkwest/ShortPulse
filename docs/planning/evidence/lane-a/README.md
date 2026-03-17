@@ -23,6 +23,7 @@ Examples:
 - `2026-03-16-a1-03-validate-path-relock.md`
 - `2026-03-16-a2-01-policy-surface-alignment.md`
 - `2026-03-16-a3-01-docs-governance-cleanup.md`
+- `2026-03-16-a4-01-conservative-deadcode-pass.md`
 
 ## Linked docs
 - `docs/planning/lane-a-master-plan-2026-03-16.md`

@@ -13,7 +13,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 ## Program Snapshot
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
-| A | In Progress | Engineering | Dead-code safe-core cleanup after docs/governance normalization closeout | deadcode baseline drift | A4-01 conservative dead-code pass | `docs/planning/lane-a-master-plan-2026-03-16.md` |
+| A | In Progress | Engineering | Dead-code selective pruning after safe-core removals | deadcode baseline drift (6 files remain) | A4-02 selective dead-code pruning pass | `docs/planning/lane-a-master-plan-2026-03-16.md` |
 | B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | Behavior-changing/baseline-dependent merges blocked until Lane A baseline-green signoff | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
@@ -41,9 +41,9 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 - [x] Remove duplicate/stale API/SOP doc rows and stale references.
 
 ### A3: Dead-Code Cleanup (Safe Core)
-- [ ] Apply isolated dead-file/dependency removals with strict validation gates.
-- [ ] Update active docs/skills impacted by removals in same phase.
-- [ ] Confirm no behavior-contract regressions in targeted tests.
+- [x] Apply isolated dead-file/dependency removals with strict validation gates.
+- [x] Update active docs/skills impacted by removals in same phase.
+- [x] Confirm no behavior-contract regressions in targeted tests.
 
 ### A4: Selective Dead-Code Pruning
 - [ ] Prune only high-confidence leaf exports/constants.
@@ -106,6 +106,7 @@ Mandatory for any from-scratch replacement scope:
 5. A1 validate relock packet: `docs/planning/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md`
 6. A2 policy surface alignment packet: `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
 7. A3 docs governance cleanup packet: `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
+8. A4 conservative dead-code pass packet: `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
 
 ## Lane C Artifacts
 1. Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`

@@ -15,7 +15,7 @@ Purpose: verify pricing formulas, defaults, and debit behavior across AI Studio.
 ## Sources of truth
 - `frontend/features/ai-studio/logic/modelRegistry.ts`
 - `frontend/features/ai-studio/logic/pricing.ts`
-- `frontend/features/ai-studio/logic/pricingStrategies.ts`
+- `frontend/lib/model-runtime/pricingStrategies.ts`
 - `frontend/pages/ai-studio.tsx`
 - `frontend/features/ai-studio/hooks/useAiStudioViewModel.ts`
 - `frontend/features/ai-studio/hooks/useAiStudioState.ts`

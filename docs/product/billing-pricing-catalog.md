@@ -4,7 +4,7 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
 
 ## Credit unit policy
 - `1 credit = $0.01` is fixed.
-- AI model debit logic remains in `frontend/features/ai-studio/logic/pricingStrategies.ts`.
+- AI model debit logic remains in `frontend/lib/model-runtime/pricingStrategies.ts`.
 - This catalog only controls subscription and top-up pricing.
 
 ## Source of truth

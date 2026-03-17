@@ -193,6 +193,27 @@ Mode policy:
   - any PR that changes an action ref or adds a new action must update this section in the same PR
   - any exception added after `F4-01` must include owner, reason, and sunset criterion
 
+## Environment protection policy
+
+- Canonical GitHub Environment names:
+  - `staging`
+  - `production`
+- Canonical policy boundary:
+  - GitHub Environment names are always lowercase `staging` and `production`
+  - Vercel scope labels (`Production`, `Preview`) are deployment-platform labels, not substitutes for GitHub Environment names
+- Current state (`F5-01` baseline):
+  - `staging`: no required reviewers, no deployment branch policy
+  - `production`: no required reviewers, no deployment branch policy
+  - current state is acceptable for prototype iteration only and remains below production-readiness target posture
+- Planned production-readiness state:
+  - `staging`: explicit environment exists, secrets remain scoped, reviewer/deployment restrictions may remain open if staging stays an internal proving lane
+  - `production`: required reviewers enabled and deployment branch policy restricted to the protected release path before production-readiness signoff
+- Release-gate rule:
+  - deployment and release docs must distinguish current enabled protections from planned protections
+  - environment naming variants such as `Production`, `Production – short-pulse`, or `Production – shortpulse` are non-canonical and must not be introduced into active governance docs as GitHub Environment names
+- Manual evidence rule:
+  - if environment protection settings are changed, update the active Lane F evidence packet and deployment policy docs in the same PR
+
 ## Security gate
 
 - Blocking command: `npm audit --omit=dev --audit-level=moderate`

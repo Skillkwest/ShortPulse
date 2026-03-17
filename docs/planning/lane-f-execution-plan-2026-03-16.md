@@ -34,7 +34,7 @@ Out of scope:
 | `F2-01` | F2 | Plan-limited enforcement model | Refresh branch/ruleset compensating controls and current waiver posture | `docs/planning/evidence/lane-f/2026-03-17-f2-01-plan-limited-enforcement-model.md` | Completed |
 | `F3-01` | F3 | Workflow reliability policy | Document and implement workflow concurrency/trigger posture for active release gates | `docs/planning/evidence/lane-f/2026-03-17-f3-01-workflow-reliability-policy.md` | Completed |
 | `F4-01` | F4 | GitHub Actions supply-chain policy | Establish phased action pinning contract and tracked exception policy | `docs/planning/evidence/lane-f/2026-03-17-f4-01-action-pinning-policy.md` | Completed |
-| `F5-01` | F5 | Environment protection policy | Normalize environment naming/protection policy and release-gate posture docs | `docs/planning/evidence/lane-f/2026-03-17-f5-01-environment-protection-policy.md` | Not Started |
+| `F5-01` | F5 | Environment protection policy | Normalize environment naming/protection policy and release-gate posture docs | `docs/planning/evidence/lane-f/2026-03-17-f5-01-environment-protection-policy.md` | Completed |
 | `F6-01` | F6 | Lane F convergence | Record two green cycles and close out Lane F governance | `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-convergence.md` | Not Started |
 
 Policy:

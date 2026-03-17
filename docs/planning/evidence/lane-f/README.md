@@ -36,3 +36,4 @@ Examples:
 - `docs/planning/evidence/lane-f/2026-03-17-f2-01-plan-limited-enforcement-model.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f3-01-workflow-reliability-policy.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f4-01-action-pinning-policy.md`
+- `docs/planning/evidence/lane-f/2026-03-17-f5-01-environment-protection-policy.md`

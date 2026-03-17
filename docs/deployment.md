@@ -6,6 +6,23 @@ Purpose: provide a repeatable production deployment process for the Next.js + Su
 
 - Vercel (native support for Next.js pages router and API routes).
 
+## Canonical environment policy
+
+Use these names as the only canonical GitHub Environment identifiers in active release/CI governance docs:
+
+- `staging`
+- `production`
+
+Notes:
+- Vercel scope labels such as `Production` and `Preview` are platform labels, not GitHub Environment names.
+- Active docs should not introduce alternate GitHub Environment names such as `Production – short-pulse` or `Production – shortpulse`.
+- Current protection posture is still open:
+  - `staging`: no required reviewers, no deployment branch policy
+  - `production`: no required reviewers, no deployment branch policy
+- Planned production-readiness posture:
+  - `production` must gain required reviewers and deployment branch restrictions before production-readiness signoff
+  - `staging` remains the canonical pre-production environment and should retain environment-scoped secrets even if reviewer protection stays lighter than production
+
 ## Pre-deploy checklist
 
 1. Run validation locally:
@@ -18,6 +35,7 @@ Purpose: provide a repeatable production deployment process for the Next.js + Su
 3. Run GitHub Actions workflow `Media Storage Deploy Gate` for the target environment (`staging`/`production`) and require `PASS` before deploy.
 4. Confirm Supabase schema/policies are up to date for production.
 5. Confirm Stripe webhook secret and admin allow-list values are prepared for production.
+6. Confirm deployment/release notes still distinguish current environment protection state from planned production-readiness protection state.
 
 ## Environment variables
 
@@ -114,6 +132,10 @@ Set the following values in Vercel `Production` (only):
 - `SUPABASE_SERVICE_ROLE_KEY=<production-server-key>`
 
 Keep Vercel `Preview` mapped to staging Supabase values.
+
+GitHub Environment naming rule:
+- use only `production` and `staging` for GitHub Environment secrets and workflow inputs
+- do not create or document alternate production-environment labels in active governance surfaces
 
 Set GitHub Environment secret `SUPABASE_DB_URL` for:
 - `production` -> `postgresql://postgres:<password>@db.<production-project-ref>.supabase.co:5432/postgres?sslmode=require`

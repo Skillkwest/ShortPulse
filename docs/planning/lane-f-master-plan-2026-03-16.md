@@ -51,9 +51,13 @@ As of 2026-03-17:
    - full-SHA pinned references remain `0`,
    - current non-pinned refs are explicit tracked exceptions with owner and sunset criterion,
    - Dependabot now covers both `npm` and `github-actions`.
-8. Environment protection posture is currently open:
-   - `Production` and `staging` environments have no protection rules and no deployment branch policy.
-9. Environment namespace drift exists: duplicate naming variants (`Production`, `Production – short-pulse`, `Production – shortpulse`, and preview variants) increase operator error risk.
+8. Environment protection policy is now explicit after `F5-01`:
+   - canonical GitHub Environment names are `staging` and `production`,
+   - current protection posture remains open for both environments,
+   - planned production-readiness posture requires production reviewer + deployment-branch restrictions before signoff.
+9. Environment namespace policy is now explicit:
+   - alternate production naming variants are non-canonical for active governance docs,
+   - Vercel `Production` / `Preview` labels are treated as platform scopes, not GitHub Environment names.
 10. Ownership identity drift exists between operator/contact artifacts (`worldbuilder`) and `.github/CODEOWNERS` (`@sleepyseamonster`).
 11. CI reliability is currently volatile in recent history (mixed success/failure cadence), requiring lane-level reliability policy rather than one-off fixes.
 

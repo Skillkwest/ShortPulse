@@ -20,7 +20,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
 | D    | Completed   | Engineering | Lane D closeout complete; runtime warning, suppression, hard-disable, logging, and guardrail debt are cleared with full-suite green validation | none                                    | Lane E execution handoff                                                  | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Completed   | Engineering | Lane E closeout complete; index parity, ADR integrity, policy-surface consistency, changelog governance, and convergence evidence are locked | none                                    | Lane F execution handoff                                                  | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
-| F    | In Progress | Engineering | `F0-01` baseline lock, `F1-01` CI inventory parity, `F2-01` plan-limited enforcement, `F3-01` workflow reliability, and `F4-01` action pinning policy are complete; `F5-01` environment protection is next | none                                    | `F5-01` environment protection policy                                     | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
+| F    | In Progress | Engineering | `F0-01` baseline lock, `F1-01` CI inventory parity, `F2-01` plan-limited enforcement, `F3-01` workflow reliability, `F4-01` action pinning, and `F5-01` environment protection policy are complete; `F6-01` convergence is next | none                                    | `F6-01` Lane F convergence                                                | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
 
 ## Lane A Master Checklist
@@ -270,8 +270,8 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 
 - [x] Define and apply workflow reliability policy (including concurrency posture and merge-queue readiness policy).
 - [x] Implement phased workflow action pinning policy and exception tracking.
-- [ ] Align environment protection and deployment-gate policy state across release/deployment docs.
-- [ ] Define canonical environment namespace policy (`staging`/`production`) and resolve naming-variant drift.
+- [x] Align environment protection and deployment-gate policy state across release/deployment docs.
+- [x] Define canonical environment namespace policy (`staging`/`production`) and resolve naming-variant drift.
 
 ### F6: Ownership + Convergence
 

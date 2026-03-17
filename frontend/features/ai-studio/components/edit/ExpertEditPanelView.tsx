@@ -81,6 +81,7 @@ import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { ExpertEditMarkupModalShell } from "./ExpertEditMarkupModalShell";
 import { useExpertEditStageInteractionRouter } from "./useExpertEditStageInteractionRouter";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
+import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { StylesControl } from "../StylesControl";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
@@ -119,16 +120,13 @@ import {
 } from "./expertEditColorUtils";
 import {
   MARKUP_VIEWPORT_EPSILON,
-  MARKUP_VIEWPORT_ZOOM_INTENSITY,
   MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
   MOVE_STAGE_ZOOM_SLIDER_MAX,
   MOVE_STAGE_ZOOM_SLIDER_MIN,
-  clampMarkupViewportScale,
   createDefaultMarkupViewportState,
   createIdleMarkupPanPointerSession,
   isResolvedStageViewportSize,
   resolveMarkupViewportOffsetPixels,
-  resolveMoveStageZoomScale,
   resolveMoveStageZoomSliderValue,
   resolveRenderableStageViewportSize,
   resolveStageViewportSize,
@@ -2088,35 +2086,27 @@ export function ExpertEditPanelView({
     isVideoToolSelected,
   ]);
 
-  const clearMarkupPanGestureState = React.useCallback(() => {
-    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
-    setIsMarkupPanDragging(false);
-  }, []);
-
-  const handleMoveZoomSliderChange = React.useCallback((value: number) => {
-    const clampedSliderValue = clampNumber(
-      Number.isFinite(value) ? value : MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
-      MOVE_STAGE_ZOOM_SLIDER_MIN,
-      MOVE_STAGE_ZOOM_SLIDER_MAX
-    );
-    const nextSliderValue = Math.round(clampedSliderValue);
-    const nextScale = resolveMoveStageZoomScale(nextSliderValue);
-    setMoveStageZoomSliderValue(nextSliderValue);
-    setMarkupViewport((previous) =>
-      Math.abs(previous.scale - nextScale) <= MARKUP_VIEWPORT_EPSILON
-        ? previous
-        : {
-            ...previous,
-            scale: nextScale,
-          }
-    );
-  }, []);
-
-  const resetMarkupViewport = React.useCallback(() => {
-    setMoveStageZoomSliderValue(MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
-    setMarkupViewport(createDefaultMarkupViewportState());
-    clearMarkupPanGestureState();
-  }, [clearMarkupPanGestureState]);
+  const {
+    clearMarkupPanGestureState,
+    handleMoveZoomSliderChange,
+    resetMarkupViewport,
+    beginMarkupPanGesture,
+    continueMarkupPanGesture,
+    endMarkupPanGesture,
+    endMarkupPanGestureOnLeave,
+    handleMarkupViewportWheel,
+  } = useExpertEditMarkupViewportController({
+    markupViewport,
+    shouldApplyMarkupViewport,
+    isMarkupExpandSelected,
+    isMarkupPanSpacePressed,
+    markupPanPointerSessionRef,
+    setMoveStageZoomSliderValue,
+    setMarkupViewport,
+    setIsMarkupPanDragging,
+    setInlineStageViewportSize,
+    setMarkupModalViewportSize,
+  });
 
   const handleRecenterMoveAction = React.useCallback(() => {
     if (selectedLayer) {
@@ -2188,153 +2178,6 @@ export function ExpertEditPanelView({
     isMarkupViewportAtRest &&
     markupStrokes.length === 0 &&
     !hasInpaintMaskContent;
-
-  const syncViewportSizeByScope = React.useCallback((scope: "inline" | "modal", rect: DOMRect) => {
-    const viewportSize = resolveStageViewportSize(rect);
-    if (scope === "modal") {
-      setMarkupModalViewportSize((previous) =>
-        previous.width === viewportSize.width && previous.height === viewportSize.height
-          ? previous
-          : viewportSize
-      );
-      return viewportSize;
-    }
-    setInlineStageViewportSize((previous) =>
-      previous.width === viewportSize.width && previous.height === viewportSize.height
-        ? previous
-        : viewportSize
-    );
-    return viewportSize;
-  }, []);
-
-  const beginMarkupPanGesture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>, scope: "inline" | "modal") => {
-      if (!shouldApplyMarkupViewport) {
-        return false;
-      }
-      const isMiddleMousePanGesture =
-        event.pointerType === "mouse" && event.button === 1 && isMarkupExpandSelected;
-      const isSpacePanGesture =
-        isMarkupPanSpacePressed && (event.pointerType !== "mouse" || event.button === 0);
-      if (!isMiddleMousePanGesture && !isSpacePanGesture) {
-        return false;
-      }
-      event.preventDefault();
-      const stageRect = event.currentTarget.getBoundingClientRect();
-      if (stageRect.width <= 0 || stageRect.height <= 0) {
-        return false;
-      }
-      const stageSize = syncViewportSizeByScope(scope, stageRect);
-      if (event.currentTarget.setPointerCapture) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-      markupPanPointerSessionRef.current = {
-        active: true,
-        pointerId: event.pointerId,
-        startClientX: event.clientX,
-        startClientY: event.clientY,
-        startOffsetXRatio: markupViewport.offsetXRatio,
-        startOffsetYRatio: markupViewport.offsetYRatio,
-        stageWidth: stageSize.width,
-        stageHeight: stageSize.height,
-      };
-      setIsMarkupPanDragging(true);
-      return true;
-    },
-    [
-      isMarkupExpandSelected,
-      isMarkupPanSpacePressed,
-      markupViewport.offsetXRatio,
-      markupViewport.offsetYRatio,
-      shouldApplyMarkupViewport,
-      syncViewportSizeByScope,
-    ]
-  );
-
-  const continueMarkupPanGesture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const session = markupPanPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId) {
-        return false;
-      }
-      event.preventDefault();
-      const deltaX = event.clientX - session.startClientX;
-      const deltaY = event.clientY - session.startClientY;
-      const deltaXRatio = deltaX / Math.max(1, session.stageWidth);
-      const deltaYRatio = deltaY / Math.max(1, session.stageHeight);
-      setMarkupViewport((previous) => ({
-        ...previous,
-        offsetXRatio: session.startOffsetXRatio + deltaXRatio,
-        offsetYRatio: session.startOffsetYRatio + deltaYRatio,
-      }));
-      return true;
-    },
-    []
-  );
-
-  const endMarkupPanGesture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const session = markupPanPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId) {
-        return false;
-      }
-      releasePointerCaptureSafely(event.currentTarget, event.pointerId);
-      clearMarkupPanGestureState();
-      return true;
-    },
-    [clearMarkupPanGestureState]
-  );
-
-  const endMarkupPanGestureOnLeave = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const session = markupPanPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId) {
-        return false;
-      }
-      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, event.pointerId);
-      if (hasPointerCapture) {
-        return false;
-      }
-      clearMarkupPanGestureState();
-      return true;
-    },
-    [clearMarkupPanGestureState]
-  );
-
-  const handleMarkupViewportWheel = React.useCallback(
-    (event: React.WheelEvent<HTMLDivElement>, scope: "inline" | "modal") => {
-      if (!shouldApplyMarkupViewport) return;
-      if (!event.metaKey && !event.ctrlKey) return;
-      const stageRect = event.currentTarget.getBoundingClientRect();
-      if (stageRect.width <= 0 || stageRect.height <= 0) return;
-      event.preventDefault();
-      const stageSize = syncViewportSizeByScope(scope, stageRect);
-      const pointerX = event.clientX - stageRect.left;
-      const pointerY = event.clientY - stageRect.top;
-      const centerX = stageRect.width / 2;
-      const centerY = stageRect.height / 2;
-      const zoomMultiplier = Math.exp(-event.deltaY * MARKUP_VIEWPORT_ZOOM_INTENSITY);
-      setMarkupViewport((previous) => {
-        const nextScale = clampMarkupViewportScale(previous.scale * zoomMultiplier);
-        if (Math.abs(nextScale - previous.scale) <= MARKUP_VIEWPORT_EPSILON) {
-          return previous;
-        }
-        const relativeX = pointerX - centerX;
-        const relativeY = pointerY - centerY;
-        const previousOffset = resolveMarkupViewportOffsetPixels(previous, stageSize);
-        const nextOffsetX =
-          relativeX - ((relativeX - previousOffset.offsetX) / previous.scale) * nextScale;
-        const nextOffsetY =
-          relativeY - ((relativeY - previousOffset.offsetY) / previous.scale) * nextScale;
-        return {
-          scale: nextScale,
-          offsetXRatio: nextOffsetX / stageSize.width,
-          offsetYRatio: nextOffsetY / stageSize.height,
-        };
-      });
-    },
-    [shouldApplyMarkupViewport, syncViewportSizeByScope]
-  );
 
   const {
     beginMarkupDrawGesture,

@@ -25,15 +25,15 @@ As of 2026-03-17:
    - `frontend/features/ai-studio/components/DetailModal.tsx`
    - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`
    - `frontend/features/ai-studio/hooks/useAiStudioEditSubmitIntent.ts`
-2. One explicit suppression remains in a core split controller:
-   - `frontend/features/ai-studio/hooks/useReferenceGridHorizontalSplit.ts` (`react-hooks/set-state-in-effect`)
+2. The scoped split-controller suppression baseline is now retired:
+   - `frontend/features/ai-studio/hooks/useReferenceGridHorizontalSplit.ts` no longer carries a `react-hooks/set-state-in-effect` suppression after `D2-01`
 3. Core AI Studio page selector-store lane is back on governed controls:
    - `NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE`
    - `NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE`
    - `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE`
 4. CI governance control-plane variables are currently in `enforce` mode for architecture/size/docs/migration/agent guardrails.
-5. Existing tests cover key seams (`DetailModal`, `useAiStudioAgentBridge`, `useReferenceGridHorizontalSplit`) but `useAiStudioEditSubmitIntent` lacks direct hook-level tests.
-6. Strict runtime lint profile currently fails with `4` errors and `3` remaining warnings, confirming live debt concentration in Lane D seams.
+5. Existing tests cover key seams (`DetailModal`, `useAiStudioAgentBridge`, `useReferenceGridHorizontalSplit`, `useAiStudioEditSubmitIntent`) after the `D1` hardening slices added direct hook coverage.
+6. Strict runtime lint profile now passes with `0` errors and `2` remaining warnings, confirming Lane D runtime-effect debt is cleared and only out-of-scope baseline warnings remain.
 7. Full baseline `npm -C frontend run test` is currently red because of one unrelated admin ledger assertion failure in `frontend/tests/pages/admin.users-credits.test.tsx`; this is baseline noise, not Lane D runtime-warning debt.
 
 ## Scope

@@ -1,7 +1,8 @@
 /**
  * Verifies pure inpaint mask helpers used by the Expert Edit overlay renderer.
  */
-import { describe, expect, it } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildContourPathsFromSegments,
   deriveMaskContourFromAlpha,
@@ -17,6 +18,7 @@ import {
   shouldEndPointerSessionOnLeave,
   shouldRenderLassoPreview,
   toClampedCanvasPoint,
+  useInpaintMaskController,
 } from "../useInpaintMaskController";
 
 const makeMaskData = (width: number, height: number, activePixels: Array<[number, number]>) => {
@@ -27,6 +29,173 @@ const makeMaskData = (width: number, height: number, activePixels: Array<[number
   });
   return data;
 };
+
+type MockCanvasContext = {
+  createImageData: (width: number, height: number) => ImageData;
+  putImageData: (imageData: ImageData, x: number, y: number) => void;
+  getImageData: (x: number, y: number, width: number, height: number) => ImageData;
+  clearRect: (x: number, y: number, width: number, height: number) => void;
+  drawImage: (...args: unknown[]) => void;
+  fillRect: (...args: unknown[]) => void;
+  save: () => void;
+  restore: () => void;
+  translate: (...args: unknown[]) => void;
+  scale: (...args: unknown[]) => void;
+  setTransform: (...args: unknown[]) => void;
+  beginPath: () => void;
+  moveTo: (...args: unknown[]) => void;
+  lineTo: (...args: unknown[]) => void;
+  stroke: () => void;
+  fill: () => void;
+  closePath: () => void;
+  arc: (...args: unknown[]) => void;
+  setLineDash: (...args: unknown[]) => void;
+  lineDashOffset: number;
+  globalCompositeOperation: string;
+  strokeStyle: string;
+  fillStyle: string;
+  lineCap: CanvasLineCap;
+  lineJoin: CanvasLineJoin;
+  lineWidth: number;
+};
+
+const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;
+let canvasContextStore = new WeakMap<HTMLCanvasElement, MockCanvasContext>();
+
+const createMockImageData = (width: number, height: number, data?: Uint8ClampedArray): ImageData =>
+  ({
+    width,
+    height,
+    data: data ? new Uint8ClampedArray(data) : new Uint8ClampedArray(width * height * 4),
+    colorSpace: "srgb",
+  }) as ImageData;
+
+const getCanvasBuffer = (canvas: HTMLCanvasElement): Uint8ClampedArray => {
+  const requiredLength = Math.max(1, canvas.width) * Math.max(1, canvas.height) * 4;
+  const existing = (canvas as HTMLCanvasElement & { __buffer?: Uint8ClampedArray }).__buffer;
+  if (existing && existing.length === requiredLength) {
+    return existing;
+  }
+  const next = new Uint8ClampedArray(requiredLength);
+  (canvas as HTMLCanvasElement & { __buffer?: Uint8ClampedArray }).__buffer = next;
+  return next;
+};
+
+const createMockCanvasContext = (canvas: HTMLCanvasElement): MockCanvasContext => ({
+  createImageData: (width, height) => createMockImageData(width, height),
+  putImageData: (imageData) => {
+    (canvas as HTMLCanvasElement & { __buffer?: Uint8ClampedArray }).__buffer =
+      new Uint8ClampedArray(imageData.data);
+  },
+  getImageData: (_x, _y, width, height) =>
+    createMockImageData(width, height, getCanvasBuffer(canvas).slice(0, width * height * 4)),
+  clearRect: () => {
+    getCanvasBuffer(canvas).fill(0);
+  },
+  drawImage: () => undefined,
+  fillRect: () => undefined,
+  save: () => undefined,
+  restore: () => undefined,
+  translate: () => undefined,
+  scale: () => undefined,
+  setTransform: () => undefined,
+  beginPath: () => undefined,
+  moveTo: () => undefined,
+  lineTo: () => undefined,
+  stroke: () => undefined,
+  fill: () => undefined,
+  closePath: () => undefined,
+  arc: () => undefined,
+  setLineDash: () => undefined,
+  lineDashOffset: 0,
+  globalCompositeOperation: "source-over",
+  strokeStyle: "",
+  fillStyle: "",
+  lineCap: "round",
+  lineJoin: "round",
+  lineWidth: 1,
+});
+
+const getOrCreateCanvasContext = (canvas: HTMLCanvasElement): MockCanvasContext => {
+  const existing = canvasContextStore.get(canvas);
+  if (existing) return existing;
+  const created = createMockCanvasContext(canvas);
+  canvasContextStore.set(canvas, created);
+  return created;
+};
+
+beforeEach(() => {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: function getContext(this: HTMLCanvasElement, contextId: string) {
+      if (contextId !== "2d") return null;
+      return getOrCreateCanvasContext(this);
+    },
+  });
+
+  Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+    configurable: true,
+    value: function toBlob(this: HTMLCanvasElement, callback: BlobCallback, type?: string): void {
+      callback(new Blob(["mask"], { type: type ?? "image/png" }));
+    },
+  });
+
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", () => undefined);
+});
+
+afterEach(() => {
+  canvasContextStore = new WeakMap<HTMLCanvasElement, MockCanvasContext>();
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: originalCanvasGetContext,
+  });
+  Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+    configurable: true,
+    value: originalCanvasToBlob,
+  });
+  vi.unstubAllGlobals();
+});
+
+const createDropzoneRef = () => {
+  const element = document.createElement("div");
+  Object.defineProperty(element, "clientWidth", {
+    configurable: true,
+    value: 200,
+  });
+  Object.defineProperty(element, "clientHeight", {
+    configurable: true,
+    value: 100,
+  });
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        width: 200,
+        height: 100,
+        right: 200,
+        bottom: 100,
+        toJSON: () => ({}),
+      }) satisfies DOMRect,
+  });
+  return { current: element };
+};
+
+const makeSnapshot = () => ({
+  layers: [
+    {
+      layerId: "layer-a",
+      width: 4,
+      height: 4,
+      alpha: new Uint8ClampedArray([0, 255, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    },
+  ],
+});
 
 describe("useInpaintMaskController helpers", () => {
   it("keeps a uniform marching-ants dash pattern", () => {
@@ -356,5 +525,83 @@ describe("useInpaintMaskController helpers", () => {
         hasPointerCapture: false,
       })
     ).toBe(false);
+  });
+});
+
+describe("useInpaintMaskController hook", () => {
+  it("restores a selected-layer snapshot and round-trips it through capture", async () => {
+    const dropzoneRef = createDropzoneRef();
+    const { result } = renderHook(() =>
+      useInpaintMaskController({
+        dropzoneRef,
+        selectedLayerId: "layer-a",
+        selectedLayerImageUrl: null,
+        layerSources: [{ id: "layer-a", imageUrl: null }],
+        enabled: true,
+        sceneScale: 1,
+        paintMode: "brush",
+        selectionMode: "select",
+        strokeSize: 24,
+      })
+    );
+
+    const snapshot = makeSnapshot();
+
+    await act(async () => {
+      result.current.restoreMaskSnapshot(snapshot);
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasSelectedLayerMask).toBe(true);
+    });
+
+    const captured = result.current.captureMaskSnapshot();
+    expect(captured.layers).toHaveLength(1);
+    expect(captured.layers[0]?.layerId).toBe("layer-a");
+    expect(Array.from(captured.layers[0]?.alpha ?? [])).toEqual(
+      Array.from(snapshot.layers[0]!.alpha)
+    );
+  });
+
+  it("exports and clears the restored selected-layer mask", async () => {
+    const dropzoneRef = createDropzoneRef();
+    const { result } = renderHook(() =>
+      useInpaintMaskController({
+        dropzoneRef,
+        selectedLayerId: "layer-a",
+        selectedLayerImageUrl: null,
+        layerSources: [{ id: "layer-a", imageUrl: null }],
+        enabled: true,
+        sceneScale: 1,
+        paintMode: "brush",
+        selectionMode: "select",
+        strokeSize: 24,
+      })
+    );
+
+    await act(async () => {
+      result.current.restoreMaskSnapshot(makeSnapshot());
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasSelectedLayerMask).toBe(true);
+    });
+
+    const exportedMask = await act(async () =>
+      result.current.exportSelectedLayerMaskBlob({
+        targetWidth: 16,
+        targetHeight: 16,
+      })
+    );
+    expect(exportedMask).toBeInstanceOf(Blob);
+
+    await act(async () => {
+      result.current.clearSelectedLayerMask();
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasSelectedLayerMask).toBe(false);
+    });
+    expect(result.current.captureMaskSnapshot().layers).toEqual([]);
   });
 });

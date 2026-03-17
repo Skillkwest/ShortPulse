@@ -123,6 +123,24 @@ import {
   rgbToHsv,
   type HsvColor,
 } from "./expertEditColorUtils";
+import {
+  MARKUP_VIEWPORT_EPSILON,
+  MARKUP_VIEWPORT_ZOOM_INTENSITY,
+  MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
+  MOVE_STAGE_ZOOM_SLIDER_MAX,
+  MOVE_STAGE_ZOOM_SLIDER_MIN,
+  clampMarkupViewportScale,
+  createDefaultMarkupViewportState,
+  createIdleMarkupPanPointerSession,
+  isResolvedStageViewportSize,
+  resolveMarkupViewportOffsetPixels,
+  resolveMoveStageZoomScale,
+  resolveMoveStageZoomSliderValue,
+  resolveRenderableStageViewportSize,
+  resolveStageViewportSize,
+  type MarkupPanPointerSession,
+  type StageViewportSize,
+} from "./expertEditViewportUtils";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
@@ -305,15 +323,6 @@ const MARKUP_COLOR_SWATCHES = [
   "#60a5fa",
   "#a78bfa",
 ] as const;
-const MARKUP_VIEWPORT_SCALE_MIN = 0.5;
-const MARKUP_VIEWPORT_SCALE_MAX = 4;
-const MARKUP_VIEWPORT_ZOOM_INTENSITY = 0.0018;
-const MARKUP_VIEWPORT_EPSILON = 0.001;
-const MOVE_STAGE_ZOOM_SLIDER_MIN = 0;
-const MOVE_STAGE_ZOOM_SLIDER_MAX = 100;
-const MOVE_STAGE_ZOOM_SLIDER_DEFAULT = 50;
-const MOVE_STAGE_ZOOM_SCALE_MIN = 0.5;
-const MOVE_STAGE_ZOOM_SCALE_MAX = 2;
 const STAGE_CONTEXT_MENU_WIDTH = 164;
 const STAGE_CONTEXT_MENU_HEIGHT = 206;
 const STAGE_CONTEXT_MENU_GUTTER = 8;
@@ -357,109 +366,8 @@ const normalizeLayerRotationDeg = (value: number) => {
   return Math.round(normalized * 1000) / 1000;
 };
 
-type MarkupPanPointerSession = {
-  active: boolean;
-  pointerId: number | null;
-  startClientX: number;
-  startClientY: number;
-  startOffsetXRatio: number;
-  startOffsetYRatio: number;
-  stageWidth: number;
-  stageHeight: number;
-};
-
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
-
-const createDefaultMarkupViewportState = (): MarkupViewportState => ({
-  scale: 1,
-  offsetXRatio: 0,
-  offsetYRatio: 0,
-});
-
-const createIdleMarkupPanPointerSession = (): MarkupPanPointerSession => ({
-  active: false,
-  pointerId: null,
-  startClientX: 0,
-  startClientY: 0,
-  startOffsetXRatio: 0,
-  startOffsetYRatio: 0,
-  stageWidth: 1,
-  stageHeight: 1,
-});
-
-type StageViewportSize = {
-  width: number;
-  height: number;
-};
-
-const isResolvedStageViewportSize = (size: StageViewportSize) => size.width > 1 && size.height > 1;
-
-const resolveStageViewportSize = (rect: DOMRect | null): StageViewportSize => ({
-  width: rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : 1,
-  height: rect && Number.isFinite(rect.height) && rect.height > 0 ? rect.height : 1,
-});
-
-const resolveRenderableStageViewportSize = ({
-  preferredSize,
-  stageElement,
-}: {
-  preferredSize: StageViewportSize;
-  stageElement: HTMLDivElement | null;
-}) => {
-  if (isResolvedStageViewportSize(preferredSize)) {
-    return preferredSize;
-  }
-  if (!stageElement) {
-    return preferredSize;
-  }
-  return resolveStageViewportSize(stageElement.getBoundingClientRect() ?? null);
-};
-
-const resolveMarkupViewportOffsetPixels = (
-  viewport: MarkupViewportState,
-  viewportSize: StageViewportSize
-) => ({
-  offsetX: viewport.offsetXRatio * viewportSize.width,
-  offsetY: viewport.offsetYRatio * viewportSize.height,
-});
-
-const clampMarkupViewportScale = (value: number) =>
-  clampNumber(value, MARKUP_VIEWPORT_SCALE_MIN, MARKUP_VIEWPORT_SCALE_MAX);
-
-const resolveMoveStageZoomScale = (sliderValue: number) => {
-  const clampedValue = clampNumber(
-    sliderValue,
-    MOVE_STAGE_ZOOM_SLIDER_MIN,
-    MOVE_STAGE_ZOOM_SLIDER_MAX
-  );
-  if (clampedValue <= MOVE_STAGE_ZOOM_SLIDER_DEFAULT) {
-    const progress =
-      (clampedValue - MOVE_STAGE_ZOOM_SLIDER_MIN) /
-      (MOVE_STAGE_ZOOM_SLIDER_DEFAULT - MOVE_STAGE_ZOOM_SLIDER_MIN);
-    return MOVE_STAGE_ZOOM_SCALE_MIN + progress * (1 - MOVE_STAGE_ZOOM_SCALE_MIN);
-  }
-  const progress =
-    (clampedValue - MOVE_STAGE_ZOOM_SLIDER_DEFAULT) /
-    (MOVE_STAGE_ZOOM_SLIDER_MAX - MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
-  return 1 + progress * (MOVE_STAGE_ZOOM_SCALE_MAX - 1);
-};
-
-const resolveMoveStageZoomSliderValue = (scale: number) => {
-  const clampedScale = clampNumber(scale, MOVE_STAGE_ZOOM_SCALE_MIN, MOVE_STAGE_ZOOM_SCALE_MAX);
-  if (clampedScale <= 1) {
-    const progress = (clampedScale - MOVE_STAGE_ZOOM_SCALE_MIN) / (1 - MOVE_STAGE_ZOOM_SCALE_MIN);
-    return Math.round(
-      MOVE_STAGE_ZOOM_SLIDER_MIN +
-        progress * (MOVE_STAGE_ZOOM_SLIDER_DEFAULT - MOVE_STAGE_ZOOM_SLIDER_MIN)
-    );
-  }
-  const progress = (clampedScale - 1) / (MOVE_STAGE_ZOOM_SCALE_MAX - 1);
-  return Math.round(
-    MOVE_STAGE_ZOOM_SLIDER_DEFAULT +
-      progress * (MOVE_STAGE_ZOOM_SLIDER_MAX - MOVE_STAGE_ZOOM_SLIDER_DEFAULT)
-  );
-};
 
 type LayerTransform = {
   translateXRatio: number;

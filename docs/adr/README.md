@@ -12,13 +12,30 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 2. Fill it out succinctly (1–2 pages is ideal).
 3. Link it from `docs/README.md` if it changes how people work.
 
-## Latest ADRs
+## Active inventory
+- `docs/adr/0001-client-only-and-demo-data.md`
+- `docs/adr/0002-media-library-persistence.md`
+- `docs/adr/0003-admin-authorization-source.md`
+- `docs/adr/0004-fal-failure-refund-settlement.md`
+- `docs/adr/0005-ai-studio-modularization-boundaries.md`
+- `docs/adr/0006-ai-studio-agent-api.md`
+- `docs/adr/0007-ai-studio-agent-tooling-strategy.md`
+- `docs/adr/0008-private-media-tab-storage-scope.md`
+- `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
+- `docs/adr/0010-character-manager-character-sheet-architecture.md`
+- `docs/adr/0011-character-sheet-terminology-policy.md`
+- `docs/adr/0012-ai-studio-agent-runtime-hardening.md`
+- `docs/adr/0013-reference-grid-bounded-work-architecture.md`
+- `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
+- `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
+- `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
+- `docs/adr/0017-ai-studio-curated-reference-split-grid.md`
+- `docs/adr/0018-adaptive-media-v2-modular-policy-and-surface-adapters.md`
 - `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
 - `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 - `docs/adr/0022-reference-grid-domain-modular-architecture.md`
 - `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
-- `docs/adr/0023-ai-studio-properties-panel-workflow-contract.md`
 - `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - `docs/adr/0026-ai-studio-generation-admission-control.md`
@@ -37,3 +54,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0039-media-library-transform-sunset-and-local-derivative-engine.md`
 - `docs/adr/0040-character-panel-media-isolation-v2.md`
 - `docs/adr/0041-foundational-modularization-governance-and-size-gates.md`
+- `docs/adr/0042-ai-studio-properties-panel-workflow-contract.md`

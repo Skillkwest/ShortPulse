@@ -33,9 +33,9 @@ As of 2026-03-17:
    - `docs/README.md`: `0` missing for active planning + design surfaces
    - `docs/product/README.md`: `0` missing
    - `docs/design/README.md`: `0` missing
-3. ADR inventory drift remains for `E2-01`:
-   - `docs/adr/README.md`: `18` ADR entries missing
-   - duplicate `0023` prefix across two ADR files
+3. ADR inventory integrity is now locked after `E2-01`:
+   - `docs/adr/README.md`: `0` active ADR entries missing
+   - duplicate ADR number drift: `0`
 4. Active policy-surface drift remains for `E3-01`: Docker-local Supabase lint/start instructions appear in active templates/scripts/CI/planning policy docs while core repo policy prohibits Docker-local Supabase workflows.
 5. Changelog normalization drift remains for `E4-01`: `docs/change_log.md` has no `## Unreleased`; chronology/future-date enforcement in `scripts/check_docs_semantic_drift.js` is therefore not active.
 6. `npm -C frontend run docs:check` is green, confirming current checks are healthy while Lane E continues converting the remaining governance intent into enforced contracts.

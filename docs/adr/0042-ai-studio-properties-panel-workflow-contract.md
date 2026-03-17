@@ -1,4 +1,4 @@
-# ADR 0023: AI Studio Properties Panel Workflow Contract
+# ADR 0042: AI Studio Properties Panel Workflow Contract
 
 - Date: 2026-02-23
 - Status: Accepted

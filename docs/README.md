@@ -276,7 +276,6 @@ Start here for all repository documentation.
 - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 - `docs/adr/0022-reference-grid-domain-modular-architecture.md`
 - `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
-- `docs/adr/0023-ai-studio-properties-panel-workflow-contract.md`
 - `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - `docs/adr/0026-ai-studio-generation-admission-control.md`
@@ -295,6 +294,7 @@ Start here for all repository documentation.
 - `docs/adr/0039-media-library-transform-sunset-and-local-derivative-engine.md`
 - `docs/adr/0040-character-panel-media-isolation-v2.md`
 - `docs/adr/0041-foundational-modularization-governance-and-size-gates.md`
+- `docs/adr/0042-ai-studio-properties-panel-workflow-contract.md`
 
 ## Archive
 - `docs/archive/README.md`

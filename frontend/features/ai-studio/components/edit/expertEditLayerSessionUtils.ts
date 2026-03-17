@@ -20,6 +20,7 @@ import {
 } from "./expertEditSessionState";
 
 export const LAYER_OPACITY_DEFAULT = 1;
+export const LAYER_REORDER_DRAG_MIME = "application/x-shortpulse-layer-index";
 
 export const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
 
@@ -142,6 +143,146 @@ export const resolveLowestUnusedAutoLayerNumber = ({
     candidate += 1;
   }
   return candidate;
+};
+
+export const resolveReorderedLayerState = ({
+  layers,
+  fromIndex,
+  toIndex,
+  resolvedSelectedLayerIndex,
+  editingLayerIndex,
+}: {
+  layers: ExpertEditLayer[];
+  fromIndex: number;
+  toIndex: number;
+  resolvedSelectedLayerIndex: number;
+  editingLayerIndex: number | null;
+}) => {
+  if (fromIndex === toIndex) return null;
+  const movingLayer = layers[fromIndex];
+  if (!movingLayer) return null;
+  const selectedLayerId = layers[resolvedSelectedLayerIndex]?.id ?? null;
+  const editingLayerId = editingLayerIndex != null ? (layers[editingLayerIndex]?.id ?? null) : null;
+
+  const nextLayers = [...layers];
+  const [movedLayer] = nextLayers.splice(fromIndex, 1);
+  if (!movedLayer) return null;
+  nextLayers.splice(toIndex, 0, movedLayer);
+
+  return {
+    nextLayers,
+    nextSelectedLayerIndex:
+      selectedLayerId == null
+        ? undefined
+        : Math.max(
+            0,
+            nextLayers.findIndex((layer) => layer.id === selectedLayerId)
+          ),
+    nextEditingLayerIndex:
+      editingLayerId == null
+        ? undefined
+        : (() => {
+            const nextIndex = nextLayers.findIndex((layer) => layer.id === editingLayerId);
+            return nextIndex >= 0 ? nextIndex : null;
+          })(),
+  };
+};
+
+export const isLayerReorderDrag = ({
+  draggingLayerIndex,
+  dataTransferTypes,
+}: {
+  draggingLayerIndex: number | null;
+  dataTransferTypes: readonly string[];
+}) => draggingLayerIndex != null || dataTransferTypes.includes(LAYER_REORDER_DRAG_MIME);
+
+export const resolveLayerReorderFromIndex = ({
+  transferIndexRaw,
+  draggingLayerIndexRef,
+  draggingLayerIndex,
+}: {
+  transferIndexRaw: string;
+  draggingLayerIndexRef: number | null;
+  draggingLayerIndex: number | null;
+}) => {
+  const transferIndex = Number.parseInt(transferIndexRaw, 10);
+  if (Number.isFinite(transferIndex)) return transferIndex;
+  return draggingLayerIndexRef ?? draggingLayerIndex;
+};
+
+export const resolveLayerStateAfterDelete = ({
+  layers,
+  index,
+  foundationLayerId,
+  resolvedSelectedLayerIndex,
+  editingLayerIndex,
+}: {
+  layers: ExpertEditLayer[];
+  index: number;
+  foundationLayerId: string | null;
+  resolvedSelectedLayerIndex: number;
+  editingLayerIndex: number | null;
+}) => {
+  const targetLayer = layers[index];
+  if (!targetLayer) return null;
+
+  const isFoundationLayer = targetLayer.id === foundationLayerId;
+  const selectedLayerId = layers[resolvedSelectedLayerIndex]?.id ?? null;
+  const editingLayerId = editingLayerIndex != null ? (layers[editingLayerIndex]?.id ?? null) : null;
+
+  const nextLayers = isFoundationLayer
+    ? layers.map((layer) =>
+        layer.id === targetLayer.id
+          ? {
+              ...layer,
+              name: layer.isAutoNamed ? formatLayerName(1) : layer.name,
+              imageUrl: null,
+              opacity: LAYER_OPACITY_DEFAULT,
+              ownsImageUrl: false,
+              transform: defaultLayerTransform(),
+            }
+          : layer
+      )
+    : layers.filter((_, layerIndex) => layerIndex !== index);
+
+  const normalizedLayers = enforceLayerStackInvariants({
+    layers: nextLayers,
+    foundationLayerId,
+  });
+
+  const nextEditingLayerIndex =
+    editingLayerId == null
+      ? null
+      : (() => {
+          const nextIndex = normalizedLayers.findIndex((layer) => layer.id === editingLayerId);
+          return nextIndex >= 0 ? nextIndex : null;
+        })();
+
+  if (isFoundationLayer) {
+    const foundationIndex = normalizedLayers.findIndex((layer) => layer.id === targetLayer.id);
+    return {
+      normalizedLayers,
+      nextEditingLayerIndex,
+      nextSelectedLayerIndex: foundationIndex >= 0 ? foundationIndex : 0,
+    };
+  }
+
+  if (selectedLayerId) {
+    const selectedIndex = normalizedLayers.findIndex((layer) => layer.id === selectedLayerId);
+    if (selectedIndex >= 0) {
+      return {
+        normalizedLayers,
+        nextEditingLayerIndex,
+        nextSelectedLayerIndex: selectedIndex,
+      };
+    }
+  }
+
+  return {
+    normalizedLayers,
+    nextEditingLayerIndex,
+    nextSelectedLayerIndex: Math.max(0, Math.min(index - 1, normalizedLayers.length - 1)),
+  };
 };
 
 export const resolveInitialLayerSessionState = ({

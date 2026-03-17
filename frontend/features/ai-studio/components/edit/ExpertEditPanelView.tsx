@@ -152,12 +152,17 @@ import {
 } from "./expertEditLayerTransformUtils";
 import {
   LAYER_OPACITY_DEFAULT,
+  LAYER_REORDER_DRAG_MIME,
   cloneLayerForSessionState,
   enforceLayerStackInvariants,
   formatLayerName,
+  isLayerReorderDrag,
   isAutoLayerName,
   layerHasImage,
+  resolveLayerReorderFromIndex,
+  resolveLayerStateAfterDelete,
   resolveInitialExpertEditSessionState,
+  resolveReorderedLayerState,
   resolveLayerIdCounterFromLayers,
   resolveLowestUnusedAutoLayerNumber,
   resolveMarkupStrokeIdCounterFromStrokes,
@@ -346,7 +351,6 @@ const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const FLATTEN_IMAGE_ACTION_ID = "flatten-image";
 const TRANSFORM_HISTORY_LIMIT = 80;
-const LAYER_REORDER_DRAG_MIME = "application/x-shortpulse-layer-index";
 const MARKUP_COLOR_DEFAULT = "#f43f5e";
 const MARKUP_COLOR_SWATCHES = [
   "#ff4fa3",
@@ -3017,26 +3021,20 @@ export function ExpertEditPanelView({
 
   const handleReorderLayers = React.useCallback(
     (fromIndex: number, toIndex: number) => {
-      if (fromIndex === toIndex) return;
-      const movingLayer = layers[fromIndex];
-      if (!movingLayer) return;
-
-      const selectedLayerId = layers[resolvedSelectedLayerIndex]?.id ?? null;
-      const editingLayerId =
-        editingLayerIndex != null ? (layers[editingLayerIndex]?.id ?? null) : null;
-      const nextLayers = [...layers];
-      const [movedLayer] = nextLayers.splice(fromIndex, 1);
-      if (!movedLayer) return;
-      nextLayers.splice(toIndex, 0, movedLayer);
-      setLayers(nextLayers);
-
-      if (selectedLayerId) {
-        const nextSelectedIndex = nextLayers.findIndex((layer) => layer.id === selectedLayerId);
-        setSelectedLayerIndex(nextSelectedIndex >= 0 ? nextSelectedIndex : 0);
+      const nextLayerState = resolveReorderedLayerState({
+        layers,
+        fromIndex,
+        toIndex,
+        resolvedSelectedLayerIndex,
+        editingLayerIndex,
+      });
+      if (!nextLayerState) return;
+      setLayers(nextLayerState.nextLayers);
+      if (nextLayerState.nextSelectedLayerIndex !== undefined) {
+        setSelectedLayerIndex(nextLayerState.nextSelectedLayerIndex);
       }
-      if (editingLayerId) {
-        const nextEditingIndex = nextLayers.findIndex((layer) => layer.id === editingLayerId);
-        setEditingLayerIndex(nextEditingIndex >= 0 ? nextEditingIndex : null);
+      if (nextLayerState.nextEditingLayerIndex !== undefined) {
+        setEditingLayerIndex(nextLayerState.nextEditingLayerIndex);
       }
       draggingLayerIndexRef.current = null;
       setDragOverLayerIndex(null);
@@ -3063,10 +3061,11 @@ export function ExpertEditPanelView({
 
   const handleLayerDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>, index: number) => {
-      const isLayerReorderDrag =
-        draggingLayerIndexRef.current != null ||
-        Array.from(event.dataTransfer.types).includes(LAYER_REORDER_DRAG_MIME);
-      if (!isLayerReorderDrag) return;
+      const isLayerReorderDragActive = isLayerReorderDrag({
+        draggingLayerIndex: draggingLayerIndexRef.current,
+        dataTransferTypes: Array.from(event.dataTransfer?.types ?? []),
+      });
+      if (!isLayerReorderDragActive) return;
       event.preventDefault();
       event.stopPropagation();
       event.dataTransfer.dropEffect = "move";
@@ -3081,11 +3080,11 @@ export function ExpertEditPanelView({
     (event: React.DragEvent<HTMLDivElement>, index: number) => {
       event.preventDefault();
       event.stopPropagation();
-      const transferIndexRaw = event.dataTransfer.getData(LAYER_REORDER_DRAG_MIME);
-      const transferIndex = Number.parseInt(transferIndexRaw, 10);
-      const fromIndex = Number.isFinite(transferIndex)
-        ? transferIndex
-        : (draggingLayerIndexRef.current ?? draggingLayerIndex);
+      const fromIndex = resolveLayerReorderFromIndex({
+        transferIndexRaw: event.dataTransfer.getData(LAYER_REORDER_DRAG_MIME),
+        draggingLayerIndexRef: draggingLayerIndexRef.current,
+        draggingLayerIndex,
+      });
       if (fromIndex == null) return;
       handleReorderLayers(fromIndex, index);
     },
@@ -3121,56 +3120,18 @@ export function ExpertEditPanelView({
 
   const handleDeleteLayer = React.useCallback(
     (index: number) => {
-      const targetLayer = layers[index];
-      if (!targetLayer) return;
-
-      const isFoundationLayer = targetLayer.id === foundationLayerId;
-      const selectedLayerId = layers[resolvedSelectedLayerIndex]?.id ?? null;
-      const editingLayerId =
-        editingLayerIndex != null ? (layers[editingLayerIndex]?.id ?? null) : null;
-
-      const nextLayers = isFoundationLayer
-        ? layers.map((layer) =>
-            layer.id === targetLayer.id
-              ? {
-                  ...layer,
-                  name: layer.isAutoNamed ? formatLayerName(1) : layer.name,
-                  imageUrl: null,
-                  opacity: LAYER_OPACITY_DEFAULT,
-                  ownsImageUrl: false,
-                  transform: defaultLayerTransform(),
-                }
-              : layer
-          )
-        : layers.filter((_, layerIndex) => layerIndex !== index);
-      const normalizedLayers = enforceLayerStackInvariants({
-        layers: nextLayers,
+      const nextLayerState = resolveLayerStateAfterDelete({
+        layers,
+        index,
         foundationLayerId,
+        resolvedSelectedLayerIndex,
+        editingLayerIndex,
       });
-
-      setLayers(normalizedLayers);
+      if (!nextLayerState) return;
+      setLayers(nextLayerState.normalizedLayers);
       setEditingLayerValue("");
-
-      if (editingLayerId) {
-        const nextEditingIndex = normalizedLayers.findIndex((layer) => layer.id === editingLayerId);
-        setEditingLayerIndex(nextEditingIndex >= 0 ? nextEditingIndex : null);
-      } else {
-        setEditingLayerIndex(null);
-      }
-
-      if (isFoundationLayer) {
-        const foundationIndex = normalizedLayers.findIndex((layer) => layer.id === targetLayer.id);
-        setSelectedLayerIndex(foundationIndex >= 0 ? foundationIndex : 0);
-        return;
-      }
-      if (selectedLayerId) {
-        const selectedIndex = normalizedLayers.findIndex((layer) => layer.id === selectedLayerId);
-        if (selectedIndex >= 0) {
-          setSelectedLayerIndex(selectedIndex);
-          return;
-        }
-      }
-      setSelectedLayerIndex(Math.max(0, Math.min(index - 1, normalizedLayers.length - 1)));
+      setEditingLayerIndex(nextLayerState.nextEditingLayerIndex);
+      setSelectedLayerIndex(nextLayerState.nextSelectedLayerIndex);
     },
     [editingLayerIndex, foundationLayerId, layers, resolvedSelectedLayerIndex]
   );

@@ -3,10 +3,8 @@
  * Embeds the Character Manager workflow body without the standalone route chrome.
  */
 import React from "react";
-import {
-  CharacterManagerShell,
-  type ResolveCharacterDropReference,
-} from "../../character-manager/components/CharacterManagerShell";
+import { CharacterManagerShell } from "../../character-manager/components/CharacterManagerShell";
+import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 
 type CharacterPanelProps = {
   beginnerMode: boolean;

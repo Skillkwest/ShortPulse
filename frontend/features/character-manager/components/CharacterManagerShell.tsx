@@ -22,8 +22,6 @@ import {
   resolveAdaptiveMedia,
   resolveAdaptiveSourceKind,
 } from "../../../lib/adaptive-media";
-import { reportAppError } from "../../../lib/appErrorReporter";
-import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
@@ -35,6 +33,10 @@ import {
   createEmptyCharacterSheetPresetAssignments,
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
+import {
+  useCharacterManagerDroppedReferenceController,
+  type ResolveCharacterDropReference,
+} from "../hooks/useCharacterManagerDroppedReferenceController";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
 import { useCharacterManagerShellViewState } from "../hooks/useCharacterManagerShellViewState";
@@ -43,22 +45,12 @@ import {
   CHARACTER_LIBRARY_SMOOTH_TARGET,
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
-import {
-  extractFirstUriListEntry,
-  inferMimeTypeFromUrl,
-  isTrustedDroppedImageUrl,
-  parseDropMediaFileId,
-  parseDropUrlCandidate,
-} from "../logic/characterDropPayload";
+import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
-import {
-  extractInternalReferenceDragPayload,
-  type InternalReferenceDragPayload,
-  type ReferenceDragSourceSurface,
-} from "../../ai-studio/utils/dragDrop";
+import { extractInternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import type {
   CharacterQuickSwapItem,
   CharacterProfileImageTransform,
@@ -68,17 +60,6 @@ import type {
 
 type CharacterWorkflowTab = "create" | "manage";
 type CharacterManagerShellSurface = "page" | "panel";
-export type ResolvedCharacterDropReference = {
-  mediaId: string;
-  previewUrl?: string | null;
-  storagePath?: string | null;
-  outputId?: string | null;
-  imageIndex?: number;
-  sourceSurface?: ReferenceDragSourceSurface | null;
-};
-export type ResolveCharacterDropReference = (
-  payload: InternalReferenceDragPayload
-) => Promise<ResolvedCharacterDropReference | null>;
 type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   initialWorkflowTab?: CharacterWorkflowTab;
@@ -105,14 +86,10 @@ const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
-const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
-const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
-  /\/storage\/v1\/object\/(?:sign|public|authenticated)\/([^/]+)\/(.+)$/i;
 const DRAG_GHOST_SCALE = 0.74;
 const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
   ".character-reference-upload-image-wrap, .character-character-sheet-media";
 const MEDIA_BUCKET = "media_library";
-const DROPPED_REFERENCE_TELEMETRY_SOURCE = "client.character_manager.drop_reference";
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -146,260 +123,6 @@ function buildProfileImageTransformStyle(
     transformOrigin: "center center",
   };
 }
-
-type DroppedImageReference = {
-  url: string;
-  mimeType: string | null;
-  mediaFileId: string | null;
-};
-
-type DroppedStorageCandidate = {
-  bucket: string;
-  storagePath: string;
-};
-
-const sanitizeFilenameSegment = (value: string): string =>
-  value
-    .trim()
-    .replace(/[^\w.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-const parseDroppedStorageCandidateFromUrl = (url: string): DroppedStorageCandidate | null => {
-  try {
-    const parsedUrl = new URL(url);
-    const pathMatch = parsedUrl.pathname.match(SUPABASE_STORAGE_OBJECT_URL_PATTERN);
-    if (!pathMatch) return null;
-    const bucket = (pathMatch[1] ?? "").trim();
-    const storagePath = decodeURIComponent(pathMatch[2] ?? "")
-      .replace(/^\/+/, "")
-      .trim();
-    if (!bucket || !storagePath) return null;
-    return {
-      bucket,
-      storagePath,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const dedupeDroppedStorageCandidates = (
-  candidates: DroppedStorageCandidate[]
-): DroppedStorageCandidate[] => {
-  const seen = new Set<string>();
-  return candidates.filter((candidate) => {
-    const key = `${candidate.bucket}:${candidate.storagePath}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-const resolveDroppedStorageCandidates = async (
-  reference: DroppedImageReference
-): Promise<DroppedStorageCandidate[]> => {
-  const candidates: DroppedStorageCandidate[] = [];
-  const urlCandidate = parseDroppedStorageCandidateFromUrl(reference.url);
-  if (urlCandidate) {
-    candidates.push(urlCandidate);
-  }
-
-  if (reference.mediaFileId) {
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data, error } = await supabase
-        .from("media_files")
-        .select("storage_path")
-        .eq("id", reference.mediaFileId)
-        .maybeSingle();
-      if (!error) {
-        const mediaRow = data as { storage_path: string | null } | null;
-        const storagePath = (mediaRow?.storage_path ?? "").trim();
-        if (storagePath) {
-          candidates.unshift({
-            bucket: MEDIA_BUCKET,
-            storagePath,
-          });
-        }
-      }
-    } catch {
-      // Fallback-only lookup: ignore metadata-query failures and rely on URL-based download.
-    }
-  }
-
-  return dedupeDroppedStorageCandidates(candidates);
-};
-
-const downloadDroppedReferenceBlob = async (
-  reference: DroppedImageReference
-): Promise<{ blob: Blob; resolvedStoragePath: string | null }> => {
-  let directFetchError: Error | null = null;
-  try {
-    const response = await fetch(reference.url);
-    if (response.ok) {
-      return {
-        blob: await response.blob(),
-        resolvedStoragePath: null,
-      };
-    }
-    directFetchError = new Error(`Failed to read dropped image (${response.status}).`);
-  } catch (nextError) {
-    directFetchError =
-      nextError instanceof Error ? nextError : new Error("Failed to read dropped image.");
-  }
-
-  const storageCandidates = await resolveDroppedStorageCandidates(reference);
-  if (storageCandidates.length) {
-    let downloadError: Error | null = null;
-    const supabase = ensureSupabaseClient();
-    for (const candidate of storageCandidates) {
-      const { data, error } = await supabase.storage
-        .from(candidate.bucket)
-        .download(candidate.storagePath);
-      if (error || !data) {
-        downloadError = new Error(
-          `Failed to read dropped image from storage (${candidate.bucket}/${candidate.storagePath}).`
-        );
-        continue;
-      }
-      return {
-        blob: data,
-        resolvedStoragePath: candidate.storagePath,
-      };
-    }
-    if (downloadError) {
-      throw downloadError;
-    }
-  }
-
-  if (directFetchError) {
-    throw directFetchError;
-  }
-  throw new Error("Failed to read dropped image.");
-};
-
-const resolveDroppedImageReference = (transfer: DataTransfer | null | undefined) => {
-  if (!transfer) return null;
-  const mediaFileId =
-    parseDropMediaFileId(transfer.getData("text/reference-media-id")) ??
-    parseDropMediaFileId(transfer.getData("text/reference-id"));
-
-  const explicitReferenceUrl = parseDropUrlCandidate(transfer.getData("text/reference-url"));
-  if (explicitReferenceUrl && isTrustedDroppedImageUrl(explicitReferenceUrl)) {
-    return {
-      url: explicitReferenceUrl,
-      mimeType: inferMimeTypeFromUrl(explicitReferenceUrl),
-      mediaFileId,
-    } satisfies DroppedImageReference;
-  }
-
-  const uriListEntry = extractFirstUriListEntry(transfer.getData("text/uri-list"));
-  const uriListUrl = parseDropUrlCandidate(uriListEntry);
-  if (
-    uriListUrl &&
-    isTrustedDroppedImageUrl(uriListUrl) &&
-    (DROPPED_IMAGE_URL_PATTERN.test(uriListUrl) || /^data:image\//i.test(uriListUrl))
-  ) {
-    return {
-      url: uriListUrl,
-      mimeType: inferMimeTypeFromUrl(uriListUrl),
-      mediaFileId,
-    } satisfies DroppedImageReference;
-  }
-
-  const imageUrl = parseDropUrlCandidate(transfer.getData("image/url"));
-  if (imageUrl && isTrustedDroppedImageUrl(imageUrl)) {
-    return {
-      url: imageUrl,
-      mimeType: inferMimeTypeFromUrl(imageUrl),
-      mediaFileId,
-    } satisfies DroppedImageReference;
-  }
-
-  const plainTextUrl = parseDropUrlCandidate(transfer.getData("text/plain"));
-  if (
-    plainTextUrl &&
-    isTrustedDroppedImageUrl(plainTextUrl) &&
-    (DROPPED_IMAGE_URL_PATTERN.test(plainTextUrl) || /^data:image\//i.test(plainTextUrl))
-  ) {
-    return {
-      url: plainTextUrl,
-      mimeType: inferMimeTypeFromUrl(plainTextUrl),
-      mediaFileId,
-    } satisfies DroppedImageReference;
-  }
-
-  return null;
-};
-
-const hasDroppedImageReferenceTransfer = (transfer: DataTransfer | null | undefined): boolean => {
-  if (!transfer) return false;
-  const transferTypes = Array.from(transfer.types ?? []).map((value) => value.toLowerCase());
-  if (
-    transferTypes.includes("text/reference-url") ||
-    transferTypes.includes("text/uri-list") ||
-    transferTypes.includes("image/url")
-  ) {
-    return true;
-  }
-  return Boolean(resolveDroppedImageReference(transfer));
-};
-
-const toDroppedReferenceFile = async (reference: DroppedImageReference): Promise<File> => {
-  const { blob, resolvedStoragePath } = await downloadDroppedReferenceBlob(reference);
-  const resolvedMimeType = (blob.type || reference.mimeType || "").toLowerCase() || "image/jpeg";
-  if (!resolvedMimeType.startsWith("image/")) {
-    throw new Error("Dropped media is not an image.");
-  }
-  const extension = (() => {
-    switch (resolvedMimeType) {
-      case "image/jpeg":
-        return "jpg";
-      case "image/png":
-        return "png";
-      case "image/webp":
-        return "webp";
-      case "image/gif":
-        return "gif";
-      case "image/svg+xml":
-        return "svg";
-      case "image/avif":
-        return "avif";
-      case "image/bmp":
-        return "bmp";
-      case "image/heic":
-        return "heic";
-      case "image/heif":
-        return "heif";
-      default:
-        return "jpg";
-    }
-  })();
-
-  const parsedName = (() => {
-    const storagePathSegment = resolvedStoragePath?.split("/").pop() ?? "";
-    const cleanedStoragePathSegment = sanitizeFilenameSegment(storagePathSegment);
-    if (cleanedStoragePathSegment) {
-      const hasExtension = /\.[a-z0-9]{2,5}$/i.test(cleanedStoragePathSegment);
-      return hasExtension ? cleanedStoragePathSegment : `${cleanedStoragePathSegment}.${extension}`;
-    }
-    try {
-      const pathSegment = new URL(reference.url).pathname.split("/").pop() ?? "";
-      const cleaned = sanitizeFilenameSegment(pathSegment);
-      if (!cleaned) return null;
-      const hasExtension = /\.[a-z0-9]{2,5}$/i.test(cleaned);
-      return hasExtension ? cleaned : `${cleaned}.${extension}`;
-    } catch {
-      return null;
-    }
-  })();
-  const fallbackName = `reference-drop-${Date.now()}.${extension}`;
-
-  return new File([blob], parsedName ?? fallbackName, {
-    type: resolvedMimeType,
-  });
-};
 
 /**
  * Orchestrates simple character creation flow while advanced uploader remains hidden.
@@ -458,11 +181,6 @@ export function CharacterManagerShell({
     useState<CharacterProfileImageTransform | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
-  const [pendingDropTarget, setPendingDropTarget] = useState<
-    | { target: "quickswap" }
-    | { target: "character_sheet"; zoneKey: CharacterSheetDropZoneKey }
-    | null
-  >(null);
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
@@ -472,9 +190,6 @@ export function CharacterManagerShell({
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
   const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
   const dragGhostMapRef = useRef(new Map<HTMLElement, HTMLElement>());
-  const mediaReferenceCacheRef = useRef(
-    new Map<string, { storagePath: string; previewUrl: string | null }>()
-  );
   const fileDragDepthRef = useRef(0);
   const pageBusy =
     loading ||
@@ -482,7 +197,6 @@ export function CharacterManagerShell({
     isCreatingCharacter ||
     isDeletingCharacter ||
     isSavingProfileImage;
-  const isDropResolutionBusy = pendingDropTarget !== null;
 
   const {
     activeItems: quickSwapItems,
@@ -678,139 +392,26 @@ export function CharacterManagerShell({
     clearMessages();
     clearQuickSwapError();
   }, [clearMessages, clearQuickSwapError]);
+  const quickSwapDropActive =
+    (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) && isDropActive;
+  const {
+    pendingDropTarget,
+    isDropResolutionBusy,
+    handleCharacterSheetReferenceDrop,
+    handleQuickSwapReferenceDrop,
+  } = useCharacterManagerDroppedReferenceController({
+    pageBusy,
+    quickSwapMutating,
+    clearAllMessages,
+    appendQuickSwapFiles: appendQuickSwapFilesFromHook,
+    setCharacterSheetPresetFile,
+    resolveCharacterDropReference,
+    hasQuickSwapMediaFileId: (mediaId) => quickSwapItemByMediaFileId.has(mediaId),
+  });
   useEffect(() => {
     if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
     fileDragDepthRef.current = 0;
-    setIsDropActive(false);
   }, [showQuickSwapCollapseToggle, isQuickSwapCollapsed]);
-  const resolveMediaReferenceById = useCallback(async (mediaId: string) => {
-    const normalizedMediaId = mediaId.trim();
-    if (!normalizedMediaId) return null;
-    const cached = mediaReferenceCacheRef.current.get(normalizedMediaId) ?? null;
-    if (cached) return cached;
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data, error } = await supabase
-        .from("media_files")
-        .select("storage_path")
-        .eq("id", normalizedMediaId)
-        .maybeSingle();
-      if (error) return null;
-      const storagePath = (
-        (data as { storage_path?: string | null } | null)?.storage_path ?? ""
-      ).trim();
-      if (!storagePath) return null;
-      const signedUrl = await getSignedMediaUrl({
-        bucket: MEDIA_BUCKET,
-        storagePath,
-        expiresInSeconds: 3600,
-      });
-      const resolved = {
-        storagePath,
-        previewUrl: signedUrl ?? null,
-      };
-      mediaReferenceCacheRef.current.set(normalizedMediaId, resolved);
-      return resolved;
-    } catch {
-      return null;
-    }
-  }, []);
-  const logCharacterDropBreadcrumb = useCallback(
-    (
-      message:
-        | "character_drop_attempt"
-        | "character_drop_resolved"
-        | "character_drop_rejected"
-        | "character_drop_failed_autosave",
-      data: Record<string, unknown>
-    ) => {
-      addBreadcrumb({
-        type: "ui",
-        level: message === "character_drop_rejected" ? "warn" : "info",
-        message,
-        data,
-      });
-    },
-    []
-  );
-  const resolveInternalCharacterDrop = useCallback(
-    async ({
-      transfer,
-      target,
-      zoneKey,
-    }: {
-      transfer: DataTransfer;
-      target: "quickswap" | "character_sheet";
-      zoneKey?: CharacterSheetDropZoneKey;
-    }): Promise<ResolvedCharacterDropReference | null> => {
-      const payload = extractInternalReferenceDragPayload(transfer);
-      if (!payload) return null;
-      logCharacterDropBreadcrumb("character_drop_attempt", {
-        target,
-        zone_key: zoneKey ?? null,
-        origin: payload.origin,
-        source_surface: payload.sourceSurface ?? null,
-        output_id: payload.outputId ?? null,
-        image_index: payload.imageIndex,
-      });
-      if (!resolveCharacterDropReference) {
-        logCharacterDropBreadcrumb("character_drop_rejected", {
-          target,
-          zone_key: zoneKey ?? null,
-          reason: "resolver_unavailable",
-          origin: payload.origin,
-        });
-        return null;
-      }
-      try {
-        const resolved = await resolveCharacterDropReference(payload);
-        const mediaId = resolved?.mediaId?.trim() ?? "";
-        const previewUrl = resolved?.previewUrl?.trim() || payload.referenceUrl?.trim() || null;
-        if (!mediaId && !previewUrl) {
-          logCharacterDropBreadcrumb("character_drop_rejected", {
-            target,
-            zone_key: zoneKey ?? null,
-            reason: "missing_media_id_and_preview_url",
-            origin: payload.origin,
-            output_id: payload.outputId ?? null,
-            image_index: payload.imageIndex,
-          });
-          return null;
-        }
-        logCharacterDropBreadcrumb("character_drop_resolved", {
-          target,
-          zone_key: zoneKey ?? null,
-          origin: payload.origin,
-          source_surface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
-          output_id: resolved?.outputId ?? payload.outputId ?? null,
-          image_index: resolved?.imageIndex ?? payload.imageIndex,
-          media_id: mediaId || null,
-          resolved_via: mediaId ? "media_id" : "preview_url",
-        });
-        return {
-          ...resolved,
-          mediaId,
-          previewUrl,
-          outputId: resolved?.outputId ?? payload.outputId,
-          imageIndex: resolved?.imageIndex ?? payload.imageIndex,
-          sourceSurface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
-        };
-      } catch (error) {
-        const reason =
-          error instanceof Error && error.message.trim().length ? error.message : "resolver_failed";
-        logCharacterDropBreadcrumb("character_drop_failed_autosave", {
-          target,
-          zone_key: zoneKey ?? null,
-          origin: payload.origin,
-          output_id: payload.outputId ?? null,
-          image_index: payload.imageIndex,
-          reason,
-        });
-        return null;
-      }
-    },
-    [logCharacterDropBreadcrumb, resolveCharacterDropReference]
-  );
 
   useVisibleErrorTelemetry({
     source: "client.character_manager.error_banner",
@@ -1200,68 +801,6 @@ export function CharacterManagerShell({
     [pageBusy, pendingCharacterSheetUploadZoneKey, setCharacterSheetPresetFile]
   );
 
-  const setCharacterSheetFileFromDroppedReference = useCallback(
-    async (zoneKey: CharacterSheetDropZoneKey, reference: DroppedImageReference) => {
-      try {
-        const file = await toDroppedReferenceFile(reference);
-        await setCharacterSheetPresetFile(zoneKey, file);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error && error.message.trim().length
-            ? error.message
-            : "Failed to process dropped Character Sheet reference.";
-        void reportAppError({
-          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-          scope: "app",
-          severity: "low",
-          message: "character_sheet_drop_reference_failed",
-          metadata: {
-            target: "character_sheet",
-            drop_zone_key: zoneKey,
-            reference_media_file_id: reference.mediaFileId,
-            reason: errorMessage,
-          },
-        });
-      }
-    },
-    [setCharacterSheetPresetFile]
-  );
-
-  const addDroppedReferenceToQuickSwap = useCallback(
-    async (reference: DroppedImageReference, options?: { suppressErrorTelemetry?: boolean }) => {
-      try {
-        if (pageBusy || quickSwapMutating) return false;
-        const file = await toDroppedReferenceFile(reference);
-        clearAllMessages();
-        const appended = await appendQuickSwapFilesFromHook([file]);
-        if (!appended) {
-          throw new Error("Failed to append dropped media to QuickSwap deck.");
-        }
-        return true;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error && error.message.trim().length
-            ? error.message
-            : "Failed to process dropped QuickSwap reference.";
-        if (!options?.suppressErrorTelemetry) {
-          void reportAppError({
-            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-            scope: "app",
-            severity: "low",
-            message: "quickswap_drop_reference_failed",
-            metadata: {
-              target: "quickswap",
-              reference_media_file_id: reference.mediaFileId,
-              reason: errorMessage,
-            },
-          });
-        }
-        return false;
-      }
-    },
-    [appendQuickSwapFilesFromHook, clearAllMessages, pageBusy, quickSwapMutating]
-  );
-
   const resolveDraggedQuickSwapItem = useCallback(
     (transfer: DataTransfer): CharacterQuickSwapItem | null => {
       const rawPayload = transfer.getData(DND_QUICK_SWAP_ITEM);
@@ -1452,103 +991,24 @@ export function CharacterManagerShell({
         return;
       }
 
-      const internalReference = extractInternalReferenceDragPayload(event.dataTransfer);
-      if (internalReference && resolveCharacterDropReference) {
-        const transfer = event.dataTransfer;
-        setPendingDropTarget({
-          target: "character_sheet",
-          zoneKey: characterSheetSlotKey,
-        });
-        setActiveCharacterSheetDropZone(characterSheetSlotKey);
-        void (async () => {
-          try {
-            const resolvedReference = await resolveInternalCharacterDrop({
-              transfer,
-              target: "character_sheet",
-              zoneKey: characterSheetSlotKey,
-            });
-            if (!resolvedReference) {
-              return;
-            }
-            const resolvedMediaId = resolvedReference.mediaId.trim();
-            let previewUrl = resolvedReference.previewUrl?.trim() || null;
-            if (!previewUrl && resolvedMediaId) {
-              const mediaReference = await resolveMediaReferenceById(resolvedMediaId);
-              previewUrl = mediaReference?.previewUrl?.trim() || null;
-            }
-            if (!previewUrl) {
-              void reportAppError({
-                source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-                scope: "app",
-                severity: "low",
-                message: "character_sheet_drop_reference_missing_preview_url",
-                metadata: {
-                  target: "character_sheet",
-                  drop_zone_key: characterSheetSlotKey,
-                  output_id: resolvedReference.outputId ?? null,
-                  image_index: resolvedReference.imageIndex ?? null,
-                  media_id: resolvedMediaId || null,
-                },
-              });
-              logCharacterDropBreadcrumb("character_drop_rejected", {
-                target: "character_sheet",
-                zone_key: characterSheetSlotKey,
-                reason: "missing_preview_url",
-                output_id: resolvedReference.outputId ?? null,
-                image_index: resolvedReference.imageIndex ?? null,
-                media_id: resolvedMediaId || null,
-              });
-              return;
-            }
-            await setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, {
-              url: previewUrl,
-              mimeType: null,
-              mediaFileId: resolvedMediaId || null,
-            });
-          } finally {
-            setPendingDropTarget((current) =>
-              current?.target === "character_sheet" && current.zoneKey === characterSheetSlotKey
-                ? null
-                : current
-            );
-            setActiveCharacterSheetDropZone((current) =>
-              current === characterSheetSlotKey ? null : current
-            );
-          }
-        })();
-        return;
-      }
-
-      const droppedReference = resolveDroppedImageReference(event.dataTransfer);
-      if (!droppedReference) {
-        void reportAppError({
-          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-          scope: "app",
-          severity: "low",
-          message: "character_sheet_drop_reference_blocked_by_trust_policy",
-          metadata: {
-            target: "character_sheet",
-            drop_zone_key: characterSheetSlotKey,
-            transfer_types: Array.from(event.dataTransfer.types ?? []),
-          },
-        });
-        return;
-      }
-      void setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, droppedReference);
+      setActiveCharacterSheetDropZone(characterSheetSlotKey);
+      void handleCharacterSheetReferenceDrop(characterSheetSlotKey, event.dataTransfer).finally(
+        () => {
+          setActiveCharacterSheetDropZone((current) =>
+            current === characterSheetSlotKey ? null : current
+          );
+        }
+      );
     },
     [
       assignReferenceToCharacterSheetSlot,
       draggedCharacterSheetZoneKey,
+      handleCharacterSheetReferenceDrop,
       isDropResolutionBusy,
-      logCharacterDropBreadcrumb,
       pageBusy,
       persistCharacterSheetPresetAssignments,
-      resolveCharacterDropReference,
-      resolveInternalCharacterDrop,
-      resolveMediaReferenceById,
       resolveDraggedQuickSwapItem,
       resolvedCharacterSheetPresetAssignments,
-      setCharacterSheetFileFromDroppedReference,
     ]
   );
 
@@ -1809,7 +1269,7 @@ export function CharacterManagerShell({
                     quickSwapLoading ||
                     pendingDropTarget?.target === "quickswap"
                   }
-                  isDropActive={isDropActive || pendingDropTarget?.target === "quickswap"}
+                  isDropActive={quickSwapDropActive || pendingDropTarget?.target === "quickswap"}
                   isDropPending={pendingDropTarget?.target === "quickswap"}
                   remainingCapacityHint={quickSwapRemainingActiveCapacity}
                   activeItems={quickSwapActiveItems}
@@ -1873,109 +1333,14 @@ export function CharacterManagerShell({
                     fileDragDepthRef.current = 0;
                     setIsDropActive(false);
                     if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
-                    const internalReference = extractInternalReferenceDragPayload(
-                      event.dataTransfer
-                    );
-                    if (internalReference && resolveCharacterDropReference) {
-                      const transfer = event.dataTransfer;
-                      setPendingDropTarget({ target: "quickswap" });
-                      setIsDropActive(true);
-                      void (async () => {
-                        try {
-                          const resolvedReference = await resolveInternalCharacterDrop({
-                            transfer,
-                            target: "quickswap",
-                          });
-                          if (!resolvedReference) return;
-                          const mediaId = resolvedReference.mediaId.trim();
-                          if (quickSwapItemByMediaFileId.has(mediaId)) return;
-                          let previewUrl = resolvedReference.previewUrl?.trim() || null;
-                          if (!previewUrl && mediaId) {
-                            const mediaReference = await resolveMediaReferenceById(mediaId);
-                            previewUrl = mediaReference?.previewUrl?.trim() || null;
-                          }
-                          if (!previewUrl) {
-                            void reportAppError({
-                              source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-                              scope: "app",
-                              severity: "low",
-                              message: "quickswap_drop_reference_missing_preview_url",
-                              metadata: {
-                                target: "quickswap",
-                                media_id: mediaId || null,
-                                output_id: resolvedReference.outputId ?? null,
-                                image_index: resolvedReference.imageIndex ?? null,
-                              },
-                            });
-                            logCharacterDropBreadcrumb("character_drop_rejected", {
-                              target: "quickswap",
-                              reason: "missing_preview_url",
-                              media_id: mediaId || null,
-                              output_id: resolvedReference.outputId ?? null,
-                              image_index: resolvedReference.imageIndex ?? null,
-                            });
-                            return;
-                          }
-                          const uploaded = await addDroppedReferenceToQuickSwap(
-                            {
-                              url: previewUrl,
-                              mimeType: null,
-                              mediaFileId: mediaId || null,
-                            },
-                            {
-                              suppressErrorTelemetry: true,
-                            }
-                          );
-                          if (uploaded) return;
-                          void reportAppError({
-                            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-                            scope: "app",
-                            severity: "low",
-                            message: "quickswap_drop_reference_failed_after_internal_resolve",
-                            metadata: {
-                              target: "quickswap",
-                              media_id: mediaId || null,
-                              output_id: resolvedReference.outputId ?? null,
-                              image_index: resolvedReference.imageIndex ?? null,
-                              reason: "quickswap_upload_failed",
-                            },
-                          });
-                          logCharacterDropBreadcrumb("character_drop_rejected", {
-                            target: "quickswap",
-                            reason: "quickswap_upload_failed",
-                            media_id: mediaId || null,
-                            output_id: resolvedReference.outputId ?? null,
-                            image_index: resolvedReference.imageIndex ?? null,
-                          });
-                        } finally {
-                          setPendingDropTarget((current) =>
-                            current?.target === "quickswap" ? null : current
-                          );
-                          setIsDropActive(false);
-                        }
-                      })();
-                      return;
-                    }
                     const files = event.dataTransfer?.files;
                     if (files?.length) {
                       void uploadSimpleFiles(files);
                       return;
                     }
-                    const droppedReference = resolveDroppedImageReference(event.dataTransfer);
-                    if (!droppedReference) {
-                      void reportAppError({
-                        source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-                        scope: "app",
-                        severity: "low",
-                        message: "quickswap_drop_reference_blocked_by_trust_policy",
-                        metadata: {
-                          target: "quickswap",
-                          transfer_types: Array.from(event.dataTransfer.types ?? []),
-                        },
-                      });
-                      return;
-                    }
-                    void addDroppedReferenceToQuickSwap(droppedReference);
+                    void handleQuickSwapReferenceDrop(event.dataTransfer).finally(() => {
+                      setIsDropActive(false);
+                    });
                   }}
                 />
               }

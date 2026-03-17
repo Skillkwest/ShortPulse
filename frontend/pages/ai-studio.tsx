@@ -50,7 +50,7 @@ import { AiStudioModalActivityProvider } from "../features/ai-studio/components/
 import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
-import type { ResolveCharacterDropReference } from "../features/character-manager/components/CharacterManagerShell";
+import type { ResolveCharacterDropReference } from "../features/character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { ResolveCanvasDropReference } from "../features/ai-studio/components/canvas/canvasTypes";
 import {
   PERF_FLAG_AUDIT_RUNTIME,

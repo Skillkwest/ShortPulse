@@ -20,7 +20,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
 | D    | Completed   | Engineering | Lane D closeout complete; runtime warning, suppression, hard-disable, logging, and guardrail debt are cleared with full-suite green validation | none                                    | Lane E execution handoff                                                  | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Completed   | Engineering | Lane E closeout complete; index parity, ADR integrity, policy-surface consistency, changelog governance, and convergence evidence are locked | none                                    | Lane F execution handoff                                                  | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
-| F    | In Progress | Engineering | `F0-01` baseline lock, `F1-01` CI inventory parity, and `F2-01` plan-limited enforcement posture are complete; `F3-01` workflow reliability is next | none                                    | `F3-01` workflow reliability policy                                       | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
+| F    | In Progress | Engineering | `F0-01` baseline lock, `F1-01` CI inventory parity, `F2-01` plan-limited enforcement, and `F3-01` workflow reliability policy are complete; `F4-01` action pinning is next | none                                    | `F4-01` action pinning policy                                             | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
 
 ## Lane A Master Checklist
@@ -255,20 +255,20 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 
 ### F0: Baseline Lock
 
-- [ ] Capture baseline snapshots for CI job inventory, required-check mapping, mode variables, ruleset/branch-protection API state, and environment protection state.
-- [ ] Wire Lane F artifacts in roadmap/tracker/docs indexes.
-- [ ] Freeze Lane F non-goals and rollback posture.
+- [x] Capture baseline snapshots for CI job inventory, required-check mapping, mode variables, ruleset/branch-protection API state, and environment protection state.
+- [x] Wire Lane F artifacts in roadmap/tracker/docs indexes.
+- [x] Freeze Lane F non-goals and rollback posture.
 
 ### F1-F2: CI Inventory + Plan-Limited Enforcement Contract
 
-- [ ] Eliminate CI inventory drift between `.github/workflows/*.yml` and `docs/planning/ci-policy-checks.md`.
-- [ ] Add missing `agent_rollback_verification` + mode-variable policy coverage in CI policy docs.
-- [ ] Lock required-check/job-ID mapping contract and change-control procedure.
-- [ ] Publish explicit compensating controls for plan-limited branch/ruleset enforceability.
+- [x] Eliminate CI inventory drift between `.github/workflows/*.yml` and `docs/planning/ci-policy-checks.md`.
+- [x] Add missing `agent_rollback_verification` + mode-variable policy coverage in CI policy docs.
+- [x] Lock required-check/job-ID mapping contract and change-control procedure.
+- [x] Publish explicit compensating controls for plan-limited branch/ruleset enforceability.
 
 ### F3-F5: Reliability + Supply Chain + Environment Protection
 
-- [ ] Define and apply workflow reliability policy (including concurrency posture and merge-queue readiness policy).
+- [x] Define and apply workflow reliability policy (including concurrency posture and merge-queue readiness policy).
 - [ ] Implement phased workflow action pinning policy and exception tracking.
 - [ ] Align environment protection and deployment-gate policy state across release/deployment docs.
 - [ ] Define canonical environment namespace policy (`staging`/`production`) and resolve naming-variant drift.

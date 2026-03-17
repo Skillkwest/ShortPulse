@@ -11,6 +11,10 @@ on:
           - staging
           - production
 
+concurrency:
+  group: media-storage-deploy-gate-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
 jobs:
   media-storage-gate:
     name: Media Storage Gate (${{ inputs.target_environment }})

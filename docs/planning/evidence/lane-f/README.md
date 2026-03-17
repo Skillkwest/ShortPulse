@@ -34,3 +34,4 @@ Examples:
 - `docs/planning/evidence/lane-f/2026-03-17-f0-01-baseline-lock.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f1-01-ci-inventory-required-check-contract.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f2-01-plan-limited-enforcement-model.md`
+- `docs/planning/evidence/lane-f/2026-03-17-f3-01-workflow-reliability-policy.md`

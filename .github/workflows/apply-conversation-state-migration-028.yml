@@ -32,6 +32,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: apply-conversation-state-migration-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
 jobs:
   apply_conversation_state_migration:
     runs-on: ubuntu-latest

@@ -19,6 +19,10 @@ on:
           - warn
           - enforce
 
+concurrency:
+  group: conversation-state-hardening-gate-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
 jobs:
   conversation_state_hardening_gate:
     runs-on: ubuntu-latest

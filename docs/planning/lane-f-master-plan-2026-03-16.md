@@ -41,9 +41,10 @@ As of 2026-03-17:
    - current required-check mapping evidence is date-current,
    - current prototype-mode waiver posture is date-current,
    - production-readiness blocker language is explicit while repository-plan enforcement remains unavailable.
-6. Workflow reliability controls are incomplete:
-   - no workflow-level `concurrency` blocks,
-   - no `merge_group` trigger posture documented for future merge-queue adoption.
+6. Workflow reliability controls are now partially hardened after `F3-01`:
+   - governed workflows have explicit workflow-level `concurrency` posture,
+   - stale-run cancellation is enabled for PR/push CI and disabled for environment-targeted manual gates,
+   - `merge_group` posture is documented as deferred until merge queue adoption.
 7. Workflow supply-chain hardening drift exists:
    - GitHub Action `uses:` references: `42`,
    - full-SHA pinned references: `0`.

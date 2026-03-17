@@ -136,6 +136,31 @@ Mode policy:
 - Purpose: retry `npm ci` only for transient network/download failures (for example proxy `502` or connection reset), while failing fast for deterministic dependency issues.
 - Applied to CI jobs that run `npm ci` in `.github/workflows/ci.yml`.
 
+## Workflow reliability policy
+
+- `CI` workflow (`.github/workflows/ci.yml`)
+  - Triggers: `pull_request`, `push` to `main`, `workflow_dispatch`
+  - Concurrency group: `ci-${{ github.event.pull_request.number || github.ref || github.run_id }}`
+  - Cancellation posture:
+    - `pull_request` and `push`: cancel stale in-progress runs
+    - `workflow_dispatch`: do not auto-cancel operator-invoked runs
+- `Conversation State Hardening Gate`
+  - Trigger: `workflow_dispatch`
+  - Concurrency group: `conversation-state-hardening-gate-${{ github.event.inputs.target_environment }}`
+  - Cancellation posture: no auto-cancel; environment-targeted manual gate runs serialize
+- `Apply Conversation State Migration`
+  - Trigger: `workflow_dispatch`
+  - Concurrency group: `apply-conversation-state-migration-${{ github.event.inputs.target_environment }}`
+  - Cancellation posture: no auto-cancel; environment-targeted migration runs serialize
+- `Media Storage Deploy Gate`
+  - Trigger: `workflow_dispatch`
+  - Concurrency group: `media-storage-deploy-gate-${{ github.event.inputs.target_environment }}`
+  - Cancellation posture: no auto-cancel; environment-targeted gate runs serialize
+- Merge-queue readiness posture:
+  - `merge_group` is not enabled today and is not implied by current required-check policy.
+  - If merge queue is adopted later, any required-check workflow must add `merge_group` in the same PR that changes repository merge policy.
+  - The same PR must update this document and the Lane F evidence packet with the adopted trigger posture.
+
 ## Security gate
 
 - Blocking command: `npm audit --omit=dev --audit-level=moderate`

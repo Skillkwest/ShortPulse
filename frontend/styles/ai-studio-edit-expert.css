@@ -1930,8 +1930,8 @@
   height: 122px;
   min-height: 122px;
   border-radius: 8px;
-  border: 1px solid rgba(201, 205, 214, 0.02);
-  background: rgba(201, 205, 214, 0.02);
+  border: 1px solid var(--edit-expert-neutral-border-soft);
+  background: var(--edit-expert-neutral-surface-soft);
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
   padding: 8px;
   display: flex;

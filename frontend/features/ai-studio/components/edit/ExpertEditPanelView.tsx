@@ -82,6 +82,7 @@ import { ExpertEditMarkupModalShell } from "./ExpertEditMarkupModalShell";
 import { useExpertEditStageInteractionRouter } from "./useExpertEditStageInteractionRouter";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
+import { useExpertEditTransformController } from "./useExpertEditTransformController";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { StylesControl } from "../StylesControl";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
@@ -104,7 +105,6 @@ import {
 import {
   cloneBlobObjectUrl,
   resolveBlobDimensions,
-  resolveCanvasSpacePoint,
   resolvePresetDragPayload,
   revokeObjectUrlSafe,
   setOpaquePresetDragImage,
@@ -179,11 +179,9 @@ import {
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
   createIdleTransformPointerSession,
-  elementHasPointerCapture,
   isEventTargetInsideElement,
   isKeyboardEventFromEditableTarget,
   lockDocumentCursor,
-  releasePointerCaptureSafely,
   resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
   runPointerStageTerminalAction,
@@ -194,11 +192,6 @@ import {
   unlockDocumentCursor,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
-import {
-  createTransformPointerSession,
-  resolveTransformDragMode,
-  resolveTransformSessionUpdate,
-} from "./expertEditTransformGestureUtils";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
@@ -2212,114 +2205,24 @@ export function ExpertEditPanelView({
     [isMarkupExpandSelected]
   );
 
-  const endTransformPointerSession = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const session = transformPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId) return;
-      releasePointerCaptureSafely(event.currentTarget, event.pointerId);
-      transformPointerSessionRef.current = createIdleTransformPointerSession();
-      setActiveTransformDragMode("move");
-      setIsTransformPointerDragging(false);
-      const baselineEntry = transformGestureBaselineRef.current;
-      transformGestureBaselineRef.current = null;
-      if (!baselineEntry) return;
-      const nextEntry = buildTransformHistoryEntry(layers);
-      commitTransformHistoryTransition(nextEntry, baselineEntry);
-    },
-    [commitTransformHistoryTransition, layers]
-  );
-
-  const handleMovePointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!selectedLayer?.imageUrl) {
-        showStatusToast("Select a layer image before transforming.");
-        return;
-      }
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      const rect = event.currentTarget.getBoundingClientRect();
-      const width = Math.max(1, rect.width);
-      const height = Math.max(1, rect.height);
-      const pointer = resolveCanvasSpacePoint({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        rect,
-        sceneScale: sceneZoomScale,
-      });
-      const pointerX = pointer.x;
-      const pointerY = pointer.y;
-      const dragMode = resolveTransformDragMode({
-        altKey: event.altKey,
-        shiftKey: event.shiftKey,
-      });
-      event.preventDefault();
-      if ((event.currentTarget as HTMLElement | null)?.setPointerCapture) {
-        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-      }
-      transformGestureBaselineRef.current = buildTransformHistoryEntry(layers);
-      transformPointerSessionRef.current = createTransformPointerSession({
-        pointerId: event.pointerId,
-        pointerX,
-        pointerY,
-        dropzoneWidth: width,
-        dropzoneHeight: height,
-        selectedLayerId: selectedLayer.id,
-        selectedLayerTransform: selectedLayer.transform,
-        dragMode,
-      });
-      setActiveTransformDragMode(dragMode);
-      setIsTransformPointerDragging(true);
-    },
-    [layers, sceneZoomScale, selectedLayer, showStatusToast]
-  );
-
-  const handleMovePointerMove = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const pointer = resolveCanvasSpacePoint({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        rect,
-        sceneScale: sceneZoomScale,
-      });
-      const pointerX = pointer.x;
-      const pointerY = pointer.y;
-      const session = transformPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
-      event.preventDefault();
-      const transformUpdate = resolveTransformSessionUpdate({
-        session,
-        pointerX,
-        pointerY,
-      });
-      if (!transformUpdate) return;
-      setLayers((previousLayers) =>
-        previousLayers.map((layer) =>
-          layer.id === session.layerId
-            ? {
-                ...layer,
-                transform: {
-                  ...layer.transform,
-                  ...transformUpdate,
-                },
-              }
-            : layer
-        )
-      );
-    },
-    [sceneZoomScale]
-  );
-
-  const handleMovePointerLeave = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const session = transformPointerSessionRef.current;
-      if (!session.active) return;
-      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, event.pointerId);
-      if (session.active && event.pointerId === session.pointerId && !hasPointerCapture) {
-        endTransformPointerSession(event);
-      }
-    },
-    [endTransformPointerSession]
-  );
+  const {
+    clearTransformPointerSession,
+    endTransformPointerSession,
+    handleMovePointerDown,
+    handleMovePointerMove,
+    handleMovePointerLeave,
+  } = useExpertEditTransformController({
+    layers,
+    selectedLayer,
+    sceneZoomScale,
+    transformPointerSessionRef,
+    transformGestureBaselineRef,
+    setLayers,
+    setActiveTransformDragMode,
+    setIsTransformPointerDragging,
+    commitTransformHistoryTransition,
+    showStatusToast,
+  });
 
   const handleMarkupStagePointerTerminal = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -2889,16 +2792,9 @@ export function ExpertEditPanelView({
 
   React.useEffect(() => {
     if (!isMoveToolSelected) {
-      if (isTransformPointerDragging) {
-        setIsTransformPointerDragging(false);
-      }
-      if (activeTransformDragMode !== "move") {
-        setActiveTransformDragMode("move");
-      }
-      transformPointerSessionRef.current = createIdleTransformPointerSession();
-      transformGestureBaselineRef.current = null;
+      clearTransformPointerSession();
     }
-  }, [activeTransformDragMode, isMoveToolSelected, isTransformPointerDragging]);
+  }, [clearTransformPointerSession, isMoveToolSelected]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;

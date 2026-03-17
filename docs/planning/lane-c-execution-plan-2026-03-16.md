@@ -1,6 +1,6 @@
 # Lane C Execution Plan (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Owner: Engineering  
 Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`  
@@ -25,7 +25,7 @@ Out of scope:
 ## Slice Backlog
 | Slice ID | Phase | Fragile Surface | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
-| `C0-01` | C0 | Baseline lock | Capture baseline command outputs and lock non-goals | `docs/planning/evidence/lane-c/2026-03-16-c0-01-baseline-lock.md` | Not Started |
+| `C0-01` | C0 | Baseline lock | Capture baseline command outputs and lock non-goals | `docs/planning/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md` | Completed |
 | `C1-01` | C1 | Reference Grid -> Styles drop | Capture one failing and one passing real payload packet | `docs/planning/evidence/lane-c/2026-03-16-c1-01-style-drop-characterization.md` | Not Started |
 | `C1-02` | C1 | Reference Grid -> Styles drop | Convert captured packets into deterministic fixture tests | `docs/planning/evidence/lane-c/2026-03-16-c1-02-style-drop-fixture-lock.md` | Not Started |
 | `C2-01` | C2 | Generation lifecycle | Consolidate no-regression contract suite for submit/queue/status/recovery | `docs/planning/evidence/lane-c/2026-03-16-c2-01-generation-contract-bundle.md` | Not Started |

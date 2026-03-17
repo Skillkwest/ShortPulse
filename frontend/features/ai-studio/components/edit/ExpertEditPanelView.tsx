@@ -2639,20 +2639,6 @@ export function ExpertEditPanelView({
     [sceneZoomScale]
   );
 
-  const handleMovePointerUp = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      endTransformPointerSession(event);
-    },
-    [endTransformPointerSession]
-  );
-
-  const handleMovePointerCancel = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      endTransformPointerSession(event);
-    },
-    [endTransformPointerSession]
-  );
-
   const handleMovePointerLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const session = transformPointerSessionRef.current;
@@ -2668,6 +2654,14 @@ export function ExpertEditPanelView({
       }
     },
     [endTransformPointerSession]
+  );
+
+  const handleMarkupStagePointerTerminal = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (endMarkupPanGesture(event)) return;
+      endMarkupDrawGesture(event);
+    },
+    [endMarkupDrawGesture, endMarkupPanGesture]
   );
 
   const handleInpaintStagePointerDown = React.useCallback(
@@ -2734,16 +2728,15 @@ export function ExpertEditPanelView({
     () => ({
       onPointerDown: handleMovePointerDown,
       onPointerMove: handleMovePointerMove,
-      onPointerUp: handleMovePointerUp,
-      onPointerCancel: handleMovePointerCancel,
+      onPointerUp: endTransformPointerSession,
+      onPointerCancel: endTransformPointerSession,
       onPointerLeave: handleMovePointerLeave,
     }),
     [
-      handleMovePointerCancel,
       handleMovePointerDown,
       handleMovePointerLeave,
       handleMovePointerMove,
-      handleMovePointerUp,
+      endTransformPointerSession,
     ]
   );
 
@@ -2777,14 +2770,8 @@ export function ExpertEditPanelView({
         if (continueMarkupPanGesture(event)) return;
         continueMarkupDrawGesture(event);
       },
-      onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
-        if (endMarkupPanGesture(event)) return;
-        endMarkupDrawGesture(event);
-      },
-      onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
-        if (endMarkupPanGesture(event)) return;
-        endMarkupDrawGesture(event);
-      },
+      onPointerUp: handleMarkupStagePointerTerminal,
+      onPointerCancel: handleMarkupStagePointerTerminal,
       onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
         if (endMarkupPanGestureOnLeave(event)) return;
         endMarkupDrawGestureOnLeave(event);
@@ -2801,10 +2788,9 @@ export function ExpertEditPanelView({
       beginMarkupPanGesture,
       continueMarkupDrawGesture,
       continueMarkupPanGesture,
-      endMarkupDrawGesture,
       endMarkupDrawGestureOnLeave,
-      endMarkupPanGesture,
       endMarkupPanGestureOnLeave,
+      handleMarkupStagePointerTerminal,
       handleMarkupViewportWheel,
     ]
   );

@@ -18,7 +18,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | A    | Completed   | Engineering | Lane A closeout complete; debt handed off to downstream lanes                                                                            | none                                    | Lane B execution handoff                                                  | `docs/planning/lane-a-master-plan-2026-03-16.md`                        |
 | B    | Completed   | Engineering | Lane B closeout complete; modularization, style authority, and convergence gates are locked with deferred residuals owner/dated | none                                    | Lane C execution handoff                                                  | `docs/planning/lane-b-master-plan-2026-03-16.md`                        |
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
-| D    | In Progress | Engineering | `D1` effect hardening is complete; `D2-01` is next on `useReferenceGridHorizontalSplit` suppression retirement                         | Lane D runtime-effect debt is cleared; full-suite baseline is still red on unrelated admin ledger assertion                        | `D2-01` split-controller suppression retirement                           | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
+| D    | In Progress | Engineering | `D1-D2` runtime warning and suppression retirement are complete; `D3-01` hard-disable cleanup is next on `frontend/pages/ai-studio.tsx` | Lane D runtime-effect debt is cleared; full-suite baseline is still red on unrelated admin ledger assertion                        | `D3-01` selector-store hard-disable cleanup                               | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock                                                                                         | Awaiting E0 baseline evidence packet    | Lane E governance baseline lock                                           | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
 | F    | Not Started | Engineering | Release and CI discipline baseline lock and policy-inventory parity                                                                      | Awaiting F0 baseline evidence packet    | Lane F CI inventory and required-check contract lock                      | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
@@ -199,9 +199,9 @@ Concrete sequencing: `docs/planning/lane-d-execution-plan-2026-03-16.md`
 
 ### D1-D2: Effect/Suppression Hardening
 
-- [ ] Resolve active `react-hooks/set-state-in-effect` warnings in scoped production seams.
-- [ ] Remove scoped suppression debt where equivalent safe behavior can be preserved.
-- [ ] Add/extend targeted tests for touched seams.
+- [x] Resolve active `react-hooks/set-state-in-effect` warnings in scoped production seams.
+- [x] Remove scoped suppression debt where equivalent safe behavior can be preserved.
+- [x] Add/extend targeted tests for touched seams.
 
 ### D3-D4: Hard-Disable + Logging Hygiene
 

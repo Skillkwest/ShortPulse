@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type MutableRefObject,
@@ -113,8 +114,7 @@ export const useReferenceGridHorizontalSplit = ({
     clamp(defaultTopRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO)
   );
   const topRatioRef = useRef(topRatio);
-  const [containerHeightPx, setContainerHeightPx] = useState(0);
-  const containerHeightRef = useRef(containerHeightPx);
+  const containerHeightRef = useRef(0);
 
   const stopResizing = useCallback(() => {
     if (detachPointerListenersRef.current) {
@@ -128,9 +128,6 @@ export const useReferenceGridHorizontalSplit = ({
   useEffect(() => {
     topRatioRef.current = topRatio;
   }, [topRatio]);
-  useEffect(() => {
-    containerHeightRef.current = containerHeightPx;
-  }, [containerHeightPx]);
 
   const resolveContainerHeight = useCallback((): number => {
     return resolveElementHeight(containerRef.current);
@@ -175,7 +172,6 @@ export const useReferenceGridHorizontalSplit = ({
         containerHeightRef.current > 0 ? containerHeightRef.current : nextHeight;
       const preservedTopHeightPx = topRatioRef.current * Math.max(1, previousHeight);
       containerHeightRef.current = nextHeight;
-      setContainerHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
       const clampedRatio = clampTopRatio(
         preservedTopHeightPx / Math.max(1, nextHeight),
         nextHeight
@@ -227,7 +223,6 @@ export const useReferenceGridHorizontalSplit = ({
       const liveContainerHeight = resolveContainerHeight();
       if (liveContainerHeight > 0 && liveContainerHeight !== session.containerHeight) {
         session.containerHeight = liveContainerHeight;
-        setContainerHeightPx((prev) => (prev === liveContainerHeight ? prev : liveContainerHeight));
       }
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       applyDeltaPx(deltaY, session.containerHeight);
@@ -248,7 +243,6 @@ export const useReferenceGridHorizontalSplit = ({
         // Some browsers can throw if capture is unsupported for this pointer type.
       }
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
-      setContainerHeightPx((prev) => (prev === height ? prev : height));
       const clampedStartRatio = clampTopRatio(topRatioRef.current, height);
       if (Math.abs(clampedStartRatio - topRatioRef.current) >= 0.001) {
         commitTopRatio(clampedStartRatio);
@@ -313,7 +307,6 @@ export const useReferenceGridHorizontalSplit = ({
           commitTopRatio(bounds.min);
           return;
         }
-        setContainerHeightPx((prev) => (prev === height ? prev : height));
         commitTopRatio(bounds.min);
         return;
       }
@@ -323,7 +316,6 @@ export const useReferenceGridHorizontalSplit = ({
           commitTopRatio(bounds.max);
           return;
         }
-        setContainerHeightPx((prev) => (prev === height ? prev : height));
         commitTopRatio(bounds.max);
         return;
       }
@@ -335,7 +327,6 @@ export const useReferenceGridHorizontalSplit = ({
         commitTopRatio(nextRatio);
         return;
       }
-      setContainerHeightPx((prev) => (prev === height ? prev : height));
       const deltaPx = (event.key === "ArrowUp" ? -step : step) * height;
       applyDeltaPx(deltaPx, height);
     },
@@ -351,27 +342,32 @@ export const useReferenceGridHorizontalSplit = ({
     ]
   );
 
-  useEffect(() => {
-    if (!enabled) return;
-    const height = resolveContainerHeight();
-    if (!height) return;
-    // Keep this synchronous so ratio/height state is settled before first paint and resize tests.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    reconcileTopRatioForContainerHeight(height);
-  }, [enabled, reconcileTopRatioForContainerHeight, resolveContainerHeight]);
+  const subscribeContainerHeight = useCallback(
+    (onStoreChange: () => void) => {
+      if (!enabled || typeof ResizeObserver === "undefined") return () => undefined;
+      const node = containerRef.current;
+      if (!node) return () => undefined;
 
-  useEffect(() => {
-    if (!enabled || typeof ResizeObserver === "undefined") return;
-    const node = containerRef.current;
-    if (!node) return;
-    const observer = new ResizeObserver(() => {
-      const nextHeight = resolveContainerHeight();
-      if (!nextHeight) return;
-      reconcileTopRatioForContainerHeight(nextHeight);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [containerRef, enabled, reconcileTopRatioForContainerHeight, resolveContainerHeight]);
+      const emitHeightChange = () => {
+        const nextHeight = resolveContainerHeight();
+        if (!nextHeight) return;
+        reconcileTopRatioForContainerHeight(nextHeight);
+        onStoreChange();
+      };
+
+      const observer = new ResizeObserver(emitHeightChange);
+      observer.observe(node);
+      emitHeightChange();
+      return () => observer.disconnect();
+    },
+    [containerRef, enabled, reconcileTopRatioForContainerHeight, resolveContainerHeight]
+  );
+
+  const containerHeightPx = useSyncExternalStore(
+    subscribeContainerHeight,
+    resolveContainerHeight,
+    () => 0
+  );
 
   const fallbackRatioBounds = useMemo<RatioBounds>(
     () => ({
@@ -408,7 +404,6 @@ export const useReferenceGridHorizontalSplit = ({
       commitTopRatio(0.995);
       return;
     }
-    setContainerHeightPx((prev) => (prev === height ? prev : height));
     const bounds = resolveRatioBounds(
       height,
       minTopSectionHeightPx,
@@ -437,7 +432,6 @@ export const useReferenceGridHorizontalSplit = ({
         commitTopRatio(fallbackRatio);
         return;
       }
-      setContainerHeightPx((prev) => (prev === height ? prev : height));
       const targetRatio = clampTopRatio(resolvedTopHeightPx / Math.max(1, height), height);
       setAllRefsExpandedThresholdRatio((prev) => (prev === targetRatio ? prev : targetRatio));
       commitTopRatio(targetRatio);
@@ -451,9 +445,6 @@ export const useReferenceGridHorizontalSplit = ({
       if (!enabled || Math.abs(deltaPx) < 0.0001) return deltaPx;
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       const height = resolveContainerHeight();
-      if (height) {
-        setContainerHeightPx((prev) => (prev === height ? prev : height));
-      }
       return applyDeltaPx(deltaPx, height || 600);
     },
     [applyDeltaPx, enabled, resolveContainerHeight]
@@ -463,7 +454,6 @@ export const useReferenceGridHorizontalSplit = ({
     if (!enabled) return;
     const height = resolveContainerHeight();
     if (!height) return;
-    setContainerHeightPx((prev) => (prev === height ? prev : height));
     const clampedRatio = clampTopRatio(topRatioRef.current, height);
     if (Math.abs(topRatioRef.current - clampedRatio) < 0.001) return;
     commitTopRatio(clampedRatio);

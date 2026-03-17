@@ -37,6 +37,7 @@ import {
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
+import { useCharacterManagerShellViewState } from "../hooks/useCharacterManagerShellViewState";
 import {
   CHARACTER_LIBRARY_EXPAND_STEP,
   CHARACTER_LIBRARY_SMOOTH_TARGET,
@@ -63,7 +64,6 @@ import type {
   CharacterProfileImageTransform,
   CharacterSheetDropZoneKey,
   CharacterSheetPresetAssignments,
-  CharacterSheetPresetId,
 } from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
@@ -111,10 +111,8 @@ const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
 const DRAG_GHOST_SCALE = 0.74;
 const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
   ".character-reference-upload-image-wrap, .character-character-sheet-media";
-const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 const MEDIA_BUCKET = "media_library";
 const DROPPED_REFERENCE_TELEMETRY_SOURCE = "client.character_manager.drop_reference";
-const QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD = 4;
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -148,29 +146,6 @@ function buildProfileImageTransformStyle(
     transformOrigin: "center center",
   };
 }
-
-const resolveInitialBeginnerMode = (): boolean => {
-  if (typeof window === "undefined") return true;
-  try {
-    const stored = window.localStorage.getItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY);
-    if (stored == null) return true;
-    return stored === "true";
-  } catch {
-    return true;
-  }
-};
-
-const resolveInitialQuickSwapGridColumnCount = (): number => {
-  if (typeof window === "undefined") return 3;
-  if (typeof window.matchMedia !== "function") return 3;
-  return window.matchMedia("(max-width: 860px)").matches ? 2 : 3;
-};
-
-const resolveInitialQuickSwapArchiveGridColumnCount = (): number => {
-  if (typeof window === "undefined") return 4;
-  if (typeof window.matchMedia !== "function") return 4;
-  return window.matchMedia("(max-width: 900px)").matches ? 2 : 4;
-};
 
 type DroppedImageReference = {
   url: string;
@@ -472,9 +447,7 @@ export function CharacterManagerShell({
     clearMessages,
   } = useCharacterManagerDraft();
 
-  const [activeTab, setActiveTab] = useState<CharacterWorkflowTab>(initialWorkflowTab ?? "create");
   const [isDropActive, setIsDropActive] = useState(false);
-  const [isQuickSwapCollapsed, setIsQuickSwapCollapsed] = useState(false);
   const [draggedQuickSwapItemId, setDraggedQuickSwapItemId] = useState<string | null>(null);
   const [draggedCharacterSheetZoneKey, setDraggedCharacterSheetZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
@@ -483,20 +456,6 @@ export function CharacterManagerShell({
   const [isProfileAdjusterVisible, setIsProfileAdjusterVisible] = useState(false);
   const [profileAdjustDraft, setProfileAdjustDraft] =
     useState<CharacterProfileImageTransform | null>(null);
-  const [deleteTargetCharacter, setDeleteTargetCharacter] = useState<{
-    characterId: string;
-    characterName: string;
-  } | null>(null);
-  const [deleteTargetCharacterSheetPresetId, setDeleteTargetCharacterSheetPresetId] =
-    useState<CharacterSheetPresetId | null>(null);
-  const [referencePreview, setReferencePreview] = useState<{
-    index: number;
-    aspectRatio: number;
-  } | null>(null);
-  const [referencePreviewSignedUrl, setReferencePreviewSignedUrl] = useState<{
-    itemId: string;
-    url: string;
-  } | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
   const [pendingDropTarget, setPendingDropTarget] = useState<
@@ -504,16 +463,6 @@ export function CharacterManagerShell({
     | { target: "character_sheet"; zoneKey: CharacterSheetDropZoneKey }
     | null
   >(null);
-  const [characterLibraryVisibleCount, setCharacterLibraryVisibleCount] = useState(
-    CHARACTER_LIBRARY_SMOOTH_TARGET
-  );
-  const [beginnerMode, setBeginnerMode] = useState(resolveInitialBeginnerMode);
-  const [quickSwapGridColumnCount, setQuickSwapGridColumnCount] = useState(
-    resolveInitialQuickSwapGridColumnCount
-  );
-  const [quickSwapArchiveGridColumnCount, setQuickSwapArchiveGridColumnCount] = useState(
-    resolveInitialQuickSwapArchiveGridColumnCount
-  );
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
@@ -551,6 +500,44 @@ export function CharacterManagerShell({
     clearError: clearQuickSwapError,
   } = useCharacterQuickSwapDeck({
     characterId: selectedCharacterId,
+  });
+  const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
+  const { isQuickSwapTipHidden, markQuickSwapTipHidden } = useCharacterQuickSwapTipPreference();
+  const {
+    activeTab,
+    setActiveTab,
+    isQuickSwapCollapsed,
+    setIsQuickSwapCollapsed,
+    deleteTargetCharacter,
+    setDeleteTargetCharacter,
+    deleteTargetCharacterSheetPresetId,
+    setDeleteTargetCharacterSheetPresetId,
+    referencePreview,
+    setReferencePreview,
+    referencePreviewSignedUrl,
+    setReferencePreviewSignedUrl,
+    characterLibraryVisibleCount,
+    setCharacterLibraryVisibleCount,
+    setBeginnerMode,
+    quickSwapGridColumnCount,
+    quickSwapArchiveGridColumnCount,
+    isEmbeddedSurface,
+    effectiveBeginnerMode,
+    showQuickSwapCollapseToggle,
+    cancelDeleteCharacter,
+    cancelDeleteCharacterSheetPreset,
+    openReferencePreview,
+    closeReferencePreview,
+    navigateReferencePreview,
+  } = useCharacterManagerShellViewState({
+    initialWorkflowTab,
+    surface,
+    beginnerModeOverride,
+    isQuickSwapTipHidden,
+    markQuickSwapTipHidden,
+    quickSwapActiveItems,
+    isDeletingCharacter,
+    isSavingCharacterSheetPreset,
   });
   const profileInitials = useMemo(() => {
     const words = characterName.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -619,18 +606,10 @@ export function CharacterManagerShell({
     surface: "character-grid",
     enabled: characterGridAdaptivePreviewEnabled,
   });
-  const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
-  const { isQuickSwapTipHidden, markQuickSwapTipHidden } = useCharacterQuickSwapTipPreference();
   const quickSwapRemainingActiveCapacity = useMemo(
     () => Math.max(0, CHARACTER_QUICK_SWAP_ACTIVE_LIMIT - quickSwapActiveItems.length),
     [quickSwapActiveItems.length]
   );
-  const quickSwapVisibleRowCount = useMemo(() => {
-    const columnCount = Math.max(1, quickSwapGridColumnCount);
-    // Include the upload placeholder card in row-density calculation.
-    const renderedCardCount = quickSwapActiveItems.length + 1;
-    return Math.max(1, Math.ceil(renderedCardCount / columnCount));
-  }, [quickSwapActiveItems.length, quickSwapGridColumnCount]);
   const referencePreviewEntry =
     referencePreview && quickSwapActiveItems[referencePreview.index]
       ? quickSwapActiveItems[referencePreview.index]
@@ -677,14 +656,10 @@ export function CharacterManagerShell({
     [quickSwapActiveItems]
   );
   const combinedError = error ?? quickSwapError;
-  const isEmbeddedSurface = surface === "panel";
   const RootContainer: "div" | "main" = isEmbeddedSurface ? "div" : "main";
   const profileImageRenderSize = isEmbeddedSurface
     ? PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE
     : PROFILE_PREVIEW_IMAGE_SIZE;
-  const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
-  const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
-  const showQuickSwapCollapseToggle = surface !== "panel" || effectiveBeginnerMode;
   const quickSwapContentId = useId();
   const characterSheetPresetTabsIdBase = `character-sheet-preset-${useId()}`;
   const characterSheetPresetPanelId = `${characterSheetPresetTabsIdBase}-panel`;
@@ -707,7 +682,6 @@ export function CharacterManagerShell({
     if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
     fileDragDepthRef.current = 0;
     setIsDropActive(false);
-    setIsQuickSwapCollapsed(false);
   }, [showQuickSwapCollapseToggle, isQuickSwapCollapsed]);
   const resolveMediaReferenceById = useCallback(async (mediaId: string) => {
     const normalizedMediaId = mediaId.trim();
@@ -852,49 +826,6 @@ export function CharacterManagerShell({
   });
 
   useEffect(() => {
-    if (isBeginnerModeControlled) return;
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY, String(beginnerMode));
-  }, [beginnerMode, isBeginnerModeControlled]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (typeof window.matchMedia !== "function") return;
-    const mediaQuery = window.matchMedia("(max-width: 860px)");
-    const archiveMediaQuery = window.matchMedia("(max-width: 900px)");
-    const applyColumnCount = () => {
-      setQuickSwapGridColumnCount(mediaQuery.matches ? 2 : 3);
-      setQuickSwapArchiveGridColumnCount(archiveMediaQuery.matches ? 2 : 4);
-    };
-    applyColumnCount();
-
-    if (
-      typeof mediaQuery.addEventListener === "function" &&
-      typeof archiveMediaQuery.addEventListener === "function"
-    ) {
-      mediaQuery.addEventListener("change", applyColumnCount);
-      archiveMediaQuery.addEventListener("change", applyColumnCount);
-      return () => {
-        mediaQuery.removeEventListener("change", applyColumnCount);
-        archiveMediaQuery.removeEventListener("change", applyColumnCount);
-      };
-    }
-
-    mediaQuery.addListener(applyColumnCount);
-    archiveMediaQuery.addListener(applyColumnCount);
-    return () => {
-      mediaQuery.removeListener(applyColumnCount);
-      archiveMediaQuery.removeListener(applyColumnCount);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isQuickSwapTipHidden) return;
-    if (quickSwapVisibleRowCount < QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD) return;
-    void markQuickSwapTipHidden();
-  }, [isQuickSwapTipHidden, markQuickSwapTipHidden, quickSwapVisibleRowCount]);
-
-  useEffect(() => {
     let active = true;
     if (!referencePreviewEntry) return () => void (active = false);
     logAdaptiveDetailFullQualityUsed({
@@ -917,7 +848,7 @@ export function CharacterManagerShell({
     return () => {
       active = false;
     };
-  }, [referencePreviewEntry]);
+  }, [referencePreviewEntry, setReferencePreviewSignedUrl]);
 
   useEffect(() => {
     if (isEmbeddedSurface) return;
@@ -1140,7 +1071,7 @@ export function CharacterManagerShell({
         characterNameInputRef.current?.focus();
       });
     });
-  }, [createCharacter]);
+  }, [createCharacter, setActiveTab]);
 
   const saveProfileAdjustments = useCallback(async () => {
     if (!profileImageUrl) {
@@ -1166,23 +1097,13 @@ export function CharacterManagerShell({
     return words.map((word) => word[0]?.toUpperCase() ?? "").join("");
   }, []);
 
-  const cancelDeleteCharacter = useCallback(() => {
-    if (isDeletingCharacter) return;
-    setDeleteTargetCharacter(null);
-  }, [isDeletingCharacter]);
-
-  const cancelDeleteCharacterSheetPreset = useCallback(() => {
-    if (isSavingCharacterSheetPreset) return;
-    setDeleteTargetCharacterSheetPresetId(null);
-  }, [isSavingCharacterSheetPreset]);
-
   const confirmDeleteCharacter = useCallback(async () => {
     if (!deleteTargetCharacter) return;
     const deleted = await deleteCharacter(deleteTargetCharacter.characterId);
     if (deleted) {
       setDeleteTargetCharacter(null);
     }
-  }, [deleteCharacter, deleteTargetCharacter]);
+  }, [deleteCharacter, deleteTargetCharacter, setDeleteTargetCharacter]);
 
   const confirmDeleteCharacterSheetPreset = useCallback(async () => {
     if (!deleteTargetCharacterSheetPresetId) return;
@@ -1190,7 +1111,11 @@ export function CharacterManagerShell({
     if (deleted) {
       setDeleteTargetCharacterSheetPresetId(null);
     }
-  }, [deleteCharacterSheetPreset, deleteTargetCharacterSheetPresetId]);
+  }, [
+    deleteCharacterSheetPreset,
+    deleteTargetCharacterSheetPresetId,
+    setDeleteTargetCharacterSheetPresetId,
+  ]);
 
   const applyDragGhost = useCallback((event: React.DragEvent<HTMLElement>) => {
     const dragNode = event.currentTarget as HTMLElement;
@@ -1335,33 +1260,6 @@ export function CharacterManagerShell({
       }
     },
     [appendQuickSwapFilesFromHook, clearAllMessages, pageBusy, quickSwapMutating]
-  );
-
-  const openReferencePreview = useCallback((index: number, aspectRatio: number | null) => {
-    setReferencePreview({
-      index,
-      aspectRatio: clampReferencePreviewAspectRatio(aspectRatio),
-    });
-  }, []);
-
-  const closeReferencePreview = useCallback(() => {
-    setReferencePreview(null);
-    setReferencePreviewSignedUrl(null);
-  }, []);
-
-  const navigateReferencePreview = useCallback(
-    (step: -1 | 1) => {
-      setReferencePreview((current) => {
-        if (!current || quickSwapActiveItems.length === 0) return current;
-        const total = quickSwapActiveItems.length;
-        const nextIndex = (current.index + step + total) % total;
-        return {
-          index: nextIndex,
-          aspectRatio: clampReferencePreviewAspectRatio(null),
-        };
-      });
-    },
-    [quickSwapActiveItems]
   );
 
   const resolveDraggedQuickSwapItem = useCallback(

@@ -70,3 +70,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-selection-controller-split.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-checkpoint-review.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-hotspot-map.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-view-state-split.md`

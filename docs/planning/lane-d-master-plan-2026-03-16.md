@@ -118,6 +118,12 @@ Current status after `D4-01`:
 4. Publish concrete slice sequencing in the companion execution plan:
    - `docs/planning/lane-d-execution-plan-2026-03-16.md`
 
+Current status after `D5-01`:
+1. Lane D now has a canonical executable validation command:
+   - `npm -C frontend run validate:lane-d-runtime`
+2. `docs/planning/ci-policy-checks.md` and `docs/release-checklist.md` now reference the same Lane D reviewer contract.
+3. Adaptive/reference-grid protected surfaces remain on the additional `test:adaptive-v2-gate` requirement.
+
 ## Merge Gates
 Per slice:
 1. `npm -C frontend run lint`

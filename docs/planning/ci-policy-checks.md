@@ -54,6 +54,27 @@ Mode policy:
 1. `warn` during decomposition phases while legacy hotspots are above final targets.
 2. `enforce` only after phase-6 evidence and two green cycles.
 
+## Lane D runtime-safety policy mapping
+
+- Canonical command: `npm -C frontend run validate:lane-d-runtime`
+- Command expands to:
+  1. `npm -C frontend run lint`
+  2. `npm -C frontend run type-check`
+  3. `npm -C frontend run check:architecture-boundary`
+  4. `npm -C frontend run check:size-budget`
+  5. `npm -C frontend run build`
+  6. `npm -C frontend run docs:check`
+  7. `npm -C frontend run check:lane-d-strict-runtime`
+- Strict runtime rule intent:
+  - block new `react-hooks/set-state-in-effect` debt in touched production seams
+  - block new `react-hooks/exhaustive-deps` regressions in the same touched runtime surfaces
+- Additional required gate when adaptive/reference-grid protected surfaces are touched:
+  - `npm -C frontend run test:adaptive-v2-gate`
+- Reviewer policy:
+  1. use `validate:lane-d-runtime` for all Lane D PRs,
+  2. attach targeted seam tests in the evidence packet,
+  3. add `test:adaptive-v2-gate` when the slice touches reference-grid, adaptive-media, or canvas runtime seams.
+
 ## Frontend fast-lane suites
 
 - `auth-helper`

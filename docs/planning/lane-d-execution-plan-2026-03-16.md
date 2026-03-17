@@ -34,7 +34,7 @@ Out of scope:
 | `D3-01` | D3 | `pages/ai-studio.tsx` selector-store lane | Retire unconditional emergency disable and keep rollback-safe governed control | `docs/planning/evidence/lane-d/2026-03-17-d3-01-selector-store-hard-disable-cleanup.md` | Completed |
 | `D3-02` | D3 | Reference-grid temporary/emergency constants | Audit and retire stale emergency/temporary constants or document required retention | `docs/planning/evidence/lane-d/2026-03-17-d3-02-reference-grid-emergency-constant-audit.md` | Completed |
 | `D4-01` | D4 | AI Studio runtime audit logging | Gate console diagnostics to explicit audit modes and remove production noise | `docs/planning/evidence/lane-d/2026-03-17-d4-01-runtime-logging-hygiene.md` | Completed |
-| `D5-01` | D5 | Runtime guardrail convergence | Publish Lane D guardrail policy mapping + reviewer checklist updates | `docs/planning/evidence/lane-d/2026-03-16-d5-01-guardrail-convergence.md` | Not Started |
+| `D5-01` | D5 | Runtime guardrail convergence | Publish Lane D guardrail policy mapping + reviewer checklist updates | `docs/planning/evidence/lane-d/2026-03-17-d5-01-guardrail-convergence.md` | Completed |
 
 Policy:
 1. One runtime seam per PR.

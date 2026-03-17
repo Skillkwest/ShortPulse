@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioAgentBridge } from "../useAiStudioAgentBridge";
@@ -66,6 +66,14 @@ describe("useAiStudioAgentBridge", () => {
 
   it("clears staged attachments when session context changes", async () => {
     const resetAgentComposer = vi.fn();
+    let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
+    let setPromptOriginFromInteractions:
+      | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
+      | undefined;
+    let setAgentActionsFromInteractions:
+      | Dispatch<SetStateAction<AgentActions | undefined>>
+      | undefined;
+    let setIsAgentChatOpenFromInteractions: Dispatch<SetStateAction<boolean>> | undefined;
 
     useAiAgentMock.mockReturnValue({
       messages: [],
@@ -105,17 +113,23 @@ describe("useAiStudioAgentBridge", () => {
       handleReferencePromptEnhance: vi.fn(),
       handleAgentDescribeTargets: vi.fn(),
     });
-    useAiStudioAgentInteractionsMock.mockReturnValue({
-      handleAgentApplyPrompt: vi.fn(),
-      handleAgentSelectVariation: vi.fn(),
-      handleExpandChat: vi.fn(),
-      handleAgentAddToGrid: vi.fn(),
-      handleClearAgentChat: vi.fn(),
-      handleCloseAgentChat: vi.fn(),
+    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+      setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
+      setPromptOriginFromInteractions = params.setPromptOrigin;
+      setAgentActionsFromInteractions = params.setAgentActions;
+      setIsAgentChatOpenFromInteractions = params.setIsAgentChatOpen;
+      return {
+        handleAgentApplyPrompt: vi.fn(),
+        handleAgentSelectVariation: vi.fn(),
+        handleExpandChat: vi.fn(),
+        handleAgentAddToGrid: vi.fn(),
+        handleClearAgentChat: vi.fn(),
+        handleCloseAgentChat: vi.fn(),
+      };
     });
 
     const base = createBridgeParams();
-    const { rerender } = renderHook(
+    const { result, rerender } = renderHook(
       ({
         sessionId,
         mode,
@@ -144,6 +158,30 @@ describe("useAiStudioAgentBridge", () => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(1);
     });
 
+    await waitFor(() => {
+      expect(setLatestAgentPromptFromInteractions).toBeDefined();
+      expect(setPromptOriginFromInteractions).toBeDefined();
+      expect(setAgentActionsFromInteractions).toBeDefined();
+      expect(setIsAgentChatOpenFromInteractions).toBeDefined();
+    });
+
+    expect(result.current.latestAgentPrompt).toBeNull();
+    expect(result.current.promptOrigin).toBe("manual");
+    expect(result.current.agentActions).toBeUndefined();
+    expect(result.current.isAgentChatOpen).toBe(false);
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Applied prompt");
+      setPromptOriginFromInteractions?.("agent");
+      setAgentActionsFromInteractions?.({ referenceCard: { title: "Agent card" } } as AgentActions);
+      setIsAgentChatOpenFromInteractions?.(true);
+    });
+
+    expect(result.current.latestAgentPrompt).toBe("Applied prompt");
+    expect(result.current.promptOrigin).toBe("agent");
+    expect(result.current.agentActions).toEqual({ referenceCard: { title: "Agent card" } });
+    expect(result.current.isAgentChatOpen).toBe(true);
+
     rerender({
       sessionId: "a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       mode: "text" as StudioMode,
@@ -152,6 +190,10 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(2);
     });
+    expect(result.current.latestAgentPrompt).toBeNull();
+    expect(result.current.promptOrigin).toBe("manual");
+    expect(result.current.agentActions).toBeUndefined();
+    expect(result.current.isAgentChatOpen).toBe(false);
 
     rerender({
       sessionId: "a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

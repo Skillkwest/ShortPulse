@@ -58,6 +58,25 @@ type UseAiStudioAgentBridgeParams = {
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
 
+type AgentBridgeSessionUiState = {
+  sessionKey: string;
+  latestAgentPrompt: string | null;
+  promptOrigin: PromptOrigin;
+  agentActions: AgentActions | undefined;
+  isAgentChatOpen: boolean;
+};
+
+const createDefaultAgentBridgeSessionUiState = (sessionKey: string): AgentBridgeSessionUiState => ({
+  sessionKey,
+  latestAgentPrompt: null,
+  promptOrigin: "manual",
+  agentActions: undefined,
+  isAgentChatOpen: false,
+});
+
+const resolveStateActionValue = <T>(value: SetStateAction<T>, current: T): T =>
+  typeof value === "function" ? (value as (previousValue: T) => T)(current) : value;
+
 /**
  * Returns agent state and handlers used by the AI Studio page.
  */
@@ -116,10 +135,64 @@ export const useAiStudioAgentBridge = ({
   const [agentUiBusy, setAgentUiBusy] = useState(false);
   const agentUiBusyRef = useRef(false);
   const agentBusy = agentIsSending || agentUiBusy;
-  const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
-  const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
-  const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
-  const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
+  const agentBridgeSessionKey = `${sessionId ?? "none"}:${selectedTool ?? "none"}:${mode}`;
+  const [agentBridgeSessionUiState, setAgentBridgeSessionUiState] =
+    useState<AgentBridgeSessionUiState>(() =>
+      createDefaultAgentBridgeSessionUiState(agentBridgeSessionKey)
+    );
+  const resolveActiveAgentBridgeSessionUiState = useCallback(
+    (state: AgentBridgeSessionUiState): AgentBridgeSessionUiState =>
+      state.sessionKey === agentBridgeSessionKey
+        ? state
+        : createDefaultAgentBridgeSessionUiState(agentBridgeSessionKey),
+    [agentBridgeSessionKey]
+  );
+  const activeAgentBridgeSessionUiState = useMemo(
+    () => resolveActiveAgentBridgeSessionUiState(agentBridgeSessionUiState),
+    [agentBridgeSessionUiState, resolveActiveAgentBridgeSessionUiState]
+  );
+  const updateAgentBridgeSessionUiState = useCallback(
+    (updater: (current: AgentBridgeSessionUiState) => AgentBridgeSessionUiState) => {
+      setAgentBridgeSessionUiState((current) =>
+        updater(resolveActiveAgentBridgeSessionUiState(current))
+      );
+    },
+    [resolveActiveAgentBridgeSessionUiState]
+  );
+  const updateAgentBridgeSessionUiStateField = useCallback(
+    <Key extends keyof Omit<AgentBridgeSessionUiState, "sessionKey">>(
+      field: Key,
+      value: SetStateAction<AgentBridgeSessionUiState[Key]>
+    ) => {
+      updateAgentBridgeSessionUiState((current) => {
+        const nextValue = resolveStateActionValue(value, current[field]);
+        if (current[field] === nextValue) return current;
+        return {
+          ...current,
+          [field]: nextValue,
+        };
+      });
+    },
+    [updateAgentBridgeSessionUiState]
+  );
+  const setLatestAgentPrompt: Dispatch<SetStateAction<string | null>> = useCallback(
+    (value) => updateAgentBridgeSessionUiStateField("latestAgentPrompt", value),
+    [updateAgentBridgeSessionUiStateField]
+  );
+  const setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>> = useCallback(
+    (value) => updateAgentBridgeSessionUiStateField("promptOrigin", value),
+    [updateAgentBridgeSessionUiStateField]
+  );
+  const setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>> = useCallback(
+    (value) => updateAgentBridgeSessionUiStateField("agentActions", value),
+    [updateAgentBridgeSessionUiStateField]
+  );
+  const setIsAgentChatOpen: Dispatch<SetStateAction<boolean>> = useCallback(
+    (value) => updateAgentBridgeSessionUiStateField("isAgentChatOpen", value),
+    [updateAgentBridgeSessionUiStateField]
+  );
+  const { agentActions, isAgentChatOpen, latestAgentPrompt, promptOrigin } =
+    activeAgentBridgeSessionUiState;
 
   const ensureAgentSession = useCallback(() => {
     if (agentFlag) setAgentSessionEnabled(true);
@@ -230,10 +303,6 @@ export const useAiStudioAgentBridge = ({
 
   useEffect(() => {
     resetAgentComposer({ preserveInput: true, preserveAttachments: false });
-    setLatestAgentPrompt(null);
-    setPromptOrigin("manual");
-    setAgentActions(undefined);
-    setIsAgentChatOpen(false);
   }, [mode, resetAgentComposer, selectedTool, sessionId]);
 
   const handleAssistantMessageEdit = useCallback(
@@ -277,8 +346,10 @@ export const useAiStudioAgentBridge = ({
     [
       replaceMessages,
       setAgentInput,
+      setLatestAgentPrompt,
       setPromptOrigin,
       setChatModeEnabled,
+      setAgentActions,
       setAgentAttachmentError,
       setAgentAttachments,
     ]

@@ -59,6 +59,8 @@ Capture both pass and fail packets with:
 2. resolver metadata (`classifier_reason`, `resolution_stage`, `resolution_reason`, `candidate_count`, `server_copy_attempted`),
 3. fallback route behavior (`POST /api/media/copy-from-url` request/response summary),
 4. UI outcome and telemetry message (`style_extraction.*`).
+Preferred capture command:
+1. `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:style-drop`
 
 Acceptance:
 1. One failing packet and one passing packet are recorded.

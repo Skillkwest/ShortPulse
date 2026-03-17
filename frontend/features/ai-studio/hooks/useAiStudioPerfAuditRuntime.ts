@@ -23,6 +23,10 @@ const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
 type AiStudioPerfWindow = Window & {
   __shortpulseAiStudioPerf?: {
     seedReferenceGrid: (count: number) => { requestedCount: number; activeCount: number };
+    seedReferenceGridItems: (items: PerfSeedOutputInput[]) => {
+      activeCount: number;
+      outputIds: string[];
+    };
     clearReferenceGrid: () => { activeCount: number };
     runReferenceGridAudit: (options?: {
       counts?: number[];
@@ -125,6 +129,18 @@ type AiStudioPerfWindow = Window & {
       }>;
     }>;
   };
+};
+
+type PerfSeedOutputInput = {
+  id?: string;
+  prompt?: string;
+  mode?: "image" | "video" | "text";
+  previewUrl?: string | null;
+  previewText?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  savedMediaIds?: string[] | null;
+  mediaSource?: StudioOutput["mediaSource"];
 };
 
 type PerfOutputSnapshot = { outputOrder: string[] };
@@ -234,6 +250,54 @@ export function useAiStudioPerfAuditRuntime({
           previewText: isPromptOnly ? prompt : undefined,
           mediaSource: isPromptOnly ? "prompt" : "generated",
           previewTier: isPromptOnly ? "full" : "thumb",
+          archivedAt: null,
+          archiveReason: null,
+          saveState: "idle",
+          saveError: null,
+        } satisfies StudioOutput;
+      });
+    };
+    const createPerfOutputsFromInputs = (items: readonly PerfSeedOutputInput[]): StudioOutput[] => {
+      const runId = Date.now();
+      return items.map((item, index) => {
+        const mode = item.mode ?? "image";
+        const prompt = item.prompt?.trim() || `Perf media reference ${index + 1}`;
+        const previewUrl =
+          item.previewUrl === null
+            ? undefined
+            : item.previewUrl?.trim() ||
+              (mode === "text" ? undefined : `${PERF_REFERENCE_IMAGE_SVG}#${index + 1}`);
+        const previewText =
+          item.previewText === null
+            ? undefined
+            : item.previewText?.trim() || (mode === "text" ? prompt : undefined);
+        return {
+          id: item.id?.trim() || `perf-custom-${runId}-${index}`,
+          prompt,
+          mode,
+          aspect,
+          model: currentModelLabel,
+          modelId: model ?? undefined,
+          status: "ready",
+          taskState: "success",
+          timestamp: "Perf seed",
+          previewUrl,
+          previewStoragePath:
+            item.previewStoragePath === null
+              ? null
+              : item.previewStoragePath?.trim() ||
+                (typeof previewUrl === "string" ? previewUrl : null),
+          fullStoragePath:
+            item.fullStoragePath === null
+              ? null
+              : item.fullStoragePath?.trim() ||
+                (typeof previewUrl === "string" ? previewUrl : null),
+          savedMediaIds: Array.isArray(item.savedMediaIds)
+            ? item.savedMediaIds.map((value) => value.trim()).filter(Boolean)
+            : undefined,
+          previewText,
+          mediaSource: item.mediaSource ?? (mode === "text" ? "prompt" : "generated"),
+          previewTier: mode === "text" ? "full" : "thumb",
           archivedAt: null,
           archiveReason: null,
           saveState: "idle",
@@ -632,6 +696,16 @@ export function useAiStudioPerfAuditRuntime({
         return {
           requestedCount: count,
           activeCount: nextOutputs.length,
+        };
+      },
+      seedReferenceGridItems: (items: PerfSeedOutputInput[]) => {
+        const nextOutputs = createPerfOutputsFromInputs(items);
+        resetReferenceGridState();
+        setOutputs(nextOutputs);
+        setActiveOutputId(nextOutputs[0]?.id ?? null);
+        return {
+          activeCount: nextOutputs.length,
+          outputIds: nextOutputs.map((item) => item.id),
         };
       },
       clearReferenceGrid: () => {

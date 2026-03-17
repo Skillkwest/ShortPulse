@@ -34,7 +34,8 @@ As of 2026-03-17:
 ## Current Execution State
 1. `C0-01` baseline evidence is recorded in `docs/planning/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md`.
 2. `C1-01` capture prep and blocker state are recorded in `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md`.
-3. `C1-02` remains blocked until the real pass/fail packet captures are attached.
+3. `C1-01` capture harness bootstrap is recorded in `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-capture-harness-bootstrap.md`.
+4. `C1-02` remains blocked until the real pass/fail packet captures are attached.
 
 ## Fragile Path Inventory (Lane C Scope)
 1. AI Studio internal reference -> Styles drop intake/resolution chain.

@@ -112,3 +112,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-prompt-shell-surface-migration.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-style-checkpoint-review.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b6-01-style-guard-bootstrap.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b6-01-style-guard-validate-and-deferred-ownership.md`

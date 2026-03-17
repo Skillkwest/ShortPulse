@@ -29,7 +29,7 @@
     "perf:ai-studio:release-check": "node ./scripts/ai-studio-perf-release-check.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate": "npm run lint && npm run type-check && npm run check:naming-legacy-usage && npm run test",
+    "validate": "npm run lint && npm run type-check && npm run check:naming-legacy-usage && npm run check:style-literal-guard && npm run test",
     "check:architecture-boundary": "cd .. && node scripts/check_architecture_boundaries.js",
     "check:size-budget": "cd .. && node scripts/check_size_budgets.js",
     "check:style-literal-guard": "cd .. && node scripts/check_ai_studio_style_literals.js",

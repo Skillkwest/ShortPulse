@@ -1,6 +1,6 @@
 # Lane C Master Plan (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
@@ -22,13 +22,19 @@ Concrete slice sequencing, command bundles, and evidence packet requirements liv
 - `docs/planning/lane-c-execution-plan-2026-03-16.md`
 
 ## Baseline Findings (Audit Snapshot)
-As of 2026-03-16:
-1. `foundation-lanes` marks Lane C as not started with blocker: prioritized fragile-path list not yet locked.
-2. Test depth is high (`413` tests excluding `node_modules`), but fragile-path execution bundles are fragmented.
-3. Only two credentialed Playwright audit scripts exist (`tests/e2e/ai-studio-perf.audit.js`, `tests/e2e/character-pipeline.audit.js`); they are not a complete fragile-path matrix.
-4. Known P0 deferred incident remains open and explicitly requires characterization-first captured payload fixtures before further fixes:
+As of 2026-03-17:
+1. `C0-01` is complete and the baseline command bundle is locked at a known-green repo SHA.
+2. Lane C is currently blocked at `C1-01`, not because of missing repo context, but because one failing and one passing real style-drop packet still need to be captured from runtime.
+3. Test depth is high (`415` test files / `2622` tests in the `C0-01` baseline run), but fragile-path execution bundles are fragmented.
+4. Only two credentialed Playwright audit scripts exist (`tests/e2e/ai-studio-perf.audit.js`, `tests/e2e/character-pipeline.audit.js`); they are not a complete fragile-path matrix.
+5. Known P0 deferred incident remains open and explicitly requires characterization-first captured payload fixtures before further fixes:
    - `docs/known-issues.md` (Reference Grid -> Styles internal drop reliability).
-5. Multiple high-risk operational systems exist in `docs/operator-map.md` (generation queue/recovery, credits settlement, webhook path, admin user-health fleet) and need a locked no-regression assertion bundle.
+6. Multiple high-risk operational systems exist in `docs/operator-map.md` (generation queue/recovery, credits settlement, webhook path, admin user-health fleet) and need a locked no-regression assertion bundle.
+
+## Current Execution State
+1. `C0-01` baseline evidence is recorded in `docs/planning/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md`.
+2. `C1-01` capture prep and blocker state are recorded in `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md`.
+3. `C1-02` remains blocked until the real pass/fail packet captures are attached.
 
 ## Fragile Path Inventory (Lane C Scope)
 1. AI Studio internal reference -> Styles drop intake/resolution chain.

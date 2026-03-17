@@ -26,7 +26,7 @@ Out of scope:
 | Slice ID | Phase | Fragile Surface | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
 | `C0-01` | C0 | Baseline lock | Capture baseline command outputs and lock non-goals | `docs/planning/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md` | Completed |
-| `C1-01` | C1 | Reference Grid -> Styles drop | Capture one failing and one passing real payload packet | `docs/planning/evidence/lane-c/2026-03-16-c1-01-style-drop-characterization.md` | Not Started |
+| `C1-01` | C1 | Reference Grid -> Styles drop | Capture one failing and one passing real payload packet | `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md` | Blocked |
 | `C1-02` | C1 | Reference Grid -> Styles drop | Convert captured packets into deterministic fixture tests | `docs/planning/evidence/lane-c/2026-03-16-c1-02-style-drop-fixture-lock.md` | Not Started |
 | `C2-01` | C2 | Generation lifecycle | Consolidate no-regression contract suite for submit/queue/status/recovery | `docs/planning/evidence/lane-c/2026-03-16-c2-01-generation-contract-bundle.md` | Not Started |
 | `C2-02` | C2 | Billing settlement | Assert reserve/attach/capture-release invariants under failure paths | `docs/planning/evidence/lane-c/2026-03-16-c2-02-billing-settlement-assertions.md` | Not Started |
@@ -65,6 +65,7 @@ Acceptance:
 2. Packet includes timestamps and environment/flag context.
 3. No code behavior change is merged in this slice.
 4. If either packet is missing, `C1-02` is blocked.
+5. If runtime packet capture cannot be completed from repo-local evidence alone, the slice must move to `Blocked` with explicit owner and unblock criterion rather than be marked complete by inference.
 
 ### C1-02 Fixture Lock
 Implementation target:

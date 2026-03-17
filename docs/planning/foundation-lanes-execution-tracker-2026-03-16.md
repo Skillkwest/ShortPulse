@@ -17,7 +17,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | ---- | ----------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | A    | Completed   | Engineering | Lane A closeout complete; debt handed off to downstream lanes                                                                            | none                                    | Lane B execution handoff                                                  | `docs/planning/lane-a-master-plan-2026-03-16.md`                        |
 | B    | Completed   | Engineering | Lane B closeout complete; modularization, style authority, and convergence gates are locked with deferred residuals owner/dated | none                                    | Lane C execution handoff                                                  | `docs/planning/lane-b-master-plan-2026-03-16.md`                        |
-| C    | In Progress | Engineering | `C0-01` complete; baseline command bundle is locked and Lane C is moving into fragile-path characterization capture                     | none                                    | `C1-01` failing/passing style-drop packet capture                         | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
+| C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema and runtime capture procedure are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Attach real pass/fail `C1-01` packet captures, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
 | D    | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths                                                                      | Awaiting D0 baseline evidence packet    | Lane D warning debt baseline lock                                         | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock                                                                                         | Awaiting E0 baseline evidence packet    | Lane E governance baseline lock                                           | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
 | F    | Not Started | Engineering | Release and CI discipline baseline lock and policy-inventory parity                                                                      | Awaiting F0 baseline evidence packet    | Lane F CI inventory and required-check contract lock                      | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
@@ -165,8 +165,8 @@ Concrete sequencing: `docs/planning/lane-c-execution-plan-2026-03-16.md`
 
 ### C0: Baseline Lock
 
-- [ ] Capture baseline outputs for `lint`, `type-check`, `build`, `docs:check`, `test`.
-- [ ] Freeze Lane C non-goals and fragile-path inventory scope.
+- [x] Capture baseline outputs for `lint`, `type-check`, `build`, `docs:check`, `test`.
+- [x] Freeze Lane C non-goals and fragile-path inventory scope.
 
 ### C1: Characterization Capture
 

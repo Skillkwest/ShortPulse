@@ -1,7 +1,7 @@
 # Lane D Execution Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Master plan: `docs/planning/lane-d-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-d-tracker-spec-2026-03-16.md`  
@@ -121,3 +121,5 @@ Lane-level closeout:
 1. `npm -C frontend run test`
 2. `npm -C frontend run test:adaptive-v2-gate` (when adaptive/reference-grid protected surfaces were touched)
 3. Complete evidence packet set under `docs/planning/evidence/lane-d/`
+4. Final closeout review:
+   - `docs/planning/evidence/lane-d/2026-03-17-d5-02-lane-d-closeout-review.md`

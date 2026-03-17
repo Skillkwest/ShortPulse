@@ -37,3 +37,4 @@ Examples:
 - `docs/planning/evidence/lane-d/2026-03-17-d3-02-reference-grid-emergency-constant-audit.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d4-01-runtime-logging-hygiene.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d5-01-guardrail-convergence.md`
+- `docs/planning/evidence/lane-d/2026-03-17-d5-02-lane-d-closeout-review.md`

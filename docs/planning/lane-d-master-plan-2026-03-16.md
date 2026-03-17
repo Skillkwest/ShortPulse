@@ -1,7 +1,7 @@
 # Lane D Master Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
@@ -34,7 +34,9 @@ As of 2026-03-17:
 4. CI governance control-plane variables are currently in `enforce` mode for architecture/size/docs/migration/agent guardrails.
 5. Existing tests cover key seams (`DetailModal`, `useAiStudioAgentBridge`, `useReferenceGridHorizontalSplit`, `useAiStudioEditSubmitIntent`) after the `D1` hardening slices added direct hook coverage.
 6. Strict runtime lint profile now passes with `0` errors and `2` remaining warnings, confirming Lane D runtime-effect debt is cleared and only out-of-scope baseline warnings remain.
-7. Full baseline `npm -C frontend run test` is currently red because of one unrelated admin ledger assertion failure in `frontend/tests/pages/admin.users-credits.test.tsx`; this is baseline noise, not Lane D runtime-warning debt.
+7. Full baseline `npm -C frontend run test` is now green:
+   - `416` files
+   - `2626` tests
 
 ## Scope
 In scope:
@@ -123,6 +125,8 @@ Current status after `D5-01`:
    - `npm -C frontend run validate:lane-d-runtime`
 2. `docs/planning/ci-policy-checks.md` and `docs/release-checklist.md` now reference the same Lane D reviewer contract.
 3. Adaptive/reference-grid protected surfaces remain on the additional `test:adaptive-v2-gate` requirement.
+4. Closeout validation is complete:
+   - `docs/planning/evidence/lane-d/2026-03-17-d5-02-lane-d-closeout-review.md`
 
 ## Merge Gates
 Per slice:

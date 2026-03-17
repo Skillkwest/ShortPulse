@@ -186,9 +186,11 @@ import {
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
   createIdleTransformPointerSession,
+  elementHasPointerCapture,
   isEventTargetInsideElement,
   isKeyboardEventFromEditableTarget,
   lockDocumentCursor,
+  releasePointerCaptureSafely,
   resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
   runPointerStageTerminalAction,
@@ -2279,13 +2281,7 @@ export function ExpertEditPanelView({
     if (!session.active || event.pointerId !== session.pointerId) {
       return false;
     }
-    if (event.currentTarget.releasePointerCapture) {
-      try {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      } catch {
-        // Pointer capture may already be released.
-      }
-    }
+    releasePointerCaptureSafely(event.currentTarget, event.pointerId);
     markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
     setIsMarkupPanDragging(false);
     return true;
@@ -2297,9 +2293,7 @@ export function ExpertEditPanelView({
       if (!session.active || event.pointerId !== session.pointerId) {
         return false;
       }
-      const hasPointerCapture =
-        typeof event.currentTarget.hasPointerCapture === "function" &&
-        event.currentTarget.hasPointerCapture(event.pointerId);
+      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, event.pointerId);
       if (hasPointerCapture) {
         return false;
       }
@@ -2493,13 +2487,7 @@ export function ExpertEditPanelView({
       if (!session.active || event.pointerId !== session.pointerId) {
         return false;
       }
-      if (event.currentTarget.releasePointerCapture) {
-        try {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture may already be released.
-        }
-      }
+      releasePointerCaptureSafely(event.currentTarget, event.pointerId);
       markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
       unlockGlobalCursor();
       finalizeMarkupGestureHistory();
@@ -2514,9 +2502,7 @@ export function ExpertEditPanelView({
       if (!session.active || event.pointerId !== session.pointerId) {
         return false;
       }
-      const hasPointerCapture =
-        typeof event.currentTarget.hasPointerCapture === "function" &&
-        event.currentTarget.hasPointerCapture(event.pointerId);
+      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, event.pointerId);
       if (hasPointerCapture) {
         return false;
       }
@@ -2540,13 +2526,7 @@ export function ExpertEditPanelView({
     (event: React.PointerEvent<HTMLDivElement>) => {
       const session = transformPointerSessionRef.current;
       if (!session.active || event.pointerId !== session.pointerId) return;
-      if ((event.currentTarget as HTMLElement | null)?.releasePointerCapture) {
-        try {
-          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture can already be released.
-        }
-      }
+      releasePointerCaptureSafely(event.currentTarget, event.pointerId);
       transformPointerSessionRef.current = createIdleTransformPointerSession();
       setActiveTransformDragMode("move");
       setIsTransformPointerDragging(false);
@@ -2643,12 +2623,7 @@ export function ExpertEditPanelView({
     (event: React.PointerEvent<HTMLDivElement>) => {
       const session = transformPointerSessionRef.current;
       if (!session.active) return;
-      const currentTarget = event.currentTarget as HTMLElement | null;
-      const hasPointerCapture = Boolean(
-        currentTarget &&
-        typeof currentTarget.hasPointerCapture === "function" &&
-        currentTarget.hasPointerCapture(event.pointerId)
-      );
+      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, event.pointerId);
       if (session.active && event.pointerId === session.pointerId && !hasPointerCapture) {
         endTransformPointerSession(event);
       }

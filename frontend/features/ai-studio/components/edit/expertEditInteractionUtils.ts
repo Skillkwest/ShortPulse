@@ -269,6 +269,33 @@ export const isEventTargetInsideElement = (
   target: EventTarget | null
 ) => Boolean(element && target instanceof Node && element.contains(target));
 
+export const releasePointerCaptureSafely = (element: Element | null, pointerId: number) => {
+  if (
+    !element ||
+    typeof (element as Element & { releasePointerCapture?: (pointerId: number) => void })
+      .releasePointerCapture !== "function"
+  ) {
+    return;
+  }
+  try {
+    (
+      element as Element & { releasePointerCapture: (pointerId: number) => void }
+    ).releasePointerCapture(pointerId);
+  } catch {
+    // Pointer capture may already be released.
+  }
+};
+
+export const elementHasPointerCapture = (element: Element | null, pointerId: number) =>
+  Boolean(
+    element &&
+    typeof (element as Element & { hasPointerCapture?: (pointerId: number) => boolean })
+      .hasPointerCapture === "function" &&
+    (element as Element & { hasPointerCapture: (pointerId: number) => boolean }).hasPointerCapture(
+      pointerId
+    )
+  );
+
 export const runPointerStageTerminalAction = <TEvent>({
   event,
   unlockCursor,

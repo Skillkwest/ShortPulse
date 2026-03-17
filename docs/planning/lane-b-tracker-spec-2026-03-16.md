@@ -1,6 +1,6 @@
 # Lane B Tracker Spec (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Companion plan: `docs/planning/lane-b-master-plan-2026-03-16.md`
 
@@ -30,11 +30,12 @@ A slice cannot be marked complete until all are checked:
 1. Behavior unchanged.
 2. API contract unchanged (if API-facing seam touched).
 3. Size reduced or coupling reduced with explicit rationale.
-4. Boundary checks pass.
-5. Docs/SOP/ADR obligations completed for scope.
-6. Rollback path validated.
-7. Evidence links attached (tests and gates).
-8. Seam-selection rubric cleared with explicit value statement.
+4. Net complexity reduced or held flat with explicit rationale.
+5. Boundary checks pass.
+6. Docs/SOP/ADR obligations completed for scope.
+7. Rollback path validated.
+8. Evidence links attached (tests and gates).
+9. Seam-selection rubric cleared with explicit value statement.
 
 ## Evidence Requirements
 Every slice must attach:
@@ -43,9 +44,10 @@ Every slice must attach:
 3. targeted test output references,
 4. full-gate output references,
 5. LOC delta evidence,
-6. risk and rollback note,
-7. docs update references,
-8. seam-selection rationale describing why the extraction was high-value.
+6. net-complexity note covering hotspot change vs helper/module growth,
+7. risk and rollback note,
+8. docs update references,
+9. seam-selection rationale describing why the extraction was high-value and whether it was local consolidation or shared extraction.
 
 ## Status Model
 Allowed status values:
@@ -61,6 +63,8 @@ Blocked rows must include explicit blocker owner and unblock criterion.
 2. No cross-domain extraction in the same PR.
 3. No behavior/UI changes in modularization slices.
 4. If parity is uncertain, split slice smaller and defer.
+5. Shared extraction should normally show `3+` callsites or a clearly named domain boundary before merge.
+6. Reject slices that only shrink the hotspot by inflating generic utility surface.
 
 ## Gate Bundle Reference
 Baseline required checks per slice:

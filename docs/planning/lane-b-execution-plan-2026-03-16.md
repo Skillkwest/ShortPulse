@@ -1,6 +1,6 @@
 # Lane B Execution Plan (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Owner: Engineering  
 Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`  
@@ -51,14 +51,26 @@ Use this rubric before opening a new modularization seam in active hotspots:
    - improves testability/observability,
    - makes the next planned extraction easier,
    - reduces the hotspot file with explicit LOC or coupling gain.
-2. Do not take seams that only move tiny one-off fragments into generic helpers without a stronger module boundary.
-3. Prefer cohesive clusters over isolated fragments:
+2. A seam must also reduce net complexity across touched files, not just move lines out of the hotspot.
+3. Distinguish local consolidation from shared extraction:
+   - local consolidation is acceptable when it removes obvious duplication inside the hotspot without adding a new shared dependency surface,
+   - shared extraction is acceptable only when the code has durable domain meaning, improves reuse, or materially improves testability/observability.
+4. Shared utility extraction should usually meet at least one of:
+   - three or more callsites,
+   - a clear domain boundary with a stable name,
+   - a concrete testing or observability gain that would be awkward to achieve in-place.
+5. Do not take seams that only move tiny one-off fragments into generic helpers without a stronger module boundary.
+6. Prefer cohesive clusters over isolated fragments:
    - pointer/gesture termination,
    - overlay dismissal and escape handling,
    - modal interaction guards,
    - transform session lifecycle.
-4. If a proposed helper grows the target hotspot or utility surface without meaningful reuse, reject the seam and pick a better boundary.
-5. Every evidence packet must state why the seam cleared this rubric, not just that code moved.
+7. Reject the seam if any of the following are true:
+   - the hotspot grows without an exceptional coupling reduction,
+   - utility or helper surface grows while boundary clarity stays flat,
+   - helper names become generic or vague,
+   - the extraction only moves syntax around without making follow-up seams easier.
+8. Every evidence packet must state why the seam cleared this rubric, including net-complexity outcome and follow-up leverage, not just that code moved.
 
 ## Execution Detail
 ### B0-01 Governance Bootstrap

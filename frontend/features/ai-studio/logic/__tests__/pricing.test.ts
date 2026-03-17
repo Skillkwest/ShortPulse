@@ -3,8 +3,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { falImageSizeMap } from "../modelSizes";
-import { computeCostForModel } from "../pricing";
+import { computeCostForModel, falImageSizeMap } from "../pricing";
 
 describe("computeCostForModel (FLUX.2)", () => {
   const modelId = "fal/flux-2";

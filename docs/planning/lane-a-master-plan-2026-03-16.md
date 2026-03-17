@@ -27,12 +27,13 @@ As of 2026-03-16:
 5. Policy/governance drift exists across script/workflow/template/doc surfaces for Supabase local Docker-style SQL lint references.
 
 ## Current Execution Status
-As of 2026-03-16 after A1 slices:
+As of 2026-03-16 after A4 slices:
 1. `check:naming-legacy-usage` is green with explicit bridge allowlist + ADR-0023 sunset note.
 2. `validate` is green.
 3. SQL lint policy surfaces are aligned to hosted-target Supabase CLI lint commands.
 4. `check:size-budget` is green after extracting perf-audit runtime from page orchestration into `useAiStudioPerfAuditRuntime`.
-5. Remaining Lane A focus shifted to A2-A4 governance + conservative dead-code cleanup.
+5. `deadcode:check` is green after A4 safe-core + selective pruning slices.
+6. Remaining Lane A focus shifted to A5 signoff and follow-up debt capture.
 
 ## Phase Plan
 ### A0: Baseline Lock

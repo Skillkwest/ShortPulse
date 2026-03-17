@@ -13,7 +13,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 ## Program Snapshot
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
-| A | In Progress | Engineering | Dead-code selective pruning after safe-core removals | deadcode baseline drift (6 files remain) | A4-02 selective dead-code pruning pass | `docs/planning/lane-a-master-plan-2026-03-16.md` |
+| A | In Progress | Engineering | Lane A signoff bundle and follow-up debt closeout | none | A5-01 lane signoff packet | `docs/planning/lane-a-master-plan-2026-03-16.md` |
 | B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | Behavior-changing/baseline-dependent merges blocked until Lane A baseline-green signoff | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
@@ -46,9 +46,9 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 - [x] Confirm no behavior-contract regressions in targeted tests.
 
 ### A4: Selective Dead-Code Pruning
-- [ ] Prune only high-confidence leaf exports/constants.
-- [ ] Defer ambiguous/core-orchestration candidates to follow-up audit.
-- [ ] Re-run full suite and compare to baseline.
+- [x] Prune only high-confidence leaf exports/constants.
+- [x] Defer ambiguous/core-orchestration candidates to follow-up audit.
+- [x] Re-run full suite and compare to baseline.
 
 ### A5: Lane A Final Signoff
 - [ ] Required checks pass.
@@ -107,6 +107,7 @@ Mandatory for any from-scratch replacement scope:
 6. A2 policy surface alignment packet: `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
 7. A3 docs governance cleanup packet: `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 8. A4 conservative dead-code pass packet: `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
+9. A4 selective pruning pass packet: `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
 
 ## Lane C Artifacts
 1. Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`

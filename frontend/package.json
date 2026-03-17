@@ -87,6 +87,8 @@
   },
   "knip": {
     "ignoreFiles": [
+      "features/ai-studio/components/canvas/__tests__/canvasTestHarness.tsx",
+      "lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts",
       "scripts/ai-studio-perf-release-check.mjs",
       "tests/e2e/ai-studio-perf.audit.js",
       "tests/e2e/character-pipeline.audit.js",

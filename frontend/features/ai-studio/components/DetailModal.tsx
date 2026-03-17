@@ -306,28 +306,28 @@ export function DetailModal({
   }, [characterId, outputId, refreshCharacterOptions, resolveCharacterAvatarUrlById]);
 
   useEffect(() => {
-    if (!outputId) return;
-    setResolvedCharacterAvatarByOutput({
-      outputId,
-      url:
-        characterContext?.characterProfileImageUrl?.trim() ??
-        resolveCharacterAvatarUrlById?.(characterId) ??
-        null,
-    });
-    setStyleAvatarLoadErrorByOutput({ outputId, value: false });
-  }, [
-    characterContext?.characterProfileImageUrl,
-    characterId,
-    outputId,
-    resolveCharacterAvatarUrlById,
-    stylePreviewImageUrl,
-  ]);
-
-  useEffect(() => {
     if (!hasCharacterContext || !outputId || !characterId) return;
-    void refreshCharacterAvatar().catch(() => {
-      // Keep character attribution non-blocking if refresh fails.
-    });
+    let isCancelled = false;
+    void (async () => {
+      try {
+        const refreshedAvatarUrl = await refreshCharacterAvatar();
+        if (isCancelled || !refreshedAvatarUrl) return;
+        setResolvedCharacterAvatarByOutput((current) => {
+          if (current?.outputId === outputId && current.url === refreshedAvatarUrl) {
+            return current;
+          }
+          return {
+            outputId,
+            url: refreshedAvatarUrl,
+          };
+        });
+      } catch {
+        // Keep character attribution non-blocking if refresh fails.
+      }
+    })();
+    return () => {
+      isCancelled = true;
+    };
   }, [characterId, hasCharacterContext, outputId, refreshCharacterAvatar]);
 
   const clampImagePan = useCallback(

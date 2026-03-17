@@ -31,3 +31,4 @@ Examples:
 - `docs/planning/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d1-01-edit-submit-intent-hardening.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d1-02-agent-bridge-reset-hardening.md`
+- `docs/planning/evidence/lane-d/2026-03-17-d1-03-detail-modal-avatar-hardening.md`

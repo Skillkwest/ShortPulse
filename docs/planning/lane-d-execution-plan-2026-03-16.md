@@ -29,7 +29,7 @@ Out of scope:
 | `D0-01` | D0 | Baseline lock | Capture baseline warnings/gates and freeze non-goals | `docs/planning/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md` | Completed |
 | `D1-01` | D1 | `useAiStudioEditSubmitIntent` | Remove `set-state-in-effect` warning and add direct hook test | `docs/planning/evidence/lane-d/2026-03-17-d1-01-edit-submit-intent-hardening.md` | Completed |
 | `D1-02` | D1 | `useAiStudioAgentBridge` | Remove reset effect warning while preserving session/tool reset behavior | `docs/planning/evidence/lane-d/2026-03-17-d1-02-agent-bridge-reset-hardening.md` | Completed |
-| `D1-03` | D1 | `DetailModal` avatar flow | Remove avatar sync effect warnings with deterministic fallback behavior | `docs/planning/evidence/lane-d/2026-03-16-d1-03-detail-modal-avatar-hardening.md` | Not Started |
+| `D1-03` | D1 | `DetailModal` avatar flow | Remove avatar sync effect warnings with deterministic fallback behavior | `docs/planning/evidence/lane-d/2026-03-17-d1-03-detail-modal-avatar-hardening.md` | Completed |
 | `D2-01` | D2 | `useReferenceGridHorizontalSplit` | Remove suppression and preserve synchronous split behavior guarantees | `docs/planning/evidence/lane-d/2026-03-16-d2-01-split-controller-suppression-retirement.md` | Not Started |
 | `D3-01` | D3 | `pages/ai-studio.tsx` selector-store lane | Retire unconditional emergency disable and keep rollback-safe governed control | `docs/planning/evidence/lane-d/2026-03-16-d3-01-selector-store-hard-disable-cleanup.md` | Not Started |
 | `D3-02` | D3 | Reference-grid temporary/emergency constants | Audit and retire stale emergency/temporary constants or document required retention | `docs/planning/evidence/lane-d/2026-03-16-d3-02-reference-grid-emergency-constant-audit.md` | Not Started |

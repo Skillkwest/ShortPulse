@@ -103,6 +103,11 @@ Acceptance:
 3. Boundary and size checks pass.
 4. The seam clears the selection rubric with explicit rationale in the evidence packet.
 
+Hotspot escalation rule:
+1. If two consecutive accepted seams produce only marginal hotspot reduction or only local cleanup value, pause new micro-seams and capture a hotspot map before continuing.
+2. The hotspot map must identify remaining domain clusters, state ownership boundaries, render-vs-orchestration boundaries, and the next extraction sequence.
+3. Resume modularization only with seams that clearly unlock a larger boundary or materially simplify a planned extraction.
+
 ### B5 Style Standardization
 Acceptance:
 1. Canonical token/class map is locked and documented.

@@ -55,3 +55,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-21.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-22.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-23.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-hotspot-map.md`

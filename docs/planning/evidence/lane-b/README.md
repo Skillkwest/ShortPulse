@@ -66,3 +66,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-checkpoint-review.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-hotspot-map.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-loader-controller-split.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-mutation-controller-split.md`

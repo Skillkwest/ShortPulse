@@ -20,11 +20,6 @@ import {
   MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryFeatureFlags";
-import {
-  deleteMediaFileWithStorage,
-  deleteMediaPromptById,
-  logMediaEvent,
-} from "../../media-library/logic/mediaLibraryDataEffects";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
   hydrateMediaPreviewViaStorageDownload,
@@ -47,13 +42,7 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
-import {
-  applyMediaFolderMembershipBatch,
-  MEDIA_LIBRARY_ROOT_FOLDER_ID,
-  uploadMediaFile,
-  type MediaUploadDestinationTab,
-} from "../logic/mediaLibraryPanelApi";
-import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
+import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
 import {
   attachMediaLibraryDragGhost,
@@ -66,6 +55,7 @@ import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPane
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
+import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibraryPanelMutationController";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
 import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
@@ -83,16 +73,6 @@ type FolderContextMenuState = {
   x: number;
   y: number;
 };
-
-type PendingLibraryDeleteState =
-  | {
-      kind: "media";
-      file: MediaFileRow;
-    }
-  | {
-      kind: "prompt";
-      prompt: PromptRow;
-    };
 
 type MediaLibraryPanelProps = {
   onSelectMedia: (payload: {
@@ -142,19 +122,6 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
   return "uploaded_images";
 };
 
-const resolveUploadDestinationTabForFile = (file: File): MediaUploadDestinationTab | null => {
-  const mimeType = file.type.toLowerCase();
-  if (mimeType.startsWith("video/")) return "uploaded_videos";
-  if (mimeType.startsWith("image/")) return "uploaded_images";
-  return null;
-};
-
-const createdAtTime = (value: string | null | undefined): number => {
-  if (!value) return 0;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
@@ -187,9 +154,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const [error, setError] = useState<string | null>(null);
   const [, setMembershipMessage] = useState<string | null>(null);
-  const [pendingLibraryDelete, setPendingLibraryDelete] =
-    useState<PendingLibraryDeleteState | null>(null);
-  const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = useState(false);
   const [previewModalFile, setPreviewModalFile] = useState<MediaFileRow | null>(null);
   const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
   const [previewModalLoading, setPreviewModalLoading] = useState(false);
@@ -197,7 +161,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const selectedIds = EMPTY_SELECTED_IDS;
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
-  useAiStudioModalActivity("media-library-panel-delete-confirm", Boolean(pendingLibraryDelete));
 
   const signedUrlRetryRef = useRef<Record<string, number>>({});
   const signAttemptRef = useRef<Record<string, number>>({});
@@ -272,6 +235,26 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     showFolderCanvas,
     panelBodyRef,
   });
+  const {
+    pendingLibraryDelete,
+    setPendingLibraryDelete,
+    deleteConfirmSubmitting,
+    resetDeleteConfirmState,
+    closeDeleteConfirm,
+    confirmDeleteFromLibrary,
+    handleRemoveItemFromActiveFolder,
+    handleAssignItemToActiveFolder,
+    uploadDroppedFilesToFolder,
+  } = useMediaLibraryPanelMutationController({
+    activeFolderId,
+    folders,
+    refreshActiveRows,
+    setFolderError,
+    setMembershipMessage,
+    setMediaRows,
+    setPromptRows,
+  });
+  useAiStudioModalActivity("media-library-panel-delete-confirm", Boolean(pendingLibraryDelete));
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
   const visibleImageRows = useMemo(
     () => mediaRows.filter((row) => !isVideoFile(row.file_type)),
@@ -757,226 +740,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [activeFolderId, resolvePreviewModalUrl]
   );
 
-  const handleRemoveItemFromActiveFolder = useCallback(
-    async (item: { kind: "media" | "prompt"; id: string }) => {
-      if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-      setMembershipMessage(null);
-      setFolderError(null);
-      try {
-        await applyMediaFolderMembershipBatch({
-          folderId: activeFolderId,
-          action: "unassign",
-          mediaIds: item.kind === "media" ? [item.id] : [],
-          promptIds: item.kind === "prompt" ? [item.id] : [],
-        });
-        setMembershipMessage("Removed from this folder.");
-        if (item.kind === "media") {
-          setMediaRows((previous) => previous.filter((row) => row.id !== item.id));
-        } else {
-          setPromptRows((previous) => previous.filter((row) => row.id !== item.id));
-        }
-      } catch (membershipError) {
-        setFolderError(
-          toMediaLibraryErrorText(membershipError, "Unable to update folder membership.")
-        );
-      }
-    },
-    [activeFolderId, setFolderError, setMediaRows, setPromptRows]
-  );
-
-  const handleAssignItemToActiveFolder = useCallback(
-    async (item: { kind: "media" | "prompt"; id: string }): Promise<boolean> => {
-      if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return false;
-      setMembershipMessage(null);
-      setFolderError(null);
-      try {
-        await applyMediaFolderMembershipBatch({
-          folderId: activeFolderId,
-          action: "assign",
-          mediaIds: item.kind === "media" ? [item.id] : [],
-          promptIds: item.kind === "prompt" ? [item.id] : [],
-        });
-        setMembershipMessage("Added to this folder.");
-        await refreshActiveRows();
-        return true;
-      } catch (membershipError) {
-        setFolderError(
-          toMediaLibraryErrorText(membershipError, "Unable to update folder membership.")
-        );
-        return false;
-      }
-    },
-    [activeFolderId, refreshActiveRows, setFolderError]
-  );
-
-  const uploadDroppedFilesToFolder = useCallback(
-    async ({
-      targetFolderId,
-      files,
-    }: {
-      targetFolderId: string;
-      files: FileList;
-    }): Promise<MediaFileRow[]> => {
-      const droppedFiles = Array.from(files);
-      if (!droppedFiles.length) return [];
-
-      setFolderError(null);
-      setMembershipMessage(null);
-
-      const uploadCandidates = droppedFiles
-        .map((file) => ({
-          file,
-          destinationTab: resolveUploadDestinationTabForFile(file),
-        }))
-        .filter(
-          (candidate): candidate is { file: File; destinationTab: MediaUploadDestinationTab } =>
-            candidate.destinationTab !== null
-        );
-      if (!uploadCandidates.length) {
-        throw new Error("Only image and video files can be dropped here.");
-      }
-
-      const uploadedRows: MediaFileRow[] = [];
-      for (const candidate of uploadCandidates) {
-        const uploaded = await uploadMediaFile({
-          file: candidate.file,
-          destinationTab: candidate.destinationTab,
-        });
-        uploadedRows.push({
-          id: uploaded.id,
-          filename: uploaded.filename,
-          storage_path: uploaded.storage_path,
-          preview_storage_path: uploaded.preview_storage_path,
-          file_type: uploaded.file_type,
-          source: uploaded.source,
-          created_at: uploaded.created_at,
-          metadata: null,
-          signedUrl: uploaded.signedUrl,
-        });
-      }
-
-      if (targetFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && uploadedRows.length > 0) {
-        await applyMediaFolderMembershipBatch({
-          action: "assign",
-          folderId: targetFolderId,
-          mediaIds: uploadedRows.map((row) => row.id),
-          promptIds: [],
-        });
-      }
-
-      const targetFolderName =
-        targetFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
-          ? ROOT_FOLDER_LABEL
-          : (folders.find((folder) => folder.id === targetFolderId)?.name ?? "folder");
-      const uploadedCount = uploadedRows.length;
-      const skippedCount = Math.max(0, droppedFiles.length - uploadedCount);
-      setMembershipMessage(
-        skippedCount > 0
-          ? `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}. Skipped ${skippedCount} unsupported file${skippedCount === 1 ? "" : "s"}.`
-          : `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}.`
-      );
-
-      if (targetFolderId === activeFolderId && uploadedRows.length > 0) {
-        setMediaRows((previous) => {
-          const byId = new Map(previous.map((row) => [row.id, row]));
-          uploadedRows.forEach((row) => {
-            byId.set(row.id, row);
-          });
-          const nextRows = Array.from(byId.values());
-          nextRows.sort((left, right) => {
-            const createdDelta = createdAtTime(right.created_at) - createdAtTime(left.created_at);
-            if (createdDelta !== 0) return createdDelta;
-            return right.id.localeCompare(left.id);
-          });
-          return nextRows;
-        });
-      }
-
-      try {
-        await refreshActiveRows();
-      } catch (refreshError) {
-        setFolderError(
-          toMediaLibraryErrorText(
-            refreshError,
-            "Uploaded media, but failed to refresh folder contents."
-          )
-        );
-      }
-      return uploadedRows;
-    },
-    [activeFolderId, folders, refreshActiveRows, setFolderError, setMediaRows]
-  );
-
-  const handleDeleteMediaFromLibrary = useCallback(
-    async (file: MediaFileRow) => {
-      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-      setMembershipMessage(null);
-      setFolderError(null);
-      try {
-        await deleteMediaFileWithStorage(file);
-        setMediaRows((previous) => previous.filter((row) => row.id !== file.id));
-        setMembershipMessage("Deleted from All Media.");
-        void logMediaEvent("delete", "media_file", file.id, {
-          storage_path: file.storage_path,
-          surface: "ai-studio-media-library-panel",
-        });
-      } catch (deleteError) {
-        setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete media."));
-      }
-    },
-    [activeFolderId, setFolderError, setMediaRows]
-  );
-
-  const handleDeletePromptFromLibrary = useCallback(
-    async (prompt: PromptRow) => {
-      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-      setMembershipMessage(null);
-      setFolderError(null);
-      try {
-        await deleteMediaPromptById(prompt.id);
-        setPromptRows((previous) => previous.filter((row) => row.id !== prompt.id));
-        setMembershipMessage("Deleted from All Media.");
-        void logMediaEvent("delete", "media_prompt", prompt.id, {
-          surface: "ai-studio-media-library-panel",
-        });
-      } catch (deleteError) {
-        setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete prompt."));
-      }
-    },
-    [activeFolderId, setFolderError, setPromptRows]
-  );
-
-  const closeDeleteConfirm = useCallback(() => {
-    if (deleteConfirmSubmitting) return;
-    setPendingLibraryDelete(null);
-  }, [deleteConfirmSubmitting]);
-
-  const confirmDeleteFromLibrary = useCallback(async () => {
-    if (!pendingLibraryDelete) return;
-    if (deleteConfirmSubmitting) return;
-    setDeleteConfirmSubmitting(true);
-    try {
-      if (pendingLibraryDelete.kind === "media") {
-        await handleDeleteMediaFromLibrary(pendingLibraryDelete.file);
-      } else {
-        await handleDeletePromptFromLibrary(pendingLibraryDelete.prompt);
-      }
-      setPendingLibraryDelete(null);
-    } finally {
-      setDeleteConfirmSubmitting(false);
-    }
-  }, [
-    deleteConfirmSubmitting,
-    handleDeleteMediaFromLibrary,
-    handleDeletePromptFromLibrary,
-    pendingLibraryDelete,
-  ]);
-
   useEffect(() => {
-    setPendingLibraryDelete(null);
-    setDeleteConfirmSubmitting(false);
+    resetDeleteConfirmState();
     closePreviewModal();
-  }, [activeFolderId, closePreviewModal]);
+  }, [activeFolderId, closePreviewModal, resetDeleteConfirmState]);
 
   const foldersDropController = useMediaLibraryFolderDropController({
     folders,
@@ -1296,6 +1063,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
+      setPendingLibraryDelete,
       selectedIds,
       activeFolderId,
     ]
@@ -1366,6 +1134,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       promptHasMore,
       promptLoading,
       selectedIds,
+      setPendingLibraryDelete,
       visiblePromptRows,
       loadPromptPage,
     ]

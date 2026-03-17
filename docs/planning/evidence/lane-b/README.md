@@ -109,3 +109,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-layers-toolbar-migration.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-mode-button-migration.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-inpaint-shell-surface-migration.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-prompt-shell-surface-migration.md`

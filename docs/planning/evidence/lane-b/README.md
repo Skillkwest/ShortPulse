@@ -86,3 +86,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-asset-controller-split.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-checkpoint-review.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-shell-hotspot-map.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-announcements-controller-split.md`

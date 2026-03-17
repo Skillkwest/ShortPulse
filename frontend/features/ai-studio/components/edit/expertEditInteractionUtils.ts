@@ -36,6 +36,7 @@ export type TransformPointerSession = {
 
 export type EditSubmitIntentMode = "standard" | "inpaint" | "markup";
 export type RailToolMode = "move" | "inpaint" | "video";
+export type TimeoutRef = { current: number | null };
 
 export const createIdleTransformPointerSession = (): TransformPointerSession => ({
   active: false,
@@ -112,4 +113,11 @@ export const resolveInpaintCollapseToggleDecision = ({
     return "expand_inpaint";
   }
   return "collapse_inpaint";
+};
+
+export const clearWindowTimeoutRef = (timeoutRef: TimeoutRef) => {
+  if (timeoutRef.current == null) return false;
+  window.clearTimeout(timeoutRef.current);
+  timeoutRef.current = null;
+  return true;
 };

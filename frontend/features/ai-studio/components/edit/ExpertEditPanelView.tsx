@@ -175,6 +175,7 @@ import {
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
 import {
+  clearWindowTimeoutRef,
   createIdleTransformPointerSession,
   isKeyboardEventFromEditableTarget,
   resolveInpaintCollapseToggleDecision,
@@ -896,14 +897,8 @@ export function ExpertEditPanelView({
 
   const showStatusToast = React.useCallback(
     (message: string, tone: "info" | "warning" = "info") => {
-      if (toastVisibleTimerRef.current != null) {
-        window.clearTimeout(toastVisibleTimerRef.current);
-        toastVisibleTimerRef.current = null;
-      }
-      if (toastFadeTimerRef.current != null) {
-        window.clearTimeout(toastFadeTimerRef.current);
-        toastFadeTimerRef.current = null;
-      }
+      clearWindowTimeoutRef(toastVisibleTimerRef);
+      clearWindowTimeoutRef(toastFadeTimerRef);
       setStatusToastMessage(message);
       setStatusToastTone(tone);
       setIsStatusToastFading(false);
@@ -1028,10 +1023,7 @@ export function ExpertEditPanelView({
   }, []);
 
   const clearRemoveBackgroundPending = React.useCallback(() => {
-    if (removeBackgroundPendingTimeoutRef.current != null) {
-      window.clearTimeout(removeBackgroundPendingTimeoutRef.current);
-      removeBackgroundPendingTimeoutRef.current = null;
-    }
+    clearWindowTimeoutRef(removeBackgroundPendingTimeoutRef);
     removeBackgroundPendingSourceUrlRef.current = null;
     setRemoveBackgroundPendingLayerId(null);
   }, []);
@@ -2909,10 +2901,7 @@ export function ExpertEditPanelView({
         setSelectedRailTool(tool);
       }
       if (shouldOpenMarkupModalFromCollapsedTools) {
-        if (inpaintCollapseTimerRef.current != null) {
-          window.clearTimeout(inpaintCollapseTimerRef.current);
-          inpaintCollapseTimerRef.current = null;
-        }
+        clearWindowTimeoutRef(inpaintCollapseTimerRef);
         setIsInpaintCollapsed(true);
         setIsInpaintCollapsing(false);
       }
@@ -2924,10 +2913,7 @@ export function ExpertEditPanelView({
   const closeMarkupModal = React.useCallback(() => {
     setIsMarkupExpandSelected(false);
     if (shouldOpenMarkupModalFromCollapsedTools) {
-      if (inpaintCollapseTimerRef.current != null) {
-        window.clearTimeout(inpaintCollapseTimerRef.current);
-        inpaintCollapseTimerRef.current = null;
-      }
+      clearWindowTimeoutRef(inpaintCollapseTimerRef);
       setIsInpaintCollapsed(true);
       setIsInpaintCollapsing(false);
       setSelectedRailTool("move");
@@ -3689,22 +3675,10 @@ export function ExpertEditPanelView({
         window.cancelAnimationFrame(sessionDispatchFrameRef.current);
         sessionDispatchFrameRef.current = null;
       }
-      if (inpaintCollapseTimerRef.current != null) {
-        window.clearTimeout(inpaintCollapseTimerRef.current);
-        inpaintCollapseTimerRef.current = null;
-      }
-      if (toastVisibleTimerRef.current != null) {
-        window.clearTimeout(toastVisibleTimerRef.current);
-        toastVisibleTimerRef.current = null;
-      }
-      if (toastFadeTimerRef.current != null) {
-        window.clearTimeout(toastFadeTimerRef.current);
-        toastFadeTimerRef.current = null;
-      }
-      if (removeBackgroundPendingTimeoutRef.current != null) {
-        window.clearTimeout(removeBackgroundPendingTimeoutRef.current);
-        removeBackgroundPendingTimeoutRef.current = null;
-      }
+      clearWindowTimeoutRef(inpaintCollapseTimerRef);
+      clearWindowTimeoutRef(toastVisibleTimerRef);
+      clearWindowTimeoutRef(toastFadeTimerRef);
+      clearWindowTimeoutRef(removeBackgroundPendingTimeoutRef);
       transientRevokeTimersRef.current.forEach((timer, url) => {
         window.clearTimeout(timer);
         revokeObjectUrlSafe(url);
@@ -3733,10 +3707,7 @@ export function ExpertEditPanelView({
       return;
     }
 
-    if (inpaintCollapseTimerRef.current != null) {
-      window.clearTimeout(inpaintCollapseTimerRef.current);
-      inpaintCollapseTimerRef.current = null;
-    }
+    clearWindowTimeoutRef(inpaintCollapseTimerRef);
 
     if (collapseDecision === "expand_inpaint") {
       setIsInpaintCollapsed(false);

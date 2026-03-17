@@ -14,7 +14,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
 | A | Completed | Engineering | Lane A closeout complete; debt handed off to downstream lanes | none | Lane B execution handoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
-| B | In Progress | Engineering | B2-01 active; Character Picker plus preset/blob/canvas/color/viewport/layer-transform/cursor/layer-session/interaction/transform-gesture/layer-reorder-delete/stage-menu-layer-reset/rail-collapse-decision utility seams extracted from `ExpertEditPanelView` with parity gates green | none | Continue B2-01 with next Expert Edit seam extraction packet | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| B | In Progress | Engineering | B2-01 active; Character Picker plus preset/blob/canvas/color/viewport/layer-transform/cursor/layer-session/interaction/transform-gesture/layer-reorder-delete/stage-menu-layer-reset/rail-collapse-decision/timeout-clear utility seams extracted from `ExpertEditPanelView` with parity gates green | none | Continue B2-01 with next Expert Edit seam extraction packet | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
 | E | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock | Awaiting E0 baseline evidence packet | Lane E governance baseline lock | `docs/planning/lane-e-master-plan-2026-03-16.md` |
@@ -278,6 +278,8 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-9.md`
 - Continued Lane B B2-01 seam extraction by moving generation-mode rail mapping and inpaint-collapse decision logic into interaction helper utilities:
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-10.md`
+- Continued Lane B B2-01 seam extraction by moving repeated timeout clear/null-reset logic into interaction helper utilities:
+  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-11.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
   - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 - Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):

@@ -836,10 +836,10 @@
 .edit-expert-layers-toolbar-title-card {
   position: relative;
   width: 100%;
-  border: 1px solid rgba(201, 205, 214, 0.02);
+  border: 1px solid var(--edit-expert-neutral-border-soft);
   border-radius: 8px;
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
   padding: 8px 12px;
   display: flex;
   align-items: center;
@@ -849,7 +849,7 @@
 
 .edit-expert-layers-toolbar-title {
   margin: 0;
-  color: #c9cdd685;
+  color: var(--edit-expert-muted-text);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -858,7 +858,7 @@
 }
 
 .edit-expert-layers-toolbar-title-icon {
-  color: #c9cdd685;
+  color: var(--edit-expert-muted-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -868,10 +868,10 @@
 .edit-expert-layers-toolbar-card {
   position: relative;
   width: 100%;
-  border: 1px solid rgba(201, 205, 214, 0.02);
+  border: 1px solid var(--edit-expert-neutral-border-soft);
   border-radius: 8px;
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
   padding: 8px 8px;
   display: flex;
   flex-direction: column;
@@ -3600,15 +3600,15 @@
 .edit-expert-layers-toolbar--modal .edit-expert-layers-toolbar-title-card {
   flex: 1 1 auto;
   min-width: 0;
-  border: 1px solid rgba(201, 205, 214, 0.02);
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--edit-expert-neutral-border-soft);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
 }
 
 .edit-expert-layers-toolbar--modal .edit-expert-layers-toolbar-card {
-  border: 1px solid rgba(201, 205, 214, 0.02);
-  background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--edit-expert-neutral-border-soft);
+  background: var(--edit-expert-neutral-surface-soft);
+  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
 }
 
 .edit-expert-layers-toolbar--modal .edit-expert-preset-action-btn {

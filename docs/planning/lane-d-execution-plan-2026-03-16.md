@@ -27,7 +27,7 @@ Out of scope:
 | Slice ID | Phase | Runtime Surface | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
 | `D0-01` | D0 | Baseline lock | Capture baseline warnings/gates and freeze non-goals | `docs/planning/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md` | Completed |
-| `D1-01` | D1 | `useAiStudioEditSubmitIntent` | Remove `set-state-in-effect` warning and add direct hook test | `docs/planning/evidence/lane-d/2026-03-16-d1-01-edit-submit-intent-hardening.md` | Not Started |
+| `D1-01` | D1 | `useAiStudioEditSubmitIntent` | Remove `set-state-in-effect` warning and add direct hook test | `docs/planning/evidence/lane-d/2026-03-17-d1-01-edit-submit-intent-hardening.md` | Completed |
 | `D1-02` | D1 | `useAiStudioAgentBridge` | Remove reset effect warning while preserving session/tool reset behavior | `docs/planning/evidence/lane-d/2026-03-16-d1-02-agent-bridge-reset-hardening.md` | Not Started |
 | `D1-03` | D1 | `DetailModal` avatar flow | Remove avatar sync effect warnings with deterministic fallback behavior | `docs/planning/evidence/lane-d/2026-03-16-d1-03-detail-modal-avatar-hardening.md` | Not Started |
 | `D2-01` | D2 | `useReferenceGridHorizontalSplit` | Remove suppression and preserve synchronous split behavior guarantees | `docs/planning/evidence/lane-d/2026-03-16-d2-01-split-controller-suppression-retirement.md` | Not Started |
@@ -62,7 +62,7 @@ Required targeted tests:
 1. `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioAgentBridge.test.ts`
 2. `npm -C frontend run test -- features/ai-studio/components/__tests__/DetailModal.test.tsx`
 3. `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioViewModel.test.ts`
-4. Add direct hook test for `useAiStudioEditSubmitIntent` and include in targeted bundle when added.
+4. `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioEditSubmitIntent.test.ts`
 
 Acceptance:
 1. Slice warning target reduced to zero.

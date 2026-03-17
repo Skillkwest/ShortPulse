@@ -47,6 +47,7 @@ import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStu
 import { useAiStudioSessionPersistenceController } from "../features/ai-studio/hooks/useAiStudioSessionPersistenceController";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
+import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
 import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
@@ -303,9 +304,19 @@ export default function AiStudioPage() {
     },
     [getOutputById, resolveSavedMediaIdFromOutput]
   );
-  const { editSubmitIntent, setEditSubmitIntent } = useAiStudioEditSubmitIntent({
-    selectedTool,
-  });
+  const { editSubmitIntent, setEditSubmitIntent, resetEditSubmitIntent } =
+    useAiStudioEditSubmitIntent({
+      selectedTool,
+    });
+  const setSelectedToolWithEditIntentReset = useCallback(
+    (nextTool: ToolId | null) => {
+      if (isEditWorkflow(selectedTool) && !isEditWorkflow(nextTool)) {
+        resetEditSubmitIntent();
+      }
+      setSelectedTool(nextTool);
+    },
+    [resetEditSubmitIntent, selectedTool, setSelectedTool]
+  );
   const resolveMediaLibraryInternalDropItem = useCallback(
     async (payload: InternalReferenceDragPayload) =>
       await resolveMediaLibraryInternalDropResolver({
@@ -726,7 +737,7 @@ export default function AiStudioPage() {
     handleSelectOutput,
   } = useAiStudioWorkspaceActions({
     selectedTool,
-    setSelectedTool,
+    setSelectedTool: setSelectedToolWithEditIntentReset,
     setMode,
     setShowCreateTools,
     setVideoReferenceText,
@@ -744,8 +755,8 @@ export default function AiStudioPage() {
   useEffect(() => {
     if (isMediaLibraryPanelEnabled) return;
     if (selectedTool !== "media-library") return;
-    setSelectedTool(null);
-  }, [isMediaLibraryPanelEnabled, selectedTool, setSelectedTool]);
+    setSelectedToolWithEditIntentReset(null);
+  }, [isMediaLibraryPanelEnabled, selectedTool, setSelectedToolWithEditIntentReset]);
 
   const {
     isGenerateClickLocked,
@@ -810,7 +821,7 @@ export default function AiStudioPage() {
       } else {
         setSharedPrompt(request.prompt);
         if (selectedTool !== "create" && selectedTool !== "text") {
-          setSelectedTool("create");
+          setSelectedToolWithEditIntentReset("create");
         }
         setMode("image");
       }
@@ -841,7 +852,7 @@ export default function AiStudioPage() {
       setEditReferenceText,
       setMode,
       setPromptOrigin,
-      setSelectedTool,
+      setSelectedToolWithEditIntentReset,
       setSharedPrompt,
       setVideoReferenceText,
     ]
@@ -1065,8 +1076,8 @@ export default function AiStudioPage() {
   const handleOpenMediaLibraryPanelOnly = useCallback(() => {
     handleCloseMediaLibrary();
     setShowCreateTools(false);
-    setSelectedTool("media-library");
-  }, [handleCloseMediaLibrary, setSelectedTool, setShowCreateTools]);
+    setSelectedToolWithEditIntentReset("media-library");
+  }, [handleCloseMediaLibrary, setSelectedToolWithEditIntentReset, setShowCreateTools]);
 
   return (
     <AiStudioModalActivityProvider>

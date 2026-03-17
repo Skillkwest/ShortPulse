@@ -1,8 +1,8 @@
 /**
  * Edit submit-intent state hook.
- * Owns intent reset behavior when leaving Edit workflow.
+ * Owns intent state and explicit reset behavior for Edit workflow submission.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { DEFAULT_EDIT_SUBMIT_INTENT, type EditSubmitIntent } from "../logic/editSubmitIntent";
 import { isEditWorkflow } from "../logic/workflowIdentity";
 import type { ToolId } from "../types";
@@ -21,17 +21,20 @@ export const useAiStudioEditSubmitIntent = ({
     DEFAULT_EDIT_SUBMIT_INTENT
   );
 
-  const setEditSubmitIntent = useCallback((intent: EditSubmitIntent) => {
-    setEditSubmitIntentState(intent);
+  const setEditSubmitIntent = useCallback(
+    (intent: EditSubmitIntent) => {
+      setEditSubmitIntentState(isEditWorkflow(selectedTool) ? intent : DEFAULT_EDIT_SUBMIT_INTENT);
+    },
+    [selectedTool]
+  );
+
+  const resetEditSubmitIntent = useCallback(() => {
+    setEditSubmitIntentState(DEFAULT_EDIT_SUBMIT_INTENT);
   }, []);
 
-  useEffect(() => {
-    if (isEditWorkflow(selectedTool)) return;
-    setEditSubmitIntentState(DEFAULT_EDIT_SUBMIT_INTENT);
-  }, [selectedTool]);
-
   return {
-    editSubmitIntent,
+    editSubmitIntent: isEditWorkflow(selectedTool) ? editSubmitIntent : DEFAULT_EDIT_SUBMIT_INTENT,
     setEditSubmitIntent,
+    resetEditSubmitIntent,
   };
 };

@@ -1,7 +1,7 @@
 # Lane B Master Plan (2026-03-16)
 
-Last updated: 2026-03-16  
-Status: Active  
+Last updated: 2026-03-17  
+Status: Completed  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
@@ -18,6 +18,10 @@ Generation pipeline contract/queue hardening is intentionally separated from Lan
 - `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`
 
 The default contract is unchanged user behavior, unchanged API response shapes, and small one-seam PRs.
+
+Closeout evidence:
+1. `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-convergence-gate-cycle-2.md`
+2. `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md`
 
 ## Baseline Findings (Audit Snapshot)
 As of 2026-03-16:
@@ -96,7 +100,7 @@ As of 2026-03-16:
 ### B6: Convergence And Enforcement
 1. Promote new Lane B guards from `warn` to `enforce` after two consecutive green cycles.
 2. Close lane only after tracker evidence is complete for every slice.
-3. Record closeout in changelog and foundation-lane tracker notes.
+3. Record closeout in evidence packets and foundation-lane tracker notes.
 
 ## Merge Gates
 Required per slice:

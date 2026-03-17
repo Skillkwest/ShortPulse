@@ -32,3 +32,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md`
 - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-1.md`
 - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-2.md`
+- `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-3.md`

@@ -141,6 +141,23 @@ import {
   type MarkupPanPointerSession,
   type StageViewportSize,
 } from "./expertEditViewportUtils";
+import {
+  applyTransformHistoryEntryToLayers,
+  areLayerTransformsEqual,
+  areTransformHistoryEntriesEqual,
+  buildTransformHistoryEntry,
+  clampLayerOpacity,
+  clampLayerScale,
+  clampLayerTranslateRatio,
+  cloneLayerTransform,
+  computeDistance,
+  defaultLayerTransform,
+  normalizeLayerRotationDeg,
+  resolveTransformGeometry,
+  type LayerTransform,
+  type TransformHistoryEntry,
+  type TransformHistoryState,
+} from "./expertEditLayerTransformUtils";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
@@ -334,14 +351,7 @@ const MARKUP_CURSOR_DIAMETER_MIN = 1;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
 const INPAINT_CURSOR_DIAMETER_MAX = 52;
 const INPAINT_CURSOR_PADDING = 6;
-const LAYER_OPACITY_MIN = 0;
-const LAYER_OPACITY_MAX = 1;
 const LAYER_OPACITY_DEFAULT = 1;
-const LAYER_TRANSLATE_RATIO_MIN = -1;
-const LAYER_TRANSLATE_RATIO_MAX = 1;
-const LAYER_SCALE_MIN = 0.2;
-const LAYER_SCALE_MAX = 2;
-const TRANSFORM_ROTATE_HANDLE_INSET_PX = 16;
 const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
 const autoLayerNamePattern = /^layer\s*'?(\d+)'?$/i;
 const isAutoLayerName = (value: string) => autoLayerNamePattern.test(value.trim());
@@ -352,63 +362,13 @@ const resolveAutoLayerNameNumber = (value: string) => {
   if (!Number.isInteger(candidate) || candidate <= 0) return null;
   return candidate;
 };
-const clampLayerOpacity = (value: number) =>
-  Math.min(LAYER_OPACITY_MAX, Math.max(LAYER_OPACITY_MIN, value));
-const clampLayerTranslateRatio = (value: number) =>
-  Math.min(LAYER_TRANSLATE_RATIO_MAX, Math.max(LAYER_TRANSLATE_RATIO_MIN, value));
-const clampLayerScale = (value: number) =>
-  Math.min(LAYER_SCALE_MAX, Math.max(LAYER_SCALE_MIN, value));
-const normalizeLayerRotationDeg = (value: number) => {
-  if (!Number.isFinite(value)) return 0;
-  let normalized = value % 360;
-  if (normalized > 180) normalized -= 360;
-  if (normalized <= -180) normalized += 360;
-  return Math.round(normalized * 1000) / 1000;
-};
 
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
-type LayerTransform = {
-  translateXRatio: number;
-  translateYRatio: number;
-  scale: number;
-  rotationDeg: number;
-};
-
-const defaultLayerTransform = (): LayerTransform => ({
-  translateXRatio: 0,
-  translateYRatio: 0,
-  scale: 1,
-  rotationDeg: 0,
-});
-
-type TransformHistoryLayerSnapshot = {
-  layerId: string;
-  transform: LayerTransform;
-};
-
-type TransformHistoryEntry = {
-  layerOrderSignature: string;
-  layerSnapshots: TransformHistoryLayerSnapshot[];
-};
-
-type TransformHistoryState = {
-  past: TransformHistoryEntry[];
-  present: TransformHistoryEntry;
-  future: TransformHistoryEntry[];
-};
-
 type MarkupHistoryState = ExpertEditMarkupHistoryState;
 
 type InpaintHistoryState = ExpertEditInpaintHistoryState;
-
-const cloneLayerTransform = (transform: LayerTransform): LayerTransform => ({
-  translateXRatio: transform.translateXRatio,
-  translateYRatio: transform.translateYRatio,
-  scale: transform.scale,
-  rotationDeg: transform.rotationDeg,
-});
 
 const isKeyboardEventFromEditableTarget = (event: KeyboardEvent) => {
   const target = event.target;
@@ -419,114 +379,6 @@ const isKeyboardEventFromEditableTarget = (event: KeyboardEvent) => {
   }
   return target.isContentEditable || Boolean(target.closest('[contenteditable="true"]'));
 };
-
-const areLayerTransformsEqual = (left: LayerTransform, right: LayerTransform) =>
-  left.translateXRatio === right.translateXRatio &&
-  left.translateYRatio === right.translateYRatio &&
-  left.scale === right.scale &&
-  left.rotationDeg === right.rotationDeg;
-
-const buildTransformHistoryEntry = (layers: ExpertEditLayer[]): TransformHistoryEntry => ({
-  layerOrderSignature: layers.map((layer) => layer.id).join("|"),
-  layerSnapshots: layers.map((layer) => ({
-    layerId: layer.id,
-    transform: cloneLayerTransform(layer.transform),
-  })),
-});
-
-const areTransformHistoryEntriesEqual = (
-  left: TransformHistoryEntry,
-  right: TransformHistoryEntry
-) => {
-  if (left.layerOrderSignature !== right.layerOrderSignature) return false;
-  if (left.layerSnapshots.length !== right.layerSnapshots.length) return false;
-  for (let index = 0; index < left.layerSnapshots.length; index += 1) {
-    const leftSnapshot = left.layerSnapshots[index];
-    const rightSnapshot = right.layerSnapshots[index];
-    if (!leftSnapshot || !rightSnapshot) return false;
-    if (leftSnapshot.layerId !== rightSnapshot.layerId) return false;
-    if (!areLayerTransformsEqual(leftSnapshot.transform, rightSnapshot.transform)) {
-      return false;
-    }
-  }
-  return true;
-};
-
-const applyTransformHistoryEntryToLayers = (
-  layers: ExpertEditLayer[],
-  entry: TransformHistoryEntry
-) => {
-  const currentLayerOrderSignature = layers.map((layer) => layer.id).join("|");
-  if (currentLayerOrderSignature !== entry.layerOrderSignature) {
-    return layers;
-  }
-  const transformByLayerId = new Map(
-    entry.layerSnapshots.map((snapshot) => [snapshot.layerId, snapshot.transform])
-  );
-  return layers.map((layer) => {
-    const snapshotTransform = transformByLayerId.get(layer.id);
-    if (!snapshotTransform || areLayerTransformsEqual(layer.transform, snapshotTransform)) {
-      return layer;
-    }
-    return {
-      ...layer,
-      transform: cloneLayerTransform(snapshotTransform),
-    };
-  });
-};
-
-type TransformGeometry = {
-  centerX: number;
-  centerY: number;
-  resizeHandleX: number;
-  resizeHandleY: number;
-  rotateHandleX: number;
-  rotateHandleY: number;
-};
-
-const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
-
-const rotatePoint = (x: number, y: number, rotationDeg: number) => {
-  const rotation = toRadians(rotationDeg);
-  const cosine = Math.cos(rotation);
-  const sine = Math.sin(rotation);
-  return {
-    x: x * cosine - y * sine,
-    y: x * sine + y * cosine,
-  };
-};
-
-const resolveTransformGeometry = ({
-  transform,
-  width,
-  height,
-}: {
-  transform: LayerTransform;
-  width: number;
-  height: number;
-}): TransformGeometry => {
-  const centerX = width / 2 + transform.translateXRatio * width;
-  const centerY = height / 2 + transform.translateYRatio * height;
-  const halfWidth = (width / 2) * transform.scale;
-  const halfHeight = (height / 2) * transform.scale;
-  const cornerVector = rotatePoint(halfWidth, -halfHeight, transform.rotationDeg);
-  const rotateHandleDistance = Math.max(
-    halfHeight - TRANSFORM_ROTATE_HANDLE_INSET_PX,
-    halfHeight * 0.35
-  );
-  const rotateVector = rotatePoint(0, -rotateHandleDistance, transform.rotationDeg);
-  return {
-    centerX,
-    centerY,
-    resizeHandleX: centerX + cornerVector.x,
-    resizeHandleY: centerY + cornerVector.y,
-    rotateHandleX: centerX + rotateVector.x,
-    rotateHandleY: centerY + rotateVector.y,
-  };
-};
-
-const computeDistance = (x1: number, y1: number, x2: number, y2: number) =>
-  Math.hypot(x2 - x1, y2 - y1);
 
 const buildInpaintBrushReticleCursor = (strokeSize: number) => {
   const diameter = Math.min(

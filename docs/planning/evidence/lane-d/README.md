@@ -33,3 +33,4 @@ Examples:
 - `docs/planning/evidence/lane-d/2026-03-17-d1-02-agent-bridge-reset-hardening.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d1-03-detail-modal-avatar-hardening.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d2-01-split-controller-suppression-retirement.md`
+- `docs/planning/evidence/lane-d/2026-03-17-d3-01-selector-store-hard-disable-cleanup.md`

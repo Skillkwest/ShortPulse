@@ -27,8 +27,10 @@ As of 2026-03-17:
    - `frontend/features/ai-studio/hooks/useAiStudioEditSubmitIntent.ts`
 2. One explicit suppression remains in a core split controller:
    - `frontend/features/ai-studio/hooks/useReferenceGridHorizontalSplit.ts` (`react-hooks/set-state-in-effect`)
-3. Core AI Studio page still contains an unconditional emergency hard-disable:
-   - `AI_STUDIO_EMERGENCY_DISABLE_SELECTOR_STORE = true` in `frontend/pages/ai-studio.tsx`
+3. Core AI Studio page selector-store lane is back on governed controls:
+   - `NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE`
+   - `NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE`
+   - `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE`
 4. CI governance control-plane variables are currently in `enforce` mode for architecture/size/docs/migration/agent guardrails.
 5. Existing tests cover key seams (`DetailModal`, `useAiStudioAgentBridge`, `useReferenceGridHorizontalSplit`) but `useAiStudioEditSubmitIntent` lacks direct hook-level tests.
 6. Strict runtime lint profile currently fails with `4` errors and `3` remaining warnings, confirming live debt concentration in Lane D seams.

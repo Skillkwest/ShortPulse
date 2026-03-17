@@ -38,6 +38,9 @@
   --edit-expert-control-active-border: rgba(92, 95, 103, 0.95);
   --edit-expert-control-active-surface: rgba(62, 66, 74, 0.94);
   --edit-expert-control-active-surface-strong: rgba(62, 70, 83, 0.96);
+  --edit-expert-control-pill-border: rgba(84, 97, 112, 0.7);
+  --edit-expert-control-pill-surface: rgba(37, 41, 47, 0.74);
+  --edit-expert-control-pill-text: rgba(224, 233, 244, 0.88);
   --edit-expert-control-delete-border: rgba(201, 205, 214, 0.24);
   --edit-expert-control-delete-surface: rgba(37, 41, 47, 0.74);
   --edit-expert-compose-border: var(--edit-expert-control-border);

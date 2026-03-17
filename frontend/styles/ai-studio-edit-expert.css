@@ -1624,9 +1624,9 @@
   height: auto;
   align-self: stretch;
   border-radius: 5px;
-  border: 1px solid rgba(84, 97, 112, 0.7);
-  background: rgba(37, 41, 47, 0.74);
-  color: rgba(224, 233, 244, 0.88);
+  border: 1px solid var(--edit-expert-control-pill-border);
+  background: var(--edit-expert-control-pill-surface);
+  color: var(--edit-expert-control-pill-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1661,8 +1661,8 @@
   padding: 6px;
   position: relative;
   border-radius: 10px;
-  border: 1px solid rgba(92, 96, 104, 0.9);
-  background: rgba(37, 41, 47, 0.64);
+  border: 1px solid var(--edit-expert-control-border);
+  background: var(--edit-expert-control-surface);
   box-shadow: none;
 }
 
@@ -2546,9 +2546,9 @@
 .edit-expert-inpaint-mode-btn {
   min-height: 30px;
   border-radius: 8px;
-  border: 1px solid rgba(92, 96, 104, 0.275);
-  background: rgba(37, 41, 47, 0.64);
-  color: #eef2f8;
+  border: 1px solid var(--edit-expert-control-border-soft);
+  background: var(--edit-expert-control-surface);
+  color: var(--edit-expert-control-text);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -2561,8 +2561,8 @@
 }
 
 .edit-expert-inpaint-mode-btn.is-active {
-  border-color: rgba(92, 95, 103, 0.95);
-  background: rgba(62, 66, 74, 0.94);
+  border-color: var(--edit-expert-control-active-border);
+  background: var(--edit-expert-control-active-surface);
 }
 
 .edit-expert-inpaint-divider {

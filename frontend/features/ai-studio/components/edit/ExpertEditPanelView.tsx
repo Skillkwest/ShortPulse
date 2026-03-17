@@ -64,7 +64,6 @@ import {
   useCreateCharacterModeController,
 } from "../create/useCreateCharacterModeController";
 import {
-  resolveInpaintBrushDiameter,
   areInpaintMaskSnapshotsEqual,
   type InpaintMaskSnapshot,
   useInpaintMaskController,
@@ -158,6 +157,11 @@ import {
   type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
+import {
+  buildInpaintBrushReticleCursor,
+  buildInpaintLassoCursor,
+  buildMarkupBrushReticleCursor,
+} from "./expertEditCursorUtils";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
@@ -347,10 +351,6 @@ const LOCKED_EDIT_TOOL_MODEL_LOGO_SRC = "/tiny-logo.png";
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const MARKUP_STROKE_SIZE_DEFAULT = 4;
 const MARKUP_STROKE_SIZE_MAX = 30;
-const MARKUP_CURSOR_DIAMETER_MIN = 1;
-const INPAINT_CURSOR_DIAMETER_MIN = 8;
-const INPAINT_CURSOR_DIAMETER_MAX = 52;
-const INPAINT_CURSOR_PADDING = 6;
 const LAYER_OPACITY_DEFAULT = 1;
 const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
 const autoLayerNamePattern = /^layer\s*'?(\d+)'?$/i;
@@ -378,59 +378,6 @@ const isKeyboardEventFromEditableTarget = (event: KeyboardEvent) => {
     return true;
   }
   return target.isContentEditable || Boolean(target.closest('[contenteditable="true"]'));
-};
-
-const buildInpaintBrushReticleCursor = (strokeSize: number) => {
-  const diameter = Math.min(
-    INPAINT_CURSOR_DIAMETER_MAX,
-    Math.max(INPAINT_CURSOR_DIAMETER_MIN, resolveInpaintBrushDiameter(strokeSize))
-  );
-  const canvasSize = diameter + INPAINT_CURSOR_PADDING * 2;
-  const center = canvasSize / 2;
-  const radius = diameter / 2;
-  const ringStrokeWidth = diameter >= 34 ? 2 : 1.6;
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}">
-      <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(0,0,0,0.8)" stroke-width="${ringStrokeWidth + 1}" />
-      <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(245,249,255,0.98)" stroke-width="${ringStrokeWidth}" />
-    </svg>
-  `.trim();
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
-};
-
-const buildMarkupBrushReticleCursor = (strokeSize: number) => {
-  const diameter = clampNumber(
-    Math.round(strokeSize),
-    MARKUP_CURSOR_DIAMETER_MIN,
-    MARKUP_STROKE_SIZE_MAX
-  );
-  const canvasSize = diameter + INPAINT_CURSOR_PADDING * 2;
-  const center = canvasSize / 2;
-  const radius = diameter / 2;
-  const ringStrokeWidth = diameter >= 18 ? 2 : 1.5;
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}">
-      <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(0,0,0,0.8)" stroke-width="${ringStrokeWidth + 1}" />
-      <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="rgba(245,249,255,0.98)" stroke-width="${ringStrokeWidth}" />
-    </svg>
-  `.trim();
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
-};
-
-const buildInpaintLassoCursor = () => {
-  const cursorSize = 28;
-  const center = 9;
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${cursorSize}" height="${cursorSize}" viewBox="0 0 ${cursorSize} ${cursorSize}">
-      <g id="lasso-cursor">
-        <path d="M9 2.6c3.8 0 6.9 2.9 6.9 6.4s-3.1 6.4-6.9 6.4S2.1 12.5 2.1 9s3.1-6.4 6.9-6.4Z" fill="none" stroke="rgba(0,0,0,0.86)" stroke-width="2.2" />
-        <path d="M9 2.6c3.8 0 6.9 2.9 6.9 6.4s-3.1 6.4-6.9 6.4S2.1 12.5 2.1 9s3.1-6.4 6.9-6.4Z" fill="none" stroke="rgba(245,185,66,0.98)" stroke-width="1.4" />
-        <path d="M13.9 13.5l5.4 5.4" fill="none" stroke="rgba(0,0,0,0.86)" stroke-width="2.4" stroke-linecap="round" />
-        <path d="M13.9 13.5l5.4 5.4" fill="none" stroke="rgba(245,185,66,0.98)" stroke-width="1.4" stroke-linecap="round" />
-      </g>
-    </svg>
-  `.trim();
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
 };
 
 type ExpertEditLayer = {
@@ -1615,7 +1562,7 @@ export function ExpertEditPanelView({
       return buildInpaintLassoCursor();
     }
     if (shouldShowMarkupBrushReticle) {
-      return buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize);
+      return buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize, MARKUP_STROKE_SIZE_MAX);
     }
     return undefined;
   }, [
@@ -2744,7 +2691,9 @@ export function ExpertEditPanelView({
       }
       beginMarkupGestureHistory();
       if (selectedMarkupMode === "eraser") {
-        lockGlobalCursor(buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize));
+        lockGlobalCursor(
+          buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize, MARKUP_STROKE_SIZE_MAX)
+        );
         eraseMarkupStrokesAtPoints([point], stageRect);
         markupDrawPointerSessionRef.current = {
           active: true,
@@ -2754,7 +2703,9 @@ export function ExpertEditPanelView({
         };
         return true;
       }
-      lockGlobalCursor(buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize));
+      lockGlobalCursor(
+        buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize, MARKUP_STROKE_SIZE_MAX)
+      );
       const strokeId = `markup-stroke-${markupStrokeIdCounterRef.current++}`;
       const stroke: MarkupStroke = {
         id: strokeId,

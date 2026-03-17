@@ -62,3 +62,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-controller-hotspot-map.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-characterization-lock.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-geometry-split.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-overlay-split.md`

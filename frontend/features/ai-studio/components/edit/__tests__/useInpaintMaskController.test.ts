@@ -4,13 +4,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  buildContourPathsFromSegments,
-  deriveMaskContourFromAlpha,
-  INPAINT_MARCHING_ANTS_DASH_PATTERN,
-  INPAINT_MARCHING_ANTS_STEP_MS,
-  mapLassoPreviewPointsToOverlaySpace,
   resolvePointerSampleEvents,
-  resolveNextMarchingAntPhaseState,
   shouldEndPointerSessionOnLeave,
   shouldRenderLassoPreview,
   useInpaintMaskController,
@@ -22,6 +16,14 @@ import {
   resolveSceneCanvasPoint,
   toClampedCanvasPoint,
 } from "../inpaintMaskGeometry";
+import {
+  buildContourPathsFromSegments,
+  deriveMaskContourFromAlpha,
+  INPAINT_MARCHING_ANTS_DASH_PATTERN,
+  INPAINT_MARCHING_ANTS_STEP_MS,
+  mapLassoPreviewPointsToOverlaySpace,
+  resolveNextMarchingAntPhaseState,
+} from "../inpaintMaskOverlay";
 
 const makeMaskData = (width: number, height: number, activePixels: Array<[number, number]>) => {
   const data = new Uint8ClampedArray(width * height * 4);

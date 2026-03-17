@@ -159,6 +159,7 @@ import {
   isLayerReorderDrag,
   isAutoLayerName,
   layerHasImage,
+  resolveLayersAfterContextMenuRemoveImage,
   resolveLayerReorderFromIndex,
   resolveLayerStateAfterDelete,
   resolveInitialExpertEditSessionState,
@@ -2966,21 +2967,11 @@ export function ExpertEditPanelView({
       return;
     }
     setLayers((previousLayers) =>
-      previousLayers.map((layer) =>
-        layer.id === selectedLayerId
-          ? {
-              ...layer,
-              name:
-                layer.id === foundationLayerId && layer.isAutoNamed
-                  ? formatLayerName(1)
-                  : layer.name,
-              imageUrl: null,
-              ownsImageUrl: false,
-              opacity: LAYER_OPACITY_DEFAULT,
-              transform: defaultLayerTransform(),
-            }
-          : layer
-      )
+      resolveLayersAfterContextMenuRemoveImage({
+        layers: previousLayers,
+        selectedLayerId,
+        foundationLayerId,
+      })
     );
     closeStageContextMenu();
   }, [closeStageContextMenu, foundationLayerId, selectedLayer?.id]);

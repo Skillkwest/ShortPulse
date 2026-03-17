@@ -285,6 +285,29 @@ export const resolveLayerStateAfterDelete = ({
   };
 };
 
+export const resolveLayersAfterContextMenuRemoveImage = ({
+  layers,
+  selectedLayerId,
+  foundationLayerId,
+}: {
+  layers: ExpertEditLayer[];
+  selectedLayerId: string;
+  foundationLayerId: string | null;
+}) =>
+  layers.map((layer) =>
+    layer.id === selectedLayerId
+      ? {
+          ...layer,
+          name:
+            layer.id === foundationLayerId && layer.isAutoNamed ? formatLayerName(1) : layer.name,
+          imageUrl: null,
+          ownsImageUrl: false,
+          opacity: LAYER_OPACITY_DEFAULT,
+          transform: defaultLayerTransform(),
+        }
+      : layer
+  );
+
 export const resolveInitialLayerSessionState = ({
   referenceImageUrl,
   layerState,

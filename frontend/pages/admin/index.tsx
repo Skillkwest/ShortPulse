@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
 import {
@@ -12,26 +12,15 @@ import {
   ADMIN_DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH,
   useAdminAnnouncementsController,
 } from "../../features/admin/logic/useAdminAnnouncementsController";
+import { useAdminErrorsEventsController } from "../../features/admin/logic/useAdminErrorsEventsController";
 import {
   ADMIN_DASHBOARD_ADJUSTMENT_PRESETS,
   ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT,
   useAdminUsersCreditsController,
 } from "../../features/admin/logic/useAdminUsersCreditsController";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
-import type {
-  AdminErrorEventIncidentFilter,
-  AdminErrorLogRow,
-  AdminErrorEventRow,
-  AdminErrorEventSignalFilter,
-  AdminErrorEventsHealth,
-  AdminErrorEventSummary,
-  AdminErrorStatus,
-  AdminErrorSummary,
-  AdminPagination,
-} from "../../features/admin/types";
 import { useProtectedRoute } from "../../lib/authGuard";
 import styles from "../../styles/admin.module.css";
-import { fetchWithAuth } from "../../lib/authenticatedFetch";
 
 const planLabel = (planId: string | null): string => {
   if (!planId) return "—";
@@ -43,57 +32,6 @@ const planLabel = (planId: string | null): string => {
   return planId.charAt(0).toUpperCase() + planId.slice(1);
 };
 
-const ERRORS_PER_PAGE = 50;
-const ERROR_EVENTS_PER_PAGE = 50;
-const SEARCH_DEBOUNCE_MS = 250;
-const ERROR_REFRESH_INTERVAL_MS = 30000;
-const DEFAULT_ERROR_EVENTS_SUMMARY: AdminErrorEventSummary = {
-  last15mCount: 0,
-  high15mCount: 0,
-  generation15mCount: 0,
-  providerRunningTimeout15mCount: 0,
-  lastHourCount: 0,
-  last24hCount: 0,
-  app24hCount: 0,
-  generation24hCount: 0,
-  high24hCount: 0,
-  characterModeReferenceRefreshEmptyLastHourCount: 0,
-  characterModeReferenceRefreshEmptyLast24hCount: 0,
-  characterModeBundleUnavailableFallbackLastHourCount: 0,
-  characterModeBundleUnavailableFallbackLast24hCount: 0,
-  total15mThreshold: 40,
-  high15mThreshold: 8,
-  generation15mThreshold: 20,
-  providerRunningTimeout15mThreshold: 2,
-  total15mBreached: false,
-  high15mBreached: false,
-  generation15mBreached: false,
-  providerRunningTimeout15mBreached: false,
-};
-const DEFAULT_ERROR_EVENTS_HEALTH: AdminErrorEventsHealth = {
-  eventsTableAvailable: true,
-  degraded: false,
-  reason: null,
-};
-type ErrorLoadOverrides = {
-  page?: number;
-  status?: "open" | "all";
-  scope?: "all" | "app" | "generation";
-  severity?: "all" | "high" | "medium" | "low";
-  source?: string;
-  search?: string;
-};
-type ErrorEventsLoadOverrides = {
-  page?: number;
-  scope?: "all" | "app" | "generation";
-  severity?: "all" | "high" | "medium" | "low";
-  source?: string;
-  synthetic?: "all" | "exclude" | "only";
-  signal?: AdminErrorEventSignalFilter;
-  incident?: AdminErrorEventIncidentFilter;
-  search?: string;
-};
-
 const formatCreditDelta = (changeCents: number): string =>
   `${changeCents > 0 ? "+" : ""}${Math.trunc(changeCents).toLocaleString()}`;
 
@@ -102,67 +40,6 @@ const formatUsd = (value: number | null): string => (value == null ? "—" : `$$
 export default function AdminDashboardPage() {
   const { loading, user } = useProtectedRoute(true);
   const [activeTab, setActiveTab] = useState<"overview" | "errors" | "announcements">("overview");
-  const [errors, setErrors] = useState<AdminErrorLogRow[]>([]);
-  const [errorsLoading, setErrorsLoading] = useState(false);
-  const [errorsError, setErrorsError] = useState<string | null>(null);
-  const [errorEvents, setErrorEvents] = useState<AdminErrorEventRow[]>([]);
-  const [errorEventsLoading, setErrorEventsLoading] = useState(false);
-  const [errorEventsError, setErrorEventsError] = useState<string | null>(null);
-  const [errorEventsSummary, setErrorEventsSummary] = useState<AdminErrorEventSummary>(
-    DEFAULT_ERROR_EVENTS_SUMMARY
-  );
-  const [errorEventsHealth, setErrorEventsHealth] = useState<AdminErrorEventsHealth>(
-    DEFAULT_ERROR_EVENTS_HEALTH
-  );
-  const [errorEventsPage, setErrorEventsPage] = useState(1);
-  const [errorEventsPagination, setErrorEventsPagination] = useState<AdminPagination>({
-    page: 1,
-    perPage: ERROR_EVENTS_PER_PAGE,
-    totalCount: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  });
-  const [errorStatusUpdatingId, setErrorStatusUpdatingId] = useState<string | null>(null);
-  const [bulkIncidentStatusUpdating, setBulkIncidentStatusUpdating] = useState<
-    "resolved" | "ignored" | null
-  >(null);
-  const [bulkIncidentStatusResult, setBulkIncidentStatusResult] = useState<string | null>(null);
-  const [testIncidentSubmittingScope, setTestIncidentSubmittingScope] = useState<
-    "app" | "generation" | null
-  >(null);
-  const [testIncidentResult, setTestIncidentResult] = useState<string | null>(null);
-  const [errorSummary, setErrorSummary] = useState<AdminErrorSummary>({
-    openCount: 0,
-    highSeverityOpenCount: 0,
-    last24hCount: 0,
-    appOpenCount: 0,
-    generationOpenCount: 0,
-  });
-  const [errorStatusFilter, setErrorStatusFilter] = useState<"open" | "all">("open");
-  const [errorScopeFilter, setErrorScopeFilter] = useState<"all" | "app" | "generation">("all");
-  const [errorSeverityFilter, setErrorSeverityFilter] = useState<"all" | "high" | "medium" | "low">(
-    "all"
-  );
-  const [errorSourceFilter, setErrorSourceFilter] = useState<string>("all");
-  const [errorEventSyntheticFilter, setErrorEventSyntheticFilter] = useState<
-    "all" | "exclude" | "only"
-  >("exclude");
-  const [errorEventSignalFilter, setErrorEventSignalFilter] =
-    useState<AdminErrorEventSignalFilter>("all");
-  const [errorEventIncidentFilter, setErrorEventIncidentFilter] =
-    useState<AdminErrorEventIncidentFilter>("actionable");
-  const [errorSearch, setErrorSearch] = useState("");
-  const [debouncedErrorSearch, setDebouncedErrorSearch] = useState("");
-  const [errorsPage, setErrorsPage] = useState(1);
-  const [errorsPagination, setErrorsPagination] = useState<AdminPagination>({
-    page: 1,
-    perPage: ERRORS_PER_PAGE,
-    totalCount: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  });
   const {
     status: adminAccessStatus,
     isLoading: isAdminAccessLoading,
@@ -219,272 +96,52 @@ export default function AdminDashboardPage() {
   } = useAdminUsersCreditsController({
     enabled: Boolean(user && adminEnabled),
   });
-
-  const loadErrors = useCallback(
-    async (overrides?: ErrorLoadOverrides) => {
-      setErrorsLoading(true);
-      setErrorsError(null);
-      try {
-        const activePage = overrides?.page ?? errorsPage;
-        const activeStatus = overrides?.status ?? errorStatusFilter;
-        const activeScope = overrides?.scope ?? errorScopeFilter;
-        const activeSeverity = overrides?.severity ?? errorSeverityFilter;
-        const activeSource = overrides?.source ?? errorSourceFilter;
-        const activeSearch = overrides?.search ?? debouncedErrorSearch;
-
-        const params = new URLSearchParams();
-        params.set("page", String(activePage));
-        params.set("limit", String(ERRORS_PER_PAGE));
-        params.set("status", activeStatus);
-        if (activeScope !== "all") params.set("scope", activeScope);
-        if (activeSeverity !== "all") params.set("severity", activeSeverity);
-        if (activeSource !== "all") params.set("source", activeSource);
-        if (activeSearch.trim()) params.set("search", activeSearch.trim());
-
-        const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, {
-          method: "GET",
-        });
-        if (!response.ok) {
-          const details = await response.json().catch(() => ({}));
-          throw new Error(details?.error || "Failed to load error incidents.");
-        }
-        const data = (await response.json()) as {
-          errors?: unknown[];
-          summary?: AdminErrorSummary;
-          pagination?: Partial<AdminPagination>;
-        };
-        const resolvedPage = Number(data.pagination?.page ?? activePage);
-
-        const rows = (data.errors ?? []).map((item) => {
-          const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-          return {
-            id: String(value.id ?? ""),
-            fingerprint: String(value.fingerprint ?? ""),
-            source: String(value.source ?? "unknown"),
-            scope: value.scope === "generation" ? "generation" : "app",
-            severity:
-              value.severity === "high" || value.severity === "low" ? value.severity : "medium",
-            status:
-              value.status === "resolved" || value.status === "ignored" ? value.status : "open",
-            message: String(value.message ?? "Unknown error"),
-            stack: typeof value.stack === "string" ? value.stack : null,
-            route: typeof value.route === "string" ? value.route : null,
-            endpoint: typeof value.endpoint === "string" ? value.endpoint : null,
-            requestId: typeof value.request_id === "string" ? value.request_id : null,
-            httpStatus: Number.isFinite(Number(value.http_status))
-              ? Number(value.http_status)
-              : null,
-            userId: typeof value.user_id === "string" ? value.user_id : null,
-            userEmail: typeof value.user_email === "string" ? value.user_email : null,
-            metadata:
-              value.metadata && typeof value.metadata === "object"
-                ? (value.metadata as Record<string, unknown>)
-                : null,
-            firstSeenAt: typeof value.first_seen_at === "string" ? value.first_seen_at : null,
-            lastSeenAt: typeof value.last_seen_at === "string" ? value.last_seen_at : null,
-            occurrencesCount: Number.isFinite(Number(value.occurrences_count))
-              ? Number(value.occurrences_count)
-              : 1,
-          };
-        }) as AdminErrorLogRow[];
-
-        setErrors(rows);
-        setErrorSummary({
-          openCount: Number(data.summary?.openCount ?? 0),
-          highSeverityOpenCount: Number(data.summary?.highSeverityOpenCount ?? 0),
-          last24hCount: Number(data.summary?.last24hCount ?? 0),
-          appOpenCount: Number(data.summary?.appOpenCount ?? 0),
-          generationOpenCount: Number(data.summary?.generationOpenCount ?? 0),
-        });
-        setErrorsPagination({
-          page: resolvedPage,
-          perPage: Number(data.pagination?.perPage ?? ERRORS_PER_PAGE),
-          totalCount: Number(data.pagination?.totalCount ?? 0),
-          totalPages: Number(data.pagination?.totalPages ?? 1),
-          hasNextPage: Boolean(data.pagination?.hasNextPage),
-          hasPrevPage: Boolean(data.pagination?.hasPrevPage),
-        });
-        if (resolvedPage !== errorsPage) {
-          setErrorsPage(resolvedPage);
-        }
-      } catch (error) {
-        setErrorsError(error instanceof Error ? error.message : "Failed to load error incidents.");
-      } finally {
-        setErrorsLoading(false);
-      }
-    },
-    [
-      debouncedErrorSearch,
-      errorScopeFilter,
-      errorSeverityFilter,
-      errorSourceFilter,
-      errorStatusFilter,
-      errorsPage,
-    ]
-  );
-
-  const loadErrorEvents = useCallback(
-    async (overrides?: ErrorEventsLoadOverrides) => {
-      setErrorEventsLoading(true);
-      setErrorEventsError(null);
-      try {
-        const activePage = overrides?.page ?? errorEventsPage;
-        const activeScope = overrides?.scope ?? errorScopeFilter;
-        const activeSeverity = overrides?.severity ?? errorSeverityFilter;
-        const activeSource = overrides?.source ?? errorSourceFilter;
-        const activeSynthetic = overrides?.synthetic ?? errorEventSyntheticFilter;
-        const activeSignal = overrides?.signal ?? errorEventSignalFilter;
-        const activeIncident = overrides?.incident ?? errorEventIncidentFilter;
-        const activeSearch = overrides?.search ?? debouncedErrorSearch;
-
-        const params = new URLSearchParams();
-        params.set("page", String(activePage));
-        params.set("limit", String(ERROR_EVENTS_PER_PAGE));
-        if (activeScope !== "all") params.set("scope", activeScope);
-        if (activeSeverity !== "all") params.set("severity", activeSeverity);
-        if (activeSource !== "all") params.set("source", activeSource);
-        if (activeSynthetic !== "all") params.set("synthetic", activeSynthetic);
-        if (activeSignal !== "all") params.set("signal", activeSignal);
-        if (activeIncident !== "all") params.set("incident", activeIncident);
-        if (activeSearch.trim()) params.set("search", activeSearch.trim());
-
-        const response = await fetchWithAuth(`/api/admin/error-events?${params.toString()}`, {
-          method: "GET",
-        });
-        if (!response.ok) {
-          const details = await response.json().catch(() => ({}));
-          throw new Error(details?.error || "Failed to load error events.");
-        }
-
-        const data = (await response.json()) as {
-          events?: unknown[];
-          summary?: AdminErrorEventSummary;
-          health?: Partial<AdminErrorEventsHealth>;
-          pagination?: Partial<AdminPagination>;
-        };
-        const resolvedPage = Number(data.pagination?.page ?? activePage);
-        const rows = (data.events ?? []).map((item) => {
-          const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-          return {
-            id: String(value.id ?? ""),
-            incidentId: typeof value.incident_id === "string" ? value.incident_id : null,
-            incidentStatus:
-              value.incident_status === "resolved" || value.incident_status === "ignored"
-                ? value.incident_status
-                : value.incident_status === "open"
-                  ? "open"
-                  : null,
-            fingerprint: String(value.fingerprint ?? ""),
-            source: String(value.source ?? "unknown"),
-            scope: value.scope === "generation" ? "generation" : "app",
-            severity:
-              value.severity === "high" || value.severity === "low" ? value.severity : "medium",
-            message: String(value.message ?? "Unknown error event"),
-            stack: typeof value.stack === "string" ? value.stack : null,
-            route: typeof value.route === "string" ? value.route : null,
-            endpoint: typeof value.endpoint === "string" ? value.endpoint : null,
-            requestId: typeof value.request_id === "string" ? value.request_id : null,
-            httpStatus: Number.isFinite(Number(value.http_status))
-              ? Number(value.http_status)
-              : null,
-            userId: typeof value.user_id === "string" ? value.user_id : null,
-            userEmail: typeof value.user_email === "string" ? value.user_email : null,
-            metadata:
-              value.metadata && typeof value.metadata === "object"
-                ? (value.metadata as Record<string, unknown>)
-                : null,
-            occurredAt: typeof value.occurred_at === "string" ? value.occurred_at : null,
-            createdAt: typeof value.created_at === "string" ? value.created_at : null,
-          };
-        }) as AdminErrorEventRow[];
-
-        setErrorEvents(rows);
-        setErrorEventsSummary({
-          last15mCount: Number(data.summary?.last15mCount ?? 0),
-          high15mCount: Number(data.summary?.high15mCount ?? 0),
-          generation15mCount: Number(data.summary?.generation15mCount ?? 0),
-          providerRunningTimeout15mCount: Number(data.summary?.providerRunningTimeout15mCount ?? 0),
-          lastHourCount: Number(data.summary?.lastHourCount ?? 0),
-          last24hCount: Number(data.summary?.last24hCount ?? 0),
-          app24hCount: Number(data.summary?.app24hCount ?? 0),
-          generation24hCount: Number(data.summary?.generation24hCount ?? 0),
-          high24hCount: Number(data.summary?.high24hCount ?? 0),
-          characterModeReferenceRefreshEmptyLastHourCount: Number(
-            data.summary?.characterModeReferenceRefreshEmptyLastHourCount ?? 0
-          ),
-          characterModeReferenceRefreshEmptyLast24hCount: Number(
-            data.summary?.characterModeReferenceRefreshEmptyLast24hCount ?? 0
-          ),
-          characterModeBundleUnavailableFallbackLastHourCount: Number(
-            data.summary?.characterModeBundleUnavailableFallbackLastHourCount ?? 0
-          ),
-          characterModeBundleUnavailableFallbackLast24hCount: Number(
-            data.summary?.characterModeBundleUnavailableFallbackLast24hCount ?? 0
-          ),
-          total15mThreshold: Number(data.summary?.total15mThreshold ?? 40),
-          high15mThreshold: Number(data.summary?.high15mThreshold ?? 8),
-          generation15mThreshold: Number(data.summary?.generation15mThreshold ?? 20),
-          providerRunningTimeout15mThreshold: Number(
-            data.summary?.providerRunningTimeout15mThreshold ?? 2
-          ),
-          total15mBreached: Boolean(data.summary?.total15mBreached),
-          high15mBreached: Boolean(data.summary?.high15mBreached),
-          generation15mBreached: Boolean(data.summary?.generation15mBreached),
-          providerRunningTimeout15mBreached: Boolean(
-            data.summary?.providerRunningTimeout15mBreached
-          ),
-        });
-        setErrorEventsHealth({
-          eventsTableAvailable: Boolean(data.health?.eventsTableAvailable ?? true),
-          degraded: Boolean(data.health?.degraded ?? false),
-          reason: typeof data.health?.reason === "string" ? data.health.reason : null,
-        });
-        setErrorEventsPagination({
-          page: resolvedPage,
-          perPage: Number(data.pagination?.perPage ?? ERROR_EVENTS_PER_PAGE),
-          totalCount: Number(data.pagination?.totalCount ?? 0),
-          totalPages: Number(data.pagination?.totalPages ?? 1),
-          hasNextPage: Boolean(data.pagination?.hasNextPage),
-          hasPrevPage: Boolean(data.pagination?.hasPrevPage),
-        });
-        if (resolvedPage !== errorEventsPage) {
-          setErrorEventsPage(resolvedPage);
-        }
-      } catch (error) {
-        setErrorEventsError(
-          error instanceof Error ? error.message : "Failed to load error events."
-        );
-        setErrorEventsHealth(DEFAULT_ERROR_EVENTS_HEALTH);
-      } finally {
-        setErrorEventsLoading(false);
-      }
-    },
-    [
-      debouncedErrorSearch,
-      errorEventSyntheticFilter,
-      errorEventSignalFilter,
-      errorEventIncidentFilter,
-      errorEventsPage,
-      errorScopeFilter,
-      errorSeverityFilter,
-      errorSourceFilter,
-    ]
-  );
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedErrorSearch(errorSearch), SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [errorSearch]);
-
-  useEffect(() => {
-    if (!user || !adminEnabled) return;
-    loadErrors();
-  }, [adminEnabled, loadErrors, user]);
-
-  useEffect(() => {
-    if (!user || !adminEnabled) return;
-    loadErrorEvents();
-  }, [adminEnabled, loadErrorEvents, user]);
+  const {
+    errors,
+    errorsLoading,
+    errorsError,
+    errorSummary,
+    errorEvents,
+    errorEventsLoading,
+    errorEventsError,
+    errorEventsSummary,
+    errorEventsHealth,
+    errorEventsPagination,
+    errorStatusFilter,
+    errorScopeFilter,
+    errorSeverityFilter,
+    errorSourceFilter,
+    errorEventSyntheticFilter,
+    errorEventSignalFilter,
+    errorEventIncidentFilter,
+    errorSearch,
+    errorsPagination,
+    errorStatusUpdatingId,
+    bulkIncidentStatusUpdating,
+    bulkIncidentStatusResult,
+    testIncidentSubmittingScope,
+    testIncidentResult,
+    handleErrorStatusFilterChange,
+    handleErrorScopeFilterChange,
+    handleErrorSeverityFilterChange,
+    handleErrorSourceFilterChange,
+    handleErrorEventSyntheticFilterChange,
+    handleErrorEventSignalFilterChange,
+    handleErrorEventIncidentFilterChange,
+    handleErrorSearchChange,
+    handleUpdateErrorStatus,
+    handleUpdateErrorEventStatus,
+    handleBulkUpdateListedErrorStatus,
+    handleTriggerTestIncident,
+    handleErrorsPrevPage,
+    handleErrorsNextPage,
+    handleErrorEventsPrevPage,
+    handleErrorEventsNextPage,
+    refreshErrorData,
+  } = useAdminErrorsEventsController({
+    enabled: Boolean(user && adminEnabled),
+    liveRefreshEnabled: Boolean(user && adminEnabled && activeTab === "errors"),
+  });
 
   const overview = useMemo(
     () => ({
@@ -493,228 +150,6 @@ export default function AdminDashboardPage() {
       pendingCredits: pendingCreditsCount,
     }),
     [activeUsersCount, errorSummary.openCount, pendingCreditsCount]
-  );
-
-  const handleUpdateErrorStatus = useCallback(
-    async (errorId: string, status: AdminErrorStatus) => {
-      setErrorStatusUpdatingId(errorId);
-      setErrorsError(null);
-      setErrorEventsError(null);
-      try {
-        const response = await fetchWithAuth("/api/admin/errors-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ errorId, status }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to update incident status.");
-        }
-        await Promise.all([loadErrors(), loadErrorEvents()]);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to update incident status.";
-        setErrorsError(message);
-        setErrorEventsError(message);
-      } finally {
-        setErrorStatusUpdatingId((current) => (current === errorId ? null : current));
-      }
-    },
-    [loadErrorEvents, loadErrors]
-  );
-
-  const handleUpdateErrorEventStatus = useCallback(
-    async (eventId: string, status: AdminErrorStatus) => {
-      setErrorStatusUpdatingId(eventId);
-      setErrorsError(null);
-      setErrorEventsError(null);
-      try {
-        const response = await fetchWithAuth("/api/admin/errors-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventId, status }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to update event status.");
-        }
-        await Promise.all([loadErrors(), loadErrorEvents()]);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to update event status.";
-        setErrorsError(message);
-        setErrorEventsError(message);
-      } finally {
-        setErrorStatusUpdatingId((current) => (current === eventId ? null : current));
-      }
-    },
-    [loadErrorEvents, loadErrors]
-  );
-
-  const handleBulkUpdateListedErrorStatus = useCallback(
-    async (status: "resolved" | "ignored") => {
-      const openIncidentIds = errors
-        .filter((row) => row.status === "open")
-        .map((row) => row.id)
-        .filter((value, index, source) => source.indexOf(value) === index);
-
-      if (!openIncidentIds.length) {
-        setBulkIncidentStatusResult("No open incidents are listed on this page.");
-        return;
-      }
-
-      setBulkIncidentStatusUpdating(status);
-      setBulkIncidentStatusResult(null);
-      setErrorsError(null);
-      setErrorEventsError(null);
-
-      try {
-        const response = await fetchWithAuth("/api/admin/errors-status-bulk", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ errorIds: openIncidentIds, status }),
-        });
-        const data = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          summary?: {
-            requestedCount?: number;
-            updatedCount?: number;
-            failedCount?: number;
-          };
-        };
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to update listed incidents.");
-        }
-
-        await Promise.all([loadErrors(), loadErrorEvents()]);
-        const updatedCount = Number(data.summary?.updatedCount ?? 0);
-        const failedCount = Number(data.summary?.failedCount ?? 0);
-        const statusLabel = status === "resolved" ? "resolved" : "ignored";
-        if (failedCount > 0) {
-          setBulkIncidentStatusResult(
-            `Bulk update completed with partial success: ${updatedCount} ${statusLabel}, ${failedCount} failed.`
-          );
-          return;
-        }
-        setBulkIncidentStatusResult(
-          `Bulk update complete: ${updatedCount} incident${updatedCount === 1 ? "" : "s"} ${statusLabel}.`
-        );
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to update listed incidents.";
-        setErrorsError(message);
-        setErrorEventsError(message);
-        setBulkIncidentStatusResult(message);
-      } finally {
-        setBulkIncidentStatusUpdating((current) => (current === status ? null : current));
-      }
-    },
-    [errors, loadErrorEvents, loadErrors]
-  );
-
-  const refreshErrorData = useCallback(async () => {
-    await Promise.all([loadErrors(), loadErrorEvents()]);
-  }, [loadErrorEvents, loadErrors]);
-
-  useEffect(() => {
-    if (!user || !adminEnabled || activeTab !== "errors") return;
-
-    const refreshIfEligible = () => {
-      if (document.visibilityState !== "visible") {
-        return;
-      }
-      if (errorsLoading || errorEventsLoading || testIncidentSubmittingScope !== null) {
-        return;
-      }
-      void refreshErrorData();
-    };
-
-    const intervalId = window.setInterval(() => {
-      refreshIfEligible();
-    }, ERROR_REFRESH_INTERVAL_MS);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== "visible") return;
-      refreshIfEligible();
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [
-    activeTab,
-    adminEnabled,
-    errorEventsLoading,
-    errorsLoading,
-    refreshErrorData,
-    testIncidentSubmittingScope,
-    user,
-  ]);
-
-  const handleTriggerTestIncident = useCallback(
-    async (scope: "app" | "generation") => {
-      setTestIncidentSubmittingScope(scope);
-      setTestIncidentResult(null);
-      setErrorsError(null);
-      try {
-        const response = await fetchWithAuth("/api/admin/errors-test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scope,
-            severity: "high",
-            statusCode: scope === "generation" ? 502 : 500,
-          }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to create synthetic incident.");
-        }
-
-        setErrorStatusFilter("open");
-        setErrorScopeFilter("all");
-        setErrorSeverityFilter("all");
-        setErrorSourceFilter("all");
-        setErrorEventSyntheticFilter("exclude");
-        setErrorEventSignalFilter("all");
-        setErrorEventIncidentFilter("actionable");
-        setErrorSearch("");
-        setDebouncedErrorSearch("");
-        setErrorsPage(1);
-        setErrorEventsPage(1);
-        await Promise.all([
-          loadErrors({
-            page: 1,
-            status: "open",
-            scope: "all",
-            severity: "all",
-            source: "all",
-            search: "",
-          }),
-          loadErrorEvents({
-            page: 1,
-            scope: "all",
-            severity: "all",
-            source: "all",
-            synthetic: "exclude",
-            signal: "all",
-            incident: "actionable",
-            search: "",
-          }),
-        ]);
-        setTestIncidentResult(
-          `Synthetic ${scope} incident logged${data?.incidentId ? ` (${String(data.incidentId).slice(0, 8)}…)` : ""}.`
-        );
-      } catch (error) {
-        setTestIncidentResult(
-          error instanceof Error ? error.message : "Failed to create synthetic incident."
-        );
-      } finally {
-        setTestIncidentSubmittingScope((current) => (current === scope ? null : current));
-      }
-    },
-    [loadErrorEvents, loadErrors]
   );
 
   if (loading) {
@@ -1167,52 +602,22 @@ export default function AdminDashboardPage() {
             bulkIncidentStatusResult={bulkIncidentStatusResult}
             testIncidentSubmittingScope={testIncidentSubmittingScope}
             testIncidentResult={testIncidentResult}
-            onErrorStatusFilterChange={(value) => {
-              setErrorStatusFilter(value);
-              setErrorsPage(1);
-            }}
-            onErrorScopeFilterChange={(value) => {
-              setErrorScopeFilter(value);
-              setErrorsPage(1);
-              setErrorEventsPage(1);
-            }}
-            onErrorSeverityFilterChange={(value) => {
-              setErrorSeverityFilter(value);
-              setErrorsPage(1);
-              setErrorEventsPage(1);
-            }}
-            onErrorSourceFilterChange={(value) => {
-              setErrorSourceFilter(value);
-              setErrorEventSignalFilter("all");
-              setErrorsPage(1);
-              setErrorEventsPage(1);
-            }}
-            onErrorEventSyntheticFilterChange={(value) => {
-              setErrorEventSyntheticFilter(value);
-              setErrorEventsPage(1);
-            }}
-            onErrorEventSignalFilterChange={(value) => {
-              setErrorEventSignalFilter(value);
-              setErrorSourceFilter("all");
-              setErrorEventsPage(1);
-            }}
-            onErrorEventIncidentFilterChange={(value) => {
-              setErrorEventIncidentFilter(value);
-              setErrorEventsPage(1);
-            }}
-            onErrorSearchChange={(value) => {
-              setErrorSearch(value);
-              setErrorsPage(1);
-              setErrorEventsPage(1);
-            }}
+            onErrorStatusFilterChange={handleErrorStatusFilterChange}
+            onErrorScopeFilterChange={handleErrorScopeFilterChange}
+            onErrorSeverityFilterChange={handleErrorSeverityFilterChange}
+            onErrorSourceFilterChange={handleErrorSourceFilterChange}
+            onErrorEventSyntheticFilterChange={handleErrorEventSyntheticFilterChange}
+            onErrorEventSignalFilterChange={handleErrorEventSignalFilterChange}
+            onErrorEventIncidentFilterChange={handleErrorEventIncidentFilterChange}
+            onErrorSearchChange={handleErrorSearchChange}
             onUpdateErrorStatus={handleUpdateErrorStatus}
             onUpdateErrorEventStatus={handleUpdateErrorEventStatus}
             onBulkUpdateListedErrorStatus={handleBulkUpdateListedErrorStatus}
             onTriggerTestIncident={handleTriggerTestIncident}
-            onPrevPage={() => setErrorsPage((value) => Math.max(1, value - 1))}
-            onNextPage={() => setErrorsPage((value) => value + 1)}
-            onEventPrevPage={() => setErrorEventsPage((value) => Math.max(1, value - 1))}
-            onEventNextPage={() => setErrorEventsPage((value) => value + 1)}
+            onPrevPage={handleErrorsPrevPage}
+            onNextPage={handleErrorsNextPage}
+            onEventPrevPage={handleErrorEventsPrevPage}
+            onEventNextPage={handleErrorEventsNextPage}
             onRefresh={refreshErrorData}
           />
         ) : (

@@ -78,3 +78,6 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-hotspot-map.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-view-state-split.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-drop-reference-controller-split.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-checkpoint-review.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-hotspot-map.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-characterization-lock.md`

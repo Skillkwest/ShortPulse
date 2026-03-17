@@ -153,12 +153,14 @@ import {
 import {
   LAYER_OPACITY_DEFAULT,
   LAYER_REORDER_DRAG_MIME,
+  collectOwnedLayerImageUrls,
   cloneLayerForSessionState,
   enforceLayerStackInvariants,
   formatLayerName,
   isLayerReorderDrag,
   isAutoLayerName,
   layerHasImage,
+  resolveStaleOwnedLayerImageUrls,
   resolveLayersAfterContextMenuRemoveImage,
   resolveLayerReorderFromIndex,
   resolveLayerStateAfterDelete,
@@ -3199,15 +3201,11 @@ export function ExpertEditPanelView({
       previousLayersRef.current = layers;
       return;
     }
-    const activeOwnedUrls = new Set(
-      layers
-        .filter((layer) => layer.ownsImageUrl && typeof layer.imageUrl === "string")
-        .map((layer) => layer.imageUrl as string)
-    );
-    previousLayers.forEach((layer) => {
-      if (!layer.ownsImageUrl || !layer.imageUrl) return;
-      if (activeOwnedUrls.has(layer.imageUrl)) return;
-      revokeObjectUrlSafe(layer.imageUrl);
+    resolveStaleOwnedLayerImageUrls({
+      previousLayers,
+      activeLayers: layers,
+    }).forEach((url) => {
+      revokeObjectUrlSafe(url);
     });
     previousLayersRef.current = layers;
   }, [layers]);
@@ -3657,11 +3655,7 @@ export function ExpertEditPanelView({
         revokeObjectUrl: revokeObjectUrlSafe,
       });
       if (!onSessionStateChange) {
-        const ownedUrlsOnUnmount = new Set(
-          previousLayersRef.current
-            .filter((layer) => layer.ownsImageUrl && typeof layer.imageUrl === "string")
-            .map((layer) => layer.imageUrl as string)
-        );
+        const ownedUrlsOnUnmount = collectOwnedLayerImageUrls(previousLayersRef.current);
         ownedUrlsOnUnmount.forEach((url) => revokeObjectUrlSafe(url));
       }
       previousLayersRef.current = [];

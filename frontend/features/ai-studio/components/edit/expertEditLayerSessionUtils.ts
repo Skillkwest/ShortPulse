@@ -87,6 +87,32 @@ const coerceLayerTransformFromSessionState = (
 export const layerHasImage = (layer: ExpertEditLayer) =>
   typeof layer.imageUrl === "string" && layer.imageUrl.trim().length > 0;
 
+export const collectOwnedLayerImageUrls = (layers: ExpertEditLayer[]) => {
+  const urls = new Set<string>();
+  layers.forEach((layer) => {
+    if (!layer.ownsImageUrl || typeof layer.imageUrl !== "string") return;
+    urls.add(layer.imageUrl);
+  });
+  return urls;
+};
+
+export const resolveStaleOwnedLayerImageUrls = ({
+  previousLayers,
+  activeLayers,
+}: {
+  previousLayers: ExpertEditLayer[];
+  activeLayers: ExpertEditLayer[];
+}) => {
+  const activeOwnedUrls = collectOwnedLayerImageUrls(activeLayers);
+  const staleUrls: string[] = [];
+  previousLayers.forEach((layer) => {
+    if (!layer.ownsImageUrl || !layer.imageUrl) return;
+    if (activeOwnedUrls.has(layer.imageUrl)) return;
+    staleUrls.push(layer.imageUrl);
+  });
+  return staleUrls;
+};
+
 export const enforceLayerStackInvariants = ({
   layers,
   foundationLayerId,

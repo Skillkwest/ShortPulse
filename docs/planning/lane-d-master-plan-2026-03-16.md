@@ -103,6 +103,14 @@ Current status after `D3-01` / `D3-02`:
 1. Gate perf/audit console logging behind explicit audit runtime controls and non-production defaults.
 2. Remove accidental core-flow logging noise from production paths while preserving operational telemetry.
 
+Current status after `D4-01`:
+1. Canvas gesture debug logging in `frontend/features/ai-studio/components/canvas/useCanvasViewportInstanceState.ts` now requires the governed audit runtime perf flag plus the explicit local window debug switch.
+2. Raw canvas console noise is removed from default runtime behavior.
+3. Operational/configuration logging remains intentionally retained in:
+   - `frontend/features/ai-studio/logic/perfProfileFlags.ts`
+   - `frontend/features/ai-studio/utils/videoUpload.ts`
+   because those paths are configuration/error signaling, not audit-debug chatter.
+
 ### D5: Guardrail Convergence
 1. Add Lane D runtime-safety gate policy to CI/docs governance mapping.
 2. Require lane-specific strict lint checks for touched runtime seams.

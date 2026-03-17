@@ -56,6 +56,7 @@ import type {
 } from "./canvasWorkspaceContracts";
 import { useCanvasViewportDropHandlers } from "./useCanvasViewportDropHandlers";
 import { useCanvasViewportTextHandlers } from "./useCanvasViewportTextHandlers";
+import { PERF_FLAG_AUDIT_RUNTIME } from "../../logic/perfProfileFlags";
 
 const VIEWPORT_PAN_ACTIVATION_DISTANCE_PX = 6;
 
@@ -233,6 +234,7 @@ export const useCanvasViewportInstanceState = ({
   const logCanvasGesture = useCallback(
     (eventName: string, payload?: Record<string, unknown>) => {
       if (typeof window === "undefined") return;
+      if (!PERF_FLAG_AUDIT_RUNTIME) return;
       if (!(window as { __shortpulseCanvasDebug?: boolean }).__shortpulseCanvasDebug) return;
       if (payload) {
         console.log(`[canvas:${instanceId}] ${eventName}`, payload);

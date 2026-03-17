@@ -238,6 +238,32 @@ describe("Canvas interaction behavior", () => {
     expect(Number(viewport.getAttribute("data-camera-y"))).toBe(45);
   });
 
+  it("does not emit canvas gesture console logs from the raw debug switch alone", () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const windowWithCanvasDebug = window as typeof window & { __shortpulseCanvasDebug?: boolean };
+    const previousCanvasDebug = windowWithCanvasDebug.__shortpulseCanvasDebug;
+    windowWithCanvasDebug.__shortpulseCanvasDebug = true;
+
+    try {
+      render(<CanvasHarness />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.pointerDown(viewport, {
+        button: 0,
+        detail: 2,
+        pointerId: 901,
+        clientX: 290,
+        clientY: 190,
+      });
+
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+    } finally {
+      windowWithCanvasDebug.__shortpulseCanvasDebug = previousCanvasDebug;
+      consoleLogSpy.mockRestore();
+    }
+  });
+
   it("does not consume ctrl+primary pointerdown so context-menu intent can proceed", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

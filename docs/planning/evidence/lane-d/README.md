@@ -35,3 +35,4 @@ Examples:
 - `docs/planning/evidence/lane-d/2026-03-17-d2-01-split-controller-suppression-retirement.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d3-01-selector-store-hard-disable-cleanup.md`
 - `docs/planning/evidence/lane-d/2026-03-17-d3-02-reference-grid-emergency-constant-audit.md`
+- `docs/planning/evidence/lane-d/2026-03-17-d4-01-runtime-logging-hygiene.md`

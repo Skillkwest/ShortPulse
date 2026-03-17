@@ -18,6 +18,7 @@ Owner: Engineering
 - `size_budget`
 - `agent_contract_tests`
 - `agent_disable_continuity`
+- `agent_rollback_verification`
 - `adaptive_media_gate`
 - `ai_studio_perf_gate`
 - `secret_scan`
@@ -35,6 +36,7 @@ Owner: Engineering
 - `scripts/check_size_budgets.js` (new)
 - `scripts/check_agent_contract_tests.js` (new)
 - `scripts/check_agent_disable_continuity.js` (new)
+- `scripts/check_agent_rollback_verification.js` (new)
 - `scripts/check_secret_exposure.js` (new)
 - `scripts/ci_npm_ci_with_retry.sh` (new)
 - `scripts/phase11_checkpoint_window_guard.mjs` (new)
@@ -90,6 +92,16 @@ Mode policy:
   1. use `validate:lane-e-governance` for all Lane E convergence and closeout PRs,
   2. attach the exact green-cycle packet reference in the evidence chain,
   3. do not mark Lane E complete until two consecutive green cycles are recorded.
+
+## Agent rollback verification gate
+
+- Gate job ID: `agent_rollback_verification`
+- Command: `node scripts/check_agent_rollback_verification.js`
+- Mode variable: `AGENT_ROLLBACK_VERIFICATION_MODE=warn|enforce` (defaults to `warn`)
+- Policy intent:
+  - preserve documented rollback-safe agent behavior on guarded rollback paths,
+  - keep rollback verification drift visible even when branch-level required-check enforcement remains plan-limited,
+  - make any promotion from `warn` to `enforce` explicit and evidence-backed.
 
 ## Frontend fast-lane suites
 
@@ -186,6 +198,7 @@ Target required check names (running in `enforce` mode in CI; branch-level enfor
 - `size_budget`
 - `agent_contract_tests`
 - `agent_disable_continuity`
+- `agent_rollback_verification`
 
 ## Manual evidence runbook (required)
 Repository API access for branch rules/protection is restricted in this repo context (`403`), so evidence is captured manually:

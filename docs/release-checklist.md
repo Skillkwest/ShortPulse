@@ -8,6 +8,7 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 - `npm -C frontend run test`
 - `npm -C frontend run type-check`
 - `npm -C frontend run build`
+- `npm -C frontend run docs:check`
 - `npm -C frontend run deadcode:check`
 - When a PR touches Lane D runtime-safety seams, run `npm -C frontend run validate:lane-d-runtime`
 - When that Lane D PR also touches adaptive/reference-grid/canvas protected surfaces, also run `npm -C frontend run test:adaptive-v2-gate`

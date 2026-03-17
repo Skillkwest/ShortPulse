@@ -32,9 +32,10 @@ Default contract:
 As of 2026-03-17:
 1. Lane F artifacts are now published: master plan, tracker spec, contact map, execution plan, and lane evidence index.
 2. CI workflow currently defines `17` jobs in `.github/workflows/ci.yml`.
-3. CI policy inventory drift exists:
-   - `agent_rollback_verification` is in workflow but missing from `docs/planning/ci-policy-checks.md`.
-   - `AGENT_ROLLBACK_VERIFICATION_MODE` is used in CI but not tracked in policy docs.
+3. CI inventory and required-check coverage are now locked after `F1-01`:
+   - `agent_rollback_verification` is documented in `docs/planning/ci-policy-checks.md`,
+   - `AGENT_ROLLBACK_VERIFICATION_MODE` is tracked in policy docs,
+   - release checklist engineering gates explicitly include `npm -C frontend run docs:check`.
 4. Guardrail mode variables are currently set to `enforce` for core CI policy checks.
 5. Branch-protection/ruleset API remains plan-limited for this private repository (`403`), requiring compensating controls for production-readiness posture.
 6. Workflow reliability controls are incomplete:

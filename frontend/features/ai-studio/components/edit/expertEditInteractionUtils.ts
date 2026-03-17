@@ -38,6 +38,11 @@ export type EditSubmitIntentMode = "standard" | "inpaint" | "markup";
 export type RailToolMode = "move" | "inpaint" | "video";
 export type TimeoutRef = { current: number | null };
 export type ObjectUrlRevokeTimers = Map<string, number>;
+export type GlobalCursorLockState = {
+  active: boolean;
+  bodyCursor: string;
+  htmlCursor: string;
+};
 
 export const createIdleTransformPointerSession = (): TransformPointerSession => ({
   active: false,
@@ -157,4 +162,40 @@ export const clearTransientObjectUrlRevokeTimers = ({
     revokeObjectUrl(url);
   });
   timersByUrl.clear();
+};
+
+export const lockDocumentCursor = ({
+  cursor,
+  lockState,
+}: {
+  cursor: string;
+  lockState: GlobalCursorLockState;
+}) => {
+  if (typeof document === "undefined") return;
+  const bodyStyle = document.body?.style;
+  const htmlStyle = document.documentElement?.style;
+  if (!bodyStyle || !htmlStyle) return;
+  if (!lockState.active) {
+    lockState.bodyCursor = bodyStyle.cursor;
+    lockState.htmlCursor = htmlStyle.cursor;
+    lockState.active = true;
+  }
+  bodyStyle.cursor = cursor;
+  htmlStyle.cursor = cursor;
+};
+
+export const unlockDocumentCursor = (lockState: GlobalCursorLockState) => {
+  if (typeof document === "undefined") return;
+  if (!lockState.active) return;
+  const bodyStyle = document.body?.style;
+  const htmlStyle = document.documentElement?.style;
+  if (bodyStyle) {
+    bodyStyle.cursor = lockState.bodyCursor;
+  }
+  if (htmlStyle) {
+    htmlStyle.cursor = lockState.htmlCursor;
+  }
+  lockState.active = false;
+  lockState.bodyCursor = "";
+  lockState.htmlCursor = "";
 };

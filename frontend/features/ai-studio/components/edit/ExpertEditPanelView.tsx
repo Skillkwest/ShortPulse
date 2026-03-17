@@ -179,10 +179,12 @@ import {
   clearWindowTimeoutRef,
   createIdleTransformPointerSession,
   isKeyboardEventFromEditableTarget,
+  lockDocumentCursor,
   resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   resolveStageContextMenuPosition,
+  unlockDocumentCursor,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
 import {
@@ -1510,35 +1512,14 @@ export function ExpertEditPanelView({
   );
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
-    if (typeof document === "undefined") return;
-    const lockState = globalCursorLockRef.current;
-    const bodyStyle = document.body?.style;
-    const htmlStyle = document.documentElement?.style;
-    if (!bodyStyle || !htmlStyle) return;
-    if (!lockState.active) {
-      lockState.bodyCursor = bodyStyle.cursor;
-      lockState.htmlCursor = htmlStyle.cursor;
-      lockState.active = true;
-    }
-    bodyStyle.cursor = cursor;
-    htmlStyle.cursor = cursor;
+    lockDocumentCursor({
+      cursor,
+      lockState: globalCursorLockRef.current,
+    });
   }, []);
 
   const unlockGlobalCursor = React.useCallback(() => {
-    if (typeof document === "undefined") return;
-    const lockState = globalCursorLockRef.current;
-    if (!lockState.active) return;
-    const bodyStyle = document.body?.style;
-    const htmlStyle = document.documentElement?.style;
-    if (bodyStyle) {
-      bodyStyle.cursor = lockState.bodyCursor;
-    }
-    if (htmlStyle) {
-      htmlStyle.cursor = lockState.htmlCursor;
-    }
-    lockState.active = false;
-    lockState.bodyCursor = "";
-    lockState.htmlCursor = "";
+    unlockDocumentCursor(globalCursorLockRef.current);
   }, []);
 
   const scheduleTransientObjectUrlRevoke = React.useCallback((url: string) => {

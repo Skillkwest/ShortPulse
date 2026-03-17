@@ -2528,15 +2528,7 @@ export function ExpertEditPanelView({
     [finalizeMarkupGestureHistory, unlockGlobalCursor]
   );
 
-  const handleMarkupStageMouseDown = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 1 || !isMarkupExpandSelected) return;
-      event.preventDefault();
-    },
-    [isMarkupExpandSelected]
-  );
-
-  const handleMarkupStageAuxClick = React.useCallback(
+  const handleMarkupStageMiddleClickSuppress = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (event.button !== 1 || !isMarkupExpandSelected) return;
       event.preventDefault();
@@ -2740,21 +2732,11 @@ export function ExpertEditPanelView({
 
   const moveStageHandlers = React.useMemo(
     () => ({
-      onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleMovePointerDown(event);
-      },
-      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleMovePointerMove(event);
-      },
-      onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleMovePointerUp(event);
-      },
-      onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleMovePointerCancel(event);
-      },
-      onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleMovePointerLeave(event);
-      },
+      onPointerDown: handleMovePointerDown,
+      onPointerMove: handleMovePointerMove,
+      onPointerUp: handleMovePointerUp,
+      onPointerCancel: handleMovePointerCancel,
+      onPointerLeave: handleMovePointerLeave,
     }),
     [
       handleMovePointerCancel,
@@ -5092,8 +5074,8 @@ export function ExpertEditPanelView({
         layersPanel={renderLayersToolbar("modal")}
         onClose={closeMarkupModal}
         onDragShield={handleMarkupModalDragShield}
-        onStageMouseDown={handleMarkupStageMouseDown}
-        onStageAuxClick={handleMarkupStageAuxClick}
+        onStageMouseDown={handleMarkupStageMiddleClickSuppress}
+        onStageAuxClick={handleMarkupStageMiddleClickSuppress}
         onStagePointerDown={modalStageInteractionRouter.onPointerDown}
         onStagePointerMove={modalStageInteractionRouter.onPointerMove}
         onStagePointerUp={modalStageInteractionRouter.onPointerUp}

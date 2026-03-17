@@ -9,16 +9,18 @@ linked_pr: n/a (local execution slice)
 ## Scope
 1. Extract Character Picker modal UI/controller block out of `ExpertEditPanelView`.
 2. Extract preset-drag and blob/canvas utility helpers out of `ExpertEditPanelView`.
-3. Keep `ExpertEditPanelView` public props/behavior unchanged.
-4. Validate no-regression on Expert Edit panel tests and lane guardrails.
+3. Extract color parsing/HSV-RGB conversion helpers and types out of `ExpertEditPanelView`.
+4. Keep `ExpertEditPanelView` public props/behavior unchanged.
+5. Validate no-regression on Expert Edit panel tests and lane guardrails.
 
 ## Files Updated
 1. `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`
 2. `frontend/features/ai-studio/components/edit/ExpertEditCharacterPickerModal.tsx`
 3. `frontend/features/ai-studio/components/edit/expertEditPanelUtilities.ts`
-4. `docs/planning/lane-b-execution-plan-2026-03-16.md`
-5. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-6. `docs/planning/evidence/lane-b/README.md`
+4. `frontend/features/ai-studio/components/edit/expertEditColorUtils.ts`
+5. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+6. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
+7. `docs/planning/evidence/lane-b/README.md`
 
 ## Commands Run
 1. `npm -C frontend run test -- features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
@@ -41,12 +43,14 @@ linked_pr: n/a (local execution slice)
 | `docs:check` | 0 | pass |
 
 ## LOC Or Coupling Delta
-1. `ExpertEditPanelView.tsx`: `6368` -> `6077` (`-291` lines).
+1. `ExpertEditPanelView.tsx`: `6368` -> `5978` (`-390` lines).
 2. New module: `ExpertEditCharacterPickerModal.tsx` (`188` lines).
 3. New module: `expertEditPanelUtilities.ts` (`131` lines).
-4. Coupling reduction:
+4. New module: `expertEditColorUtils.ts` (`113` lines).
+5. Coupling reduction:
    - Character Picker responsibilities (modal activity, avatar resilience, refresh handling) moved into a dedicated edit-domain component module.
    - Preset drag payload, blob URL lifecycle, and canvas-space helpers moved into a dedicated edit-domain utility module.
+   - Color parsing and HSV/RGB conversion logic moved into a dedicated edit-domain utility module.
 
 ## Parity Assertions
 1. `ExpertEditPanelView` prop contract remained unchanged.

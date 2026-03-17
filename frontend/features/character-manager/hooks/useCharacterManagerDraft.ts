@@ -4,30 +4,21 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CHARACTER_MANAGER_MAX_IMAGE_BYTES,
   CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
   createDefaultCharacterSheetPresetDescriptions,
   createEmptyCharacterSheetAssignments,
-  createEmptyCharacterSheetPresetAssignments,
   createEmptyCharacterSlotMap,
 } from "../constants";
+import { useCharacterManagerAssetController } from "./useCharacterManagerAssetController";
 import { useCharacterManagerBootstrapController } from "./useCharacterManagerBootstrapController";
 import { useCharacterManagerPresetController } from "./useCharacterManagerPresetController";
 import {
-  clearCharacterManagerProfileImage,
-  clearCharacterManagerSlot,
   createCharacterManagerDraft,
   deleteCharacterManagerDraft,
   loadCharacterManagerDraftByCharacterId,
-  saveCharacterManagerCharacterSheetPresetAsset,
-  saveCharacterManagerCharacterSheetAssignments,
-  saveCharacterManagerProfileImageAdjustments,
-  saveCharacterManagerProfileImage,
-  saveCharacterManagerSlot,
   updateCharacterManagerName,
 } from "../logic/characterManagerPersistence";
-import { validateCharacterReferenceFile } from "../logic/referenceValidation";
 import { publishCharacterListChanged } from "../logic/characterListSyncEvents";
 import type {
   CharacterProfileImageTransform,
@@ -97,9 +88,6 @@ const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   offsetX: 0,
   offsetY: 0,
 };
-const CHARACTER_MANAGER_MAX_IMAGE_MB = Math.round(
-  CHARACTER_MANAGER_MAX_IMAGE_BYTES / (1024 * 1024)
-);
 const createPresetRequestCounterMap = (): Record<CharacterSheetPresetId, number> =>
   CHARACTER_SHEET_PRESET_IDS.reduce(
     (acc, presetId) => {
@@ -395,274 +383,38 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     toErrorMessage,
   });
 
-  const setProfileImageFile = useCallback(
-    async (file: File) => {
-      clearMessages();
-      if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return;
-      }
-      if (!file.type.toLowerCase().startsWith("image/")) {
-        setError("Only image files are supported in Character Manager.");
-        return;
-      }
-      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
-        setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
-        return;
-      }
-
-      setIsSavingProfileImage(true);
-      try {
-        const signedUrl = await saveCharacterManagerProfileImage({
-          characterId,
-          file,
-        });
-        setProfileImageUrl(signedUrl);
-        setProfileImageTransform(DEFAULT_PROFILE_IMAGE_TRANSFORM);
-        await refreshCharacterListSilently(characterId, {
-          publishSyncEvent: true,
-          reason: "profile_image",
-        });
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to save profile image."));
-      } finally {
-        setIsSavingProfileImage(false);
-      }
-    },
-    [characterId, clearMessages, refreshCharacterListSilently]
-  );
-
-  const saveProfileImageTransform = useCallback(
-    async (transform: CharacterProfileImageTransform) => {
-      clearMessages();
-      if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
-      }
-      if (!profileImageUrl) {
-        setError("Upload a profile image before saving adjustments.");
-        return false;
-      }
-
-      setIsSavingProfileImage(true);
-      try {
-        const persistedTransform = await saveCharacterManagerProfileImageAdjustments({
-          characterId,
-          zoom: transform.zoom,
-          offsetX: transform.offsetX,
-          offsetY: transform.offsetY,
-        });
-        setProfileImageTransform(persistedTransform);
-        publishCharacterListChanged({
-          userId: selectedCharacterStorageScopeRef.current,
-          reason: "profile_image",
-        });
-        return true;
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to save profile image adjustments."));
-        return false;
-      } finally {
-        setIsSavingProfileImage(false);
-      }
-    },
-    [characterId, clearMessages, profileImageUrl]
-  );
-
-  const clearProfileImage = useCallback(async () => {
-    clearMessages();
-    if (!characterId) {
-      setError("Character draft is still loading. Try again in a moment.");
-      return;
-    }
-
-    setIsSavingProfileImage(true);
-    try {
-      await clearCharacterManagerProfileImage({
-        characterId,
-      });
-      setProfileImageUrl(null);
-      setProfileImageTransform(DEFAULT_PROFILE_IMAGE_TRANSFORM);
-      await refreshCharacterListSilently(characterId, {
-        publishSyncEvent: true,
-        reason: "profile_image",
-      });
-    } catch (nextError) {
-      setError(toErrorMessage(nextError, "Failed to remove profile image."));
-    } finally {
-      setIsSavingProfileImage(false);
-    }
-  }, [characterId, clearMessages, refreshCharacterListSilently]);
-
-  const saveCharacterSheetAssignments = useCallback(
-    async (assignments: CharacterSheetAssignments) => {
-      clearMessages();
-      if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
-      }
-
-      const previousAssignments = {
-        ...characterSheetAssignmentsRef.current,
-      };
-      const nextAssignments = {
-        ...assignments,
-      };
-      setCharacterSheetAssignments(nextAssignments);
-      characterSheetAssignmentsRef.current = nextAssignments;
-
-      const requestId = characterSheetAssignmentsRequestRef.current + 1;
-      characterSheetAssignmentsRequestRef.current = requestId;
-      try {
-        const persistedAssignments = await saveCharacterManagerCharacterSheetAssignments({
-          characterId,
-          assignments: nextAssignments,
-        });
-        if (characterSheetAssignmentsRequestRef.current !== requestId) {
-          return true;
-        }
-        setCharacterSheetAssignments(persistedAssignments);
-        characterSheetAssignmentsRef.current = persistedAssignments;
-        return true;
-      } catch (nextError) {
-        if (characterSheetAssignmentsRequestRef.current !== requestId) {
-          return false;
-        }
-        setCharacterSheetAssignments(previousAssignments);
-        characterSheetAssignmentsRef.current = previousAssignments;
-        setError(toErrorMessage(nextError, "Failed to save character sheet assignments."));
-        return false;
-      }
-    },
-    [characterId, clearMessages]
-  );
-
-  const setCharacterSheetPresetFile = useCallback(
-    async (zoneKey: CharacterSheetDropZoneKey, file: File) => {
-      clearMessages();
-      if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
-      }
-      if (!file.type.toLowerCase().startsWith("image/")) {
-        setError("Only image files are supported in Character Manager.");
-        return false;
-      }
-      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
-        setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
-        return false;
-      }
-
-      setIsSavingCharacterSheetPreset(true);
-      try {
-        const uploadedAsset = await saveCharacterManagerCharacterSheetPresetAsset({
-          characterId,
-          file,
-        });
-        const activePresetId = activeCharacterSheetPresetIdRef.current;
-        const currentAssignments =
-          characterSheetPresetsRef.current[activePresetId] ??
-          createEmptyCharacterSheetPresetAssignments();
-        const nextAssignments = {
-          ...currentAssignments,
-          [zoneKey]: uploadedAsset,
-        };
-        const didPersist = await saveCharacterSheetPresetAssignments(nextAssignments);
-        if (!didPersist) {
-          return false;
-        }
-        return true;
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to upload character preset image."));
-        return false;
-      } finally {
-        setIsSavingCharacterSheetPreset(false);
-      }
-    },
-    [characterId, clearMessages, saveCharacterSheetPresetAssignments]
-  );
-
-  const setSlotFile = useCallback(
-    async (slotKey: CharacterReferenceSlotKey, file: File) => {
-      clearMessages();
-      if (!characterId || !characterSheetId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
-      }
-      if (!file.type.toLowerCase().startsWith("image/")) {
-        setError("Only image files are supported in Character Manager.");
-        return false;
-      }
-      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
-        setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
-        return false;
-      }
-
-      markSlotBusy(slotKey, true);
-      try {
-        const validation = await validateCharacterReferenceFile({
-          slotKey,
-          file,
-          existingSlots: slotsRef.current,
-        });
-        const persistedSlot = await saveCharacterManagerSlot({
-          characterId,
-          characterSheetId,
-          slotKey,
-          file,
-          validationStatus: validation.status,
-          validationNotes: validation.notes,
-        });
-        setSlots((prev) => {
-          const next = {
-            ...prev,
-            [slotKey]: persistedSlot,
-          };
-          slotsRef.current = next;
-          return next;
-        });
-        await refreshCharacterListSilently(characterId);
-        return true;
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to save this shot."));
-        return false;
-      } finally {
-        markSlotBusy(slotKey, false);
-      }
-    },
-    [characterId, clearMessages, markSlotBusy, characterSheetId, refreshCharacterListSilently]
-  );
-
-  const clearSlot = useCallback(
-    async (slotKey: CharacterReferenceSlotKey) => {
-      clearMessages();
-      if (!characterSheetId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return;
-      }
-
-      markSlotBusy(slotKey, true);
-      try {
-        await clearCharacterManagerSlot({
-          characterSheetId,
-          slotKey,
-        });
-        setSlots((prev) => {
-          const next = {
-            ...prev,
-            [slotKey]: null,
-          };
-          slotsRef.current = next;
-          return next;
-        });
-        await refreshCharacterListSilently(characterId);
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to remove this shot."));
-      } finally {
-        markSlotBusy(slotKey, false);
-      }
-    },
-    [characterId, clearMessages, markSlotBusy, characterSheetId, refreshCharacterListSilently]
-  );
+  const {
+    setProfileImageFile,
+    saveProfileImageTransform,
+    clearProfileImage,
+    saveCharacterSheetAssignments,
+    setCharacterSheetPresetFile,
+    setSlotFile,
+    clearSlot,
+  } = useCharacterManagerAssetController({
+    characterId,
+    characterSheetId,
+    profileImageUrl,
+    clearMessages,
+    setError,
+    setIsSavingProfileImage,
+    setProfileImageUrl,
+    setProfileImageTransform,
+    defaultProfileImageTransform: DEFAULT_PROFILE_IMAGE_TRANSFORM,
+    refreshCharacterListSilently,
+    selectedCharacterStorageScopeRef,
+    toErrorMessage,
+    setCharacterSheetAssignments,
+    characterSheetAssignmentsRef,
+    characterSheetAssignmentsRequestRef,
+    setIsSavingCharacterSheetPreset,
+    activeCharacterSheetPresetIdRef,
+    characterSheetPresetsRef,
+    saveCharacterSheetPresetAssignments,
+    markSlotBusy,
+    slotsRef,
+    setSlots,
+  });
 
   const createCharacter = useCallback(async () => {
     clearMessages();

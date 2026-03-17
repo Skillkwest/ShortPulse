@@ -1,6 +1,6 @@
 /**
  * Characterizes `useCharacterManagerDraft` preset orchestration behavior.
- * Locks bootstrap selection, preview stability, and preset fallback flows before B3-02 controller extraction.
+ * Locks bootstrap selection, asset persistence, preview stability, and preset fallback flows before B3-02 controller extraction.
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,15 +14,20 @@ import {
 import { useCharacterManagerDraft } from "../useCharacterManagerDraft";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
 import {
+  clearCharacterManagerProfileImage,
   deleteCharacterManagerCharacterSheetPreset,
   listCharacterManagerCharacters,
   loadOrCreateCharacterManagerDraft,
   saveCharacterManagerActiveCharacterSheetPreset,
+  saveCharacterManagerProfileImage,
+  saveCharacterManagerSlot,
 } from "../../logic/characterManagerPersistence";
+import { publishCharacterListChanged } from "../../logic/characterListSyncEvents";
 import {
   persistSelectedCharacterId,
   readPersistedSelectedCharacterId,
 } from "../../logic/selectedCharacterPersistence";
+import { validateCharacterReferenceFile } from "../../logic/referenceValidation";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseClient: vi.fn(),
@@ -59,17 +64,26 @@ vi.mock("../../logic/selectedCharacterPersistence", () => ({
   readPersistedSelectedCharacterId: vi.fn(),
 }));
 
+vi.mock("../../logic/referenceValidation", () => ({
+  validateCharacterReferenceFile: vi.fn(),
+}));
+
 const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
 const loadOrCreateCharacterManagerDraftMock = vi.mocked(loadOrCreateCharacterManagerDraft);
 const listCharacterManagerCharactersMock = vi.mocked(listCharacterManagerCharacters);
 const saveCharacterManagerActiveCharacterSheetPresetMock = vi.mocked(
   saveCharacterManagerActiveCharacterSheetPreset
 );
+const saveCharacterManagerProfileImageMock = vi.mocked(saveCharacterManagerProfileImage);
+const clearCharacterManagerProfileImageMock = vi.mocked(clearCharacterManagerProfileImage);
+const saveCharacterManagerSlotMock = vi.mocked(saveCharacterManagerSlot);
 const deleteCharacterManagerCharacterSheetPresetMock = vi.mocked(
   deleteCharacterManagerCharacterSheetPreset
 );
+const publishCharacterListChangedMock = vi.mocked(publishCharacterListChanged);
 const persistSelectedCharacterIdMock = vi.mocked(persistSelectedCharacterId);
 const readPersistedSelectedCharacterIdMock = vi.mocked(readPersistedSelectedCharacterId);
+const validateCharacterReferenceFileMock = vi.mocked(validateCharacterReferenceFile);
 
 type DraftSnapshot = Awaited<ReturnType<typeof loadOrCreateCharacterManagerDraft>>;
 
@@ -222,6 +236,134 @@ describe("useCharacterManagerDraft", () => {
       "https://signed.example/preset-2.png"
     );
     expect(persistSelectedCharacterIdMock).toHaveBeenCalledWith("char-1", { userId: "user-1" });
+  });
+
+  it("uploads a profile image and refreshes the character rail", async () => {
+    const snapshot = createDraftSnapshot();
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: snapshot.userId } } },
+          error: null,
+        })),
+      },
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
+    listCharacterManagerCharactersMock
+      .mockResolvedValueOnce([
+        {
+          characterId: snapshot.characterId,
+          characterName: snapshot.characterName,
+          profileImageUrl: snapshot.profileImageUrl,
+          updatedAt: "2026-03-17T00:00:00.000Z",
+        },
+      ] as never)
+      .mockResolvedValueOnce([
+        {
+          characterId: snapshot.characterId,
+          characterName: snapshot.characterName,
+          profileImageUrl: "https://signed.example/profile.png",
+          updatedAt: "2026-03-17T00:00:01.000Z",
+        },
+      ] as never);
+    saveCharacterManagerProfileImageMock.mockResolvedValue(
+      "https://signed.example/profile.png" as never
+    );
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.profileImageUrl).toBeNull();
+    });
+
+    const file = new File(["profile"], "profile.png", { type: "image/png" });
+    await act(async () => {
+      await result.current.setProfileImageFile(file);
+    });
+
+    await waitFor(() => {
+      expect(result.current.profileImageUrl).toBe("https://signed.example/profile.png");
+      expect(result.current.characters[0]?.profileImageUrl).toBe(
+        "https://signed.example/profile.png"
+      );
+    });
+
+    expect(saveCharacterManagerProfileImageMock).toHaveBeenCalledWith({
+      characterId: "char-1",
+      file,
+    });
+    expect(publishCharacterListChangedMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      reason: "profile_image",
+    });
+    expect(clearCharacterManagerProfileImageMock).not.toHaveBeenCalled();
+  });
+
+  it("validates and saves a slot image while clearing busy state", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+    const file = new File(["slot"], "front-full.png", { type: "image/png" });
+    const validationNotes = {
+      validatorVersion: 1,
+      mimeType: file.type,
+      width: 1024,
+      height: 1536,
+      aspectRatio: 0.6667,
+      sha256: "abc123",
+      hardErrors: [],
+      warnings: [],
+      evaluatedAt: "2026-03-17T00:00:00.000Z",
+    };
+    validateCharacterReferenceFileMock.mockResolvedValue({
+      status: "pass",
+      notes: validationNotes,
+    } as never);
+    saveCharacterManagerSlotMock.mockResolvedValue({
+      mediaFileId: "slot-1",
+      storagePath: "user-1/char-1/front-full.png",
+      validationStatus: "pass",
+      validationNotes,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      previewUrl: "https://signed.example/front-full.png",
+      updatedAt: "2026-03-17T00:00:01.000Z",
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.isSlotBusy("front_full")).toBe(false);
+    });
+
+    await act(async () => {
+      const ok = await result.current.setSlotFile("front_full", file);
+      expect(ok).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.slots.front_full?.previewUrl).toBe(
+        "https://signed.example/front-full.png"
+      );
+      expect(result.current.isSlotBusy("front_full")).toBe(false);
+    });
+
+    expect(validateCharacterReferenceFileMock).toHaveBeenCalledWith({
+      slotKey: "front_full",
+      file,
+      existingSlots: expect.any(Object),
+    });
+    expect(saveCharacterManagerSlotMock).toHaveBeenCalledWith({
+      characterId: "char-1",
+      characterSheetId: "sheet-1",
+      slotKey: "front_full",
+      file,
+      validationStatus: "pass",
+      validationNotes,
+    });
   });
 
   it("uses nearest-left fallback when deleting the active preset tab", async () => {

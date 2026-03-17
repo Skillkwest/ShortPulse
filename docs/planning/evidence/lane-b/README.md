@@ -114,3 +114,5 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b6-01-style-guard-bootstrap.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b6-01-style-guard-validate-and-deferred-ownership.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-convergence-gate-cycle-1.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-convergence-gate-cycle-2.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md`

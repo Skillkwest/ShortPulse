@@ -1,7 +1,7 @@
 # Lane B Execution Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-b-tracker-spec-2026-03-16.md`  
@@ -36,7 +36,7 @@ Out of scope:
 | `B4-02` | B-Core | admin health server modules | Split user-health and fleet lifecycle services | `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-health-checkpoint-review.md` | Checkpoint Complete |
 | `B5-01` | B-Style | style token authority | Lock canonical panel/token values and alias policy | `docs/planning/evidence/lane-b/2026-03-17-b5-01-style-token-authority-checkpoint-review.md` | Checkpoint Complete |
 | `B5-02` | B-Style | AI Studio style migration | Migrate scoped literal styles to canonical tokens/classes | `docs/planning/evidence/lane-b/2026-03-17-b5-02-style-checkpoint-review.md` | Checkpoint Complete |
-| `B6-01` | B-Core/B-Style | convergence | Promote guardrails to enforce after two green cycles | `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-convergence-gate-cycle-1.md` | In Progress |
+| `B6-01` | B-Core/B-Style | convergence | Promote guardrails to enforce after two green cycles | `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md` | Completed |
 
 Policy:
 1. One seam per PR.

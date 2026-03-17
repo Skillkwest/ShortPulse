@@ -2934,3 +2934,19 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-03-16
 - Added `docs/planning/mvp-ui-ux-pass-execution-plan-2026-03-16.md`, a tactical pass-by-pass remediation checklist for `UX1`/`UX2`/`UX3` plus modularization kickoff (`UX5-01`) with dated sequencing, acceptance criteria, and validation commands.
 - Updated planning indexes to include the new execution artifact (`docs/README.md`, `docs/planning/README.md`).
+
+## 2026-03-16 (Lane A docs governance normalization + tracking closeout)
+- Completed Lane A docs governance normalization pass with no runtime behavior changes:
+  - removed duplicate route rows and corrected stale source references in `docs/api/api-internal-routes.md`,
+  - corrected migration-reference drift in `docs/planning/supabase-production-cutover-handoff-2026-03-13.md` (current baseline through `069_*`),
+  - repaired active index parity across `docs/README.md`, `docs/planning/README.md`, `docs/planning/evidence/README.md`, `docs/product/README.md`, `docs/design/README.md`, and `docs/adr/README.md`.
+- Added a minimal task-contract governance baseline for agent-driven execution:
+  - roadmap-level task contract in `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`,
+  - per-slice task contract + parity closeout checks in `docs/planning/lane-a-execution-plan-2026-03-16.md`,
+  - tracker schema extensions for DoD/audit/parity fields in `docs/planning/lane-a-tracker-spec-2026-03-16.md`,
+  - evidence packet contract expansion in `docs/planning/evidence/generation-pipeline-hardening/README.md`,
+  - PR template enforcement checkboxes in `.github/pull_request_template.md`.
+- Closed Lane A documentation tracking drift:
+  - added Lane A evidence packets for size-budget gate recovery (`A1-02`), validate relock (`A1-03`), policy-surface alignment (`A2-01`), and docs governance cleanup (`A3-01`),
+  - reconciled Lane A execution-plan status rows and global tracker evidence references.
+- Validation: `npm -C frontend run docs:check` and `npm -C frontend run validate` both passed (`412` files / `2615` tests; lint warnings unchanged at baseline `7`).

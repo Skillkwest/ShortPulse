@@ -13,6 +13,14 @@ Purpose: store execution evidence packets for Track P1 generation-pipeline harde
 8. `contract_parity_delta`
 9. `rollback_note`
 10. `linked_pr`
+11. `task_contract_checklist` (DoD, required gates, docs/tracker/evidence parity)
+12. `audit_findings` (`blocking`, `non-blocking`, `deferred`)
+13. `parity_check` (`pass`/`fail` + notes)
+14. `changelog_decision` (`updated` or `deferred` with owner/date)
+
+## Audit budget rule
+- If more than 2 non-blocking findings are discovered in one slice, stop scope expansion and open a follow-up slice.
+- Cross-domain findings are logged for follow-up unless they are release blockers for the current slice.
 
 ## Naming format
 Use dated packet names:

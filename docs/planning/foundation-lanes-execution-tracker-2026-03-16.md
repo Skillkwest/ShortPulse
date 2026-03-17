@@ -13,7 +13,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 ## Program Snapshot
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
-| A | In Progress | Engineering | Docs/dead-code governance cleanup after A1 gate recovery | deadcode baseline drift | Lane A phase signoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
+| A | In Progress | Engineering | Dead-code safe-core cleanup after docs/governance normalization closeout | deadcode baseline drift | A4-01 conservative dead-code pass | `docs/planning/lane-a-master-plan-2026-03-16.md` |
 | B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | Behavior-changing/baseline-dependent merges blocked until Lane A baseline-green signoff | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
@@ -37,8 +37,8 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 
 ### A2: Docs/Governance Cleanup
 - [ ] Normalize changelog structure and chronology policy enforcement.
-- [ ] Repair active index parity (`docs/README.md`, `docs/planning/README.md`, scoped section READMEs).
-- [ ] Remove duplicate/stale API/SOP doc rows and stale references.
+- [x] Repair active index parity (`docs/README.md`, `docs/planning/README.md`, scoped section READMEs).
+- [x] Remove duplicate/stale API/SOP doc rows and stale references.
 
 ### A3: Dead-Code Cleanup (Safe Core)
 - [ ] Apply isolated dead-file/dependency removals with strict validation gates.
@@ -102,8 +102,10 @@ Mandatory for any from-scratch replacement scope:
 1. Evidence index: `docs/planning/evidence/lane-a/README.md`
 2. Baseline packet: `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
 3. A1 naming gate packet: `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
-4. A1 Supabase CLI policy packet: `docs/planning/evidence/lane-a/2026-03-16-a1-02-supabase-cli-policy-alignment.md`
-5. A1 size-budget recovery packet: `docs/planning/evidence/lane-a/2026-03-16-a1-03-ai-studio-size-budget-recovery.md`
+4. A1 size-budget recovery packet: `docs/planning/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md`
+5. A1 validate relock packet: `docs/planning/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md`
+6. A2 policy surface alignment packet: `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
+7. A3 docs governance cleanup packet: `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 
 ## Lane C Artifacts
 1. Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`
@@ -245,7 +247,11 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
 - Completed Lane A A1 naming gate recovery slice and validated green `validate` path:
   - `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
-- Completed Lane A A1 policy alignment slice removing Docker-local SQL lint instructions from governed surfaces:
-  - `docs/planning/evidence/lane-a/2026-03-16-a1-02-supabase-cli-policy-alignment.md`
 - Completed Lane A A1 size-budget recovery seam by extracting AI Studio perf runtime registration from page orchestration:
-  - `docs/planning/evidence/lane-a/2026-03-16-a1-03-ai-studio-size-budget-recovery.md`
+  - `docs/planning/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md`
+- Completed Lane A A1 validate relock packet to capture fresh post-governance gate state:
+  - `docs/planning/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md`
+- Completed Lane A A2 policy-surface alignment packet and confirmed scoped Supabase policy contract parity:
+  - `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
+- Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
+  - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`

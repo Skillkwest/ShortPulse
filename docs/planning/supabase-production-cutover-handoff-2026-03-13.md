@@ -82,10 +82,15 @@ Bootstrap SQL:
 - `sql/create_user_preferences_table.sql`
 - `sql/create_app_error_logs_table.sql`
 
-Ordered migrations:
+Ordered migrations at cutover time:
 - `sql/migrations/001_add_studio_10000_credit_package.sql`
 - through
 - `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
+
+Current repository baseline now extends through:
+- `sql/migrations/067_add_admin_user_health_fleet_automation.sql`
+- `sql/migrations/068_add_character_media_assets_isolation.sql`
+- `sql/migrations/069_harden_provider_attached_stale_cleanup_execute_grants.sql`
 
 Result:
 - Production schema now contains required runtime tables/functions for billing/media/AI Studio flows.
@@ -187,12 +192,13 @@ Goal:
 - Eliminate out-of-band SQL drift risk.
 
 Actions:
-1. Add migration `sql/migrations/067_harden_provider_attached_stale_cleanup_execute_grants.sql`.
-2. Include:
+1. Verify migration `sql/migrations/069_harden_provider_attached_stale_cleanup_execute_grants.sql` is applied in staging and production.
+2. Ensure migration includes:
    - revoke from `public`, `anon`, `authenticated`.
    - grant execute to `service_role`.
-3. Add rollback file in `sql/migrations/rollback/`.
-4. Update migration docs/runbooks and changelog.
+3. If any additional grant hardening is needed, add a new migration number greater than `069` (do not mutate applied migration history).
+4. Add/update rollback SQL under `sql/migrations/rollback/` for any new migration.
+5. Update migration docs/runbooks and changelog.
 
 Exit criteria:
 - Migration exists, is reviewed, and applied in staging then production.
@@ -331,6 +337,9 @@ gh secret list --env production
 - `frontend/package.json`
 - `sql/migrations/065_add_media_derivative_processing_fields.sql`
 - `sql/migrations/066_add_media_derivative_processing_rpcs.sql`
+- `sql/migrations/067_add_admin_user_health_fleet_automation.sql`
+- `sql/migrations/068_add_character_media_assets_isolation.sql`
+- `sql/migrations/069_harden_provider_attached_stale_cleanup_execute_grants.sql`
 - `sql/check_runtime_sql_security_audit.sql`
 - `sql/check_media_storage_scope_drift.sql`
 
@@ -338,4 +347,4 @@ gh secret list --env production
 
 The cutover is functional and safe to pause.
 Production is wired to the new Supabase project and core protected runtime checks pass.
-Resume should focus on governance hardening and reproducibility: migration codification (`067`), CI gate restoration, and final closeout evidence packaging.
+Resume should focus on governance hardening and reproducibility: migration codification verification (`069`), CI gate restoration, and final closeout evidence packaging.

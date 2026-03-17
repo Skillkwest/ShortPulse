@@ -27,11 +27,11 @@ Out of scope:
 | Slice ID | Phase | Surface | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
 | `A0-01` | A0 | Baseline lock | Capture baseline command outputs and freeze non-goals | `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md` | Completed |
-| `A1-01` | A1 | naming guard bridge usage | Recover `check:naming-legacy-usage` without behavioral refactor | `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md` | Not Started |
-| `A1-02` | A1 | `frontend/pages/ai-studio.tsx` budget seam | Restore `check:size-budget` compliance for baseline gate health | `docs/planning/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md` | Not Started |
-| `A1-03` | A1 | validate path | Reconfirm `validate` end-to-end baseline green | `docs/planning/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md` | Not Started |
-| `A2-01` | A2 | policy/governance surfaces | Align Supabase operations policy across active scripts/workflows/templates/docs | `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md` | Not Started |
-| `A3-01` | A3 | docs indexes + changelog | Resolve active index parity drift and enforceable changelog chronology contract | `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md` | Not Started |
+| `A1-01` | A1 | naming guard bridge usage | Recover `check:naming-legacy-usage` without behavioral refactor | `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md` | Completed |
+| `A1-02` | A1 | `frontend/pages/ai-studio.tsx` budget seam | Restore `check:size-budget` compliance for baseline gate health | `docs/planning/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md` | Completed |
+| `A1-03` | A1 | validate path | Reconfirm `validate` end-to-end baseline green | `docs/planning/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md` | Completed |
+| `A2-01` | A2 | policy/governance surfaces | Align Supabase operations policy across active scripts/workflows/templates/docs | `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md` | Completed |
+| `A3-01` | A3 | docs indexes + changelog | Resolve active index parity drift and enforceable changelog chronology contract | `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md` | Completed |
 | `A4-01` | A4 | dead-code high-confidence leaves | Remove isolated dead files/dependencies with strict targeted validation | `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md` | Not Started |
 | `A4-02` | A4 | selective dead-code pruning | Prune additional high-confidence leaves and defer ambiguous core seams | `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md` | Not Started |
 | `A5-01` | A5 | lane signoff | Publish closeout bundle and follow-up debt ledger with owner/sunset | `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md` | Not Started |
@@ -40,6 +40,20 @@ Policy:
 1. One seam per PR.
 2. Lane A is gate/governance recovery only; no opportunistic feature work.
 3. Any uncertain parity seam must be split and characterized before merge.
+
+## Task Contract (Per Slice)
+Every slice must satisfy all items before moving to `Completed`:
+1. Behavior/API unchanged, or intentional delta explicitly documented.
+2. Required gates pass for the touched scope.
+3. Docs/tracker/evidence parity is complete in the same slice.
+4. Micro-audit completed with findings classified as `blocking`, `non-blocking`, and `deferred`.
+5. Audit budget honored: if non-blocking findings exceed 2, create a follow-up slice and stop current-slice scope expansion.
+6. Implementation and audit-fix changes remain separable in commit history when both exist.
+
+### Slice Closeout Parity Check (Required)
+1. Evidence packet exists at the path declared in the slice backlog row.
+2. Slice status is updated in lane tracker and global tracker.
+3. Changelog decision is explicit: either updated in-slice or deferred with owner/date in evidence.
 
 ## Execution Detail
 ### A0-01 Baseline Lock

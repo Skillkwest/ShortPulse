@@ -1,6 +1,14 @@
 ## Summary
 - What does this change do?
 
+## Task Contract Compliance
+- [ ] Behavior/API parity preserved or intentionally changed with explicit note.
+- [ ] Required gates for this slice passed.
+- [ ] Docs/tracker/evidence parity completed in this PR.
+- [ ] Micro-audit completed and findings classified (`blocking`, `non-blocking`, `deferred`).
+- [ ] Audit budget respected (if non-blocking findings > 2, follow-up slice linked).
+- [ ] Commit structure preserved (implementation and audit-fix changes separable when both exist).
+
 ## Testing
 - [ ] `npm -C frontend run lint`
 - [ ] `npm -C frontend run build`

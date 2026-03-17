@@ -20,8 +20,11 @@ Purpose: active planning artifacts and current execution backlogs.
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
 - `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).
 - `lane-a-master-plan-2026-03-16.md`: Lane A decision-complete gate-recovery and governance-hardening execution plan (`A0` through `A5`) with validation gates and signoff criteria.
+- `lane-a-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane A gate-recovery/governance slices.
+- `lane-a-execution-plan-2026-03-16.md`: concrete Lane A slice sequencing with explicit command bundles, acceptance criteria, and evidence packet outputs.
 - `lane-b-master-plan-2026-03-16.md`: Lane B decision-complete modularization plan split into `B-Core` (code seams and boundary hardening) and `B-Style` (token/class standardization) with no-regression constraints.
 - `lane-b-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane B slice completion and merge discipline.
+- `lane-b-execution-plan-2026-03-16.md`: concrete Lane B slice sequencing with explicit command bundles, acceptance criteria, and evidence packet outputs.
 - `lane-c-master-plan-2026-03-16.md`: Lane C regression-armor plan for characterization-first fragile-path coverage, contract locks, and deterministic no-regression test gates.
 - `lane-c-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane C regression-armor slices.
 - `lane-c-execution-plan-2026-03-16.md`: concrete Lane C slice sequencing with explicit command bundles, acceptance criteria, and evidence packet outputs.
@@ -36,6 +39,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-hardening-master-plan-2026-03-16.md`: separate Track P1 plan for submit/dispatch payload contract hardening, queue identity invariants, and claim-collision remediation.
 - `generation-pipeline-hardening-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Track P1 generation pipeline hardening slices.
 - `generation-pipeline-hardening-contact-map-2026-03-16.md`: owner/escalation contact map for Track P1, sourced from `docs/operator-map.md`.
+- `generation-pipeline-hardening-execution-plan-2026-03-16.md`: concrete Track P1 slice sequencing with command bundles, acceptance criteria, and evidence packet outputs.
 - `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0A` through `P8`) with locked constraints, contracts, and exit criteria.
 - `media-rendering-hardening-v2-master-roadmap-2026-03-16.md`: canonical sequencing/dependency roadmap for media rendering hardening workstreams and rollout rings.
 - `media-rendering-hardening-v2-execution-tracker-2026-03-16.md`: required tracker schema and seeded slice backlog for media rendering hardening execution.
@@ -118,10 +122,12 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/style-adherence/README.md`: evidence index for model-family style adherence evaluations.
 - `evidence/style-adherence/style-adherence-run-template.md`: reusable run packet template for style adherence diagnostics and regression decisions.
 - `evidence/lane-a/README.md`: evidence packet schema and naming contract for Lane A gate-recovery/governance slices.
+- `evidence/lane-b/README.md`: evidence packet schema and naming contract for Lane B modularization slices.
 - `evidence/lane-c/README.md`: evidence packet schema and naming contract for Lane C regression-armor slices.
 - `evidence/lane-d/README.md`: evidence packet schema and naming contract for Lane D runtime safety and stability slices.
 - `evidence/lane-e/README.md`: evidence packet schema and naming contract for Lane E docs/ADR governance slices.
 - `evidence/lane-f/README.md`: evidence packet schema and naming contract for Lane F CI/release governance slices.
+- `evidence/generation-pipeline-hardening/README.md`: evidence packet schema and naming contract for Track P1 generation-pipeline hardening slices.
 - `evidence/media-rendering-hardening-v2/README.md`: evidence index and packet naming contract for media rendering hardening v2 slices.
 - `evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`: reusable evidence packet template for media rendering hardening v2 slices.
 - `evidence/README.md`: top-level planning evidence index, including lane-specific evidence namespaces.

@@ -1,3 +1,26 @@
 # Planning Evidence
 
-Store stage evidence snapshots here (`sql/`, `docs/`, `kei/`, `architecture/`, `reference-grid-modularization/`, `naming-canonicalization/`, `style-adherence/`, `lane-a/`, `lane-c/`, `lane-d/`, `lane-e/`, `lane-f/`, `media-rendering-hardening-v2/`) with dated filenames.
+Store stage evidence snapshots here with dated filenames.
+
+## Active evidence namespaces
+- `docs/planning/evidence/sql/`
+- `docs/planning/evidence/docs/`
+- `docs/planning/evidence/architecture/`
+- `docs/planning/evidence/agent/`
+- `docs/planning/evidence/kei/`
+- `docs/planning/evidence/reference-grid-modularization/`
+- `docs/planning/evidence/naming-canonicalization/`
+- `docs/planning/evidence/style-adherence/`
+- `docs/planning/evidence/lane-a/`
+- `docs/planning/evidence/lane-b/`
+- `docs/planning/evidence/lane-c/`
+- `docs/planning/evidence/lane-d/`
+- `docs/planning/evidence/lane-e/`
+- `docs/planning/evidence/lane-f/`
+- `docs/planning/evidence/generation-pipeline-hardening/`
+- `docs/planning/evidence/media-rendering-hardening-v2/`
+- `docs/planning/evidence/unified-buildout/`
+
+## Notes
+- Keep packet names date-prefixed (`YYYY-MM-DD-...`).
+- Keep evidence scoped to active planning tracks; archive superseded tracks under `docs/archive/` when retired.

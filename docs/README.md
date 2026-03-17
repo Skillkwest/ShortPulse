@@ -138,8 +138,11 @@ Start here for all repository documentation.
 - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 - `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
 - `docs/planning/lane-a-master-plan-2026-03-16.md`
+- `docs/planning/lane-a-tracker-spec-2026-03-16.md`
+- `docs/planning/lane-a-execution-plan-2026-03-16.md`
 - `docs/planning/lane-b-master-plan-2026-03-16.md`
 - `docs/planning/lane-b-tracker-spec-2026-03-16.md`
+- `docs/planning/lane-b-execution-plan-2026-03-16.md`
 - `docs/planning/lane-c-master-plan-2026-03-16.md`
 - `docs/planning/lane-c-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-c-execution-plan-2026-03-16.md`
@@ -154,6 +157,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
+- `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-master-plan-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-execution-tracker-2026-03-16.md`
@@ -226,10 +230,12 @@ Start here for all repository documentation.
 - `docs/planning/evidence/style-adherence/README.md`
 - `docs/planning/evidence/style-adherence/style-adherence-run-template.md`
 - `docs/planning/evidence/lane-a/README.md`
+- `docs/planning/evidence/lane-b/README.md`
 - `docs/planning/evidence/lane-c/README.md`
 - `docs/planning/evidence/lane-d/README.md`
 - `docs/planning/evidence/lane-e/README.md`
 - `docs/planning/evidence/lane-f/README.md`
+- `docs/planning/evidence/generation-pipeline-hardening/README.md`
 - `docs/planning/evidence/media-rendering-hardening-v2/README.md`
 - `docs/planning/evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`
 - `docs/planning/evidence/unified-buildout/phase-13/README.md`
@@ -261,6 +267,7 @@ Start here for all repository documentation.
 - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 - `docs/adr/0022-reference-grid-domain-modular-architecture.md`
 - `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
+- `docs/adr/0023-ai-studio-properties-panel-workflow-contract.md`
 - `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - `docs/adr/0026-ai-studio-generation-admission-control.md`
@@ -277,6 +284,7 @@ Start here for all repository documentation.
 - `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
 - `docs/adr/0038-ai-studio-media-library-all-media-inline-tabs.md`
 - `docs/adr/0039-media-library-transform-sunset-and-local-derivative-engine.md`
+- `docs/adr/0040-character-panel-media-isolation-v2.md`
 
 ## Archive
 - `docs/archive/README.md`
@@ -300,6 +308,7 @@ Start here for all repository documentation.
 
 ## Design And Brainstorming
 - `docs/design/README.md`
+- `docs/design/ai-studio-style-inventory.md`
 - `docs/design/short-flow-color-system-design-rationale.md`
 - `docs/brainstorming/README.md`
 

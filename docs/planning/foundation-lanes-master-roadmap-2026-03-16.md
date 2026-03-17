@@ -78,6 +78,15 @@ Dependency exception (explicit):
 4. No broad suppressions/allowlist expansions without ADR-linked rationale.
 5. No docs additions without index updates (`docs/README.md` + section README).
 
+## Task Contract (Required)
+Applies to every lane and parallel track slice:
+1. Definition of done requires: behavior/API parity (or explicit intent), required gates pass, docs/tracker/evidence parity complete.
+2. Micro-audit runs at task close and is same-domain by default (cross-domain only for blockers).
+3. Milestone audit runs at lane/phase closeout.
+4. Audit budget rule: if more than 2 non-blocking findings appear, stop scope growth and create a follow-up slice.
+5. Commit structure rule: keep implementation and audit-fix changes separable (two commits when both exist).
+6. Every slice must record audit findings as `blocking`, `non-blocking`, and `deferred` in evidence.
+
 ## Required Validation Set
 Run this set for foundational lane merges unless a lane-specific waiver is documented:
 1. `cd frontend && npm run lint`

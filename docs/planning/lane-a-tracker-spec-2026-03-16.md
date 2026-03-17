@@ -21,10 +21,14 @@ Each slice row must include:
 9. `Full Gates`
 10. `Docs Updated`
 11. `Dead-Code Delta` (when applicable)
-12. `Risks`
-13. `Rollback Note`
-14. `PR Link`
-15. `Status`
+12. `DoD Pass` (`yes`/`no`)
+13. `Audit Result` (`pass`/`fail`)
+14. `Deferred Issues`
+15. `Parity Check Complete` (`yes`/`no`)
+16. `Risks`
+17. `Rollback Note`
+18. `PR Link`
+19. `Status`
 
 ## Mandatory Slice Checkboxes
 No slice is complete unless all are true:
@@ -35,6 +39,8 @@ No slice is complete unless all are true:
 5. Required docs/index/SOP updates for touched surfaces are shipped in the same slice.
 6. Rollback path is explicit and evidence-linked.
 7. Drift counts are non-increasing for touched governance surfaces.
+8. Audit budget honored: more than 2 non-blocking findings requires follow-up slice creation.
+9. Evidence packet includes a parity-check outcome and changelog decision (updated or deferred with owner/date).
 
 ## Evidence Requirements
 Attach for each slice:
@@ -44,7 +50,9 @@ Attach for each slice:
 4. before/after gate or drift summary,
 5. dead-code delta summary (when applicable),
 6. risk + rollback notes,
-7. docs update references.
+7. docs update references,
+8. audit findings section with `blocking`, `non-blocking`, and `deferred`,
+9. parity-check outcome (`pass`/`fail`) and changelog decision.
 
 ## Status Model
 Allowed values:

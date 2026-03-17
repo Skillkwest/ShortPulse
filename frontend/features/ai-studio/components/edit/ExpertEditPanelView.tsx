@@ -173,6 +173,12 @@ import {
   buildInpaintLassoCursor,
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
+import {
+  createIdleTransformPointerSession,
+  isKeyboardEventFromEditableTarget,
+  resolveStageContextMenuPosition,
+  type TransformPointerSession,
+} from "./expertEditInteractionUtils";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
@@ -353,9 +359,6 @@ const MARKUP_COLOR_SWATCHES = [
   "#60a5fa",
   "#a78bfa",
 ] as const;
-const STAGE_CONTEXT_MENU_WIDTH = 164;
-const STAGE_CONTEXT_MENU_HEIGHT = 206;
-const STAGE_CONTEXT_MENU_GUTTER = 8;
 const LOCKED_EDIT_TOOL_MODEL_LOGO_SRC = "/tiny-logo.png";
 const INPAINT_STROKE_SIZE_DEFAULT = 26;
 const MARKUP_STROKE_SIZE_DEFAULT = 4;
@@ -367,54 +370,6 @@ const clampNumber = (value: number, min: number, max: number) =>
 type MarkupHistoryState = ExpertEditMarkupHistoryState;
 
 type InpaintHistoryState = ExpertEditInpaintHistoryState;
-
-const isKeyboardEventFromEditableTarget = (event: KeyboardEvent) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) return false;
-  const tagName = target.tagName;
-  if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
-    return true;
-  }
-  return target.isContentEditable || Boolean(target.closest('[contenteditable="true"]'));
-};
-
-type TransformPointerSession = {
-  active: boolean;
-  pointerId: number;
-  layerId: string | null;
-  dragMode: TransformDragMode;
-  startCanvasX: number;
-  startCanvasY: number;
-  baseTranslateXRatio: number;
-  baseTranslateYRatio: number;
-  baseScale: number;
-  dropzoneWidth: number;
-  dropzoneHeight: number;
-  centerX: number;
-  centerY: number;
-  baseDistanceToCenter: number;
-  baseRotationDeg: number;
-  basePointerAngleRad: number;
-};
-
-const createIdleTransformPointerSession = (): TransformPointerSession => ({
-  active: false,
-  pointerId: -1,
-  layerId: null,
-  dragMode: "move",
-  startCanvasX: 0,
-  startCanvasY: 0,
-  baseTranslateXRatio: 0,
-  baseTranslateYRatio: 0,
-  baseScale: 1,
-  dropzoneWidth: 1,
-  dropzoneHeight: 1,
-  centerX: 0,
-  centerY: 0,
-  baseDistanceToCenter: 1,
-  baseRotationDeg: 0,
-  basePointerAngleRad: 0,
-});
 
 export function ExpertEditPanelView({
   aspect,
@@ -2986,26 +2941,16 @@ export function ExpertEditPanelView({
 
   const openStageContextMenu = React.useCallback((clientX: number, clientY: number) => {
     if (typeof window === "undefined") return;
-    const nextX = clampNumber(
+    const { x, y } = resolveStageContextMenuPosition({
       clientX,
-      STAGE_CONTEXT_MENU_GUTTER,
-      Math.max(
-        STAGE_CONTEXT_MENU_GUTTER,
-        window.innerWidth - STAGE_CONTEXT_MENU_WIDTH - STAGE_CONTEXT_MENU_GUTTER
-      )
-    );
-    const nextY = clampNumber(
       clientY,
-      STAGE_CONTEXT_MENU_GUTTER,
-      Math.max(
-        STAGE_CONTEXT_MENU_GUTTER,
-        window.innerHeight - STAGE_CONTEXT_MENU_HEIGHT - STAGE_CONTEXT_MENU_GUTTER
-      )
-    );
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
     setStageContextMenuState({
       isOpen: true,
-      x: Math.round(nextX),
-      y: Math.round(nextY),
+      x,
+      y,
     });
   }, []);
 

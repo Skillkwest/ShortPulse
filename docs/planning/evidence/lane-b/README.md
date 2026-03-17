@@ -35,3 +35,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-3.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-4.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-5.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-6.md`

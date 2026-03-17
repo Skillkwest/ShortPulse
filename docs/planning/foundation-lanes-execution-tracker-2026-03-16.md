@@ -14,7 +14,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
 | A | Completed | Engineering | Lane A closeout complete; debt handed off to downstream lanes | none | Lane B execution handoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
-| B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | none | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| B | In Progress | Engineering | B0 governance bootstrap complete; B1 guardrail bootstrap queued | none | B1 guardrail bootstrap evidence packet (`2026-03-16-b1-01-guardrail-bootstrap.md`) | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
 | E | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock | Awaiting E0 baseline evidence packet | Lane E governance baseline lock | `docs/planning/lane-e-master-plan-2026-03-16.md` |
@@ -97,6 +97,8 @@ Mandatory for any from-scratch replacement scope:
 ## Lane B Artifacts
 1. Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`
 2. Tracker spec: `docs/planning/lane-b-tracker-spec-2026-03-16.md`
+3. Execution plan: `docs/planning/lane-b-execution-plan-2026-03-16.md`
+4. Evidence index: `docs/planning/evidence/lane-b/README.md`
 
 ## Lane A Evidence
 1. Evidence index: `docs/planning/evidence/lane-a/README.md`
@@ -264,3 +266,5 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
 - Completed Lane A A5 signoff and handed deferred debt to downstream lanes:
   - `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`
+- Completed Lane B B0-01 governance bootstrap (ADR + SOP extraction checklist + roadmap/tracker/evidence alignment):
+  - `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md`

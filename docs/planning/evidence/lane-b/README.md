@@ -26,3 +26,6 @@ Examples:
 - `docs/planning/lane-b-master-plan-2026-03-16.md`
 - `docs/planning/lane-b-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-b-execution-plan-2026-03-16.md`
+
+## Current packets
+- `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md`

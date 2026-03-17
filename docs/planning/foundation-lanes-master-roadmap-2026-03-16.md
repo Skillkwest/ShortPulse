@@ -35,10 +35,14 @@ Provide one canonical roadmap for all foundational hardening lanes so execution 
 ## Lane Plan Registry
 Each lane must maintain one canonical plan artifact linked in the Lane Catalog table. The roadmap and tracker are summary control docs; lane-level execution detail lives in the linked artifact.
 Lane-level companion execution plans are allowed for concrete slice sequencing. Current companion:
+- Lane A: `docs/planning/lane-a-execution-plan-2026-03-16.md`
+- Lane B: `docs/planning/lane-b-execution-plan-2026-03-16.md`
 - Lane C: `docs/planning/lane-c-execution-plan-2026-03-16.md`
 - Lane D: `docs/planning/lane-d-execution-plan-2026-03-16.md`
 
 Parallel tracks follow the same rule and must publish a master plan plus tracker spec before implementation begins.
+Current parallel-track companion execution plan:
+- P1: `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
 
 ## Rebuild Method Contract
 Any lane/track that proposes from-scratch replacement work must follow:

@@ -25,7 +25,7 @@ Out of scope:
 ## Slice Backlog
 | Slice ID | Track | Hotspot | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
-| `B0-01` | B-Core | Governance bootstrap | Publish Lane B ADR/SOP/checklist alignment and freeze extraction policy | `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md` | Not Started |
+| `B0-01` | B-Core | Governance bootstrap | Publish Lane B ADR/SOP/checklist alignment and freeze extraction policy | `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md` | Completed |
 | `B1-01` | B-Core | Guardrail controls | Add Lane B size-budget/boundary/cycle guardrail modes | `docs/planning/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md` | Not Started |
 | `B2-01` | B-Core | `ExpertEditPanelView.tsx` | Extract orchestration/presenter seams while preserving prop contract | `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-1.md` | Not Started |
 | `B2-02` | B-Core | `useInpaintMaskController.ts` | Split math/state helpers from orchestration hook | `docs/planning/evidence/lane-b/2026-03-16-b2-02-inpaint-controller-split.md` | Not Started |

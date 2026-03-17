@@ -285,6 +285,7 @@ Start here for all repository documentation.
 - `docs/adr/0038-ai-studio-media-library-all-media-inline-tabs.md`
 - `docs/adr/0039-media-library-transform-sunset-and-local-derivative-engine.md`
 - `docs/adr/0040-character-panel-media-isolation-v2.md`
+- `docs/adr/0041-foundational-modularization-governance-and-size-gates.md`
 
 ## Archive
 - `docs/archive/README.md`

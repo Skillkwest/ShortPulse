@@ -50,6 +50,14 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 
 ## Palette constraints
 - Avoid the dark tones `#21211e`, `#1f201c`, and `#1e1e1b`; use `#1c1f20` as the panel/base tone across surfaces.
+- Treat runtime `--color-panel` in `styles/foundation.css` as the canonical panel/base authority unless an explicit later migration changes that token.
+
+## AI Studio Edit Authority
+- Keep AI Studio Edit authority layered in this order:
+  - `styles/ai-studio-edit-theme.css`
+  - `styles/ai-studio-edit-expert.tokens.css`
+  - `styles/ai-studio-edit-expert.css`
+- Preserve this order in `globals.css`; token and alias work should happen before broad literal migration in `ai-studio-edit-expert.css`.
 
 ## Import order
 `globals.css` imports in this order to maintain token availability and predictable overrides:

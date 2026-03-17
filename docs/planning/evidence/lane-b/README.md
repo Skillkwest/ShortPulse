@@ -102,3 +102,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b5-01-edit-theme-alias-authority-slice.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-01-style-token-authority-checkpoint-review.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-neutral-surface-migration.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-secondary-controls-migration.md`

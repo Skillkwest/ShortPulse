@@ -82,3 +82,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-hotspot-map.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-characterization-lock.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-preset-controller-split.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-bootstrap-controller-split.md`

@@ -31,7 +31,7 @@ Out of scope:
 | `B2-02` | B-Core | `useInpaintMaskController.ts` | Split math/state helpers from orchestration hook | `docs/planning/evidence/lane-b/README.md` | Checkpoint Complete |
 | `B2-03` | B-Core | `MediaLibraryPanel.tsx` | Split panel controller/presentation seams with parity tests | `docs/planning/evidence/lane-b/README.md` | Checkpoint Complete |
 | `B3-01` | B-Core | `CharacterManagerShell.tsx` | Extract domain hooks + shell presentation seams | `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-checkpoint-review.md` | Checkpoint Complete |
-| `B3-02` | B-Core | `useCharacterManagerDraft.ts` | Split draft-state orchestration into feature slices while preserving caller contract | `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-preset-controller-split.md` | In Progress |
+| `B3-02` | B-Core | `useCharacterManagerDraft.ts` | Split draft-state orchestration into feature slices while preserving caller contract | `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-bootstrap-controller-split.md` | In Progress |
 | `B4-01` | B-Core | `/pages/admin/index.tsx` | Split tab-specific controllers and reduce page coupling | `docs/planning/evidence/lane-b/2026-03-16-b4-01-admin-shell-split.md` | Not Started |
 | `B4-02` | B-Core | admin health server modules | Split user-health and fleet lifecycle services | `docs/planning/evidence/lane-b/2026-03-16-b4-02-admin-health-service-split.md` | Not Started |
 | `B5-01` | B-Style | style token authority | Lock canonical panel/token values and alias policy | `docs/planning/evidence/lane-b/2026-03-16-b5-01-style-token-authority.md` | Not Started |

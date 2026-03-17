@@ -1,6 +1,6 @@
 /**
  * Characterizes `useCharacterManagerDraft` preset orchestration behavior.
- * Locks preview stability and preset fallback flows before B3-02 controller extraction.
+ * Locks bootstrap selection, preview stability, and preset fallback flows before B3-02 controller extraction.
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -148,6 +148,39 @@ const configureBootstrap = (snapshot: DraftSnapshot) => {
 describe("useCharacterManagerDraft", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("uses the user-scoped persisted selection during bootstrap", async () => {
+    const snapshot = createDraftSnapshot();
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: snapshot.userId } } },
+          error: null,
+        })),
+      },
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    readPersistedSelectedCharacterIdMock.mockReturnValue("char-scoped");
+    loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: snapshot.characterId,
+        characterName: snapshot.characterName,
+        profileImageUrl: snapshot.profileImageUrl,
+        updatedAt: "2026-03-17T00:00:00.000Z",
+      },
+    ] as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBe("char-1");
+    });
+
+    expect(readPersistedSelectedCharacterIdMock).toHaveBeenCalledWith({ userId: "user-1" });
+    expect(loadOrCreateCharacterManagerDraftMock).toHaveBeenCalledWith("char-scoped");
+    expect(persistSelectedCharacterIdMock).toHaveBeenCalledWith("char-1", { userId: "user-1" });
   });
 
   it("keeps local preset preview urls stable when switching the active preset", async () => {

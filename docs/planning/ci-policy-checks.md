@@ -161,6 +161,38 @@ Mode policy:
   - If merge queue is adopted later, any required-check workflow must add `merge_group` in the same PR that changes repository merge policy.
   - The same PR must update this document and the Lane F evidence packet with the adopted trigger posture.
 
+## Workflow action pinning policy
+
+- Current inventory baseline:
+  - total `uses:` references across governed workflows: `42`
+  - unique action refs: `4`
+  - full-SHA pinned refs: `0`
+- Current approved phase target: `Phase A`
+  - inventory + ownership + update procedure are required now
+  - no broad full-SHA pin migration is required in `F4-01`
+  - any later promotion to `Phase B` or `Phase C` must ship with an explicit exception review
+- Current tracked exceptions (`Phase A` approved until `F4` phase promotion or Lane F closeout, whichever comes first):
+  - `actions/checkout@v4`
+    - owner: Engineering
+    - reason: official GitHub-maintained baseline action; no current full-SHA pin rollout approved yet
+    - sunset criterion: revisit in the first `Phase B` pinning PR or before Lane F closeout
+  - `actions/setup-node@v4`
+    - owner: Engineering
+    - reason: official GitHub-maintained baseline action; pinned major only pending phased rollout
+    - sunset criterion: revisit in the first `Phase B` pinning PR or before Lane F closeout
+  - `actions/upload-artifact@v4`
+    - owner: Engineering
+    - reason: official GitHub-maintained baseline action; used only in manual gate evidence workflows
+    - sunset criterion: revisit in the first `Phase B` pinning PR or before Lane F closeout
+  - `dorny/paths-filter@v3`
+    - owner: Engineering
+    - reason: third-party action still allowed in major-tag form during `Phase A` inventory/ownership stage
+    - sunset criterion: must be reviewed first for full-SHA promotion when `Phase B` begins
+- Dependabot/update procedure:
+  - `.github/dependabot.yml` must cover both `npm` and `github-actions`
+  - any PR that changes an action ref or adds a new action must update this section in the same PR
+  - any exception added after `F4-01` must include owner, reason, and sunset criterion
+
 ## Security gate
 
 - Blocking command: `npm audit --omit=dev --audit-level=moderate`

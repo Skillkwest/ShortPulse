@@ -45,9 +45,12 @@ As of 2026-03-17:
    - governed workflows have explicit workflow-level `concurrency` posture,
    - stale-run cancellation is enabled for PR/push CI and disabled for environment-targeted manual gates,
    - `merge_group` posture is documented as deferred until merge queue adoption.
-7. Workflow supply-chain hardening drift exists:
+7. Workflow supply-chain policy is now locked for `Phase A` after `F4-01`:
    - GitHub Action `uses:` references: `42`,
-   - full-SHA pinned references: `0`.
+   - unique action refs: `4`,
+   - full-SHA pinned references remain `0`,
+   - current non-pinned refs are explicit tracked exceptions with owner and sunset criterion,
+   - Dependabot now covers both `npm` and `github-actions`.
 8. Environment protection posture is currently open:
    - `Production` and `staging` environments have no protection rules and no deployment branch policy.
 9. Environment namespace drift exists: duplicate naming variants (`Production`, `Production – short-pulse`, `Production – shortpulse`, and preview variants) increase operator error risk.

@@ -94,6 +94,11 @@ Source of truth: `docs/operator-map.md`
 3. Validate parity on selector-store/page-decouple seams before and after cutover.
 4. Audit stale emergency/temporary constants in reference-grid seams and either retire or explicitly document required retention.
 
+Current status after `D3-01` / `D3-02`:
+1. The unconditional selector-store hard-disable in `frontend/pages/ai-studio.tsx` is retired.
+2. Stale reference-grid emergency/temporary constants are retired.
+3. Remaining rollback-safe runtime controls for these paths now live in the documented env-governed perf flags only.
+
 ### D4: Runtime Logging Hygiene
 1. Gate perf/audit console logging behind explicit audit runtime controls and non-production defaults.
 2. Remove accidental core-flow logging noise from production paths while preserving operational telemetry.

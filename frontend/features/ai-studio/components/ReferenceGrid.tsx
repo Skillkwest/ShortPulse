@@ -70,7 +70,6 @@ const REFERENCE_GRID_MIN_COLUMNS = 2;
 const REFERENCE_GRID_MAX_COLUMNS = 5;
 const REFERENCE_GRID_MAX_COLUMNS_WIDE = 5;
 const QUICK_SLOT_INVENTORY_MAX_COLUMNS = 5;
-const REFERENCE_GRID_EMERGENCY_MAX_COLUMNS = 5;
 const REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD = 0.6;
 const REFERENCE_AUTOPLAY_MAX_DESKTOP = 3;
 const REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN = 2;
@@ -110,9 +109,6 @@ const HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX = 14;
 const RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 const CURATED_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 
-// Temporary UI experiment: set false to revert selection outline theming to default create-blue.
-const ENABLE_TOOL_THEMED_SELECTION_OUTLINE = true;
-
 type ReferenceSelectionTheme = "create" | "edit" | "video";
 type ReferenceGridPanelVisibility = {
   canvas: boolean;
@@ -122,7 +118,6 @@ type ReferenceGridPanelVisibility = {
 };
 
 const resolveReferenceSelectionTheme = (selectedTool: ToolId | null): ReferenceSelectionTheme => {
-  if (!ENABLE_TOOL_THEMED_SELECTION_OUTLINE) return "create";
   if (selectedTool === "image" || selectedTool === "edit") return "edit";
   if (selectedTool === "video" || selectedTool === "kling") return "video";
   return "create";
@@ -621,7 +616,6 @@ export function ReferenceGrid({
   useReferenceGridVirtualMetricsController({
     isCuratedSplitEnabled: isCuratedSplitActive,
     selectedTool,
-    perfDegradeLevel: perfWatchdog.degradeLevel,
     outputsLength: outputs.length,
     curatedOutputsLength: curatedOutputs.length,
     scrollContainerRef,
@@ -637,9 +631,7 @@ export function ReferenceGrid({
       referenceGridMaxColumns: REFERENCE_GRID_MAX_COLUMNS,
       referenceGridMaxColumnsWide: REFERENCE_GRID_MAX_COLUMNS_WIDE,
       quickSlotInventoryMaxColumns: QUICK_SLOT_INVENTORY_MAX_COLUMNS,
-      referenceGridEmergencyMaxColumns: REFERENCE_GRID_EMERGENCY_MAX_COLUMNS,
       fallbackReferenceRowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
-      perfWatchdogEnabled: REFERENCE_GRID_FLAG_PERF_WATCHDOG,
     },
   });
 

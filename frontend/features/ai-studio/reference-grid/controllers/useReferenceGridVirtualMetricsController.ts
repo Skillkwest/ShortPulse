@@ -21,7 +21,6 @@ type VirtualMetricsState = {
 type UseReferenceGridVirtualMetricsControllerArgs = {
   isCuratedSplitEnabled: boolean;
   selectedTool: ToolId | null;
-  perfDegradeLevel: 0 | 1 | 2;
   outputsLength: number;
   curatedOutputsLength: number;
   scrollContainerRef: MutableRefObject<HTMLDivElement | null>;
@@ -37,9 +36,7 @@ type UseReferenceGridVirtualMetricsControllerArgs = {
     referenceGridMaxColumns: number;
     referenceGridMaxColumnsWide: number;
     quickSlotInventoryMaxColumns: number;
-    referenceGridEmergencyMaxColumns: number;
     fallbackReferenceRowHeight: number;
-    perfWatchdogEnabled: boolean;
   };
 };
 
@@ -49,7 +46,6 @@ type UseReferenceGridVirtualMetricsControllerArgs = {
 export const useReferenceGridVirtualMetricsController = ({
   isCuratedSplitEnabled,
   selectedTool,
-  perfDegradeLevel,
   outputsLength,
   curatedOutputsLength,
   scrollContainerRef,
@@ -80,14 +76,7 @@ export const useReferenceGridVirtualMetricsController = ({
         surface === "curated"
           ? Math.min(config.quickSlotInventoryMaxColumns, config.referenceGridMaxColumnsWide)
           : defaultRequestedMaxColumns;
-      const emergencyMaxColumns =
-        config.perfWatchdogEnabled && perfDegradeLevel >= 2
-          ? config.referenceGridEmergencyMaxColumns
-          : requestedMaxColumns;
-      const maxColumns = Math.max(
-        config.referenceGridMinColumns,
-        Math.min(Math.floor(requestedMaxColumns), Math.floor(emergencyMaxColumns))
-      );
+      const maxColumns = Math.max(config.referenceGridMinColumns, Math.floor(requestedMaxColumns));
       const minCardWidth = selectedTool
         ? config.referenceGridMinCardPx
         : config.referenceGridMinCardPxWide;
@@ -124,15 +113,12 @@ export const useReferenceGridVirtualMetricsController = ({
     },
     [
       config.fallbackReferenceRowHeight,
-      config.perfWatchdogEnabled,
       config.quickSlotInventoryMaxColumns,
-      config.referenceGridEmergencyMaxColumns,
       config.referenceGridMaxColumns,
       config.referenceGridMaxColumnsWide,
       config.referenceGridMinCardPx,
       config.referenceGridMinCardPxWide,
       config.referenceGridMinColumns,
-      perfDegradeLevel,
       selectedTool,
     ]
   );

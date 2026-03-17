@@ -18,7 +18,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | A    | Completed   | Engineering | Lane A closeout complete; debt handed off to downstream lanes                                                                            | none                                    | Lane B execution handoff                                                  | `docs/planning/lane-a-master-plan-2026-03-16.md`                        |
 | B    | Completed   | Engineering | Lane B closeout complete; modularization, style authority, and convergence gates are locked with deferred residuals owner/dated | none                                    | Lane C execution handoff                                                  | `docs/planning/lane-b-master-plan-2026-03-16.md`                        |
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
-| D    | In Progress | Engineering | `D1-D3-01` runtime warning, suppression, and selector-store hard-disable cleanup are complete; `D3-02` emergency-constant audit is next | Lane D runtime-effect debt is cleared; full-suite baseline is still red on unrelated admin ledger assertion                        | `D3-02` reference-grid emergency constant audit                           | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
+| D    | In Progress | Engineering | `D1-D3` runtime warning, suppression, and hard-disable cleanup are complete; `D4-01` runtime logging hygiene is next | Lane D runtime-effect debt is cleared; full-suite baseline is still red on unrelated admin ledger assertion                        | `D4-01` runtime logging hygiene                                           | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock                                                                                         | Awaiting E0 baseline evidence packet    | Lane E governance baseline lock                                           | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
 | F    | Not Started | Engineering | Release and CI discipline baseline lock and policy-inventory parity                                                                      | Awaiting F0 baseline evidence packet    | Lane F CI inventory and required-check contract lock                      | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
@@ -205,9 +205,9 @@ Concrete sequencing: `docs/planning/lane-d-execution-plan-2026-03-16.md`
 
 ### D3-D4: Hard-Disable + Logging Hygiene
 
-- [ ] Replace unconditional emergency hard-disable branches with governed controls or retire dead fallback code.
+- [x] Replace unconditional emergency hard-disable branches with governed controls or retire dead fallback code.
 - [ ] Gate runtime debug/audit console logging to explicit audit lanes.
-- [ ] Record kill-switch delta and rollback notes for each slice.
+- [x] Record kill-switch delta and rollback notes for each slice.
 
 ### D5: Convergence
 

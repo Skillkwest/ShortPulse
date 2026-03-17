@@ -31,7 +31,7 @@ Out of scope:
 | `E0-01` | E0 | Lane E artifact bootstrap | Publish missing execution plan, lock baseline outputs, and wire indexes/tracker state | `docs/planning/evidence/lane-e/2026-03-17-e0-01-governance-bootstrap-baseline.md` | Completed |
 | `E1-01` | E1 | Active docs indexes | Enforce root/planning/section index parity for active governance surfaces | `docs/planning/evidence/lane-e/2026-03-17-e1-01-index-parity-contract.md` | Completed |
 | `E2-01` | E2 | `docs/adr/**` | Resolve ADR numbering drift and enforce duplicate-number detection | `docs/planning/evidence/lane-e/2026-03-17-e2-01-adr-integrity-contract.md` | Completed |
-| `E3-01` | E3 | Active policy docs/templates/scripts | Align Supabase operations policy across active executable guidance surfaces | `docs/planning/evidence/lane-e/2026-03-17-e3-01-policy-surface-consistency.md` | Not Started |
+| `E3-01` | E3 | Active policy docs/templates/scripts | Align Supabase operations policy across active executable guidance surfaces | `docs/planning/evidence/lane-e/2026-03-17-e3-01-policy-surface-consistency.md` | Completed |
 | `E4-01` | E4 | `docs/change_log.md` + docs drift checks | Normalize changelog structure and enforce chronology/future-date governance | `docs/planning/evidence/lane-e/2026-03-17-e4-01-changelog-governance-hardening.md` | Not Started |
 | `E5-01` | E5 | Lane E convergence | Promote Lane E checks with explicit green-cycle evidence and closeout policy | `docs/planning/evidence/lane-e/2026-03-17-e5-01-governance-convergence.md` | Not Started |
 

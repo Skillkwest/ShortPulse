@@ -92,7 +92,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - Clamp tests pass for low/high/invalid inputs.
 - Deterministic pruning under timestamp ties verified.
 - Concurrency test shows no non-deterministic over-eviction.
-- SQL lint passes: `supabase db lint --local --schema public --fail-on warning`.
+- SQL lint passes using the hosted-target Supabase CLI gate (`supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning` or `supabase db lint --linked --schema public --fail-on warning`, per current repo policy).
 - Rollback:
 - Apply rollback migration for `028`; preserve data where feasible.
 - Runtime kill switch remains: `STUDIO_AGENT_CANONICAL_DB_ENABLED=false`.

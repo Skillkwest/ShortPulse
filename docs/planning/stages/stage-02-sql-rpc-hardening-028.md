@@ -25,7 +25,8 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - `test -x scripts/conversation_state_hardening_gate.sh`
 - `SUPABASE_DB_URL=... ./scripts/conversation_state_hardening_gate.sh`
 - GitHub Actions: run `Conversation State Hardening Gate` with `target_environment=staging` and `target_environment=production`; attach run URL/artifact in SQL evidence.
-- `supabase db lint --local --schema public --fail-on warning`
+- `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning`
+- Alternative when an explicit linked profile is already governed for the target environment: `supabase db lint --linked --schema public --fail-on warning`
 
 ## Owners and validators
 - Owner: Engineering

@@ -1,0 +1,271 @@
+/**
+ * Layer/session-state normalization helpers for Expert Edit initialization and layer stack hygiene.
+ */
+import type { MarkupStroke } from "./markupStrokeController";
+import {
+  clampLayerOpacity,
+  cloneLayerTransform,
+  defaultLayerTransform,
+  type LayerTransform,
+} from "./expertEditLayerTransformUtils";
+import {
+  cloneInpaintHistoryState,
+  cloneMarkupHistoryState,
+  cloneMarkupStrokesSnapshot,
+  type ExpertEditInpaintHistoryState,
+  type ExpertEditLayerSessionLayer,
+  type ExpertEditLayerSessionState,
+  type ExpertEditMarkupHistoryState,
+  type ExpertEditSessionState,
+} from "./expertEditSessionState";
+
+export const LAYER_OPACITY_DEFAULT = 1;
+
+export const formatLayerName = (indexOneBased: number) => `layer ${indexOneBased}`;
+
+const autoLayerNamePattern = /^layer\s*'?(\d+)'?$/i;
+
+export const isAutoLayerName = (value: string) => autoLayerNamePattern.test(value.trim());
+
+const resolveAutoLayerNameNumber = (value: string) => {
+  const match = autoLayerNamePattern.exec(value.trim());
+  if (!match) return null;
+  const candidate = Number.parseInt(match[1] ?? "", 10);
+  if (!Number.isInteger(candidate) || candidate <= 0) return null;
+  return candidate;
+};
+
+export type ExpertEditLayer = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  opacity: number;
+  isAutoNamed: boolean;
+  ownsImageUrl: boolean;
+  transform: LayerTransform;
+};
+
+export const resolveLayerIdCounterFromLayers = (layers: ExpertEditLayer[]) => {
+  let highestLayerNumber = 1;
+  layers.forEach((layer) => {
+    const match = /^layer-(\d+)$/.exec(layer.id.trim());
+    if (!match) return;
+    const parsed = Number.parseInt(match[1] ?? "", 10);
+    if (!Number.isFinite(parsed)) return;
+    highestLayerNumber = Math.max(highestLayerNumber, parsed);
+  });
+  return Math.max(2, highestLayerNumber + 1);
+};
+
+export const cloneLayerForSessionState = (layer: ExpertEditLayer): ExpertEditLayerSessionLayer => ({
+  id: layer.id,
+  name: layer.name,
+  imageUrl: layer.imageUrl,
+  opacity: layer.opacity,
+  isAutoNamed: layer.isAutoNamed,
+  ownsImageUrl: layer.ownsImageUrl,
+  transform: cloneLayerTransform(layer.transform),
+});
+
+const coerceLayerTransformFromSessionState = (
+  value: ExpertEditLayerSessionLayer["transform"] | null | undefined
+): LayerTransform => {
+  if (!value) return defaultLayerTransform();
+  const translateXRatio = Number(value.translateXRatio);
+  const translateYRatio = Number(value.translateYRatio);
+  const scale = Number(value.scale);
+  const rotationDeg = Number(value.rotationDeg);
+  return {
+    translateXRatio: Number.isFinite(translateXRatio) ? translateXRatio : 0,
+    translateYRatio: Number.isFinite(translateYRatio) ? translateYRatio : 0,
+    scale: Number.isFinite(scale) ? scale : 1,
+    rotationDeg: Number.isFinite(rotationDeg) ? rotationDeg : 0,
+  };
+};
+
+export const layerHasImage = (layer: ExpertEditLayer) =>
+  typeof layer.imageUrl === "string" && layer.imageUrl.trim().length > 0;
+
+export const enforceLayerStackInvariants = ({
+  layers,
+  foundationLayerId,
+}: {
+  layers: ExpertEditLayer[];
+  foundationLayerId: string | null;
+}) => {
+  const resolvedFoundationId = foundationLayerId ?? layers[0]?.id ?? null;
+  if (!resolvedFoundationId) return layers;
+  const foundationLayer =
+    layers.find((layer) => layer.id === resolvedFoundationId) ?? layers[0] ?? null;
+  if (!foundationLayer) return layers;
+  const nextLayers = layers.filter(
+    (layer) => layer.id === resolvedFoundationId || layerHasImage(layer)
+  );
+  const populatedNonFoundationLayers = nextLayers.filter(
+    (layer) => layer.id !== resolvedFoundationId
+  );
+  if (!layerHasImage(foundationLayer) && populatedNonFoundationLayers.length === 1) {
+    const promotedLayer = populatedNonFoundationLayers[0];
+    if (!promotedLayer) return nextLayers;
+    return [
+      promotedLayer.isAutoNamed
+        ? {
+            ...promotedLayer,
+            name: formatLayerName(1),
+          }
+        : promotedLayer,
+    ];
+  }
+  if (nextLayers.some((layer) => layer.id === resolvedFoundationId)) {
+    return nextLayers;
+  }
+  return [foundationLayer, ...nextLayers];
+};
+
+export const resolveLowestUnusedAutoLayerNumber = ({
+  layers,
+  excludeLayerId,
+}: {
+  layers: ExpertEditLayer[];
+  excludeLayerId?: string | null;
+}) => {
+  const usedNumbers = new Set<number>();
+  layers.forEach((layer) => {
+    if (excludeLayerId && layer.id === excludeLayerId) return;
+    const resolvedNumber = resolveAutoLayerNameNumber(layer.name);
+    if (resolvedNumber != null) {
+      usedNumbers.add(resolvedNumber);
+    }
+  });
+  let candidate = 1;
+  while (usedNumbers.has(candidate)) {
+    candidate += 1;
+  }
+  return candidate;
+};
+
+export const resolveInitialLayerSessionState = ({
+  referenceImageUrl,
+  layerState,
+}: {
+  referenceImageUrl: string | null;
+  layerState: ExpertEditLayerSessionState | null | undefined;
+}) => {
+  const fallbackLayers: ExpertEditLayer[] = [
+    {
+      id: "layer-1",
+      name: formatLayerName(1),
+      imageUrl: referenceImageUrl ?? null,
+      opacity: LAYER_OPACITY_DEFAULT,
+      isAutoNamed: true,
+      ownsImageUrl: false,
+      transform: defaultLayerTransform(),
+    },
+  ];
+  if (!layerState?.layers?.length) {
+    return {
+      layers: fallbackLayers,
+      foundationLayerId: "layer-1",
+      selectedLayerIndex: 0,
+      layerIdCounter: 2,
+    };
+  }
+  const hydratedLayers: ExpertEditLayer[] = layerState.layers
+    .filter((layer): layer is ExpertEditLayerSessionLayer => Boolean(layer?.id))
+    .map((layer, index) => ({
+      id: layer.id,
+      name: layer.name?.trim() ? layer.name : formatLayerName(index + 1),
+      imageUrl: typeof layer.imageUrl === "string" ? layer.imageUrl : null,
+      opacity: clampLayerOpacity(layer.opacity),
+      isAutoNamed: layer.isAutoNamed !== false,
+      ownsImageUrl: layer.ownsImageUrl === true,
+      transform: coerceLayerTransformFromSessionState(layer.transform),
+    }));
+  if (!hydratedLayers.length) {
+    return {
+      layers: fallbackLayers,
+      foundationLayerId: "layer-1",
+      selectedLayerIndex: 0,
+      layerIdCounter: 2,
+    };
+  }
+  const normalizedLayers = enforceLayerStackInvariants({
+    layers: hydratedLayers,
+    foundationLayerId: layerState.foundationLayerId,
+  });
+  const normalizedFoundationLayerId =
+    normalizedLayers.find((layer) => layer.id === layerState.foundationLayerId)?.id ??
+    normalizedLayers[0]?.id ??
+    null;
+  const sessionSelectedLayerIndex = layerState.selectedLayerIndex;
+  const normalizedSelectedLayerIndex =
+    sessionSelectedLayerIndex == null ||
+    sessionSelectedLayerIndex < 0 ||
+    sessionSelectedLayerIndex >= normalizedLayers.length
+      ? normalizedLayers.length > 0
+        ? 0
+        : null
+      : sessionSelectedLayerIndex;
+  const sessionLayerIdCounter = Number(layerState.layerIdCounter);
+  const normalizedLayerIdCounter = Math.max(
+    resolveLayerIdCounterFromLayers(normalizedLayers),
+    Number.isFinite(sessionLayerIdCounter) ? Math.floor(sessionLayerIdCounter) : 2,
+    2
+  );
+  return {
+    layers: normalizedLayers,
+    foundationLayerId: normalizedFoundationLayerId,
+    selectedLayerIndex: normalizedSelectedLayerIndex,
+    layerIdCounter: normalizedLayerIdCounter,
+  };
+};
+
+export const resolveMarkupStrokeIdCounterFromStrokes = (strokes: MarkupStroke[]) => {
+  let highestStrokeNumber = 0;
+  strokes.forEach((stroke) => {
+    const match = /^markup-stroke-(\d+)$/.exec(stroke.id.trim());
+    if (!match) return;
+    const parsed = Number.parseInt(match[1] ?? "", 10);
+    if (!Number.isFinite(parsed)) return;
+    highestStrokeNumber = Math.max(highestStrokeNumber, parsed);
+  });
+  return highestStrokeNumber + 1;
+};
+
+const createEmptyMarkupHistoryState = (): ExpertEditMarkupHistoryState => ({
+  past: [],
+  present: [],
+  future: [],
+});
+
+const createEmptyInpaintHistoryState = (): ExpertEditInpaintHistoryState => ({
+  past: [],
+  present: { layers: [] },
+  future: [],
+});
+
+export const resolveInitialExpertEditSessionState = ({
+  referenceImageUrl,
+  sessionState,
+}: {
+  referenceImageUrl: string | null;
+  sessionState: ExpertEditSessionState | null | undefined;
+}) => {
+  const layerState = resolveInitialLayerSessionState({
+    referenceImageUrl,
+    layerState: sessionState?.layers,
+  });
+  const markupHistory = sessionState?.markup?.history
+    ? cloneMarkupHistoryState(sessionState.markup.history)
+    : createEmptyMarkupHistoryState();
+  const markupStrokesFromHistory = cloneMarkupStrokesSnapshot(markupHistory.present);
+  const inpaintHistory = sessionState?.inpaint?.history
+    ? cloneInpaintHistoryState(sessionState.inpaint.history)
+    : createEmptyInpaintHistoryState();
+  return {
+    layerState,
+    markupStrokes: markupStrokesFromHistory,
+    markupHistory,
+    inpaintHistory,
+  };
+};

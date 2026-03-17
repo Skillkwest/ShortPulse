@@ -207,12 +207,14 @@ function checkChangelogDates(errors) {
     // Chronology/future-date enforcement activates after changelog normalization.
     return;
   }
+  const legacySectionMatch = /^##\s+Legacy Imported Entries\b.*$/im.exec(text);
+  const activeTimelineText = legacySectionMatch ? text.slice(0, legacySectionMatch.index) : text;
   const headingPattern = /^##\s+(\d{4}-\d{2}-\d{2})(?:\b|$)/gm;
   const dates = [];
-  let match = headingPattern.exec(text);
+  let match = headingPattern.exec(activeTimelineText);
   while (match) {
     dates.push(match[1]);
-    match = headingPattern.exec(text);
+    match = headingPattern.exec(activeTimelineText);
   }
 
   const today = new Date();

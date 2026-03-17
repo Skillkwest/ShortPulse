@@ -1,6 +1,14 @@
 # ShortPulse Change Log
 
-Append new entries at the end of this file; each entry should include date (UTC) and a brief summary of completed work.
+Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
+
+## Unreleased
+- Normalized changelog governance for Lane E:
+  - added an explicit `Unreleased` section as the active entry point,
+  - split pre-normalization notes behind a legacy marker so chronology/future-date checks can enforce the active timeline without rewriting imported history,
+  - activated machine-checkable changelog chronology governance through `scripts/check_docs_semantic_drift.js`.
+
+## Legacy Imported Entries (pre-2026-03-17 normalization)
 
 ## 2025-12-11
 - Read all project MD docs (color system, naming log, performance index) to align scope and palette.

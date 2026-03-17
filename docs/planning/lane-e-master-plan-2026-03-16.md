@@ -37,7 +37,7 @@ As of 2026-03-17:
    - `docs/adr/README.md`: `0` active ADR entries missing
    - duplicate ADR number drift: `0`
 4. Active policy-surface consistency is now locked after `E3-01`: active executable/planning guidance no longer prescribes Docker-local Supabase lint/start workflows where core repo policy prohibits them.
-5. Changelog normalization drift remains for `E4-01`: `docs/change_log.md` has no `## Unreleased`; chronology/future-date enforcement in `scripts/check_docs_semantic_drift.js` is therefore not active.
+5. Changelog governance is now locked after `E4-01`: `docs/change_log.md` includes `## Unreleased`, preserves pre-normalization notes behind a legacy marker, and chronology/future-date enforcement is active for the normalized timeline in `scripts/check_docs_semantic_drift.js`.
 6. `npm -C frontend run docs:check` is green, confirming current checks are healthy while Lane E continues converting the remaining governance intent into enforced contracts.
 
 ## Scope

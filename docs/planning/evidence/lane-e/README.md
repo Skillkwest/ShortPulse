@@ -32,3 +32,4 @@ Examples:
 - `docs/planning/evidence/lane-e/2026-03-17-e1-01-index-parity-contract.md`
 - `docs/planning/evidence/lane-e/2026-03-17-e2-01-adr-integrity-contract.md`
 - `docs/planning/evidence/lane-e/2026-03-17-e3-01-policy-surface-consistency.md`
+- `docs/planning/evidence/lane-e/2026-03-17-e4-01-changelog-governance-hardening.md`

@@ -306,6 +306,8 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-23.md`
 - Captured Lane B B2-01 hotspot map to shift from low-yield micro-seams toward boundary-driven extraction planning inside `ExpertEditPanelView.tsx`:
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-hotspot-map.md`
+- Continued Lane B B2-01 with the first hotspot-map-driven boundary extraction by moving markup draw lifecycle control into a dedicated hook and bringing `ExpertEditPanelView.tsx` below the warn-mode size budget:
+  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-24.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
   - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 - Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):

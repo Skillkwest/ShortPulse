@@ -1,0 +1,270 @@
+/**
+ * Markup draw controller for Expert Edit stage interactions.
+ * Owns draw/erase pointer session lifecycle while keeping the panel focused on orchestration.
+ */
+import React from "react";
+
+import { buildMarkupBrushReticleCursor } from "./expertEditCursorUtils";
+import {
+  elementHasPointerCapture,
+  releasePointerCaptureSafely,
+} from "./expertEditInteractionUtils";
+import {
+  appendMarkupStrokePoints,
+  createIdleMarkupDrawPointerSession,
+  resolveMarkupPointerPoint,
+  resolveMarkupStrokeHit,
+  resolveMarkupStrokeSizeRatio,
+  resolvePointerSampleEvents,
+  type MarkupDrawPointerSession,
+  type MarkupStroke,
+  type MarkupStrokePoint,
+  type MarkupViewportState,
+} from "./markupStrokeController";
+
+type MarkupMode = "pen" | "eraser";
+
+type UseExpertEditMarkupDrawControllerParams = {
+  isVideoToolSelected: boolean;
+  hasPrimaryCompositePreview: boolean;
+  selectedMarkupMode: MarkupMode;
+  resolvedMarkupStrokeSize: number;
+  maxMarkupStrokeSize: number;
+  markupColor: string;
+  markupViewport: MarkupViewportState;
+  shouldApplyMarkupViewport: boolean;
+  markupStrokeIdCounterRef: React.MutableRefObject<number>;
+  markupDrawPointerSessionRef: React.MutableRefObject<MarkupDrawPointerSession>;
+  setMarkupStrokes: React.Dispatch<React.SetStateAction<MarkupStroke[]>>;
+  beginMarkupGestureHistory: () => void;
+  finalizeMarkupGestureHistory: () => void;
+  lockGlobalCursor: (cursor: string) => void;
+  unlockGlobalCursor: () => void;
+  showStatusToast: (message: string) => void;
+};
+
+type UseExpertEditMarkupDrawControllerResult = {
+  beginMarkupDrawGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
+  continueMarkupDrawGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
+  endMarkupDrawGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
+  endMarkupDrawGestureOnLeave: (event: React.PointerEvent<HTMLDivElement>) => boolean;
+  clearMarkupDrawGestureSession: () => void;
+};
+
+/**
+ * Returns the pointer handlers for markup draw/erase stage interactions.
+ */
+export const useExpertEditMarkupDrawController = ({
+  isVideoToolSelected,
+  hasPrimaryCompositePreview,
+  selectedMarkupMode,
+  resolvedMarkupStrokeSize,
+  maxMarkupStrokeSize,
+  markupColor,
+  markupViewport,
+  shouldApplyMarkupViewport,
+  markupStrokeIdCounterRef,
+  markupDrawPointerSessionRef,
+  setMarkupStrokes,
+  beginMarkupGestureHistory,
+  finalizeMarkupGestureHistory,
+  lockGlobalCursor,
+  unlockGlobalCursor,
+  showStatusToast,
+}: UseExpertEditMarkupDrawControllerParams): UseExpertEditMarkupDrawControllerResult => {
+  const eraseMarkupStrokesAtPoints = React.useCallback(
+    (points: MarkupStrokePoint[], stageRect: DOMRect) => {
+      if (!points.length) return;
+      const stageWidth = Math.max(1, stageRect.width);
+      const stageHeight = Math.max(1, stageRect.height);
+      const eraserRadius = Math.max(1, resolvedMarkupStrokeSize / 2);
+      setMarkupStrokes((previousStrokes) =>
+        previousStrokes.filter(
+          (stroke) =>
+            !points.some((point) =>
+              resolveMarkupStrokeHit({
+                stroke,
+                point,
+                eraserRadiusPx: eraserRadius,
+                stageWidth,
+                stageHeight,
+              })
+            )
+        )
+      );
+    },
+    [resolvedMarkupStrokeSize, setMarkupStrokes]
+  );
+
+  const clearMarkupDrawGestureSession = React.useCallback(() => {
+    markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
+  }, [markupDrawPointerSessionRef]);
+
+  const activateMarkupDrawGestureSession = React.useCallback(
+    (pointerId: number, mode: MarkupDrawPointerSession["mode"], strokeId: string | null) => {
+      lockGlobalCursor(
+        buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize, maxMarkupStrokeSize)
+      );
+      markupDrawPointerSessionRef.current = {
+        active: true,
+        pointerId,
+        mode,
+        strokeId,
+      };
+    },
+    [lockGlobalCursor, markupDrawPointerSessionRef, maxMarkupStrokeSize, resolvedMarkupStrokeSize]
+  );
+
+  const finalizeMarkupDrawGestureSession = React.useCallback(() => {
+    clearMarkupDrawGestureSession();
+    unlockGlobalCursor();
+    finalizeMarkupGestureHistory();
+  }, [clearMarkupDrawGestureSession, finalizeMarkupGestureHistory, unlockGlobalCursor]);
+
+  const beginMarkupDrawGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isVideoToolSelected) return false;
+      if (!hasPrimaryCompositePreview) {
+        showStatusToast("Add a layer image before drawing markup.");
+        return false;
+      }
+      if (event.pointerType === "mouse" && event.button !== 0) return false;
+      const stageRect = event.currentTarget.getBoundingClientRect();
+      const point = resolveMarkupPointerPoint({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        rect: stageRect,
+        viewport: markupViewport,
+        applyViewportTransform: shouldApplyMarkupViewport,
+      });
+      if (!point) return false;
+      event.preventDefault();
+      if (event.currentTarget.setPointerCapture) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      beginMarkupGestureHistory();
+      if (selectedMarkupMode === "eraser") {
+        eraseMarkupStrokesAtPoints([point], stageRect);
+        activateMarkupDrawGestureSession(event.pointerId, "eraser", null);
+        return true;
+      }
+      const strokeId = `markup-stroke-${markupStrokeIdCounterRef.current++}`;
+      const stroke: MarkupStroke = {
+        id: strokeId,
+        color: markupColor,
+        sizeRatio: resolveMarkupStrokeSizeRatio({
+          strokeSizePx: resolvedMarkupStrokeSize,
+          stageHeight: stageRect.height,
+        }),
+        points: [point],
+      };
+      setMarkupStrokes((previousStrokes) => [...previousStrokes, stroke]);
+      activateMarkupDrawGestureSession(event.pointerId, "pen", strokeId);
+      return true;
+    },
+    [
+      activateMarkupDrawGestureSession,
+      beginMarkupGestureHistory,
+      eraseMarkupStrokesAtPoints,
+      hasPrimaryCompositePreview,
+      isVideoToolSelected,
+      markupColor,
+      markupStrokeIdCounterRef,
+      markupViewport,
+      resolvedMarkupStrokeSize,
+      selectedMarkupMode,
+      setMarkupStrokes,
+      shouldApplyMarkupViewport,
+      showStatusToast,
+    ]
+  );
+
+  const continueMarkupDrawGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupDrawPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      const stageRect = event.currentTarget.getBoundingClientRect();
+      const sampleEvents = resolvePointerSampleEvents(event.nativeEvent as PointerEvent);
+      const points = sampleEvents
+        .map((sampleEvent) =>
+          resolveMarkupPointerPoint({
+            clientX: sampleEvent.clientX,
+            clientY: sampleEvent.clientY,
+            rect: stageRect,
+            viewport: markupViewport,
+            applyViewportTransform: shouldApplyMarkupViewport,
+          })
+        )
+        .filter((sample): sample is MarkupStrokePoint => sample != null);
+      if (!points.length) return false;
+      event.preventDefault();
+      if (session.mode === "eraser") {
+        eraseMarkupStrokesAtPoints(points, stageRect);
+        return true;
+      }
+      if (!session.strokeId) return false;
+      const stageWidth = Math.max(1, stageRect.width);
+      const stageHeight = Math.max(1, stageRect.height);
+      setMarkupStrokes((previousStrokes) =>
+        previousStrokes.map((stroke) => {
+          if (stroke.id !== session.strokeId) {
+            return stroke;
+          }
+          return appendMarkupStrokePoints({
+            stroke,
+            samples: points,
+            stageWidth,
+            stageHeight,
+          });
+        })
+      );
+      return true;
+    },
+    [
+      eraseMarkupStrokesAtPoints,
+      markupDrawPointerSessionRef,
+      markupViewport,
+      setMarkupStrokes,
+      shouldApplyMarkupViewport,
+    ]
+  );
+
+  const endMarkupDrawGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupDrawPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      releasePointerCaptureSafely(event.currentTarget, event.pointerId);
+      finalizeMarkupDrawGestureSession();
+      return true;
+    },
+    [finalizeMarkupDrawGestureSession, markupDrawPointerSessionRef]
+  );
+
+  const endMarkupDrawGestureOnLeave = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupDrawPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, event.pointerId);
+      if (hasPointerCapture) {
+        return false;
+      }
+      finalizeMarkupDrawGestureSession();
+      return true;
+    },
+    [finalizeMarkupDrawGestureSession, markupDrawPointerSessionRef]
+  );
+
+  return {
+    beginMarkupDrawGesture,
+    continueMarkupDrawGesture,
+    endMarkupDrawGesture,
+    endMarkupDrawGestureOnLeave,
+    clearMarkupDrawGestureSession,
+  };
+};

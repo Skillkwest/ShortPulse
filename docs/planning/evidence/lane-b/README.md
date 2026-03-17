@@ -93,3 +93,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-errors-events-controller-split.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-shell-checkpoint-review.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-health-hotspot-map.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-user-health-target-lookup-split.md`

@@ -20,11 +20,10 @@ import {
   type DeepLookupMode as LookupMode,
   type DeepQueryError as QueryError,
 } from "../../../lib/server/adminUserHealth/deep";
+import { resolveAdminHealthAuthUser } from "../../../lib/server/adminUserHealth/targetLookup";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
-const AUTH_SEARCH_SCAN_PER_PAGE = 200;
-const AUTH_SEARCH_SCAN_MAX_PAGES = 50;
 const DB_PAGE_SIZE = 1000;
 const DB_MAX_PAGES = 50;
 
@@ -35,13 +34,6 @@ type AdminHealthRequest = {
   lookup: string;
   lookupMode?: LookupMode;
   lookbackDays?: number;
-};
-
-type AuthUser = {
-  id: string;
-  email?: string | null;
-  created_at?: string | null;
-  last_sign_in_at?: string | null;
 };
 
 type BalanceRow = {
@@ -251,66 +243,7 @@ type HealthResponse = {
   nextSteps: string[];
 };
 
-const isUuid = (value: string): boolean =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-
 const toDayKey = (timestampMs: number): string => new Date(timestampMs).toISOString().slice(0, 10);
-
-const listUsersPage = async (
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
-  page: number,
-  perPage: number
-): Promise<{ users: AuthUser[]; nextPage: number | null }> => {
-  const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-  if (error) throw new Error(error.message);
-  const users = Array.isArray(data?.users) ? (data.users as AuthUser[]) : [];
-  const nextPage = typeof data?.nextPage === "number" ? data.nextPage : null;
-  return { users, nextPage };
-};
-
-const findAuthUserByEmail = async (
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
-  email: string
-): Promise<AuthUser | null> => {
-  let page = 1;
-  let hasNext = true;
-  while (hasNext && page <= AUTH_SEARCH_SCAN_MAX_PAGES) {
-    const pageResult = await listUsersPage(supabaseAdmin, page, AUTH_SEARCH_SCAN_PER_PAGE);
-    const found = pageResult.users.find(
-      (candidate) =>
-        String(candidate.email ?? "")
-          .trim()
-          .toLowerCase() === email
-    );
-    if (found) return found;
-    hasNext = pageResult.nextPage !== null && pageResult.nextPage > page;
-    page += 1;
-  }
-  return null;
-};
-
-const findAuthUserById = async (
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
-  userId: string
-): Promise<AuthUser | null> => {
-  if (isUuid(userId)) {
-    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (!error && data?.user && data.user.id === userId) {
-      return data.user as AuthUser;
-    }
-  }
-
-  let page = 1;
-  let hasNext = true;
-  while (hasNext && page <= AUTH_SEARCH_SCAN_MAX_PAGES) {
-    const pageResult = await listUsersPage(supabaseAdmin, page, AUTH_SEARCH_SCAN_PER_PAGE);
-    const found = pageResult.users.find((candidate) => String(candidate.id) === userId);
-    if (found) return found;
-    hasNext = pageResult.nextPage !== null && pageResult.nextPage > page;
-    page += 1;
-  }
-  return null;
-};
 
 const fetchAllRowsForSelect = async <TRow>(
   fetchPage: (
@@ -360,19 +293,11 @@ export default async function handler(
     const supabaseAdmin = getSupabaseAdmin();
     const compatibilityWarnings: string[] = [];
 
-    let authUser: AuthUser | null = null;
-    if (lookupMode === "email") {
-      authUser = await findAuthUserByEmail(supabaseAdmin, lookup.toLowerCase());
-    } else if (lookupMode === "user_id") {
-      authUser = await findAuthUserById(supabaseAdmin, lookup);
-    } else if (lookup.includes("@")) {
-      authUser = await findAuthUserByEmail(supabaseAdmin, lookup.toLowerCase());
-    } else {
-      authUser = await findAuthUserById(supabaseAdmin, lookup);
-      if (!authUser && lookup.includes("@")) {
-        authUser = await findAuthUserByEmail(supabaseAdmin, lookup.toLowerCase());
-      }
-    }
+    const authUser = await resolveAdminHealthAuthUser({
+      supabaseAdmin,
+      lookup,
+      lookupMode,
+    });
 
     if (!authUser) {
       return res.status(404).json({ error: "User not found." });

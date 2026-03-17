@@ -34,6 +34,51 @@ const AGENT_API_ROUTES = [
   path.join(FRONTEND_ROOT, "pages", "api", "ai", "generate-prompt.ts"),
   path.join(FRONTEND_ROOT, "pages", "api", "ai", "describe-image.ts"),
 ];
+const EXPERT_EDIT_ROOT = path.join(AI_STUDIO_ROOT, "components", "edit");
+const CHARACTER_MANAGER_ROOT = path.join(FRONTEND_ROOT, "features", "character-manager");
+const ADMIN_PAGE_ROOT = path.join(FRONTEND_ROOT, "pages", "admin");
+const ADMIN_API_ROOT = path.join(FRONTEND_ROOT, "pages", "api", "admin");
+const ADMIN_HEALTH_SERVER_ROOT = path.join(FRONTEND_ROOT, "lib", "server", "adminUserHealth");
+const LANE_B_BOUNDARY_RULES = [
+  {
+    name: "expert-edit",
+    modeEnv: "EXPERT_EDIT_BOUNDARY_MODE",
+    fileRoots: [EXPERT_EDIT_ROOT],
+    forbiddenRoots: [path.join(FRONTEND_ROOT, "pages")],
+  },
+  {
+    name: "character-manager",
+    modeEnv: "CHARACTER_MANAGER_BOUNDARY_MODE",
+    fileRoots: [CHARACTER_MANAGER_ROOT],
+    forbiddenRoots: [path.join(FRONTEND_ROOT, "pages", "api")],
+  },
+  {
+    name: "admin-health",
+    modeEnv: "ADMIN_HEALTH_BOUNDARY_MODE",
+    fileRoots: [ADMIN_PAGE_ROOT, ADMIN_API_ROOT, ADMIN_HEALTH_SERVER_ROOT],
+    forbiddenRoots: [
+      path.join(AI_STUDIO_ROOT, "components", "edit"),
+      path.join(FRONTEND_ROOT, "features", "character-manager", "components"),
+    ],
+  },
+];
+const LANE_B_CYCLE_RULES = [
+  {
+    name: "expert-edit",
+    modeEnv: "EXPERT_EDIT_CYCLE_MODE",
+    roots: [EXPERT_EDIT_ROOT],
+  },
+  {
+    name: "character-manager",
+    modeEnv: "CHARACTER_MANAGER_CYCLE_MODE",
+    roots: [CHARACTER_MANAGER_ROOT],
+  },
+  {
+    name: "admin-health",
+    modeEnv: "ADMIN_HEALTH_CYCLE_MODE",
+    roots: [ADMIN_PAGE_ROOT, ADMIN_API_ROOT, ADMIN_HEALTH_SERVER_ROOT],
+  },
+];
 
 const TS_FILE_PATTERN = /\.(ts|tsx)$/;
 const IMPORT_RE = /\b(?:import|export)\s+(?:type\s+)?(?:[^"'`]*?\s+from\s+)?["'`]([^"'`]+)["'`]/g;
@@ -56,6 +101,7 @@ function walk(dir, out = []) {
 function readImports(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
   const imports = [];
+  IMPORT_RE.lastIndex = 0;
   let match = IMPORT_RE.exec(text);
   while (match) {
     imports.push(match[1].trim());
@@ -82,6 +128,33 @@ function resolveImportPath(fromFile, specifier) {
   if (specifier.startsWith("features/")) {
     return path.resolve(FRONTEND_ROOT, specifier);
   }
+  return null;
+}
+
+function resolveImportFilePath(fromFile, specifier) {
+  const resolved = resolveImportPath(fromFile, specifier);
+  if (!resolved) return null;
+
+  const candidates = [
+    resolved,
+    `${resolved}.ts`,
+    `${resolved}.tsx`,
+    `${resolved}.js`,
+    `${resolved}.mjs`,
+    `${resolved}.cjs`,
+    path.join(resolved, "index.ts"),
+    path.join(resolved, "index.tsx"),
+    path.join(resolved, "index.js"),
+    path.join(resolved, "index.mjs"),
+    path.join(resolved, "index.cjs"),
+  ];
+
+  for (const candidate of candidates) {
+    if (!fs.existsSync(candidate)) continue;
+    if (!TS_FILE_PATTERN.test(candidate)) continue;
+    return path.resolve(candidate);
+  }
+
   return null;
 }
 
@@ -172,6 +245,107 @@ function collectServerAiStudioBoundaryErrors() {
   return errors;
 }
 
+function collectLaneBImportBoundaryErrors(fileRoots, forbiddenRoots) {
+  const errors = [];
+  const filesToCheck = fileRoots.flatMap((root) => walk(root));
+
+  for (const filePath of filesToCheck) {
+    const imports = readImports(filePath);
+    for (const specifier of imports) {
+      const resolved = resolveImportPath(filePath, specifier);
+      if (!resolved) continue;
+      const forbiddenRoot = forbiddenRoots.find((root) => isInside(resolved, root));
+      if (!forbiddenRoot) continue;
+      const relFile = toPosix(path.relative(REPO_ROOT, filePath));
+      const relForbidden = toPosix(path.relative(REPO_ROOT, forbiddenRoot));
+      errors.push(`${relFile} imports forbidden path (${specifier}) under ${relForbidden}.`);
+    }
+  }
+
+  return errors;
+}
+
+function findCycles(adjacency) {
+  const state = new Map();
+  const stack = [];
+  const stackIndex = new Map();
+  const cycles = [];
+  const cycleKeys = new Set();
+  const nodes = Array.from(adjacency.keys());
+  const MAX_CYCLES = 25;
+
+  function addCycle(cycleNodes) {
+    if (cycles.length >= MAX_CYCLES) return;
+    const normalized = cycleNodes.map((node) => toPosix(path.relative(REPO_ROOT, node)));
+    const anchor = [...normalized].sort()[0] || normalized[0];
+    const anchorIndex = normalized.indexOf(anchor);
+    const ordered =
+      anchorIndex > -1
+        ? [...normalized.slice(anchorIndex), ...normalized.slice(0, anchorIndex)]
+        : normalized;
+    const key = ordered.join(" -> ");
+    if (cycleKeys.has(key)) return;
+    cycleKeys.add(key);
+    cycles.push(ordered);
+  }
+
+  function dfs(node) {
+    state.set(node, 1);
+    stackIndex.set(node, stack.length);
+    stack.push(node);
+
+    const neighbors = adjacency.get(node) || [];
+    for (const next of neighbors) {
+      const nextState = state.get(next) || 0;
+      if (nextState === 0) {
+        dfs(next);
+      } else if (nextState === 1) {
+        const startIndex = stackIndex.get(next);
+        if (startIndex === undefined) continue;
+        const cyclePath = stack.slice(startIndex);
+        cyclePath.push(next);
+        addCycle(cyclePath);
+      }
+      if (cycles.length >= MAX_CYCLES) break;
+    }
+
+    stack.pop();
+    stackIndex.delete(node);
+    state.set(node, 2);
+  }
+
+  for (const node of nodes) {
+    if ((state.get(node) || 0) !== 0) continue;
+    dfs(node);
+    if (cycles.length >= MAX_CYCLES) break;
+  }
+
+  return cycles.map((cycle) => cycle.join(" -> "));
+}
+
+function collectCycleErrors(roots) {
+  const fileSet = new Set(roots.flatMap((root) => walk(root).map((file) => path.resolve(file))));
+  const adjacency = new Map();
+  for (const filePath of fileSet) {
+    adjacency.set(filePath, []);
+  }
+
+  for (const filePath of fileSet) {
+    const imports = readImports(filePath);
+    const neighbors = adjacency.get(filePath);
+    for (const specifier of imports) {
+      const resolvedFile = resolveImportFilePath(filePath, specifier);
+      if (!resolvedFile) continue;
+      if (!fileSet.has(resolvedFile)) continue;
+      if (!neighbors.includes(resolvedFile)) {
+        neighbors.push(resolvedFile);
+      }
+    }
+  }
+
+  return findCycles(adjacency).map((cycle) => `Dependency cycle detected: ${cycle}`);
+}
+
 function printErrors(header, errors) {
   if (!errors.length) return;
   console.error(header);
@@ -218,6 +392,36 @@ function checkBoundaries() {
     } else {
       console.warn("Server/runtime AI Studio boundary checks failed in warn mode:");
       for (const error of serverAiStudioBoundaryErrors) {
+        console.warn(`- ${error}`);
+      }
+    }
+  }
+
+  for (const rule of LANE_B_BOUNDARY_RULES) {
+    const mode = resolveMode(process.env[rule.modeEnv], "warn");
+    const errors = collectLaneBImportBoundaryErrors(rule.fileRoots, rule.forbiddenRoots);
+    if (!errors.length) continue;
+    if (mode === "enforce") {
+      printErrors(`Architecture boundary checks failed (${rule.name} boundaries):`, errors);
+      hardErrors.push(...errors);
+    } else {
+      console.warn(`${rule.name} boundary checks failed in warn mode:`);
+      for (const error of errors) {
+        console.warn(`- ${error}`);
+      }
+    }
+  }
+
+  for (const rule of LANE_B_CYCLE_RULES) {
+    const mode = resolveMode(process.env[rule.modeEnv], "warn");
+    const errors = collectCycleErrors(rule.roots);
+    if (!errors.length) continue;
+    if (mode === "enforce") {
+      printErrors(`Architecture boundary checks failed (${rule.name} cycles):`, errors);
+      hardErrors.push(...errors);
+    } else {
+      console.warn(`${rule.name} cycle checks failed in warn mode:`);
+      for (const error of errors) {
         console.warn(`- ${error}`);
       }
     }

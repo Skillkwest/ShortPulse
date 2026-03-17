@@ -20,6 +20,22 @@ const REFERENCE_GRID_TARGET_BUDGETS = [
   { file: "frontend/features/ai-studio/hooks/useAiStudioState.ts", maxLines: 650 },
 ];
 
+const EXPERT_EDIT_TARGET_BUDGETS = [
+  { file: "frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx", maxLines: 5000 },
+  { file: "frontend/features/ai-studio/components/edit/useInpaintMaskController.ts", maxLines: 1400 },
+  { file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx", maxLines: 1600 },
+];
+
+const CHARACTER_MANAGER_TARGET_BUDGETS = [
+  { file: "frontend/features/character-manager/components/CharacterManagerShell.tsx", maxLines: 2200 },
+];
+
+const ADMIN_HEALTH_TARGET_BUDGETS = [
+  { file: "frontend/pages/admin/index.tsx", maxLines: 1300 },
+  { file: "frontend/pages/api/admin/user-health.ts", maxLines: 900 },
+  { file: "frontend/lib/server/adminUserHealth/fleet.ts", maxLines: 900 },
+];
+
 function countLines(text) {
   if (!text.length) return 0;
   return text.split(/\r?\n/).length;
@@ -55,30 +71,73 @@ function collectBudgetErrors(budgets) {
   return errors;
 }
 
-function run() {
-  const enforcedErrors = collectBudgetErrors(ENFORCED_BUDGETS);
-  if (enforcedErrors.length) {
-    console.error("Size budget checks failed:");
-    for (const error of enforcedErrors) {
+function reportTargetBudgetGroup(modeEnvName, headerPrefix, budgets, hardErrors) {
+  const mode = resolveMode(process.env[modeEnvName], "warn");
+  const errors = collectBudgetErrors(budgets);
+  if (!errors.length) return;
+  if (mode === "enforce") {
+    console.error(`${headerPrefix} size budget checks failed (enforce mode):`);
+    for (const error of errors) {
       console.error(`- ${error}`);
     }
-    process.exit(1);
+    hardErrors.push(...errors);
+    return;
+  }
+  console.warn(`${headerPrefix} size budget checks failed in warn mode:`);
+  for (const error of errors) {
+    console.warn(`- ${error}`);
+  }
+}
+
+function run() {
+  const hardErrors = [];
+  const enforcedErrors = collectBudgetErrors(ENFORCED_BUDGETS);
+  if (enforcedErrors.length) {
+    hardErrors.push(...enforcedErrors);
   }
 
   const referenceGridMode = resolveMode(process.env.REFERENCE_GRID_SIZE_BUDGET_MODE, "warn");
   const referenceGridErrors = collectBudgetErrors(REFERENCE_GRID_TARGET_BUDGETS);
   if (referenceGridErrors.length) {
     if (referenceGridMode === "enforce") {
+      hardErrors.push(...referenceGridErrors);
       console.error("Reference-grid target size budget checks failed (enforce mode):");
       for (const error of referenceGridErrors) {
         console.error(`- ${error}`);
       }
-      process.exit(1);
+    } else {
+      console.warn("Reference-grid target size budget checks failed in warn mode:");
+      for (const error of referenceGridErrors) {
+        console.warn(`- ${error}`);
+      }
     }
-    console.warn("Reference-grid target size budget checks failed in warn mode:");
-    for (const error of referenceGridErrors) {
-      console.warn(`- ${error}`);
+  }
+
+  reportTargetBudgetGroup(
+    "EXPERT_EDIT_SIZE_BUDGET_MODE",
+    "Expert Edit target",
+    EXPERT_EDIT_TARGET_BUDGETS,
+    hardErrors
+  );
+  reportTargetBudgetGroup(
+    "CHARACTER_MANAGER_SIZE_BUDGET_MODE",
+    "Character Manager target",
+    CHARACTER_MANAGER_TARGET_BUDGETS,
+    hardErrors
+  );
+  reportTargetBudgetGroup(
+    "ADMIN_HEALTH_SIZE_BUDGET_MODE",
+    "Admin/Health target",
+    ADMIN_HEALTH_TARGET_BUDGETS,
+    hardErrors
+  );
+
+  if (hardErrors.length) {
+    console.error("Size budget checks failed:");
+    for (const error of hardErrors) {
+      console.error(`- ${error}`);
     }
+    process.exit(1);
   }
 
   console.log("Size budget checks passed.");

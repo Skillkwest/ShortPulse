@@ -27,8 +27,17 @@ As of 2026-03-16:
    - `MediaLibraryPanel.tsx` (2058 LOC)
    - `CharacterManagerShell.tsx` (2749 LOC)
    - `pages/admin/index.tsx` (1660 LOC)
-2. Current size-budget guardrails exist, but domain-specific Lane B budget modes are not yet present.
-3. Architecture boundary guardrails exist, but cycle detection is not currently enforced.
+2. Current size-budget guardrails include Lane B domain-specific modes in warn-default posture:
+   - `EXPERT_EDIT_SIZE_BUDGET_MODE`
+   - `CHARACTER_MANAGER_SIZE_BUDGET_MODE`
+   - `ADMIN_HEALTH_SIZE_BUDGET_MODE`
+3. Architecture boundary guardrails include Lane B boundary/cycle modes in warn-default posture:
+   - `EXPERT_EDIT_BOUNDARY_MODE`
+   - `CHARACTER_MANAGER_BOUNDARY_MODE`
+   - `ADMIN_HEALTH_BOUNDARY_MODE`
+   - `EXPERT_EDIT_CYCLE_MODE`
+   - `CHARACTER_MANAGER_CYCLE_MODE`
+   - `ADMIN_HEALTH_CYCLE_MODE`
 4. Style governance has source-of-truth conflict on panel color (`#1C1F26` doc rationale vs `#1c1f20` runtime/token inventory).
 5. Playwright/perf visual audits exist but are credentials-gated and not yet a guaranteed CI-blocking lane.
 
@@ -44,8 +53,15 @@ As of 2026-03-16:
    - `EXPERT_EDIT_SIZE_BUDGET_MODE`
    - `CHARACTER_MANAGER_SIZE_BUDGET_MODE`
    - `ADMIN_HEALTH_SIZE_BUDGET_MODE`
-2. Expand architecture-boundary checks for new extraction seams.
-3. Add cycle-detection gate for targeted directories; start warn, then enforce after convergence.
+2. Expand architecture-boundary checks for new extraction seams with lane modes:
+   - `EXPERT_EDIT_BOUNDARY_MODE`
+   - `CHARACTER_MANAGER_BOUNDARY_MODE`
+   - `ADMIN_HEALTH_BOUNDARY_MODE`
+3. Add cycle-detection gate for targeted directories with lane modes:
+   - `EXPERT_EDIT_CYCLE_MODE`
+   - `CHARACTER_MANAGER_CYCLE_MODE`
+   - `ADMIN_HEALTH_CYCLE_MODE`
+   Start warn, then enforce after convergence.
 4. Lock PR policy:
    - one seam per PR,
    - no cross-domain extraction,
@@ -101,4 +117,4 @@ Lane-level full gate:
 3. Existing completed modularization/governance programs remain baseline and are not reopened unless a touched seam requires it.
 4. No new runtime libraries are introduced in Lane B without ADR-approved exception.
 5. Queue/submit payload contract hardening and claim-collision remediation are out of scope for Lane B and run under Track P1.
-6. Parallel preparatory work is allowed while Lane A is active, but behavior-changing or baseline-dependent Lane B merges remain blocked until Lane A baseline-green signoff.
+6. Parallel preparatory work is allowed while Lane A is active; behavior-changing or baseline-dependent Lane B merges require baseline-green signoff (already satisfied as of 2026-03-16).

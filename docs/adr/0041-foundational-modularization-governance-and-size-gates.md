@@ -24,6 +24,12 @@ Adopt a mandatory governance contract for Lane B modularization:
    - `CHARACTER_MANAGER_SIZE_BUDGET_MODE`
    - `ADMIN_HEALTH_SIZE_BUDGET_MODE`
 4. Architecture boundary checks are extended with targeted cycle detection and the same warn-to-enforce promotion policy after convergence evidence.
+   - `EXPERT_EDIT_BOUNDARY_MODE`
+   - `CHARACTER_MANAGER_BOUNDARY_MODE`
+   - `ADMIN_HEALTH_BOUNDARY_MODE`
+   - `EXPERT_EDIT_CYCLE_MODE`
+   - `CHARACTER_MANAGER_CYCLE_MODE`
+   - `ADMIN_HEALTH_CYCLE_MODE`
 5. Lane B tracker evidence is mandatory for every slice, including:
    - command bundle results,
    - LOC/coupling deltas,

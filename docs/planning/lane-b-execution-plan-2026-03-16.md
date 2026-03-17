@@ -27,8 +27,8 @@ Out of scope:
 | --- | --- | --- | --- | --- | --- |
 | `B0-01` | B-Core | Governance bootstrap | Publish Lane B ADR/SOP/checklist alignment and freeze extraction policy | `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md` | Completed |
 | `B1-01` | B-Core | Guardrail controls | Add Lane B size-budget/boundary/cycle guardrail modes | `docs/planning/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md` | Completed |
-| `B2-01` | B-Core | `ExpertEditPanelView.tsx` | Extract orchestration/presenter seams while preserving prop contract | `docs/planning/evidence/lane-b/README.md` | In Progress |
-| `B2-02` | B-Core | `useInpaintMaskController.ts` | Split math/state helpers from orchestration hook | `docs/planning/evidence/lane-b/2026-03-16-b2-02-inpaint-controller-split.md` | Not Started |
+| `B2-01` | B-Core | `ExpertEditPanelView.tsx` | Extract orchestration/presenter seams while preserving prop contract | `docs/planning/evidence/lane-b/README.md` | Checkpoint Complete |
+| `B2-02` | B-Core | `useInpaintMaskController.ts` | Split math/state helpers from orchestration hook | `docs/planning/evidence/lane-b/2026-03-16-b2-02-inpaint-controller-split.md` | In Progress |
 | `B2-03` | B-Core | `MediaLibraryPanel.tsx` | Split panel controller/presentation seams with parity tests | `docs/planning/evidence/lane-b/2026-03-16-b2-03-media-library-panel-split.md` | Not Started |
 | `B3-01` | B-Core | `CharacterManagerShell.tsx` | Extract domain hooks + shell presentation seams | `docs/planning/evidence/lane-b/2026-03-16-b3-01-character-shell-split.md` | Not Started |
 | `B4-01` | B-Core | `/pages/admin/index.tsx` | Split tab-specific controllers and reduce page coupling | `docs/planning/evidence/lane-b/2026-03-16-b4-01-admin-shell-split.md` | Not Started |
@@ -102,6 +102,7 @@ Acceptance:
 2. LOC or coupling reduction is explicit per slice.
 3. Boundary and size checks pass.
 4. The seam clears the selection rubric with explicit rationale in the evidence packet.
+5. If hotspot tests only cover helpers, the next slice must add characterization before opening higher-risk controller extraction.
 
 Hotspot escalation rule:
 1. If two consecutive accepted seams produce only marginal hotspot reduction or only local cleanup value, pause new micro-seams and capture a hotspot map before continuing.

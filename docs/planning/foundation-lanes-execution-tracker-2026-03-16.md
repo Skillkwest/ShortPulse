@@ -14,7 +14,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
 | A | Completed | Engineering | Lane A closeout complete; debt handed off to downstream lanes | none | Lane B execution handoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
-| B | In Progress | Engineering | B2-01 active; hotspot-map-driven controller extraction landed for Expert Edit markup draw, markup viewport/pan, and transform-session lifecycles with parity gates green and `ExpertEditPanelView.tsx` now below warn budget | none | Reassess B2-01 stop condition before taking another Expert Edit seam or moving to the next hotspot | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| B | In Progress | Engineering | B2-02 active; B2-01 stop review complete, `ExpertEditPanelView.tsx` checkpointed below warn budget, and inpaint controller hotspot mapping now points to characterization-first extraction | none | Open B2-02 with behavior characterization and first pure-helper split | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
 | E | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock | Awaiting E0 baseline evidence packet | Lane E governance baseline lock | `docs/planning/lane-e-master-plan-2026-03-16.md` |
@@ -312,6 +312,8 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-25.md`
 - Continued Lane B B2-01 with a third hotspot-map-driven boundary extraction by moving move-stage transform lifecycle control into a dedicated hook and further reducing `ExpertEditPanelView.tsx`:
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-26.md`
+- Completed B2-01 stop-condition review and moved Lane B focus to `useInpaintMaskController.ts` with a characterization-first hotspot map:
+  - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-controller-hotspot-map.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
   - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 - Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):

@@ -10,9 +10,11 @@ Purpose: store execution evidence packets for Lane B modularization slices.
 5. `commands_run`
 6. `results`
 7. `loc_or_coupling_delta`
-8. `parity_assertions`
-9. `rollback_note`
-10. `linked_pr`
+8. `net_complexity_note`
+9. `seam_type` (`local_consolidation` or `shared_extraction`)
+10. `parity_assertions`
+11. `rollback_note`
+12. `linked_pr`
 
 ## Naming format
 Use dated packet names:
@@ -52,3 +54,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-20.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-21.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-22.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-23.md`

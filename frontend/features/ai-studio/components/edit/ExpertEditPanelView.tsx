@@ -2093,28 +2093,10 @@ export function ExpertEditPanelView({
     isVideoToolSelected,
   ]);
 
-  const handleRecenterMoveAction = React.useCallback(() => {
-    if (selectedLayer) {
-      const nextLayers = layers.map((layer) =>
-        layer.id === selectedLayer.id
-          ? {
-              ...layer,
-              transform: defaultLayerTransform(),
-            }
-          : layer
-      );
-      const baselineEntry = buildTransformHistoryEntry(layers);
-      const nextEntry = buildTransformHistoryEntry(nextLayers);
-      if (!areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) {
-        setLayers(nextLayers);
-        commitTransformHistoryTransition(nextEntry, baselineEntry);
-      }
-    }
-    setMoveStageZoomSliderValue(MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
-    setMarkupViewport(createDefaultMarkupViewportState());
+  const clearMarkupPanGestureState = React.useCallback(() => {
     markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
     setIsMarkupPanDragging(false);
-  }, [commitTransformHistoryTransition, layers, selectedLayer]);
+  }, []);
 
   const handleMoveZoomSliderChange = React.useCallback((value: number) => {
     const clampedSliderValue = clampNumber(
@@ -2138,9 +2120,28 @@ export function ExpertEditPanelView({
   const resetMarkupViewport = React.useCallback(() => {
     setMoveStageZoomSliderValue(MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
     setMarkupViewport(createDefaultMarkupViewportState());
-    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
-    setIsMarkupPanDragging(false);
-  }, []);
+    clearMarkupPanGestureState();
+  }, [clearMarkupPanGestureState]);
+
+  const handleRecenterMoveAction = React.useCallback(() => {
+    if (selectedLayer) {
+      const nextLayers = layers.map((layer) =>
+        layer.id === selectedLayer.id
+          ? {
+              ...layer,
+              transform: defaultLayerTransform(),
+            }
+          : layer
+      );
+      const baselineEntry = buildTransformHistoryEntry(layers);
+      const nextEntry = buildTransformHistoryEntry(nextLayers);
+      if (!areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) {
+        setLayers(nextLayers);
+        commitTransformHistoryTransition(nextEntry, baselineEntry);
+      }
+    }
+    resetMarkupViewport();
+  }, [commitTransformHistoryTransition, layers, resetMarkupViewport, selectedLayer]);
 
   const resetAllMoveToolTransforms = React.useCallback(() => {
     const baselineEntry = buildTransformHistoryEntry(layers);
@@ -2276,16 +2277,18 @@ export function ExpertEditPanelView({
     []
   );
 
-  const endMarkupPanGesture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const session = markupPanPointerSessionRef.current;
-    if (!session.active || event.pointerId !== session.pointerId) {
-      return false;
-    }
-    releasePointerCaptureSafely(event.currentTarget, event.pointerId);
-    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
-    setIsMarkupPanDragging(false);
-    return true;
-  }, []);
+  const endMarkupPanGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const session = markupPanPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId) {
+        return false;
+      }
+      releasePointerCaptureSafely(event.currentTarget, event.pointerId);
+      clearMarkupPanGestureState();
+      return true;
+    },
+    [clearMarkupPanGestureState]
+  );
 
   const endMarkupPanGestureOnLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -2297,11 +2300,10 @@ export function ExpertEditPanelView({
       if (hasPointerCapture) {
         return false;
       }
-      markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
-      setIsMarkupPanDragging(false);
+      clearMarkupPanGestureState();
       return true;
     },
-    []
+    [clearMarkupPanGestureState]
   );
 
   const handleMarkupViewportWheel = React.useCallback(
@@ -3235,12 +3237,9 @@ export function ExpertEditPanelView({
 
   React.useEffect(() => {
     if (isVideoToolSelected) return;
-    if (isMarkupPanDragging) {
-      setIsMarkupPanDragging(false);
-    }
-    markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
+    clearMarkupPanGestureState();
     markupDrawPointerSessionRef.current = createIdleMarkupDrawPointerSession();
-  }, [isMarkupPanDragging, isVideoToolSelected]);
+  }, [clearMarkupPanGestureState, isVideoToolSelected]);
 
   React.useEffect(() => {
     if (hasPrimaryCompositePreview || markupStrokes.length <= 0) return;

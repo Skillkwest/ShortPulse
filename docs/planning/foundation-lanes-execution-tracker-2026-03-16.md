@@ -302,6 +302,8 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-21.md`
 - Continued Lane B B2-01 seam extraction by centralizing pointer-capture release/check logic used by markup pan/draw and transform terminal flows:
   - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-22.md`
+- Continued Lane B B2-01 seam extraction by consolidating local markup pan reset behavior across recenter, terminal, leave, and tool-exit paths:
+  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-23.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
   - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 - Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):

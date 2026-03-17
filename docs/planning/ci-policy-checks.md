@@ -205,4 +205,6 @@ Repository API access for branch rules/protection is restricted in this repo con
 - Capture repository settings screenshot/export showing required checks.
 - Copy exact required check names into this document.
 - Add operator/date evidence note at `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`.
+- Keep prototype-mode waiver posture current in `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`.
 - Keep STG-06 closeout pending until two green cycles are logged after the most recent enforce-mode promotion.
+- Treat the current plan-limited ruleset posture as a production-readiness blocker until the waiver is explicitly retired.

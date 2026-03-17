@@ -37,7 +37,10 @@ As of 2026-03-17:
    - `AGENT_ROLLBACK_VERIFICATION_MODE` is tracked in policy docs,
    - release checklist engineering gates explicitly include `npm -C frontend run docs:check`.
 4. Guardrail mode variables are currently set to `enforce` for core CI policy checks.
-5. Branch-protection/ruleset API remains plan-limited for this private repository (`403`), requiring compensating controls for production-readiness posture.
+5. Plan-limited branch/ruleset compensating controls are now refreshed after `F2-01`:
+   - current required-check mapping evidence is date-current,
+   - current prototype-mode waiver posture is date-current,
+   - production-readiness blocker language is explicit while repository-plan enforcement remains unavailable.
 6. Workflow reliability controls are incomplete:
    - no workflow-level `concurrency` blocks,
    - no `merge_group` trigger posture documented for future merge-queue adoption.

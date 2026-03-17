@@ -1,7 +1,7 @@
-# Branch Protection Required-Check Mapping (2026-02-20, refreshed 2026-02-21)
+# Branch Protection Required-Check Mapping (2026-02-20, refreshed 2026-03-17)
 
 Date: 2026-02-20  
-Operator: @sleepyseamonster  
+Operator: worldbuilder  
 Context: STG-06 manual evidence requirement
 
 ## Why manual evidence
@@ -51,6 +51,32 @@ Workflow job-name/source-of-truth check (from `.github/workflows/ci.yml`):
 - `ai_studio_perf_gate`
 - `security`
 
+## Refresh snapshot (2026-03-17)
+
+Workflow job-name/source-of-truth check (from `.github/workflows/ci.yml`):
+- `deadcode`
+- `frontend`
+- `phase11_fal_regression`
+- `type_check`
+- `docs_semantic_drift`
+- `migration_parity`
+- `archive_manifest_check`
+- `sql_lint`
+- `architecture_boundary`
+- `size_budget`
+- `agent_contract_tests`
+- `agent_disable_continuity`
+- `agent_rollback_verification`
+- `adaptive_media_gate`
+- `ai_studio_perf_gate`
+- `secret_scan`
+- `security`
+
+Policy-drift result:
+- workflow inventory and `docs/planning/ci-policy-checks.md` are now aligned for `agent_rollback_verification`
+- required-check target inventory now explicitly includes `agent_rollback_verification`
+- repository-plan limitation remains unchanged: rulesets can be configured but are still not enforceable for production-readiness on the current private-repo plan
+
 CI cycle verification command (recorded):
 - Command: `gh run list --workflow ci.yml --limit 10 --json databaseId,headBranch,conclusion,createdAt,updatedAt,event`
 - Result: recent runs on `fal-modular-makeover` show consecutive successes:
@@ -92,6 +118,7 @@ Planned required checks after warn/evaluate stabilization:
 - `size_budget`
 - `agent_contract_tests`
 - `agent_disable_continuity`
+- `agent_rollback_verification`
 
 ## Manual capture checklist
 
@@ -103,12 +130,12 @@ Planned required checks after warn/evaluate stabilization:
 
 Reviewer metadata:
 - Reviewer: @codex (secondary evidence review against recorded UI capture set + CI/job-name parity)
-- Review date: 2026-02-21
-- Review result: captured UI evidence and documented check-name mapping remain internally consistent with current workflow job names and enforce-mode variable snapshot.
+- Review date: 2026-03-17
+- Review result: captured UI evidence and documented check-name mapping remain internally consistent with current workflow job names; plan-limited ruleset enforceability posture remains unchanged.
 
 ## Status
 
-Configured and documented, but not enforceable on current repository plan; pending GitHub Team/org upgrade (or equivalent) for enforcement.
-Prototype-mode waiver applies; this remains non-blocking for MVP feature iteration and blocking only for production-readiness completion.
-Branch-protection mapping evidence was refreshed on 2026-02-21 and remains aligned with current workflow check names and enforce-mode CI guardrail configuration.
-Reviewer/date metadata was added on 2026-02-21 to close the STG-06 manual-control checklist item.
+Configured and documented, but not enforceable on the current repository plan; pending GitHub Team/org upgrade (or equivalent) for enforcement.
+Prototype-mode waiver applies; this remains non-blocking for MVP feature iteration and explicitly blocking for production-readiness completion.
+Branch-protection mapping evidence was refreshed on 2026-03-17 and remains aligned with current workflow check names and current required-check target inventory.
+Reviewer/date metadata was refreshed on 2026-03-17 to keep the manual-control evidence current.

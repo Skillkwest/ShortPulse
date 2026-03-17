@@ -26,3 +26,6 @@ Examples:
 - `docs/planning/lane-d-master-plan-2026-03-16.md`
 - `docs/planning/lane-d-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-d-execution-plan-2026-03-16.md`
+
+## Current packets
+- `docs/planning/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md`

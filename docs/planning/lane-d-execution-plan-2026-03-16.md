@@ -1,6 +1,6 @@
 # Lane D Execution Plan (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Owner: Engineering  
 Master plan: `docs/planning/lane-d-master-plan-2026-03-16.md`  
@@ -26,7 +26,7 @@ Out of scope:
 ## Slice Backlog
 | Slice ID | Phase | Runtime Surface | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
-| `D0-01` | D0 | Baseline lock | Capture baseline warnings/gates and freeze non-goals | `docs/planning/evidence/lane-d/2026-03-16-d0-01-baseline-lock.md` | Not Started |
+| `D0-01` | D0 | Baseline lock | Capture baseline warnings/gates and freeze non-goals | `docs/planning/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md` | Completed |
 | `D1-01` | D1 | `useAiStudioEditSubmitIntent` | Remove `set-state-in-effect` warning and add direct hook test | `docs/planning/evidence/lane-d/2026-03-16-d1-01-edit-submit-intent-hardening.md` | Not Started |
 | `D1-02` | D1 | `useAiStudioAgentBridge` | Remove reset effect warning while preserving session/tool reset behavior | `docs/planning/evidence/lane-d/2026-03-16-d1-02-agent-bridge-reset-hardening.md` | Not Started |
 | `D1-03` | D1 | `DetailModal` avatar flow | Remove avatar sync effect warnings with deterministic fallback behavior | `docs/planning/evidence/lane-d/2026-03-16-d1-03-detail-modal-avatar-hardening.md` | Not Started |
@@ -55,6 +55,7 @@ Acceptance:
 1. Baseline warning inventory recorded by file and rule.
 2. Baseline suppression inventory recorded for scoped runtime seams.
 3. Explicit non-goals and rollback posture recorded.
+4. Baseline-red failures outside Lane D scope are recorded explicitly rather than treated as lane regressions.
 
 ### D1-01 / D1-02 / D1-03 Effect Hardening Slices
 Required targeted tests:

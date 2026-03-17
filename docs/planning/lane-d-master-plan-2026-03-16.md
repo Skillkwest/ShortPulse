@@ -1,6 +1,6 @@
 # Lane D Master Plan (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
@@ -20,7 +20,7 @@ Locked objectives:
 5. Keep touched files behavior-stable and non-bloating under strict slice discipline.
 
 ## Baseline Findings (Audit Snapshot)
-As of 2026-03-16:
+As of 2026-03-17:
 1. `npm -C frontend run lint` reports `7` warnings, including `4` high-signal `react-hooks/set-state-in-effect` warnings in active AI Studio paths:
    - `frontend/features/ai-studio/components/DetailModal.tsx`
    - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`
@@ -32,6 +32,7 @@ As of 2026-03-16:
 4. CI governance control-plane variables are currently in `enforce` mode for architecture/size/docs/migration/agent guardrails.
 5. Existing tests cover key seams (`DetailModal`, `useAiStudioAgentBridge`, `useReferenceGridHorizontalSplit`) but `useAiStudioEditSubmitIntent` lacks direct hook-level tests.
 6. Strict runtime lint profile currently fails with `4` errors and `3` remaining warnings, confirming live debt concentration in Lane D seams.
+7. Full baseline `npm -C frontend run test` is currently red because of one unrelated admin ledger assertion failure in `frontend/tests/pages/admin.users-credits.test.tsx`; this is baseline noise, not Lane D runtime-warning debt.
 
 ## Scope
 In scope:

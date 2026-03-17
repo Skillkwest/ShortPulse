@@ -18,7 +18,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | A    | Completed   | Engineering | Lane A closeout complete; debt handed off to downstream lanes                                                                            | none                                    | Lane B execution handoff                                                  | `docs/planning/lane-a-master-plan-2026-03-16.md`                        |
 | B    | Completed   | Engineering | Lane B closeout complete; modularization, style authority, and convergence gates are locked with deferred residuals owner/dated | none                                    | Lane C execution handoff                                                  | `docs/planning/lane-b-master-plan-2026-03-16.md`                        |
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
-| D    | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths                                                                      | Awaiting D0 baseline evidence packet    | Lane D warning debt baseline lock                                         | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
+| D    | In Progress | Engineering | `D0-01` baseline is locked; `D1-01` is next on `useAiStudioEditSubmitIntent` runtime warning removal and direct hook test coverage     | Baseline full test is red on unrelated admin ledger assertion in `frontend/tests/pages/admin.users-credits.test.tsx` | `D1-01` edit-submit-intent warning hardening                              | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock                                                                                         | Awaiting E0 baseline evidence packet    | Lane E governance baseline lock                                           | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
 | F    | Not Started | Engineering | Release and CI discipline baseline lock and policy-inventory parity                                                                      | Awaiting F0 baseline evidence packet    | Lane F CI inventory and required-check contract lock                      | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
@@ -192,9 +192,10 @@ Concrete sequencing: `docs/planning/lane-d-execution-plan-2026-03-16.md`
 
 ### D0: Baseline Lock
 
-- [ ] Capture baseline outputs for `lint`, `type-check`, `build`, `docs:check`, and `test`.
-- [ ] Capture warning and suppression inventory for Lane D runtime seams.
-- [ ] Freeze Lane D non-goals and rollback posture.
+- [x] Capture baseline outputs for `lint`, `type-check`, `build`, `docs:check`, and `test`.
+- [x] Capture warning and suppression inventory for Lane D runtime seams.
+- [x] Freeze Lane D non-goals and rollback posture.
+- [x] Record baseline-red failures outside Lane D scope explicitly in evidence.
 
 ### D1-D2: Effect/Suppression Hardening
 
@@ -291,6 +292,8 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 - Added Lane C concrete execution plan artifact and lane-specific evidence packet index.
 - Added Lane D master plan/tracker artifacts, connected roadmap/tracker references, and seeded a Lane D evidence namespace.
 - Added Lane D concrete execution plan artifact and linked it across roadmap/tracker/index surfaces.
+- Locked Lane D `D0-01` baseline evidence, including runtime warning inventory, suppression inventory, strict runtime lint output, and explicit note that the full baseline test suite is red on an unrelated admin ledger assertion:
+  - `docs/planning/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md`
 - Added Lane E master plan/tracker artifacts, connected roadmap/tracker/index surfaces, and seeded a Lane E evidence namespace.
 - Added Lane F contact map artifact to seed owner/escalation routing for release and CI discipline planning.
 - Added Lane F master plan/tracker artifacts and seeded a Lane F evidence namespace for CI/release governance execution.

@@ -175,11 +175,13 @@ import {
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
 import {
+  clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
   createIdleTransformPointerSession,
   isKeyboardEventFromEditableTarget,
   resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
+  scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   resolveStageContextMenuPosition,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
@@ -1540,15 +1542,12 @@ export function ExpertEditPanelView({
   }, []);
 
   const scheduleTransientObjectUrlRevoke = React.useCallback((url: string) => {
-    const existingTimer = transientRevokeTimersRef.current.get(url);
-    if (existingTimer != null) {
-      window.clearTimeout(existingTimer);
-    }
-    const timer = window.setTimeout(() => {
-      transientRevokeTimersRef.current.delete(url);
-      revokeObjectUrlSafe(url);
-    }, TRANSIENT_OBJECT_URL_REVOKE_MS);
-    transientRevokeTimersRef.current.set(url, timer);
+    scheduleTransientObjectUrlRevokeTimer({
+      url,
+      timersByUrl: transientRevokeTimersRef.current,
+      revokeDelayMs: TRANSIENT_OBJECT_URL_REVOKE_MS,
+      revokeObjectUrl: revokeObjectUrlSafe,
+    });
   }, []);
 
   const applyPrimaryImageIngress = React.useCallback(
@@ -3679,11 +3678,10 @@ export function ExpertEditPanelView({
       clearWindowTimeoutRef(toastVisibleTimerRef);
       clearWindowTimeoutRef(toastFadeTimerRef);
       clearWindowTimeoutRef(removeBackgroundPendingTimeoutRef);
-      transientRevokeTimersRef.current.forEach((timer, url) => {
-        window.clearTimeout(timer);
-        revokeObjectUrlSafe(url);
+      clearTransientObjectUrlRevokeTimers({
+        timersByUrl: transientRevokeTimersRef.current,
+        revokeObjectUrl: revokeObjectUrlSafe,
       });
-      transientRevokeTimersRef.current.clear();
       if (!onSessionStateChange) {
         const ownedUrlsOnUnmount = new Set(
           previousLayersRef.current

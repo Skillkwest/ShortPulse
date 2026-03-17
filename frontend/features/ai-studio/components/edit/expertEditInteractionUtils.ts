@@ -37,6 +37,7 @@ export type TransformPointerSession = {
 export type EditSubmitIntentMode = "standard" | "inpaint" | "markup";
 export type RailToolMode = "move" | "inpaint" | "video";
 export type TimeoutRef = { current: number | null };
+export type ObjectUrlRevokeTimers = Map<string, number>;
 
 export const createIdleTransformPointerSession = (): TransformPointerSession => ({
   active: false,
@@ -120,4 +121,40 @@ export const clearWindowTimeoutRef = (timeoutRef: TimeoutRef) => {
   window.clearTimeout(timeoutRef.current);
   timeoutRef.current = null;
   return true;
+};
+
+export const scheduleTransientObjectUrlRevoke = ({
+  url,
+  timersByUrl,
+  revokeDelayMs,
+  revokeObjectUrl,
+}: {
+  url: string;
+  timersByUrl: ObjectUrlRevokeTimers;
+  revokeDelayMs: number;
+  revokeObjectUrl: (url: string) => void;
+}) => {
+  const existingTimer = timersByUrl.get(url);
+  if (existingTimer != null) {
+    window.clearTimeout(existingTimer);
+  }
+  const timer = window.setTimeout(() => {
+    timersByUrl.delete(url);
+    revokeObjectUrl(url);
+  }, revokeDelayMs);
+  timersByUrl.set(url, timer);
+};
+
+export const clearTransientObjectUrlRevokeTimers = ({
+  timersByUrl,
+  revokeObjectUrl,
+}: {
+  timersByUrl: ObjectUrlRevokeTimers;
+  revokeObjectUrl: (url: string) => void;
+}) => {
+  timersByUrl.forEach((timer, url) => {
+    window.clearTimeout(timer);
+    revokeObjectUrl(url);
+  });
+  timersByUrl.clear();
 };

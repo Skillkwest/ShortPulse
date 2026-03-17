@@ -39,3 +39,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-7.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-8.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-9.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-10.md`

@@ -177,6 +177,8 @@ import {
 import {
   createIdleTransformPointerSession,
   isKeyboardEventFromEditableTarget,
+  resolveInpaintCollapseToggleDecision,
+  resolveRailToolForGenerationMode,
   resolveStageContextMenuPosition,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
@@ -2934,15 +2936,7 @@ export function ExpertEditPanelView({
 
   const handleGenerationModeChange = React.useCallback((nextMode: EditSubmitIntent) => {
     setSelectedGenerationMode(nextMode);
-    if (nextMode === "standard") {
-      setSelectedRailTool("move");
-      return;
-    }
-    if (nextMode === "inpaint") {
-      setSelectedRailTool("inpaint");
-      return;
-    }
-    setSelectedRailTool("video");
+    setSelectedRailTool(resolveRailToolForGenerationMode(nextMode));
   }, []);
 
   const handleStageContextMenuExpand = React.useCallback(() => {
@@ -3730,7 +3724,11 @@ export function ExpertEditPanelView({
   );
 
   const handleInpaintCollapseToggle = React.useCallback(() => {
-    if (isInpaintCollapsed && shouldOpenMarkupModalFromCollapsedTools) {
+    const collapseDecision = resolveInpaintCollapseToggleDecision({
+      isInpaintCollapsed,
+      shouldOpenMarkupModalFromCollapsedTools,
+    });
+    if (collapseDecision === "open_markup_modal") {
       openMarkupModal();
       return;
     }
@@ -3740,7 +3738,7 @@ export function ExpertEditPanelView({
       inpaintCollapseTimerRef.current = null;
     }
 
-    if (isInpaintCollapsed) {
+    if (collapseDecision === "expand_inpaint") {
       setIsInpaintCollapsed(false);
       setIsInpaintCollapsing(false);
       return;

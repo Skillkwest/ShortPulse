@@ -34,6 +34,9 @@ export type TransformPointerSession = {
   basePointerAngleRad: number;
 };
 
+export type EditSubmitIntentMode = "standard" | "inpaint" | "markup";
+export type RailToolMode = "move" | "inpaint" | "video";
+
 export const createIdleTransformPointerSession = (): TransformPointerSession => ({
   active: false,
   pointerId: -1,
@@ -87,4 +90,26 @@ export const resolveStageContextMenuPosition = ({
     x: Math.round(nextX),
     y: Math.round(nextY),
   };
+};
+
+export const resolveRailToolForGenerationMode = (mode: EditSubmitIntentMode): RailToolMode => {
+  if (mode === "standard") return "move";
+  if (mode === "inpaint") return "inpaint";
+  return "video";
+};
+
+export const resolveInpaintCollapseToggleDecision = ({
+  isInpaintCollapsed,
+  shouldOpenMarkupModalFromCollapsedTools,
+}: {
+  isInpaintCollapsed: boolean;
+  shouldOpenMarkupModalFromCollapsedTools: boolean;
+}) => {
+  if (isInpaintCollapsed && shouldOpenMarkupModalFromCollapsedTools) {
+    return "open_markup_modal";
+  }
+  if (isInpaintCollapsed) {
+    return "expand_inpaint";
+  }
+  return "collapse_inpaint";
 };

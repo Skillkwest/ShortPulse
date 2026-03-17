@@ -26,13 +26,18 @@
   --edit-expert-muted-text: #c9cdd685;
   --edit-expert-selected-text: rgba(230, 236, 245, 0.9);
   --edit-expert-control-border: rgba(92, 96, 104, 0.9);
+  --edit-expert-control-border-soft: rgba(92, 96, 104, 0.275);
   --edit-expert-control-surface: rgba(37, 41, 47, 0.64);
   --edit-expert-control-hover-border: rgba(205, 210, 220, 0.2);
   --edit-expert-control-hover-surface: rgba(52, 56, 64, 0.95);
   --edit-expert-control-text: var(--edit-expert-neutral-text-strong);
+  --edit-expert-control-text-soft-strong: #f0f3f9;
   --edit-expert-control-selected-border: rgba(255, 249, 238, 0.07);
   --edit-expert-control-focus-border: rgba(37, 41, 47, 0.82);
   --edit-expert-control-focus-surface: rgba(37, 41, 47, 0.8);
+  --edit-expert-control-active-border: rgba(92, 95, 103, 0.95);
+  --edit-expert-control-active-surface: rgba(62, 66, 74, 0.94);
+  --edit-expert-control-active-surface-strong: rgba(62, 70, 83, 0.96);
   --edit-expert-control-delete-border: rgba(201, 205, 214, 0.24);
   --edit-expert-control-delete-surface: rgba(37, 41, 47, 0.74);
   --edit-expert-compose-border: var(--edit-expert-control-border);

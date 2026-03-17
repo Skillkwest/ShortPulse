@@ -32,6 +32,7 @@
     "validate": "npm run lint && npm run type-check && npm run check:naming-legacy-usage && npm run test",
     "check:architecture-boundary": "cd .. && node scripts/check_architecture_boundaries.js",
     "check:size-budget": "cd .. && node scripts/check_size_budgets.js",
+    "check:style-literal-guard": "cd .. && node scripts/check_ai_studio_style_literals.js",
     "check:naming-legacy-usage": "cd .. && node scripts/check_naming_legacy_usage.js",
     "db:migrate": "cd .. && node scripts/db_migrate_guardrail.mjs",
     "db:reset": "cd .. && supabase db reset",

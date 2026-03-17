@@ -4,18 +4,16 @@
  */
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import {
+  finishFleetScanRun,
+  loadFleetTargetUsers,
+  persistFleetSnapshotBatch,
+  startFleetScanRun,
+} from "./fleetPersistence";
+import { readFleetReport, type FleetReadFilters, type FleetReadReport } from "./fleetReport";
 import { evaluateFleetUserHealth } from "./policy";
 import { readAdminUserHealthFleetRuntimeFlags } from "./runtime";
-import type {
-  FleetFinding,
-  FleetRiskBand,
-  FleetRunRow,
-  FleetSnapshotDraft,
-  FleetSnapshotRecord,
-  FleetSummary,
-  FleetTargetUser,
-  FleetUserMetricInput,
-} from "./types";
+import type { FleetSnapshotDraft, FleetTargetUser, FleetUserMetricInput } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -81,10 +79,6 @@ type NormalizedLedgerRow = {
 
 type ScanRunStatus = "running" | "completed" | "partial" | "failed";
 
-type StartRunResult =
-  | { ok: true; runId: string }
-  | { ok: false; reason: "already_running"; existingRunId: string | null };
-
 export type FleetScanRunResult = {
   ok: boolean;
   runId: string | null;
@@ -98,34 +92,6 @@ export type FleetScanRunResult = {
   totalCostWithoutSuccessCents: number;
   durationMs: number;
   errors: string[];
-};
-
-export type FleetReadFilters = {
-  runId?: string | null;
-  page: number;
-  perPage: number;
-  severity: "all" | "critical" | "warning" | "info";
-  findingCode: string;
-  riskBand: "all" | FleetRiskBand;
-  search: string;
-};
-
-export type FleetReadReport = {
-  run: FleetRunRow | null;
-  summary: FleetSummary;
-  snapshots: FleetSnapshotRecord[];
-  pagination: {
-    page: number;
-    perPage: number;
-    totalCount: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
-  health: {
-    degraded: boolean;
-    reason: string | null;
-  };
 };
 
 const normalizeQueryError = (error: unknown): QueryError | null => {
@@ -162,270 +128,12 @@ const toNumber = (value: unknown): number => {
   return parsed;
 };
 
-const toFleetRiskBand = (riskScore: number): FleetRiskBand => {
-  if (riskScore >= 70) return "high";
-  if (riskScore >= 40) return "medium";
-  return "low";
-};
-
 const chunk = <T>(rows: T[], size: number): T[][] => {
   const out: T[][] = [];
   for (let index = 0; index < rows.length; index += size) {
     out.push(rows.slice(index, index + size));
   }
   return out;
-};
-
-const normalizeTriggerSource = (value: unknown): "scheduled" | "manual" => {
-  return value === "manual" ? "manual" : "scheduled";
-};
-
-const asObject = (value: unknown): Record<string, unknown> | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-};
-
-const parseRunRow = (value: unknown): FleetRunRow | null => {
-  const row = asObject(value);
-  if (!row || typeof row.id !== "string") return null;
-  return {
-    id: row.id,
-    triggerSource: normalizeTriggerSource(row.trigger_source),
-    status:
-      row.status === "running" ||
-      row.status === "completed" ||
-      row.status === "partial" ||
-      row.status === "failed"
-        ? row.status
-        : "failed",
-    lookbackDays: Math.max(1, Math.trunc(toNumber(row.lookback_days))),
-    activeWindowDays: Math.max(1, Math.trunc(toNumber(row.active_window_days))),
-    retentionDays: Math.max(7, Math.trunc(toNumber(row.retention_days))),
-    targetCount: Math.max(0, Math.trunc(toNumber(row.target_count))),
-    processedCount: Math.max(0, Math.trunc(toNumber(row.processed_count))),
-    failedCount: Math.max(0, Math.trunc(toNumber(row.failed_count))),
-    partialData: Boolean(row.partial_data),
-    startedAt: typeof row.started_at === "string" ? row.started_at : new Date().toISOString(),
-    finishedAt: typeof row.finished_at === "string" ? row.finished_at : null,
-    durationMs: Number.isFinite(toNumber(row.duration_ms))
-      ? Math.trunc(toNumber(row.duration_ms))
-      : null,
-    errorSummary: typeof row.error_summary === "string" ? row.error_summary : null,
-    metadata: asObject(row.metadata),
-  };
-};
-
-const parseTargetRows = (value: unknown): FleetTargetUser[] => {
-  if (!Array.isArray(value)) return [];
-  const targets: FleetTargetUser[] = [];
-  for (const item of value) {
-    const row = asObject(item);
-    if (!row || typeof row.user_id !== "string") continue;
-    targets.push({
-      userId: row.user_id,
-      email: typeof row.email === "string" ? row.email : null,
-      lastActivityAt: typeof row.last_activity_at === "string" ? row.last_activity_at : null,
-    });
-  }
-  return targets;
-};
-
-const startRunningScan = async ({
-  lookbackDays,
-  activeWindowDays,
-  retentionDays,
-  triggerSource,
-}: {
-  lookbackDays: number;
-  activeWindowDays: number;
-  retentionDays: number;
-  triggerSource: "scheduled" | "manual";
-}): Promise<StartRunResult> => {
-  const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("admin_user_health_scan_runs")
-    .insert({
-      trigger_source: triggerSource,
-      status: "running",
-      lookback_days: lookbackDays,
-      active_window_days: activeWindowDays,
-      retention_days: retentionDays,
-      target_count: 0,
-      processed_count: 0,
-      failed_count: 0,
-      partial_data: false,
-      started_at: new Date().toISOString(),
-    })
-    .select("id")
-    .maybeSingle();
-
-  if (!error && data?.id) {
-    return { ok: true, runId: String(data.id) };
-  }
-
-  const normalizedError = normalizeQueryError(error);
-  if (normalizedError && String(normalizedError.code ?? "") === "23505") {
-    const existingRunResult = await supabaseAdmin
-      .from("admin_user_health_scan_runs")
-      .select("id")
-      .eq("status", "running")
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    return {
-      ok: false,
-      reason: "already_running",
-      existingRunId:
-        existingRunResult.data && typeof existingRunResult.data.id === "string"
-          ? existingRunResult.data.id
-          : null,
-    };
-  }
-
-  throw new Error(normalizedError?.message || "Failed to start fleet health scan run.");
-};
-
-const finishScanRun = async ({
-  runId,
-  status,
-  targetCount,
-  processedCount,
-  failedCount,
-  partialData,
-  startedAtMs,
-  errorSummary,
-  metadata,
-}: {
-  runId: string;
-  status: ScanRunStatus;
-  targetCount: number;
-  processedCount: number;
-  failedCount: number;
-  partialData: boolean;
-  startedAtMs: number;
-  errorSummary: string | null;
-  metadata: Record<string, unknown>;
-}) => {
-  const supabaseAdmin = getSupabaseAdmin();
-  const durationMs = Math.max(0, Date.now() - startedAtMs);
-  const { error } = await supabaseAdmin
-    .from("admin_user_health_scan_runs")
-    .update({
-      status,
-      target_count: targetCount,
-      processed_count: processedCount,
-      failed_count: failedCount,
-      partial_data: partialData,
-      finished_at: new Date().toISOString(),
-      duration_ms: durationMs,
-      error_summary: errorSummary,
-      metadata,
-    })
-    .eq("id", runId);
-
-  if (error) {
-    throw new Error(error.message || "Failed to finalize fleet health scan run.");
-  }
-};
-
-const loadTargetUsers = async ({
-  activeWindowDays,
-  maxUsers,
-}: {
-  activeWindowDays: number;
-  maxUsers: number;
-}) => {
-  const supabaseAdmin = getSupabaseAdmin();
-  const response = await supabaseAdmin.rpc("list_admin_user_health_active_targets", {
-    p_active_days: activeWindowDays,
-    p_limit: maxUsers,
-  });
-  if (response.error) {
-    throw new Error(response.error.message || "Failed to resolve active target users.");
-  }
-  return parseTargetRows(response.data);
-};
-
-const persistSnapshotBatch = async ({
-  runId,
-  drafts,
-}: {
-  runId: string;
-  drafts: FleetSnapshotDraft[];
-}) => {
-  if (!drafts.length) return;
-  const supabaseAdmin = getSupabaseAdmin();
-
-  const snapshotRows = drafts.map((draft) => ({
-    run_id: runId,
-    user_id: draft.userId,
-    user_email: draft.userEmail,
-    generated_at: draft.generatedAt,
-    highest_severity: draft.highestSeverity,
-    risk_score: draft.riskScore,
-    spendable_cents: draft.spendableCents,
-    reserved_cents: draft.reservedCents,
-    fail_rate_24h_percent: draft.failRate24hPercent,
-    fail_count_24h: draft.failCount24h,
-    total_count_24h: draft.totalCount24h,
-    stuck_generations_count: draft.stuckGenerationsCount,
-    exhausted_queue_count: draft.exhaustedQueueCount,
-    cost_without_success_cents: draft.costWithoutSuccessCents,
-    cost_without_success_linked_cents: draft.costWithoutSuccessLinkedCents,
-    cost_without_success_missing_linkage_cents: draft.costWithoutSuccessMissingLinkageCents,
-    finding_count: draft.findingCount,
-    partial_data: draft.partialData,
-    metadata: draft.metadata,
-  }));
-
-  const insertSnapshots = await supabaseAdmin
-    .from("admin_user_health_snapshots")
-    .insert(snapshotRows)
-    .select("id,user_id");
-
-  if (insertSnapshots.error) {
-    throw new Error(insertSnapshots.error.message || "Failed to persist fleet health snapshots.");
-  }
-
-  const insertedSnapshotRows = Array.isArray(insertSnapshots.data) ? insertSnapshots.data : [];
-  const snapshotIdByUser = new Map<string, string>();
-  for (const row of insertedSnapshotRows) {
-    if (!row || typeof row !== "object") continue;
-    const record = row as Record<string, unknown>;
-    if (typeof record.user_id === "string" && typeof record.id === "string") {
-      snapshotIdByUser.set(record.user_id, record.id);
-    }
-  }
-
-  const findingRows: Array<Record<string, unknown>> = [];
-  for (const draft of drafts) {
-    const snapshotId = snapshotIdByUser.get(draft.userId);
-    if (!snapshotId) continue;
-    for (const finding of draft.findings) {
-      findingRows.push({
-        run_id: runId,
-        snapshot_id: snapshotId,
-        user_id: draft.userId,
-        code: finding.code,
-        severity: finding.severity,
-        confidence: finding.confidence,
-        summary: finding.summary,
-        details: finding.details,
-        recommended_actions: finding.recommendedActions,
-        metadata: {},
-      });
-    }
-  }
-
-  if (!findingRows.length) return;
-
-  const insertFindings = await supabaseAdmin
-    .from("admin_user_health_snapshot_findings")
-    .insert(findingRows);
-  if (insertFindings.error) {
-    throw new Error(insertFindings.error.message || "Failed to persist fleet health findings.");
-  }
 };
 
 const evaluateCostWithoutSuccess = ({
@@ -859,7 +567,7 @@ export const runAdminUserHealthFleetScan = async ({
   const flags = readAdminUserHealthFleetRuntimeFlags();
   const startedAtMs = Date.now();
 
-  const startRunResult = await startRunningScan({
+  const startRunResult = await startFleetScanRun({
     lookbackDays: flags.lookbackDays,
     activeWindowDays: flags.activeWindowDays,
     retentionDays: flags.retentionDays,
@@ -895,7 +603,7 @@ export const runAdminUserHealthFleetScan = async ({
   let totalCostWithoutSuccessCents = 0;
 
   try {
-    const targets = await loadTargetUsers({
+    const targets = await loadFleetTargetUsers({
       activeWindowDays: flags.activeWindowDays,
       maxUsers: flags.maxUsersPerRun,
     });
@@ -926,7 +634,7 @@ export const runAdminUserHealthFleetScan = async ({
           runErrors.push(...chunkResult.warnings);
         }
 
-        await persistSnapshotBatch({
+        await persistFleetSnapshotBatch({
           runId,
           drafts: chunkResult.drafts,
         });
@@ -973,7 +681,7 @@ export const runAdminUserHealthFleetScan = async ({
           ? "partial"
           : "completed";
 
-    await finishScanRun({
+    await finishFleetScanRun({
       runId,
       status,
       targetCount,
@@ -1005,7 +713,7 @@ export const runAdminUserHealthFleetScan = async ({
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Fleet scan failed.";
-    await finishScanRun({
+    await finishFleetScanRun({
       runId,
       status: "failed",
       targetCount,
@@ -1029,233 +737,4 @@ export const runAdminUserHealthFleetScan = async ({
  */
 export const readAdminUserHealthFleetReport = async (
   filters: FleetReadFilters
-): Promise<FleetReadReport> => {
-  const supabaseAdmin = getSupabaseAdmin();
-
-  const runResult = filters.runId
-    ? await supabaseAdmin
-        .from("admin_user_health_scan_runs")
-        .select("*")
-        .eq("id", filters.runId)
-        .maybeSingle()
-    : await supabaseAdmin
-        .from("admin_user_health_scan_runs")
-        .select("*")
-        .order("started_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-  if (runResult.error) {
-    throw new Error(runResult.error.message || "Failed to load fleet scan run.");
-  }
-
-  const run = parseRunRow(runResult.data);
-  if (!run) {
-    return {
-      run: null,
-      summary: {
-        criticalCount: 0,
-        warningCount: 0,
-        infoCount: 0,
-        highRiskCount: 0,
-        mediumRiskCount: 0,
-        lowRiskCount: 0,
-        totalCostWithoutSuccessCents: 0,
-        totalStuckGenerations: 0,
-        totalExhaustedQueueRows: 0,
-      },
-      snapshots: [],
-      pagination: {
-        page: filters.page,
-        perPage: filters.perPage,
-        totalCount: 0,
-        totalPages: 1,
-        hasNextPage: false,
-        hasPrevPage: false,
-      },
-      health: {
-        degraded: false,
-        reason: null,
-      },
-    };
-  }
-
-  const snapshotResult = await supabaseAdmin
-    .from("admin_user_health_snapshots")
-    .select("*")
-    .eq("run_id", run.id)
-    .order("risk_score", { ascending: false })
-    .order("generated_at", { ascending: false })
-    .limit(5000);
-
-  if (snapshotResult.error) {
-    throw new Error(snapshotResult.error.message || "Failed to load fleet snapshots.");
-  }
-
-  const findingResult = await supabaseAdmin
-    .from("admin_user_health_snapshot_findings")
-    .select("snapshot_id,code,severity,confidence,summary,details,recommended_actions")
-    .eq("run_id", run.id)
-    .limit(25000);
-
-  if (findingResult.error) {
-    throw new Error(findingResult.error.message || "Failed to load fleet findings.");
-  }
-
-  const snapshotRows = Array.isArray(snapshotResult.data)
-    ? snapshotResult.data
-        .map((row) => asObject(row))
-        .filter((row): row is Record<string, unknown> => Boolean(row))
-    : [];
-
-  const findingsBySnapshotId = new Map<string, FleetFinding[]>();
-  const findingRows = Array.isArray(findingResult.data)
-    ? findingResult.data
-        .map((row) => asObject(row))
-        .filter((row): row is Record<string, unknown> => Boolean(row))
-    : [];
-
-  for (const row of findingRows) {
-    if (typeof row.snapshot_id !== "string") continue;
-    const findings = findingsBySnapshotId.get(row.snapshot_id) ?? [];
-    findings.push({
-      code: typeof row.code === "string" ? row.code : "UNKNOWN",
-      severity:
-        row.severity === "critical" || row.severity === "warning" || row.severity === "info"
-          ? row.severity
-          : "info",
-      confidence:
-        row.confidence === "high" || row.confidence === "medium" || row.confidence === "low"
-          ? row.confidence
-          : "low",
-      summary: typeof row.summary === "string" ? row.summary : "",
-      details: typeof row.details === "string" ? row.details : "",
-      recommendedActions: Array.isArray(row.recommended_actions)
-        ? row.recommended_actions.filter((item): item is string => typeof item === "string")
-        : [],
-    });
-    findingsBySnapshotId.set(row.snapshot_id, findings);
-  }
-
-  const snapshots: FleetSnapshotRecord[] = snapshotRows
-    .map((row) => {
-      if (typeof row.id !== "string" || typeof row.user_id !== "string") return null;
-      const findings = findingsBySnapshotId.get(row.id) ?? [];
-      const riskScore = Math.max(0, Math.min(100, Math.trunc(toNumber(row.risk_score))));
-      return {
-        id: row.id,
-        userId: row.user_id,
-        userEmail: typeof row.user_email === "string" ? row.user_email : null,
-        generatedAt: typeof row.generated_at === "string" ? row.generated_at : run.startedAt,
-        highestSeverity:
-          row.highest_severity === "critical" ||
-          row.highest_severity === "warning" ||
-          row.highest_severity === "info"
-            ? row.highest_severity
-            : "info",
-        riskScore,
-        riskBand: toFleetRiskBand(riskScore),
-        spendableCents: Math.max(0, Math.trunc(toNumber(row.spendable_cents))),
-        reservedCents: Math.max(0, Math.trunc(toNumber(row.reserved_cents))),
-        failRate24hPercent: Math.round(toNumber(row.fail_rate_24h_percent) * 100) / 100,
-        failCount24h: Math.max(0, Math.trunc(toNumber(row.fail_count_24h))),
-        totalCount24h: Math.max(0, Math.trunc(toNumber(row.total_count_24h))),
-        stuckGenerationsCount: Math.max(0, Math.trunc(toNumber(row.stuck_generations_count))),
-        exhaustedQueueCount: Math.max(0, Math.trunc(toNumber(row.exhausted_queue_count))),
-        costWithoutSuccessCents: Math.max(0, Math.trunc(toNumber(row.cost_without_success_cents))),
-        costWithoutSuccessLinkedCents: Math.max(
-          0,
-          Math.trunc(toNumber(row.cost_without_success_linked_cents))
-        ),
-        costWithoutSuccessMissingLinkageCents: Math.max(
-          0,
-          Math.trunc(toNumber(row.cost_without_success_missing_linkage_cents))
-        ),
-        partialData: Boolean(row.partial_data),
-        findingCount: Math.max(0, Math.trunc(toNumber(row.finding_count ?? findings.length))),
-        findings,
-      } satisfies FleetSnapshotRecord;
-    })
-    .filter((row): row is FleetSnapshotRecord => Boolean(row));
-
-  const summary: FleetSummary = {
-    criticalCount: snapshots.filter((snapshot) => snapshot.highestSeverity === "critical").length,
-    warningCount: snapshots.filter((snapshot) => snapshot.highestSeverity === "warning").length,
-    infoCount: snapshots.filter((snapshot) => snapshot.highestSeverity === "info").length,
-    highRiskCount: snapshots.filter((snapshot) => snapshot.riskBand === "high").length,
-    mediumRiskCount: snapshots.filter((snapshot) => snapshot.riskBand === "medium").length,
-    lowRiskCount: snapshots.filter((snapshot) => snapshot.riskBand === "low").length,
-    totalCostWithoutSuccessCents: snapshots.reduce(
-      (sum, snapshot) => sum + snapshot.costWithoutSuccessCents,
-      0
-    ),
-    totalStuckGenerations: snapshots.reduce(
-      (sum, snapshot) => sum + snapshot.stuckGenerationsCount,
-      0
-    ),
-    totalExhaustedQueueRows: snapshots.reduce(
-      (sum, snapshot) => sum + snapshot.exhaustedQueueCount,
-      0
-    ),
-  };
-
-  const normalizedSearch = filters.search.trim().toLowerCase();
-  const normalizedFindingCode = filters.findingCode.trim().toLowerCase();
-
-  const filtered = snapshots.filter((snapshot) => {
-    if (filters.severity !== "all" && snapshot.highestSeverity !== filters.severity) {
-      return false;
-    }
-    if (filters.riskBand !== "all" && snapshot.riskBand !== filters.riskBand) {
-      return false;
-    }
-    if (normalizedFindingCode) {
-      const hasFindingCode = snapshot.findings.some(
-        (finding) => finding.code.toLowerCase() === normalizedFindingCode
-      );
-      if (!hasFindingCode) return false;
-    }
-    if (normalizedSearch) {
-      const userIdMatch = snapshot.userId.toLowerCase().includes(normalizedSearch);
-      const userEmailMatch = (snapshot.userEmail ?? "").toLowerCase().includes(normalizedSearch);
-      if (!userIdMatch && !userEmailMatch) return false;
-    }
-    return true;
-  });
-
-  const totalCount = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / filters.perPage));
-  const page = totalCount > 0 ? Math.min(filters.page, totalPages) : 1;
-  const offset = (page - 1) * filters.perPage;
-  const paged = filtered.slice(offset, offset + filters.perPage);
-
-  const degradedReasons: string[] = [];
-  if (snapshots.length >= 5000) {
-    degradedReasons.push(
-      "Snapshot row cap reached for this run; narrow filters or reduce cohort size."
-    );
-  }
-  if (findingRows.length >= 25000) {
-    degradedReasons.push(
-      "Finding row cap reached for this run; finding filters may be incomplete."
-    );
-  }
-
-  return {
-    run,
-    summary,
-    snapshots: paged,
-    pagination: {
-      page,
-      perPage: filters.perPage,
-      totalCount,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
-    },
-    health: {
-      degraded: degradedReasons.length > 0,
-      reason: degradedReasons.length ? degradedReasons.join(" ") : null,
-    },
-  };
-};
+): Promise<FleetReadReport> => readFleetReport(filters);

@@ -95,3 +95,6 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-health-hotspot-map.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-user-health-target-lookup-split.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-user-health-deep-report-split.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-fleet-persistence-split.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-fleet-report-split.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-health-checkpoint-review.md`

@@ -1,7 +1,7 @@
 # Lane E Master Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
@@ -38,7 +38,8 @@ As of 2026-03-17:
    - duplicate ADR number drift: `0`
 4. Active policy-surface consistency is now locked after `E3-01`: active executable/planning guidance no longer prescribes Docker-local Supabase lint/start workflows where core repo policy prohibits them.
 5. Changelog governance is now locked after `E4-01`: `docs/change_log.md` includes `## Unreleased`, preserves pre-normalization notes behind a legacy marker, and chronology/future-date enforcement is active for the normalized timeline in `scripts/check_docs_semantic_drift.js`.
-6. `npm -C frontend run docs:check` is green, confirming current checks are healthy while Lane E continues converting the remaining governance intent into enforced contracts.
+6. Lane E convergence is now locked after `E5-01`: `npm -C frontend run validate:lane-e-governance` is the canonical closeout/local-review command, and two consecutive green cycles were recorded before lane closeout.
+7. `npm -C frontend run docs:check` remains green under the convergence bundle.
 
 ## Scope
 In scope:

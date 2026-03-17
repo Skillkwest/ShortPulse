@@ -33,3 +33,7 @@ Examples:
 - `docs/planning/evidence/lane-e/2026-03-17-e2-01-adr-integrity-contract.md`
 - `docs/planning/evidence/lane-e/2026-03-17-e3-01-policy-surface-consistency.md`
 - `docs/planning/evidence/lane-e/2026-03-17-e4-01-changelog-governance-hardening.md`
+- `docs/planning/evidence/lane-e/2026-03-17-e5-01-governance-convergence.md`
+- `docs/planning/evidence/lane-e/2026-03-17-e5-01-lane-e-convergence-gate-cycle-1.md`
+- `docs/planning/evidence/lane-e/2026-03-17-e5-01-lane-e-convergence-gate-cycle-2.md`
+- `docs/planning/evidence/lane-e/2026-03-17-e5-01-lane-e-closeout-review.md`

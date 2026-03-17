@@ -1,7 +1,7 @@
 # Lane E Execution Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Master plan: `docs/planning/lane-e-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-e-tracker-spec-2026-03-16.md`  
@@ -33,7 +33,7 @@ Out of scope:
 | `E2-01` | E2 | `docs/adr/**` | Resolve ADR numbering drift and enforce duplicate-number detection | `docs/planning/evidence/lane-e/2026-03-17-e2-01-adr-integrity-contract.md` | Completed |
 | `E3-01` | E3 | Active policy docs/templates/scripts | Align Supabase operations policy across active executable guidance surfaces | `docs/planning/evidence/lane-e/2026-03-17-e3-01-policy-surface-consistency.md` | Completed |
 | `E4-01` | E4 | `docs/change_log.md` + docs drift checks | Normalize changelog structure and enforce chronology/future-date governance | `docs/planning/evidence/lane-e/2026-03-17-e4-01-changelog-governance-hardening.md` | Completed |
-| `E5-01` | E5 | Lane E convergence | Promote Lane E checks with explicit green-cycle evidence and closeout policy | `docs/planning/evidence/lane-e/2026-03-17-e5-01-governance-convergence.md` | Not Started |
+| `E5-01` | E5 | Lane E convergence | Promote Lane E checks with explicit green-cycle evidence and closeout policy | `docs/planning/evidence/lane-e/2026-03-17-e5-01-governance-convergence.md` | Completed |
 
 Policy:
 1. One governance seam per PR.

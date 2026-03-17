@@ -75,6 +75,22 @@ Mode policy:
   2. attach targeted seam tests in the evidence packet,
   3. add `test:adaptive-v2-gate` when the slice touches reference-grid, adaptive-media, or canvas runtime seams.
 
+## Lane E governance policy mapping
+
+- Canonical command: `npm -C frontend run validate:lane-e-governance`
+- Command expands to:
+  1. `npm -C frontend run validate`
+  2. `npm -C frontend run build`
+  3. `npm -C frontend run docs:check`
+- Policy intent:
+  - keep active docs/index/ADR/changelog governance green under the same local command,
+  - ensure validation-governance surface edits do not bypass the normal frontend validation contract,
+  - require explicit green-cycle evidence before Lane E closeout.
+- Reviewer policy:
+  1. use `validate:lane-e-governance` for all Lane E convergence and closeout PRs,
+  2. attach the exact green-cycle packet reference in the evidence chain,
+  3. do not mark Lane E complete until two consecutive green cycles are recorded.
+
 ## Frontend fast-lane suites
 
 - `auth-helper`

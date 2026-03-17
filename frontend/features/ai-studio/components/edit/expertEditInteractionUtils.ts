@@ -268,3 +268,19 @@ export const isEventTargetInsideElement = (
   element: HTMLElement | null,
   target: EventTarget | null
 ) => Boolean(element && target instanceof Node && element.contains(target));
+
+export const runPointerStageTerminalAction = <TEvent>({
+  event,
+  unlockCursor,
+  handlePointerEvent,
+  finalizeGestureHistory,
+}: {
+  event: TEvent;
+  unlockCursor: () => void;
+  handlePointerEvent: (event: TEvent) => void;
+  finalizeGestureHistory: () => void;
+}) => {
+  unlockCursor();
+  handlePointerEvent(event);
+  finalizeGestureHistory();
+};

@@ -34,6 +34,7 @@ A slice cannot be marked complete until all are checked:
 5. Docs/SOP/ADR obligations completed for scope.
 6. Rollback path validated.
 7. Evidence links attached (tests and gates).
+8. Seam-selection rubric cleared with explicit value statement.
 
 ## Evidence Requirements
 Every slice must attach:
@@ -43,7 +44,8 @@ Every slice must attach:
 4. full-gate output references,
 5. LOC delta evidence,
 6. risk and rollback note,
-7. docs update references.
+7. docs update references,
+8. seam-selection rationale describing why the extraction was high-value.
 
 ## Status Model
 Allowed status values:

@@ -43,6 +43,23 @@ Policy:
 3. If parity confidence is low, reduce slice size and add characterization first.
 4. Baseline-dependent merges remain blocked until Lane A baseline-green signoff.
 
+### B2-B4 Seam Selection Rubric
+Use this rubric before opening a new modularization seam in active hotspots:
+1. A seam is worth taking only when it does at least one of:
+   - removes duplicated logic across multiple callsites,
+   - creates a coherent sub-context with a stable name,
+   - improves testability/observability,
+   - makes the next planned extraction easier,
+   - reduces the hotspot file with explicit LOC or coupling gain.
+2. Do not take seams that only move tiny one-off fragments into generic helpers without a stronger module boundary.
+3. Prefer cohesive clusters over isolated fragments:
+   - pointer/gesture termination,
+   - overlay dismissal and escape handling,
+   - modal interaction guards,
+   - transform session lifecycle.
+4. If a proposed helper grows the target hotspot or utility surface without meaningful reuse, reject the seam and pick a better boundary.
+5. Every evidence packet must state why the seam cleared this rubric, not just that code moved.
+
 ## Execution Detail
 ### B0-01 Governance Bootstrap
 Acceptance:
@@ -72,6 +89,7 @@ Acceptance:
 1. Public contracts are unchanged.
 2. LOC or coupling reduction is explicit per slice.
 3. Boundary and size checks pass.
+4. The seam clears the selection rubric with explicit rationale in the evidence packet.
 
 ### B5 Style Standardization
 Acceptance:

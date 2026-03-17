@@ -191,6 +191,7 @@ import {
   lockDocumentCursor,
   resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
+  runPointerStageTerminalAction,
   scheduleWindowAnimationFrame,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   resolveStageContextMenuPosition,
@@ -2703,27 +2704,36 @@ export function ExpertEditPanelView({
 
   const handleInpaintStagePointerUp = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      unlockGlobalCursor();
-      handleInpaintPointerUp(event);
-      finalizeInpaintGestureHistory();
+      runPointerStageTerminalAction({
+        event,
+        unlockCursor: unlockGlobalCursor,
+        handlePointerEvent: handleInpaintPointerUp,
+        finalizeGestureHistory: finalizeInpaintGestureHistory,
+      });
     },
     [finalizeInpaintGestureHistory, handleInpaintPointerUp, unlockGlobalCursor]
   );
 
   const handleInpaintStagePointerCancel = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      unlockGlobalCursor();
-      handleInpaintPointerCancel(event);
-      finalizeInpaintGestureHistory();
+      runPointerStageTerminalAction({
+        event,
+        unlockCursor: unlockGlobalCursor,
+        handlePointerEvent: handleInpaintPointerCancel,
+        finalizeGestureHistory: finalizeInpaintGestureHistory,
+      });
     },
     [finalizeInpaintGestureHistory, handleInpaintPointerCancel, unlockGlobalCursor]
   );
 
   const handleInpaintStagePointerLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      unlockGlobalCursor();
-      handleInpaintPointerLeave(event);
-      finalizeInpaintGestureHistory();
+      runPointerStageTerminalAction({
+        event,
+        unlockCursor: unlockGlobalCursor,
+        handlePointerEvent: handleInpaintPointerLeave,
+        finalizeGestureHistory: finalizeInpaintGestureHistory,
+      });
     },
     [finalizeInpaintGestureHistory, handleInpaintPointerLeave, unlockGlobalCursor]
   );
@@ -2757,21 +2767,11 @@ export function ExpertEditPanelView({
 
   const inpaintStageHandlers = React.useMemo(
     () => ({
-      onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleInpaintStagePointerDown(event);
-      },
-      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleInpaintStagePointerMove(event);
-      },
-      onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleInpaintStagePointerUp(event);
-      },
-      onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleInpaintStagePointerCancel(event);
-      },
-      onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
-        handleInpaintStagePointerLeave(event);
-      },
+      onPointerDown: handleInpaintStagePointerDown,
+      onPointerMove: handleInpaintStagePointerMove,
+      onPointerUp: handleInpaintStagePointerUp,
+      onPointerCancel: handleInpaintStagePointerCancel,
+      onPointerLeave: handleInpaintStagePointerLeave,
     }),
     [
       handleInpaintStagePointerCancel,

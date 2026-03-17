@@ -1,7 +1,8 @@
 /**
  * Edit workflow accent theme.
- * Scopes warm/yellow accents to the dedicated Edit properties panel.
+ * Locks the canonical edit accent aliases before broader style migration.
  */
+.ai-studio-page[data-selected-tool="edit"],
 .edit-properties-panel {
   --edit-accent: var(--color-amber, #f5b942);
   --edit-accent-start: #f5b754;
@@ -10,6 +11,34 @@
   --edit-accent-medium: rgba(245, 185, 66, 0.62);
   --edit-accent-strong: rgba(245, 185, 66, 0.9);
   --edit-accent-shadow: rgba(245, 185, 66, 0.26);
+  --edit-accent-border-hover: rgba(245, 185, 66, 0.58);
+  --edit-accent-border-emphasis: rgba(245, 185, 66, 0.88);
+  --edit-accent-border-max: rgba(245, 185, 66, 0.92);
+  --edit-accent-border-faint: rgba(245, 185, 66, 0.38);
+  --edit-accent-text-soft: rgba(245, 185, 66, 0.7);
+  --edit-accent-text-strong: rgba(245, 185, 66, 0.96);
+  --edit-accent-highlight: rgba(245, 205, 128, 0.9);
+  --edit-accent-surface-tint: rgba(245, 185, 66, 0.07);
+  --edit-accent-surface-soft: rgba(245, 185, 66, 0.12);
+  --edit-accent-surface-medium: rgba(245, 185, 66, 0.14);
+  --edit-accent-surface-strong: rgba(245, 185, 66, 0.76);
+  --edit-accent-shadow-soft: rgba(245, 185, 66, 0.22);
+  --edit-accent-shadow-ring: rgba(245, 185, 66, 0.28);
+  --edit-accent-shadow-active: rgba(245, 185, 66, 0.24);
+  --edit-accent-shadow-press: rgba(245, 185, 66, 0.3);
+  --edit-accent-shadow-strong: rgba(245, 185, 66, 0.34);
+  --edit-accent-ink: #1a140c;
+  --edit-elevated-fill-start: rgba(45, 35, 19, 0.92);
+  --edit-elevated-fill-end: rgba(70, 52, 24, 0.48);
+  --edit-elevated-highlight: rgba(255, 255, 255, 0.08);
+  --edit-elevated-shadow: rgba(0, 0, 0, 0.38);
+  --edit-disabled-border: rgba(151, 159, 171, 0.55);
+  --edit-disabled-fill: rgba(64, 70, 80, 0.18);
+  --edit-disabled-text: rgba(151, 159, 171, 0.9);
+  --edit-disabled-generate-border: rgba(116, 116, 116, 0.133);
+  --edit-disabled-generate-start: rgba(128, 128, 128, 0.109);
+  --edit-disabled-generate-end: rgba(96, 96, 96, 0.071);
+  --edit-disabled-generate-text: #484848;
   --ai-accent: var(--edit-accent);
   --ai-accent-start: var(--edit-accent-start);
   --ai-accent-soft: var(--edit-accent-soft);
@@ -19,21 +48,21 @@
 }
 
 .edit-properties-panel .reference-drop-layout-inner {
-  --reference-drop-border-hover: rgba(245, 185, 66, 0.58);
-  --reference-drop-border-active: rgba(245, 185, 66, 0.92);
-  --reference-drop-shadow-active: 0 0 0 2px rgba(245, 185, 66, 0.24);
+  --reference-drop-border-hover: var(--edit-accent-border-hover);
+  --reference-drop-border-active: var(--edit-accent-border-max);
+  --reference-drop-shadow-active: 0 0 0 2px var(--edit-accent-shadow-active);
 }
 
 .edit-properties-panel .reference-drop-divider {
-  color: rgba(245, 185, 66, 0.7);
+  color: var(--edit-accent-text-soft);
   opacity: 0.92;
 }
 
 .ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:hover::before,
 .ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible::before,
 .ai-studio-page[data-selected-tool="edit"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
-  background: rgba(245, 185, 66, 0.76);
-  box-shadow: 0 0 0 1px rgba(245, 185, 66, 0.28);
+  background: var(--edit-accent-surface-strong);
+  box-shadow: 0 0 0 1px var(--edit-accent-shadow-ring);
 }
 
 .ai-studio-page[data-selected-tool="edit"]
@@ -42,8 +71,8 @@
 .ai-studio-page[data-selected-tool="edit"]
   .reference-grid-horizontal-divider-wrap:focus-visible
   .reference-grid-horizontal-divider::before {
-  background: rgba(245, 185, 66, 0.76);
-  box-shadow: 0 0 0 1px rgba(245, 185, 66, 0.28);
+  background: var(--edit-accent-surface-strong);
+  box-shadow: 0 0 0 1px var(--edit-accent-shadow-ring);
 }
 
 .ai-studio-page[data-selected-tool="edit"]
@@ -52,13 +81,13 @@
 .ai-studio-page[data-selected-tool="edit"]
   .reference-grid-horizontal-divider-wrap:focus-visible
   .reference-grid-horizontal-divider-pill {
-  color: rgba(245, 205, 128, 0.9);
-  border-color: rgba(245, 185, 66, 0.38);
-  background: rgba(245, 185, 66, 0.07);
+  color: var(--edit-accent-highlight);
+  border-color: var(--edit-accent-border-faint);
+  background: var(--edit-accent-surface-tint);
 }
 
 .ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible {
-  outline: 2px solid rgba(245, 185, 66, 0.88);
+  outline: 2px solid var(--edit-accent-border-emphasis);
 }
 
 .edit-properties-panel .step-utility-btn:hover {
@@ -87,14 +116,14 @@
 }
 
 .edit-properties-panel .aspect-menu-item.is-active {
-  background: rgba(245, 185, 66, 0.12);
+  background: var(--edit-accent-surface-soft);
   border-color: var(--edit-accent-soft);
-  box-shadow: inset 0 0 0 1px rgba(245, 185, 66, 0.28);
+  box-shadow: inset 0 0 0 1px var(--edit-accent-shadow-ring);
 }
 
 .edit-properties-panel .aspect-menu-item.is-active .aspect-shape {
-  border-color: rgba(245, 185, 66, 0.88);
-  background: rgba(245, 185, 66, 0.12);
+  border-color: var(--edit-accent-border-emphasis);
+  background: var(--edit-accent-surface-soft);
 }
 
 .edit-properties-panel .mode-toggle-btn:hover {
@@ -105,12 +134,12 @@
 .edit-properties-panel .mode-toggle-btn.is-active {
   background: linear-gradient(135deg, var(--edit-accent-start), var(--edit-accent-end));
   border-color: var(--edit-accent-medium);
-  box-shadow: 0 6px 14px rgba(245, 185, 66, 0.22);
-  color: #1a140c;
+  box-shadow: 0 6px 14px var(--edit-accent-shadow-soft);
+  color: var(--edit-accent-ink);
 }
 
 .edit-properties-panel .mode-toggle-btn.is-active svg {
-  color: #1a140c;
+  color: var(--edit-accent-ink);
 }
 
 .edit-reference-pin-btn {
@@ -123,12 +152,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(245, 185, 66, 0.58);
-  background: linear-gradient(135deg, rgba(45, 35, 19, 0.92), rgba(70, 52, 24, 0.48));
-  color: rgba(245, 185, 66, 0.96);
+  border: 1px solid var(--edit-accent-border-hover);
+  background: linear-gradient(
+    135deg,
+    var(--edit-elevated-fill-start),
+    var(--edit-elevated-fill-end)
+  );
+  color: var(--edit-accent-text-strong);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(0, 0, 0, 0.38);
+    inset 0 1px 0 var(--edit-elevated-highlight),
+    0 10px 22px var(--edit-elevated-shadow);
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -141,20 +174,20 @@
 
 .edit-reference-pin-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  border-color: rgba(245, 185, 66, 0.88);
-  background: rgba(245, 185, 66, 0.14);
+  border-color: var(--edit-accent-border-emphasis);
+  background: var(--edit-accent-surface-medium);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(0, 0, 0, 0.38);
+    inset 0 1px 0 var(--edit-elevated-highlight),
+    0 10px 22px var(--edit-elevated-shadow);
   cursor: pointer;
 }
 
 .edit-reference-pin-btn:disabled {
   opacity: 1;
   cursor: not-allowed;
-  border-color: rgba(151, 159, 171, 0.55);
-  background: rgba(64, 70, 80, 0.18);
-  color: rgba(151, 159, 171, 0.9);
+  border-color: var(--edit-disabled-border);
+  background: var(--edit-disabled-fill);
+  color: var(--edit-disabled-text);
   box-shadow: none;
 }
 
@@ -164,7 +197,7 @@
 
 .edit-properties-panel .reference-swap-control:not(:disabled):hover,
 .edit-properties-panel .reference-swap-control:not(:disabled):focus-visible {
-  background: rgba(245, 185, 66, 0.14);
+  background: var(--edit-accent-surface-medium);
   border: 1px solid rgba(245, 185, 66, 0.4);
 }
 
@@ -176,40 +209,48 @@
 .edit-properties-panel .agent-save-prefab,
 .edit-properties-panel .prompt-actions-compact .agent-send-prefab,
 .edit-properties-panel .prompt-actions-compact .agent-save-prefab {
-  border-color: rgba(245, 185, 66, 0.58);
-  background: linear-gradient(135deg, rgba(45, 35, 19, 0.92), rgba(70, 52, 24, 0.48));
-  color: rgba(245, 185, 66, 0.96);
-  box-shadow: 0 4px 1px rgba(245, 185, 66, 0.24);
+  border-color: var(--edit-accent-border-hover);
+  background: linear-gradient(
+    135deg,
+    var(--edit-elevated-fill-start),
+    var(--edit-elevated-fill-end)
+  );
+  color: var(--edit-accent-text-strong);
+  box-shadow: 0 4px 1px var(--edit-accent-shadow-active);
 }
 
 .edit-properties-panel .agent-send-prefab:hover:not(:disabled),
 .edit-properties-panel .agent-save-prefab:hover:not(:disabled),
 .edit-properties-panel .prompt-actions-compact .agent-send-prefab:hover:not(:disabled),
 .edit-properties-panel .prompt-actions-compact .agent-save-prefab:hover:not(:disabled) {
-  border-color: rgba(245, 185, 66, 0.88);
-  background: rgba(245, 185, 66, 0.14);
+  border-color: var(--edit-accent-border-emphasis);
+  background: var(--edit-accent-surface-medium);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(0, 0, 0, 0.38);
+    inset 0 1px 0 var(--edit-elevated-highlight),
+    0 10px 22px var(--edit-elevated-shadow);
 }
 
 .edit-properties-panel .agent-generate-prefab {
   border-color: var(--edit-accent-strong);
   background: linear-gradient(135deg, var(--edit-accent-start), var(--edit-accent-end));
-  box-shadow: 0 4px 1px rgba(245, 185, 66, 0.34);
-  color: #1a140c;
+  box-shadow: 0 4px 1px var(--edit-accent-shadow-strong);
+  color: var(--edit-accent-ink);
 }
 
 .edit-properties-panel .agent-generate-prefab:hover:not(:disabled) {
-  box-shadow: 0 6px 14px rgba(245, 185, 66, 0.3);
+  box-shadow: 0 6px 14px var(--edit-accent-shadow-press);
 }
 
 .edit-properties-panel .agent-generate-prefab:disabled {
   cursor: not-allowed;
   box-shadow: none;
-  border-color: rgba(116, 116, 116, 0.133);
-  background: linear-gradient(135deg, rgba(128, 128, 128, 0.109), rgba(96, 96, 96, 0.071));
-  color: #484848;
+  border-color: var(--edit-disabled-generate-border);
+  background: linear-gradient(
+    135deg,
+    var(--edit-disabled-generate-start),
+    var(--edit-disabled-generate-end)
+  );
+  color: var(--edit-disabled-generate-text);
 }
 
 .edit-properties-panel .agent-generate-prefab:disabled .agent-generate-label {
@@ -220,19 +261,19 @@
 .edit-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-icon,
 .edit-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-credits,
 .edit-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-credits-label {
-  color: #484848;
+  color: var(--edit-disabled-generate-text);
 }
 
 .edit-properties-panel .agent-generate-prefab .generate-pill,
 .edit-properties-panel .agent-generate-prefab .generate-pill .model-chip-icon,
 .edit-properties-panel .agent-generate-prefab .generate-pill .model-chip-credits,
 .edit-properties-panel .agent-generate-prefab .generate-pill .model-chip-credits-label {
-  color: #1a140c;
+  color: var(--edit-accent-ink);
 }
 
 .edit-properties-panel .agent-cost-prefab {
   border-color: rgba(245, 185, 66, 0.8);
   background: linear-gradient(135deg, var(--edit-accent-start), var(--edit-accent-end));
-  box-shadow: 0 4px 1px rgba(245, 185, 66, 0.28);
-  color: #1a140c;
+  box-shadow: 0 4px 1px var(--edit-accent-shadow-ring);
+  color: var(--edit-accent-ink);
 }

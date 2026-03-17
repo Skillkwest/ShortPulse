@@ -180,6 +180,8 @@ import {
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
 import {
+  autoResizeTextareaWithinComputedBounds,
+  clampCaretPosition,
   clearWindowAnimationFrameRef,
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
@@ -191,6 +193,7 @@ import {
   scheduleWindowAnimationFrame,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   resolveStageContextMenuPosition,
+  syncTextareaMirrorScroll,
   unlockDocumentCursor,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
@@ -934,24 +937,14 @@ export function ExpertEditPanelView({
   );
 
   const syncPromptHighlightScroll = React.useCallback(() => {
-    const textarea = promptTextareaRef.current;
-    const highlightLayer = promptHighlightRef.current;
-    if (!textarea || !highlightLayer) return;
-    highlightLayer.scrollTop = textarea.scrollTop;
-    highlightLayer.scrollLeft = textarea.scrollLeft;
+    syncTextareaMirrorScroll({
+      textarea: promptTextareaRef.current,
+      mirror: promptHighlightRef.current,
+    });
   }, []);
 
   const syncPromptTextareaHeight = React.useCallback(() => {
-    const textarea = promptTextareaRef.current;
-    if (!textarea) return;
-    const computedStyle = window.getComputedStyle(textarea);
-    const minHeightPx = Number.parseFloat(computedStyle.minHeight) || 72;
-    const maxHeightPx = Number.parseFloat(computedStyle.maxHeight) || minHeightPx;
-    textarea.style.height = "auto";
-    const contentHeightPx = Math.max(minHeightPx, textarea.scrollHeight);
-    const clampedHeightPx = Math.min(contentHeightPx, maxHeightPx);
-    textarea.style.height = `${clampedHeightPx}px`;
-    textarea.style.overflowY = contentHeightPx > maxHeightPx ? "auto" : "hidden";
+    autoResizeTextareaWithinComputedBounds(promptTextareaRef.current);
   }, []);
 
   const handlePromptScroll = React.useCallback(() => {
@@ -991,7 +984,10 @@ export function ExpertEditPanelView({
     if (caretPosition == null) return;
     const textarea = promptTextareaRef.current;
     if (!textarea) return;
-    const maxCaret = Math.max(0, Math.min(promptTextValue.length, caretPosition));
+    const maxCaret = clampCaretPosition({
+      caretPosition,
+      textLength: promptTextValue.length,
+    });
     textarea.focus();
     textarea.setSelectionRange(maxCaret, maxCaret);
     pendingPromptCaretRef.current = null;

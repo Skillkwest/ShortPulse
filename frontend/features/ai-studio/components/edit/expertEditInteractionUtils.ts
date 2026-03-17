@@ -228,3 +228,38 @@ export const unlockDocumentCursor = (lockState: GlobalCursorLockState) => {
   lockState.bodyCursor = "";
   lockState.htmlCursor = "";
 };
+
+export const syncTextareaMirrorScroll = ({
+  textarea,
+  mirror,
+}: {
+  textarea: HTMLTextAreaElement | null;
+  mirror: HTMLElement | null;
+}) => {
+  if (!textarea || !mirror) return;
+  mirror.scrollTop = textarea.scrollTop;
+  mirror.scrollLeft = textarea.scrollLeft;
+};
+
+export const autoResizeTextareaWithinComputedBounds = (
+  textarea: HTMLTextAreaElement | null,
+  fallbackMinHeightPx = 72
+) => {
+  if (!textarea || typeof window === "undefined") return;
+  const computedStyle = window.getComputedStyle(textarea);
+  const minHeightPx = Number.parseFloat(computedStyle.minHeight) || fallbackMinHeightPx;
+  const maxHeightPx = Number.parseFloat(computedStyle.maxHeight) || minHeightPx;
+  textarea.style.height = "auto";
+  const contentHeightPx = Math.max(minHeightPx, textarea.scrollHeight);
+  const clampedHeightPx = Math.min(contentHeightPx, maxHeightPx);
+  textarea.style.height = `${clampedHeightPx}px`;
+  textarea.style.overflowY = contentHeightPx > maxHeightPx ? "auto" : "hidden";
+};
+
+export const clampCaretPosition = ({
+  caretPosition,
+  textLength,
+}: {
+  caretPosition: number;
+  textLength: number;
+}) => Math.max(0, Math.min(textLength, caretPosition));

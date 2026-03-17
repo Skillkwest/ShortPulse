@@ -37,6 +37,7 @@ export type TransformPointerSession = {
 export type EditSubmitIntentMode = "standard" | "inpaint" | "markup";
 export type RailToolMode = "move" | "inpaint" | "video";
 export type TimeoutRef = { current: number | null };
+export type AnimationFrameRef = { current: number | null };
 export type ObjectUrlRevokeTimers = Map<string, number>;
 export type GlobalCursorLockState = {
   active: boolean;
@@ -125,6 +126,34 @@ export const clearWindowTimeoutRef = (timeoutRef: TimeoutRef) => {
   if (timeoutRef.current == null) return false;
   window.clearTimeout(timeoutRef.current);
   timeoutRef.current = null;
+  return true;
+};
+
+export const clearWindowAnimationFrameRef = (frameRef: AnimationFrameRef) => {
+  if (frameRef.current == null) return false;
+  if (typeof window !== "undefined") {
+    window.cancelAnimationFrame(frameRef.current);
+  }
+  frameRef.current = null;
+  return true;
+};
+
+export const scheduleWindowAnimationFrame = ({
+  frameRef,
+  callback,
+}: {
+  frameRef: AnimationFrameRef;
+  callback: () => void;
+}) => {
+  if (frameRef.current != null) return false;
+  if (typeof window === "undefined") {
+    callback();
+    return true;
+  }
+  frameRef.current = window.requestAnimationFrame(() => {
+    frameRef.current = null;
+    callback();
+  });
   return true;
 };
 

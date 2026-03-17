@@ -175,6 +175,7 @@ import {
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
 import {
+  clearWindowAnimationFrameRef,
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
   createIdleTransformPointerSession,
@@ -182,6 +183,7 @@ import {
   lockDocumentCursor,
   resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
+  scheduleWindowAnimationFrame,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   resolveStageContextMenuPosition,
   unlockDocumentCursor,
@@ -3164,10 +3166,7 @@ export function ExpertEditPanelView({
   React.useEffect(() => {
     if (!onSessionStateChange) {
       pendingSessionStateRef.current = null;
-      if (sessionDispatchFrameRef.current != null && typeof window !== "undefined") {
-        window.cancelAnimationFrame(sessionDispatchFrameRef.current);
-        sessionDispatchFrameRef.current = null;
-      }
+      clearWindowAnimationFrameRef(sessionDispatchFrameRef);
       return;
     }
     const nextState = buildCurrentSessionState();
@@ -3176,9 +3175,7 @@ export function ExpertEditPanelView({
       return;
     }
     pendingSessionStateRef.current = nextState;
-    if (sessionDispatchFrameRef.current != null) return;
     const dispatch = () => {
-      sessionDispatchFrameRef.current = null;
       const pendingState = pendingSessionStateRef.current;
       pendingSessionStateRef.current = null;
       if (!pendingState) return;
@@ -3190,11 +3187,10 @@ export function ExpertEditPanelView({
       lastDispatchedSessionStateRef.current = clonedState;
       onSessionStateChange(clonedState);
     };
-    if (typeof window === "undefined") {
-      dispatch();
-      return;
-    }
-    sessionDispatchFrameRef.current = window.requestAnimationFrame(dispatch);
+    scheduleWindowAnimationFrame({
+      frameRef: sessionDispatchFrameRef,
+      callback: dispatch,
+    });
   }, [buildCurrentSessionState, onSessionStateChange]);
 
   React.useEffect(() => {
@@ -3651,10 +3647,7 @@ export function ExpertEditPanelView({
       markupGestureBaselineRef.current = null;
       inpaintGestureBaselineRef.current = null;
       inpaintSessionRestorePendingRef.current = false;
-      if (sessionDispatchFrameRef.current != null) {
-        window.cancelAnimationFrame(sessionDispatchFrameRef.current);
-        sessionDispatchFrameRef.current = null;
-      }
+      clearWindowAnimationFrameRef(sessionDispatchFrameRef);
       clearWindowTimeoutRef(inpaintCollapseTimerRef);
       clearWindowTimeoutRef(toastVisibleTimerRef);
       clearWindowTimeoutRef(toastFadeTimerRef);

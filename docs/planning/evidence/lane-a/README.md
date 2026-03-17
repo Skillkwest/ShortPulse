@@ -25,6 +25,7 @@ Examples:
 - `2026-03-16-a3-01-docs-governance-cleanup.md`
 - `2026-03-16-a4-01-conservative-deadcode-pass.md`
 - `2026-03-16-a4-02-selective-pruning-pass.md`
+- `2026-03-16-a5-01-lane-signoff.md`
 
 ## Linked docs
 - `docs/planning/lane-a-master-plan-2026-03-16.md`

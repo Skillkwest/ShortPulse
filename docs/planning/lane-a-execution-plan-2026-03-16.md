@@ -1,7 +1,7 @@
 # Lane A Execution Plan (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Master plan: `docs/planning/lane-a-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-a-tracker-spec-2026-03-16.md`  
@@ -34,7 +34,7 @@ Out of scope:
 | `A3-01` | A3 | docs indexes + changelog | Resolve active index parity drift and enforceable changelog chronology contract | `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md` | Completed |
 | `A4-01` | A4 | dead-code high-confidence leaves | Remove isolated dead files/dependencies with strict targeted validation | `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md` | Completed |
 | `A4-02` | A4 | selective dead-code pruning | Prune additional high-confidence leaves and defer ambiguous core seams | `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md` | Completed |
-| `A5-01` | A5 | lane signoff | Publish closeout bundle and follow-up debt ledger with owner/sunset | `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md` | Not Started |
+| `A5-01` | A5 | lane signoff | Publish closeout bundle and follow-up debt ledger with owner/sunset | `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md` | Completed |
 
 Policy:
 1. One seam per PR.

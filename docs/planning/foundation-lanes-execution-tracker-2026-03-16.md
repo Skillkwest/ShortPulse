@@ -13,8 +13,8 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 ## Program Snapshot
 | Lane | Status | Owner | Current Focus | Blockers | Next Checkpoint | Plan Artifact |
 | --- | --- | --- | --- | --- | --- | --- |
-| A | In Progress | Engineering | Lane A signoff bundle and follow-up debt closeout | none | A5-01 lane signoff packet | `docs/planning/lane-a-master-plan-2026-03-16.md` |
-| B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | Behavior-changing/baseline-dependent merges blocked until Lane A baseline-green signoff | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| A | Completed | Engineering | Lane A closeout complete; debt handed off to downstream lanes | none | Lane B execution handoff | `docs/planning/lane-a-master-plan-2026-03-16.md` |
+| B | In Progress | Engineering | Ongoing modularization prep + seam isolation pass (separate execution stream) | none | Next modularization prep slice closeout | `docs/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Not Started | Engineering | Regression armor baseline lock and fragile-path characterization matrix | Awaiting C0 baseline evidence packet | Lane C fragile-path matrix lock | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Not Started | Engineering | Runtime safety and warning/suppression hardening for core hot paths | Awaiting D0 baseline evidence packet | Lane D warning debt baseline lock | `docs/planning/lane-d-master-plan-2026-03-16.md` |
 | E | Not Started | Engineering | Docs/SOP/ADR parity and governance contract lock | Awaiting E0 baseline evidence packet | Lane E governance baseline lock | `docs/planning/lane-e-master-plan-2026-03-16.md` |
@@ -36,7 +36,7 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 - [x] Recover size-budget conformance for `frontend/pages/ai-studio.tsx` seam.
 
 ### A2: Docs/Governance Cleanup
-- [ ] Normalize changelog structure and chronology policy enforcement.
+- [x] Normalize changelog structure and chronology policy enforcement (deferred contract carried by Lane E E4-E5 with explicit owner/sunset in A5 packet).
 - [x] Repair active index parity (`docs/README.md`, `docs/planning/README.md`, scoped section READMEs).
 - [x] Remove duplicate/stale API/SOP doc rows and stale references.
 
@@ -51,9 +51,9 @@ Canonical plan: `docs/planning/lane-a-master-plan-2026-03-16.md`
 - [x] Re-run full suite and compare to baseline.
 
 ### A5: Lane A Final Signoff
-- [ ] Required checks pass.
-- [ ] No net increase in warnings for touched surfaces.
-- [ ] Follow-up debt list captured with owners and sunset criteria.
+- [x] Required checks pass.
+- [x] No net increase in warnings for touched surfaces.
+- [x] Follow-up debt list captured with owners and sunset criteria.
 
 ## Lane Slice Template (Copy Per PR)
 ### Slice ID
@@ -108,6 +108,7 @@ Mandatory for any from-scratch replacement scope:
 7. A3 docs governance cleanup packet: `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 8. A4 conservative dead-code pass packet: `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
 9. A4 selective pruning pass packet: `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
+10. A5 lane signoff packet: `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`
 
 ## Lane C Artifacts
 1. Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`
@@ -257,3 +258,9 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
   - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
+- Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):
+  - `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
+- Completed Lane A A4-02 selective dead-code pruning (remaining high-confidence dead modules removed; production deadcode gate green):
+  - `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
+- Completed Lane A A5 signoff and handed deferred debt to downstream lanes:
+  - `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`

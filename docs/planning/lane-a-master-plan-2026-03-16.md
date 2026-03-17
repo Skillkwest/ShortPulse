@@ -1,7 +1,7 @@
 # Lane A Master Plan (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
@@ -33,7 +33,7 @@ As of 2026-03-16 after A4 slices:
 3. SQL lint policy surfaces are aligned to hosted-target Supabase CLI lint commands.
 4. `check:size-budget` is green after extracting perf-audit runtime from page orchestration into `useAiStudioPerfAuditRuntime`.
 5. `deadcode:check` is green after A4 safe-core + selective pruning slices.
-6. Remaining Lane A focus shifted to A5 signoff and follow-up debt capture.
+6. Lane A signoff packet is complete with follow-up debt explicitly assigned to downstream lanes.
 
 ## Phase Plan
 ### A0: Baseline Lock

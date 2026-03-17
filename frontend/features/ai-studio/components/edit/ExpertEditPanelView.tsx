@@ -146,12 +146,7 @@ import {
   areTransformHistoryEntriesEqual,
   buildTransformHistoryEntry,
   clampLayerOpacity,
-  clampLayerScale,
-  clampLayerTranslateRatio,
-  computeDistance,
   defaultLayerTransform,
-  normalizeLayerRotationDeg,
-  resolveTransformGeometry,
   type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
@@ -179,6 +174,11 @@ import {
   resolveStageContextMenuPosition,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
+import {
+  createTransformPointerSession,
+  resolveTransformDragMode,
+  resolveTransformSessionUpdate,
+} from "./expertEditTransformGestureUtils";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
@@ -334,7 +334,6 @@ const inpaintRailTools: ReadonlyArray<{
 ];
 type InpaintMode = "lasso" | "brush" | "auto";
 type InpaintSelectionTab = "select" | "unselect";
-type TransformDragMode = "move" | "resize" | "rotate";
 type MarkupMode = "pen" | "eraser";
 const MAX_LAYERS = 8;
 const LAYER_LIMIT_REACHED_TOAST = `Layer limit reached (${MAX_LAYERS}).`;
@@ -603,7 +602,7 @@ export function ExpertEditPanelView({
   const [showPromptTokenInlineError, setShowPromptTokenInlineError] = React.useState(false);
   const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
   const [activeTransformDragMode, setActiveTransformDragMode] =
-    React.useState<TransformDragMode>("move");
+    React.useState<TransformPointerSession["dragMode"]>("move");
   const syncMarkupModalTrackedRef = React.useCallback(
     (refObject: React.MutableRefObject<HTMLDivElement | null>, node: HTMLDivElement | null) => {
       if (refObject.current === node) return;
@@ -2602,47 +2601,25 @@ export function ExpertEditPanelView({
       });
       const pointerX = pointer.x;
       const pointerY = pointer.y;
-      const transformGeometry = resolveTransformGeometry({
-        transform: selectedLayer.transform,
-        width,
-        height,
+      const dragMode = resolveTransformDragMode({
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
       });
-      const dragMode: TransformDragMode = event.altKey
-        ? "rotate"
-        : event.shiftKey
-          ? "resize"
-          : "move";
-      const distanceToCenter = Math.max(
-        1,
-        computeDistance(pointerX, pointerY, transformGeometry.centerX, transformGeometry.centerY)
-      );
-      const pointerAngleRad = Math.atan2(
-        pointerY - transformGeometry.centerY,
-        pointerX - transformGeometry.centerX
-      );
       event.preventDefault();
       if ((event.currentTarget as HTMLElement | null)?.setPointerCapture) {
         (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
       }
       transformGestureBaselineRef.current = buildTransformHistoryEntry(layers);
-      transformPointerSessionRef.current = {
-        active: true,
+      transformPointerSessionRef.current = createTransformPointerSession({
         pointerId: event.pointerId,
-        layerId: selectedLayer.id,
-        dragMode,
-        startCanvasX: pointerX,
-        startCanvasY: pointerY,
-        baseTranslateXRatio: selectedLayer.transform.translateXRatio,
-        baseTranslateYRatio: selectedLayer.transform.translateYRatio,
-        baseScale: selectedLayer.transform.scale,
+        pointerX,
+        pointerY,
         dropzoneWidth: width,
         dropzoneHeight: height,
-        centerX: transformGeometry.centerX,
-        centerY: transformGeometry.centerY,
-        baseDistanceToCenter: distanceToCenter,
-        baseRotationDeg: selectedLayer.transform.rotationDeg,
-        basePointerAngleRad: pointerAngleRad,
-      };
+        selectedLayerId: selectedLayer.id,
+        selectedLayerTransform: selectedLayer.transform,
+        dragMode,
+      });
       setActiveTransformDragMode(dragMode);
       setIsTransformPointerDragging(true);
     },
@@ -2663,74 +2640,25 @@ export function ExpertEditPanelView({
       const session = transformPointerSessionRef.current;
       if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
       event.preventDefault();
-      if (session.dragMode === "move") {
-        const deltaX = pointerX - session.startCanvasX;
-        const deltaY = pointerY - session.startCanvasY;
-        const nextTranslateXRatio = clampLayerTranslateRatio(
-          session.baseTranslateXRatio + deltaX / session.dropzoneWidth
-        );
-        const nextTranslateYRatio = clampLayerTranslateRatio(
-          session.baseTranslateYRatio + deltaY / session.dropzoneHeight
-        );
-        setLayers((previousLayers) =>
-          previousLayers.map((layer) =>
-            layer.id === session.layerId
-              ? {
-                  ...layer,
-                  transform: {
-                    ...layer.transform,
-                    translateXRatio: nextTranslateXRatio,
-                    translateYRatio: nextTranslateYRatio,
-                  },
-                }
-              : layer
-          )
-        );
-        return;
-      }
-      if (session.dragMode === "resize") {
-        const nextDistanceToCenter = Math.max(
-          1,
-          computeDistance(pointerX, pointerY, session.centerX, session.centerY)
-        );
-        const nextScale = clampLayerScale(
-          session.baseScale * (nextDistanceToCenter / session.baseDistanceToCenter)
-        );
-        setLayers((previousLayers) =>
-          previousLayers.map((layer) =>
-            layer.id === session.layerId
-              ? {
-                  ...layer,
-                  transform: {
-                    ...layer.transform,
-                    scale: nextScale,
-                  },
-                }
-              : layer
-          )
-        );
-        return;
-      }
-      if (session.dragMode === "rotate") {
-        const nextPointerAngle = Math.atan2(pointerY - session.centerY, pointerX - session.centerX);
-        const nextRotationDeg = normalizeLayerRotationDeg(
-          session.baseRotationDeg +
-            ((nextPointerAngle - session.basePointerAngleRad) * 180) / Math.PI
-        );
-        setLayers((previousLayers) =>
-          previousLayers.map((layer) =>
-            layer.id === session.layerId
-              ? {
-                  ...layer,
-                  transform: {
-                    ...layer.transform,
-                    rotationDeg: nextRotationDeg,
-                  },
-                }
-              : layer
-          )
-        );
-      }
+      const transformUpdate = resolveTransformSessionUpdate({
+        session,
+        pointerX,
+        pointerY,
+      });
+      if (!transformUpdate) return;
+      setLayers((previousLayers) =>
+        previousLayers.map((layer) =>
+          layer.id === session.layerId
+            ? {
+                ...layer,
+                transform: {
+                  ...layer.transform,
+                  ...transformUpdate,
+                },
+              }
+            : layer
+        )
+      );
     },
     [sceneZoomScale]
   );

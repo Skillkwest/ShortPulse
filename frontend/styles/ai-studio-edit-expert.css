@@ -3093,15 +3093,15 @@
   font-weight: 600;
   padding-inline: 8px;
   gap: 5px;
-  border-color: rgba(92, 96, 104, 0.275);
-  background: rgba(37, 41, 47, 0.64);
+  border-color: var(--edit-expert-control-border-soft);
+  background: var(--edit-expert-control-surface);
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-mode-btn:hover:not(:disabled),
 .edit-expert-markup-modal-controls-compact--move
   .edit-expert-move-mode-btn:focus-visible:not(:disabled) {
   border-color: rgba(52, 200, 255, 0.72);
-  background: rgba(37, 41, 47, 0.64);
+  background: var(--edit-expert-control-surface);
   color: rgba(236, 244, 255, 0.96);
 }
 
@@ -3116,15 +3116,15 @@
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-mode-btn.is-active {
-  border-color: rgba(92, 95, 103, 0.95);
-  background: rgba(62, 66, 74, 0.94);
+  border-color: var(--edit-expert-control-active-border);
+  background: var(--edit-expert-control-active-surface);
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-mode-btn.is-active:hover,
 .edit-expert-markup-modal-controls-compact--move
   .edit-expert-move-mode-btn.is-active:focus-visible {
-  border-color: rgba(92, 95, 103, 0.95);
-  background: rgba(62, 66, 74, 0.94);
+  border-color: var(--edit-expert-control-active-border);
+  background: var(--edit-expert-control-active-surface);
 }
 
 .edit-expert-markup-modal-controls-compact--move .edit-expert-move-history-btn {
@@ -3486,14 +3486,14 @@
 
 .edit-expert-markup-modal-controls-compact:not(.edit-expert-markup-modal-controls-compact--inpaint)
   .edit-expert-inpaint-mode-btn {
-  border-color: rgba(92, 96, 104, 0.275);
-  background: rgba(37, 41, 47, 0.64);
+  border-color: var(--edit-expert-control-border-soft);
+  background: var(--edit-expert-control-surface);
 }
 
 .edit-expert-markup-modal-controls-compact:not(.edit-expert-markup-modal-controls-compact--inpaint)
   .edit-expert-inpaint-mode-btn:hover {
-  border-color: rgba(205, 210, 220, 0.202);
-  background: rgba(37, 41, 47, 0.64);
+  border-color: var(--edit-expert-control-hover-border);
+  background: var(--edit-expert-control-surface);
 }
 
 .edit-expert-markup-modal-controls-compact:not(
@@ -3526,8 +3526,8 @@
   .edit-expert-inpaint-mode-btn.is-active:hover,
 .edit-expert-markup-modal-controls-compact:not(.edit-expert-markup-modal-controls-compact--inpaint)
   .edit-expert-inpaint-mode-btn.is-active:focus-visible {
-  border-color: rgba(92, 95, 103, 0.95);
-  background: rgba(62, 66, 74, 0.94);
+  border-color: var(--edit-expert-control-active-border);
+  background: var(--edit-expert-control-active-surface);
   color: rgba(236, 240, 246, 0.96);
   font-weight: 700;
 }
@@ -3952,10 +3952,10 @@
 .edit-expert-move-mode-btn {
   min-height: 30px;
   border-radius: 8px;
-  border: 1px solid rgba(92, 96, 104, 0.275);
-  border-color: rgba(92, 96, 104, 0.275);
-  background: rgba(37, 41, 47, 0.64);
-  color: #eef2f8;
+  border: 1px solid var(--edit-expert-control-border-soft);
+  border-color: var(--edit-expert-control-border-soft);
+  background: var(--edit-expert-control-surface);
+  color: var(--edit-expert-control-text);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -3982,7 +3982,7 @@
 }
 
 .edit-expert-move-mode-btn:hover {
-  border-color: rgba(205, 210, 220, 0.2);
+  border-color: var(--edit-expert-control-hover-border);
 }
 
 .edit-expert-move-mode-btn:focus-visible {

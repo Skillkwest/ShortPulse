@@ -107,3 +107,4 @@ Examples:
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-collapse-mode-controls-migration.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-wrapper-trigger-migration.md`
 - `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-layers-toolbar-migration.md`
+- `docs/planning/evidence/lane-b/2026-03-17-b5-02-expert-mode-button-migration.md`

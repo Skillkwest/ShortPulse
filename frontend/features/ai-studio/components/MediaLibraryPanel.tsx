@@ -16,7 +16,6 @@ import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdap
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
 import {
-  AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED,
   MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryFeatureFlags";
@@ -56,6 +55,7 @@ import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizo
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
 import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibraryPanelMutationController";
+import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibraryPanelSelectionController";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
 import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
@@ -154,11 +154,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const [error, setError] = useState<string | null>(null);
   const [, setMembershipMessage] = useState<string | null>(null);
-  const [previewModalFile, setPreviewModalFile] = useState<MediaFileRow | null>(null);
-  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
-  const [previewModalLoading, setPreviewModalLoading] = useState(false);
-  const [previewModalError, setPreviewModalError] = useState<string | null>(null);
-
   const selectedIds = EMPTY_SELECTED_IDS;
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
 
@@ -184,8 +179,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const visibleMediaIdsRef = useRef<Set<string>>(new Set());
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const previewResolveTokenRef = useRef(0);
-
   const [signPassNonce, setSignPassNonce] = useState(0);
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
   const [folderCanvasFullSignedById, setFolderCanvasFullSignedById] = useState<
@@ -514,6 +507,25 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       },
     });
 
+  const {
+    previewModalFile,
+    previewModalUrl,
+    previewModalLoading,
+    previewModalError,
+    handleSelectPromptCard,
+    handleSelectMediaFile,
+    handleMediaCardDoubleClick,
+    handleMediaCardContextMenu,
+    closePreviewModal,
+  } = useMediaLibraryPanelSelectionController({
+    activeFolderId,
+    currentUserIdRef,
+    onSelectMedia,
+    onSelectPrompt,
+    refreshSignedUrl,
+    signStoragePath,
+  });
+
   useEffect(() => {
     let cancelled = false;
     if (!showFolderCanvas) {
@@ -637,108 +649,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       visibleIds.clear();
     };
   }, []);
-
-  const handleSelectPromptCard = useCallback(
-    (prompt: PromptRow) => {
-      onSelectPrompt({
-        id: prompt.id,
-        promptText: prompt.prompt_text,
-        title: prompt.title,
-      });
-    },
-    [onSelectPrompt]
-  );
-
-  const addMediaReferenceFromFile = useCallback(
-    async (file: MediaFileRow) => {
-      const nextUrl =
-        (await resolveSignedSelectionUrl({
-          row: file,
-          currentUserId: currentUserIdRef.current,
-          signStoragePath,
-        })) ??
-        (await refreshSignedUrl(file)) ??
-        file.signedUrl;
-      if (!nextUrl) return false;
-      const previewStoragePath = file.preview_storage_path ?? file.storage_path;
-      const fullStoragePath = file.storage_path;
-      const previewUrl = file.signedUrl ?? nextUrl;
-      const fullUrl = nextUrl;
-      onSelectMedia({
-        id: file.id,
-        url: nextUrl,
-        fileType: isVideoFile(file.file_type) ? "video" : "image",
-        filename: file.filename,
-        promptText: resolveMediaMetadataPromptText(file.metadata),
-        source: file.source ?? "upload",
-        previewStoragePath,
-        fullStoragePath,
-        previewUrl,
-        fullUrl,
-      });
-      return true;
-    },
-    [onSelectMedia, refreshSignedUrl, signStoragePath]
-  );
-
-  const handleSelectMediaFile = useCallback((file: MediaFileRow) => {
-    if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) return;
-    void file;
-  }, []);
-
-  const resolvePreviewModalUrl = useCallback(
-    async (file: MediaFileRow): Promise<string | null> => {
-      const nextUrl =
-        (await resolveSignedSelectionUrl({
-          row: file,
-          currentUserId: currentUserIdRef.current,
-          signStoragePath,
-        })) ??
-        (await refreshSignedUrl(file)) ??
-        file.signedUrl;
-      const normalized = (nextUrl ?? "").trim();
-      return normalized || null;
-    },
-    [refreshSignedUrl, signStoragePath]
-  );
-
-  const closePreviewModal = useCallback(() => {
-    previewResolveTokenRef.current += 1;
-    setPreviewModalFile(null);
-    setPreviewModalUrl(null);
-    setPreviewModalLoading(false);
-    setPreviewModalError(null);
-  }, []);
-
-  const handleMediaCardDoubleClick = useCallback(
-    (file: MediaFileRow) => {
-      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-      const nextToken = previewResolveTokenRef.current + 1;
-      previewResolveTokenRef.current = nextToken;
-      setPreviewModalFile(file);
-      setPreviewModalUrl((file.signedUrl ?? "").trim() || null);
-      setPreviewModalLoading(true);
-      setPreviewModalError(null);
-      void resolvePreviewModalUrl(file)
-        .then((resolvedUrl) => {
-          if (previewResolveTokenRef.current !== nextToken) return;
-          if (resolvedUrl) {
-            setPreviewModalUrl(resolvedUrl);
-            return;
-          }
-          setPreviewModalError("Failed to load preview.");
-        })
-        .catch(() => {
-          if (previewResolveTokenRef.current !== nextToken) return;
-          setPreviewModalError("Failed to load preview.");
-        })
-        .finally(() => {
-          if (previewResolveTokenRef.current !== nextToken) return;
-          setPreviewModalLoading(false);
-        });
-    },
-    [activeFolderId, resolvePreviewModalUrl]
-  );
 
   useEffect(() => {
     resetDeleteConfirmState();
@@ -905,17 +815,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         });
     },
     [resolveDownloadBlob]
-  );
-
-  const handleMediaCardContextMenu = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => {
-      if (!AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) return;
-      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-      event.preventDefault();
-      event.stopPropagation();
-      void addMediaReferenceFromFile(file);
-    },
-    [activeFolderId, addMediaReferenceFromFile]
   );
 
   const openFolderContextMenu = useCallback(

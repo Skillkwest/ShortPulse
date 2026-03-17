@@ -29,3 +29,4 @@ Examples:
 
 ## Current packets
 - `docs/planning/evidence/lane-e/2026-03-17-e0-01-governance-bootstrap-baseline.md`
+- `docs/planning/evidence/lane-e/2026-03-17-e1-01-index-parity-contract.md`

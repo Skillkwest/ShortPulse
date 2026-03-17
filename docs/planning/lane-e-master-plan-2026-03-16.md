@@ -28,16 +28,17 @@ Default contract:
 ## Baseline Findings (Audit Snapshot)
 As of 2026-03-17:
 1. Lane E artifact set now includes master plan, tracker spec, execution plan, and evidence index.
-2. Active planning index drift exists in `docs/planning/README.md`: `8` top-level planning docs are currently unindexed.
-3. Section index drift exists:
-   - `docs/product/README.md`: `6` active product docs unindexed.
-   - `docs/design/README.md`: `1` active design doc unindexed.
-   - `docs/adr/README.md`: `19` active ADR docs unindexed.
-4. Root docs index drift exists in `docs/README.md`: `8` active planning docs, `2` active ADR docs, and `1` active design doc are unindexed.
-5. ADR numbering integrity drift exists: duplicate `0023` prefix across two ADR files.
-6. Active policy-surface drift exists: Docker-local Supabase lint/start instructions appear in active templates/scripts/CI/planning policy docs while core repo policy prohibits Docker-local Supabase workflows.
-7. Changelog normalization drift exists: `docs/change_log.md` has no `## Unreleased`; chronology/future-date enforcement in `scripts/check_docs_semantic_drift.js` is therefore not active.
-8. `npm -C frontend run docs:check` is green, confirming existing checks are healthy but not yet covering all Lane E contracts above.
+2. Root/planning index parity for active planning and design surfaces is now locked after `E1-01`:
+   - `docs/planning/README.md`: `0` missing for active top-level planning docs
+   - `docs/README.md`: `0` missing for active planning + design surfaces
+   - `docs/product/README.md`: `0` missing
+   - `docs/design/README.md`: `0` missing
+3. ADR inventory drift remains for `E2-01`:
+   - `docs/adr/README.md`: `18` ADR entries missing
+   - duplicate `0023` prefix across two ADR files
+4. Active policy-surface drift remains for `E3-01`: Docker-local Supabase lint/start instructions appear in active templates/scripts/CI/planning policy docs while core repo policy prohibits Docker-local Supabase workflows.
+5. Changelog normalization drift remains for `E4-01`: `docs/change_log.md` has no `## Unreleased`; chronology/future-date enforcement in `scripts/check_docs_semantic_drift.js` is therefore not active.
+6. `npm -C frontend run docs:check` is green, confirming current checks are healthy while Lane E continues converting the remaining governance intent into enforced contracts.
 
 ## Scope
 In scope:

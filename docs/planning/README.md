@@ -70,16 +70,23 @@ Purpose: active planning artifacts and current execution backlogs.
 - `mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`: full UX-0 baseline report for all priority routes plus first-pass keyboard baseline.
 - `ai-studio-generation-runtime-v2-locked-execution.md`: authoritative locked execution plan for server-authoritative runtime v2.
 - `ai-studio-generation-runtime-audit-2026-02-20.md`: repo audit findings and implementation deltas for runtime v2.
+- `ai-studio-full-recovery-program.md`: phased AI Studio stabilization and recovery program covering core stability, payload hardening, and UX consistency gates.
 - `ai-studio-generation-queue-hardening-2026-03-04.md`: low-drift implementation plan for generation-start recovery and queue hardening.
 - `ai-studio-generation-queue-hardening-tracker-2026-03-04.md`: execution tracker for queue hardening status, tests, and exit criteria.
+- `tmp_generation_drain_audit_working_notes_2026-02-27.md`: temporary active working notes for generation drain/recovery audit decisions pending archival or promotion.
 - `ai-studio-session-persistence-reference-only-plan-2026-03-04.md`: decision-complete rebuild plan for reference-only AI Studio session persistence.
 - `ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`: execution tracker for reference-only session persistence slices and gates.
 - `ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`: implementation plan for Expert Edit properties panel rollout with legacy fallback and kill switch.
 - `ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`: execution tracker for Expert Edit phases, gates, and commit checkpoints.
+- `ai-studio-properties-panels-modularization-program.md`: completed modularization program for AI Studio properties-panel workflow architecture and beginner-mode hardening.
+- `ai-studio-properties-panels-modularization-tracker.md`: execution tracker for the properties-panels modularization program.
+- `ai-studio-create-character-mode-hardening-plan.md`: hardening plan for Create Character Mode model mapping and submit invariants.
 - `ai-studio-runtime-v2-recovery-execution-phase.md`: shared recovery execution phase tracker (webhook inbox, verify cutover, reconciler leases, guarded transitions).
 - `ai-studio-runtime-v2-staging-execution-checklist.md`: operator checklist with ordered staging migration/env/deploy/smoke-test commands and runtime gates.
 - `ai-studio-fal-reliability-rollout.md`: archived pointer to superseded planning doc (full archive under `docs/archive/planning/`).
 - `ai-studio-generation-runtime-stabilization.md`: archived pointer to superseded planning doc (full archive under `docs/archive/planning/`).
+- `ai-studio-generation-admission-rollout-plan.md`: staged rollout for generation admission policy and validation gates.
+- `foundational-hardening-program-v2-tracker.md`: tracker for the earlier foundational hardening v2 program and its completed workstreams.
 - `ai-studio-agent-tooling-phased-plan.md`: phased rollout for media analysis, prompt optimization, evaluation, and MCP adoption gates.
 - `ai-studio-agent-pipeline-hardening-plan.md`: quality-first hardening plan for deterministic routing, server-owned vision summaries, durable canonical state, and no-question action contracts.
 - `ai-studio-agent-modularization-program.md`: decision-complete hardening and modularization program plan (v3) with architecture invariants, gates, budgets, and rollback policy.
@@ -99,6 +106,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `naming-canonicalization-tracker.md`: phase and slice tracker for naming canonicalization execution.
 - `naming-phase-7-entry-readiness.md`: alias-sunset contract entry checklist, release-window tracker, and compatibility alias inventory.
 - `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
+- `adaptive-media-v2-migration-checklist.md`: staged migration checklist for adaptive-media v2 parity cutover across AI Studio, Media Library, and Character surfaces.
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
 - `ai-studio-primary-character-panel-build-plan.md`: execution plan for embedding the Character Manager workflow body into AI Studio's primary Character toolbar panel.

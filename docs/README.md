@@ -188,16 +188,23 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
 - `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
 - `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
+- `docs/planning/ai-studio-full-recovery-program.md`
 - `docs/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
 - `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
+- `docs/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md` (temporary active working note)
 - `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
 - `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
 - `docs/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
+- `docs/planning/ai-studio-properties-panels-modularization-program.md`
+- `docs/planning/ai-studio-properties-panels-modularization-tracker.md`
+- `docs/planning/ai-studio-create-character-mode-hardening-plan.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+- `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`
 - `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
 - `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
 - `docs/planning/ai-studio-generation-admission-rollout-plan.md`
+- `docs/planning/foundational-hardening-program-v2-tracker.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-agent-modularization-program.md`
@@ -220,6 +227,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/expert-workflow-hardening-css-reorg-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
+- `docs/planning/adaptive-media-v2-migration-checklist.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/planning/media-optimization-schema-and-migration-spec.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
@@ -311,6 +319,9 @@ Start here for all repository documentation.
 ## Design And Brainstorming
 - `docs/design/README.md`
 - `docs/design/ai-studio-style-inventory.md`
+- `docs/design/ai-studio-color-inventory.tsv`
+- `docs/design/ai-studio-inline-color-inventory.tsv`
+- `docs/design/ai-studio-typography-inventory.tsv`
 - `docs/design/short-flow-color-system-design-rationale.md`
 - `docs/brainstorming/README.md`
 

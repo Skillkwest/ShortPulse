@@ -1,7 +1,7 @@
 # Lane C Master Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Blocked  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  

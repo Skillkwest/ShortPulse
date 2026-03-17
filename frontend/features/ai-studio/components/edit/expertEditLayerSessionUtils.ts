@@ -87,6 +87,38 @@ const coerceLayerTransformFromSessionState = (
 export const layerHasImage = (layer: ExpertEditLayer) =>
   typeof layer.imageUrl === "string" && layer.imageUrl.trim().length > 0;
 
+export const isLayerIndexInBounds = ({
+  index,
+  layerCount,
+}: {
+  index: number | null | undefined;
+  layerCount: number;
+}) => index != null && index >= 0 && index < layerCount;
+
+export const resolveLayerIndexOrFallback = ({
+  selectedLayerIndex,
+  layerCount,
+  fallbackIndex = 0,
+}: {
+  selectedLayerIndex: number | null | undefined;
+  layerCount: number;
+  fallbackIndex?: number;
+}): number => {
+  if (selectedLayerIndex != null && selectedLayerIndex >= 0 && selectedLayerIndex < layerCount) {
+    return selectedLayerIndex;
+  }
+  return fallbackIndex;
+};
+
+export const resolveLayerIndexOrNull = ({
+  selectedLayerIndex,
+  layerCount,
+}: {
+  selectedLayerIndex: number | null | undefined;
+  layerCount: number;
+}): number | null =>
+  layerCount > 0 ? resolveLayerIndexOrFallback({ selectedLayerIndex, layerCount }) : null;
+
 export const collectOwnedLayerImageUrls = (layers: ExpertEditLayer[]) => {
   const urls = new Set<string>();
   layers.forEach((layer) => {

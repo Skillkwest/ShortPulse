@@ -157,9 +157,12 @@ import {
   cloneLayerForSessionState,
   enforceLayerStackInvariants,
   formatLayerName,
+  isLayerIndexInBounds,
   isLayerReorderDrag,
   isAutoLayerName,
   layerHasImage,
+  resolveLayerIndexOrFallback,
+  resolveLayerIndexOrNull,
   resolveStaleOwnedLayerImageUrls,
   resolveLayersAfterContextMenuRemoveImage,
   resolveLayerReorderFromIndex,
@@ -660,10 +663,10 @@ export function ExpertEditPanelView({
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
   }, [markupStrokeSize, resolvedMarkupStrokeSize]);
   const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
-  const resolvedSelectedLayerIndex =
-    selectedLayerIndex == null || selectedLayerIndex < 0 || selectedLayerIndex >= layers.length
-      ? 0
-      : selectedLayerIndex;
+  const resolvedSelectedLayerIndex = resolveLayerIndexOrFallback({
+    selectedLayerIndex,
+    layerCount: layers.length,
+  });
   const currentTransformHistoryEntry = React.useMemo(
     () => buildTransformHistoryEntry(layers),
     [layers]
@@ -1545,10 +1548,10 @@ export function ExpertEditPanelView({
         return;
       }
 
-      const targetIndex =
-        selectedLayerIndex == null || selectedLayerIndex < 0 || selectedLayerIndex >= layers.length
-          ? 0
-          : selectedLayerIndex;
+      const targetIndex = resolveLayerIndexOrFallback({
+        selectedLayerIndex,
+        layerCount: layers.length,
+      });
       const targetLayer = layers[targetIndex];
       if (!targetLayer) return;
 
@@ -3117,25 +3120,16 @@ export function ExpertEditPanelView({
       setSelectedLayerIndex(null);
       return;
     }
-    if (
-      selectedLayerIndex == null ||
-      selectedLayerIndex < 0 ||
-      selectedLayerIndex >= layers.length
-    ) {
+    if (!isLayerIndexInBounds({ index: selectedLayerIndex, layerCount: layers.length })) {
       setSelectedLayerIndex(0);
     }
   }, [layers.length, selectedLayerIndex]);
 
   const buildCurrentSessionState = React.useCallback((): ExpertEditSessionState => {
-    const normalizedSelectedLayerIndex =
-      layers.length === 0 ||
-      selectedLayerIndex == null ||
-      selectedLayerIndex < 0 ||
-      selectedLayerIndex >= layers.length
-        ? layers.length > 0
-          ? 0
-          : null
-        : selectedLayerIndex;
+    const normalizedSelectedLayerIndex = resolveLayerIndexOrNull({
+      selectedLayerIndex,
+      layerCount: layers.length,
+    });
     const normalizedLayerIdCounter = Math.max(
       layerIdCounterRef.current,
       resolveLayerIdCounterFromLayers(layers)
@@ -3223,11 +3217,10 @@ export function ExpertEditPanelView({
       const targetIndex =
         lockedRemoveBackgroundIndex >= 0
           ? lockedRemoveBackgroundIndex
-          : selectedLayerIndex == null ||
-              selectedLayerIndex < 0 ||
-              selectedLayerIndex >= previous.length
-            ? 0
-            : selectedLayerIndex;
+          : resolveLayerIndexOrFallback({
+              selectedLayerIndex,
+              layerCount: previous.length,
+            });
       const targetLayer = previous[targetIndex];
       if (!targetLayer) return previous;
       if (targetLayer.imageUrl === referenceImageUrl && !targetLayer.ownsImageUrl) {

@@ -7,7 +7,7 @@ Use:
 `YYYY-MM-DD-<slice-id>-evidence.md`
 
 Examples:
-1. `2026-03-16-MRH2-P0A-001-evidence.md`
+1. `2026-03-16-MRH2-P0-001-evidence.md`
 2. `2026-03-21-MRH2-P1-001-evidence.md`
 
 ## Required Packet Contents

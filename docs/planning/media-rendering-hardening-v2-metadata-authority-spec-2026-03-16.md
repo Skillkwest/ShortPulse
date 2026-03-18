@@ -10,6 +10,8 @@ Define one authoritative dimension/metadata policy from ingest to render.
 1. Ingest path computes canonical metadata when possible.
 2. Canonical metadata propagates unchanged through list/resolve/render surfaces.
 3. Render surfaces consume canonical metadata only; no ad hoc overrides.
+4. Canonical preview/derivative asset references must be produced server-side when available so hot-path image cards can prefer stored preview assets over on-demand transforms.
+5. Hot-path preview delivery must not require Supabase on-demand transforms to be considered healthy or complete.
 
 ## MIME/Dimension Policy
 1. Allowed MIME signatures and dimension parser support must be aligned.
@@ -21,8 +23,10 @@ Define one authoritative dimension/metadata policy from ingest to render.
 2. Set dimensions to explicit null state with canonical marker.
 3. Do not infer random/default dimensions.
 4. Allow later enrichment paths to update metadata deterministically when available.
+5. If no durable preview asset exists yet, fallback state must remain explicit so render surfaces can choose direct signed preview/original paths without inventing transform-backed URLs as canonical truth.
 
 ## Invariant Tests
 1. Upload and copy-from-url metadata propagation invariants.
 2. List/resolve/render consistency assertions for width/height fields.
 3. Parser mismatch coverage for HEIC/HEIF/AVIF and other allowed signatures.
+4. Preview asset reference consistency assertions so list/sign/resolve consumers agree on when a durable preview exists versus when direct-source fallback is required.

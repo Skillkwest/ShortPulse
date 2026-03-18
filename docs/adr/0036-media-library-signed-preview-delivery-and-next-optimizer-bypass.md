@@ -3,6 +3,13 @@
 ## Status
 Accepted
 
+## Status Note (2026-03-18)
+ADR 0036 remains accepted as the stabilization decision that removed the dominant signed-URL `/_next/image` failure path on Media Library card surfaces.
+
+Current steady-state direction is further defined by:
+- [ADR 0039](./0039-media-library-transform-sunset-and-local-derivative-engine.md), which sunsets transform-dependent hot-path delivery by default
+- [ADR 0044](./0044-media-rendering-surface-delivery-policy-and-adr-reconciliation.md), which narrows this ADR to Media Library stabilization history and derivative-first surface policy
+
 ## Context
 Media Library route/modal/panel card previews were intermittently failing with repeated `/_next/image` `500` responses when the input URL was a Supabase signed storage URL. This caused slow visual fill, retry churn, and inconsistent behavior across long sessions.
 
@@ -12,7 +19,7 @@ We needed a fast stabilization path that:
 - and keeps detail-modal/download flows full-quality.
 
 ## Decision
-Use Supabase signed preview URLs (with per-surface transform profiles for image cards) as the primary delivery path for Media Library card surfaces, and bypass Next image optimizer wrapping for signed storage URLs.
+Use Supabase signed preview URLs (with per-surface transform profiles for image cards) as the primary stabilization delivery path for Media Library card surfaces, and bypass Next image optimizer wrapping for signed storage URLs.
 
 Implementation contract:
 - Surface-aware signing profiles:

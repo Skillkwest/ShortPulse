@@ -118,7 +118,8 @@ window.__shortpulseMediaPerf?.signStats();
 Key indicators:
 - `p95_duration_ms` for `media.sign.batch.completed`
 - `failed_ratio` grouped by `surface`/`tab`/`query_mode`
-- `preview_delivery_mode`, `optimizer_bypassed`, `source_class`, and `error_kind` dimensions on `media.sign.batch.completed` / `media.sign.batch.failed`
+- `source_class` and `error_kind` dimensions on `media.sign.batch.completed` / `media.sign.batch.failed`
+- `preview_delivery_mode` and `optimizer_bypassed` are debugging-only dimensions during media-rendering hardening; do not use them as pass/fail or rollout-gate evidence until the telemetry truth spec unblocks them
 - first-card/first-media-paint timing trends
 - open-to-first-media timers:
   - `media.route.open_to_first_media`

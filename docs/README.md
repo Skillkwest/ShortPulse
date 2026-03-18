@@ -167,12 +167,23 @@ Start here for all repository documentation.
 - `docs/planning/media-rendering-hardening-v2-risk-register-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-decision-log-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-qa-release-checklist-2026-03-16.md`
+- `docs/planning/media-rendering-hardening-v2-foundation-lane-master-plan-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-foundation-lane-execution-plan-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-pipeline-lane-master-plan-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-pipeline-lane-execution-plan-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-surface-lane-master-plan-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-surface-lane-execution-plan-2026-03-18.md`
 - `docs/planning/media-rendering-hardening-v2-contract-matrix-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-image-surface-inventory-lock-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-folder-query-scalability-spec-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-metadata-authority-spec-2026-03-16.md`
+- `docs/planning/media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-test-realignment-matrix-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md`
+- `docs/planning/media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md`
 - `mini-ecosystem/README.md` (standalone operational system, outside `docs/`)
 - `docs/planning/supabase-production-cutover-handoff-2026-03-13.md`
 - `docs/planning/documentation-audit-2026-02-17.md`

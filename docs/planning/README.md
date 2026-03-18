@@ -42,18 +42,29 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-hardening-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Track P1 generation pipeline hardening slices.
 - `generation-pipeline-hardening-contact-map-2026-03-16.md`: owner/escalation contact map for Track P1, sourced from `docs/operator-map.md`.
 - `generation-pipeline-hardening-execution-plan-2026-03-16.md`: concrete Track P1 slice sequencing with command bundles, acceptance criteria, and evidence packet outputs.
-- `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0A` through `P8`) with locked constraints, contracts, and exit criteria.
+- `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0` through `P9`) with locked constraints, contracts, and exit criteria.
 - `media-rendering-hardening-v2-master-roadmap-2026-03-16.md`: canonical sequencing/dependency roadmap for media rendering hardening workstreams and rollout rings.
 - `media-rendering-hardening-v2-execution-tracker-2026-03-16.md`: required tracker schema and seeded slice backlog for media rendering hardening execution.
 - `media-rendering-hardening-v2-risk-register-2026-03-16.md`: severity-based risk register with mitigation and rollback triggers for media rendering hardening slices.
 - `media-rendering-hardening-v2-decision-log-2026-03-16.md`: durable decision ledger for contract and architecture decisions in media rendering hardening.
 - `media-rendering-hardening-v2-qa-release-checklist-2026-03-16.md`: per-slice QA, ring-rollout, rollback threshold, and decommission readiness checklist for media rendering hardening.
+- `media-rendering-hardening-v2-foundation-lane-master-plan-2026-03-18.md`: decision-complete Foundation lane plan covering inventory closure, telemetry truth, per-surface policy lock, ADR reconciliation, and stop/go ownership.
+- `media-rendering-hardening-v2-foundation-lane-execution-plan-2026-03-18.md`: concrete Foundation lane slice plan wired to the master tracker and evidence namespace with no user-visible media-delivery changes.
+- `media-rendering-hardening-v2-pipeline-lane-master-plan-2026-03-18.md`: decision-complete Pipeline lane plan for metadata authority, list/query hardening, canonical upload migration, and server-contract readiness before Surface cutover.
+- `media-rendering-hardening-v2-pipeline-lane-execution-plan-2026-03-18.md`: concrete Pipeline lane slice plan wired to the master tracker rows for metadata, list profile, folder query, and upload-adapter work.
+- `media-rendering-hardening-v2-surface-lane-master-plan-2026-03-18.md`: decision-complete Surface lane plan for cross-surface render adoption, render-cost work, long-tail consistency, and rollout/decommission closeout.
+- `media-rendering-hardening-v2-surface-lane-execution-plan-2026-03-18.md`: concrete Surface lane slice plan wired to the master tracker rows for hot-path parity, character/detail inclusion, render-cost work, long-tail sweep, and rollout.
 - `media-rendering-hardening-v2-contract-matrix-2026-03-16.md`: source-of-truth producer/consumer contract matrix for list/upload/sign/resolve/adaptive media domains.
 - `media-rendering-hardening-v2-image-surface-inventory-lock-2026-03-16.md`: authoritative image-surface inventory lock with hot-path classification and ownership fields.
 - `media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md`: `/api/media/list` profile contract (`minimal` default, `expanded` optional) and compatibility requirements.
 - `media-rendering-hardening-v2-folder-query-scalability-spec-2026-03-16.md`: folder-query scalability design and benchmark gate contract.
 - `media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md`: compatibility adapter lifecycle and sunset gates for `/api/upload-image` and `/api/upload-video`.
 - `media-rendering-hardening-v2-metadata-authority-spec-2026-03-16.md`: canonical metadata/dimension authority and fallback policy contract.
+- `media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md`: per-surface renderer/optimizer/signing/fallback decision matrix that must be locked before behavior-changing work.
+- `media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md`: trustworthy-vs-blocked telemetry contract for baseline capture, rollout evidence, and performance parity decisions.
+- `media-rendering-hardening-v2-test-realignment-matrix-2026-03-18.md`: classification of characterization locks versus drift-locking tests for media rendering hardening.
+- `media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md`: readiness gate that must pass before behavior-changing implementation begins.
+- `media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md`: focused Foundation `P0` planning-support doc for inventory closure, telemetry truth closure, and stop/go completion criteria before implementation work begins.
 - `../../mini-ecosystem/README.md`: standalone operational system (outside `docs/planning`) for role-based delivery and performable-core contracts.
 - `supabase-production-cutover-handoff-2026-03-13.md`: paused-state handoff log for production Supabase cutover (status, evidence, risks, resume runbook).
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).

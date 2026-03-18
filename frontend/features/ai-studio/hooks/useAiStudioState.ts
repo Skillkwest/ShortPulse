@@ -2,19 +2,16 @@
  * Shared state + actions for AI Studio.
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { randomId } from "../logic/ids";
-import { StudioMode, StudioOutput, ToolId } from "../types";
-import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
-import { resolvePreviewUrlById, resolveModelLabel } from "../logic/stateParsers";
-import { canRerollOutput, isGenerationReplayConfigV1 } from "../logic/generationReplay";
-import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
+import { StudioMode, StudioOutput } from "../types";
+import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioOutputObjectUrlLifecycle } from "./useAiStudioOutputObjectUrlLifecycle";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
 import { useAiStudioAllowedModelOptions } from "./useAiStudioAllowedModelOptions";
+import { useAiStudioOutputDerivations } from "./useAiStudioOutputDerivations";
 import { useAiStudioReferenceIngestionActions } from "./useAiStudioReferenceIngestionActions";
 import { useAiStudioReferenceProjectionEffects } from "./useAiStudioReferenceProjectionEffects";
 import { useAiStudioReferenceGridStateActions } from "./useAiStudioReferenceGridStateActions";
@@ -25,42 +22,31 @@ import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionState";
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
 import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
+import {
+  DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT,
+  getDefaultDurationSecondsForModel,
+  hasStoredVideoPreferences,
+  IMAGE_RESOLUTION_STORAGE_KEY,
+  readSessionStorageNumberPreference,
+  readSessionStorageStringPreference,
+  REFERENCE_GRID_ACTIVE_LIMIT,
+  REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT,
+  REFERENCE_GRID_FLAG_SOFT_ARCHIVE,
+  VIDEO_DURATION_STORAGE_KEY,
+  VIDEO_RESOLUTION_STORAGE_KEY,
+} from "./aiStudioStateConfig";
+import { useAiStudioDeleteOutputController } from "./useAiStudioDeleteOutputController";
+import { useAiStudioFastOutputAccess } from "./useAiStudioFastOutputAccess";
+import { useAiStudioRerollController } from "./useAiStudioRerollController";
+import { useAiStudioSessionSnapshotController } from "./useAiStudioSessionSnapshotController";
 import { useAiStudioSessionReferenceDurability } from "./useAiStudioSessionReferenceDurability";
+import { useAiStudioStableTextSetters } from "./useAiStudioStableTextSetters";
+import { useAiStudioSubmissionReferenceResolver } from "./useAiStudioSubmissionReferenceResolver";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import {
-  buildAiStudioSessionSnapshot,
-  type AiStudioSessionSnapshot,
-  type AiStudioSessionSnapshotV2,
-} from "../logic/sessionSnapshot";
-import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
-import {
-  buildAiStudioSessionHydrationPayload,
-  type AiStudioSessionHydrationPayload,
-} from "../logic/sessionSnapshotHydrator";
-import type { AgentMessage } from "../../../prefabs/agent/types";
-import {
-  applySessionRestoreSignedUrls,
-  buildSessionOutputSigningFingerprintById,
-  resolveSessionRestoreSignedUrls,
-} from "../logic/sessionRestoreMediaSigning";
-import {
   createEmptyReferenceProjectionState,
-  markReferenceRemovedFromAllRefs,
   type ReferenceProjectionState,
 } from "../reference-projections";
-
-const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
-const DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT = 500;
-const DEFAULT_ARCHIVE_PREVIEW_KEEP_COUNT = 120;
-const REFERENCE_GRID_FLAG_SOFT_ARCHIVE =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE !== "false";
-const REFERENCE_GRID_ACTIVE_LIMIT = Number(
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT ?? DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT
-);
-const REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT = Number(
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT ??
-    DEFAULT_ARCHIVE_PREVIEW_KEEP_COUNT
-);
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
@@ -112,19 +98,6 @@ export const useAiStudioState = ({
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
   );
-  const isPrimaryEditStageGenerating = useMemo(
-    () =>
-      outputs.some(
-        (output) =>
-          output.mode === "image" &&
-          output.hiddenInReferenceGrid === true &&
-          output.modelId !== BRIA_BACKGROUND_REMOVE_MODEL_ID &&
-          output.taskState !== "success" &&
-          output.taskState !== "fail"
-      ),
-    [outputs]
-  );
-
   // UI selections and references (tracked per workflow)
   const {
     selectedTool,
@@ -157,36 +130,19 @@ export const useAiStudioState = ({
     activeOutputPreviewUrl: activeOutput?.previewUrl ?? null,
   });
 
-  const VIDEO_DURATION_STORAGE_KEY = "aiStudioVideoDuration";
-  const VIDEO_RESOLUTION_STORAGE_KEY = "aiStudioVideoResolution";
-  const IMAGE_RESOLUTION_STORAGE_KEY = "aiStudioImageResolution";
-
   const [videoReferenceMode, setVideoReferenceMode] = useState<
     "standard" | "keyframes" | "kling3" | "motion"
   >("standard");
-  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() => {
-    if (typeof window === "undefined") return 6;
-    const stored = window.sessionStorage.getItem(VIDEO_DURATION_STORAGE_KEY);
-    const parsed = stored ? Number(stored) : NaN;
-    return Number.isFinite(parsed) ? parsed : 6;
-  });
-  const [videoResolution, setVideoResolution] = useState<string>(() => {
-    if (typeof window === "undefined") return "1080p";
-    const stored = window.sessionStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY);
-    return stored || "1080p";
-  });
-  const [imageResolution, setImageResolution] = useState<string>(() => {
-    if (typeof window === "undefined") return "model_default";
-    const stored = window.sessionStorage.getItem(IMAGE_RESOLUTION_STORAGE_KEY);
-    return stored || "model_default";
-  });
-  const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return Boolean(
-      window.sessionStorage.getItem(VIDEO_DURATION_STORAGE_KEY) ||
-      window.sessionStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY)
-    );
-  });
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() =>
+    readSessionStorageNumberPreference(VIDEO_DURATION_STORAGE_KEY, 6)
+  );
+  const [videoResolution, setVideoResolution] = useState<string>(() =>
+    readSessionStorageStringPreference(VIDEO_RESOLUTION_STORAGE_KEY, "1080p")
+  );
+  const [imageResolution, setImageResolution] = useState<string>(() =>
+    readSessionStorageStringPreference(IMAGE_RESOLUTION_STORAGE_KEY, "model_default")
+  );
+  const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(hasStoredVideoPreferences);
   const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
   const [videoCameraFixed, setVideoCameraFixed] = useState<boolean>(false);
   const [videoAutoFix, setVideoAutoFix] = useState<boolean>(false);
@@ -209,6 +165,8 @@ export const useAiStudioState = ({
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
   const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
   const lastNonMotionVideoModelRef = useRef<string | null>(null);
+  const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
+    useAiStudioOutputDerivations({ outputs, activeOutputById, detailOutputId, model });
   const { hasPendingWorkflowRestore } = useAiStudioWorkflowSettings({
     selectedTool,
     mode,
@@ -244,21 +202,12 @@ export const useAiStudioState = ({
     setKlingMultiPrompts,
     setKlingElements,
   });
-
-  const detailOutput = useMemo(
-    () => (detailOutputId ? (activeOutputById[detailOutputId] ?? null) : null),
-    [activeOutputById, detailOutputId]
-  );
-  const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
-  const setSharedPrompt = useCallback((value: string) => {
-    setPrompt((prev) => (prev === value ? prev : value));
-  }, []);
-  const setEditReferenceText = useCallback((value: string) => {
-    setEditReferenceTextState((prev) => (prev === value ? prev : value));
-  }, []);
-  const setVideoReferenceText = useCallback((value: string) => {
-    setVideoReferenceTextState((prev) => (prev === value ? prev : value));
-  }, []);
+  const { setSharedPrompt, setEditReferenceText, setVideoReferenceText } =
+    useAiStudioStableTextSetters({
+      setPrompt,
+      setEditReferenceTextState,
+      setVideoReferenceTextState,
+    });
   const {
     archiveOlderOutputs,
     restoreArchivedOutput,
@@ -284,32 +233,10 @@ export const useAiStudioState = ({
       defaultActiveLimit: DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT,
     },
   });
-
-  const findActiveOutputById = useCallback(
-    (id: string) => {
-      return activeOutputByIdRef.current[id] ?? null;
-    },
-    [activeOutputByIdRef]
-  );
-
-  const updateActiveOutputById = useCallback(
-    (id: string, updater: (item: StudioOutput) => StudioOutput) => {
-      setActiveOutputState((prevState) => {
-        const current = prevState.byId[id];
-        if (!current) return prevState;
-        const nextItem = updater(current);
-        if (nextItem === current) return prevState;
-        return {
-          order: prevState.order,
-          byId: {
-            ...prevState.byId,
-            [id]: nextItem,
-          },
-        };
-      });
-    },
-    [setActiveOutputState]
-  );
+  const { findActiveOutputById, updateActiveOutputById } = useAiStudioFastOutputAccess({
+    activeOutputByIdRef,
+    setActiveOutputState,
+  });
 
   const allowedModelOptions = useAiStudioAllowedModelOptions({
     selectedTool,
@@ -326,12 +253,10 @@ export const useAiStudioState = ({
     setModelState(value);
   }, []);
 
-  const getDefaultDurationSeconds = useCallback((modelId: string | null) => {
-    if (!modelId) return VIDEO_DEFAULT_DURATION_SECONDS;
-    const config = getModelConfig(modelId);
-    if (config?.defaultDurationSeconds) return config.defaultDurationSeconds;
-    return VIDEO_DEFAULT_DURATION_SECONDS;
-  }, []);
+  const getDefaultDurationSeconds = useCallback(
+    (modelId: string | null) => getDefaultDurationSecondsForModel(modelId),
+    []
+  );
 
   useAiStudioStateEffects({
     promptRef,
@@ -411,34 +336,13 @@ export const useAiStudioState = ({
     pendingAutoSavesRef,
     setUiError,
   });
-  const deleteOutput = useCallback(
-    (id: string) => {
-      const outputId = id.trim();
-      if (!outputId) return;
-      if (referenceProjectionStateRef.current.quickSlotIds.includes(outputId)) {
-        setReferenceProjectionState((prev) => markReferenceRemovedFromAllRefs(prev, outputId));
-        setActiveOutputId((prev) => (prev === outputId ? null : prev));
-        return;
-      }
-      deleteOutputFromLifecycle(outputId);
-    },
-    [deleteOutputFromLifecycle, setActiveOutputId]
-  );
-
-  useEffect(() => {
-    if (pendingFinalizeRemovalIdsRef.current.size === 0) return;
-    const quickSlotIds = new Set(referenceProjectionState.quickSlotIds);
-    const readyToFinalize = [...pendingFinalizeRemovalIdsRef.current].filter(
-      (candidateId) => !quickSlotIds.has(candidateId)
-    );
-    if (!readyToFinalize.length) return;
-    readyToFinalize.forEach((candidateId) =>
-      pendingFinalizeRemovalIdsRef.current.delete(candidateId)
-    );
-    readyToFinalize.forEach((candidateId) => {
-      deleteOutputFromLifecycle(candidateId);
-    });
-  }, [deleteOutputFromLifecycle, referenceProjectionState.quickSlotIds]);
+  const { deleteOutput } = useAiStudioDeleteOutputController({
+    quickSlotIds: referenceProjectionState.quickSlotIds,
+    setReferenceProjectionState,
+    setActiveOutputId,
+    deleteOutputFromLifecycle,
+    pendingFinalizeRemovalIdsRef,
+  });
 
   const {
     ensureGenerationRecord,
@@ -495,18 +399,9 @@ export const useAiStudioState = ({
       findOutputById,
       setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
     });
-  const resolveSubmissionReferenceInputsForTool = useCallback(
-    (tool: ToolId | null) => {
-      if (tool === "edit" || tool === "image" || tool === "video" || tool === "kling") {
-        return resolveReferenceInputsForTool(tool);
-      }
-      return {
-        referenceImageUrl: null,
-        extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
-      };
-    },
-    [resolveReferenceInputsForTool]
-  );
+  const { resolveSubmissionReferenceInputsForTool } = useAiStudioSubmissionReferenceResolver({
+    resolveReferenceInputsForTool,
+  });
   const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
     model,
     prompt,
@@ -521,80 +416,11 @@ export const useAiStudioState = ({
     resolveReferenceInputsForTool: resolveSubmissionReferenceInputsForTool,
     submitTask,
   });
-  const rerollOutputFromReplay = useCallback(
-    (outputId: string) => {
-      const normalizedOutputId = outputId.trim();
-      if (!normalizedOutputId) return;
-      const output = findOutputById(normalizedOutputId);
-      if (!output || !canRerollOutput(output)) {
-        addBreadcrumb({
-          type: "ui",
-          level: "warn",
-          message: "reroll_blocked_missing_or_invalid_replay",
-          data: {
-            output_id: normalizedOutputId,
-            reason: "missing_output_or_replay",
-          },
-        });
-        setUiNotice("Re-roll is unavailable because original generation settings are missing.");
-        return;
-      }
-      const replay = output.generationReplay;
-      if (!isGenerationReplayConfigV1(replay)) {
-        addBreadcrumb({
-          type: "ui",
-          level: "warn",
-          message: "reroll_blocked_missing_or_invalid_replay",
-          data: {
-            output_id: normalizedOutputId,
-            reason: "invalid_replay_payload",
-          },
-        });
-        setUiNotice("Re-roll is unavailable because original generation settings are missing.");
-        return;
-      }
-      const hasLocalOnlyReplayReference = replay.referenceInputs.some(
-        (input) => /^blob:/i.test(input) || /^data:/i.test(input)
-      );
-      if (hasLocalOnlyReplayReference) {
-        addBreadcrumb({
-          type: "ui",
-          level: "warn",
-          message: "reroll_blocked_missing_or_invalid_replay",
-          data: {
-            output_id: normalizedOutputId,
-            reason: "local_reference",
-          },
-        });
-        setUiNotice(
-          "Re-roll is unavailable because original reference media are no longer accessible."
-        );
-        return;
-      }
-      addBreadcrumb({
-        type: "ui",
-        level: "info",
-        message: "reroll_started",
-        data: {
-          output_id: normalizedOutputId,
-          model_id: replay.modelId,
-          tool: replay.submitTool,
-          reference_count: replay.referenceInputs.length,
-        },
-      });
-      void submitTask(replay.submissionPrompt, replay.referenceInputs, {
-        modeOverride: "image",
-        selectedToolOverride: replay.submitTool,
-        displayPromptOverride: replay.displayPrompt,
-        characterContextOverride: replay.characterContext,
-        modelIdOverride: replay.modelId,
-        aspectOverride: replay.aspect,
-        imageResolutionOverride: replay.imageResolution ?? "model_default",
-        ...(replay.styleContext ? { styleContextOverride: replay.styleContext } : {}),
-      });
-    },
-    [findOutputById, setUiNotice, submitTask]
-  );
+  const { rerollOutputFromReplay } = useAiStudioRerollController({
+    findOutputById,
+    setUiNotice,
+    submitTask,
+  });
   const { insertOptimisticGenerationPlaceholder, removeOptimisticGenerationPlaceholder } =
     useAiStudioOptimisticPlaceholderActions({
       mode,
@@ -605,203 +431,66 @@ export const useAiStudioState = ({
       setSaved,
     });
 
-  const hydrateFromSessionSnapshot = useCallback(
-    (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
-      const payload = buildAiStudioSessionHydrationPayload(snapshot);
-      const workspace = payload.workspace;
-      const outputPayload = payload.outputs;
-
-      setMode(workspace.mode);
-      setSelectedTool(workspace.selectedTool);
-      setSharedPrompt(workspace.prompt);
-      setModel(workspace.model);
-      setAspect(workspace.aspect);
-      setReferenceImageUrl(workspace.referenceImageUrl);
-      workspace.extraImageUrls.forEach((url, index) => {
-        setExtraImageUrl(index, url);
-      });
-      setEditReferenceText(workspace.editReferenceText);
-      setVideoReferenceText(workspace.videoReferenceText);
-      setVideoReferenceMode(workspace.videoReferenceMode);
-      setVideoDurationSeconds(workspace.videoDurationSeconds);
-      setVideoResolution(workspace.videoResolution);
-      setImageResolution(workspace.imageResolution);
-      setVideoGenerateAudio(workspace.videoGenerateAudio);
-      setVideoCameraFixed(workspace.videoCameraFixed);
-      setVideoAutoFix(workspace.videoAutoFix);
-      setKlingNegativePrompt(workspace.klingNegativePrompt);
-      setKlingCfgScale(workspace.klingCfgScale);
-      setKlingShotType(workspace.klingShotType);
-      setKlingVoiceIds(workspace.klingVoiceIds);
-      setKlingMultiPrompts(workspace.klingMultiPrompts);
-      setKlingElements(workspace.klingElements);
-      setMotionReferenceVideoUrl(workspace.motionReferenceVideoUrl);
-
-      setOutputsState(outputPayload.active);
-      setArchivedOutputs(outputPayload.archived);
-      setReferenceProjectionState({
-        quickSlotIds: outputPayload.curatedReferenceIds,
-        removedFromAllRefsIds: outputPayload.removedFromAllRefsIds,
-      });
-      setActiveOutputId(outputPayload.activeOutputId);
-      setSaved(false);
-
-      const signingRevision = sessionHydrationSigningRevisionRef.current + 1;
-      sessionHydrationSigningRevisionRef.current = signingRevision;
-      const activeBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.active);
-      const archivedBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.archived);
-      const hydrationOutputs = [...outputPayload.active, ...outputPayload.archived];
-      void resolveSessionRestoreSignedUrls(hydrationOutputs)
-        .then((signedByPath) => {
-          if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
-          if (signedByPath.size === 0) return;
-
-          setOutputsState((rows) => {
-            const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
-              baselineById: activeBaselineById,
-            });
-            return patched.changed ? patched.outputs : rows;
-          });
-          setArchivedOutputs((rows) => {
-            const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
-              baselineById: archivedBaselineById,
-            });
-            return patched.changed ? patched.outputs : rows;
-          });
-        })
-        .catch((error) => {
-          addBreadcrumb({
-            type: "ui",
-            level: "warn",
-            message: "ai_studio_session_restore_sign_batch_failed",
-            data: {
-              error: error instanceof Error ? error.message : "unknown_error",
-            },
-          });
-        });
-
-      return payload;
-    },
-    [
-      setAspect,
-      setEditReferenceText,
-      setExtraImageUrl,
-      setImageResolution,
-      setKlingCfgScale,
-      setKlingElements,
-      setKlingMultiPrompts,
-      setKlingNegativePrompt,
-      setKlingShotType,
-      setKlingVoiceIds,
+  const { hydrateFromSessionSnapshot, buildSessionSnapshot } = useAiStudioSessionSnapshotController(
+    {
+      mode,
+      selectedTool,
+      prompt,
+      model,
+      aspect,
+      referenceImageUrl,
+      extraImageUrls,
+      editReferenceText,
+      videoReferenceText,
+      videoReferenceMode,
+      videoDurationSeconds,
+      videoResolution,
+      imageResolution,
+      videoGenerateAudio,
+      videoCameraFixed,
+      videoAutoFix,
+      klingNegativePrompt,
+      klingCfgScale,
+      klingShotType,
+      klingVoiceIds,
+      klingMultiPrompts,
+      klingElements,
+      motionReferenceVideoUrl,
+      outputs,
+      archivedOutputs,
+      activeOutputId,
+      curatedReferenceIds,
+      removedFromAllRefsIds,
+      sessionHydrationSigningRevisionRef,
       setMode,
-      setModel,
-      setMotionReferenceVideoUrl,
-      setReferenceImageUrl,
       setSelectedTool,
       setSharedPrompt,
-      setVideoAutoFix,
-      setVideoCameraFixed,
-      setVideoDurationSeconds,
-      setVideoGenerateAudio,
-      setVideoReferenceMode,
+      setModel,
+      setAspect,
+      setReferenceImageUrl,
+      setExtraImageUrl,
+      setEditReferenceText,
       setVideoReferenceText,
+      setVideoReferenceMode,
+      setVideoDurationSeconds,
       setVideoResolution,
-      setActiveOutputId,
-      setSaved,
+      setImageResolution,
+      setVideoGenerateAudio,
+      setVideoCameraFixed,
+      setVideoAutoFix,
+      setKlingNegativePrompt,
+      setKlingCfgScale,
+      setKlingShotType,
+      setKlingVoiceIds,
+      setKlingMultiPrompts,
+      setKlingElements,
+      setMotionReferenceVideoUrl,
       setOutputsState,
       setArchivedOutputs,
       setReferenceProjectionState,
-    ]
-  );
-
-  const buildSessionSnapshot = useCallback(
-    ({
-      sessionId,
-      updatedAt,
-      agentMessages,
-      agentInput,
-      latestAgentPrompt,
-      promptOrigin,
-      chatModeEnabled,
-      canvasState,
-    }: {
-      sessionId: string;
-      updatedAt?: string;
-      agentMessages: AgentMessage[];
-      agentInput: string;
-      latestAgentPrompt: string | null;
-      promptOrigin: "manual" | "agent" | "reference";
-      chatModeEnabled: boolean;
-      canvasState: AiStudioSessionCanvasState;
-    }): AiStudioSessionSnapshotV2 =>
-      buildAiStudioSessionSnapshot({
-        sessionId,
-        updatedAt,
-        mode,
-        selectedTool,
-        prompt,
-        model,
-        aspect,
-        referenceImageUrl,
-        extraImageUrls,
-        editReferenceText,
-        videoReferenceText,
-        videoReferenceMode,
-        videoDurationSeconds,
-        videoResolution,
-        imageResolution,
-        videoGenerateAudio,
-        videoCameraFixed,
-        videoAutoFix,
-        klingNegativePrompt,
-        klingCfgScale,
-        klingShotType,
-        klingVoiceIds,
-        klingMultiPrompts,
-        klingElements,
-        motionReferenceVideoUrl,
-        outputs,
-        archivedOutputs,
-        activeOutputId,
-        curatedReferenceIds,
-        removedFromAllRefsIds,
-        agentMessages,
-        agentInput,
-        latestAgentPrompt,
-        promptOrigin,
-        chatModeEnabled,
-        canvasState,
-      }),
-    [
-      activeOutputId,
-      archivedOutputs,
-      aspect,
-      curatedReferenceIds,
-      editReferenceText,
-      extraImageUrls,
-      imageResolution,
-      klingCfgScale,
-      klingElements,
-      klingMultiPrompts,
-      klingNegativePrompt,
-      klingShotType,
-      klingVoiceIds,
-      mode,
-      model,
-      motionReferenceVideoUrl,
-      outputs,
-      prompt,
-      referenceImageUrl,
-      removedFromAllRefsIds,
-      selectedTool,
-      videoAutoFix,
-      videoCameraFixed,
-      videoDurationSeconds,
-      videoGenerateAudio,
-      videoReferenceMode,
-      videoReferenceText,
-      videoResolution,
-    ]
+      setActiveOutputId,
+      setSaved,
+    }
   );
 
   const {

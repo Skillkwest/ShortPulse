@@ -4,7 +4,6 @@
  */
 import React, { useCallback, useState } from "react";
 import { StudioOutput } from "../types";
-import type { ToolId } from "../types";
 import { useOutputSelector } from "../hooks/aiStudioOutputStore";
 import {
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW,
@@ -31,7 +30,6 @@ import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaW
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { selectAllRefsProjectionWithLegacyFallback } from "../reference-projections";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
-import { type PastedMediaReference } from "../reference-grid/controllers/referenceGridClipboard";
 import { ReferenceGridSections } from "../reference-grid/components/ReferenceGridSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
 import {
@@ -56,28 +54,44 @@ import { useReferenceGridImageHydrationController } from "../reference-grid/cont
 import { useReferenceGridViewportProjectionController } from "../reference-grid/controllers/useReferenceGridViewportProjectionController";
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
 import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
+import { useReferenceGridHeaderMeasurements } from "../reference-grid/controllers/useReferenceGridHeaderMeasurements";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
-import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
-import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
+import {
+  areOutputListsEqual,
+  CURATED_MIN_BOTTOM_STACK_HEIGHT_PX,
+  DEFAULT_CANVAS_SECTION_TOP_RATIO,
+  DEFAULT_CURATED_SPLIT_TOP_RATIO,
+  DEFAULT_PANEL_VISIBILITY,
+  DEFAULT_STYLES_SPLIT_TOP_RATIO,
+  EMPTY_OUTPUTS,
+  FALLBACK_REFERENCE_ROW_HEIGHT,
+  HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX,
+  QUICK_SLOT_INVENTORY_MAX_COLUMNS,
+  RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX,
+  REFERENCE_AUTOPLAY_DETACH_DELAY_MS,
+  REFERENCE_AUTOPLAY_MAX_CONSTRAINED,
+  REFERENCE_AUTOPLAY_MAX_DESKTOP,
+  REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN,
+  REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY,
+  REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD,
+  REFERENCE_GRID_MAX_COLUMNS,
+  REFERENCE_GRID_MAX_COLUMNS_WIDE,
+  REFERENCE_GRID_MIN_CARD_PX,
+  REFERENCE_GRID_MIN_CARD_PX_WIDE,
+  REFERENCE_GRID_MIN_COLUMNS,
+  REFERENCE_HIGH_DENSITY_CARD_COUNT,
+  REFERENCE_PRIORITY_HYDRATION_ROWS,
+  REFERENCE_VIRTUALIZE_MIN_ITEMS,
+  REFERENCE_VIRTUAL_OVERSCAN_ROWS,
+  resolveReferenceSelectionTheme,
+  STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_QUICK_SLOT,
+  STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_REFERENCE_GRID,
+  STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_QUICK_SLOT,
+  STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_REFERENCE_GRID,
+  STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX,
+} from "../reference-grid/referenceGridConfig";
+import type { ReferenceGridProps } from "../reference-grid/referenceGridTypes";
 import { useAiStudioAnyModalOpen } from "./modal-layer/AiStudioModalLayer";
-
-const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
-const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
-const FALLBACK_REFERENCE_ROW_HEIGHT = 220;
-const REFERENCE_GRID_MIN_CARD_PX = 124;
-const REFERENCE_GRID_MIN_CARD_PX_WIDE = 124;
-const REFERENCE_GRID_MIN_COLUMNS = 2;
-const REFERENCE_GRID_MAX_COLUMNS = 5;
-const REFERENCE_GRID_MAX_COLUMNS_WIDE = 5;
-const QUICK_SLOT_INVENTORY_MAX_COLUMNS = 5;
-const REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD = 0.6;
-const REFERENCE_AUTOPLAY_MAX_DESKTOP = 3;
-const REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN = 2;
-const REFERENCE_AUTOPLAY_MAX_CONSTRAINED = 1;
-const REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY = "(max-width: 900px)";
-const REFERENCE_AUTOPLAY_DETACH_DELAY_MS = 1400;
-const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
-const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
 const REFERENCE_GRID_FLAG_CURATED_SPLIT = PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT;
 const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER = PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER;
@@ -97,92 +111,6 @@ const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_TELE
 const REFERENCE_GRID_FLAG_TRANSITION_NONURGENT = PERF_FLAG_REFERENCE_GRID_TRANSITION_NONURGENT;
 const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY;
-const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.28;
-const DEFAULT_CANVAS_SECTION_TOP_RATIO = 0.3;
-const DEFAULT_STYLES_SPLIT_TOP_RATIO = 0.3;
-const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 22;
-const STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_REFERENCE_GRID = 132;
-const STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_QUICK_SLOT = 96;
-const STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_REFERENCE_GRID = 84;
-const STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_QUICK_SLOT = 52;
-const HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX = 14;
-const RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
-const CURATED_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
-
-type ReferenceSelectionTheme = "create" | "edit" | "video";
-type ReferenceGridPanelVisibility = {
-  canvas: boolean;
-  quickSlot: boolean;
-  referenceGrid: boolean;
-  styles: boolean;
-};
-
-const resolveReferenceSelectionTheme = (selectedTool: ToolId | null): ReferenceSelectionTheme => {
-  if (selectedTool === "image" || selectedTool === "edit") return "edit";
-  if (selectedTool === "video" || selectedTool === "kling") return "video";
-  return "create";
-};
-
-const DEFAULT_PANEL_VISIBILITY: ReferenceGridPanelVisibility = {
-  canvas: true,
-  quickSlot: true,
-  referenceGrid: true,
-  styles: false,
-};
-
-const EMPTY_OUTPUTS: StudioOutput[] = [];
-
-const areOutputListsEqual = (left: StudioOutput[], right: StudioOutput[]) => {
-  if (left === right) return true;
-  if (left.length !== right.length) return false;
-  return left.every((item, index) => item === right[index]);
-};
-
-export type ReferenceGridProps = {
-  outputs?: StudioOutput[];
-  archivedOutputs?: StudioOutput[];
-  activeOutputId: string | null;
-  curatedReferenceIds?: string[];
-  removedFromAllRefsIds?: string[];
-  showHeader?: boolean;
-  onOutputMediaLoaded?: (id: string) => void;
-  linkedPromptReferenceIds?: string[];
-  onSelectOutput: (id: string) => void;
-  onOpenDetails: (id: string) => void;
-  selectedTool: ToolId | null;
-  onDropFiles?: (files: FileList) => void;
-  onPasteTextReference?: (text: string) => void;
-  onPasteMediaReference?: (reference: PastedMediaReference) => void;
-  onTriggerFileSelect?: () => void;
-  onOpenMediaLibrary?: () => void;
-  onSaveToLibrary?: (output: StudioOutput) => void;
-  onDownload?: (output: StudioOutput) => void;
-  onRetryStatus?: (output: StudioOutput) => void;
-  onRerollOutput?: (output: StudioOutput) => void;
-  onDeleteOutput?: (id: string) => void;
-  onAddCuratedReference?: (id: string) => void;
-  onRemoveCuratedReference?: (id: string) => void;
-  onReorderCuratedReference?: (
-    id: string,
-    targetId: string | null,
-    placement: "before" | "after" | "end"
-  ) => void;
-  onRestoreArchivedOutput?: (id: string) => void;
-  onRestoreAllArchivedOutputs?: () => void;
-  panelVisibility?: ReferenceGridPanelVisibility;
-  railCanvasProps?: CanvasPropertiesPanelProps;
-  stylesPanel?: {
-    isOpen: boolean;
-    selectedStyleId: string | null;
-    styles: readonly ExpertEditStyleTile[];
-    onSelectStyle?: (styleId: string | null) => void;
-  };
-};
-
-/**
- * @deprecated Use `ReferenceGridProps`.
- */
-export type ReferenceCanvasProps = ReferenceGridProps;
 
 /**
  * Displays the reference grid and handles drag/drop + selection behavior.
@@ -330,14 +258,25 @@ export function ReferenceGrid({
   const [isCuratedDropActive, setIsCuratedDropActive] = useState(false);
   const isCuratedDropActiveRef = React.useRef(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
-  const [curatedHeaderHeightPx, setCuratedHeaderHeightPx] = useState(24);
-  const [railCanvasHeaderHeightPx, setRailCanvasHeaderHeightPx] = useState(24);
-  const [allRefsHeaderHeightPx, setAllRefsHeaderHeightPx] = useState(24);
-  const [stylesHeaderHeightPx, setStylesHeaderHeightPx] = useState(24);
   const stylesSplitShowsReferenceGridTop = showReferenceGridSection;
   const stylesSplitShowsQuickSlotTop = showQuickSlotSection && !showReferenceGridSection;
   const stylesSplitEnabled =
     isStylesPanelOpen && (stylesSplitShowsReferenceGridTop || stylesSplitShowsQuickSlotTop);
+  const {
+    curatedHeaderHeightPx,
+    railCanvasHeaderHeightPx,
+    allRefsHeaderHeightPx,
+    stylesHeaderHeightPx,
+  } = useReferenceGridHeaderMeasurements({
+    isCuratedSplitActive,
+    showRailCanvasSection,
+    stylesSplitEnabled,
+    isStylesPanelOpen,
+    curatedHeaderRef,
+    railCanvasHeaderRef,
+    allRefsHeaderRef,
+    stylesHeaderRef,
+  });
   const stylesSplitTopHeaderHeightPx = stylesSplitShowsQuickSlotTop
     ? curatedHeaderHeightPx
     : Math.max(STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX, allRefsHeaderHeightPx);
@@ -478,78 +417,6 @@ export function ReferenceGrid({
     ariaLabel: stylesSplitAriaLabel,
   });
 
-  React.useEffect(() => {
-    if (!isCuratedSplitActive) return;
-    const updateHeaderHeight = () => {
-      const node = curatedHeaderRef.current;
-      if (!node) return;
-      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
-      setCuratedHeaderHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
-    };
-    updateHeaderHeight();
-    if (typeof ResizeObserver === "undefined") return;
-    const node = curatedHeaderRef.current;
-    if (!node) return;
-    const observer = new ResizeObserver(() => {
-      updateHeaderHeight();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [isCuratedSplitActive]);
-  React.useEffect(() => {
-    if (!showRailCanvasSection) return;
-    const updateHeaderHeight = () => {
-      const node = railCanvasHeaderRef.current;
-      if (!node) return;
-      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
-      setRailCanvasHeaderHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
-    };
-    updateHeaderHeight();
-    if (typeof ResizeObserver === "undefined") return;
-    const node = railCanvasHeaderRef.current;
-    if (!node) return;
-    const observer = new ResizeObserver(() => {
-      updateHeaderHeight();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [showRailCanvasSection]);
-  React.useEffect(() => {
-    if (!stylesSplitEnabled) return;
-    const updateHeaderHeight = () => {
-      const node = allRefsHeaderRef.current;
-      if (!node) return;
-      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
-      setAllRefsHeaderHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
-    };
-    updateHeaderHeight();
-    if (typeof ResizeObserver === "undefined") return;
-    const node = allRefsHeaderRef.current;
-    if (!node) return;
-    const observer = new ResizeObserver(() => {
-      updateHeaderHeight();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [stylesSplitEnabled]);
-  React.useEffect(() => {
-    if (!isStylesPanelOpen) return;
-    const updateHeaderHeight = () => {
-      const node = stylesHeaderRef.current;
-      if (!node) return;
-      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
-      setStylesHeaderHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
-    };
-    updateHeaderHeight();
-    if (typeof ResizeObserver === "undefined") return;
-    const node = stylesHeaderRef.current;
-    if (!node) return;
-    const observer = new ResizeObserver(() => {
-      updateHeaderHeight();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [isStylesPanelOpen]);
   const lastRenderCommitAtRef = React.useRef<number>(0);
   const autoplayEnabledIdSet = React.useMemo(
     () => new Set(autoplayEnabledIds),
@@ -1010,3 +877,7 @@ export function ReferenceGrid({
  * @deprecated Use `ReferenceGrid`.
  */
 export const ReferenceCanvas = ReferenceGrid;
+export type {
+  ReferenceCanvasProps,
+  ReferenceGridProps,
+} from "../reference-grid/referenceGridTypes";

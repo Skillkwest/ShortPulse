@@ -146,6 +146,7 @@ Mode policy:
 - Initial mode: warn/evaluate
 - Current mode: `enforce` (re-promoted 2026-02-21 after CI bootstrap fix; validated by runs `22258656706` and `22258746736`)
 - CI policy update (2026-03-16): `sql_lint` runs against hosted-target pinning (`SUPABASE_DB_URL`) and does not use Docker-local Supabase startup/cleanup.
+- CI secret source: GitHub Environment secret `SUPABASE_DB_URL` from `staging` for the shared CI workflow. Production-targeted workflows continue to use their explicitly selected environment.
 
 ## CI install hardening
 

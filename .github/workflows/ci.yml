@@ -293,6 +293,7 @@ jobs:
 
   sql_lint:
     runs-on: ubuntu-latest
+    environment: staging
     defaults:
       run:
         working-directory: frontend

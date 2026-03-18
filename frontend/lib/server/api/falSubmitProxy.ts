@@ -26,6 +26,7 @@ import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTarget
 import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
+import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
 import { runStudioAgentSafetyInputPrecheck } from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
 import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
 import { enforceServerGenerationSafetyPayload } from "../../../features/agent-runtime/safetyPolicy/generationSafetyPolicy";
@@ -46,10 +47,12 @@ type FalSubmitConfig = {
       }
     | {
         valid: false;
+        code?: string;
         error: string;
         detail?: unknown;
       }
     | {
+        code?: string;
         error: string;
         detail?: unknown;
       }
@@ -124,18 +127,22 @@ const applyRewrittenPromptToPayload = ({
 /**
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
-export const createFalSubmitHandler =
-  ({
-    modelId,
-    provider = "fal",
-    submitUrl,
-    submitTargets,
-    skipBilling = false,
-    routeLabel,
-    timeoutMs = 20000,
-    validatePayload,
-  }: FalSubmitConfig) =>
-  async (req: NextApiRequest, res: NextApiResponse) => {
+export const createFalSubmitHandler = ({
+  modelId,
+  provider = "fal",
+  submitUrl,
+  submitTargets,
+  skipBilling = false,
+  routeLabel,
+  timeoutMs = 20000,
+  validatePayload,
+}: FalSubmitConfig) => {
+  const evaluateSharedPayloadContract = evaluateFalPayloadContractForModel(modelId, {
+    projectAllowedTopLevelFields: true,
+    enforceAllowedTopLevelFields: true,
+  });
+
+  return async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
     }
@@ -159,26 +166,6 @@ export const createFalSubmitHandler =
     const rawPayload =
       typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
     let payload = rawPayload;
-    const payloadValidation = validatePayload?.(rawPayload);
-    if (payloadValidation && "valid" in payloadValidation && payloadValidation.valid) {
-      payload = payloadValidation.projectedPayload;
-    } else if (payloadValidation) {
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "api.fal_submit.validation_failed",
-        message: payloadValidation.error,
-        statusCode: 400,
-        metadata: {
-          model_id: modelId,
-          detail: payloadValidation.detail ?? null,
-        },
-      });
-      return res.status(400).json({
-        error: payloadValidation.error,
-        detail: payloadValidation.detail ?? null,
-      });
-    }
     const generationPrecheckEnabled =
       process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED === "true";
     const safetyProfile = await resolveRuntimeSafetyProfile({
@@ -226,6 +213,51 @@ export const createFalSubmitHandler =
       applyRewrittenPromptToPayload({
         payload,
         rewrittenPrompt,
+      });
+    }
+    const contractValidation = evaluateSharedPayloadContract(payload);
+    if (!contractValidation.valid) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.validation_failed",
+        message: contractValidation.error,
+        statusCode: 400,
+        metadata: {
+          model_id: modelId,
+          code: contractValidation.code,
+          detail: contractValidation.detail ?? null,
+        },
+      });
+      return res.status(400).json({
+        error: contractValidation.error,
+        code: contractValidation.code,
+        detail: contractValidation.detail ?? null,
+      });
+    }
+    payload = contractValidation.projectedPayload;
+
+    const payloadValidation = validatePayload?.(payload);
+    if (payloadValidation && "valid" in payloadValidation && payloadValidation.valid) {
+      payload = payloadValidation.projectedPayload;
+    } else if (payloadValidation) {
+      const validationCode = payloadValidation.code ?? "GENERATION_PAYLOAD_CONTRACT_VIOLATION";
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.validation_failed",
+        message: payloadValidation.error,
+        statusCode: 400,
+        metadata: {
+          model_id: modelId,
+          code: validationCode,
+          detail: payloadValidation.detail ?? null,
+        },
+      });
+      return res.status(400).json({
+        error: payloadValidation.error,
+        code: validationCode,
+        detail: payloadValidation.detail ?? null,
       });
     }
     const generationSpec = getModelPayloadValidationSpec(modelId);
@@ -655,3 +687,4 @@ export const createFalSubmitHandler =
       clearTimeout(timeoutId);
     }
   };
+};

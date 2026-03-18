@@ -181,7 +181,10 @@ describe("createFalSubmitHandler", () => {
 
     const req = {
       method: "POST",
-      body: { prompt: "animate this frame" },
+      body: {
+        prompt: "animate this frame",
+        image_urls: ["https://cdn.shortpulse.test/first.png"],
+      },
       headers: {},
       url: "/api/fal/veo-image-to-video-submit",
     };
@@ -287,7 +290,10 @@ describe("createFalSubmitHandler", () => {
 
     const req = {
       method: "POST",
-      body: { prompt: "animate frame" },
+      body: {
+        prompt: "animate frame",
+        image_urls: ["https://cdn.shortpulse.test/first.png"],
+      },
       headers: {},
       url: "/api/fal/veo-image-to-video-submit",
     };
@@ -319,7 +325,10 @@ describe("createFalSubmitHandler", () => {
 
     const req = {
       method: "POST",
-      body: { prompt: "animate this frame" },
+      body: {
+        prompt: "animate this frame",
+        image_urls: ["https://cdn.shortpulse.test/first.png"],
+      },
       headers: {},
       url: "/api/fal/veo-image-to-video-submit",
     };
@@ -368,7 +377,7 @@ describe("createFalSubmitHandler", () => {
       method: "POST",
       body: {
         prompt: "portrait",
-        rogue: "drop-me",
+        aspect_ratio: "1:1",
       },
       headers: {},
       url: "/api/fal/nano-banana-submit",
@@ -392,7 +401,7 @@ describe("createFalSubmitHandler", () => {
       routeLabel: "Fal Nano Banana",
       validatePayload: () => ({
         valid: false,
-        error: "Invalid prompt payload.",
+        error: "Invalid custom payload.",
         detail: { field: "prompt" },
       }),
     });
@@ -400,7 +409,7 @@ describe("createFalSubmitHandler", () => {
     const req = {
       method: "POST",
       body: {
-        prompt: "",
+        prompt: "portrait",
       },
       headers: {},
       url: "/api/fal/nano-banana-submit",
@@ -412,8 +421,53 @@ describe("createFalSubmitHandler", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Invalid prompt payload.",
+      error: "Invalid custom payload.",
+      code: "GENERATION_PAYLOAD_CONTRACT_VIOLATION",
       detail: { field: "prompt" },
+    });
+  });
+
+  it("fails closed with a deterministic contract code before billing on unknown top-level fields", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "portrait",
+        unexpected_debug_flag: true,
+      },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unknown top-level field(s) for fal-ai/nano-banana submission.",
+      code: "GENERATION_PAYLOAD_CONTRACT_VIOLATION",
+      detail: {
+        unknown_fields: ["unexpected_debug_flag"],
+        allowed_top_level_fields: [
+          "prompt",
+          "aspect_ratio",
+          "output_format",
+          "sync_mode",
+          "limit_generations",
+          "num_images",
+          "seed",
+        ],
+      },
     });
   });
 
@@ -444,7 +498,10 @@ describe("createFalSubmitHandler", () => {
 
     const req = {
       method: "POST",
-      body: { prompt: "animate frame" },
+      body: {
+        prompt: "animate frame",
+        image_urls: ["https://cdn.shortpulse.test/first.png"],
+      },
       headers: {},
       url: "/api/fal/veo-image-to-video-submit",
     };

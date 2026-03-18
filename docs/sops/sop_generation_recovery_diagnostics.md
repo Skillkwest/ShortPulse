@@ -113,6 +113,9 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 | `terminal_success_no_media` or `no_media` retry loops | provider terminal payload missing media URLs | continue bounded recovery retries; replay residual outliers; verify provider payload adapters |
 | provider `running` beyond age windows | long-running or stranded provider job | enforce age/attempt policy, then exhaust + release when thresholds are reached |
 | queue transition guard errors (`QUEUE_*`, `GENERATION_MARK_RUNNING_*`, `RESERVATION_SUBMIT_*`) | transition safety check prevented unsafe mutation | treat as high risk for duplicate/partial transitions; replay with evidence, do not manual bulk requeue |
+| `GENERATION_PAYLOAD_CONTRACT_VIOLATION` on submit | emitted request body drifted outside the shared payload contract before queue/provider side effects | verify route/model payload shaping and allowlist ownership before replaying or re-enabling traffic |
+| `QUEUE_PAYLOAD_CONTRACT_VIOLATION` on dispatch | queued payload no longer satisfies the shared submit/dispatch contract | inspect queued payload, model allowlist, and route shaping; do not blind requeue until payload drift is corrected |
+| `QUEUE_IDENTITY_MISMATCH` | queue row, generation metadata, and reservation submission no longer agree on `source_ref` ownership | treat as fail-closed integrity event; inspect queue row, generation metadata, reservation row, and replay only after source identity is corrected |
 | settlement drift (`missing_charge` / duplicate charge keys) | reservation/ledger convergence invariant broken | stop manual cleanup, escalate to billing/runtime owners, preserve evidence for reconciliation |
 
 ## Test Matrix (Crash/Recovery Validation)

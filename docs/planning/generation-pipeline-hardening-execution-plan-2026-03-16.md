@@ -1,7 +1,7 @@
 # Generation Pipeline Hardening Execution Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Master plan: `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`  
@@ -35,7 +35,7 @@ Out of scope:
 | `P3-02` | P3 | dispatch hardening | Enforce dispatch gate + deterministic fail-closed settlement | `docs/planning/evidence/generation-pipeline-hardening/2026-03-17-p3-02-dispatch-hardening.md` | Completed |
 | `P3-03` | P3 | identity invariants | Enforce queue/generation/reservation identity mismatch fail-closed path | `docs/planning/evidence/generation-pipeline-hardening/2026-03-17-p3-03-identity-invariant-lock.md` | Completed |
 | `P4-01` | P4 | queue claim collision | Harden claim RPC semantics and bounded app retry behavior | `docs/planning/evidence/generation-pipeline-hardening/2026-03-17-p4-01-claim-collision-remediation.md` | Completed |
-| `P5-01` | P5 | docs/adr closeout | Publish ADR + SOP updates and final convergence packet | `docs/planning/evidence/generation-pipeline-hardening/2026-03-16-p5-01-docs-adr-closeout.md` | Not Started |
+| `P5-01` | P5 | docs/adr closeout | Publish ADR + SOP updates and final convergence packet | `docs/planning/evidence/generation-pipeline-hardening/2026-03-17-p5-01-docs-adr-closeout.md` | Completed |
 
 Policy:
 1. One seam per PR.

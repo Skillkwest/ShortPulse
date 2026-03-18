@@ -44,3 +44,4 @@ Examples:
 - `2026-03-17-p3-02-dispatch-hardening.md`
 - `2026-03-17-p3-03-identity-invariant-lock.md`
 - `2026-03-17-p4-01-claim-collision-remediation.md`
+- `2026-03-17-p5-01-docs-adr-closeout.md`

@@ -160,6 +160,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
+- `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
 - `docs/planning/media-rendering-hardening-v2-master-plan-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-execution-tracker-2026-03-16.md`

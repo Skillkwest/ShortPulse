@@ -161,6 +161,18 @@ Queue transition guard diagnostics:
 4. If `RESERVATION_SUBMIT_FAILED` repeats with existing `request_id`:
    - treat as billing-state reconciliation issue,
    - verify reservation RPC health before changing queue limits.
+5. If `GENERATION_PAYLOAD_CONTRACT_VIOLATION` appears on submit routes:
+   - verify model payload shaping against the shared contract allowlist,
+   - confirm no rogue top-level fields were introduced by route rewrites or adapter changes,
+   - do not bypass the contract gate to recover traffic.
+6. If `QUEUE_PAYLOAD_CONTRACT_VIOLATION` appears during dispatch:
+   - inspect the queued payload snapshot and current model allowlist together,
+   - treat repeated occurrences as payload-drift rollout issues rather than provider instability,
+   - avoid manual requeue until the payload contract is corrected.
+7. If `QUEUE_IDENTITY_MISMATCH` appears:
+   - treat it as queue/generation/reservation integrity drift,
+   - inspect `source_ref` across queue row, generation metadata, and reservation submission state,
+   - do not bulk replay until identity ownership is coherent again.
 
 Trusted outbound URL guard diagnostics:
 1. Status route fail-closed guard emits `source='api.fal_status.untrusted_base_url'` when no trusted `queueBaseUrl` remains after filtering.

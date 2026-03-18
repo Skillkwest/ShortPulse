@@ -1,6 +1,6 @@
 # Generation Pipeline Hardening Execution Plan (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-17  
 Status: Active  
 Owner: Engineering  
 Master plan: `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`  
@@ -28,7 +28,7 @@ Out of scope:
 ## Slice Backlog
 | Slice ID | Phase | Surface | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
-| `P0-01` | P0 | baseline lock | Capture baseline gates and payload keyset inventory | `docs/planning/evidence/generation-pipeline-hardening/2026-03-16-p0-01-baseline-lock.md` | Not Started |
+| `P0-01` | P0 | baseline lock | Capture baseline gates and payload keyset inventory | `docs/planning/evidence/generation-pipeline-hardening/2026-03-17-p0-01-baseline-lock.md` | Completed |
 | `P1-01` | P1 | shared contract utility | Introduce contract utility + projected payload shape without enforcement drift | `docs/planning/evidence/generation-pipeline-hardening/2026-03-16-p1-01-shared-contract-gate.md` | Not Started |
 | `P2-01` | P2 | model contract completeness | Complete allowlists for emitted payload keysets across model families | `docs/planning/evidence/generation-pipeline-hardening/2026-03-16-p2-01-contract-completeness.md` | Not Started |
 | `P3-01` | P3 | submit hardening | Enforce submit gate and projected payload usage before downstream actions | `docs/planning/evidence/generation-pipeline-hardening/2026-03-16-p3-01-submit-hardening.md` | Not Started |

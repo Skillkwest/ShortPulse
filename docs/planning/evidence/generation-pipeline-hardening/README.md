@@ -35,3 +35,6 @@ Examples:
 - `docs/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
+
+## Packets
+- `2026-03-17-p0-01-baseline-lock.md`

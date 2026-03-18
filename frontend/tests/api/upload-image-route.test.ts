@@ -5,6 +5,7 @@ import handler from "../../pages/api/upload-image";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 
 let mockFile = {
@@ -33,6 +34,7 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -48,6 +50,7 @@ describe("POST /api/upload-image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
     mockFile = {
       filepath: "/tmp/mock-image",
       mimetype: "image/png",
@@ -106,6 +109,19 @@ describe("POST /api/upload-image", () => {
         size: 8,
       })
     );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.media.upload_adapter.upload_image_used",
+        route: "upload-image",
+        userId: "user-1",
+        userEmail: "u@example.com",
+        metadata: expect.objectContaining({
+          method: "POST",
+          route_label: "upload-image",
+          file_size: 8,
+        }),
+      })
+    );
   });
 
   it("rejects mismatched content type vs file signature", async () => {
@@ -123,5 +139,6 @@ describe("POST /api/upload-image", () => {
       error: "Invalid file type",
       details: "Content type does not match file content.",
     });
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
   });
 });

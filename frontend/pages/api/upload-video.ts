@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../lib/server/api/auth";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
+import { logLegacyUploadAdapterUsage } from "../../lib/server/mediaUploadAdapterTelemetry";
 import {
   MediaUploadServiceError,
   uploadSignedStorageAssetForUser,
@@ -47,6 +48,14 @@ export default async function handler(
       userId: user.id,
       defaultDestinationTab: "uploaded_videos",
       storageFolderOverride: "videos/motion-control",
+    });
+    await logLegacyUploadAdapterUsage({
+      req,
+      routeLabel: "upload-video",
+      userId: user.id,
+      userEmail: user.email,
+      fileSize: uploaded.size,
+      storagePath: uploaded.path,
     });
     return res.status(200).json(uploaded);
   } catch (error) {

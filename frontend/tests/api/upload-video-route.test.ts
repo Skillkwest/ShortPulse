@@ -4,6 +4,7 @@ import handler from "../../pages/api/upload-video";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 
 let mockFile = {
@@ -32,6 +33,7 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -47,6 +49,7 @@ describe("POST /api/upload-video", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
     mockFile = {
       filepath: "/tmp/mock-video",
       mimetype: "video/mp4",
@@ -77,6 +80,7 @@ describe("POST /api/upload-video", () => {
       error: "Invalid file type",
       details: "Content type does not match file content.",
     });
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
   });
 
   it("returns legacy signed upload metadata while using shared validation", async () => {
@@ -114,5 +118,18 @@ describe("POST /api/upload-video", () => {
       path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
       size: 32,
     });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.media.upload_adapter.upload_video_used",
+        route: "upload-video",
+        userId: "user-1",
+        userEmail: "u@example.com",
+        metadata: expect.objectContaining({
+          method: "POST",
+          route_label: "upload-video",
+          file_size: 32,
+        }),
+      })
+    );
   });
 });

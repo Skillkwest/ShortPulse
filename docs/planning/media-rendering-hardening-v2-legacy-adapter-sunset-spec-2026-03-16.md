@@ -26,6 +26,9 @@ Canonical target:
   - `<uid>/images/reference/*`
   - `<uid>/videos/motion-control/*`
 5. Canonical `/api/media/upload` remains the only route that persists `media_files` rows.
+6. Success-path adapter usage telemetry is emitted into `app_error_events` under:
+- `telemetry.media.upload_adapter.upload_image_used`
+- `telemetry.media.upload_adapter.upload_video_used`
 
 ## Sunset Gates
 All gates must pass before decommission:

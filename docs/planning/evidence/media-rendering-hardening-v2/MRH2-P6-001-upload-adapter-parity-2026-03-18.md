@@ -25,6 +25,9 @@
 - `/api/upload-image` now defaults to `uploaded_images` validation rules while preserving storage-only behavior and `<uid>/images/reference/*` paths.
 - `/api/upload-video` now defaults to `uploaded_videos` validation rules while preserving storage-only behavior and `<uid>/videos/motion-control/*` paths.
 - Both adapters still return `{ url, path, size }` so existing AI Studio callers do not break.
+- Both adapters now emit success-path usage telemetry to `app_error_events`:
+  - `telemetry.media.upload_adapter.upload_image_used`
+  - `telemetry.media.upload_adapter.upload_video_used`
 
 ## Targeted Tests
 - `npm test -- --run tests/api/media-upload.route.test.ts`

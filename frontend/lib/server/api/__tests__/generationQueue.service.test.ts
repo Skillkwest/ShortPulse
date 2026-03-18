@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimGenerationSubmitQueueBatch,
   removeQueueItem,
@@ -14,6 +14,11 @@ vi.mock("../supabaseAdmin", () => ({
 describe("generationQueue/service.claimGenerationSubmitQueueBatch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("throws when claim RPC returns an error", async () => {
@@ -75,6 +80,87 @@ describe("generationQueue/service.claimGenerationSubmitQueueBatch", () => {
         status: "dispatching",
       }),
     ]);
+  });
+
+  it("retries once when the claim RPC hits a dispatching-user unique collision", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: "23505",
+          message:
+            'duplicate key value violates unique constraint "ux_ai_generation_submit_queue_dispatching_user"',
+          details: null,
+          hint: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            queue_id: "queue-1",
+            generation_id: "gen-1",
+            user_id: "user-1",
+            model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+            source_ref: "src-1",
+            submit_route: "/api/fal/seedream-edit-submit",
+            submit_payload: { prompt: "hello" },
+            timeout_ms: 20000,
+            attempts: 0,
+            status: "dispatching",
+            next_attempt_at: null,
+            lease_until: "2026-02-26T15:00:00.000Z",
+            created_at: "2026-02-26T14:59:00.000Z",
+          },
+        ],
+        error: null,
+      });
+    getSupabaseAdminMock.mockReturnValue({ rpc });
+
+    const claimPromise = claimGenerationSubmitQueueBatch({
+      limit: 1,
+      leaseSeconds: 30,
+    });
+
+    await vi.runAllTimersAsync();
+
+    await expect(claimPromise).resolves.toEqual([
+      expect.objectContaining({
+        queueId: "queue-1",
+        generationId: "gen-1",
+      }),
+    ]);
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws after the bounded retry when the collision persists", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: "23505",
+        message:
+          'duplicate key value violates unique constraint "ux_ai_generation_submit_queue_dispatching_user"',
+        details: null,
+        hint: null,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc });
+
+    const handledClaim = claimGenerationSubmitQueueBatch({
+      limit: 1,
+      leaseSeconds: 30,
+    }).catch((error) => error);
+
+    await vi.runAllTimersAsync();
+
+    const error = await handledClaim;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("claim_generation_submit_queue_batch failed");
+    expect(rpc).toHaveBeenCalledTimes(2);
   });
 });
 

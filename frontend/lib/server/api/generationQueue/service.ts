@@ -11,6 +11,10 @@ type RpcErrorLike = {
   hint?: string | null;
 };
 
+const CLAIM_COLLISION_RETRY_LIMIT = 1;
+const CLAIM_COLLISION_RETRY_BASE_MS = 40;
+const CLAIM_COLLISION_RETRY_JITTER_FACTOR = 0.25;
+
 const toRpcErrorMessage = (error: RpcErrorLike): string => {
   const parts = [
     typeof error.code === "string" && error.code.trim().length ? `code=${error.code}` : null,
@@ -24,6 +28,30 @@ const toRpcErrorMessage = (error: RpcErrorLike): string => {
   ].filter((value): value is string => Boolean(value));
   if (!parts.length) return "unknown queue claim error";
   return parts.join(" ");
+};
+
+const isQueueClaimCollisionError = (error: RpcErrorLike): boolean => {
+  const code = String(error.code ?? "").trim();
+  const message = String(error.message ?? "");
+  const details = String(error.details ?? "");
+  const combined = `${message} ${details}`;
+  return (
+    code === "23505" &&
+    /ux_ai_generation_submit_queue_dispatching_user|duplicate key value/i.test(combined)
+  );
+};
+
+const resolveClaimCollisionRetryDelayMs = (): number => {
+  const jitterWindow = Math.max(
+    1,
+    Math.round(CLAIM_COLLISION_RETRY_BASE_MS * CLAIM_COLLISION_RETRY_JITTER_FACTOR)
+  );
+  const jitterOffset = Math.round((Math.random() * 2 - 1) * jitterWindow);
+  return Math.max(1, CLAIM_COLLISION_RETRY_BASE_MS + jitterOffset);
+};
+
+const waitForClaimCollisionRetry = async (delayMs: number): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
 };
 
 export type GenerationQueueEnqueueResult = {
@@ -284,20 +312,35 @@ export const claimGenerationSubmitQueueBatch = async ({
   leaseSeconds: number;
   userId?: string | null;
 }): Promise<ClaimedGenerationQueueItem[]> => {
-  const { data, error } = await getSupabaseAdmin().rpc("claim_generation_submit_queue_batch", {
+  const rpcParams = {
     p_limit: Math.max(1, Math.trunc(limit)),
     p_lease_seconds: Math.max(1, Math.trunc(leaseSeconds)),
     p_user_id: userId ?? null,
-  });
-  if (error) {
+  };
+
+  for (let attempt = 0; attempt <= CLAIM_COLLISION_RETRY_LIMIT; attempt += 1) {
+    const { data, error } = await getSupabaseAdmin().rpc(
+      "claim_generation_submit_queue_batch",
+      rpcParams
+    );
+    if (!error) {
+      if (!Array.isArray(data)) {
+        throw new Error(
+          "claim_generation_submit_queue_batch failed: rpc returned non-array payload"
+        );
+      }
+      return data
+        .map((row) => parseClaimedQueueItem(row))
+        .filter((row): row is ClaimedGenerationQueueItem => Boolean(row));
+    }
+    if (attempt < CLAIM_COLLISION_RETRY_LIMIT && isQueueClaimCollisionError(error)) {
+      await waitForClaimCollisionRetry(resolveClaimCollisionRetryDelayMs());
+      continue;
+    }
     throw new Error(`claim_generation_submit_queue_batch failed: ${toRpcErrorMessage(error)}`);
   }
-  if (!Array.isArray(data)) {
-    throw new Error("claim_generation_submit_queue_batch failed: rpc returned non-array payload");
-  }
-  return data
-    .map((row) => parseClaimedQueueItem(row))
-    .filter((row): row is ClaimedGenerationQueueItem => Boolean(row));
+
+  throw new Error("claim_generation_submit_queue_batch failed: collision retry loop exhausted");
 };
 
 export const countUserQueuedGenerationSubmits = async (userId: string): Promise<number> => {

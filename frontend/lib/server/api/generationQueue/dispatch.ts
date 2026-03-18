@@ -28,6 +28,7 @@ import {
 import {
   QueueTransitionError,
   assertGenerationMarkedRunning,
+  assertQueueIdentityInvariant,
   assertQueueMutationApplied,
   assertReservationSubmissionAccepted,
   decideQueueTransitionCompensation,
@@ -306,6 +307,7 @@ const processClaimedQueueItem = async ({
     .eq("user_id", item.userId)
     .maybeSingle();
   const generationRow = asObject(generationLookup.data);
+  const generationSourceRef = asString(asObject(generationRow.metadata).source_ref);
   const attemptNumber = item.attempts + 1;
   const provider = resolveProviderFromGenerationContext({
     provider: asString(generationRow.provider),
@@ -572,6 +574,11 @@ const processClaimedQueueItem = async ({
   let submitAccepted = false;
 
   try {
+    assertQueueIdentityInvariant({
+      queueSourceRef: item.sourceRef,
+      generationSourceRef,
+    });
+
     const contractValidation = evaluateFalPayloadContractForModel(item.modelId, {
       projectAllowedTopLevelFields: true,
       enforceAllowedTopLevelFields: true,
@@ -773,6 +780,11 @@ const processClaimedQueueItem = async ({
       },
     });
     assertReservationSubmissionAccepted({ result: reservationResult });
+    assertQueueIdentityInvariant({
+      queueSourceRef: item.sourceRef,
+      generationSourceRef,
+      reservationSourceRef: reservationResult.sourceRef ?? null,
+    });
 
     const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
     const generationUpdate = await getSupabaseAdmin()
@@ -877,11 +889,14 @@ const processClaimedQueueItem = async ({
         lastErrorCode: errorCode,
       });
       assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
-      if (!submitAccepted) {
+      if (!submitAccepted || errorCode === "QUEUE_IDENTITY_MISMATCH") {
         await releaseGenerationReservationBySourceRef({
           userId: item.userId,
           sourceRef: item.sourceRef,
-          reason: "Auto-release: queue dispatch exception.",
+          reason:
+            errorCode === "QUEUE_IDENTITY_MISMATCH"
+              ? "Auto-release: queue dispatch identity mismatch."
+              : "Auto-release: queue dispatch exception.",
           metadata: {
             queue_id: item.queueId,
             queue_attempts: attemptNumber,
@@ -892,7 +907,10 @@ const processClaimedQueueItem = async ({
         await setGenerationFailed({
           generationId: item.generationId,
           userId: item.userId,
-          message: "Generation failed while queued. Please retry.",
+          message:
+            errorCode === "QUEUE_IDENTITY_MISMATCH"
+              ? "Generation failed queue identity validation. Please retry."
+              : "Generation failed while queued. Please retry.",
         });
       }
       metrics.exhausted += 1;

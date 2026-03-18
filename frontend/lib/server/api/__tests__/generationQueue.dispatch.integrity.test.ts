@@ -92,10 +92,12 @@ const createSupabaseAdminMock = ({
   generationUpdateError,
   existingRequestId,
   provider,
+  generationMetadataSourceRef,
 }: {
   generationUpdateError?: string;
   existingRequestId?: string | null;
   provider?: string | null;
+  generationMetadataSourceRef?: string | null;
 }) => {
   const aiGenerationsTable = {
     select: vi.fn(() => ({
@@ -107,7 +109,9 @@ const createSupabaseAdminMock = ({
               status: "pending",
               request_id: existingRequestId ?? null,
               provider: provider ?? null,
-              metadata: {},
+              metadata: generationMetadataSourceRef
+                ? { source_ref: generationMetadataSourceRef }
+                : {},
             },
             error: null,
           })),
@@ -313,6 +317,39 @@ describe("generationQueue/dispatch transition integrity", () => {
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed before provider submit when generation metadata source_ref mismatches the queue item", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({ generationMetadataSourceRef: "source-other" })
+    );
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        exhausted: 1,
+        submitted: 0,
+        errors: 1,
+      })
+    );
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "QUEUE_IDENTITY_MISMATCH",
+      })
+    );
+    expect(releaseGenerationReservationBySourceRefMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "Auto-release: queue dispatch identity mismatch.",
+      })
+    );
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+  });
+
   it("fails closed without dispatch when queued generation provider is kie but runtime targets are unavailable", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
     getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
@@ -430,6 +467,42 @@ describe("generationQueue/dispatch transition integrity", () => {
     delete process.env.KIE_API_KEY;
     delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
     delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
+  });
+
+  it("fails closed after provider acceptance when reservation source_ref mismatches the queue item", async () => {
+    markGenerationReservationSubmittedMock.mockResolvedValue({
+      status: "reserved",
+      sourceRef: "source-other",
+      message: null,
+    });
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        exhausted: 1,
+        submitted: 0,
+        errors: 1,
+      })
+    );
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(1);
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "QUEUE_IDENTITY_MISMATCH",
+      })
+    );
+    expect(releaseGenerationReservationBySourceRefMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "Auto-release: queue dispatch identity mismatch.",
+      })
+    );
+    expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
   });
 
   it("fails closed before provider submit when queued payload violates the shared contract", async () => {

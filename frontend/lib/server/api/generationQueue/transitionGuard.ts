@@ -4,6 +4,7 @@ import type { QueueMutationResult } from "./service";
 type QueueTransitionStep =
   | "reservation_submitted"
   | "generation_mark_running"
+  | "identity_check"
   | "queue_retry"
   | "queue_exhaust"
   | "queue_release"
@@ -106,6 +107,33 @@ export const assertQueueMutationApplied = ({
       `Queue mutation ${result.operation} failed (${result.reason}) for ${result.queueId}.`,
     retryable: result.reason === "db_error",
   });
+};
+
+export const assertQueueIdentityInvariant = ({
+  queueSourceRef,
+  generationSourceRef,
+  reservationSourceRef,
+}: {
+  queueSourceRef: string;
+  generationSourceRef?: string | null;
+  reservationSourceRef?: string | null;
+}): void => {
+  if (generationSourceRef && generationSourceRef !== queueSourceRef) {
+    throw new QueueTransitionError({
+      code: "QUEUE_IDENTITY_MISMATCH",
+      step: "identity_check",
+      message: `Generation metadata source_ref mismatch for queued submit (${generationSourceRef} != ${queueSourceRef}).`,
+      retryable: false,
+    });
+  }
+  if (reservationSourceRef && reservationSourceRef !== queueSourceRef) {
+    throw new QueueTransitionError({
+      code: "QUEUE_IDENTITY_MISMATCH",
+      step: "identity_check",
+      message: `Reservation source_ref mismatch for queued submit (${reservationSourceRef} != ${queueSourceRef}).`,
+      retryable: false,
+    });
+  }
 };
 
 export const decideQueueTransitionCompensation = ({

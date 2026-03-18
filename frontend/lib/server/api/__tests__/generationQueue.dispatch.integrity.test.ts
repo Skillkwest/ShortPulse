@@ -350,6 +350,10 @@ describe("generationQueue/dispatch transition integrity", () => {
       {
         ...queueItem,
         modelId: "kie-ai/veo-3.1-fast-i2v",
+        submitPayload: {
+          prompt: "hello",
+          image_url: "https://cdn.shortpulse.test/input.png",
+        },
       },
     ]);
 
@@ -394,6 +398,10 @@ describe("generationQueue/dispatch transition integrity", () => {
       {
         ...queueItem,
         modelId: "kie-ai/veo-3.1-fast-i2v",
+        submitPayload: {
+          prompt: "hello",
+          image_url: "https://cdn.shortpulse.test/input.png",
+        },
       },
     ]);
 
@@ -422,6 +430,53 @@ describe("generationQueue/dispatch transition integrity", () => {
     delete process.env.KIE_API_KEY;
     delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
     delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
+  });
+
+  it("fails closed before provider submit when queued payload violates the shared contract", async () => {
+    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+      {
+        ...queueItem,
+        submitPayload: {
+          prompt: "hello",
+          unexpected_debug_flag: true,
+        },
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        exhausted: 1,
+        submitted: 0,
+      })
+    );
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "QUEUE_PAYLOAD_CONTRACT_VIOLATION",
+      })
+    );
+    expect(releaseGenerationReservationBySourceRefMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "Auto-release: queued submit payload violated dispatch contract.",
+      })
+    );
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.queue.dispatch.exhausted",
+        statusCode: 400,
+        metadata: expect.objectContaining({
+          error_code: "QUEUE_PAYLOAD_CONTRACT_VIOLATION",
+        }),
+      })
+    );
   });
 
   it("applies deterministic jittered retry backoff within bounded delay", async () => {

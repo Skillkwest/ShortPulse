@@ -41,3 +41,4 @@ Examples:
 - `2026-03-17-p1-01-shared-contract-gate.md`
 - `2026-03-17-p2-01-contract-completeness.md`
 - `2026-03-17-p3-01-submit-hardening.md`
+- `2026-03-17-p3-02-dispatch-hardening.md`

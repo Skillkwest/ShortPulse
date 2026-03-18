@@ -10,6 +10,7 @@ import { getFalModelProfileByModelId } from "../../falIntegration/modelProfiles"
 import type { SubmitTarget } from "../../falIntegration/contracts";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "../falSubmitTargeting";
 import { dispatchProviderSubmit } from "../../providerIntegration/submitProviderDispatcher";
+import { evaluateFalPayloadContractForModel } from "../falPayloadValidation";
 import {
   readProviderApiKey,
   resolveKieSubmitTargetsForModel,
@@ -571,11 +572,60 @@ const processClaimedQueueItem = async ({
   let submitAccepted = false;
 
   try {
+    const contractValidation = evaluateFalPayloadContractForModel(item.modelId, {
+      projectAllowedTopLevelFields: true,
+      enforceAllowedTopLevelFields: true,
+    })(item.submitPayload);
+    if (!contractValidation.valid) {
+      const exhaustResult = await markQueueItemExhausted({
+        queueId: item.queueId,
+        attempts: attemptNumber,
+        lastError: contractValidation.error,
+        lastErrorCode: "QUEUE_PAYLOAD_CONTRACT_VIOLATION",
+      });
+      assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
+      await releaseGenerationReservationBySourceRef({
+        userId: item.userId,
+        sourceRef: item.sourceRef,
+        reason: "Auto-release: queued submit payload violated dispatch contract.",
+        metadata: {
+          queue_id: item.queueId,
+          queue_attempts: attemptNumber,
+          error_code: "QUEUE_PAYLOAD_CONTRACT_VIOLATION",
+          detail: contractValidation.detail ?? null,
+        },
+      });
+      await setGenerationFailed({
+        generationId: item.generationId,
+        userId: item.userId,
+        message: "Generation failed queue contract validation before provider submit.",
+      });
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.queue.dispatch.exhausted",
+        statusCode: 400,
+        message: contractValidation.error,
+        userId: item.userId,
+        metadata: {
+          queue_id: item.queueId,
+          generation_id: item.generationId,
+          source_ref: item.sourceRef,
+          attempts: attemptNumber,
+          model_id: item.modelId,
+          error_code: "QUEUE_PAYLOAD_CONTRACT_VIOLATION",
+          detail: contractValidation.detail ?? null,
+        },
+      });
+      metrics.exhausted += 1;
+      return metrics;
+    }
+
     const submitResult = await dispatchProviderSubmit({
       provider,
       modelId: item.modelId,
       targets: submitTargets,
-      payload: item.submitPayload,
+      payload: contractValidation.projectedPayload,
       apiKey,
       signal: controller.signal,
       requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),

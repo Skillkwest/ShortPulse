@@ -38,6 +38,20 @@ All gates must pass before decommission:
 4. Adapter usage below agreed threshold for sustained observation window.
 5. Rollback route re-enable procedure validated.
 
+## Telemetry Review Procedure
+Use the Admin Event Stream (`/admin` -> Errors -> Event Stream) or `/api/admin/error-events` against `app_error_events`.
+
+Filter on:
+1. `source=telemetry.media.upload_adapter.upload_image_used`
+2. `source=telemetry.media.upload_adapter.upload_video_used`
+
+Review cadence:
+1. Capture counts for each source during staging, limited cohort, and each release window.
+2. Confirm event volume trends downward or remains below the agreed sunset threshold.
+3. Correlate any adapter usage spikes with active callers before scheduling retirement work.
+
+Do not approve decommission from code inspection alone. Adapter retirement must be based on observed event counts plus clean release-window evidence.
+
 ## Decommission Checklist
 1. Remove adapter route implementations.
 2. Remove adapter consumers and direct callers.

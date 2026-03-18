@@ -41,6 +41,9 @@ Status: Active
 - [ ] No P0/P1 regressions in observation period.
 - [ ] Telemetry dashboards stable.
 - [ ] Adapter usage and delivery mode telemetry match expected contract.
+  Adapter telemetry sources:
+  `telemetry.media.upload_adapter.upload_image_used`
+  `telemetry.media.upload_adapter.upload_video_used`
 
 ### Ring 2 (limited cohort)
 - [ ] Error budget within threshold.
@@ -52,6 +55,7 @@ Status: Active
 - [ ] Two clean release windows observed.
 - [ ] Legacy adapter traffic below sunset threshold.
 - [ ] Decommission gate readiness approved.
+  Validate from `/admin` Event Stream or `/api/admin/error-events` using the adapter telemetry sources above.
 
 ## Rollback Thresholds
 1. P0/P1 regression confirmed in production-like ring.

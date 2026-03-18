@@ -39,3 +39,4 @@ Examples:
 ## Packets
 - `2026-03-17-p0-01-baseline-lock.md`
 - `2026-03-17-p1-01-shared-contract-gate.md`
+- `2026-03-17-p2-01-contract-completeness.md`

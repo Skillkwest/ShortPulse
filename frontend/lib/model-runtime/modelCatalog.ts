@@ -8,6 +8,7 @@ export type ModelAspectSubmitField = "aspect_ratio" | "image_size" | "none";
 export type ModelProvider = "fal" | "kie" | "openai";
 
 export type ModelPayloadValidationSpec = {
+  allowedTopLevelFields?: string[];
   requiredStringFields?: string[];
   requiredStringArrayFields?: Array<{ field: string; min?: number; max?: number }>;
   requiredAnyOfStringFields?: string[];

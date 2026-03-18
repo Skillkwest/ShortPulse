@@ -13,6 +13,18 @@ type ValidationIssue = {
   detail?: unknown;
 };
 
+export type PayloadContractViolation = ValidationIssue & {
+  valid: false;
+  code: "GENERATION_PAYLOAD_CONTRACT_VIOLATION";
+};
+
+export type PayloadContractSuccess = {
+  valid: true;
+  projectedPayload: Record<string, unknown>;
+};
+
+export type PayloadContractResult = PayloadContractSuccess | PayloadContractViolation;
+
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -33,6 +45,23 @@ const hasValidOptionalNumber = (value: unknown): boolean => {
     return Number.isFinite(numeric);
   }
   return false;
+};
+
+const projectAllowedTopLevelFields = ({
+  payload,
+  allowedTopLevelFields,
+}: {
+  payload: Record<string, unknown>;
+  allowedTopLevelFields?: string[];
+}): Record<string, unknown> => {
+  if (!allowedTopLevelFields?.length) return { ...payload };
+  const projectedPayload: Record<string, unknown> = {};
+  for (const field of allowedTopLevelFields) {
+    if (Object.prototype.hasOwnProperty.call(payload, field)) {
+      projectedPayload[field] = payload[field];
+    }
+  }
+  return projectedPayload;
 };
 
 const validateSpec = (
@@ -127,10 +156,51 @@ const validateSpec = (
   return null;
 };
 
-export const validateFalPayloadForModel = (modelId: string) => {
-  return (payload: Record<string, unknown>): ValidationIssue | null => {
-    const spec = getModelPayloadValidationSpec(modelId);
-    if (!spec) return null;
-    return validateSpec(modelId, payload, spec);
+export const evaluateFalPayloadContract = ({
+  modelId,
+  payload,
+  spec,
+}: {
+  modelId: string;
+  payload: Record<string, unknown>;
+  spec?: ModelPayloadValidationSpec | null;
+}): PayloadContractResult => {
+  if (!spec) {
+    return {
+      valid: true,
+      projectedPayload: { ...payload },
+    };
+  }
+
+  const violation = validateSpec(modelId, payload, spec);
+  if (violation) {
+    return {
+      valid: false,
+      code: "GENERATION_PAYLOAD_CONTRACT_VIOLATION",
+      error: violation.error,
+      detail: violation.detail,
+    };
+  }
+
+  return {
+    valid: true,
+    projectedPayload: projectAllowedTopLevelFields({
+      payload,
+      allowedTopLevelFields: spec.allowedTopLevelFields,
+    }),
   };
+};
+
+export const evaluateFalPayloadContractForModel = (modelId: string) => {
+  return (payload: Record<string, unknown>): PayloadContractResult => {
+    return evaluateFalPayloadContract({
+      modelId,
+      payload,
+      spec: getModelPayloadValidationSpec(modelId),
+    });
+  };
+};
+
+export const validateFalPayloadForModel = (modelId: string) => {
+  return evaluateFalPayloadContractForModel(modelId);
 };

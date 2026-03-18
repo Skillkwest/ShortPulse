@@ -343,6 +343,80 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("submits the projected payload returned by the shared contract gate", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ request_id: "req-projected" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+      validatePayload: (payload) => ({
+        valid: true,
+        projectedPayload: {
+          prompt: payload.prompt,
+        },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "portrait",
+        rogue: "drop-me",
+      },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(requestInit?.body).toBe(JSON.stringify({ prompt: "portrait" }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 400 when the shared contract gate reports a violation", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+      validatePayload: () => ({
+        valid: false,
+        error: "Invalid prompt payload.",
+        detail: { field: "prompt" },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "",
+      },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid prompt payload.",
+      detail: { field: "prompt" },
+    });
+  });
+
   it("returns 429 and releases reservation when admission is enforced", async () => {
     evaluateUserGenerationAdmissionMock.mockResolvedValueOnce({
       mode: "enforce",

@@ -39,10 +39,21 @@ type FalSubmitConfig = {
   skipBilling?: boolean;
   routeLabel: string;
   timeoutMs?: number;
-  validatePayload?: (payload: Record<string, unknown>) => {
-    error: string;
-    detail?: unknown;
-  } | null;
+  validatePayload?: (payload: Record<string, unknown>) =>
+    | {
+        valid: true;
+        projectedPayload: Record<string, unknown>;
+      }
+    | {
+        valid: false;
+        error: string;
+        detail?: unknown;
+      }
+    | {
+        error: string;
+        detail?: unknown;
+      }
+    | null;
 };
 
 type JsonValue = Record<string, unknown>;
@@ -145,10 +156,13 @@ export const createFalSubmitHandler =
       return res.status(500).json({ error: String(error) });
     }
 
-    const payload =
+    const rawPayload =
       typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
-    const payloadValidation = validatePayload?.(payload);
-    if (payloadValidation) {
+    let payload = rawPayload;
+    const payloadValidation = validatePayload?.(rawPayload);
+    if (payloadValidation && "valid" in payloadValidation && payloadValidation.valid) {
+      payload = payloadValidation.projectedPayload;
+    } else if (payloadValidation) {
       await logGenerationFailure({
         req,
         routeLabel,

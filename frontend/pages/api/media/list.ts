@@ -3,8 +3,12 @@
  * Provides tab-filtered keyset paging plus optional first-slice signed URL hydration.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
-import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
+import {
+  DEFAULT_MEDIA_LIST_PROFILE,
+  isMediaListProfile,
+  resolveMediaListSelectColumns,
+  type MediaListProfile,
+} from "../../../lib/mediaListProfile";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -39,12 +43,16 @@ type MediaListRow = {
   source: string | null;
   source_ref: string | null;
   prompt_id: string | null;
-  metadata: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
   thumb_variant_path: string | null;
   poster_variant_path: string | null;
   preview_variant_path: string | null;
   created_at: string;
   updated_at: string | null;
+};
+
+type FolderScopedMediaListRow = MediaListRow & {
+  folder_membership?: unknown;
 };
 
 type MediaListSuccessResponse = {
@@ -153,6 +161,11 @@ const toCursor = (value: unknown): MediaListCursor | null => {
   return { createdAt, id };
 };
 
+const toProfile = (value: unknown): MediaListProfile | null => {
+  if (value == null) return DEFAULT_MEDIA_LIST_PROFILE;
+  return isMediaListProfile(value) ? value : null;
+};
+
 const withMediaKindFilter = <
   T extends {
     ilike: (column: string, pattern: string) => T;
@@ -207,6 +220,18 @@ const mergeUniqueRows = (rows: MediaListRow[], limit: number): MediaListRow[] =>
     .slice(0, limit);
 };
 
+const stripFolderMembershipRows = (
+  rows: FolderScopedMediaListRow[] | MediaListRow[],
+  folderScoped: boolean
+): MediaListRow[] => {
+  if (!folderScoped) return rows as MediaListRow[];
+  return (rows as FolderScopedMediaListRow[]).map((row) => {
+    const normalizedRow = { ...row };
+    delete normalizedRow.folder_membership;
+    return normalizedRow;
+  });
+};
+
 const isSafeScopedPath = (path: string, userId: string): boolean => {
   const normalized = path.trim();
   if (!normalized) return false;
@@ -234,7 +259,6 @@ const resolveInitialSignedById = async ({
   const seedRows = rows.slice(0, signBudget);
   if (!seedRows.length) return {};
 
-  const previewProfile = resolvePreviewProfileForSurface(surface);
   const candidatesById = new Map<string, string[]>();
   for (const row of seedRows) {
     const candidates = resolveMediaSigningStoragePaths(row, userId).filter((path) =>
@@ -251,19 +275,11 @@ const resolveInitialSignedById = async ({
     seedRows.map(async (row) => {
       const candidates = candidatesById.get(row.id) ?? [];
       if (!candidates.length) return;
-      const isImage = (row.file_type ?? "").toLowerCase().startsWith("image");
       let resolvedUrl: string | null = null;
       for (const candidate of candidates) {
-        const transform = isImage
-          ? resolvePolicySignedImageTransform(previewProfile, candidate)
-          : null;
         const { data, error } = await supabaseAdmin.storage
           .from(MEDIA_BUCKET)
-          .createSignedUrl(
-            candidate,
-            DEFAULT_SIGNED_URL_TTL_SECONDS,
-            transform ? { transform } : undefined
-          );
+          .createSignedUrl(candidate, DEFAULT_SIGNED_URL_TTL_SECONDS);
         if (error || !data?.signedUrl) continue;
         resolvedUrl = data.signedUrl;
         break;
@@ -277,14 +293,14 @@ const resolveInitialSignedById = async ({
   return signedById;
 };
 
-const resolveFolderMediaIds = async ({
+const assertFolderAccess = async ({
   userId,
   folderId,
 }: {
   userId: string;
   folderId: string;
-}): Promise<string[] | null> => {
-  if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return null;
+}): Promise<void> => {
+  if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
   if (!isCustomMediaFolderId(folderId)) {
     throw new Error("Invalid folder id");
   }
@@ -302,26 +318,6 @@ const resolveFolderMediaIds = async ({
   if (!folderRow) {
     throw new Error("Folder not found");
   }
-
-  const { data: membershipRows, error: membershipError } = await supabaseAdmin
-    .from("media_folder_media_items")
-    .select("media_file_id")
-    .eq("user_id", userId)
-    .eq("folder_id", folderId);
-  if (membershipError) {
-    throw new Error(membershipError.message || "Failed to load folder memberships");
-  }
-
-  const ids = new Set<string>();
-  for (const row of membershipRows ?? []) {
-    const mediaFileId =
-      typeof (row as { media_file_id?: unknown }).media_file_id === "string"
-        ? ((row as { media_file_id: string }).media_file_id || "").trim()
-        : "";
-    if (!mediaFileId) continue;
-    ids.add(mediaFileId);
-  }
-  return Array.from(ids);
 };
 
 /**
@@ -350,9 +346,10 @@ export default async function handler(
     const tab = toTab(requestBody.tab);
     const mediaKind = toMediaKind(requestBody.mediaKind);
     const surface = toSurface(requestBody.surface);
+    const profile = toProfile(requestBody.profile);
     const folderId = toFolderId(requestBody.folderId) ?? MEDIA_LIBRARY_ROOT_FOLDER_ID;
-    if (!surface || (!tab && !mediaKind)) {
-      return res.status(400).json({ error: "Invalid tab or surface" });
+    if (!surface || !profile || (!tab && !mediaKind)) {
+      return res.status(400).json({ error: "Invalid tab, surface, or profile" });
     }
 
     const query = normalizeMediaSearchTerm(
@@ -361,9 +358,8 @@ export default async function handler(
     const characterScopeExclusionEnabled = isCharacterScopeExclusionEnabled();
     const cursor = toCursor(requestBody.cursor);
     const limit = clampLimit(surface, requestBody.limit);
-    let folderMediaIds: string[] | null = null;
     try {
-      folderMediaIds = await resolveFolderMediaIds({
+      await assertFolderAccess({
         userId: user.id,
         folderId,
       });
@@ -378,33 +374,25 @@ export default async function handler(
       }
       throw folderError;
     }
-    if (Array.isArray(folderMediaIds) && folderMediaIds.length === 0) {
-      res.setHeader("x-shortpulse-media-list-surface", surface);
-      res.setHeader("x-shortpulse-media-list-tab", tab ?? mediaKind ?? "unknown");
-      res.setHeader("x-shortpulse-media-list-folder-id", folderId);
-      res.setHeader("x-shortpulse-media-list-row-count", "0");
-      res.setHeader("x-shortpulse-media-list-query-mode", query ? "search" : "default");
-      res.setHeader("x-shortpulse-media-list-initial-signed-count", "0");
-      return res.status(200).json({
-        rows: [],
-        nextCursor: null,
-        hasMore: false,
-      });
-    }
-
-    const selectColumns =
-      "id, filename, storage_path, file_type, width, height, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
+    const selectColumns = resolveMediaListSelectColumns(profile);
     const supabaseAdmin = getSupabaseAdmin();
+    const folderScoped = folderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID;
     const buildBaseQuery = () => {
       let queryBuilder = supabaseAdmin
         .from("media_files")
-        .select(selectColumns)
+        .select(
+          folderScoped
+            ? `${selectColumns}, folder_membership:media_folder_media_items!inner()`
+            : selectColumns
+        )
         .eq("user_id", user.id);
       if (characterScopeExclusionEnabled) {
         queryBuilder = queryBuilder.not("storage_path", "like", `${user.id}/characters/%`);
       }
-      if (folderMediaIds) {
-        queryBuilder = queryBuilder.in("id", folderMediaIds);
+      if (folderScoped) {
+        queryBuilder = queryBuilder
+          .eq("folder_membership.folder_id", folderId)
+          .eq("folder_membership.user_id", user.id);
       }
       if (mediaKind) {
         queryBuilder = withMediaKindFilter(queryBuilder, mediaKind);
@@ -426,7 +414,12 @@ export default async function handler(
           details: firstPageResponse.error.message,
         });
       }
-      fetchedRows.push(...((firstPageResponse.data ?? []) as MediaListRow[]));
+      fetchedRows.push(
+        ...stripFolderMembershipRows(
+          (firstPageResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
+          folderScoped
+        )
+      );
     } else {
       const sameTimestampResponse = await buildBaseQuery()
         .eq("created_at", cursor.createdAt)
@@ -438,7 +431,10 @@ export default async function handler(
           details: sameTimestampResponse.error.message,
         });
       }
-      const sameTimestampRows = (sameTimestampResponse.data ?? []) as MediaListRow[];
+      const sameTimestampRows = stripFolderMembershipRows(
+        (sameTimestampResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
+        folderScoped
+      );
       fetchedRows.push(...sameTimestampRows);
 
       const remaining = limit - sameTimestampRows.length;
@@ -452,7 +448,12 @@ export default async function handler(
             details: olderRowsResponse.error.message,
           });
         }
-        fetchedRows.push(...((olderRowsResponse.data ?? []) as MediaListRow[]));
+        fetchedRows.push(
+          ...stripFolderMembershipRows(
+            (olderRowsResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
+            folderScoped
+          )
+        );
       }
     }
 
@@ -469,6 +470,7 @@ export default async function handler(
     res.setHeader("x-shortpulse-media-list-surface", surface);
     res.setHeader("x-shortpulse-media-list-tab", tab ?? mediaKind ?? "unknown");
     res.setHeader("x-shortpulse-media-list-folder-id", folderId);
+    res.setHeader("x-shortpulse-media-list-profile", profile);
     res.setHeader("x-shortpulse-media-list-row-count", String(rows.length));
     res.setHeader("x-shortpulse-media-list-query-mode", query ? "search" : "default");
     res.setHeader(

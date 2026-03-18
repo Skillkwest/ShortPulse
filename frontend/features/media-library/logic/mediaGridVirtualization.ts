@@ -23,7 +23,6 @@ export type MediaVirtualLayoutResult = {
   columnCount: number;
   columnWidth: number;
   totalHeight: number;
-  items: MediaVirtualLayoutItem[];
   visibleItems: MediaVirtualLayoutItem[];
 };
 
@@ -90,7 +89,12 @@ export const computeMediaVirtualLayout = ({
     (toFinitePositive(containerWidth, 1) - safeGap * (columnCount - 1)) / columnCount
   );
   const columnHeights = new Array<number>(columnCount).fill(0);
-  const layoutItems: MediaVirtualLayoutItem[] = [];
+  const safeViewportTop = Math.max(0, toFinitePositive(viewportTop, 0));
+  const safeViewportHeight = Math.max(0, toFinitePositive(viewportHeight, 0));
+  const safeOverscan = Math.max(0, toFinitePositive(overscanPx, 0));
+  const visibleStart = Math.max(0, safeViewportTop - safeOverscan);
+  const visibleEnd = safeViewportTop + safeViewportHeight + safeOverscan;
+  const visibleItems: MediaVirtualLayoutItem[] = [];
 
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
@@ -111,34 +115,27 @@ export const computeMediaVirtualLayout = ({
     const bottom = top + itemHeight;
     columnHeights[targetColumn] = bottom + safeGap;
 
-    layoutItems.push({
-      id: item.id,
-      index,
-      column: targetColumn,
-      top,
-      left,
-      width: columnWidth,
-      height: itemHeight,
-      bottom,
-    });
+    if (bottom >= visibleStart && top <= visibleEnd) {
+      visibleItems.push({
+        id: item.id,
+        index,
+        column: targetColumn,
+        top,
+        left,
+        width: columnWidth,
+        height: itemHeight,
+        bottom,
+      });
+    }
   }
 
   const rawTotalHeight = columnHeights.length ? Math.max(...columnHeights) - safeGap : 0;
   const totalHeight = Math.max(0, rawTotalHeight);
-  const safeViewportTop = Math.max(0, toFinitePositive(viewportTop, 0));
-  const safeViewportHeight = Math.max(0, toFinitePositive(viewportHeight, 0));
-  const safeOverscan = Math.max(0, toFinitePositive(overscanPx, 0));
-  const visibleStart = Math.max(0, safeViewportTop - safeOverscan);
-  const visibleEnd = safeViewportTop + safeViewportHeight + safeOverscan;
-  const visibleItems = layoutItems.filter(
-    (item) => item.bottom >= visibleStart && item.top <= visibleEnd
-  );
 
   return {
     columnCount,
     columnWidth,
     totalHeight,
-    items: layoutItems,
     visibleItems,
   };
 };

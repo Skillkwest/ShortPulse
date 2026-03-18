@@ -216,7 +216,7 @@ export default async function handler(
           p_user_id: row.user_id,
           p_thumb_variant_path: result.thumbPath,
           p_width: result.width,
-          p_height: null,
+          p_height: result.height,
         });
 
         if (markReadyResponse.error) {

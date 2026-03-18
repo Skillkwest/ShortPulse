@@ -50,7 +50,7 @@ export const resolveMediaLibraryPanelCardPreviewUrl = ({
   constantCompressionEnabled,
 }: ResolveMediaLibraryPanelCardPreviewUrlArgs): string | null => {
   const baselineUrl = resolveMediaLibraryAdaptiveCardPreviewUrl({
-    surface: "media-library-modal-grid",
+    surface: "media-library-panel-grid",
     signedUrl,
     fileType,
     pressureLevel,

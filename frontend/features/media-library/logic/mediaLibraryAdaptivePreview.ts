@@ -10,7 +10,7 @@ import {
 
 type MediaLibraryAdaptiveSurface = Extract<
   AdaptiveSurface,
-  "media-library-grid" | "media-library-modal-grid"
+  "media-library-grid" | "media-library-modal-grid" | "media-library-panel-grid"
 >;
 
 type ResolveMediaLibraryAdaptiveCardPreviewArgs = {

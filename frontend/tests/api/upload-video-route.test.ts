@@ -78,4 +78,41 @@ describe("POST /api/upload-video", () => {
       details: "Content type does not match file content.",
     });
   });
+
+  it("returns legacy signed upload metadata while using shared validation", async () => {
+    vi.spyOn(fs, "readFileSync").mockReturnValue(
+      Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x18]), Buffer.from("ftypmp42", "ascii")])
+    );
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/motion-video",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = { method: "POST", headers: { "content-type": "multipart/form-data; boundary=x" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "video/mp4", upsert: false })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://signed.example/motion-video",
+      path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      size: 32,
+    });
+  });
 });

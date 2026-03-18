@@ -12,6 +12,7 @@ const AGENT_FEATURE_ROOT = path.join(FRONTEND_ROOT, "features", "ai-agent");
 const AGENT_CORE_ROOT = path.join(FRONTEND_ROOT, "features", "agent-core");
 const AGENT_RUNTIME_ROOT = path.join(FRONTEND_ROOT, "features", "agent-runtime");
 const MEDIA_LIBRARY_ROOT = path.join(FRONTEND_ROOT, "features", "media-library");
+const ADAPTIVE_MEDIA_ROOT = path.join(FRONTEND_ROOT, "lib", "adaptive-media");
 const REFERENCE_DOMAIN_ROOT = path.join(AI_STUDIO_ROOT, "reference-domain");
 const REFERENCE_INGESTION_ROOT = path.join(AI_STUDIO_ROOT, "reference-ingestion");
 const REFERENCE_PROJECTIONS_ROOT = path.join(AI_STUDIO_ROOT, "reference-projections");
@@ -77,6 +78,21 @@ const LANE_B_CYCLE_RULES = [
     name: "admin-health",
     modeEnv: "ADMIN_HEALTH_CYCLE_MODE",
     roots: [ADMIN_PAGE_ROOT, ADMIN_API_ROOT, ADMIN_HEALTH_SERVER_ROOT],
+  },
+];
+const MEDIA_RENDERING_BOUNDARY_RULES = [
+  {
+    name: "media-rendering",
+    modeEnv: "MEDIA_RENDERING_BOUNDARY_MODE",
+    fileRoots: [ADAPTIVE_MEDIA_ROOT, path.join(MEDIA_LIBRARY_ROOT, "logic")],
+    forbiddenRoots: [
+      path.join(FRONTEND_ROOT, "pages"),
+      path.join(AI_STUDIO_ROOT, "components"),
+      path.join(AI_STUDIO_ROOT, "hooks"),
+      path.join(MEDIA_LIBRARY_ROOT, "components"),
+      path.join(MEDIA_LIBRARY_ROOT, "hooks"),
+      path.join(CHARACTER_MANAGER_ROOT, "components"),
+    ],
   },
 ];
 
@@ -398,6 +414,21 @@ function checkBoundaries() {
   }
 
   for (const rule of LANE_B_BOUNDARY_RULES) {
+    const mode = resolveMode(process.env[rule.modeEnv], "warn");
+    const errors = collectLaneBImportBoundaryErrors(rule.fileRoots, rule.forbiddenRoots);
+    if (!errors.length) continue;
+    if (mode === "enforce") {
+      printErrors(`Architecture boundary checks failed (${rule.name} boundaries):`, errors);
+      hardErrors.push(...errors);
+    } else {
+      console.warn(`${rule.name} boundary checks failed in warn mode:`);
+      for (const error of errors) {
+        console.warn(`- ${error}`);
+      }
+    }
+  }
+
+  for (const rule of MEDIA_RENDERING_BOUNDARY_RULES) {
     const mode = resolveMode(process.env[rule.modeEnv], "warn");
     const errors = collectLaneBImportBoundaryErrors(rule.fileRoots, rule.forbiddenRoots);
     if (!errors.length) continue;

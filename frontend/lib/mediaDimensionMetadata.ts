@@ -8,6 +8,8 @@ export type ImageDimensions = {
   height: number;
 };
 
+export type ImageDimensionSource = "extracted" | "metadata" | "missing";
+
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value != null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -59,14 +61,31 @@ export const resolveImageDimensionsFromMetadata = (
  */
 export const withCanonicalImageDimensions = (
   metadata: Record<string, unknown> | null | undefined,
-  dimensions: ImageDimensions | null
+  dimensions: ImageDimensions | null,
+  options?: {
+    source?: ImageDimensionSource;
+  }
 ): Record<string, unknown> => {
   const base = asRecord(metadata) ?? {};
-  if (!dimensions) return { ...base };
+  const resolvedDimensions = dimensions ?? resolveImageDimensionsFromMetadata(base);
+  const source =
+    options?.source ?? (dimensions ? "extracted" : resolvedDimensions ? "metadata" : "missing");
+  if (!resolvedDimensions) {
+    return {
+      ...base,
+      width: null,
+      height: null,
+      aspect_ratio: null,
+      dimension_status: "missing",
+      dimension_source: source,
+    };
+  }
   return {
     ...base,
-    width: dimensions.width,
-    height: dimensions.height,
-    aspect_ratio: Number((dimensions.width / dimensions.height).toFixed(6)),
+    width: resolvedDimensions.width,
+    height: resolvedDimensions.height,
+    aspect_ratio: Number((resolvedDimensions.width / resolvedDimensions.height).toFixed(6)),
+    dimension_status: "known",
+    dimension_source: source,
   };
 };

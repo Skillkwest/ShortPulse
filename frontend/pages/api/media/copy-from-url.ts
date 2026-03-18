@@ -8,6 +8,7 @@ import { isIP } from "node:net";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { withCanonicalImageDimensions } from "../../../lib/mediaDimensionMetadata";
+import { resolvePreviewStoragePath } from "../../../lib/mediaPreviewPath";
 import { resolveMediaPreviewTrustedHosts } from "../../../lib/mediaPreviewTrustPolicy";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -96,6 +97,10 @@ type ExistingMediaRow = {
   id: string;
   storagePath: string | null;
   fileType: "image" | "video";
+  metadata: Record<string, unknown> | null;
+  thumbVariantPath: string | null;
+  posterVariantPath: string | null;
+  previewVariantPath: string | null;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -414,7 +419,9 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
 }): Promise<ExistingMediaRow | null> => {
   const { data, error } = await getSupabaseAdmin()
     .from("media_files")
-    .select("id, storage_path, file_type")
+    .select(
+      "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+    )
     .eq("user_id", userId)
     .eq("source", "ai_studio")
     .eq("source_ref", generationId)
@@ -431,6 +438,10 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
       asOptionalString(data.file_type)?.toLowerCase() === "video"
         ? ("video" as const)
         : ("image" as const),
+    metadata: asObjectMetadata(data.metadata),
+    thumbVariantPath: asCanonicalStoragePath(asOptionalString(data.thumb_variant_path)),
+    posterVariantPath: asCanonicalStoragePath(asOptionalString(data.poster_variant_path)),
+    previewVariantPath: asCanonicalStoragePath(asOptionalString(data.preview_variant_path)),
   };
 };
 
@@ -444,21 +455,49 @@ const signStoragePath = async (storagePath: string | null): Promise<string | nul
 };
 
 const resolveDelivery = async ({
+  row,
   storagePath,
   previewStoragePathHint,
   fullStoragePathHint,
   previewUrlHint,
   fullUrlHint,
 }: {
+  row?: {
+    storage_path?: string | null;
+    file_type?: string | null;
+    metadata?: Record<string, unknown> | null;
+    thumb_variant_path?: string | null;
+    poster_variant_path?: string | null;
+    preview_variant_path?: string | null;
+  } | null;
   storagePath: string | null;
   previewStoragePathHint: string | null;
   fullStoragePathHint: string | null;
   previewUrlHint: string | null;
   fullUrlHint: string | null;
 }) => {
-  const previewStoragePath = asCanonicalStoragePath(previewStoragePathHint) ?? storagePath ?? null;
-  const fullStoragePath =
-    asCanonicalStoragePath(fullStoragePathHint) ?? storagePath ?? previewStoragePath ?? null;
+  const authoritativeStoragePath =
+    asCanonicalStoragePath(row?.storage_path) ??
+    storagePath ??
+    asCanonicalStoragePath(fullStoragePathHint) ??
+    null;
+  const authoritativePreviewStoragePath =
+    (row
+      ? resolvePreviewStoragePath({
+          storage_path: row.storage_path ?? null,
+          file_type: row.file_type ?? null,
+          metadata: row.metadata ?? null,
+          thumb_variant_path: row.thumb_variant_path ?? null,
+          poster_variant_path: row.poster_variant_path ?? null,
+          preview_variant_path: row.preview_variant_path ?? null,
+        })
+      : null) ?? null;
+  const previewStoragePath =
+    authoritativePreviewStoragePath ??
+    asCanonicalStoragePath(previewStoragePathHint) ??
+    authoritativeStoragePath ??
+    null;
+  const fullStoragePath = authoritativeStoragePath ?? previewStoragePath ?? null;
   const [signedPreviewUrl, signedFullUrl] = await Promise.all([
     signStoragePath(previewStoragePath),
     signStoragePath(fullStoragePath),
@@ -527,6 +566,14 @@ export default async function handler(
       });
       if (existing) {
         const delivery = await resolveDelivery({
+          row: {
+            storage_path: existing.storagePath,
+            file_type: existing.fileType,
+            metadata: existing.metadata,
+            thumb_variant_path: existing.thumbVariantPath,
+            poster_variant_path: existing.posterVariantPath,
+            preview_variant_path: existing.previewVariantPath,
+          },
           storagePath: existing.storagePath,
           previewStoragePathHint,
           fullStoragePathHint,
@@ -606,7 +653,9 @@ export default async function handler(
         prompt_id: promptId ?? null,
         metadata: canonicalMetadata,
       })
-      .select("id")
+      .select(
+        "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+      )
       .single();
 
     if (insertError) {
@@ -628,6 +677,14 @@ export default async function handler(
             // best-effort cleanup
           }
           const delivery = await resolveDelivery({
+            row: {
+              storage_path: existing.storagePath,
+              file_type: existing.fileType,
+              metadata: existing.metadata,
+              thumb_variant_path: existing.thumbVariantPath,
+              poster_variant_path: existing.posterVariantPath,
+              preview_variant_path: existing.previewVariantPath,
+            },
             storagePath: existing.storagePath,
             previewStoragePathHint,
             fullStoragePathHint,
@@ -650,6 +707,14 @@ export default async function handler(
     }
 
     const delivery = await resolveDelivery({
+      row: {
+        storage_path: asOptionalString(data?.storage_path),
+        file_type: asOptionalString(data?.file_type),
+        metadata: asObjectMetadata(data?.metadata),
+        thumb_variant_path: asOptionalString(data?.thumb_variant_path),
+        poster_variant_path: asOptionalString(data?.poster_variant_path),
+        preview_variant_path: asOptionalString(data?.preview_variant_path),
+      },
       storagePath,
       previewStoragePathHint,
       fullStoragePathHint,

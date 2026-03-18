@@ -59,7 +59,7 @@ describe("POST /api/media/sign-batch", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {
@@ -128,7 +128,7 @@ describe("POST /api/media/sign-batch", () => {
 
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-sign-surface", "reference-grid");
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-sign-preview-profile", "none");
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -163,11 +163,11 @@ describe("POST /api/media/sign-batch", () => {
       "x-shortpulse-media-sign-preview-profile",
       "media-library-panel-image-card"
     );
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("applies transforms only when both transform flags are enabled", async () => {
+  it("keeps direct signing behavior even when transform flags are enabled", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
     vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
 
@@ -197,13 +197,7 @@ describe("POST /api/media/sign-batch", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
-      transform: {
-        width: 512,
-        quality: 50,
-        resize: "contain",
-      },
-    });
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });

@@ -47,4 +47,16 @@ describe("resolveMediaLibraryAdaptiveCardPreviewUrl", () => {
     });
     expect(resolved).toBe(signedImageUrl);
   });
+
+  it("keeps panel signed storage URLs unchanged", () => {
+    const resolved = resolveMediaLibraryAdaptiveCardPreviewUrl({
+      surface: "media-library-panel-grid",
+      signedUrl: signedImageUrl,
+      fileType: "image/jpeg",
+      pressureLevel: 1,
+      adaptivePreviewQualityEnabled: true,
+    });
+
+    expect(resolved).toBe(signedImageUrl);
+  });
 });

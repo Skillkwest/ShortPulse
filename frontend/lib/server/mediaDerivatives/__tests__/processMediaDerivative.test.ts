@@ -4,11 +4,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { processClaimedMediaDerivative } from "../processMediaDerivative";
 
+const sharpMetadataMock = vi.fn(async () => ({ width: 1600, height: 1000 }));
 const sharpToBufferMock = vi.fn(async () => Buffer.from("encoded-variant"));
 const sharpWebpMock = vi.fn(() => ({ toBuffer: sharpToBufferMock }));
 const sharpResizeMock = vi.fn(() => ({ webp: sharpWebpMock }));
 const sharpRotateMock = vi.fn(() => ({ resize: sharpResizeMock }));
-const sharpMock = vi.fn(() => ({ rotate: sharpRotateMock }));
+const sharpMock = vi.fn(() => ({
+  metadata: sharpMetadataMock,
+  rotate: sharpRotateMock,
+}));
 
 vi.mock("sharp", () => ({
   default: () => sharpMock(),
@@ -65,9 +69,11 @@ describe("processClaimedMediaDerivative", () => {
     expect(supabase.upload).toHaveBeenCalledTimes(2);
     expect(supabase.upsert).toHaveBeenCalledTimes(2);
     expect(sharpToBufferMock).toHaveBeenCalledTimes(2);
+    expect(sharpMetadataMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       thumbPath: "user-1/variants/images/media-1/thumb_480",
-      width: 480,
+      width: 1600,
+      height: 1000,
       generatedVariants: 2,
     });
   });
@@ -129,5 +135,40 @@ describe("processClaimedMediaDerivative", () => {
         supabaseAdmin: supabase as never,
       })
     ).rejects.toThrow("decode_failed");
+  });
+
+  it("returns null dimensions when source metadata cannot be read", async () => {
+    const supabase = createSupabaseMock();
+    sharpMetadataMock.mockRejectedValueOnce(new Error("metadata exploded"));
+
+    const result = await processClaimedMediaDerivative({
+      row: {
+        id: "media-4",
+        user_id: "user-4",
+        storage_path: "user-4/generations/images/source.png",
+        file_type: "image",
+        processing_attempts: 1,
+        processing_status: "processing",
+      },
+      flags: {
+        enabled: true,
+        cronSecret: "x",
+        batchSize: 10,
+        maxAttempts: 5,
+        leaseSeconds: 120,
+        retryBaseSeconds: 60,
+        retryMaxSeconds: 1800,
+        thumb240Quality: 58,
+        thumb480Quality: 62,
+      },
+      supabaseAdmin: supabase as never,
+    });
+
+    expect(result).toEqual({
+      thumbPath: "user-4/variants/images/media-4/thumb_480",
+      width: null,
+      height: null,
+      generatedVariants: 2,
+    });
   });
 });

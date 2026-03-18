@@ -28,7 +28,8 @@ export type ClaimedMediaDerivativeRow = {
 
 export type ProcessMediaDerivativeResult = {
   thumbPath: string;
-  width: number;
+  width: number | null;
+  height: number | null;
   generatedVariants: number;
 };
 
@@ -113,6 +114,23 @@ const downloadSourceImageBuffer = async ({
   const buffer = await toBufferFromDownload(data);
   if (!buffer.byteLength) throwDerivativeError("unsupported_input", "source_download_empty");
   return buffer;
+};
+
+const readSourceDimensions = async (
+  sourceBuffer: Buffer
+): Promise<{
+  width: number | null;
+  height: number | null;
+}> => {
+  try {
+    const metadata = await sharp(sourceBuffer, { failOn: "error" }).metadata();
+    const width = typeof metadata.width === "number" && metadata.width > 0 ? metadata.width : null;
+    const height =
+      typeof metadata.height === "number" && metadata.height > 0 ? metadata.height : null;
+    return { width, height };
+  } catch {
+    return { width: null, height: null };
+  }
 };
 
 const encodeVariantBuffer = async ({
@@ -221,6 +239,7 @@ export const processClaimedMediaDerivative = async ({
     supabaseAdmin,
     sourcePath,
   });
+  const sourceDimensions = await readSourceDimensions(sourceBuffer);
 
   const specs = buildVariantSpecs(row.user_id, row.id, flags);
   let generatedVariants = 0;
@@ -258,7 +277,8 @@ export const processClaimedMediaDerivative = async ({
 
   return {
     thumbPath: promotedThumb.storagePath,
-    width: promotedThumb.width,
+    width: sourceDimensions.width,
+    height: sourceDimensions.height,
     generatedVariants,
   };
 };

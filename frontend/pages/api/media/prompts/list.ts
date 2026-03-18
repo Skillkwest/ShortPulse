@@ -26,6 +26,10 @@ type PromptListRow = {
   updated_at: string | null;
 };
 
+type FolderScopedPromptListRow = PromptListRow & {
+  folder_membership?: unknown;
+};
+
 type PromptListSuccessResponse = {
   rows: PromptListRow[];
   nextCursor: PromptListCursor | null;
@@ -124,14 +128,26 @@ const buildCursor = (rows: PromptListRow[]): PromptListCursor | null => {
   };
 };
 
-const resolveFolderPromptIds = async ({
+const stripFolderMembershipRows = (
+  rows: FolderScopedPromptListRow[] | PromptListRow[],
+  folderScoped: boolean
+): PromptListRow[] => {
+  if (!folderScoped) return rows as PromptListRow[];
+  return (rows as FolderScopedPromptListRow[]).map((row) => {
+    const normalizedRow = { ...row };
+    delete normalizedRow.folder_membership;
+    return normalizedRow;
+  });
+};
+
+const assertFolderAccess = async ({
   userId,
   folderId,
 }: {
   userId: string;
   folderId: string;
-}): Promise<string[] | null> => {
-  if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return null;
+}): Promise<void> => {
+  if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
   if (!isCustomMediaFolderId(folderId)) {
     throw new Error("Invalid folder id");
   }
@@ -149,23 +165,6 @@ const resolveFolderPromptIds = async ({
   if (!folderRow) {
     throw new Error("Folder not found");
   }
-
-  const { data: membershipRows, error: membershipError } = await supabaseAdmin
-    .from("media_folder_prompt_items")
-    .select("prompt_id")
-    .eq("user_id", userId)
-    .eq("folder_id", folderId);
-  if (membershipError) {
-    throw new Error(membershipError.message || "Failed to load folder memberships");
-  }
-
-  const ids = new Set<string>();
-  for (const row of membershipRows ?? []) {
-    const promptId = asString((row as { prompt_id?: unknown }).prompt_id);
-    if (!promptId) continue;
-    ids.add(promptId);
-  }
-  return Array.from(ids);
 };
 
 /**
@@ -189,24 +188,24 @@ export default async function handler(
     const cursor = asCursor(body.cursor);
     const limit = clampLimit(body.limit);
 
-    const promptIds = await resolveFolderPromptIds({ userId: user.id, folderId });
-    if (Array.isArray(promptIds) && promptIds.length === 0) {
-      return res.status(200).json({
-        rows: [],
-        nextCursor: null,
-        hasMore: false,
-      });
-    }
+    await assertFolderAccess({ userId: user.id, folderId });
 
     const supabaseAdmin = getSupabaseAdmin();
     const selectColumns = "id, title, prompt_text, mode, source, created_at, updated_at";
+    const folderScoped = folderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID;
     const buildBaseQuery = () => {
       let queryBuilder = supabaseAdmin
         .from("media_prompts")
-        .select(selectColumns)
+        .select(
+          folderScoped
+            ? `${selectColumns}, folder_membership:media_folder_prompt_items!inner()`
+            : selectColumns
+        )
         .eq("user_id", user.id);
-      if (promptIds) {
-        queryBuilder = queryBuilder.in("id", promptIds);
+      if (folderScoped) {
+        queryBuilder = queryBuilder
+          .eq("folder_membership.folder_id", folderId)
+          .eq("folder_membership.user_id", user.id);
       }
       if (query) {
         const wildcard = `*${query}*`;
@@ -226,7 +225,12 @@ export default async function handler(
           details: firstPageResponse.error.message,
         });
       }
-      fetchedRows.push(...((firstPageResponse.data ?? []) as PromptListRow[]));
+      fetchedRows.push(
+        ...stripFolderMembershipRows(
+          (firstPageResponse.data ?? []) as unknown as FolderScopedPromptListRow[],
+          folderScoped
+        )
+      );
     } else {
       const sameTimestampResponse = await buildBaseQuery()
         .eq("created_at", cursor.createdAt)
@@ -238,7 +242,10 @@ export default async function handler(
           details: sameTimestampResponse.error.message,
         });
       }
-      const sameTimestampRows = (sameTimestampResponse.data ?? []) as PromptListRow[];
+      const sameTimestampRows = stripFolderMembershipRows(
+        (sameTimestampResponse.data ?? []) as unknown as FolderScopedPromptListRow[],
+        folderScoped
+      );
       fetchedRows.push(...sameTimestampRows);
 
       const remaining = limit - sameTimestampRows.length;
@@ -252,7 +259,12 @@ export default async function handler(
             details: olderRowsResponse.error.message,
           });
         }
-        fetchedRows.push(...((olderRowsResponse.data ?? []) as PromptListRow[]));
+        fetchedRows.push(
+          ...stripFolderMembershipRows(
+            (olderRowsResponse.data ?? []) as unknown as FolderScopedPromptListRow[],
+            folderScoped
+          )
+        );
       }
     }
 

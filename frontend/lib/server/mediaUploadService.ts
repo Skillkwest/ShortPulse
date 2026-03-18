@@ -78,6 +78,10 @@ type ParsedUpload = {
   tempFilePath?: string;
 };
 
+type ParseUploadOptions = {
+  defaultDestinationTab?: MediaUploadDestinationTab;
+};
+
 type InsertedMediaRow = {
   id: string;
   user_id: string;
@@ -133,7 +137,10 @@ const resolveDestinationTab = (value: string): MediaUploadDestinationTab | null 
   return null;
 };
 
-const parseMultipart = async (req: NextApiRequest): Promise<ParsedUpload> => {
+const parseMultipart = async (
+  req: NextApiRequest,
+  options?: ParseUploadOptions
+): Promise<ParsedUpload> => {
   const form = formidable({
     maxFileSize: MAX_UPLOAD_BYTES,
     keepExtensions: true,
@@ -154,7 +161,9 @@ const parseMultipart = async (req: NextApiRequest): Promise<ParsedUpload> => {
   const destinationTabRaw =
     readFieldString(fields.destinationTab as string | string[] | undefined) ||
     readFieldString(fields.destination_tab as string | string[] | undefined);
-  const destinationTab = resolveDestinationTab(destinationTabRaw);
+  const destinationTab = resolveDestinationTab(
+    destinationTabRaw || options?.defaultDestinationTab || ""
+  );
   if (!destinationTab) {
     throw new MediaUploadServiceError(
       400,
@@ -225,11 +234,16 @@ const readRawBody = async (req: NextApiRequest): Promise<Buffer> =>
     req.on("aborted", onAborted);
   });
 
-const parseRaw = async (req: NextApiRequest): Promise<ParsedUpload> => {
+const parseRaw = async (
+  req: NextApiRequest,
+  options?: ParseUploadOptions
+): Promise<ParsedUpload> => {
   const destinationTabRaw = readHeaderString(
     req.headers["x-shortpulse-upload-destination-tab"] as string | string[] | undefined
   );
-  const destinationTab = resolveDestinationTab(destinationTabRaw);
+  const destinationTab = resolveDestinationTab(
+    destinationTabRaw || options?.defaultDestinationTab || ""
+  );
   if (!destinationTab) {
     throw new MediaUploadServiceError(
       400,
@@ -255,15 +269,18 @@ const parseRaw = async (req: NextApiRequest): Promise<ParsedUpload> => {
   };
 };
 
-const parseUpload = async (req: NextApiRequest): Promise<ParsedUpload> => {
+const parseUpload = async (
+  req: NextApiRequest,
+  options?: ParseUploadOptions
+): Promise<ParsedUpload> => {
   const contentType = normalizeContentType(req.headers["content-type"]);
   if (contentType.includes("multipart/form-data")) {
-    return await parseMultipart(req);
+    return await parseMultipart(req, options);
   }
   if (!contentType) {
     throw new MediaUploadServiceError(400, "Upload failed", "Missing content type");
   }
-  return await parseRaw(req);
+  return await parseRaw(req, options);
 };
 
 const destinationExpectsVideo = (destinationTab: MediaUploadDestinationTab): boolean =>
@@ -354,6 +371,111 @@ export class MediaUploadServiceError extends Error {
   }
 }
 
+type UploadedStorageAsset = {
+  storagePath: string;
+  signedUrl: string;
+  size: number;
+  parsedUpload: ParsedUpload;
+};
+
+type StorageUploadOptions = {
+  req: NextApiRequest;
+  userId: string;
+  defaultDestinationTab?: MediaUploadDestinationTab;
+  storageFolderOverride?: string;
+};
+
+const uploadStorageAssetForUser = async ({
+  req,
+  userId,
+  defaultDestinationTab,
+  storageFolderOverride,
+}: StorageUploadOptions): Promise<UploadedStorageAsset> => {
+  const parsedUpload = await parseUpload(req, { defaultDestinationTab });
+  const detectedMimeType = resolveDetectedMimeType(
+    parsedUpload.destinationTab,
+    parsedUpload.buffer
+  );
+  const mimeType = validateUpload({
+    destinationTab: parsedUpload.destinationTab,
+    declaredMimeType: parsedUpload.declaredMimeType,
+    detectedMimeType,
+    fileSize: parsedUpload.size,
+  });
+
+  const extension =
+    EXTENSION_BY_MIME[mimeType] ??
+    (destinationExpectsVideo(parsedUpload.destinationTab) ? "mp4" : "jpg");
+  const fileBaseName = resolveBaseFileName(parsedUpload.filename);
+  const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
+  const storageFolder = storageFolderOverride ?? resolveUploadFolder(parsedUpload.destinationTab);
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: `${userId}/${storageFolder}/${storedFileName}`,
+    userId,
+    label: "Media upload storage path",
+  });
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, parsedUpload.buffer, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new MediaUploadServiceError(500, "Upload failed", uploadError.message);
+  }
+
+  const { data: signedAsset, error: signError } = await supabaseAdmin.storage
+    .from(MEDIA_BUCKET)
+    .createSignedUrl(storagePath, 3600);
+
+  if (signError || !signedAsset?.signedUrl) {
+    throw new MediaUploadServiceError(
+      500,
+      "Failed to generate signed preview URL",
+      signError?.message ?? "Missing signed preview URL"
+    );
+  }
+
+  return {
+    storagePath,
+    signedUrl: signedAsset.signedUrl,
+    size: parsedUpload.size,
+    parsedUpload,
+  };
+};
+
+export const uploadSignedStorageAssetForUser = async ({
+  req,
+  userId,
+  defaultDestinationTab,
+  storageFolderOverride,
+}: {
+  req: NextApiRequest;
+  userId: string;
+  defaultDestinationTab: MediaUploadDestinationTab;
+  storageFolderOverride: string;
+}): Promise<{
+  url: string;
+  path: string;
+  size: number;
+}> => {
+  const uploaded = await uploadStorageAssetForUser({
+    req,
+    userId,
+    defaultDestinationTab,
+    storageFolderOverride,
+  });
+
+  return {
+    url: uploaded.signedUrl,
+    path: uploaded.storagePath,
+    size: uploaded.size,
+  };
+};
+
 /**
  * Parses, validates, uploads, and persists a Media Library upload for a user.
  */
@@ -367,45 +489,18 @@ export const uploadMediaForUser = async ({
   let parsedUpload: ParsedUpload | null = null;
 
   try {
-    parsedUpload = await parseUpload(req);
-    const detectedMimeType = resolveDetectedMimeType(
-      parsedUpload.destinationTab,
-      parsedUpload.buffer
-    );
-    const mimeType = validateUpload({
-      destinationTab: parsedUpload.destinationTab,
-      declaredMimeType: parsedUpload.declaredMimeType,
-      detectedMimeType,
-      fileSize: parsedUpload.size,
-    });
-
-    const extension =
-      EXTENSION_BY_MIME[mimeType] ??
-      (destinationExpectsVideo(parsedUpload.destinationTab) ? "mp4" : "jpg");
-    const fileBaseName = resolveBaseFileName(parsedUpload.filename);
-    const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
-    const storagePath = assertUserScopedMediaStoragePath({
-      path: `${userId}/${resolveUploadFolder(parsedUpload.destinationTab)}/${storedFileName}`,
+    const uploaded = await uploadStorageAssetForUser({
+      req,
       userId,
-      label: "Media upload storage path",
     });
+    parsedUpload = uploaded.parsedUpload;
+    const storagePath = uploaded.storagePath;
     const imageDimensions = destinationExpectsVideo(parsedUpload.destinationTab)
       ? null
       : extractImageDimensionsFromBuffer(parsedUpload.buffer);
     const metadata = withCanonicalImageDimensions(null, imageDimensions);
 
     const supabaseAdmin = getSupabaseAdmin();
-
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(MEDIA_BUCKET)
-      .upload(storagePath, parsedUpload.buffer, {
-        contentType: mimeType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw new MediaUploadServiceError(500, "Upload failed", uploadError.message);
-    }
 
     const { data: insertedRow, error: insertError } = await supabaseAdmin
       .from("media_files")
@@ -434,17 +529,22 @@ export const uploadMediaForUser = async ({
     const normalizedRow = insertedRow as InsertedMediaRow;
     const previewStoragePath =
       resolveMediaSigningStoragePaths(normalizedRow, userId)[0] ?? normalizedRow.storage_path;
-
-    const { data: signedPreview, error: signError } = await supabaseAdmin.storage
-      .from(MEDIA_BUCKET)
-      .createSignedUrl(previewStoragePath, 3600);
-
-    if (signError || !signedPreview?.signedUrl) {
-      throw new MediaUploadServiceError(
-        500,
-        "Failed to generate signed preview URL",
-        signError?.message ?? "Missing signed preview URL"
-      );
+    let signedUrl = uploaded.signedUrl;
+    if (previewStoragePath !== uploaded.storagePath) {
+      const { data: signedPreview, error: signError } = await supabaseAdmin.storage
+        .from(MEDIA_BUCKET)
+        .createSignedUrl(previewStoragePath, 3600);
+      if (signError || !signedPreview?.signedUrl) {
+        throw new MediaUploadServiceError(
+          500,
+          "Failed to generate signed preview URL",
+          signError?.message ?? "Missing signed preview URL"
+        );
+      }
+      signedUrl = signedPreview.signedUrl;
+    }
+    if (!signedUrl) {
+      throw new MediaUploadServiceError(500, "Failed to generate signed preview URL");
     }
 
     return {
@@ -456,7 +556,7 @@ export const uploadMediaForUser = async ({
       file_size: normalizedRow.file_size,
       source: normalizedRow.source,
       created_at: normalizedRow.created_at,
-      signedUrl: signedPreview.signedUrl,
+      signedUrl,
     };
   } finally {
     if (parsedUpload?.tempFilePath) {

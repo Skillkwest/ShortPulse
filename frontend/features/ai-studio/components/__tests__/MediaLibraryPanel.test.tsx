@@ -545,7 +545,7 @@ describe("MediaLibraryPanel", () => {
     expect(typeof latestProps.resolveCardPreviewUrl).toBe("function");
   });
 
-  it.each(["media-library-grid", "media-library-modal-grid"] as const)(
+  it.each(["media-library-panel-grid"] as const)(
     "enables adaptive preview quality when %s is enabled",
     async (enabledSurface) => {
       isAdaptiveSurfaceEnabledMock.mockImplementation(
@@ -561,6 +561,21 @@ describe("MediaLibraryPanel", () => {
       expect(latestProps.adaptivePreviewQualityEnabled).toBe(true);
     }
   );
+
+  it("does not enable adaptive preview quality when only route/modal surfaces are enabled", async () => {
+    isAdaptiveSurfaceEnabledMock.mockImplementation(
+      (surface: string) =>
+        surface === "media-library-grid" || surface === "media-library-modal-grid"
+    );
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("mock-media-grid").length).toBeGreaterThan(0);
+    });
+    const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps).toBeTruthy();
+    expect(latestProps.adaptivePreviewQualityEnabled).toBe(false);
+  });
 
   it("downloads media from the panel media hover action", async () => {
     const originalCreateElement = document.createElement.bind(document);

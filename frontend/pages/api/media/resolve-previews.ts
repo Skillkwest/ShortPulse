@@ -3,7 +3,6 @@
  * Resolves candidate object names by media_file id, then returns signed URLs.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
@@ -299,26 +298,13 @@ export default async function handler(
     const pathsToSign = Array.from(new Set(Array.from(resolvedPathById.values()))).filter((path) =>
       isUserScopedStoragePath(path, user.id)
     );
-    const rowByResolvedPath = new Map<string, MediaLookupRow>();
-    for (const row of rows) {
-      const resolvedPath = resolvedPathById.get(row.id);
-      if (!resolvedPath) continue;
-      if (!rowByResolvedPath.has(resolvedPath)) {
-        rowByResolvedPath.set(resolvedPath, row);
-      }
-    }
     const signedUrlByPath = new Map<string, string | null>();
     if (pathsToSign.length) {
       await Promise.all(
         pathsToSign.map(async (path) => {
-          const row = rowByResolvedPath.get(path) ?? null;
-          const isImage = (row?.file_type ?? "").toLowerCase().startsWith("image");
-          const transform = isImage
-            ? resolvePolicySignedImageTransform(resolvedPreviewProfile, path)
-            : null;
           const { data, error } = await supabaseAdmin.storage
             .from(MEDIA_BUCKET)
-            .createSignedUrl(path, expiresInSeconds, transform ? { transform } : undefined);
+            .createSignedUrl(path, expiresInSeconds);
           if (error) {
             signedUrlByPath.set(path, null);
             return;

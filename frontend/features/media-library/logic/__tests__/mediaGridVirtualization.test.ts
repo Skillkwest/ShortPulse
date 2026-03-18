@@ -20,7 +20,7 @@ describe("mediaGridVirtualization", () => {
     });
 
     expect(layout.columnCount).toBeGreaterThan(1);
-    expect(layout.items.map((entry) => entry.id)).toEqual([
+    expect(layout.visibleItems.map((entry) => entry.id)).toEqual([
       "item-1",
       "item-2",
       "item-3",

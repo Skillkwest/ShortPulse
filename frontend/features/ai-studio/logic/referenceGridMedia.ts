@@ -187,6 +187,17 @@ const resolvePreviewQualityTarget = ({
   };
 };
 
+const hasDistinctDurablePreviewAsset = (
+  output: Pick<StudioOutput, "previewStoragePath" | "fullStoragePath">
+): boolean => {
+  const previewPath = asCanonicalStoragePath(output.previewStoragePath);
+  if (!previewPath) return false;
+  const fullPath = asCanonicalStoragePath(output.fullStoragePath);
+  if (previewPath.includes("/variants/")) return true;
+  if (!fullPath) return true;
+  return previewPath !== fullPath;
+};
+
 const resolveReferenceCardUrlsLegacy = (
   output: Pick<
     StudioOutput,
@@ -203,6 +214,8 @@ const resolveReferenceCardUrlsLegacy = (
 ) => {
   const strictPreviewLadder = options?.strictPreviewLadder === true;
   const adaptivePreviewQuality = options?.adaptivePreviewQuality === true;
+  const shouldApplyAdaptivePreviewQuality =
+    adaptivePreviewQuality && !hasDistinctDurablePreviewAsset(output);
   const pressureLevel = options?.pressureLevel ?? 0;
   const mediaKindHint: ReferenceGridMediaKindHint =
     output.mode === "video" ? "video" : output.mode === "image" ? "image" : null;
@@ -224,7 +237,7 @@ const resolveReferenceCardUrlsLegacy = (
     const resolvedPreviewUrl =
       previewStorageUrl ?? fullStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null;
     const previewUrl =
-      adaptivePreviewQuality && resolvedPreviewUrl
+      shouldApplyAdaptivePreviewQuality && resolvedPreviewUrl
         ? applyAdaptivePreviewTransform({
             url: resolvedPreviewUrl,
             qualityBand,
@@ -235,14 +248,14 @@ const resolveReferenceCardUrlsLegacy = (
     return {
       previewUrl,
       fullUrl: fullStorageUrl ?? previewStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null,
-      previewQualityBand: adaptivePreviewQuality ? qualityBand : "high",
-      targetLongEdgePx: adaptivePreviewQuality ? targetLongEdgePx : 960,
+      previewQualityBand: shouldApplyAdaptivePreviewQuality ? qualityBand : "high",
+      targetLongEdgePx: shouldApplyAdaptivePreviewQuality ? targetLongEdgePx : 960,
     };
   }
 
   const resolvedPreviewUrl = previewStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null;
   const previewUrl =
-    adaptivePreviewQuality && resolvedPreviewUrl
+    shouldApplyAdaptivePreviewQuality && resolvedPreviewUrl
       ? applyAdaptivePreviewTransform({
           url: resolvedPreviewUrl,
           qualityBand,
@@ -254,8 +267,8 @@ const resolveReferenceCardUrlsLegacy = (
   return {
     previewUrl,
     fullUrl: fullStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null,
-    previewQualityBand: adaptivePreviewQuality ? qualityBand : "high",
-    targetLongEdgePx: adaptivePreviewQuality ? targetLongEdgePx : 960,
+    previewQualityBand: shouldApplyAdaptivePreviewQuality ? qualityBand : "high",
+    targetLongEdgePx: shouldApplyAdaptivePreviewQuality ? targetLongEdgePx : 960,
   };
 };
 
@@ -277,6 +290,8 @@ export const resolveReferenceCardUrls = (
   }
 ) => {
   const surface = options?.surface ?? "reference-grid";
+  const shouldApplyAdaptivePreviewQuality =
+    options?.adaptivePreviewQuality === true && !hasDistinctDurablePreviewAsset(output);
   const shouldUseV2 = isAdaptiveSurfaceEnabled(surface);
   const shouldShadowCompare = isAdaptiveShadowCompareEnabled();
   const shouldRenderV2 = shouldUseV2 && !shouldShadowCompare;
@@ -307,16 +322,18 @@ export const resolveReferenceCardUrls = (
     pressureLevel: options?.pressureLevel,
     cardLongEdgePx: options?.cardLongEdgePx ?? null,
     devicePixelRatio: options?.devicePixelRatio ?? 1,
-    adaptivePreviewQuality: options?.adaptivePreviewQuality === true,
+    adaptivePreviewQuality: shouldApplyAdaptivePreviewQuality,
   });
 
   const resolved = {
     previewUrl: v2Resolved.previewUrl,
     fullUrl: v2Resolved.fullUrl,
-    previewQualityBand: options?.adaptivePreviewQuality
+    previewQualityBand: shouldApplyAdaptivePreviewQuality
       ? v2Resolved.decision.qualityBand
       : ("high" satisfies ReferenceGridPreviewQualityBand),
-    targetLongEdgePx: options?.adaptivePreviewQuality ? v2Resolved.decision.targetLongEdgePx : 960,
+    targetLongEdgePx: shouldApplyAdaptivePreviewQuality
+      ? v2Resolved.decision.targetLongEdgePx
+      : 960,
   };
 
   if (shouldRenderV2) {

@@ -63,7 +63,8 @@ describe("POST /api/internal/media-derivatives/run", () => {
     process.env.SHORTPULSE_MEDIA_DERIVATIVES_RETRY_MAX_SECONDS = "1800";
     processClaimedMediaDerivativeMock.mockResolvedValue({
       thumbPath: "user-1/variants/images/media-1/thumb_480",
-      width: 480,
+      width: 1600,
+      height: 1000,
       generatedVariants: 2,
     });
   });
@@ -121,8 +122,8 @@ describe("POST /api/internal/media-derivatives/run", () => {
       p_media_file_id: "media-1",
       p_user_id: "user-1",
       p_thumb_variant_path: "user-1/variants/images/media-1/thumb_480",
-      p_width: 480,
-      p_height: null,
+      p_width: 1600,
+      p_height: 1000,
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(

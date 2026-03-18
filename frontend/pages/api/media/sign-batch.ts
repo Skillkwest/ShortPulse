@@ -3,7 +3,6 @@
  * Requires a bearer-authenticated user and only signs user-scoped storage paths.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
@@ -145,10 +144,9 @@ export default async function handler(
     }
     await Promise.all(
       paths.map(async (path) => {
-        const transform = resolvePolicySignedImageTransform(resolvedPreviewProfile, path);
         const { data, error } = await supabaseAdmin.storage
           .from(MEDIA_BUCKET)
-          .createSignedUrl(path, expiresInSeconds, transform ? { transform } : undefined);
+          .createSignedUrl(path, expiresInSeconds);
         if (error) return;
         const signedUrl = data?.signedUrl;
         urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;

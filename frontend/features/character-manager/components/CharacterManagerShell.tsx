@@ -19,8 +19,6 @@ import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import {
   isAdaptiveSurfaceEnabled,
   logAdaptiveDetailFullQualityUsed,
-  resolveAdaptiveMedia,
-  resolveAdaptiveSourceKind,
 } from "../../../lib/adaptive-media";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
@@ -45,6 +43,7 @@ import {
   CHARACTER_LIBRARY_SMOOTH_TARGET,
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
+import { resolveCharacterGridPreviewUrl as resolveCharacterGridPreviewUrlForSurface } from "../logic/characterGridPreviewUrl";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
@@ -330,25 +329,13 @@ export function CharacterManagerShell({
       : null;
   const resolveCharacterGridPreviewUrl = useCallback(
     (url: string | null | undefined, cardLongEdgePx: number): string | null => {
-      const trimmed = url?.trim();
-      if (!trimmed) return null;
-      if (!characterGridAdaptivePreviewEnabled) return trimmed;
-      const resolved = resolveAdaptiveMedia({
-        surface: "character-grid",
-        mediaKind: "image",
-        source: resolveAdaptiveSourceKind(trimmed),
-        urls: {
-          previewUrl: trimmed,
-          fullUrl: trimmed,
-        },
-        storage: {},
+      return resolveCharacterGridPreviewUrlForSurface({
+        url,
+        adaptivePreviewEnabled: characterGridAdaptivePreviewEnabled,
         pressureLevel: characterGridAdaptivePressure.previewPressureLevel,
         cardLongEdgePx,
         devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-        strictPreviewLadder: true,
-        adaptivePreviewQuality: true,
       });
-      return resolved.previewUrl ?? trimmed;
     },
     [characterGridAdaptivePressure.previewPressureLevel, characterGridAdaptivePreviewEnabled]
   );

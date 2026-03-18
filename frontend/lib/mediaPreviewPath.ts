@@ -128,10 +128,10 @@ const resolveFromMetadata = (metadata: Record<string, unknown> | null | undefine
 };
 
 /**
- * Chooses a preview variant path when available; otherwise returns the original storage path.
+ * Resolves only durable preview asset paths from row columns or metadata variant hints.
+ * Does not fall back to the original source object path.
  */
-export const resolvePreviewStoragePath = (row: MediaRowLike): string | null => {
-  const fallback = asStoragePath(row.storage_path);
+export const resolveDurablePreviewStoragePath = (row: MediaRowLike): string | null => {
   const type = (row.file_type ?? "").toLowerCase();
   const isVideo = type.startsWith("video");
   const metadataPaths = resolveFromMetadata(row.metadata ?? null);
@@ -140,16 +140,19 @@ export const resolvePreviewStoragePath = (row: MediaRowLike): string | null => {
     return firstNonEmpty(
       asStoragePath(row.preview_variant_path),
       asStoragePath(row.poster_variant_path),
-      metadataPaths.videoPreviewPath,
-      fallback
+      metadataPaths.videoPreviewPath
     );
   }
 
-  return firstNonEmpty(
-    asStoragePath(row.thumb_variant_path),
-    metadataPaths.imagePreviewPath,
-    fallback
-  );
+  return firstNonEmpty(asStoragePath(row.thumb_variant_path), metadataPaths.imagePreviewPath);
+};
+
+/**
+ * Chooses a preview variant path when available; otherwise returns the original storage path.
+ */
+export const resolvePreviewStoragePath = (row: MediaRowLike): string | null => {
+  const fallback = asStoragePath(row.storage_path);
+  return firstNonEmpty(resolveDurablePreviewStoragePath(row), fallback);
 };
 
 /**

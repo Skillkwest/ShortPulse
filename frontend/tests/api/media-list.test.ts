@@ -29,6 +29,8 @@ type MediaRow = {
   filename: string;
   storage_path: string;
   file_type: string;
+  width?: number | null;
+  height?: number | null;
   file_size: number;
   source: string;
   source_ref: string | null;
@@ -39,6 +41,10 @@ type MediaRow = {
   preview_variant_path: string | null;
   created_at: string;
   updated_at: string | null;
+  folder_membership?: Array<{
+    folder_id: string;
+    user_id: string;
+  }>;
 };
 
 const createMockResponse = () => {
@@ -73,7 +79,42 @@ const applySearchOrClause = (rows: MediaRow[], clause: string): MediaRow[] => {
   );
 };
 
-const createSupabaseAdminMock = (rows: MediaRow[]) => {
+const projectRowForSelect = (row: MediaRow, selectClause: string): Record<string, unknown> => {
+  const keys = selectClause
+    .split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const projected: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (key.includes(":")) {
+      const alias = key.split(":")[0]?.trim();
+      if (alias) {
+        projected[alias] = (row as Record<string, unknown>)[alias];
+      }
+      continue;
+    }
+    projected[key] = (row as Record<string, unknown>)[key];
+  }
+  return projected;
+};
+
+const matchesEqFilter = (row: MediaRow, column: string, value: string): boolean => {
+  if (column.startsWith("folder_membership.")) {
+    const membershipKey = column.replace("folder_membership.", "");
+    return (row.folder_membership ?? []).some(
+      (membership) => String((membership as Record<string, unknown>)[membershipKey] ?? "") === value
+    );
+  }
+  return String((row as Record<string, unknown>)[column] ?? "") === value;
+};
+
+const createSupabaseAdminMock = (
+  rows: MediaRow[],
+  options?: {
+    existingFolderIds?: string[];
+  }
+) => {
+  const existingFolderIds = new Set(options?.existingFolderIds ?? []);
   const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
     data: paths.map((path) => ({
       path,
@@ -90,16 +131,18 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
     };
   });
 
-  const createQueryBuilder = () => {
+  const createQueryBuilder = (selectClause: string) => {
     const eqFilters: Array<{ column: string; value: string }> = [];
     const ilikeFilters: Array<{ column: string; pattern: string }> = [];
     const notLikeFilters: Array<{ column: string; pattern: string }> = [];
     const ltFilters: Array<{ column: string; value: string }> = [];
+    const inFilters: Array<{ column: string; values: string[] }> = [];
     const orderFilters: Array<{ column: string; ascending: boolean }> = [];
     let orClause = "";
 
     const builder: {
       eq: ReturnType<typeof vi.fn>;
+      in: ReturnType<typeof vi.fn>;
       ilike: ReturnType<typeof vi.fn>;
       not: ReturnType<typeof vi.fn>;
       or: ReturnType<typeof vi.fn>;
@@ -109,6 +152,10 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
     } = {
       eq: vi.fn((column: string, value: string) => {
         eqFilters.push({ column, value });
+        return builder;
+      }),
+      in: vi.fn((column: string, values: string[]) => {
+        inFilters.push({ column, values });
         return builder;
       }),
       ilike: vi.fn((column: string, pattern: string) => {
@@ -136,8 +183,12 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
       limit: vi.fn(async (value: number) => {
         let filtered = [...rows];
         for (const filter of eqFilters) {
-          filtered = filtered.filter(
-            (row) => String((row as Record<string, unknown>)[filter.column]) === filter.value
+          filtered = filtered.filter((row) => matchesEqFilter(row, filter.column, filter.value));
+        }
+        for (const filter of inFilters) {
+          const allowed = new Set(filter.values);
+          filtered = filtered.filter((row) =>
+            allowed.has(String((row as Record<string, unknown>)[filter.column] ?? ""))
           );
         }
         for (const filter of ilikeFilters) {
@@ -176,7 +227,10 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
           }
           return 0;
         });
-        return { data: filtered.slice(0, value), error: null };
+        return {
+          data: filtered.slice(0, value).map((row) => projectRowForSelect(row, selectClause)),
+          error: null,
+        };
       }),
     };
 
@@ -185,10 +239,32 @@ const createSupabaseAdminMock = (rows: MediaRow[]) => {
 
   getSupabaseAdminMock.mockReturnValue({
     from: vi.fn((table: string) => {
-      if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
-      return {
-        select: vi.fn(() => createQueryBuilder()),
-      };
+      if (table === "media_files") {
+        return {
+          select: vi.fn((selectClause: string) => createQueryBuilder(selectClause)),
+        };
+      }
+      if (table === "media_folders") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn((idColumn: string, idValue: string) => ({
+              eq: vi.fn((userColumn: string, userValue: string) => ({
+                maybeSingle: vi.fn(async () => ({
+                  data:
+                    idColumn === "id" &&
+                    userColumn === "user_id" &&
+                    userValue === "user-1" &&
+                    existingFolderIds.has(idValue)
+                      ? { id: idValue }
+                      : null,
+                  error: null,
+                })),
+              })),
+            })),
+          })),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
     }),
     storage: {
       from: vi.fn(() => ({
@@ -315,6 +391,93 @@ describe("POST /api/media/list", () => {
         },
       })
     );
+  });
+
+  it("uses minimal profile by default and excludes metadata from rows", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "media-1",
+        user_id: "user-1",
+        filename: "cat-shot.png",
+        storage_path: "user-1/upload/cat-shot.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: { prompt: "cat", aspect_ratio: 4 / 3 },
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-route",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const payload = res.json.mock.calls[0]?.[0] as { rows: Array<Record<string, unknown>> };
+    expect(payload.rows[0]?.metadata).toBeUndefined();
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-profile", "minimal");
+  });
+
+  it("returns expanded rows with metadata when requested explicitly", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "media-1",
+        user_id: "user-1",
+        filename: "cat-shot.png",
+        storage_path: "user-1/upload/cat-shot.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: { prompt: "cat", aspect_ratio: 4 / 3 },
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        profile: "expanded",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const payload = res.json.mock.calls[0]?.[0] as {
+      rows: Array<{ metadata?: Record<string, unknown> | null }>;
+    };
+    expect(payload.rows[0]?.metadata).toEqual({ prompt: "cat", aspect_ratio: 4 / 3 });
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-profile", "expanded");
   });
 
   it("excludes character-scoped storage paths when containment flag is enabled", async () => {
@@ -515,6 +678,54 @@ describe("POST /api/media/list", () => {
     expect(signedPathCount).toBe(10);
   });
 
+  it("prefers durable preview variants for initial signed hydration", async () => {
+    const row = {
+      id: "media-variant-1",
+      user_id: "user-1",
+      filename: "variant-target.png",
+      storage_path: "user-1/uploads/images/original.png",
+      file_type: "image/png",
+      file_size: 10,
+      source: "upload",
+      source_ref: null,
+      prompt_id: null,
+      metadata: null,
+      thumb_variant_path: "user-1/variants/images/media-variant-1/thumb_480",
+      poster_variant_path: null,
+      preview_variant_path: null,
+      created_at: "2026-02-20T10:00:00.000Z",
+      updated_at: null,
+    } satisfies MediaRow;
+    const { createSignedUrlMock } = createSupabaseAdminMock([row]);
+    resolveMediaSigningStoragePathsMock.mockReturnValueOnce([
+      row.thumb_variant_path as string,
+      row.storage_path,
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.thumb_variant_path as string, 3600);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signedById: {
+          [row.id]: `https://signed.test/${encodeURIComponent(row.thumb_variant_path as string)}`,
+        },
+      })
+    );
+  });
+
   it("returns 503 when list API flag is disabled", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_LIST_API_ENABLED", "false");
     createSupabaseAdminMock([]);
@@ -534,6 +745,32 @@ describe("POST /api/media/list", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(503);
+  });
+
+  it("returns 400 for invalid profile values", async () => {
+    createSupabaseAdminMock([]);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-route",
+        profile: "full-fat",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Invalid tab, surface, or profile",
+      })
+    );
   });
 
   it("supports panel mediaKind queries without tab", async () => {
@@ -660,5 +897,78 @@ describe("POST /api/media/list", () => {
         error: "Folder not found",
       })
     );
+  });
+
+  it("filters custom folders through folder membership join semantics", async () => {
+    const rows: MediaRow[] = [
+      {
+        id: "media-image-1",
+        user_id: "user-1",
+        filename: "forest.png",
+        storage_path: "user-1/uploads/forest.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 1234,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: { alt: "Forest" },
+        thumb_variant_path: "user-1/variants/forest-thumb.webp",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+        folder_membership: [
+          {
+            folder_id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+            user_id: "user-1",
+          },
+        ],
+      },
+      {
+        id: "media-image-2",
+        user_id: "user-1",
+        filename: "desert.png",
+        storage_path: "user-1/uploads/desert.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 2234,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: { alt: "Desert" },
+        thumb_variant_path: "user-1/variants/desert-thumb.webp",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-19T10:00:00.000Z",
+        updated_at: null,
+        folder_membership: [],
+      },
+    ];
+
+    createSupabaseAdminMock(rows, {
+      existingFolderIds: ["2d6fc803-2289-47a9-9a07-063ebf2eec4f"],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0];
+    expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-image-1"]);
   });
 });

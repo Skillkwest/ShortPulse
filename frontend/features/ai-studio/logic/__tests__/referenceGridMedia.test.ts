@@ -111,6 +111,28 @@ describe("referenceGridMedia", () => {
     expect(resolved.previewUrl).toContain("q=34");
   });
 
+  it("keeps signed durable preview URLs direct when preview and full storage paths differ", () => {
+    const durablePreviewUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user-1/variants/images/ref-1/thumb_480?token=abc123";
+    const resolved = resolveReferenceCardUrls(
+      {
+        mode: "image",
+        previewStoragePath: "user-1/variants/images/ref-1/thumb_480",
+        fullStoragePath: "user-1/uploads/images/ref-1.png",
+        previewUrl: durablePreviewUrl,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+      }
+    );
+
+    expect(resolved.previewUrl).toBe(durablePreviewUrl);
+    expect(resolved.previewQualityBand).toBe("high");
+    expect(resolved.targetLongEdgePx).toBe(960);
+  });
+
   it("applies direct supabase render image transforms when already on render endpoint", () => {
     const sourceUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";

@@ -55,6 +55,7 @@ const GRID_SURFACE_SET = new Set<AdaptiveSurface>([
   "reference-grid",
   "media-library-grid",
   "media-library-modal-grid",
+  "media-library-panel-grid",
   "character-grid",
 ]);
 

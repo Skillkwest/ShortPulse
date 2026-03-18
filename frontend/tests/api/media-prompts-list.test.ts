@@ -22,6 +22,162 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+type PromptRow = {
+  id: string;
+  user_id?: string;
+  title: string | null;
+  prompt_text: string;
+  mode: string | null;
+  source: string | null;
+  created_at: string;
+  updated_at: string | null;
+  folder_membership?: Array<{
+    folder_id: string;
+    user_id: string;
+  }>;
+};
+
+const createSupabaseAdminMock = (
+  rows: PromptRow[],
+  options?: {
+    existingFolderIds?: string[];
+  }
+) => {
+  const existingFolderIds = new Set(options?.existingFolderIds ?? []);
+
+  const createQueryBuilder = (selectClause: string) => {
+    const eqFilters: Array<{ column: string; value: string }> = [];
+    const ltFilters: Array<{ column: string; value: string }> = [];
+    const orderFilters: Array<{ column: string; ascending: boolean }> = [];
+    let orClause = "";
+
+    const projectRow = (row: PromptRow): Record<string, unknown> => {
+      const keys = selectClause
+        .split(",")
+        .map((segment) => segment.trim())
+        .filter(Boolean);
+      const projected: Record<string, unknown> = {};
+      for (const key of keys) {
+        if (key.includes(":")) {
+          const alias = key.split(":")[0]?.trim();
+          if (alias) {
+            projected[alias] = (row as Record<string, unknown>)[alias];
+          }
+          continue;
+        }
+        projected[key] = (row as Record<string, unknown>)[key];
+      }
+      return projected;
+    };
+
+    const matchesEq = (row: PromptRow, column: string, value: string): boolean => {
+      if (column.startsWith("folder_membership.")) {
+        const membershipKey = column.replace("folder_membership.", "");
+        return (row.folder_membership ?? []).some(
+          (membership) =>
+            String((membership as Record<string, unknown>)[membershipKey] ?? "") === value
+        );
+      }
+      return String((row as Record<string, unknown>)[column] ?? "") === value;
+    };
+
+    const matchesSearch = (row: PromptRow, clause: string): boolean => {
+      const segments = clause.split(",").map((segment) => segment.trim());
+      return segments.some((segment) => {
+        const [left, ...rest] = segment.split(".ilike.");
+        const pattern = rest.join(".ilike.").replace(/[%*]/g, ".*");
+        const regex = new RegExp(`^${pattern}$`, "i");
+        const value =
+          left === "title" ? (row.title ?? "") : left === "prompt_text" ? row.prompt_text : "";
+        return regex.test(value);
+      });
+    };
+
+    const builder: {
+      eq: ReturnType<typeof vi.fn>;
+      or: ReturnType<typeof vi.fn>;
+      order: ReturnType<typeof vi.fn>;
+      limit: ReturnType<typeof vi.fn>;
+      lt: ReturnType<typeof vi.fn>;
+    } = {
+      eq: vi.fn((column: string, value: string) => {
+        eqFilters.push({ column, value });
+        return builder;
+      }),
+      or: vi.fn((clause: string) => {
+        orClause = clause;
+        return builder;
+      }),
+      order: vi.fn((column: string, options: { ascending: boolean }) => {
+        orderFilters.push({ column, ascending: options.ascending });
+        return builder;
+      }),
+      limit: vi.fn(async (value: number) => {
+        let filtered = [...rows];
+        for (const filter of eqFilters) {
+          filtered = filtered.filter((row) => matchesEq(row, filter.column, filter.value));
+        }
+        for (const filter of ltFilters) {
+          filtered = filtered.filter(
+            (row) => String((row as Record<string, unknown>)[filter.column] ?? "") < filter.value
+          );
+        }
+        if (orClause) {
+          filtered = filtered.filter((row) => matchesSearch(row, orClause));
+        }
+        filtered.sort((left, right) => {
+          for (const order of orderFilters) {
+            const leftValue = String((left as Record<string, unknown>)[order.column] ?? "");
+            const rightValue = String((right as Record<string, unknown>)[order.column] ?? "");
+            const delta = leftValue.localeCompare(rightValue);
+            if (delta === 0) continue;
+            return order.ascending ? delta : -delta;
+          }
+          return 0;
+        });
+        return { data: filtered.slice(0, value).map(projectRow), error: null };
+      }),
+      lt: vi.fn((column: string, value: string) => {
+        ltFilters.push({ column, value });
+        return builder;
+      }),
+    };
+
+    return builder;
+  };
+
+  getSupabaseAdminMock.mockReturnValue({
+    from: vi.fn((table: string) => {
+      if (table === "media_prompts") {
+        return {
+          select: vi.fn((selectClause: string) => createQueryBuilder(selectClause)),
+        };
+      }
+      if (table === "media_folders") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn((idColumn: string, idValue: string) => ({
+              eq: vi.fn((userColumn: string, userValue: string) => ({
+                maybeSingle: vi.fn(async () => ({
+                  data:
+                    idColumn === "id" &&
+                    userColumn === "user_id" &&
+                    userValue === "user-1" &&
+                    existingFolderIds.has(idValue)
+                      ? { id: idValue }
+                      : null,
+                  error: null,
+                })),
+              })),
+            })),
+          })),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    }),
+  });
+};
+
 describe("POST /api/media/prompts/list", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,9 +246,10 @@ describe("POST /api/media/prompts/list", () => {
   });
 
   it("returns paged prompt rows for root folder", async () => {
-    const rows = [
+    const rows: PromptRow[] = [
       {
         id: "prompt-2",
+        user_id: "user-1",
         title: "Prompt Two",
         prompt_text: "Prompt body two",
         mode: "text",
@@ -102,6 +259,7 @@ describe("POST /api/media/prompts/list", () => {
       },
       {
         id: "prompt-1",
+        user_id: "user-1",
         title: "Prompt One",
         prompt_text: "Prompt body one",
         mode: "image",
@@ -111,29 +269,11 @@ describe("POST /api/media/prompts/list", () => {
       },
     ];
 
-    getSupabaseAdminMock.mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table !== "media_prompts") {
-          throw new Error(`Unexpected table: ${table}`);
-        }
-        type PromptQueryBuilder = {
-          eq: (column: string, value: string) => PromptQueryBuilder;
-          in: (column: string, values: string[]) => PromptQueryBuilder;
-          or: (clause: string) => PromptQueryBuilder;
-          order: (column: string, options: { ascending: boolean }) => PromptQueryBuilder;
-          limit: (value: number) => Promise<{ data: typeof rows; error: null }>;
-        };
-        const builder: PromptQueryBuilder = {
-          eq: vi.fn(() => builder),
-          in: vi.fn(() => builder),
-          or: vi.fn(() => builder),
-          order: vi.fn(() => builder),
-          limit: vi.fn(async () => ({ data: rows, error: null })),
-        };
-        return {
-          select: vi.fn(() => builder),
-        };
-      }),
+    createSupabaseAdminMock(rows);
+    const expectedRows = rows.map((row) => {
+      const normalizedRow = { ...row };
+      delete normalizedRow.user_id;
+      return normalizedRow;
     });
 
     const req = {
@@ -152,7 +292,65 @@ describe("POST /api/media/prompts/list", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        rows,
+        rows: expectedRows,
+        hasMore: false,
+        nextCursor: null,
+      })
+    );
+  });
+
+  it("filters custom folders through folder membership join semantics", async () => {
+    const rows: PromptRow[] = [
+      {
+        id: "prompt-2",
+        user_id: "user-1",
+        title: "Prompt Two",
+        prompt_text: "Prompt body two",
+        mode: "text",
+        source: "manual",
+        created_at: "2026-03-02T00:00:00.000Z",
+        updated_at: "2026-03-02T00:00:00.000Z",
+        folder_membership: [
+          {
+            folder_id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+            user_id: "user-1",
+          },
+        ],
+      },
+      {
+        id: "prompt-1",
+        user_id: "user-1",
+        title: "Prompt One",
+        prompt_text: "Prompt body one",
+        mode: "image",
+        source: "manual",
+        created_at: "2026-03-01T00:00:00.000Z",
+        updated_at: "2026-03-01T00:00:00.000Z",
+        folder_membership: [],
+      },
+    ];
+
+    createSupabaseAdminMock(rows, {
+      existingFolderIds: ["2d6fc803-2289-47a9-9a07-063ebf2eec4f"],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        query: "",
+        cursor: null,
+        limit: 10,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ id: "prompt-2" })],
         hasMore: false,
         nextCursor: null,
       })

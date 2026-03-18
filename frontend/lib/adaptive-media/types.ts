@@ -3,6 +3,7 @@ export type AdaptiveSurface =
   | "quick-slot"
   | "media-library-grid"
   | "media-library-modal-grid"
+  | "media-library-panel-grid"
   | "character-grid"
   | "detail-modal";
 

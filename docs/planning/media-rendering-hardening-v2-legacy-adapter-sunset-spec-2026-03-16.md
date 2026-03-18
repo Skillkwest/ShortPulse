@@ -1,6 +1,6 @@
 # Media Rendering Hardening v2 Legacy Adapter Sunset Spec (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-18
 Status: Active
 
 ## Scope
@@ -15,6 +15,17 @@ Canonical target:
 1. Adapters must preserve compatibility response shape during sunset window.
 2. Adapters must emit telemetry that supports usage and parity tracking.
 3. Adapters must not diverge from canonical validation rules beyond temporary compatibility needs.
+
+## Current Implementation Lock
+1. `/api/upload-image` remains a storage-only compatibility adapter for transient reference uploads.
+2. `/api/upload-video` remains a storage-only compatibility adapter for transient motion-reference uploads.
+3. Both adapters reuse the shared server upload parsing, signature validation, scoped storage upload, and signed URL generation path used by canonical upload service internals.
+4. Adapter-specific behavior still preserves:
+- legacy response shape: `{ url, path, size }`
+- transient storage prefixes:
+  - `<uid>/images/reference/*`
+  - `<uid>/videos/motion-control/*`
+5. Canonical `/api/media/upload` remains the only route that persists `media_files` rows.
 
 ## Sunset Gates
 All gates must pass before decommission:

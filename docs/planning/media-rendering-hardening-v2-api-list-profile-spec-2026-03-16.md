@@ -1,6 +1,6 @@
 # Media Rendering Hardening v2 API List Profile Spec (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-18
 Status: Active
 
 ## Endpoint
@@ -30,6 +30,12 @@ Common fields for both profiles:
 1. Existing consumers that require metadata must explicitly request `expanded`.
 2. Pagination semantics and sort order remain identical across profiles.
 3. No profile can alter access control, folder semantics, or cursor contract.
+
+## Current Consumer Lock
+1. `media-library-route` uses `minimal`.
+2. `media-library-modal` uses `expanded`.
+3. `media-library-panel` uses `expanded`.
+4. Route fallback queries must honor the same profile split when the list API is unavailable.
 
 ## Required Tests
 1. Profile parity (cursor/hasMore equivalence).

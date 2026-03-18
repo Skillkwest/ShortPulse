@@ -68,6 +68,23 @@ const FIXTURES: Array<{
       pressureLevel: 0,
     },
   },
+  {
+    output: {
+      mode: "image",
+      previewStoragePath: "user-1/variants/images/ref-1/thumb_480",
+      fullStoragePath: "user-1/uploads/images/ref-1.png",
+      previewUrl:
+        "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user-1/variants/images/ref-1/thumb_480?token=abc",
+      resultUrls: [],
+    },
+    options: {
+      strictPreviewLadder: true,
+      adaptivePreviewQuality: true,
+      pressureLevel: 2,
+      cardLongEdgePx: 320,
+      devicePixelRatio: 2,
+    },
+  },
 ];
 
 afterEach(() => {

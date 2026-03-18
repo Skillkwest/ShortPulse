@@ -319,6 +319,8 @@ Monitor these events during rollout:
 4. `npm -C frontend run build`
 5. `npm -C frontend run check:architecture-boundary`
 6. `npm -C frontend run check:size-budget`
+   - For media-rendering guardrail slices, prefer the combined enforcement bundle:
+     - `npm -C frontend run validate:media-rendering-guardrails`
 7. For reference-grid modularization phases, include phase report:
    - `docs/planning/evidence/reference-grid-modularization/phase-*/`
 8. Run in-browser gate audit from DevTools on `/ai-studio`:

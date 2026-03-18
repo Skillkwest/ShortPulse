@@ -30,6 +30,20 @@ const CHARACTER_MANAGER_TARGET_BUDGETS = [
   { file: "frontend/features/character-manager/components/CharacterManagerShell.tsx", maxLines: 2200 },
 ];
 
+const MEDIA_RENDERING_TARGET_BUDGETS = [
+  { file: "frontend/features/ai-studio/components/ReferenceGrid.tsx", maxLines: 1050 },
+  { file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx", maxLines: 700 },
+  { file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx", maxLines: 1500 },
+  { file: "frontend/features/ai-studio/logic/referenceGridMedia.ts", maxLines: 420 },
+  { file: "frontend/features/media-library/components/MediaAssetGallery.tsx", maxLines: 320 },
+  {
+    file: "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts",
+    maxLines: 400,
+  },
+  { file: "frontend/lib/adaptive-media/resolver.ts", maxLines: 320 },
+  { file: "frontend/lib/mediaPreviewPath.ts", maxLines: 280 },
+];
+
 const ADMIN_HEALTH_TARGET_BUDGETS = [
   { file: "frontend/pages/admin/index.tsx", maxLines: 1300 },
   { file: "frontend/pages/api/admin/user-health.ts", maxLines: 900 },
@@ -123,6 +137,12 @@ function run() {
     "CHARACTER_MANAGER_SIZE_BUDGET_MODE",
     "Character Manager target",
     CHARACTER_MANAGER_TARGET_BUDGETS,
+    hardErrors
+  );
+  reportTargetBudgetGroup(
+    "MEDIA_RENDERING_SIZE_BUDGET_MODE",
+    "Media Rendering target",
+    MEDIA_RENDERING_TARGET_BUDGETS,
     hardErrors
   );
   reportTargetBudgetGroup(

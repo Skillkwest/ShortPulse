@@ -141,11 +141,6 @@ export const useMediaMasonryVirtualization = <TItem>({
     []
   );
 
-  const itemById = useMemo(
-    () => new Map(items.map((item) => [getItemId(item), item])),
-    [getItemId, items]
-  );
-
   const layout = useMemo(() => {
     if (!shouldVirtualize) return null;
     return computeMediaVirtualLayout({
@@ -178,7 +173,7 @@ export const useMediaMasonryVirtualization = <TItem>({
     }
     return layout.visibleItems
       .map((entry) => {
-        const item = itemById.get(entry.id);
+        const item = items[entry.index];
         if (!item) return null;
         return {
           id: entry.id,
@@ -193,7 +188,7 @@ export const useMediaMasonryVirtualization = <TItem>({
         };
       })
       .filter(Boolean) as VirtualizedRenderItem<TItem>[];
-  }, [getItemId, itemById, items, layout, shouldVirtualize]);
+  }, [getItemId, items, layout, shouldVirtualize]);
 
   return {
     containerRef,

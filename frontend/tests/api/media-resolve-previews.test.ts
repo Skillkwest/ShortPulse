@@ -169,7 +169,7 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {
@@ -204,11 +204,11 @@ describe("POST /api/media/resolve-previews", () => {
       "x-shortpulse-media-resolve-preview-profile",
       "media-library-panel-image-card"
     );
-    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("applies transforms only when both transform flags are enabled", async () => {
+  it("keeps direct signing behavior even when transform flags are enabled", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
     vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
 
@@ -233,14 +233,42 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600, {
-      transform: {
-        width: 512,
-        quality: 50,
-        resize: "contain",
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("prefers durable variant paths over original storage paths when both exist", async () => {
+    const row = createRow({
+      id: "media-variant-1",
+      storage_path: "user-1/uploads/images/original.jpg",
+      thumb_variant_path: "user-1/variants/images/media-variant-1/thumb_480",
+      file_type: "image/jpeg",
+    });
+    const { createSignedUrlMock, getCapturedInNames } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [row.thumb_variant_path as string, row.storage_path as string],
+      signedUrlsByPath: {
+        [row.thumb_variant_path as string]: "https://example.test/variant-signed",
       },
     });
-    expect(res.status).toHaveBeenCalledWith(200);
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getCapturedInNames()).toContain(row.thumb_variant_path as string);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.thumb_variant_path as string, 3600);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [row.id]: "https://example.test/variant-signed",
+      },
+    });
   });
 
   it("never signs out-of-scope storage paths", async () => {
@@ -375,16 +403,8 @@ describe("POST /api/media/resolve-previews", () => {
     await handler(req as never, res as never);
 
     expect(getIlikePatterns().sort()).toEqual(["user-1/%/second.jpg", "user-1/%/shared.jpg"]);
-    expect(createSignedUrlMock).toHaveBeenCalledWith(
-      "user-1/recovered/shared.jpg",
-      3600,
-      undefined
-    );
-    expect(createSignedUrlMock).toHaveBeenCalledWith(
-      "user-1/recovered/second.jpg",
-      3600,
-      undefined
-    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith("user-1/recovered/shared.jpg", 3600);
+    expect(createSignedUrlMock).toHaveBeenCalledWith("user-1/recovered/second.jpg", 3600);
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "2");
   });
 });

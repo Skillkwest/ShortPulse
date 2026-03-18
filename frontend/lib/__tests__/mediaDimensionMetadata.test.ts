@@ -36,6 +36,46 @@ describe("mediaDimensionMetadata", () => {
       width: 1000,
       height: 625,
       aspect_ratio: 1.6,
+      dimension_status: "known",
+      dimension_source: "extracted",
+    });
+  });
+
+  it("marks missing dimensions explicitly when no extracted or metadata dimensions exist", () => {
+    expect(
+      withCanonicalImageDimensions(
+        {
+          custom_flag: true,
+        },
+        null
+      )
+    ).toEqual({
+      custom_flag: true,
+      width: null,
+      height: null,
+      aspect_ratio: null,
+      dimension_status: "missing",
+      dimension_source: "missing",
+    });
+  });
+
+  it("uses existing metadata dimensions when extracted dimensions are absent", () => {
+    expect(
+      withCanonicalImageDimensions(
+        {
+          image_width: "1200",
+          image_height: 800,
+        },
+        null
+      )
+    ).toEqual({
+      image_width: "1200",
+      image_height: 800,
+      width: 1200,
+      height: 800,
+      aspect_ratio: 1.5,
+      dimension_status: "known",
+      dimension_source: "metadata",
     });
   });
 });

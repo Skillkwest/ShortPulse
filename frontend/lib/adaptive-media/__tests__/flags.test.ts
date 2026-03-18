@@ -18,6 +18,7 @@ describe("adaptive-media flags", () => {
     expect(isAdaptiveSurfaceEnabled("reference-grid")).toBe(true);
     expect(isAdaptiveSurfaceEnabled("media-library-grid")).toBe(true);
     expect(isAdaptiveSurfaceEnabled("media-library-modal-grid")).toBe(true);
+    expect(isAdaptiveSurfaceEnabled("media-library-panel-grid")).toBe(true);
   });
 
   it("treats empty surface csv as default fallback surfaces", async () => {
@@ -27,6 +28,7 @@ describe("adaptive-media flags", () => {
 
     expect(isAdaptiveSurfaceEnabled("media-library-grid")).toBe(true);
     expect(isAdaptiveSurfaceEnabled("media-library-modal-grid")).toBe(true);
+    expect(isAdaptiveSurfaceEnabled("media-library-panel-grid")).toBe(true);
   });
 
   it("respects explicit surface allowlist overrides", async () => {
@@ -37,5 +39,6 @@ describe("adaptive-media flags", () => {
     expect(isAdaptiveSurfaceEnabled("reference-grid")).toBe(true);
     expect(isAdaptiveSurfaceEnabled("media-library-grid")).toBe(false);
     expect(isAdaptiveSurfaceEnabled("media-library-modal-grid")).toBe(false);
+    expect(isAdaptiveSurfaceEnabled("media-library-panel-grid")).toBe(false);
   });
 });

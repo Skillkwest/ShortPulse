@@ -3,6 +3,10 @@
  * Owns media-tab fetch orchestration, prompt loading, cache staleness policy, and load-more wiring.
  */
 import {
+  resolveMediaListSelectColumns,
+  type MediaListProfile,
+} from "../../../lib/mediaListProfile";
+import {
   useCallback,
   useEffect,
   useRef,
@@ -108,6 +112,12 @@ type UseMediaTabDataControllerArgs<
   setMediaTabCache: Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TRow>>>>;
   setPrompts: Dispatch<SetStateAction<TPrompt[]>>;
   setPromptsLoaded: Dispatch<SetStateAction<boolean>>;
+};
+
+const resolveProfileForSurface = (
+  surface: "media-library-route" | "media-library-modal"
+): MediaListProfile => {
+  return surface === "media-library-route" ? "minimal" : "expanded";
 };
 
 /**
@@ -340,12 +350,14 @@ export const useMediaTabDataController = <
         let usedListApi = false;
 
         if (MEDIA_LIST_API_ENABLED) {
+          const profile = resolveProfileForSurface(surface);
           const apiResult = await fetchMediaListPage<TRow>({
             tab,
             query: normalizedQuery,
             cursor,
             limit: pageSize,
             surface,
+            profile,
           });
           if (apiResult) {
             usedListApi = true;
@@ -357,8 +369,7 @@ export const useMediaTabDataController = <
         }
 
         if (!usedListApi) {
-          const selectColumns =
-            "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
+          const selectColumns = resolveMediaListSelectColumns(resolveProfileForSurface(surface));
           const buildBaseQuery = () => {
             let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
             query = withMediaTabFilter(query, tab);
@@ -371,14 +382,14 @@ export const useMediaTabDataController = <
           if (!cursor) {
             const firstPageResponse = await buildBaseQuery().limit(pageSize);
             if (firstPageResponse.error) throw firstPageResponse.error;
-            fetchedRows = (firstPageResponse.data ?? []) as TRow[];
+            fetchedRows = (firstPageResponse.data ?? []) as unknown as TRow[];
           } else {
             const sameTimestampResponse = await buildBaseQuery()
               .eq("created_at", cursor.createdAt)
               .lt("id", cursor.id)
               .limit(pageSize);
             if (sameTimestampResponse.error) throw sameTimestampResponse.error;
-            const sameTimestampRows = (sameTimestampResponse.data ?? []) as TRow[];
+            const sameTimestampRows = (sameTimestampResponse.data ?? []) as unknown as TRow[];
             fetchedRows = [...sameTimestampRows];
 
             const remaining = pageSize - sameTimestampRows.length;
@@ -387,7 +398,7 @@ export const useMediaTabDataController = <
                 .lt("created_at", cursor.createdAt)
                 .limit(remaining);
               if (olderRowsResponse.error) throw olderRowsResponse.error;
-              fetchedRows.push(...((olderRowsResponse.data ?? []) as TRow[]));
+              fetchedRows.push(...((olderRowsResponse.data ?? []) as unknown as TRow[]));
             }
           }
           fetchedRows = mergePageRows([], fetchedRows).slice(0, pageSize);

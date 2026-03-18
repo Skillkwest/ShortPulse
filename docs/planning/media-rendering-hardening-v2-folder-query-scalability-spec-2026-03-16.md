@@ -1,6 +1,6 @@
 # Media Rendering Hardening v2 Folder Query Scalability Spec (2026-03-16)
 
-Last updated: 2026-03-16  
+Last updated: 2026-03-18
 Status: Active
 
 ## Problem Statement
@@ -15,6 +15,16 @@ Current folder-filter path materializes membership IDs and applies `.in("id", id
 1. Query shape must remain user-scoped and folder-scoped.
 2. Empty-folder semantics remain deterministic (`rows=[]`, `hasMore=false`).
 3. Query-shape change must not alter result ordering or duplicates behavior.
+
+## Implemented Query Shape
+1. Folder-scoped `media_files` listing uses `folder_membership:media_folder_media_items!inner()` and filters on:
+- `folder_membership.folder_id`
+- `folder_membership.user_id`
+2. Folder-scoped `media_prompts` listing uses `folder_membership:media_folder_prompt_items!inner()` and filters on:
+- `folder_membership.folder_id`
+- `folder_membership.user_id`
+3. Folder existence/ownership is still validated before the list query runs so `404` remains distinct from an empty folder.
+4. Embedded membership rows are stripped before API responses are returned; response payload shape stays unchanged.
 
 ## Benchmark Dataset Tiers
 1. Tier S: `<= 200` memberships

@@ -132,6 +132,7 @@ export const useMediaLibraryPanelDataController = ({
           cursor: reset ? null : mediaCursorRef.current,
           limit: MEDIA_PAGE_SIZE,
           surface: "media-library-panel",
+          profile: "expanded",
           folderId: activeFolderId,
         });
         if (!result) {

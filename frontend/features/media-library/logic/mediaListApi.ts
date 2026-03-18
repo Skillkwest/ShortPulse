@@ -1,4 +1,5 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import type { MediaListProfile } from "../../../lib/mediaListProfile";
 import { normalizeMediaSearchTerm } from "./mediaQueryModel";
 
 export type MediaListTab = "uploaded_images" | "uploaded_videos" | "private" | "ai_generations";
@@ -27,6 +28,7 @@ type FetchMediaListPageArgs = {
   cursor: MediaListCursor | null;
   limit: number;
   surface: MediaListSurface;
+  profile?: MediaListProfile;
   folderId?: string | null;
   mediaKind?: MediaListMediaKind | null;
   fetcher?: typeof fetchWithAuth;
@@ -74,6 +76,7 @@ export const fetchMediaListPage = async <TRow>({
   cursor,
   limit,
   surface,
+  profile,
   folderId,
   mediaKind,
   fetcher = fetchWithAuth,
@@ -90,6 +93,7 @@ export const fetchMediaListPage = async <TRow>({
         cursor,
         limit: clampLimit(surface, limit),
         surface,
+        profile,
         folderId: typeof folderId === "string" && folderId.trim() ? folderId.trim() : undefined,
         mediaKind: mediaKind ?? undefined,
       }),

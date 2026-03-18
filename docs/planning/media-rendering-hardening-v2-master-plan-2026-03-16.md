@@ -142,11 +142,13 @@ Supporting docs:
 ### P8: Long-Tail Surface Sweep
 1. Apply inventory-driven parity hardening to dashboard, landing, performance, saved-creators, prefabs, and other non-hot-path image surfaces.
 2. Remove unnecessary `unoptimized` usage where safe and intentional.
+3. Broad `P8` work is explicitly deferrable if repo audit and staging validation show the remaining long-tail surfaces are low-yield relative to regression risk.
 
 ### P9: Rollout + Decommission
 1. Ring rollout: local -> staging -> limited cohort -> full.
 2. Decommission legacy adapters only after parity proof, telemetry threshold, and clean release-window gates pass.
 3. Publish final evidence packet and closeout checklist.
+4. Treat `P9` as operational closeout, not pre-merge implementation work.
 
 ## Public Interface Contract
 1. `POST /api/media/list` supports `profile` with `minimal` default and `expanded` optional.

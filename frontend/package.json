@@ -35,6 +35,7 @@
     "check:lane-d-strict-runtime": "eslint pages features lib --ext .ts,.tsx,.js,.jsx --rule 'react-hooks/set-state-in-effect:error' --rule 'react-hooks/exhaustive-deps:error'",
     "validate:lane-d-runtime": "npm run lint && npm run type-check && npm run check:architecture-boundary && npm run check:size-budget && npm run build && npm run docs:check && npm run check:lane-d-strict-runtime",
     "validate:lane-e-governance": "npm run validate && npm run build && npm run docs:check",
+    "validate:lane-f-governance": "npm run lint && npm run type-check && npm run build && npm run docs:check",
     "check:architecture-boundary": "cd .. && node scripts/check_architecture_boundaries.js",
     "check:size-budget": "cd .. && node scripts/check_size_budgets.js",
     "check:style-literal-guard": "cd .. && node scripts/check_ai_studio_style_literals.js",

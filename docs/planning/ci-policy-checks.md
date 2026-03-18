@@ -1,6 +1,6 @@
 # CI And Policy-As-Code Checks
 
-Date: 2026-02-27
+Date: 2026-03-17
 Authority: Working
 Owner: Engineering
 
@@ -92,6 +92,23 @@ Mode policy:
   1. use `validate:lane-e-governance` for all Lane E convergence and closeout PRs,
   2. attach the exact green-cycle packet reference in the evidence chain,
   3. do not mark Lane E complete until two consecutive green cycles are recorded.
+
+## Lane F governance policy mapping
+
+- Canonical command: `npm -C frontend run validate:lane-f-governance`
+- Command expands to:
+  1. `npm -C frontend run lint`
+  2. `npm -C frontend run type-check`
+  3. `npm -C frontend run build`
+  4. `npm -C frontend run docs:check`
+- Policy intent:
+  - keep active CI/release governance docs green under one repeatable local command,
+  - ensure workflow/deployment/dependabot governance edits do not bypass basic repository validation,
+  - require two explicit green cycles before Lane F closeout.
+- Reviewer policy:
+  1. use `validate:lane-f-governance` for all Lane F convergence and closeout PRs,
+  2. attach both convergence cycle packet references in the evidence chain,
+  3. do not mark Lane F complete until current residuals are either closed or explicitly deferred with owner/date.
 
 ## Agent rollback verification gate
 

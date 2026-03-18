@@ -20,7 +20,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
 | D    | Completed   | Engineering | Lane D closeout complete; runtime warning, suppression, hard-disable, logging, and guardrail debt are cleared with full-suite green validation | none                                    | Lane E execution handoff                                                  | `docs/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Completed   | Engineering | Lane E closeout complete; index parity, ADR integrity, policy-surface consistency, changelog governance, and convergence evidence are locked | none                                    | Lane F execution handoff                                                  | `docs/planning/lane-e-master-plan-2026-03-16.md`                        |
-| F    | In Progress | Engineering | `F0-01` baseline lock, `F1-01` CI inventory parity, `F2-01` plan-limited enforcement, `F3-01` workflow reliability, `F4-01` action pinning, and `F5-01` environment protection policy are complete; `F6-01` convergence is next | none                                    | `F6-01` Lane F convergence                                                | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
+| F    | Completed   | Engineering | Lane F closeout complete; CI/release governance inventory, compensating controls, workflow reliability, supply-chain policy, environment policy, and convergence evidence are locked | none                                    | Lane C unblock or Track P1 activation handoff                             | `docs/planning/lane-f-master-plan-2026-03-16.md`                        |
 | P1   | Not Started | Engineering | Separate generation pipeline hardening (submit/dispatch contract + queue reliability)                                                    | Must stay isolated from Lane B seam PRs | Contract coverage lock                                                    | `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md` |
 
 ## Lane A Master Checklist
@@ -275,9 +275,9 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
 
 ### F6: Ownership + Convergence
 
-- [ ] Normalize ownership identity across operator map/contact map/CODEOWNERS surfaces.
-- [ ] Attach all required evidence packets under `docs/planning/evidence/lane-f/`.
-- [ ] Confirm Lane F exit criteria with two post-change green cycles.
+- [x] Normalize ownership identity across operator map/contact map/CODEOWNERS surfaces or defer explicitly with owner/date.
+- [x] Attach all required evidence packets under `docs/planning/evidence/lane-f/`.
+- [x] Confirm Lane F exit criteria with two post-change green cycles.
 
 ## Parallel Track Artifacts
 

@@ -1,7 +1,7 @@
 # Lane F Master Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
@@ -60,6 +60,10 @@ As of 2026-03-17:
    - Vercel `Production` / `Preview` labels are treated as platform scopes, not GitHub Environment names.
 10. Ownership identity drift exists between operator/contact artifacts (`worldbuilder`) and `.github/CODEOWNERS` (`@sleepyseamonster`).
 11. CI reliability is currently volatile in recent history (mixed success/failure cadence), requiring lane-level reliability policy rather than one-off fixes.
+12. Lane F convergence is now complete after `F6-01`:
+   - canonical convergence command is published,
+   - two consecutive green cycles are recorded,
+   - remaining residuals are explicit rather than implicit drift.
 
 ## Scope
 In scope:

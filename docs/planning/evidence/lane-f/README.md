@@ -37,3 +37,6 @@ Examples:
 - `docs/planning/evidence/lane-f/2026-03-17-f3-01-workflow-reliability-policy.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f4-01-action-pinning-policy.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f5-01-environment-protection-policy.md`
+- `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-convergence-cycle-1.md`
+- `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-convergence-cycle-2.md`
+- `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-closeout-review.md`

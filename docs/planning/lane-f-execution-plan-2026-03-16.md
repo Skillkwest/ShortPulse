@@ -1,7 +1,7 @@
 # Lane F Execution Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: Completed  
 Owner: Engineering  
 Master plan: `docs/planning/lane-f-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-f-tracker-spec-2026-03-16.md`  
@@ -35,7 +35,7 @@ Out of scope:
 | `F3-01` | F3 | Workflow reliability policy | Document and implement workflow concurrency/trigger posture for active release gates | `docs/planning/evidence/lane-f/2026-03-17-f3-01-workflow-reliability-policy.md` | Completed |
 | `F4-01` | F4 | GitHub Actions supply-chain policy | Establish phased action pinning contract and tracked exception policy | `docs/planning/evidence/lane-f/2026-03-17-f4-01-action-pinning-policy.md` | Completed |
 | `F5-01` | F5 | Environment protection policy | Normalize environment naming/protection policy and release-gate posture docs | `docs/planning/evidence/lane-f/2026-03-17-f5-01-environment-protection-policy.md` | Completed |
-| `F6-01` | F6 | Lane F convergence | Record two green cycles and close out Lane F governance | `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-convergence.md` | Not Started |
+| `F6-01` | F6 | Lane F convergence | Record two green cycles and close out Lane F governance | `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-closeout-review.md` | Completed |
 
 Policy:
 1. One CI/release governance seam per PR.

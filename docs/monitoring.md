@@ -8,6 +8,9 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
+- Legacy media upload adapter usage is emitted as:
+  - `telemetry.media.upload_adapter.upload_image_used`
+  - `telemetry.media.upload_adapter.upload_video_used`
 
 ## Telemetry pipeline topology
 1. Ingestion entrypoints:
@@ -117,6 +120,9 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 ## Release checklist tie-in
 - Before release, verify incident ingestion is functioning.
 - After release, spot-check new incidents and confirm no high-severity regressions.
+- For media-rendering `P9` closeout, review adapter usage counts in `/api/admin/error-events` or the Admin Event Stream using:
+  - `source=telemetry.media.upload_adapter.upload_image_used`
+  - `source=telemetry.media.upload_adapter.upload_video_used`
 
 ## Canary window for cleanup PRs
 - Deploy dead-code/refactor PRs separately from feature launches.

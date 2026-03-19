@@ -29,29 +29,38 @@ export const resolveSceneCanvasPoint = ({
   clientY,
   rect,
   sceneScale,
+  viewportOffsetX = 0,
+  viewportOffsetY = 0,
 }: {
   clientX: number;
   clientY: number;
   rect: DOMRect;
   sceneScale: number;
+  viewportOffsetX?: number;
+  viewportOffsetY?: number;
 }): InpaintPoint => {
   const rawX = clientX - rect.left;
   const rawY = clientY - rect.top;
   if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
-    return { x: rawX, y: rawY };
+    return {
+      x: rawX - viewportOffsetX,
+      y: rawY - viewportOffsetY,
+    };
   }
   const centerX = rect.width / 2;
   const centerY = rect.height / 2;
   return {
-    x: centerX + (rawX - centerX) / sceneScale,
-    y: centerY + (rawY - centerY) / sceneScale,
+    x: centerX + (rawX - centerX - viewportOffsetX) / sceneScale,
+    y: centerY + (rawY - centerY - viewportOffsetY) / sceneScale,
   };
 };
 
 const toSurfaceCanvasPoint = (
   event: { clientX: number; clientY: number },
   rect: DOMRect,
-  sceneScale = 1
+  sceneScale = 1,
+  viewportOffsetX = 0,
+  viewportOffsetY = 0
 ): InpaintPoint | null => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -61,23 +70,30 @@ const toSurfaceCanvasPoint = (
     clientY: event.clientY,
     rect,
     sceneScale,
+    viewportOffsetX,
+    viewportOffsetY,
   });
 };
 
 export const toClampedCanvasPoint = (
   event: { clientX: number; clientY: number },
   rect: DOMRect,
-  sceneScale = 1
+  sceneScale = 1,
+  viewportOffsetX = 0,
+  viewportOffsetY = 0
 ): InpaintPoint => {
   const rawX = clamp(event.clientX - rect.left, 0, rect.width);
   const rawY = clamp(event.clientY - rect.top, 0, rect.height);
   if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
-    return { x: rawX, y: rawY };
+    return {
+      x: clamp(rawX - viewportOffsetX, 0, rect.width),
+      y: clamp(rawY - viewportOffsetY, 0, rect.height),
+    };
   }
   const centerX = rect.width / 2;
   const centerY = rect.height / 2;
-  const sceneX = centerX + (rawX - centerX) / sceneScale;
-  const sceneY = centerY + (rawY - centerY) / sceneScale;
+  const sceneX = centerX + (rawX - centerX - viewportOffsetX) / sceneScale;
+  const sceneY = centerY + (rawY - centerY - viewportOffsetY) / sceneScale;
   return {
     x: clamp(sceneX, 0, rect.width),
     y: clamp(sceneY, 0, rect.height),
@@ -224,6 +240,8 @@ export const resolveMaskInteractionPoint = ({
   maskWidth,
   maskHeight,
   sceneScale,
+  viewportOffsetX = 0,
+  viewportOffsetY = 0,
   clampToBounds,
 }: {
   sampleEvent: { clientX: number; clientY: number };
@@ -231,11 +249,25 @@ export const resolveMaskInteractionPoint = ({
   maskWidth: number;
   maskHeight: number;
   sceneScale: number;
+  viewportOffsetX?: number;
+  viewportOffsetY?: number;
   clampToBounds: boolean;
 }): InpaintPoint | null => {
   const surfacePoint = clampToBounds
-    ? toClampedCanvasPoint(sampleEvent, interactionRect, sceneScale)
-    : toSurfaceCanvasPoint(sampleEvent, interactionRect, sceneScale);
+    ? toClampedCanvasPoint(
+        sampleEvent,
+        interactionRect,
+        sceneScale,
+        viewportOffsetX,
+        viewportOffsetY
+      )
+    : toSurfaceCanvasPoint(
+        sampleEvent,
+        interactionRect,
+        sceneScale,
+        viewportOffsetX,
+        viewportOffsetY
+      );
   if (!surfacePoint) return null;
   return mapSurfacePointToMaskCanvasPoint({
     point: surfacePoint,

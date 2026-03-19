@@ -48,6 +48,10 @@ const buildRepresentativePayload = (modelId: string) => {
     payload[field] = 1;
   }
 
+  if (entry.submitAspectField === "image_size") {
+    payload.image_size = "square";
+  }
+
   const contract = validatePayload(payload);
   if (!contract.valid) {
     throw new Error(`Representative payload failed for ${modelId}: ${contract.error}`);
@@ -141,5 +145,29 @@ describe("evaluateFalPayloadContract", () => {
         }),
       });
     }
+  });
+
+  it("treats submitAspectField as an allowlisted top-level field under enforcement", () => {
+    const result = evaluateFalPayloadContractForModel("fal-ai/bytedance/seedream/v4.5/edit", {
+      enforceAllowedTopLevelFields: true,
+      projectAllowedTopLevelFields: true,
+    })({
+      prompt: "editorial portrait",
+      image_urls: ["https://cdn.shortpulse.test/reference.png"],
+      image_size: "square",
+      num_images: 1,
+      enable_safety_checker: false,
+    });
+
+    expect(result).toEqual({
+      valid: true,
+      projectedPayload: {
+        prompt: "editorial portrait",
+        image_urls: ["https://cdn.shortpulse.test/reference.png"],
+        image_size: "square",
+        num_images: 1,
+        enable_safety_checker: false,
+      },
+    });
   });
 });

@@ -157,6 +157,11 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(1);
     });
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      })
+    );
 
     await waitFor(() => {
       expect(setLatestAgentPromptFromInteractions).toBeDefined();
@@ -190,10 +195,24 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(2);
     });
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      })
+    );
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");
     expect(result.current.agentActions).toBeUndefined();
     expect(result.current.isAgentChatOpen).toBe(false);
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Persist across tool switch");
+      setPromptOriginFromInteractions?.("agent");
+      setAgentActionsFromInteractions?.({
+        referenceCard: { title: "Persisted card" },
+      } as AgentActions);
+      setIsAgentChatOpenFromInteractions?.(true);
+    });
 
     rerender({
       sessionId: "a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
@@ -203,6 +222,15 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(3);
     });
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      })
+    );
+    expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
+    expect(result.current.promptOrigin).toBe("agent");
+    expect(result.current.agentActions).toEqual({ referenceCard: { title: "Persisted card" } });
+    expect(result.current.isAgentChatOpen).toBe(true);
 
     rerender({
       sessionId: "a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
@@ -212,6 +240,15 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(4);
     });
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      })
+    );
+    expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
+    expect(result.current.promptOrigin).toBe("agent");
+    expect(result.current.agentActions).toEqual({ referenceCard: { title: "Persisted card" } });
+    expect(result.current.isAgentChatOpen).toBe(true);
 
     resetAgentComposer.mock.calls.forEach((args) => {
       expect(args[0]).toEqual({ preserveInput: true, preserveAttachments: false });

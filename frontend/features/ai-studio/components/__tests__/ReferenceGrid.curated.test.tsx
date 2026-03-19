@@ -1790,6 +1790,33 @@ describe("ReferenceGrid curated split", () => {
     expect(queryByText("Reference Grid")).toBeNull();
   });
 
+  it("keeps the rail canvas mounted when canvas is the only visible right-rail surface", () => {
+    const { container, getByText, queryByText, queryByRole } = render(
+      <ReferenceGrid
+        {...createProps({
+          selectedTool: "edit",
+          railCanvasProps: createRailCanvasProps(),
+          panelVisibility: {
+            canvas: true,
+            quickSlot: false,
+            referenceGrid: false,
+            styles: false,
+          },
+        })}
+      />
+    );
+
+    expect(getByText("Canvas")).toBeInTheDocument();
+    expect(container.querySelector(".reference-rail-canvas-section")).toBeTruthy();
+    expect(container.querySelector(".reference-grid-inventory-stack")).toBeNull();
+    expect(
+      queryByRole("separator", { name: "Resize Canvas and Quick Slot Inventory sections" })
+    ).toBeNull();
+    expect(queryByText("Right-rail panels are hidden.")).toBeNull();
+    expect(queryByText("Quick Slot Inventory")).toBeNull();
+    expect(queryByText("Reference Grid")).toBeNull();
+  });
+
   it("shows styles without split divider when Reference Grid is hidden", () => {
     const { getByText, queryByText, queryByRole } = render(
       <ReferenceGrid

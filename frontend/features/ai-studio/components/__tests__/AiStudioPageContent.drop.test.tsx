@@ -181,6 +181,7 @@ vi.mock("../../../prefabs/agent", () => ({
 }));
 
 const collapseToMinMock = vi.fn();
+const expandToMaxMock = vi.fn();
 
 vi.mock("../hooks/useAiStudioShellResize", () => ({
   useAiStudioShellResize: () => ({
@@ -190,6 +191,7 @@ vi.mock("../hooks/useAiStudioShellResize", () => ({
     isResizing: false,
     shellStyle: {},
     collapseToMin: collapseToMinMock,
+    expandToMax: expandToMaxMock,
     dividerProps: {},
   }),
 }));
@@ -301,7 +303,7 @@ describe("AiStudioPageContent right column drop router", () => {
 
     expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles visibility" })).toBeInTheDocument();
   });
@@ -640,7 +642,7 @@ describe("AiStudioPageContent right column drop router", () => {
   });
 
   it("routes edit workflow to expert edit panel when eligible", () => {
-    render(
+    const { container } = render(
       <AiStudioPageContent
         {...createProps({
           selectedTool: "edit",
@@ -652,6 +654,7 @@ describe("AiStudioPageContent right column drop router", () => {
     );
 
     expect(screen.getByTestId("expert-edit-properties")).toBeInTheDocument();
+    expect(container.querySelector(".ai-shell")?.className).toContain("ai-shell-expert-edit");
   });
 
   it("wires styles toggle and style selection between expert edit and reference rail", () => {

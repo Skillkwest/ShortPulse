@@ -26,6 +26,9 @@ type UseExpertEditTransformControllerParams = {
   layers: ExpertEditLayer[];
   selectedLayer: ExpertEditLayer | null;
   sceneZoomScale: number;
+  shouldApplyViewportTransform: boolean;
+  viewportOffsetXRatio: number;
+  viewportOffsetYRatio: number;
   transformPointerSessionRef: React.MutableRefObject<TransformPointerSession>;
   transformGestureBaselineRef: React.MutableRefObject<TransformHistoryEntry | null>;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
@@ -55,6 +58,9 @@ export const useExpertEditTransformController = ({
   layers,
   selectedLayer,
   sceneZoomScale,
+  shouldApplyViewportTransform,
+  viewportOffsetXRatio,
+  viewportOffsetYRatio,
   transformPointerSessionRef,
   transformGestureBaselineRef,
   setLayers,
@@ -110,6 +116,8 @@ export const useExpertEditTransformController = ({
         clientY: event.clientY,
         rect,
         sceneScale: sceneZoomScale,
+        viewportOffsetX: shouldApplyViewportTransform ? viewportOffsetXRatio * rect.width : 0,
+        viewportOffsetY: shouldApplyViewportTransform ? viewportOffsetYRatio * rect.height : 0,
       });
       const dragMode = resolveTransformDragMode({
         altKey: event.altKey,
@@ -140,8 +148,11 @@ export const useExpertEditTransformController = ({
       setActiveTransformDragMode,
       setIsTransformPointerDragging,
       showStatusToast,
+      shouldApplyViewportTransform,
       transformGestureBaselineRef,
       transformPointerSessionRef,
+      viewportOffsetXRatio,
+      viewportOffsetYRatio,
     ]
   );
 
@@ -153,6 +164,8 @@ export const useExpertEditTransformController = ({
         clientY: event.clientY,
         rect,
         sceneScale: sceneZoomScale,
+        viewportOffsetX: shouldApplyViewportTransform ? viewportOffsetXRatio * rect.width : 0,
+        viewportOffsetY: shouldApplyViewportTransform ? viewportOffsetYRatio * rect.height : 0,
       });
       const session = transformPointerSessionRef.current;
       if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
@@ -177,7 +190,14 @@ export const useExpertEditTransformController = ({
         )
       );
     },
-    [sceneZoomScale, setLayers, transformPointerSessionRef]
+    [
+      sceneZoomScale,
+      setLayers,
+      shouldApplyViewportTransform,
+      transformPointerSessionRef,
+      viewportOffsetXRatio,
+      viewportOffsetYRatio,
+    ]
   );
 
   const handleMovePointerLeave = React.useCallback(

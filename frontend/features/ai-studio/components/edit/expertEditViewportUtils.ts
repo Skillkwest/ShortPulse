@@ -5,6 +5,7 @@ import type { MarkupViewportState } from "./markupStrokeController";
 
 export const MARKUP_VIEWPORT_SCALE_MIN = 0.5;
 export const MARKUP_VIEWPORT_SCALE_MAX = 4;
+export const MARKUP_VIEWPORT_DEFAULT_SCALE = 0.95;
 export const MARKUP_VIEWPORT_ZOOM_INTENSITY = 0.0018;
 export const MARKUP_VIEWPORT_EPSILON = 0.001;
 export const MOVE_STAGE_ZOOM_SLIDER_MIN = 0;
@@ -33,7 +34,7 @@ const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
 export const createDefaultMarkupViewportState = (): MarkupViewportState => ({
-  scale: 1,
+  scale: MARKUP_VIEWPORT_DEFAULT_SCALE,
   offsetXRatio: 0,
   offsetYRatio: 0,
 });

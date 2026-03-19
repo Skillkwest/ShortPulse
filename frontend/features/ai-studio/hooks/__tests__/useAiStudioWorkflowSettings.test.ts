@@ -74,6 +74,9 @@ const useHarness = (initialTool: ToolId | null) => {
     mode,
     model,
     aspect,
+    imageResolution,
+    setAspect,
+    setImageResolution,
     videoResolution,
     setVideoResolution,
     ...workflow,
@@ -90,7 +93,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
   });
 
-  it("restores saved create workflow settings from session storage", async () => {
+  it("restores saved create workflow settings from session storage without overwriting the shared aspect", async () => {
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,
@@ -194,7 +197,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
-  it("defaults edit workflow to square aspect on first activation, including legacy saved 9:16", async () => {
+  it("uses the shared aspect when edit is the active workflow", async () => {
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,
@@ -225,7 +228,7 @@ describe("useAiStudioWorkflowSettings", () => {
     const { result } = renderHook(() => useHarness("edit"));
 
     await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
-    expect(result.current.aspect).toBe("1:1");
+    expect(result.current.aspect).toBe("9:16");
   });
 
   it("persists workflow setting updates under the active tool key", async () => {
@@ -245,5 +248,61 @@ describe("useAiStudioWorkflowSettings", () => {
       const parsed = raw ? (JSON.parse(raw) as Record<string, { videoResolution?: string }>) : {};
       expect(parsed.video?.videoResolution).toBe("2160p");
     });
+  });
+
+  it("preserves create selector changes when switching to edit before persistence catches up", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("create"));
+
+    await waitFor(() =>
+      expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image")
+    );
+
+    act(() => {
+      result.current.setAspect("16:9");
+      result.current.setImageResolution("2k");
+      result.current.setSelectedTool("edit");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("create"));
+    expect(result.current.aspect).toBe("16:9");
+    expect(result.current.imageResolution).toBe("2k");
+  });
+
+  it("keeps aspect synchronized across create, edit, and video workflow switches", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("create"));
+
+    await waitFor(() =>
+      expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image")
+    );
+
+    act(() => {
+      result.current.setAspect("16:9");
+      result.current.setSelectedTool("edit");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
+    expect(result.current.aspect).toBe("16:9");
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.aspect).toBe("16:9");
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("create"));
+    expect(result.current.aspect).toBe("16:9");
   });
 });

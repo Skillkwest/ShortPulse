@@ -33,8 +33,23 @@
   /*
    * Reuse Edit styles-control chrome in Expert Create.
    * These tokens are normally scoped to `.edit-expert-panel`.
+   * Define the full subset used by `StylesControl` so Create keeps the
+   * same button shell/chrome without inheriting broader Edit-only panel styles.
    */
-  --edit-expert-secondary-width: clamp(72px, calc(var(--app-fixed-width) * 0.09), 92px);
+  --edit-expert-neutral-surface-soft: rgba(201, 205, 214, 0.02);
+  --edit-expert-neutral-shadow: rgba(0, 0, 0, 0.28);
+  --edit-expert-neutral-text-strong: #eef2f8;
+  --edit-expert-control-border: rgba(92, 96, 104, 0.9);
+  --edit-expert-control-surface: rgba(37, 41, 47, 0.64);
+  --edit-expert-control-hover-border: rgba(205, 210, 220, 0.2);
+  --edit-expert-control-hover-surface: rgba(52, 56, 64, 0.95);
+  --edit-expert-control-text: var(--edit-expert-neutral-text-strong);
+  --edit-expert-secondary-width: clamp(64px, calc(var(--app-fixed-width) * 0.078), 82px);
+  --edit-expert-secondary-shell-padding: 8px;
+  --edit-expert-secondary-shell-width: calc(
+    var(--edit-expert-secondary-width) + (var(--edit-expert-secondary-shell-padding) * 2)
+  );
+  --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 24px);
   --edit-expert-tools-title-to-control-gap: 8px;
 }
 

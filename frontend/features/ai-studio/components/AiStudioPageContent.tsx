@@ -127,7 +127,6 @@ const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
   { id: "canvas", label: "Canvas" },
   { id: "quick-slot-inventory", label: "Quick Slot Inventory" },
   { id: "reference-grid", label: "Reference Grid" },
-  { id: "styles", label: "Styles" },
 ] as const;
 
 type RightColumnDropMode = "none" | "text" | "media";
@@ -828,6 +827,7 @@ export function AiStudioPageContent({
     isResizing,
     shellStyle,
     collapseToMin,
+    expandToMax,
     dividerProps,
     rightColumnHidden,
   } = useAiStudioShellResize({
@@ -842,6 +842,7 @@ export function AiStudioPageContent({
     selectedTool ? "" : "ai-shell-wide",
     showDivider ? "ai-shell-resizable" : "",
     showExpertCreatePanel ? "ai-shell-expert-create" : "",
+    showExpertEditPanel ? "ai-shell-expert-edit" : "",
     isPrimaryCharacterPanelOpen ? "ai-shell-character-open" : "",
     isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
     isResizing ? "ai-shell-resizing" : "",
@@ -851,6 +852,14 @@ export function AiStudioPageContent({
   const previousSelectedToolRef = React.useRef<ToolId | null>(selectedTool);
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
+    const isEditToolSelected = selectedTool === "edit";
+    const shouldExpandForEditSelection =
+      isEditToolSelected && previousSelectedTool !== selectedTool;
+    if (shouldExpandForEditSelection) {
+      expandToMax();
+      previousSelectedToolRef.current = selectedTool;
+      return;
+    }
     // Expert Create should always open at its minimum left width when Create is selected.
     const isCreateToolSelected = isCreateWorkflow(selectedTool);
     const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
@@ -863,7 +872,7 @@ export function AiStudioPageContent({
       collapseToMin();
     }
     previousSelectedToolRef.current = selectedTool;
-  }, [collapseToMin, selectedTool, showExpertCreatePanel]);
+  }, [collapseToMin, expandToMax, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
     setPanelVisibilityByWorkflow((previous) => {

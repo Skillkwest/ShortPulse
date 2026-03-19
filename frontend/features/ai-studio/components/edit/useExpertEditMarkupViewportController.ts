@@ -20,6 +20,7 @@ import {
   createIdleMarkupPanPointerSession,
   resolveMarkupViewportOffsetPixels,
   resolveMoveStageZoomScale,
+  resolveMoveStageZoomSliderValue,
   resolveStageViewportSize,
   type MarkupPanPointerSession,
   type StageViewportSize,
@@ -29,7 +30,6 @@ import type { MarkupViewportState } from "./markupStrokeController";
 type UseExpertEditMarkupViewportControllerParams = {
   markupViewport: MarkupViewportState;
   shouldApplyMarkupViewport: boolean;
-  isMarkupExpandSelected: boolean;
   isMarkupPanSpacePressed: boolean;
   markupPanPointerSessionRef: React.MutableRefObject<MarkupPanPointerSession>;
   setMoveStageZoomSliderValue: React.Dispatch<React.SetStateAction<number>>;
@@ -37,6 +37,7 @@ type UseExpertEditMarkupViewportControllerParams = {
   setIsMarkupPanDragging: React.Dispatch<React.SetStateAction<boolean>>;
   setInlineStageViewportSize: React.Dispatch<React.SetStateAction<StageViewportSize>>;
   setMarkupModalViewportSize: React.Dispatch<React.SetStateAction<StageViewportSize>>;
+  resolveStageRect?: (scope: ExpertEditStageScope, currentTarget: HTMLDivElement) => DOMRect | null;
 };
 
 type UseExpertEditMarkupViewportControllerResult = {
@@ -59,13 +60,15 @@ type UseExpertEditMarkupViewportControllerResult = {
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+const isPointerButtonPressed = (buttons: number | undefined, mask: number) =>
+  typeof buttons === "number" && (buttons & mask) === mask;
+
 /**
  * Returns the viewport and pan interaction handlers for markup mode.
  */
 export const useExpertEditMarkupViewportController = ({
   markupViewport,
   shouldApplyMarkupViewport,
-  isMarkupExpandSelected,
   isMarkupPanSpacePressed,
   markupPanPointerSessionRef,
   setMoveStageZoomSliderValue,
@@ -73,6 +76,7 @@ export const useExpertEditMarkupViewportController = ({
   setIsMarkupPanDragging,
   setInlineStageViewportSize,
   setMarkupModalViewportSize,
+  resolveStageRect,
 }: UseExpertEditMarkupViewportControllerParams): UseExpertEditMarkupViewportControllerResult => {
   const clearMarkupPanGestureState = React.useCallback(() => {
     markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
@@ -102,8 +106,9 @@ export const useExpertEditMarkupViewportController = ({
   );
 
   const resetMarkupViewport = React.useCallback(() => {
-    setMoveStageZoomSliderValue(MOVE_STAGE_ZOOM_SLIDER_DEFAULT);
-    setMarkupViewport(createDefaultMarkupViewportState());
+    const defaultViewport = createDefaultMarkupViewportState();
+    setMoveStageZoomSliderValue(resolveMoveStageZoomSliderValue(defaultViewport.scale));
+    setMarkupViewport(defaultViewport);
     clearMarkupPanGestureState();
   }, [clearMarkupPanGestureState, setMarkupViewport, setMoveStageZoomSliderValue]);
 
@@ -134,14 +139,17 @@ export const useExpertEditMarkupViewportController = ({
         return false;
       }
       const isMiddleMousePanGesture =
-        event.pointerType === "mouse" && event.button === 1 && isMarkupExpandSelected;
-      const isSpacePanGesture =
-        isMarkupPanSpacePressed && (event.pointerType !== "mouse" || event.button === 0);
+        event.button === 1 || isPointerButtonPressed(event.buttons, 0b100);
+      const isPrimaryPointerPanButton =
+        event.button === 0 || isPointerButtonPressed(event.buttons, 0b001);
+      const isSpacePanGesture = isMarkupPanSpacePressed && isPrimaryPointerPanButton;
       if (!isMiddleMousePanGesture && !isSpacePanGesture) {
         return false;
       }
       event.preventDefault();
-      const stageRect = event.currentTarget.getBoundingClientRect();
+      const stageRect =
+        resolveStageRect?.(scope, event.currentTarget) ??
+        event.currentTarget.getBoundingClientRect();
       if (stageRect.width <= 0 || stageRect.height <= 0) {
         return false;
       }
@@ -163,11 +171,11 @@ export const useExpertEditMarkupViewportController = ({
       return true;
     },
     [
-      isMarkupExpandSelected,
       isMarkupPanSpacePressed,
       markupPanPointerSessionRef,
       markupViewport.offsetXRatio,
       markupViewport.offsetYRatio,
+      resolveStageRect,
       setIsMarkupPanDragging,
       shouldApplyMarkupViewport,
       syncViewportSizeByScope,
@@ -177,7 +185,7 @@ export const useExpertEditMarkupViewportController = ({
   const continueMarkupPanGesture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const session = markupPanPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId) {
+      if (!session.active) {
         return false;
       }
       event.preventDefault();
@@ -198,10 +206,10 @@ export const useExpertEditMarkupViewportController = ({
   const endMarkupPanGesture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const session = markupPanPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId) {
+      if (!session.active) {
         return false;
       }
-      releasePointerCaptureSafely(event.currentTarget, event.pointerId);
+      releasePointerCaptureSafely(event.currentTarget, session.pointerId);
       clearMarkupPanGestureState();
       return true;
     },
@@ -211,10 +219,10 @@ export const useExpertEditMarkupViewportController = ({
   const endMarkupPanGestureOnLeave = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const session = markupPanPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId) {
+      if (!session.active) {
         return false;
       }
-      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, event.pointerId);
+      const hasPointerCapture = elementHasPointerCapture(event.currentTarget, session.pointerId);
       if (hasPointerCapture) {
         return false;
       }
@@ -227,8 +235,9 @@ export const useExpertEditMarkupViewportController = ({
   const handleMarkupViewportWheel = React.useCallback(
     (event: React.WheelEvent<HTMLDivElement>, scope: ExpertEditStageScope) => {
       if (!shouldApplyMarkupViewport) return;
-      if (!event.metaKey && !event.ctrlKey) return;
-      const stageRect = event.currentTarget.getBoundingClientRect();
+      const stageRect =
+        resolveStageRect?.(scope, event.currentTarget) ??
+        event.currentTarget.getBoundingClientRect();
       if (stageRect.width <= 0 || stageRect.height <= 0) return;
       event.preventDefault();
       const stageSize = syncViewportSizeByScope(scope, stageRect);
@@ -256,7 +265,7 @@ export const useExpertEditMarkupViewportController = ({
         };
       });
     },
-    [setMarkupViewport, shouldApplyMarkupViewport, syncViewportSizeByScope]
+    [resolveStageRect, setMarkupViewport, shouldApplyMarkupViewport, syncViewportSizeByScope]
   );
 
   return {

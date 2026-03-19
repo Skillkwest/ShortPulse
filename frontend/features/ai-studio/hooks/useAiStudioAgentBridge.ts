@@ -129,13 +129,13 @@ export const useAiStudioAgentBridge = ({
     reset: resetAgentChat,
   } = useAiAgent({
     enabled: agentEnabled,
-    sessionNamespace: `ai-studio:${sessionId ?? "none"}:${selectedTool ?? "none"}:${mode}`,
+    sessionNamespace: `ai-studio:${sessionId ?? "none"}`,
   });
 
   const [agentUiBusy, setAgentUiBusy] = useState(false);
   const agentUiBusyRef = useRef(false);
   const agentBusy = agentIsSending || agentUiBusy;
-  const agentBridgeSessionKey = `${sessionId ?? "none"}:${selectedTool ?? "none"}:${mode}`;
+  const agentBridgeSessionKey = `${sessionId ?? "none"}`;
   const [agentBridgeSessionUiState, setAgentBridgeSessionUiState] =
     useState<AgentBridgeSessionUiState>(() =>
       createDefaultAgentBridgeSessionUiState(agentBridgeSessionKey)

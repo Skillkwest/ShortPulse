@@ -8,7 +8,7 @@
  */
 :root {
   /* Adjust the Width of the left sidebar. */
-  --ai-rail-width: 200px;
+  --ai-rail-width: 180px;
   --ai-gutter: 16px;
   --ai-container-card-bg: rgba(201, 205, 214, 0.02);
   --ai-container-card-border: rgba(201, 205, 214, 0.02);
@@ -50,6 +50,21 @@
   --ai-toolbar-label-size: 14px;
   --ai-toolbar-divider-spacing: 20px;
   --ai-toolbar-divider-spacing-tight: 15px;
+  --ai-toolbar-primary-button-min-height: 34px;
+  --ai-toolbar-primary-button-padding-y: 8px;
+  --ai-toolbar-primary-button-padding-x: 12px;
+  --ai-toolbar-primary-button-radius: 20px;
+  --ai-toolbar-primary-button-margin-y: 3px;
+  --ai-toolbar-primary-button-margin-bottom: 10px;
+  --ai-toolbar-secondary-button-min-height: 34px;
+  --ai-toolbar-secondary-button-padding-y: 7px;
+  --ai-toolbar-secondary-button-padding-x: 10px;
+  --ai-toolbar-secondary-button-radius: 10px;
+  --ai-toolbar-dashboard-min-height: 36px;
+  --ai-toolbar-dashboard-padding-y: 8px;
+  --ai-toolbar-dashboard-padding-x: 10px;
+  --ai-toolbar-icon-size: 15px;
+  --ai-toolbar-primary-icon-size: 16px;
   --ai-canvas-cream-soft: #f8f0de;
   --ai-canvas-cream: #f5ddae;
   --ai-canvas-cream-deep: #e8d2a8;
@@ -75,6 +90,27 @@ body:has(.ai-studio-page) {
 html:has(.ai-studio-page[data-selected-tool="canvas"]),
 body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   overflow-y: hidden;
+}
+
+@media (min-width: 1101px) {
+  html:has(.ai-studio-page[data-selected-tool="create"]),
+  body:has(.ai-studio-page[data-selected-tool="create"]),
+  html:has(.ai-studio-page[data-selected-tool="text"]),
+  body:has(.ai-studio-page[data-selected-tool="text"]),
+  html:has(.ai-studio-page[data-selected-tool="edit"]),
+  body:has(.ai-studio-page[data-selected-tool="edit"]),
+  html:has(.ai-studio-page[data-selected-tool="image"]),
+  body:has(.ai-studio-page[data-selected-tool="image"]),
+  html:has(.ai-studio-page[data-selected-tool="video"]),
+  body:has(.ai-studio-page[data-selected-tool="video"]),
+  html:has(.ai-studio-page[data-selected-tool="kling"]),
+  body:has(.ai-studio-page[data-selected-tool="kling"]),
+  html:has(.ai-studio-page[data-selected-tool="sound"]),
+  body:has(.ai-studio-page[data-selected-tool="sound"]),
+  html:has(.ai-studio-page[data-selected-tool="character"]),
+  body:has(.ai-studio-page[data-selected-tool="character"]) {
+    overflow-y: hidden;
+  }
 }
 
 .ai-studio-page .ai-alert-banner {
@@ -293,11 +329,28 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="create"],
+.ai-studio-page[data-selected-tool="text"],
 .ai-studio-page[data-selected-tool="edit"],
-.ai-studio-page[data-selected-tool="image"] {
-  height: auto;
+.ai-studio-page[data-selected-tool="image"],
+.ai-studio-page[data-selected-tool="video"],
+.ai-studio-page[data-selected-tool="kling"],
+.ai-studio-page[data-selected-tool="sound"],
+.ai-studio-page[data-selected-tool="character"] {
   min-height: var(--app-fixed-height);
-  overflow: visible;
+}
+
+@media (min-width: 1101px) {
+  .ai-studio-page[data-selected-tool="create"],
+  .ai-studio-page[data-selected-tool="text"],
+  .ai-studio-page[data-selected-tool="edit"],
+  .ai-studio-page[data-selected-tool="image"],
+  .ai-studio-page[data-selected-tool="video"],
+  .ai-studio-page[data-selected-tool="kling"],
+  .ai-studio-page[data-selected-tool="sound"],
+  .ai-studio-page[data-selected-tool="character"] {
+    height: var(--app-fixed-height);
+    overflow: hidden;
+  }
 }
 
 .ai-studio-page .generate-rounding-note {
@@ -653,10 +706,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-toolbar .toolbar-back-link.dashboard-nav-prefab {
   width: 100%;
-  min-height: 42px;
+  min-height: var(--ai-toolbar-dashboard-min-height);
   justify-content: flex-start;
   gap: 8px;
-  padding: 10px 12px;
+  padding: var(--ai-toolbar-dashboard-padding-y) var(--ai-toolbar-dashboard-padding-x);
   border-radius: 12px;
   font-size: 13px;
   font-weight: 500;
@@ -771,7 +824,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 /* AI Studio main shell layout */
 .ai-shell {
   --ai-shell-divider-track-width: 16px;
-  --ai-shell-sticky-top: 56px;
+  --ai-shell-sticky-top: 48px;
   --ai-shell-bottom-gutter: 12px;
   --ai-shell-column-max-height: calc(
     var(--app-fixed-height) - var(--ai-page-pad-top) - var(--ai-page-pad-bottom)
@@ -788,6 +841,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   /* Keep the splitter track spanning the full desktop workspace even with short content. */
   min-height: var(--ai-shell-column-max-height);
   height: auto;
+}
+
+.ai-shell.ai-shell-expert-edit {
+  grid-template-columns: minmax(930px, 1.28fr) minmax(0, 1fr);
 }
 
 .ai-shell.ai-shell-resizable {
@@ -812,6 +869,14 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
     var(--ai-shell-left-width, minmax(840px, 1000px))
     var(--ai-shell-divider-track-width)
     minmax(var(--ai-shell-right-min-width, 320px), 1fr);
+}
+
+.ai-shell.ai-shell-resizable.ai-shell-expert-edit {
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(930px, 1.28fr))
+    var(--ai-shell-divider-track-width)
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
+  transition: grid-template-columns 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .ai-shell.ai-shell-resizable.ai-shell-resizing {
@@ -1248,13 +1313,13 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="video"],
 .toolbar-item[data-tool-id="sound"],
 .toolbar-item[data-tool-id="edit"] {
-  margin: 4px 0;
-  margin-bottom: 12px;
-  padding: 10px 14px;
+  margin: var(--ai-toolbar-primary-button-margin-y) 0;
+  margin-bottom: var(--ai-toolbar-primary-button-margin-bottom);
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
   border: none;
-  border-radius: 24px;
+  border-radius: var(--ai-toolbar-primary-button-radius);
   position: relative;
-  min-height: 40px;
+  min-height: var(--ai-toolbar-primary-button-min-height);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   z-index: 1;
@@ -1360,7 +1425,7 @@ body.ai-shell-resizing * {
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  padding: 10px 14px;
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
 }
 
 /* Edit button active - dual borders (dark + yellow) */
@@ -1372,7 +1437,7 @@ body.ai-shell-resizing * {
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  padding: 10px 14px;
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
 }
 
 /* Video button active - dual borders (dark + mint) */
@@ -1384,7 +1449,7 @@ body.ai-shell-resizing * {
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  padding: 10px 14px;
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
 }
 
 /* Canvas button - grayscale visual test (toolbar/panel palette) */
@@ -1395,12 +1460,12 @@ body.ai-shell-resizing * {
     rgba(201, 205, 214, 0.131) 58%,
     rgba(201, 205, 214, 0.167) 100%
   );
-  margin: 4px 0;
-  padding: 10px 14px;
+  margin: var(--ai-toolbar-primary-button-margin-y) 0;
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
   border: 1px solid rgba(201, 205, 214, 0.24);
-  border-radius: 24px;
+  border-radius: var(--ai-toolbar-primary-button-radius);
   position: relative;
-  min-height: 40px;
+  min-height: var(--ai-toolbar-primary-button-min-height);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow:
     0 6px 14px rgba(0, 0, 0, 0.28),
@@ -1438,18 +1503,18 @@ body.ai-shell-resizing * {
     0 6px 14px rgba(0, 0, 0, 0.32),
     inset 0 0 0 1px rgba(201, 205, 214, 0.22),
     inset 0 1px 0 rgba(201, 205, 214, 0.14);
-  padding: 10px 14px;
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
 }
 
 /* Sound button - cream canvas variant */
 .toolbar-item[data-tool-id="sound"] {
   background: linear-gradient(135deg, #f7ecd5 0%, #efe2c3 54%, #e7d0a2 100%);
-  margin: 4px 0;
-  padding: 10px 14px;
+  margin: var(--ai-toolbar-primary-button-margin-y) 0;
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
   border: 1px solid rgba(245, 221, 174, 0.5);
-  border-radius: 24px;
+  border-radius: var(--ai-toolbar-primary-button-radius);
   position: relative;
-  min-height: 40px;
+  min-height: var(--ai-toolbar-primary-button-min-height);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow:
     0 6px 14px rgba(34, 27, 18, 0.22),
@@ -1477,7 +1542,7 @@ body.ai-shell-resizing * {
     0 6px 14px rgba(29, 24, 16, 0.2),
     inset 0 0 0 2px rgba(70, 51, 23, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  padding: 10px 14px;
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
 }
 
 /* Keyboard focus states for accessibility */
@@ -1659,8 +1724,8 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="sound"] svg,
 .toolbar-item[data-tool-id="edit"] svg,
 .toolbar-item[data-tool-id="canvas"] svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: var(--ai-toolbar-primary-icon-size) !important;
+  height: var(--ai-toolbar-primary-icon-size) !important;
 }
 
 .toolbar-item[data-tool-id="create"] svg,
@@ -1772,8 +1837,8 @@ body.ai-shell-resizing * {
 
 .toolbar-item svg {
   color: var(--ai-accent);
-  width: 16px;
-  height: 16px;
+  width: var(--ai-toolbar-icon-size);
+  height: var(--ai-toolbar-icon-size);
 }
 
 .toolbar-item.toolbar-item-child svg {
@@ -1891,9 +1956,9 @@ body.ai-shell-resizing * {
 
 .toolbar-item.toolbar-item-secondary {
   position: relative;
-  min-height: 40px;
-  padding: 9px 12px;
-  border-radius: 12px;
+  min-height: var(--ai-toolbar-secondary-button-min-height);
+  padding: var(--ai-toolbar-secondary-button-padding-y) var(--ai-toolbar-secondary-button-padding-x);
+  border-radius: var(--ai-toolbar-secondary-button-radius);
   border: 1px solid transparent;
   background: transparent;
   color: var(--ai-toolbar-secondary-fg);

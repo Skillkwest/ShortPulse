@@ -64,12 +64,17 @@
   --ai-accent-strong: var(--edit-expert-accent-strong);
   --ai-accent-shadow: var(--edit-expert-accent-shadow);
   --edit-expert-stage-max-width: clamp(360px, 58vw, 560px);
-  --edit-expert-primary-size: clamp(352px, 33.5vw, 510px);
-  --edit-expert-side-rail-width: 154px;
-  --edit-expert-side-rail-width-left: 163px;
-  --edit-expert-side-rail-width-right: 167px;
-  --edit-expert-side-rail-gap: 18px;
-  --edit-expert-secondary-width: clamp(72px, calc(var(--app-fixed-width) * 0.09), 92px);
+  --edit-expert-primary-size: clamp(404px, 37vw, 568px);
+  --edit-expert-side-rail-width: 196px;
+  --edit-expert-side-rail-width-left: 188px;
+  --edit-expert-side-rail-width-right: 188px;
+  --edit-expert-side-rail-gap: 8px;
+  --edit-expert-secondary-width: clamp(64px, calc(var(--app-fixed-width) * 0.078), 82px);
+  --edit-expert-secondary-shell-padding: 8px;
+  --edit-expert-secondary-shell-width: calc(
+    var(--edit-expert-secondary-width) + (var(--edit-expert-secondary-shell-padding) * 2)
+  );
+  --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 24px);
   --edit-expert-secondary-aspect: 4 / 5;
   --edit-expert-secondary-border: 1px dashed rgba(160, 170, 182, 0.45);
   --edit-expert-secondary-border-hover: rgba(201, 205, 214, 0.44);

@@ -2,7 +2,15 @@
  * Workflow settings persistence hook for AI Studio state.
  * Hydrates/restores per-tool workflow preferences and persists updates to session storage.
  */
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { randomId } from "../logic/ids";
 import type { StudioMode, ToolId } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
@@ -13,9 +21,10 @@ import {
 } from "../logic/modelSelectionPolicy";
 
 export const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
+const SHARED_ASPECT_SESSION_KEY = "aiStudioSharedAspect.v1";
 const WORKFLOW_SETTINGS_PERSIST_ENABLED =
   process.env.NEXT_PUBLIC_AI_STUDIO_WORKFLOW_SETTINGS_PERSIST_ENABLED !== "false";
-const EDIT_WORKFLOW_DEFAULT_ASPECT = "1:1";
+const DEFAULT_SHARED_ASPECT = "9:16";
 
 type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
 
@@ -50,7 +59,7 @@ type WorkflowSettingsSnapshot = {
 const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   mode: "image",
   model: null,
-  aspect: "9:16",
+  aspect: DEFAULT_SHARED_ASPECT,
   imageResolution: "model_default",
   videoReferenceMode: "standard",
   videoDurationSeconds: 6,
@@ -67,16 +76,8 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
 };
 
 const resolveDefaultWorkflowSettingsForKey = (
-  key: WorkflowSettingsKey
-): WorkflowSettingsSnapshot => {
-  if (key === "edit") {
-    return {
-      ...DEFAULT_WORKFLOW_SETTINGS,
-      aspect: EDIT_WORKFLOW_DEFAULT_ASPECT,
-    };
-  }
-  return DEFAULT_WORKFLOW_SETTINGS;
-};
+  _key: WorkflowSettingsKey
+): WorkflowSettingsSnapshot => DEFAULT_WORKFLOW_SETTINGS;
 
 const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | null => {
   const workflowId = resolveWorkflowId(tool);
@@ -253,16 +254,67 @@ export const useAiStudioWorkflowSettings = ({
     Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>>
   >({});
   const previousWorkflowSettingsKeyRef = useRef<WorkflowSettingsKey | null>(null);
-  const visitedWorkflowSettingsKeysRef = useRef<Set<WorkflowSettingsKey>>(new Set());
+  const sharedAspectRef = useRef(DEFAULT_SHARED_ASPECT);
   const activeWorkflowSettingsKey = useMemo(
     () => resolveWorkflowSettingsKey(selectedTool),
     [selectedTool]
+  );
+  const currentWorkflowSnapshot = useMemo<WorkflowSettingsSnapshot>(
+    () => ({
+      mode,
+      model,
+      aspect,
+      imageResolution,
+      videoReferenceMode,
+      videoDurationSeconds,
+      videoResolution,
+      videoGenerateAudio,
+      videoCameraFixed,
+      videoAutoFix,
+      klingNegativePrompt,
+      klingCfgScale,
+      klingShotType,
+      klingVoiceIds: [...klingVoiceIds] as [string, string],
+      klingMultiPrompts: klingMultiPrompts.map((shot) => ({ ...shot })),
+      klingElements: klingElements.map((element) => ({ ...element })),
+    }),
+    [
+      aspect,
+      imageResolution,
+      klingCfgScale,
+      klingElements,
+      klingMultiPrompts,
+      klingNegativePrompt,
+      klingShotType,
+      klingVoiceIds,
+      mode,
+      model,
+      videoAutoFix,
+      videoCameraFixed,
+      videoDurationSeconds,
+      videoGenerateAudio,
+      videoReferenceMode,
+      videoResolution,
+    ]
   );
   const hasPendingWorkflowRestore =
     WORKFLOW_SETTINGS_PERSIST_ENABLED &&
     workflowSettingsHydrated &&
     Boolean(activeWorkflowSettingsKey) &&
     previousWorkflowSettingsKeyRef.current !== activeWorkflowSettingsKey;
+
+  const saveOutgoingWorkflowSnapshot = useCallback(
+    (key: WorkflowSettingsKey, preserveExistingMode: boolean) => {
+      const defaults = resolveDefaultWorkflowSettingsForKey(key);
+      const existingSnapshot =
+        workflowSettingsRef.current[key] ?? cloneWorkflowSettingsSnapshot(defaults, defaults);
+      workflowSettingsRef.current[key] = {
+        ...currentWorkflowSnapshot,
+        mode: preserveExistingMode ? existingSnapshot.mode : currentWorkflowSnapshot.mode,
+      };
+    },
+    [currentWorkflowSnapshot]
+  );
 
   useEffect(() => {
     if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
@@ -281,8 +333,20 @@ export const useAiStudioWorkflowSettings = ({
         );
       });
       workflowSettingsRef.current = next;
+      const storedSharedAspect = window.sessionStorage.getItem(SHARED_ASPECT_SESSION_KEY)?.trim();
+      const initialWorkflowKey = resolveWorkflowSettingsKey(selectedTool);
+      const initialSnapshotAspect = initialWorkflowKey ? next[initialWorkflowKey]?.aspect : null;
+      sharedAspectRef.current =
+        storedSharedAspect ||
+        initialSnapshotAspect ||
+        next.create?.aspect ||
+        next.edit?.aspect ||
+        next.video?.aspect ||
+        next.kling?.aspect ||
+        DEFAULT_SHARED_ASPECT;
     } catch {
       workflowSettingsRef.current = {};
+      sharedAspectRef.current = DEFAULT_SHARED_ASPECT;
     } finally {
       setWorkflowSettingsHydrated(true);
     }
@@ -292,16 +356,22 @@ export const useAiStudioWorkflowSettings = ({
     if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) {
+      const previous = previousWorkflowSettingsKeyRef.current;
+      if (previous) {
+        saveOutgoingWorkflowSnapshot(previous, false);
+      }
       previousWorkflowSettingsKeyRef.current = null;
       return;
     }
 
     const previous = previousWorkflowSettingsKeyRef.current;
+    if (previous && previous !== activeWorkflowSettingsKey) {
+      const preserveExistingMode =
+        activeWorkflowSettingsKey === "create" || activeWorkflowSettingsKey === "edit";
+      saveOutgoingWorkflowSnapshot(previous, preserveExistingMode);
+    }
     previousWorkflowSettingsKeyRef.current = activeWorkflowSettingsKey;
     if (previous === activeWorkflowSettingsKey) return;
-    const isFirstActivation =
-      !visitedWorkflowSettingsKeysRef.current.has(activeWorkflowSettingsKey);
-    visitedWorkflowSettingsKeysRef.current.add(activeWorkflowSettingsKey);
 
     let snapshot = workflowSettingsRef.current[activeWorkflowSettingsKey];
     if (!snapshot) {
@@ -337,16 +407,12 @@ export const useAiStudioWorkflowSettings = ({
         };
         workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
       }
-      if (isFirstActivation && snapshot.aspect !== EDIT_WORKFLOW_DEFAULT_ASPECT) {
-        snapshot = {
-          ...snapshot,
-          aspect: EDIT_WORKFLOW_DEFAULT_ASPECT,
-        };
-        workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
-      }
     }
+    const sharedAspectToApply =
+      previous == null ? sharedAspectRef.current : currentWorkflowSnapshot.aspect;
+    sharedAspectRef.current = sharedAspectToApply;
     setModelState(snapshot.model);
-    setAspect(snapshot.aspect);
+    setAspect(sharedAspectToApply);
     setImageResolution(snapshot.imageResolution);
     setVideoReferenceMode(snapshot.videoReferenceMode);
     setVideoDurationSeconds(snapshot.videoDurationSeconds);
@@ -362,6 +428,8 @@ export const useAiStudioWorkflowSettings = ({
     setKlingElements(snapshot.klingElements.map((element) => ({ ...element })));
   }, [
     activeWorkflowSettingsKey,
+    currentWorkflowSnapshot,
+    saveOutgoingWorkflowSnapshot,
     setAspect,
     setImageResolution,
     setKlingCfgScale,
@@ -386,26 +454,10 @@ export const useAiStudioWorkflowSettings = ({
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) return;
     if (hasPendingWorkflowRestore) return;
-    const snapshot: WorkflowSettingsSnapshot = {
-      mode,
-      model,
-      aspect,
-      imageResolution,
-      videoReferenceMode,
-      videoDurationSeconds,
-      videoResolution,
-      videoGenerateAudio,
-      videoCameraFixed,
-      videoAutoFix,
-      klingNegativePrompt,
-      klingCfgScale,
-      klingShotType,
-      klingVoiceIds: [...klingVoiceIds] as [string, string],
-      klingMultiPrompts: klingMultiPrompts.map((shot) => ({ ...shot })),
-      klingElements: klingElements.map((element) => ({ ...element })),
-    };
-    workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
+    workflowSettingsRef.current[activeWorkflowSettingsKey] = currentWorkflowSnapshot;
+    sharedAspectRef.current = aspect;
     if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(SHARED_ASPECT_SESSION_KEY, aspect);
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,
       JSON.stringify(workflowSettingsRef.current)
@@ -413,22 +465,8 @@ export const useAiStudioWorkflowSettings = ({
   }, [
     activeWorkflowSettingsKey,
     aspect,
+    currentWorkflowSnapshot,
     hasPendingWorkflowRestore,
-    imageResolution,
-    klingCfgScale,
-    klingElements,
-    klingMultiPrompts,
-    klingNegativePrompt,
-    klingShotType,
-    klingVoiceIds,
-    mode,
-    model,
-    videoAutoFix,
-    videoCameraFixed,
-    videoDurationSeconds,
-    videoGenerateAudio,
-    videoReferenceMode,
-    videoResolution,
     workflowSettingsHydrated,
   ]);
 

@@ -111,21 +111,28 @@ export const resolveCanvasSpacePoint = ({
   clientY,
   rect,
   sceneScale,
+  viewportOffsetX = 0,
+  viewportOffsetY = 0,
 }: {
   clientX: number;
   clientY: number;
   rect: DOMRect;
   sceneScale: number;
+  viewportOffsetX?: number;
+  viewportOffsetY?: number;
 }) => {
   const rawX = clientX - rect.left;
   const rawY = clientY - rect.top;
   if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
-    return { x: rawX, y: rawY };
+    return {
+      x: rawX - viewportOffsetX,
+      y: rawY - viewportOffsetY,
+    };
   }
   const centerX = rect.width / 2;
   const centerY = rect.height / 2;
   return {
-    x: centerX + (rawX - centerX) / sceneScale,
-    y: centerY + (rawY - centerY) / sceneScale,
+    x: centerX + (rawX - centerX - viewportOffsetX) / sceneScale,
+    y: centerY + (rawY - centerY - viewportOffsetY) / sceneScale,
   };
 };

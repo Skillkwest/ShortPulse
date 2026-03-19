@@ -57,6 +57,9 @@ type UseInpaintMaskControllerParams = {
   layerSources: InpaintLayerSource[];
   enabled: boolean;
   sceneScale: number;
+  shouldApplyViewportTransform: boolean;
+  viewportOffsetXRatio: number;
+  viewportOffsetYRatio: number;
   paintMode: InpaintPaintMode;
   selectionMode: InpaintSelectionMode;
   strokeSize: number;
@@ -231,6 +234,9 @@ export const useInpaintMaskController = ({
   layerSources,
   enabled,
   sceneScale,
+  shouldApplyViewportTransform,
+  viewportOffsetXRatio,
+  viewportOffsetYRatio,
   paintMode,
   selectionMode,
   strokeSize,
@@ -261,6 +267,17 @@ export const useInpaintMaskController = ({
     height: number;
   } | null>(null);
   const [hasSelectedLayerMask, setHasSelectedLayerMask] = React.useState(false);
+  const resolveViewportOffsets = React.useCallback(
+    (interactionRect: DOMRect) => ({
+      viewportOffsetX: shouldApplyViewportTransform
+        ? viewportOffsetXRatio * interactionRect.width
+        : 0,
+      viewportOffsetY: shouldApplyViewportTransform
+        ? viewportOffsetYRatio * interactionRect.height
+        : 0,
+    }),
+    [shouldApplyViewportTransform, viewportOffsetXRatio, viewportOffsetYRatio]
+  );
 
   const imageRect = React.useMemo(() => {
     if (!dropzoneSize.width || !dropzoneSize.height) return null;
@@ -615,12 +632,14 @@ export const useInpaintMaskController = ({
       const canvas = ensureMaskCanvasForLayer(selectedLayerId);
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      const viewportOffsets = resolveViewportOffsets(interactionRect);
       const point = resolveMaskInteractionPoint({
         sampleEvent: event,
         interactionRect,
         maskWidth: canvas.width,
         maskHeight: canvas.height,
         sceneScale,
+        ...viewportOffsets,
         clampToBounds: false,
       });
       if (!point) return;
@@ -676,6 +695,7 @@ export const useInpaintMaskController = ({
       selectionMode,
       sceneScale,
       strokeSize,
+      resolveViewportOffsets,
     ]
   );
 
@@ -690,6 +710,7 @@ export const useInpaintMaskController = ({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const events = resolvePointerSampleEvents(event.nativeEvent as PointerEvent);
+      const viewportOffsets = resolveViewportOffsets(interactionRect);
 
       if (paintMode === "lasso") {
         events.forEach((sampleEvent) => {
@@ -700,6 +721,7 @@ export const useInpaintMaskController = ({
               maskWidth: canvas.width,
               maskHeight: canvas.height,
               sceneScale,
+              ...viewportOffsets,
               clampToBounds: false,
             }) ??
             resolveMaskInteractionPoint({
@@ -708,6 +730,7 @@ export const useInpaintMaskController = ({
               maskWidth: canvas.width,
               maskHeight: canvas.height,
               sceneScale,
+              ...viewportOffsets,
               clampToBounds: true,
             });
           if (!point) return;
@@ -742,6 +765,7 @@ export const useInpaintMaskController = ({
             maskWidth: canvas.width,
             maskHeight: canvas.height,
             sceneScale,
+            ...viewportOffsets,
             clampToBounds: false,
           }) ??
           resolveMaskInteractionPoint({
@@ -750,6 +774,7 @@ export const useInpaintMaskController = ({
             maskWidth: canvas.width,
             maskHeight: canvas.height,
             sceneScale,
+            ...viewportOffsets,
             clampToBounds: true,
           });
         if (!point) return;
@@ -784,6 +809,7 @@ export const useInpaintMaskController = ({
       selectionMode,
       sceneScale,
       strokeSize,
+      resolveViewportOffsets,
     ]
   );
 

@@ -169,7 +169,7 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
-  it("forces square aspect on first edit workflow activation", async () => {
+  it("does not force square aspect on edit workflow activation when the aspect is valid", async () => {
     const setAspect = vi.fn();
     renderHook(() =>
       useAiStudioStateEffects(
@@ -182,7 +182,7 @@ describe("useAiStudioStateEffects", () => {
     );
 
     await waitFor(() => {
-      expect(setAspect).toHaveBeenCalledWith("1:1");
+      expect(setAspect).not.toHaveBeenCalled();
     });
   });
 });

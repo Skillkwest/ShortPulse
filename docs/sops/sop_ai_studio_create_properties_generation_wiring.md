@@ -71,6 +71,7 @@ sequenceDiagram
 - `useAiStudioWorkflowSettings` reads `aiStudioWorkflowSettingsByTool.v1`.
 - Create startup model uses `resolveCreateWorkflowStartupModel` precedence.
 - Edit startup model uses `resolveEditWorkflowStartupModel` precedence.
+- Aspect ratio now follows one shared AI Studio session preference across Create, Edit, and Video surfaces instead of restoring a separate per-workflow aspect value.
 6. Guard effects:
 - `useAiStudioStateEffects` clamps invalid aspect/resolution combinations and enforces video reference-mode/model compatibility transitions.
 

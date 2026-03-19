@@ -4,6 +4,7 @@
  */
 
 import {
+  getModelCatalogEntry,
   getModelPayloadValidationSpec,
   type ModelPayloadValidationSpec,
 } from "../../model-runtime/modelCatalog";
@@ -83,11 +84,18 @@ const collectKnownTopLevelFields = (spec: ModelPayloadValidationSpec): string[] 
   return [...new Set(knownFields)];
 };
 
-const resolveAllowedTopLevelFields = (spec: ModelPayloadValidationSpec): string[] => {
-  if (spec.allowedTopLevelFields?.length) {
-    return [...new Set(spec.allowedTopLevelFields)];
+const resolveAllowedTopLevelFields = (
+  modelId: string,
+  spec: ModelPayloadValidationSpec
+): string[] => {
+  const knownFields = spec.allowedTopLevelFields?.length
+    ? [...spec.allowedTopLevelFields]
+    : collectKnownTopLevelFields(spec);
+  const submitAspectField = getModelCatalogEntry(modelId)?.submitAspectField;
+  if (submitAspectField && submitAspectField !== "none") {
+    knownFields.push(submitAspectField);
   }
-  return collectKnownTopLevelFields(spec);
+  return [...new Set(knownFields)];
 };
 
 const validateSpec = (
@@ -210,7 +218,7 @@ export const evaluateFalPayloadContract = ({
     };
   }
 
-  const allowedTopLevelFields = resolveAllowedTopLevelFields(spec);
+  const allowedTopLevelFields = resolveAllowedTopLevelFields(modelId, spec);
   if (options?.enforceAllowedTopLevelFields && allowedTopLevelFields.length) {
     const unknownFields = Object.keys(payload).filter(
       (field) => !allowedTopLevelFields.includes(field)

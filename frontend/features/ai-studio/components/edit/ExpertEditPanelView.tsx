@@ -119,6 +119,7 @@ import {
   type HsvColor,
 } from "./expertEditColorUtils";
 import {
+  MARKUP_VIEWPORT_DEFAULT_SCALE,
   MARKUP_VIEWPORT_EPSILON,
   MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
   MOVE_STAGE_ZOOM_SLIDER_MAX,
@@ -288,7 +289,8 @@ const editPresetUtilityActions = [
     label: "Composite & Regenerate",
     icon: ArrowClockwise,
     iconWeight: "regular" as const,
-    buttonClassName: "edit-expert-preset-action-btn--compose-image",
+    buttonClassName:
+      "edit-expert-preset-action-btn--compose-image edit-expert-preset-action-btn--hidden",
     creditCost: null,
     hideIcon: false,
     requiresPrimaryImage: false,
@@ -296,19 +298,19 @@ const editPresetUtilityActions = [
 ] as const;
 const editLayerUtilityActions = [
   {
+    id: "flatten-image",
+    label: "Flatten Layers",
+    icon: StackSimple,
+    buttonClassName: "edit-expert-preset-action-btn--compose-image",
+    creditCost: null,
+  },
+  {
     id: "remove-background",
     label: "Remove Background",
     icon: MagicWand,
     buttonClassName:
       "edit-expert-preset-action-btn--compose-image edit-expert-preset-action-btn--remove-bg",
     creditCost: 1,
-  },
-  {
-    id: "flatten-image",
-    label: "Flatten Layers",
-    icon: StackSimple,
-    buttonClassName: "edit-expert-preset-action-btn--compose-image",
-    creditCost: null,
   },
 ] as const;
 type RailTool = "move" | "inpaint" | "video";
@@ -377,6 +379,31 @@ const MARKUP_STROKE_SIZE_MAX = 30;
 
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+const isSpaceActivationKey = (event: KeyboardEvent) =>
+  event.code === "Space" || event.key === " " || event.key === "Spacebar";
+
+const resolveValidStageRect = (rect: DOMRect | null): DOMRect | null => {
+  if (!rect) return null;
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return rect;
+};
+
+const resolveElementViewportSize = (
+  element: HTMLDivElement | null | undefined
+): StageViewportSize => {
+  if (element) {
+    const width = element.clientWidth;
+    const height = element.clientHeight;
+    if (width > 0 && height > 0) {
+      return {
+        width,
+        height,
+      };
+    }
+  }
+  return resolveStageViewportSize(resolveValidStageRect(element?.getBoundingClientRect() ?? null));
+};
 
 type MarkupHistoryState = ExpertEditMarkupHistoryState;
 
@@ -458,6 +485,7 @@ export function ExpertEditPanelView({
     htmlCursor: "",
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
+  const inlineStageWrapperRef = React.useRef<HTMLDivElement | null>(null);
   const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalControlsRef = React.useRef<HTMLDivElement | null>(null);
@@ -564,8 +592,8 @@ export function ExpertEditPanelView({
     x: 0,
     y: 0,
   });
-  const [moveStageZoomSliderValue, setMoveStageZoomSliderValue] = React.useState(
-    MOVE_STAGE_ZOOM_SLIDER_DEFAULT
+  const [moveStageZoomSliderValue, setMoveStageZoomSliderValue] = React.useState(() =>
+    resolveMoveStageZoomSliderValue(MARKUP_VIEWPORT_DEFAULT_SCALE)
   );
   const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>(() =>
     cloneMarkupStrokesSnapshot(initialSessionState.markupStrokes)
@@ -790,6 +818,8 @@ export function ExpertEditPanelView({
   );
   const isInpaintSubmitMode = effectiveEditSubmitIntent === "inpaint";
   const isMarkupSubmitMode = effectiveEditSubmitIntent === "markup";
+  const shouldHideSelectedModeRailPanel =
+    isGenerationModeToggleEnabled && effectiveEditSubmitIntent === "standard";
   const isInpaintLikeToolSelected = isInpaintToolSelected || isVideoToolSelected;
   const isMoveToolSelected = selectedRailTool === "move";
   const activeStageInteractionMode = isMoveToolSelected
@@ -815,7 +845,6 @@ export function ExpertEditPanelView({
       : "is-active-inpaint";
   const activeCollapsedRailTool =
     inpaintRailTools.find((tool) => tool.id === selectedRailTool) ?? inpaintRailTools[0];
-  const ActiveCollapsedRailToolIcon = activeCollapsedRailTool.icon;
   const sceneZoomScale = markupViewport.scale;
   const handlePromptTextChange = React.useCallback(
     (value: string) => {
@@ -1236,6 +1265,9 @@ export function ExpertEditPanelView({
     layerSources: inpaintLayerSources,
     enabled: isInpaintToolSelected,
     sceneScale: sceneZoomScale,
+    shouldApplyViewportTransform: hasPrimaryCompositePreview,
+    viewportOffsetXRatio: markupViewport.offsetXRatio,
+    viewportOffsetYRatio: markupViewport.offsetYRatio,
     paintMode: selectedInpaintMode,
     selectionMode: selectedInpaintSelectionTab,
     strokeSize: inpaintStrokeSize,
@@ -1304,14 +1336,14 @@ export function ExpertEditPanelView({
     () => parseAspectRatioToken(aspect) ?? 1,
     [aspect]
   );
-  const shouldApplyMarkupViewport = isVideoToolSelected && hasPrimaryCompositePreview;
+  const shouldApplyMarkupViewport = true;
   const primaryStageWidthScale = React.useMemo(
     () => Math.max(primaryDropzoneAspectRatioValue, 0.0001),
     [primaryDropzoneAspectRatioValue]
   );
   const primaryStageStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      width: `max(0px, min(calc(100% - ((var(--edit-expert-side-rail-width) + var(--edit-expert-side-rail-gap)) * 2)), calc(var(--edit-expert-primary-size) * ${primaryStageWidthScale})))`,
+      width: `max(0px, min(100%, calc(var(--edit-expert-primary-size) * ${primaryStageWidthScale})))`,
       height: "var(--edit-expert-primary-size)",
     }),
     [primaryStageWidthScale]
@@ -1333,6 +1365,15 @@ export function ExpertEditPanelView({
       transformOrigin: "center center",
     };
   }, [inlineStageViewportSize, markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
+
+  const inlinePrimaryStageShellStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...primaryStageStyle,
+      ...inlineMarkupViewportStyle,
+    }),
+    [inlineMarkupViewportStyle, primaryStageStyle]
+  );
+  const inlineDropzoneViewportSize = resolveElementViewportSize(primaryDropzoneRef.current);
 
   const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
     const viewportScale = shouldApplyMarkupViewport ? markupViewport.scale : sceneZoomScale;
@@ -1394,11 +1435,26 @@ export function ExpertEditPanelView({
     primaryDropzoneCursor,
   ]);
 
+  const resolveInlineStageRect = React.useCallback(
+    (currentTarget?: HTMLDivElement | null): DOMRect | null => {
+      const wrapperRect = resolveValidStageRect(
+        inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
+      );
+      if (wrapperRect) return wrapperRect;
+      const primaryDropzoneRect = resolveValidStageRect(
+        primaryDropzoneRef.current?.getBoundingClientRect() ?? null
+      );
+      if (primaryDropzoneRect) return primaryDropzoneRect;
+      return resolveValidStageRect(currentTarget?.getBoundingClientRect() ?? null);
+    },
+    []
+  );
+
   const resolveStageFlattenSnapshot = React.useCallback(() => {
     const modalStageRect = isMarkupExpandSelected
       ? (markupModalStageRef.current?.getBoundingClientRect() ?? null)
       : null;
-    const inlineStageRect = primaryDropzoneRef.current?.getBoundingClientRect() ?? null;
+    const inlineStageRect = resolveInlineStageRect();
     const activeStageRect =
       modalStageRect && modalStageRect.width > 0 && modalStageRect.height > 0
         ? modalStageRect
@@ -1422,6 +1478,7 @@ export function ExpertEditPanelView({
     isMarkupExpandSelected,
     markupViewport,
     primaryDropzoneAspectRatioValue,
+    resolveInlineStageRect,
     sceneZoomScale,
     shouldApplyMarkupViewport,
   ]);
@@ -1439,8 +1496,8 @@ export function ExpertEditPanelView({
       const effectiveStageSize =
         keyPrefix === "modal" &&
         !isResolvedStageViewportSize(resolvedStageSize) &&
-        isResolvedStageViewportSize(inlineStageViewportSize)
-          ? inlineStageViewportSize
+        isResolvedStageViewportSize(inlineDropzoneViewportSize)
+          ? inlineDropzoneViewportSize
           : resolvedStageSize;
       const stageWidth = Math.max(1, effectiveStageSize.width);
       const stageHeight = Math.max(1, effectiveStageSize.height);
@@ -1501,7 +1558,7 @@ export function ExpertEditPanelView({
         </svg>
       );
     },
-    [inlineStageViewportSize, markupStrokes]
+    [inlineDropzoneViewportSize, markupStrokes]
   );
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
@@ -2091,7 +2148,6 @@ export function ExpertEditPanelView({
   } = useExpertEditMarkupViewportController({
     markupViewport,
     shouldApplyMarkupViewport,
-    isMarkupExpandSelected,
     isMarkupPanSpacePressed,
     markupPanPointerSessionRef,
     setMoveStageZoomSliderValue,
@@ -2099,6 +2155,12 @@ export function ExpertEditPanelView({
     setIsMarkupPanDragging,
     setInlineStageViewportSize,
     setMarkupModalViewportSize,
+    resolveStageRect: (scope, currentTarget) => {
+      if (scope === "inline") {
+        return resolveInlineStageRect(currentTarget);
+      }
+      return currentTarget.getBoundingClientRect();
+    },
   });
 
   const handleRecenterMoveAction = React.useCallback(() => {
@@ -2160,7 +2222,7 @@ export function ExpertEditPanelView({
   }, [selectedLayer]);
   const isMarkupViewportAtRest = React.useMemo(
     () =>
-      Math.abs(markupViewport.scale - 1) <= MARKUP_VIEWPORT_EPSILON &&
+      Math.abs(markupViewport.scale - MARKUP_VIEWPORT_DEFAULT_SCALE) <= MARKUP_VIEWPORT_EPSILON &&
       Math.abs(markupViewport.offsetXRatio) <= MARKUP_VIEWPORT_EPSILON &&
       Math.abs(markupViewport.offsetYRatio) <= MARKUP_VIEWPORT_EPSILON,
     [markupViewport]
@@ -2199,10 +2261,10 @@ export function ExpertEditPanelView({
 
   const handleMarkupStageMiddleClickSuppress = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 1 || !isMarkupExpandSelected) return;
+      if (event.button !== 1 || !shouldApplyMarkupViewport) return;
       event.preventDefault();
     },
-    [isMarkupExpandSelected]
+    [shouldApplyMarkupViewport]
   );
 
   const {
@@ -2215,6 +2277,9 @@ export function ExpertEditPanelView({
     layers,
     selectedLayer,
     sceneZoomScale,
+    shouldApplyViewportTransform: shouldApplyMarkupViewport,
+    viewportOffsetXRatio: markupViewport.offsetXRatio,
+    viewportOffsetYRatio: markupViewport.offsetYRatio,
     transformPointerSessionRef,
     transformGestureBaselineRef,
     setLayers,
@@ -2294,34 +2359,118 @@ export function ExpertEditPanelView({
 
   const moveStageHandlers = React.useMemo(
     () => ({
-      onPointerDown: handleMovePointerDown,
-      onPointerMove: handleMovePointerMove,
-      onPointerUp: endTransformPointerSession,
-      onPointerCancel: endTransformPointerSession,
-      onPointerLeave: handleMovePointerLeave,
+      onPointerDown: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && beginMarkupPanGesture(event, context.scope)) return;
+        handleMovePointerDown(event);
+      },
+      onPointerMove: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && continueMarkupPanGesture(event)) return;
+        handleMovePointerMove(event);
+      },
+      onPointerUp: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
+        endTransformPointerSession(event);
+      },
+      onPointerCancel: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
+        endTransformPointerSession(event);
+      },
+      onPointerLeave: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && endMarkupPanGestureOnLeave(event)) return;
+        handleMovePointerLeave(event);
+      },
+      onWheel: (
+        event: React.WheelEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope !== "modal") return;
+        handleMarkupViewportWheel(event, context.scope);
+      },
     }),
     [
+      beginMarkupPanGesture,
+      continueMarkupPanGesture,
+      endMarkupPanGesture,
+      endMarkupPanGestureOnLeave,
       handleMovePointerDown,
       handleMovePointerLeave,
       handleMovePointerMove,
+      handleMarkupViewportWheel,
       endTransformPointerSession,
     ]
   );
 
   const inpaintStageHandlers = React.useMemo(
     () => ({
-      onPointerDown: handleInpaintStagePointerDown,
-      onPointerMove: handleInpaintStagePointerMove,
-      onPointerUp: handleInpaintStagePointerUp,
-      onPointerCancel: handleInpaintStagePointerCancel,
-      onPointerLeave: handleInpaintStagePointerLeave,
+      onPointerDown: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && beginMarkupPanGesture(event, context.scope)) return;
+        handleInpaintStagePointerDown(event);
+      },
+      onPointerMove: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && continueMarkupPanGesture(event)) return;
+        handleInpaintStagePointerMove(event);
+      },
+      onPointerUp: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
+        handleInpaintStagePointerUp(event);
+      },
+      onPointerCancel: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
+        handleInpaintStagePointerCancel(event);
+      },
+      onPointerLeave: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && endMarkupPanGestureOnLeave(event)) return;
+        handleInpaintStagePointerLeave(event);
+      },
+      onWheel: (
+        event: React.WheelEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope !== "modal") return;
+        handleMarkupViewportWheel(event, context.scope);
+      },
     }),
     [
+      beginMarkupPanGesture,
+      continueMarkupPanGesture,
+      endMarkupPanGesture,
+      endMarkupPanGestureOnLeave,
       handleInpaintStagePointerCancel,
       handleInpaintStagePointerDown,
       handleInpaintStagePointerLeave,
       handleInpaintStagePointerMove,
       handleInpaintStagePointerUp,
+      handleMarkupViewportWheel,
     ]
   );
 
@@ -2331,23 +2480,30 @@ export function ExpertEditPanelView({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (beginMarkupPanGesture(event, context.scope)) return;
+        if (context.scope === "modal" && beginMarkupPanGesture(event, context.scope)) return;
         beginMarkupDrawGesture(event);
       },
-      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
-        if (continueMarkupPanGesture(event)) return;
+      onPointerMove: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && continueMarkupPanGesture(event)) return;
         continueMarkupDrawGesture(event);
       },
       onPointerUp: handleMarkupStagePointerTerminal,
       onPointerCancel: handleMarkupStagePointerTerminal,
-      onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
-        if (endMarkupPanGestureOnLeave(event)) return;
+      onPointerLeave: (
+        event: React.PointerEvent<HTMLDivElement>,
+        context: { scope: "inline" | "modal" }
+      ) => {
+        if (context.scope === "modal" && endMarkupPanGestureOnLeave(event)) return;
         endMarkupDrawGestureOnLeave(event);
       },
       onWheel: (
         event: React.WheelEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
+        if (context.scope !== "modal") return;
         handleMarkupViewportWheel(event, context.scope);
       },
     }),
@@ -2379,6 +2535,62 @@ export function ExpertEditPanelView({
     inpaintHandlers: inpaintStageHandlers,
     markupHandlers: markupStageHandlers,
   });
+
+  const handleInlineStagePointerDownCapture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      if (!beginMarkupPanGesture(event, "inline")) return;
+      event.stopPropagation();
+    },
+    [beginMarkupPanGesture, isMorePresetsSurfaceOpen]
+  );
+
+  const handleInlineStagePointerMoveCapture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      if (!continueMarkupPanGesture(event)) return;
+      event.stopPropagation();
+    },
+    [continueMarkupPanGesture, isMorePresetsSurfaceOpen]
+  );
+
+  const handleInlineStagePointerUpCapture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      if (!endMarkupPanGesture(event)) return;
+      event.stopPropagation();
+    },
+    [endMarkupPanGesture, isMorePresetsSurfaceOpen]
+  );
+
+  const handleInlineStagePointerCancelCapture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      if (!endMarkupPanGesture(event)) return;
+      event.stopPropagation();
+    },
+    [endMarkupPanGesture, isMorePresetsSurfaceOpen]
+  );
+
+  const handleInlineStagePointerLeaveCapture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      if (!endMarkupPanGestureOnLeave(event)) return;
+      event.stopPropagation();
+    },
+    [endMarkupPanGestureOnLeave, isMorePresetsSurfaceOpen]
+  );
+
+  const handleInlineStageWheelCapture = React.useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpen) return;
+      handleMarkupViewportWheel(event, "inline");
+      if (event.defaultPrevented) {
+        event.stopPropagation();
+      }
+    },
+    [handleMarkupViewportWheel, isMorePresetsSurfaceOpen]
+  );
 
   const closeStageContextMenu = React.useCallback(() => {
     setStageContextMenuState((previous) =>
@@ -2799,11 +3011,11 @@ export function ExpertEditPanelView({
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== "Space") return;
+      if (!isSpaceActivationKey(event)) return;
       setIsMarkupPanSpacePressed(true);
     };
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code !== "Space") return;
+      if (!isSpaceActivationKey(event)) return;
       setIsMarkupPanSpacePressed(false);
     };
     const handleWindowBlur = () => {
@@ -2821,9 +3033,8 @@ export function ExpertEditPanelView({
 
   React.useEffect(() => {
     if (isVideoToolSelected) return;
-    clearMarkupPanGestureState();
     clearMarkupDrawGestureSession();
-  }, [clearMarkupDrawGestureSession, clearMarkupPanGestureState, isVideoToolSelected]);
+  }, [clearMarkupDrawGestureSession, isVideoToolSelected]);
 
   React.useEffect(() => {
     if (hasPrimaryCompositePreview || markupStrokes.length <= 0) return;
@@ -2917,13 +3128,11 @@ export function ExpertEditPanelView({
   }, [closeStageContextMenu, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
-    const inlineStageElement = primaryDropzoneRef.current;
+    const inlineStageElement = inlineStageWrapperRef.current;
     if (!inlineStageElement) return;
 
     const updateInlineSize = () => {
-      const nextViewportSize = resolveStageViewportSize(
-        inlineStageElement.getBoundingClientRect() ?? null
-      );
+      const nextViewportSize = resolveStageViewportSize(resolveInlineStageRect(inlineStageElement));
       setInlineStageViewportSize((previous) =>
         previous.width === nextViewportSize.width && previous.height === nextViewportSize.height
           ? previous
@@ -2948,7 +3157,7 @@ export function ExpertEditPanelView({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [aspect, hasPrimaryCompositePreview, isMarkupExpandSelected]);
+  }, [aspect, isMarkupExpandSelected, resolveInlineStageRect]);
 
   React.useEffect(() => {
     if (!isMarkupExpandSelected) {
@@ -3239,6 +3448,7 @@ export function ExpertEditPanelView({
     const parsed = parseHexColor(value);
     if (!parsed) return;
     setMarkupColorHsv(rgbToHsv(parsed));
+    setIsMarkupColorPickerOpen(false);
   }, []);
 
   const applyMarkupSaturationValueFromPointer = React.useCallback(
@@ -3286,6 +3496,7 @@ export function ExpertEditPanelView({
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
+      setIsMarkupColorPickerOpen(false);
     },
     []
   );
@@ -3660,12 +3871,116 @@ export function ExpertEditPanelView({
     return renderMoveControlsContent("modal");
   };
 
-  const renderMarkupModalInpaintPanel = () => {
+  const renderPresetUtilityActionButtons = () =>
+    editPresetUtilityActions.map((action) => {
+      const Icon = action.icon;
+      const isActionDisabled = Boolean(
+        isGenerateDisabled || (action.requiresPrimaryImage && !selectedLayerImageUrl)
+      );
+      const actionCreditCost = action.creditCost;
+      return (
+        <button
+          key={action.id}
+          type="button"
+          className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
+          aria-label={action.label}
+          disabled={isActionDisabled}
+          onClick={
+            action.id === "composite-regenerate" ? handleCompositeRegeneratePromptInsert : undefined
+          }
+        >
+          {!action.hideIcon ? (
+            <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
+              <Icon size={20} weight={action.iconWeight ?? "regular"} />
+            </span>
+          ) : null}
+          <span className="edit-expert-preset-action-btn-copy">
+            <span>{action.label}</span>
+          </span>
+          {actionCreditCost != null ? (
+            <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
+              <span className="edit-expert-preset-action-btn-cost">
+                <span className="model-chip-icon">✦</span>
+                <span className="model-chip-credits">{actionCreditCost}</span>
+              </span>
+            </span>
+          ) : null}
+        </button>
+      );
+    });
+
+  const renderLayerUtilityActionButtons = () =>
+    editLayerUtilityActions.map((action) => {
+      const Icon = action.icon;
+      const actionCreditCost = action.creditCost;
+      const isFlattenAction = action.id === FLATTEN_IMAGE_ACTION_ID;
+      const isFlattenActionPending = isFlattenAction && isFlattenPending;
+      const isActionDisabled = Boolean(
+        (action.id === REMOVE_BACKGROUND_ACTION_ID &&
+          (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
+        (isFlattenAction && (populatedLayerCount <= 0 || isFlattenPending))
+      );
+      return (
+        <button
+          key={action.id}
+          type="button"
+          className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
+          aria-label={isFlattenActionPending ? "Flattening layers" : action.label}
+          aria-busy={isFlattenActionPending || undefined}
+          disabled={isActionDisabled}
+          onClick={
+            isFlattenAction
+              ? () => void handleManualFlatten()
+              : action.id === REMOVE_BACKGROUND_ACTION_ID
+                ? handleRemoveBackground
+                : undefined
+          }
+        >
+          <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
+            {isFlattenActionPending ? (
+              <span className="edit-expert-preset-action-btn-spinner" />
+            ) : (
+              <Icon size={20} weight="regular" />
+            )}
+          </span>
+          <span className="edit-expert-preset-action-btn-copy">
+            <span>{isFlattenActionPending ? "Flattening..." : action.label}</span>
+          </span>
+          {actionCreditCost != null ? (
+            <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
+              <span className="edit-expert-preset-action-btn-cost">
+                <span className="model-chip-icon">✦</span>
+                <span className="model-chip-credits">{actionCreditCost}</span>
+              </span>
+            </span>
+          ) : null}
+        </button>
+      );
+    });
+
+  const renderLayerUtilityActions = (className = "edit-expert-layers-actions") => (
+    <div className={className} aria-label="Layer utility actions">
+      {renderLayerUtilityActionButtons()}
+    </div>
+  );
+
+  const renderMarkupModalInpaintPanel = (scope: "modal" | "rail" = "modal") => {
+    const isRailScope = scope === "rail";
     const modeIconSize = 19;
-    const strokeSizeControlId = "edit-expert-markup-modal-inpaint-stroke-size";
+    const strokeSizeControlId = `edit-expert-markup-modal-inpaint-stroke-size-${scope}`;
     return (
-      <div className="edit-expert-markup-modal-inpaint-content">
-        <div className="edit-expert-inpaint-mode-row" role="group" aria-label="In-paint tool mode">
+      <div
+        className={`edit-expert-markup-modal-inpaint-content ${
+          isRailScope ? "edit-expert-markup-modal-inpaint-content--rail" : ""
+        }`.trim()}
+      >
+        <div
+          className={`edit-expert-inpaint-mode-row ${
+            isRailScope ? "edit-expert-inpaint-mode-row--rail" : ""
+          }`.trim()}
+          role="group"
+          aria-label="In-paint tool mode"
+        >
           <button
             type="button"
             className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
@@ -3748,53 +4063,76 @@ export function ExpertEditPanelView({
               Unselect
             </button>
           </div>
-          <button
-            type="button"
-            className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-invert-btn"
-            aria-label="Invert in-paint selection"
-            onClick={invertInpaintSelectionWithHistory}
-            disabled={!imageHasInteractiveMask}
-          >
-            <CircleHalf size={18} weight="regular" />
-          </button>
+          {!isRailScope ? (
+            <button
+              type="button"
+              className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-invert-btn"
+              aria-label="Invert in-paint selection"
+              onClick={invertInpaintSelectionWithHistory}
+              disabled={!imageHasInteractiveMask}
+            >
+              <CircleHalf size={18} weight="regular" />
+            </button>
+          ) : null}
         </div>
       </div>
+    );
+  };
+
+  const renderSelectedModeRailPanel = () => {
+    const selectedModePanel =
+      selectedRailTool === "inpaint"
+        ? {
+            panelClassName: "inpaint",
+            title: "In-paint",
+            railLabel: "Left rail in-paint panel",
+            body: (
+              <div className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint edit-expert-mode-rail-panel-body edit-expert-mode-rail-panel-body--inpaint">
+                {renderMarkupModalInpaintPanel("rail")}
+              </div>
+            ),
+          }
+        : selectedRailTool === "video"
+          ? {
+              panelClassName: "markup",
+              title: "Markup",
+              railLabel: "Left rail markup panel",
+              body: (
+                <div className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--markup edit-expert-mode-rail-panel-body edit-expert-mode-rail-panel-body--markup">
+                  {renderMarkupControlsContent("modal")}
+                </div>
+              ),
+            }
+          : {
+              panelClassName: "move",
+              title: "Move",
+              railLabel: "Left rail move panel",
+              body: (
+                <div className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--move edit-expert-mode-rail-panel-body edit-expert-mode-rail-panel-body--move">
+                  {renderMoveControlsContent("modal")}
+                </div>
+              ),
+            };
+
+    return (
+      <section
+        className={`edit-expert-mode-rail-panel edit-expert-mode-rail-panel--${selectedModePanel.panelClassName}`}
+        role="group"
+        aria-label={selectedModePanel.railLabel}
+      >
+        <div className="edit-expert-mode-rail-panel-header">
+          <p className="edit-expert-mode-rail-panel-title">{selectedModePanel.title}</p>
+        </div>
+        {selectedModePanel.body}
+      </section>
     );
   };
 
   const renderLayersToolbar = (scope: "main" | "modal") => {
     const isModalScope = scope === "modal";
     const shouldShowUtilityActions = true;
-    return (
-      <div
-        ref={isModalScope ? handleMarkupModalLayersRef : undefined}
-        className={`edit-expert-layers-toolbar ${
-          isModalScope ? "edit-expert-layers-toolbar--modal" : ""
-        }`.trim()}
-        aria-label={isModalScope ? "Expanded canvas layers toolbar" : "Edit layers toolbar"}
-      >
-        {isModalScope ? (
-          <div className="edit-expert-layers-toolbar-header-row">
-            <div className="edit-expert-layers-toolbar-title-card">
-              <p className="edit-expert-layers-toolbar-title">Layers</p>
-            </div>
-            <button
-              type="button"
-              className="edit-expert-markup-modal-close-btn"
-              aria-label="Close expanded markup canvas"
-              onClick={closeMarkupModal}
-            >
-              <X size={14} weight="bold" />
-            </button>
-          </div>
-        ) : (
-          <div className="edit-expert-layers-toolbar-title-card">
-            <p className="edit-expert-layers-toolbar-title">Layers</p>
-            <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
-              <StackSimple size={14} weight="regular" />
-            </span>
-          </div>
-        )}
+    const layersToolbarBody = (
+      <>
         <div className="edit-expert-layers-toolbar-card">
           <div className="edit-expert-layers-toolbar-list">
             {layers.map((layer, index) =>
@@ -3859,57 +4197,7 @@ export function ExpertEditPanelView({
             )}
           </div>
         </div>
-        {shouldShowUtilityActions ? (
-          <div className="edit-expert-layers-actions" aria-label="Layer utility actions">
-            {editLayerUtilityActions.map((action) => {
-              const Icon = action.icon;
-              const actionCreditCost = action.creditCost;
-              const isFlattenAction = action.id === FLATTEN_IMAGE_ACTION_ID;
-              const isFlattenActionPending = isFlattenAction && isFlattenPending;
-              const isActionDisabled = Boolean(
-                (action.id === REMOVE_BACKGROUND_ACTION_ID &&
-                  (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
-                (isFlattenAction && (populatedLayerCount <= 0 || isFlattenPending))
-              );
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
-                  aria-label={isFlattenActionPending ? "Flattening layers" : action.label}
-                  aria-busy={isFlattenActionPending || undefined}
-                  disabled={isActionDisabled}
-                  onClick={
-                    isFlattenAction
-                      ? () => void handleManualFlatten()
-                      : action.id === REMOVE_BACKGROUND_ACTION_ID
-                        ? handleRemoveBackground
-                        : undefined
-                  }
-                >
-                  <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
-                    {isFlattenActionPending ? (
-                      <span className="edit-expert-preset-action-btn-spinner" />
-                    ) : (
-                      <Icon size={20} weight="regular" />
-                    )}
-                  </span>
-                  <span className="edit-expert-preset-action-btn-copy">
-                    <span>{isFlattenActionPending ? "Flattening..." : action.label}</span>
-                  </span>
-                  {actionCreditCost != null ? (
-                    <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
-                      <span className="edit-expert-preset-action-btn-cost">
-                        <span className="model-chip-icon">✦</span>
-                        <span className="model-chip-credits">{actionCreditCost}</span>
-                      </span>
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
+        {shouldShowUtilityActions && isModalScope ? renderLayerUtilityActions() : null}
         {statusToastMessage && isLayerLimitStatusToast ? (
           <div
             className={`edit-expert-stage-status-toast edit-expert-stage-status-toast--layers ${
@@ -3921,13 +4209,51 @@ export function ExpertEditPanelView({
             {statusToastMessage}
           </div>
         ) : null}
+      </>
+    );
+    return (
+      <div
+        ref={isModalScope ? handleMarkupModalLayersRef : undefined}
+        className={`edit-expert-layers-toolbar ${
+          isModalScope ? "edit-expert-layers-toolbar--modal" : ""
+        }`.trim()}
+        aria-label={isModalScope ? "Expanded canvas layers toolbar" : "Edit layers toolbar"}
+      >
+        {isModalScope ? (
+          <>
+            <div className="edit-expert-layers-toolbar-header-row">
+              <div className="edit-expert-layers-toolbar-title-card">
+                <p className="edit-expert-layers-toolbar-title">Layers</p>
+              </div>
+              <button
+                type="button"
+                className="edit-expert-markup-modal-close-btn"
+                aria-label="Close expanded markup canvas"
+                onClick={closeMarkupModal}
+              >
+                <X size={14} weight="bold" />
+              </button>
+            </div>
+            {layersToolbarBody}
+          </>
+        ) : (
+          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--right">
+            <div className="edit-expert-layers-toolbar-title-card">
+              <p className="edit-expert-layers-toolbar-title">Layers</p>
+              <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
+                <StackSimple size={14} weight="regular" />
+              </span>
+            </div>
+            {layersToolbarBody}
+          </div>
+        )}
       </div>
     );
   };
 
   return (
     <div
-      className={`tool-properties edit-expert-panel create-expert-panel ${
+      className={`tool-properties edit-expert-panel ${
         isMarkupExpandSelected ? "is-markup-modal-open" : ""
       }`.trim()}
       role="group"
@@ -3936,231 +4262,75 @@ export function ExpertEditPanelView({
       onDragOverCapture={handleMarkupModalRootDragCapture}
       onDropCapture={handleMarkupModalRootDragCapture}
     >
-      <div className="edit-expert-main-stage" style={primaryStageStyle}>
+      <div className="edit-expert-main-stage">
         <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
-          <div className="edit-expert-preset-toolbar-title-card">
-            <p className="edit-expert-preset-toolbar-title">Prompt Presets</p>
-            <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">
-              <Sliders size={14} weight="regular" />
-            </span>
-          </div>
-          <div className="edit-expert-preset-toolbar-card">
-            <div className="edit-expert-preset-toolbar-list">
-              <div
-                className={`edit-expert-preset-dropzone ${
-                  hasSelectedPresetIds ? "is-populated" : "is-empty"
-                } ${isPresetPanelDropActive ? "is-drop-active" : ""}`.trim()}
-                aria-label="Preset panel list"
-                onDragOver={handlePresetPanelDragOver}
-                onDragLeave={handlePresetPanelDragLeave}
-                onDrop={handlePresetPanelDrop}
-              >
-                {hasSelectedPresetIds ? (
-                  selectedPanelPresets.map((preset) => (
-                    <button
-                      key={preset.presetId}
-                      type="button"
-                      draggable
-                      className="edit-expert-preset-btn edit-expert-preset-btn--selected"
-                      aria-label={`Apply ${preset.label} preset`}
-                      onClick={() => handlePanelPresetApply(preset.presetId)}
-                      onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
-                      onDragEnd={handlePresetDragEnd}
-                    >
-                      {preset.label}
-                    </button>
-                  ))
-                ) : (
-                  <button
-                    type="button"
-                    className="edit-expert-preset-empty-drop"
-                    aria-label="Empty preset drop target"
-                    onClick={() => setIsMorePresetsSurfaceOpen(true)}
-                  >
-                    Drag presets here
-                  </button>
-                )}
-              </div>
-              <div className="edit-expert-preset-divider" aria-hidden="true" />
-              <button
-                type="button"
-                className="edit-expert-preset-btn"
-                aria-label={`Apply ${EDIT_PRESET_MORE_LABEL} preset`}
-                aria-expanded={isMorePresetsSurfaceOpen}
-                aria-controls={morePresetsSurfaceId}
-                onClick={toggleMorePresetsSurface}
-              >
-                <span className="edit-expert-preset-btn-icon" aria-hidden="true">
-                  <GearSix size={12} weight="regular" />
-                </span>
-                {EDIT_PRESET_MORE_LABEL}
-              </button>
+          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--left">
+            {isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel
+              ? renderSelectedModeRailPanel()
+              : null}
+            <div className="edit-expert-preset-toolbar-title-card">
+              <p className="edit-expert-preset-toolbar-title">Prompt Presets</p>
+              <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">
+                <Sliders size={14} weight="regular" />
+              </span>
             </div>
-          </div>
-          <div className="edit-expert-preset-actions" aria-label="Preset utility actions">
-            {editPresetUtilityActions.map((action) => {
-              const Icon = action.icon;
-              const isActionDisabled = Boolean(
-                isGenerateDisabled || (action.requiresPrimaryImage && !selectedLayerImageUrl)
-              );
-              const actionCreditCost = action.creditCost;
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
-                  aria-label={action.label}
-                  disabled={isActionDisabled}
-                  onClick={
-                    action.id === "composite-regenerate"
-                      ? handleCompositeRegeneratePromptInsert
-                      : undefined
-                  }
+            <div className="edit-expert-preset-toolbar-card">
+              <div className="edit-expert-preset-toolbar-list">
+                <div
+                  className={`edit-expert-preset-dropzone ${
+                    hasSelectedPresetIds ? "is-populated" : "is-empty"
+                  } ${isPresetPanelDropActive ? "is-drop-active" : ""}`.trim()}
+                  aria-label="Preset panel list"
+                  onDragOver={handlePresetPanelDragOver}
+                  onDragLeave={handlePresetPanelDragLeave}
+                  onDrop={handlePresetPanelDrop}
                 >
-                  {!action.hideIcon ? (
-                    <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
-                      <Icon size={20} weight={action.iconWeight ?? "regular"} />
-                    </span>
-                  ) : null}
-                  <span className="edit-expert-preset-action-btn-copy">
-                    <span>{action.label}</span>
-                  </span>
-                  {actionCreditCost != null ? (
-                    <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
-                      <span className="edit-expert-preset-action-btn-cost">
-                        <span className="model-chip-icon">✦</span>
-                        <span className="model-chip-credits">{actionCreditCost}</span>
-                      </span>
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {!isMarkupExpandSelected ? renderLayersToolbar("main") : null}
-
-        <div className="edit-expert-primary-stage-shell">
-          <div
-            ref={primaryDropzoneRef}
-            className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
-              isMorePresetsSurfaceOpen ? "is-presets-open" : ""
-            } ${primaryDragActive ? "is-dragging" : ""}`}
-            style={primaryDropzoneStyle}
-            onDrop={handlePrimaryDrop}
-            onDragEnter={handlePrimaryDragEnter}
-            onDragOver={handlePrimaryDragOver}
-            onDragLeave={handlePrimaryDragLeave}
-            onPointerDown={inlineStageInteractionRouter.onPointerDown}
-            onPointerMove={inlineStageInteractionRouter.onPointerMove}
-            onPointerUp={inlineStageInteractionRouter.onPointerUp}
-            onPointerCancel={inlineStageInteractionRouter.onPointerCancel}
-            onPointerLeave={inlineStageInteractionRouter.onPointerLeave}
-            onWheel={inlineStageInteractionRouter.onWheel}
-            onContextMenu={handlePrimaryDropzoneContextMenu}
-            onClick={handlePrimaryDropzoneClick}
-            onDoubleClick={handlePrimaryDropzoneDoubleClick}
-            aria-label="Primary edit image"
-            aria-busy={isPrimaryStageBusy || undefined}
-          >
-            {hasPrimaryCompositePreview ? (
-              <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle}>
-                <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
-                  {layers.map((layer, index) =>
-                    layer.imageUrl ? (
-                      <div
-                        key={layer.id}
-                        className="edit-expert-primary-layer-frame"
-                        style={{
-                          backgroundImage: `url(${layer.imageUrl})`,
-                          zIndex: layers.length - index,
-                          opacity: clampLayerOpacity(layer.opacity),
-                          transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
-                          transformOrigin: "center center",
-                        }}
-                      />
-                    ) : null
+                  {hasSelectedPresetIds ? (
+                    selectedPanelPresets.map((preset) => (
+                      <button
+                        key={preset.presetId}
+                        type="button"
+                        draggable
+                        className="edit-expert-preset-btn edit-expert-preset-btn--selected"
+                        aria-label={`Apply ${preset.label} preset`}
+                        onClick={() => handlePanelPresetApply(preset.presetId)}
+                        onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
+                        onDragEnd={handlePresetDragEnd}
+                      >
+                        {preset.label}
+                      </button>
+                    ))
+                  ) : (
+                    <button
+                      type="button"
+                      className="edit-expert-preset-empty-drop"
+                      aria-label="Empty preset drop target"
+                      onClick={() => setIsMorePresetsSurfaceOpen(true)}
+                    >
+                      Drag presets here
+                    </button>
                   )}
-                  <canvas
-                    ref={overlayCanvasRef}
-                    className="edit-expert-inpaint-overlay-canvas"
-                    aria-hidden="true"
-                  />
-                  {renderMarkupStrokeOverlay(
-                    "inline",
-                    inlineStageViewportSize,
-                    primaryDropzoneRef.current
-                  )}
-                  {isFlattenPending ? (
-                    <div
-                      className="edit-expert-primary-layer-loading-overlay"
-                      data-testid="edit-expert-flatten-loading-overlay"
-                    >
-                      <div
-                        className="edit-expert-primary-layer-loading"
-                        role="status"
-                        aria-label="Flattening layers"
-                        aria-live="polite"
-                      >
-                        <span
-                          className="edit-expert-primary-layer-loading-spinner"
-                          aria-hidden="true"
-                        />
-                        <span className="edit-expert-primary-layer-loading-text">
-                          Flattening layers...
-                        </span>
-                      </div>
-                    </div>
-                  ) : isRemoveBackgroundPending ? (
-                    <div
-                      className="edit-expert-primary-layer-loading-overlay"
-                      data-testid="edit-expert-remove-background-loading-overlay"
-                    >
-                      <div
-                        className="edit-expert-primary-layer-loading"
-                        role="status"
-                        aria-label="Removing background"
-                        aria-live="polite"
-                      >
-                        <span
-                          className="edit-expert-primary-layer-loading-spinner"
-                          aria-hidden="true"
-                        />
-                        <span className="edit-expert-primary-layer-loading-text">
-                          Removing background...
-                        </span>
-                      </div>
-                    </div>
-                  ) : isPrimaryStageGenerating ? (
-                    <div
-                      className="edit-expert-primary-layer-loading-overlay"
-                      data-testid="edit-expert-inline-generate-loading-overlay"
-                    >
-                      <div
-                        className="edit-expert-primary-layer-loading"
-                        role="status"
-                        aria-label="Generating image"
-                        aria-live="polite"
-                      >
-                        <span
-                          className="edit-expert-primary-layer-loading-spinner"
-                          aria-hidden="true"
-                        />
-                        <span className="edit-expert-primary-layer-loading-text">
-                          Generating...
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
+                <div className="edit-expert-preset-divider" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="edit-expert-preset-btn"
+                  aria-label={`Apply ${EDIT_PRESET_MORE_LABEL} preset`}
+                  aria-expanded={isMorePresetsSurfaceOpen}
+                  aria-controls={morePresetsSurfaceId}
+                  onClick={toggleMorePresetsSurface}
+                >
+                  <span className="edit-expert-preset-btn-icon" aria-hidden="true">
+                    <GearSix size={12} weight="regular" />
+                  </span>
+                  {EDIT_PRESET_MORE_LABEL}
+                </button>
               </div>
-            ) : null}
-            {hasPrimaryCompositePreview ? null : (
-              <div className="reference-drop-content image-drop-content">
-                <UploadSimple size={28} weight="regular" />
-                <p className="reference-drop-title">Click to upload an image</p>
-              </div>
-            )}
+            </div>
+            <div className="edit-expert-utility-actions" aria-label="Edit utility actions">
+              {renderPresetUtilityActionButtons()}
+              {renderLayerUtilityActionButtons()}
+            </div>
             <ExpertEditPresetsSurface
               id={morePresetsSurfaceId}
               isOpen={isMorePresetsSurfaceOpen}
@@ -4176,403 +4346,540 @@ export function ExpertEditPanelView({
             />
           </div>
         </div>
+        {!isMarkupExpandSelected ? renderLayersToolbar("main") : null}
 
-        {statusToastMessage && !isLayerLimitStatusToast ? (
-          <div
-            className={`edit-expert-stage-status-toast ${
-              statusToastTone === "warning" ? "is-warning" : "is-info"
-            } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
-            role="status"
-            aria-live="polite"
-          >
-            {statusToastMessage}
-          </div>
-        ) : null}
-
-        <div
-          className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""} ${
-            isInpaintCollapsing ? "is-collapsing" : ""
-          }`.trim()}
-        >
-          {!isInpaintCollapsed ? (
-            <div className="edit-expert-inpaint-collapse-control">
-              <button
-                type="button"
-                className={`edit-expert-inpaint-collapse-btn ${collapsedToolsThemeClass}`}
-                aria-label="Collapse inpaint controls"
-                aria-expanded={!isInpaintCollapsed}
-                aria-controls="edit-expert-inpaint-content"
-                onClick={handleInpaintCollapseToggle}
+        <div className="edit-expert-primary-column">
+          {isGenerationModeToggleEnabled ? (
+            <div className="edit-expert-primary-column-header">
+              <div
+                className="edit-expert-generation-mode-tabs"
+                role="tablist"
+                aria-label="Generation mode"
+                style={generationModeTabsStyle}
               >
-                <CaretRight size={20} weight="fill" data-testid="inpaint-collapse-icon-dots" />
-              </button>
+                <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
+                {editGenerationModeOptions.map((modeOption) => (
+                  <button
+                    key={modeOption.id}
+                    type="button"
+                    className={`edit-expert-generation-mode-tab ${
+                      effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
+                    }`}
+                    role="tab"
+                    aria-selected={effectiveEditSubmitIntent === modeOption.id}
+                    onClick={() => handleGenerationModeChange(modeOption.id)}
+                  >
+                    {modeOption.label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
           <div
-            className={`edit-expert-inpaint-wrapper ${isInpaintCollapsed ? "is-collapsed" : ""}`}
-            role="group"
-            aria-label="Inpaint controls group"
+            ref={inlineStageWrapperRef}
+            className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-stage-wrapper"
+            onPointerDownCapture={handleInlineStagePointerDownCapture}
+            onPointerMoveCapture={handleInlineStagePointerMoveCapture}
+            onPointerUpCapture={handleInlineStagePointerUpCapture}
+            onPointerCancelCapture={handleInlineStagePointerCancelCapture}
+            onPointerLeave={handleInlineStagePointerLeaveCapture}
+            onWheelCapture={handleInlineStageWheelCapture}
           >
-            {isInpaintCollapsed ? (
-              <div className="edit-expert-inpaint-collapse-control">
-                <p className="edit-expert-inpaint-collapse-title">Tools</p>
+            <div className="edit-expert-primary-stage-shell" style={inlinePrimaryStageShellStyle}>
+              <div
+                ref={primaryDropzoneRef}
+                className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
+                  isMorePresetsSurfaceOpen ? "is-presets-open" : ""
+                } ${primaryDragActive ? "is-dragging" : ""}`}
+                style={primaryDropzoneStyle}
+                onDrop={handlePrimaryDrop}
+                onDragEnter={handlePrimaryDragEnter}
+                onDragOver={handlePrimaryDragOver}
+                onDragLeave={handlePrimaryDragLeave}
+                onPointerDown={inlineStageInteractionRouter.onPointerDown}
+                onPointerMove={inlineStageInteractionRouter.onPointerMove}
+                onPointerUp={inlineStageInteractionRouter.onPointerUp}
+                onPointerCancel={inlineStageInteractionRouter.onPointerCancel}
+                onPointerLeave={inlineStageInteractionRouter.onPointerLeave}
+                onMouseDown={handleMarkupStageMiddleClickSuppress}
+                onAuxClick={handleMarkupStageMiddleClickSuppress}
+                onContextMenu={handlePrimaryDropzoneContextMenu}
+                onClick={handlePrimaryDropzoneClick}
+                onDoubleClick={handlePrimaryDropzoneDoubleClick}
+                aria-label="Primary edit image"
+                aria-busy={isPrimaryStageBusy || undefined}
+              >
+                <div className="edit-expert-markup-viewport">
+                  {hasPrimaryCompositePreview ? (
+                    <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
+                      {layers.map((layer, index) =>
+                        layer.imageUrl ? (
+                          <div
+                            key={layer.id}
+                            className="edit-expert-primary-layer-frame"
+                            style={{
+                              backgroundImage: `url(${layer.imageUrl})`,
+                              zIndex: layers.length - index,
+                              opacity: clampLayerOpacity(layer.opacity),
+                              transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
+                              transformOrigin: "center center",
+                            }}
+                          />
+                        ) : null
+                      )}
+                      <canvas
+                        ref={overlayCanvasRef}
+                        className="edit-expert-inpaint-overlay-canvas"
+                        aria-hidden="true"
+                      />
+                      {renderMarkupStrokeOverlay(
+                        "inline",
+                        inlineDropzoneViewportSize,
+                        primaryDropzoneRef.current
+                      )}
+                      {isFlattenPending ? (
+                        <div
+                          className="edit-expert-primary-layer-loading-overlay"
+                          data-testid="edit-expert-flatten-loading-overlay"
+                        >
+                          <div
+                            className="edit-expert-primary-layer-loading"
+                            role="status"
+                            aria-label="Flattening layers"
+                            aria-live="polite"
+                          >
+                            <span
+                              className="edit-expert-primary-layer-loading-spinner"
+                              aria-hidden="true"
+                            />
+                            <span className="edit-expert-primary-layer-loading-text">
+                              Flattening layers...
+                            </span>
+                          </div>
+                        </div>
+                      ) : isRemoveBackgroundPending ? (
+                        <div
+                          className="edit-expert-primary-layer-loading-overlay"
+                          data-testid="edit-expert-remove-background-loading-overlay"
+                        >
+                          <div
+                            className="edit-expert-primary-layer-loading"
+                            role="status"
+                            aria-label="Removing background"
+                            aria-live="polite"
+                          >
+                            <span
+                              className="edit-expert-primary-layer-loading-spinner"
+                              aria-hidden="true"
+                            />
+                            <span className="edit-expert-primary-layer-loading-text">
+                              Removing background...
+                            </span>
+                          </div>
+                        </div>
+                      ) : isPrimaryStageGenerating ? (
+                        <div
+                          className="edit-expert-primary-layer-loading-overlay"
+                          data-testid="edit-expert-inline-generate-loading-overlay"
+                        >
+                          <div
+                            className="edit-expert-primary-layer-loading"
+                            role="status"
+                            aria-label="Generating image"
+                            aria-live="polite"
+                          >
+                            <span
+                              className="edit-expert-primary-layer-loading-spinner"
+                              aria-hidden="true"
+                            />
+                            <span className="edit-expert-primary-layer-loading-text">
+                              Generating...
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="edit-expert-markup-viewport-empty-state">
+                      <div className="reference-drop-content image-drop-content">
+                        <UploadSimple size={28} weight="regular" />
+                        <p className="reference-drop-title">Click to upload an image</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
+            <div
+              className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""} ${
+                isInpaintCollapsing ? "is-collapsing" : ""
+              }`.trim()}
+            >
+              {isInpaintCollapsed ? (
                 <button
                   type="button"
-                  className={`edit-expert-inpaint-collapse-btn ${collapsedToolsThemeClass}`}
+                  className={`edit-expert-inpaint-collapse-btn edit-expert-inpaint-collapse-btn--hidden ${collapsedToolsThemeClass}`}
                   aria-label="Expand inpaint controls"
                   aria-expanded={!isInpaintCollapsed}
                   aria-controls="edit-expert-inpaint-content"
                   onClick={handleInpaintCollapseToggle}
                 >
-                  <span className="edit-expert-inpaint-collapse-btn-content" aria-hidden="true">
-                    <span className="edit-expert-inpaint-collapse-btn-active-tool">
-                      <ActiveCollapsedRailToolIcon size={16} weight="bold" />
-                      <span className="edit-expert-inpaint-collapse-btn-active-tool-label">
-                        {activeCollapsedRailTool.label}
-                      </span>
-                    </span>
-                  </span>
+                  {activeCollapsedRailTool.label}
                 </button>
-              </div>
-            ) : null}
-            {!isInpaintCollapsed ? (
-              <div
-                id="edit-expert-inpaint-content"
-                className={`edit-expert-inpaint-content ${isInpaintCollapsing ? "is-collapsing" : ""}`}
-              >
-                <div className="edit-expert-inpaint-tool-rail" aria-label="Inpaint action tools">
-                  <p className="edit-expert-inpaint-tool-rail-title">Select tool</p>
-                  <div className="edit-expert-inpaint-tool-rail-buttons">
-                    {inpaintRailTools.map((tool) => {
-                      const Icon = tool.icon;
-                      const isSelected = selectedRailTool === tool.id;
-                      const iconWeight = isSelected ? "bold" : "regular";
-                      return (
-                        <button
-                          key={tool.id}
-                          type="button"
-                          className={`edit-expert-inpaint-tool-rail-btn ${
-                            isSelected ? `is-selected ${tool.selectedClassName}` : ""
-                          }`.trim()}
-                          aria-pressed={isSelected}
-                          onClick={() => setSelectedRailTool(tool.id)}
-                        >
-                          <Icon size={14} weight={iconWeight} />
-                          <span>{tool.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+              ) : null}
+              {!isInpaintCollapsed ? (
+                <div className="edit-expert-inpaint-collapse-control">
+                  <button
+                    type="button"
+                    className={`edit-expert-inpaint-collapse-btn ${collapsedToolsThemeClass}`}
+                    aria-label="Collapse inpaint controls"
+                    aria-expanded={!isInpaintCollapsed}
+                    aria-controls="edit-expert-inpaint-content"
+                    onClick={handleInpaintCollapseToggle}
+                  >
+                    <CaretRight size={20} weight="fill" data-testid="inpaint-collapse-icon-dots" />
+                  </button>
                 </div>
+              ) : null}
+              {!isInpaintCollapsed ? (
                 <div
-                  className={`edit-expert-inpaint-controls ${
-                    isInpaintToolSelected ? "is-themed-inpaint" : ""
-                  } ${isVideoToolSelected ? "is-themed-video" : ""} ${
-                    isMoveToolSelected ? "is-themed-move" : ""
-                  }`.trim()}
+                  className={`edit-expert-inpaint-wrapper ${isInpaintCollapsed ? "is-collapsed" : ""}`}
                   role="group"
-                  aria-label={
-                    isInpaintLikeToolSelected
-                      ? isVideoToolSelected
-                        ? "Markup tools"
-                        : "Inpaint tools"
-                      : "Move tools"
-                  }
+                  aria-label="Inpaint controls group"
                 >
-                  {isInpaintToolSelected ? (
-                    <div className="edit-expert-inpaint-controls-content">
-                      <div className="edit-expert-inpaint-mode-row">
-                        <button
-                          type="button"
-                          className={`edit-expert-inpaint-mode-btn ${
-                            selectedInpaintMode === "brush" ? "is-active" : ""
-                          }`}
-                          aria-pressed={selectedInpaintMode === "brush"}
-                          onClick={() => setSelectedInpaintMode("brush")}
-                        >
-                          <PaintBrush size={16} weight="regular" />
-                          <span>Brush</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`edit-expert-inpaint-mode-btn ${
-                            selectedInpaintMode === "lasso" ? "is-active" : ""
-                          }`}
-                          aria-pressed={selectedInpaintMode === "lasso"}
-                          onClick={() => setSelectedInpaintMode("lasso")}
-                        >
-                          <CircleDashed size={16} weight="regular" />
-                          <span>Lasso</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="edit-expert-inpaint-mode-btn edit-expert-inpaint-expand-btn"
-                          aria-label="Expand markup tools"
-                          onClick={() => openMarkupModal("video")}
-                        >
-                          <ArrowsOutSimple size={16} weight="regular" />
-                        </button>
-                      </div>
-                      <div className="edit-expert-inpaint-stroke-row">
-                        <label
-                          className="edit-expert-inpaint-stroke-label"
-                          htmlFor="edit-expert-inpaint-stroke-size"
-                        >
-                          Stroke Size
-                        </label>
-                        <input
-                          id="edit-expert-inpaint-stroke-size"
-                          className="edit-expert-inpaint-stroke-slider"
-                          type="range"
-                          min={1}
-                          max={100}
-                          value={inpaintStrokeSize}
-                          onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
-                          onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
-                          aria-label="Stroke size"
-                        />
-                      </div>
-                      <div className="edit-expert-inpaint-selection-row">
-                        <div
-                          className="edit-expert-inpaint-select-tabs"
-                          role="tablist"
-                          aria-label="Selection mode"
-                        >
-                          <button
-                            type="button"
-                            className={`edit-expert-inpaint-select-tab ${
-                              selectedInpaintSelectionTab === "select" ? "is-active" : ""
-                            }`}
-                            role="tab"
-                            aria-selected={selectedInpaintSelectionTab === "select"}
-                            onClick={() => setSelectedInpaintSelectionTab("select")}
-                          >
-                            Select
-                          </button>
-                          <button
-                            type="button"
-                            className={`edit-expert-inpaint-select-tab ${
-                              selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
-                            }`}
-                            role="tab"
-                            aria-selected={selectedInpaintSelectionTab === "unselect"}
-                            onClick={() => setSelectedInpaintSelectionTab("unselect")}
-                          >
-                            Unselect
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          className="edit-expert-inpaint-action-btn edit-expert-inpaint-invert-btn"
-                          aria-label="Invert selection"
-                          onClick={invertInpaintSelectionWithHistory}
-                          disabled={!imageHasInteractiveMask}
-                        >
-                          <CircleHalf size={18} weight="regular" />
-                        </button>
-                        <button
-                          type="button"
-                          className="edit-expert-inpaint-action-btn edit-expert-inpaint-clear-btn"
-                          aria-label="Clear selection"
-                          onClick={clearInpaintSelectionWithHistory}
-                          disabled={!imageHasInteractiveMask}
-                        >
-                          <TrashSimple size={18} weight="regular" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : isVideoToolSelected ? (
-                    renderMarkupControlsContent("inline")
-                  ) : (
-                    renderMoveControlsContent("inline")
-                  )}
-                </div>
-              </div>
-            ) : null}
-          </div>
-          <div className="edit-expert-secondary-control">
-            <p className="edit-expert-secondary-title">Reference Images</p>
-            <div className="edit-expert-secondary-row">
-              {secondaries.map((index) => {
-                const previewUrl = extraImageUrls[index];
-                const inputRef = inputRefs[index];
-                return (
                   <div
-                    className="edit-expert-secondary-slot"
-                    key={`expert-edit-secondary-${index}`}
+                    id="edit-expert-inpaint-content"
+                    className={`edit-expert-inpaint-content ${isInpaintCollapsing ? "is-collapsing" : ""}`}
                   >
                     <div
-                      className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
-                        extraDragActive[index] ? "is-dragging" : ""
-                      }`}
-                      draggable={Boolean(previewUrl)}
-                      onDragStart={(event) => handleSecondaryPromptTokenDragStart(event, index)}
-                      onDrop={handleExtraDrop(index)}
-                      onDragEnter={handleExtraDragEnter(index)}
-                      onDragOver={handleExtraDragOver(index)}
-                      onDragLeave={handleExtraDragLeave(index)}
-                      onClick={() => inputRef.current?.click()}
-                      style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
-                      aria-label={`Secondary edit image ${index + 1}`}
+                      className="edit-expert-inpaint-tool-rail"
+                      aria-label="Inpaint action tools"
                     >
-                      {previewUrl ? (
-                        <button
-                          type="button"
-                          className="dropzone-clear"
-                          aria-label={`Remove secondary image ${index + 1}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onExtraImageChange(index, null);
-                          }}
-                        >
-                          <TrashSimple size={14} weight="regular" />
-                        </button>
+                      <p className="edit-expert-inpaint-tool-rail-title">Select tool</p>
+                      <div className="edit-expert-inpaint-tool-rail-buttons">
+                        {inpaintRailTools.map((tool) => {
+                          const Icon = tool.icon;
+                          const isSelected = selectedRailTool === tool.id;
+                          const iconWeight = isSelected ? "bold" : "regular";
+                          return (
+                            <button
+                              key={tool.id}
+                              type="button"
+                              className={`edit-expert-inpaint-tool-rail-btn ${
+                                isSelected ? `is-selected ${tool.selectedClassName}` : ""
+                              }`.trim()}
+                              aria-pressed={isSelected}
+                              onClick={() => setSelectedRailTool(tool.id)}
+                            >
+                              <Icon size={14} weight={iconWeight} />
+                              <span>{tool.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div
+                      className={`edit-expert-inpaint-controls ${
+                        isInpaintToolSelected ? "is-themed-inpaint" : ""
+                      } ${isVideoToolSelected ? "is-themed-video" : ""} ${
+                        isMoveToolSelected ? "is-themed-move" : ""
+                      }`.trim()}
+                      role="group"
+                      aria-label={
+                        isInpaintLikeToolSelected
+                          ? isVideoToolSelected
+                            ? "Markup tools"
+                            : "Inpaint tools"
+                          : "Move tools"
+                      }
+                    >
+                      {isInpaintToolSelected ? (
+                        <div className="edit-expert-inpaint-controls-content">
+                          <div className="edit-expert-inpaint-mode-row">
+                            <button
+                              type="button"
+                              className={`edit-expert-inpaint-mode-btn ${
+                                selectedInpaintMode === "brush" ? "is-active" : ""
+                              }`}
+                              aria-pressed={selectedInpaintMode === "brush"}
+                              onClick={() => setSelectedInpaintMode("brush")}
+                            >
+                              <PaintBrush size={16} weight="regular" />
+                              <span>Brush</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`edit-expert-inpaint-mode-btn ${
+                                selectedInpaintMode === "lasso" ? "is-active" : ""
+                              }`}
+                              aria-pressed={selectedInpaintMode === "lasso"}
+                              onClick={() => setSelectedInpaintMode("lasso")}
+                            >
+                              <CircleDashed size={16} weight="regular" />
+                              <span>Lasso</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="edit-expert-inpaint-mode-btn edit-expert-inpaint-expand-btn"
+                              aria-label="Expand markup tools"
+                              onClick={() => openMarkupModal("video")}
+                            >
+                              <ArrowsOutSimple size={16} weight="regular" />
+                            </button>
+                          </div>
+                          <div className="edit-expert-inpaint-stroke-row">
+                            <label
+                              className="edit-expert-inpaint-stroke-label"
+                              htmlFor="edit-expert-inpaint-stroke-size"
+                            >
+                              Stroke Size
+                            </label>
+                            <input
+                              id="edit-expert-inpaint-stroke-size"
+                              className="edit-expert-inpaint-stroke-slider"
+                              type="range"
+                              min={1}
+                              max={100}
+                              value={inpaintStrokeSize}
+                              onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
+                              onDoubleClick={() =>
+                                setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)
+                              }
+                              aria-label="Stroke size"
+                            />
+                          </div>
+                          <div className="edit-expert-inpaint-selection-row">
+                            <div
+                              className="edit-expert-inpaint-select-tabs"
+                              role="tablist"
+                              aria-label="Selection mode"
+                            >
+                              <button
+                                type="button"
+                                className={`edit-expert-inpaint-select-tab ${
+                                  selectedInpaintSelectionTab === "select" ? "is-active" : ""
+                                }`}
+                                role="tab"
+                                aria-selected={selectedInpaintSelectionTab === "select"}
+                                onClick={() => setSelectedInpaintSelectionTab("select")}
+                              >
+                                Select
+                              </button>
+                              <button
+                                type="button"
+                                className={`edit-expert-inpaint-select-tab ${
+                                  selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
+                                }`}
+                                role="tab"
+                                aria-selected={selectedInpaintSelectionTab === "unselect"}
+                                onClick={() => setSelectedInpaintSelectionTab("unselect")}
+                              >
+                                Unselect
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              className="edit-expert-inpaint-action-btn edit-expert-inpaint-invert-btn"
+                              aria-label="Invert selection"
+                              onClick={invertInpaintSelectionWithHistory}
+                              disabled={!imageHasInteractiveMask}
+                            >
+                              <CircleHalf size={18} weight="regular" />
+                            </button>
+                            <button
+                              type="button"
+                              className="edit-expert-inpaint-action-btn edit-expert-inpaint-clear-btn"
+                              aria-label="Clear selection"
+                              onClick={clearInpaintSelectionWithHistory}
+                              disabled={!imageHasInteractiveMask}
+                            >
+                              <TrashSimple size={18} weight="regular" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : isVideoToolSelected ? (
+                        renderMarkupControlsContent("inline")
                       ) : (
-                        <Plus size={18} weight="regular" />
+                        renderMoveControlsContent("inline")
                       )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-          <StylesControl
-            isOpen={isStylesPanelOpen}
-            selectedStyleId={selectedStyleId}
-            styles={stylesCatalog}
-            onToggle={handleStylesPanelToggle}
-          />
-        </div>
-      </div>
-
-      <div className="edit-expert-bottom-row">
-        <div className="edit-expert-prompt-shell">
-          <div className="edit-expert-prompt-row">
-            <div className="edit-expert-prompt-input-shell" ref={promptInputShellRef}>
-              <div
-                ref={promptHighlightRef}
-                className="edit-expert-prompt-highlight"
-                aria-hidden="true"
-              >
-                {promptHighlightSegments.map((segment, index) => (
-                  <span
-                    key={`prompt-highlight-${index}-${segment.kind}`}
-                    className={`edit-expert-prompt-highlight-segment is-${segment.kind}`}
-                  >
-                    {segment.text}
-                  </span>
-                ))}
-                <span className="edit-expert-prompt-highlight-segment edit-expert-prompt-highlight-segment--buffer">
-                  {"\n"}
-                </span>
-              </div>
-              <textarea
-                ref={promptTextareaRef}
-                className="prompt-drop-input edit-expert-prompt-input"
-                value={promptTextValue}
-                onChange={(event) => handlePromptTextChange(event.target.value)}
-                onDrop={handlePromptDropWithTokenInsert}
-                onDragOver={(event) => event.preventDefault()}
-                onScroll={handlePromptScroll}
-                placeholder="Write your prompt..."
-                aria-label="Edit prompt"
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-                data-gramm="false"
-              />
-            </div>
-          </div>
-          {promptTokenInlineError ? (
-            <p className="edit-expert-prompt-token-error" role="alert">
-              {promptTokenInlineError}
-            </p>
-          ) : null}
-        </div>
-        <div className="edit-expert-inline-generate edit-expert-inline-generate--outside">
-          <AgentGenerateButton
-            onClick={handleInlineGenerate}
-            disabled={inlineGenerateDisabled}
-            isBusy={isGenerateBusy}
-            cost={costCredits != null ? costCredits : "—"}
-          />
-        </div>
-      </div>
-      <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
-        <div className="create-expert-controls">
-          {isGenerationModeToggleEnabled ? (
-            <div
-              className="edit-expert-generation-mode-tabs"
-              role="tablist"
-              aria-label="Generation mode"
-              style={generationModeTabsStyle}
-            >
-              <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
-              {editGenerationModeOptions.map((modeOption) => (
-                <button
-                  key={modeOption.id}
-                  type="button"
-                  className={`edit-expert-generation-mode-tab ${
-                    effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
-                  }`}
-                  role="tab"
-                  aria-selected={effectiveEditSubmitIntent === modeOption.id}
-                  onClick={() => handleGenerationModeChange(modeOption.id)}
-                >
-                  {modeOption.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <div className="create-expert-control create-expert-model-control">
-            <button
-              type="button"
-              className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
-                !modelId ? "is-empty" : ""
-              } ${isModelPickerLocked ? "is-locked" : ""} ${
-                isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""
-              }`}
-              data-model-anchor="reference-model"
-              aria-label="Open model picker"
-              disabled={isModelPickerLocked}
-              onClick={(event) =>
-                onModelPickerOpen("reference-model", event.currentTarget, "reference-image")
-              }
-            >
-              {effectiveModelPickerLogoSrc ? (
-                <Image
-                  className="model-chip-logo-img"
-                  src={effectiveModelPickerLogoSrc}
-                  alt=""
-                  aria-hidden
-                  width={74}
-                  height={18}
-                  unoptimized={false}
-                />
+                </div>
               ) : null}
-              <span className="model-picker-name">{effectiveModelPickerLabel}</span>
-            </button>
-          </div>
-
-          <div className="create-expert-control create-expert-aspect-control">
-            <AspectDropdown
-              aspect={aspect}
-              onSelect={onAspectChange}
-              options={aspectOptionsForModel}
-            />
-          </div>
-
-          {shouldShowResolutionControl ? (
-            <div className="create-expert-control create-expert-resolution-control">
-              <ResolutionDropdown
-                value={imageResolutionValue}
-                options={imageResolutionOptions}
-                onSelect={onImageResolutionChange}
+              <div className="edit-expert-secondary-control">
+                <p className="edit-expert-secondary-title">Reference Images</p>
+                <div className="edit-expert-secondary-row">
+                  {secondaries.map((index) => {
+                    const previewUrl = extraImageUrls[index];
+                    const inputRef = inputRefs[index];
+                    return (
+                      <div
+                        className="edit-expert-secondary-slot"
+                        key={`expert-edit-secondary-${index}`}
+                      >
+                        <div
+                          className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
+                            extraDragActive[index] ? "is-dragging" : ""
+                          }`}
+                          draggable={Boolean(previewUrl)}
+                          onDragStart={(event) => handleSecondaryPromptTokenDragStart(event, index)}
+                          onDrop={handleExtraDrop(index)}
+                          onDragEnter={handleExtraDragEnter(index)}
+                          onDragOver={handleExtraDragOver(index)}
+                          onDragLeave={handleExtraDragLeave(index)}
+                          onClick={() => inputRef.current?.click()}
+                          style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                          aria-label={`Secondary edit image ${index + 1}`}
+                        >
+                          {previewUrl ? (
+                            <button
+                              type="button"
+                              className="dropzone-clear"
+                              aria-label={`Remove secondary image ${index + 1}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onExtraImageChange(index, null);
+                              }}
+                            >
+                              <TrashSimple size={14} weight="regular" />
+                            </button>
+                          ) : (
+                            <Plus size={18} weight="regular" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <StylesControl
+                isOpen={isStylesPanelOpen}
+                selectedStyleId={selectedStyleId}
+                styles={stylesCatalog}
+                onToggle={handleStylesPanelToggle}
               />
             </div>
-          ) : null}
+            <div className="edit-expert-bottom-row">
+              <div className="edit-expert-prompt-shell">
+                <div className="edit-expert-prompt-row">
+                  <div className="edit-expert-prompt-input-shell" ref={promptInputShellRef}>
+                    <div
+                      ref={promptHighlightRef}
+                      className="edit-expert-prompt-highlight"
+                      aria-hidden="true"
+                    >
+                      {promptHighlightSegments.map((segment, index) => (
+                        <span
+                          key={`prompt-highlight-${index}-${segment.kind}`}
+                          className={`edit-expert-prompt-highlight-segment is-${segment.kind}`}
+                        >
+                          {segment.text}
+                        </span>
+                      ))}
+                      <span className="edit-expert-prompt-highlight-segment edit-expert-prompt-highlight-segment--buffer">
+                        {"\n"}
+                      </span>
+                    </div>
+                    <textarea
+                      ref={promptTextareaRef}
+                      className="prompt-drop-input edit-expert-prompt-input"
+                      value={promptTextValue}
+                      onChange={(event) => handlePromptTextChange(event.target.value)}
+                      onDrop={handlePromptDropWithTokenInsert}
+                      onDragOver={(event) => event.preventDefault()}
+                      onScroll={handlePromptScroll}
+                      placeholder="Write your prompt..."
+                      aria-label="Edit prompt"
+                      spellCheck={false}
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      data-gramm="false"
+                    />
+                  </div>
+                </div>
+                {promptTokenInlineError ? (
+                  <p className="edit-expert-prompt-token-error" role="alert">
+                    {promptTokenInlineError}
+                  </p>
+                ) : null}
+              </div>
+              <div className="edit-expert-inline-generate edit-expert-inline-generate--outside">
+                <AgentGenerateButton
+                  onClick={handleInlineGenerate}
+                  disabled={inlineGenerateDisabled}
+                  isBusy={isGenerateBusy}
+                  cost={costCredits != null ? costCredits : "—"}
+                />
+              </div>
+            </div>
+            <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
+              <div className="create-expert-controls">
+                <div className="create-expert-control create-expert-model-control">
+                  <button
+                    type="button"
+                    className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
+                      !modelId ? "is-empty" : ""
+                    } ${isModelPickerLocked ? "is-locked" : ""} ${
+                      isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""
+                    }`}
+                    data-model-anchor="reference-model"
+                    aria-label="Open model picker"
+                    disabled={isModelPickerLocked}
+                    onClick={(event) =>
+                      onModelPickerOpen("reference-model", event.currentTarget, "reference-image")
+                    }
+                  >
+                    {effectiveModelPickerLogoSrc ? (
+                      <Image
+                        className="model-chip-logo-img"
+                        src={effectiveModelPickerLogoSrc}
+                        alt=""
+                        aria-hidden
+                        width={74}
+                        height={18}
+                        unoptimized={false}
+                      />
+                    ) : null}
+                    <span className="model-picker-name">{effectiveModelPickerLabel}</span>
+                  </button>
+                </div>
+
+                <div className="create-expert-control create-expert-aspect-control">
+                  <AspectDropdown
+                    aspect={aspect}
+                    onSelect={onAspectChange}
+                    options={aspectOptionsForModel}
+                  />
+                </div>
+
+                {shouldShowResolutionControl ? (
+                  <div className="create-expert-control create-expert-resolution-control">
+                    <ResolutionDropdown
+                      value={imageResolutionValue}
+                      options={imageResolutionOptions}
+                      onSelect={onImageResolutionChange}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {statusToastMessage && !isLayerLimitStatusToast ? (
+        <div
+          className={`edit-expert-stage-status-toast ${
+            statusToastTone === "warning" ? "is-warning" : "is-info"
+          } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
+          role="status"
+          aria-live="polite"
+        >
+          {statusToastMessage}
+        </div>
+      ) : null}
 
       <ExpertEditMarkupModalShell
         isOpen={isMarkupExpandSelected}
@@ -4582,7 +4889,7 @@ export function ExpertEditPanelView({
         stageStyle={markupModalStageStyle}
         generalPanel={renderMarkupModalGeneralPanel()}
         movePanel={renderMarkupModalMovePanel()}
-        inpaintPanel={renderMarkupModalInpaintPanel()}
+        inpaintPanel={renderMarkupModalInpaintPanel("modal")}
         markupPanel={renderMarkupControlsContent("modal")}
         stageContent={
           <div className="edit-expert-markup-viewport" style={modalMarkupViewportStyle}>

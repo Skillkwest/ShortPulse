@@ -1,5 +1,5 @@
 /**
- * Inline presets surface rendered inside the Expert Edit primary dropzone.
+ * Compact More Presets popup surface anchored to the Expert Edit preset toolbar.
  * Keeps the presets UI decoupled from global modal primitives.
  */
 import React from "react";

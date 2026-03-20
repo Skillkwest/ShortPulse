@@ -85,6 +85,23 @@ describe("expertEditStageFlatten", () => {
     });
   });
 
+  it("clamps camera scale to the shared Expert Edit viewport contract", () => {
+    expect(
+      resolveStageFlattenCameraTransform({
+        camera: { scale: 9 },
+        outputWidth: 1000,
+        outputHeight: 1000,
+      }).scale
+    ).toBe(4);
+    expect(
+      resolveStageFlattenCameraTransform({
+        camera: { scale: 0.1 },
+        outputWidth: 1000,
+        outputHeight: 1000,
+      }).scale
+    ).toBe(0.5);
+  });
+
   it("builds deterministic draw instructions with transform clamping", () => {
     const instructions = buildStageFlattenDrawPlan({
       decodedLayers: [

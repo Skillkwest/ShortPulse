@@ -2,9 +2,14 @@
  * Viewport/zoom/pan primitives for Expert Edit stage surfaces.
  */
 import type { MarkupViewportState } from "./markupStrokeController";
+import {
+  EXPERT_EDIT_CAMERA_SCALE_MAX,
+  EXPERT_EDIT_CAMERA_SCALE_MIN,
+  clampExpertEditCameraScale,
+} from "../../logic/expertEditCameraContract";
 
-export const MARKUP_VIEWPORT_SCALE_MIN = 0.5;
-export const MARKUP_VIEWPORT_SCALE_MAX = 4;
+export const MARKUP_VIEWPORT_SCALE_MIN = EXPERT_EDIT_CAMERA_SCALE_MIN;
+export const MARKUP_VIEWPORT_SCALE_MAX = EXPERT_EDIT_CAMERA_SCALE_MAX;
 export const MARKUP_VIEWPORT_DEFAULT_SCALE = 0.95;
 export const MARKUP_VIEWPORT_ZOOM_INTENSITY = 0.0018;
 export const MARKUP_VIEWPORT_EPSILON = 0.001;
@@ -82,8 +87,7 @@ export const resolveMarkupViewportOffsetPixels = (
   offsetY: viewport.offsetYRatio * viewportSize.height,
 });
 
-export const clampMarkupViewportScale = (value: number) =>
-  clampNumber(value, MARKUP_VIEWPORT_SCALE_MIN, MARKUP_VIEWPORT_SCALE_MAX);
+export const clampMarkupViewportScale = (value: number) => clampExpertEditCameraScale(value);
 
 export const resolveMoveStageZoomScale = (sliderValue: number) => {
   const clampedValue = clampNumber(

@@ -3,6 +3,7 @@
  * Produces camera-framed PNG blobs that match primary-stage semantics.
  */
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
+import { clampExpertEditCameraScale } from "./expertEditCameraContract";
 
 export type ExpertEditStageFlattenLayer = {
   imageUrl: string | null;
@@ -64,8 +65,6 @@ const DEFAULT_STAGE_FLATTEN_MIME_TYPE = "image/png";
 export const STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX = 4096;
 const STAGE_FLATTEN_MIN_SCALE = 0.2;
 const STAGE_FLATTEN_MAX_SCALE = 2;
-const STAGE_FLATTEN_CAMERA_SCALE_MIN = 0.2;
-const STAGE_FLATTEN_CAMERA_SCALE_MAX = 3;
 
 const isCrossOriginCandidate = (url: string) =>
   url.startsWith("http://") || url.startsWith("https://");
@@ -73,8 +72,7 @@ const isCrossOriginCandidate = (url: string) =>
 const clampOpacity = (value: number) => Math.min(1, Math.max(0, value));
 const clampScale = (value: number) =>
   Math.min(STAGE_FLATTEN_MAX_SCALE, Math.max(STAGE_FLATTEN_MIN_SCALE, value));
-const clampCameraScale = (value: number) =>
-  Math.min(STAGE_FLATTEN_CAMERA_SCALE_MAX, Math.max(STAGE_FLATTEN_CAMERA_SCALE_MIN, value));
+const clampCameraScale = (value: number) => clampExpertEditCameraScale(value);
 const clampOutputSize = (value: number) =>
   Math.min(STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX, Math.max(1, Math.round(value)));
 const toRadians = (value: number) => (value * Math.PI) / 180;

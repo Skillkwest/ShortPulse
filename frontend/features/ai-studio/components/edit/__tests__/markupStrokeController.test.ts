@@ -59,6 +59,32 @@ describe("markupStrokeController", () => {
     expect(point?.sceneY ?? 0).toBeCloseTo(0.05, 3);
   });
 
+  it("uses direct stage mapping when viewport transform is disabled", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+
+    const point = resolveMarkupPointerPoint({
+      clientX: 110,
+      clientY: 70,
+      rect,
+      viewport: {
+        scale: 2,
+        offsetXRatio: 0.1,
+        offsetYRatio: -0.1,
+      },
+      applyViewportTransform: false,
+    });
+
+    expect(point).toEqual({
+      sceneX: 0,
+      sceneY: 0,
+    });
+  });
+
   it("appends stroke points only after minimum movement threshold", () => {
     const stroke: MarkupStroke = {
       id: "stroke-1",

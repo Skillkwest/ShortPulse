@@ -11,6 +11,7 @@ import {
 } from "../useInpaintMaskController";
 import {
   resolveInpaintBrushPaintRadius,
+  resolveMaskInteractionPoint,
   resolveMaskExportSourceWindow,
   resolveMaskSpaceScaleFromSurface,
   resolveSceneCanvasPoint,
@@ -408,6 +409,52 @@ describe("useInpaintMaskController helpers", () => {
     expect(toClampedCanvasPoint({ clientX: 210, clientY: 120 }, rect, 0.5)).toEqual({
       x: 200,
       y: 100,
+    });
+  });
+
+  it("maps interaction points into mask space through one viewport inverse path", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+    const point = resolveMaskInteractionPoint({
+      sampleEvent: { clientX: 110, clientY: 70 },
+      interactionRect: rect,
+      maskWidth: 400,
+      maskHeight: 200,
+      sceneScale: 2,
+      viewportOffsetX: 20,
+      viewportOffsetY: -10,
+      clampToBounds: false,
+    });
+    expect(point).toEqual({
+      x: 180,
+      y: 110,
+    });
+  });
+
+  it("clamps out-of-bounds interaction samples after inverse mapping", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+    const point = resolveMaskInteractionPoint({
+      sampleEvent: { clientX: -30, clientY: 400 },
+      interactionRect: rect,
+      maskWidth: 400,
+      maskHeight: 200,
+      sceneScale: 1,
+      viewportOffsetX: 0,
+      viewportOffsetY: 0,
+      clampToBounds: true,
+    });
+    expect(point).toEqual({
+      x: 0,
+      y: 200,
     });
   });
 

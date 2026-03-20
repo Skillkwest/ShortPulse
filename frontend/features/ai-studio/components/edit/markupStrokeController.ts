@@ -6,6 +6,7 @@
 import {
   resolvePixelPointFromSceneSpace,
   resolveScenePointFromPixelSpace,
+  resolveSurfacePointFromClientPoint,
 } from "./stageSceneGeometry";
 
 export type MarkupStrokePoint = {
@@ -79,22 +80,21 @@ export const resolveMarkupPointerPoint = ({
   viewport: MarkupViewportState;
   applyViewportTransform: boolean;
 }): MarkupStrokePoint | null => {
-  if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) return null;
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  let x = clientX - rect.left;
-  let y = clientY - rect.top;
-  if (applyViewportTransform) {
-    const safeScale = Math.max(0.0001, viewport.scale);
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const viewportOffsetX = viewport.offsetXRatio * rect.width;
-    const viewportOffsetY = viewport.offsetYRatio * rect.height;
-    x = centerX + (x - centerX - viewportOffsetX) / safeScale;
-    y = centerY + (y - centerY - viewportOffsetY) / safeScale;
-  }
+  const surfacePoint = resolveSurfacePointFromClientPoint({
+    clientX,
+    clientY,
+    rect,
+    viewportTransform: {
+      scale: applyViewportTransform ? viewport.scale : 1,
+      offsetX: applyViewportTransform ? viewport.offsetXRatio * rect.width : 0,
+      offsetY: applyViewportTransform ? viewport.offsetYRatio * rect.height : 0,
+    },
+    clampToBounds: false,
+  });
+  if (!surfacePoint) return null;
   const scenePoint = resolveScenePointFromPixelSpace({
-    x,
-    y,
+    x: surfacePoint.x,
+    y: surfacePoint.y,
     spaceWidth: rect.width,
     spaceHeight: rect.height,
   });

@@ -8,11 +8,32 @@ export type ScenePoint = {
   y: number;
 };
 
+export type StageSurfacePoint = {
+  x: number;
+  y: number;
+};
+
+export type StageViewportTransform = {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+};
+
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const resolveSafeDimensions = ({ width, height }: { width: number; height: number }) => ({
   width: Math.max(1, Number.isFinite(width) ? width : 1),
   height: Math.max(1, Number.isFinite(height) ? height : 1),
+});
+
+const resolveSafeViewportTransform = ({
+  scale,
+  offsetX,
+  offsetY,
+}: StageViewportTransform): StageViewportTransform => ({
+  scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
+  offsetX: Number.isFinite(offsetX) ? offsetX : 0,
+  offsetY: Number.isFinite(offsetY) ? offsetY : 0,
 });
 
 /**
@@ -143,6 +164,104 @@ export const mapPixelRectBetweenSpacesViaScene = ({
     y: top,
     width: Math.max(0, right - left),
     height: Math.max(0, bottom - top),
+  };
+};
+
+/**
+ * Maps an untransformed stage surface point into viewport-transformed sample space.
+ */
+export const resolveViewportSamplePointFromSurfacePoint = ({
+  point,
+  viewportTransform,
+  viewportWidth,
+  viewportHeight,
+}: {
+  point: StageSurfacePoint;
+  viewportTransform: StageViewportTransform;
+  viewportWidth: number;
+  viewportHeight: number;
+}): StageSurfacePoint => {
+  const safeSize = resolveSafeDimensions({ width: viewportWidth, height: viewportHeight });
+  const safeTransform = resolveSafeViewportTransform(viewportTransform);
+  const centerX = safeSize.width / 2;
+  const centerY = safeSize.height / 2;
+  return {
+    x: centerX + safeTransform.offsetX + (point.x - centerX) * safeTransform.scale,
+    y: centerY + safeTransform.offsetY + (point.y - centerY) * safeTransform.scale,
+  };
+};
+
+/**
+ * Maps viewport-transformed sample space into untransformed stage surface space.
+ */
+export const resolveSurfacePointFromViewportSamplePoint = ({
+  point,
+  viewportTransform,
+  viewportWidth,
+  viewportHeight,
+}: {
+  point: StageSurfacePoint;
+  viewportTransform: StageViewportTransform;
+  viewportWidth: number;
+  viewportHeight: number;
+}): StageSurfacePoint => {
+  const safeSize = resolveSafeDimensions({ width: viewportWidth, height: viewportHeight });
+  const safeTransform = resolveSafeViewportTransform(viewportTransform);
+  const centerX = safeSize.width / 2;
+  const centerY = safeSize.height / 2;
+  return {
+    x: centerX + (point.x - centerX - safeTransform.offsetX) / safeTransform.scale,
+    y: centerY + (point.y - centerY - safeTransform.offsetY) / safeTransform.scale,
+  };
+};
+
+/**
+ * Maps a client-space pointer sample into stage surface space using one viewport inverse.
+ */
+export const resolveSurfacePointFromClientPoint = ({
+  clientX,
+  clientY,
+  rect,
+  viewportTransform,
+  clampToBounds = false,
+}: {
+  clientX: number;
+  clientY: number;
+  rect: DOMRect;
+  viewportTransform: StageViewportTransform;
+  clampToBounds?: boolean;
+}): StageSurfacePoint | null => {
+  if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) return null;
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const sampleX = clientX - rect.left;
+  const sampleY = clientY - rect.top;
+  if (
+    !clampToBounds &&
+    (sampleX < 0 || sampleY < 0 || sampleX > rect.width || sampleY > rect.height)
+  ) {
+    return null;
+  }
+  const boundedSamplePoint = clampToBounds
+    ? {
+        x: clamp(sampleX, 0, rect.width),
+        y: clamp(sampleY, 0, rect.height),
+      }
+    : {
+        x: sampleX,
+        y: sampleY,
+      };
+  const surfacePoint = resolveSurfacePointFromViewportSamplePoint({
+    point: boundedSamplePoint,
+    viewportTransform,
+    viewportWidth: rect.width,
+    viewportHeight: rect.height,
+  });
+  if (!clampToBounds) {
+    return surfacePoint;
+  }
+  return {
+    x: clamp(surfacePoint.x, 0, rect.width),
+    y: clamp(surfacePoint.y, 0, rect.height),
   };
 };
 

@@ -1492,13 +1492,6 @@ export function ExpertEditPanelView({
     };
   }, [inlineStageViewportSize, markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
 
-  const inlinePrimaryStageShellStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      ...primaryStageStyle,
-      ...inlineMarkupViewportStyle,
-    }),
-    [inlineMarkupViewportStyle, primaryStageStyle]
-  );
   const inlineDropzoneViewportSize = resolveElementViewportSize(primaryDropzoneRef.current);
 
   const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
@@ -1561,20 +1554,9 @@ export function ExpertEditPanelView({
     primaryDropzoneCursor,
   ]);
 
-  const resolveInlineStageRect = React.useCallback(
-    (currentTarget?: HTMLDivElement | null): DOMRect | null => {
-      const wrapperRect = resolveValidStageRect(
-        inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
-      );
-      if (wrapperRect) return wrapperRect;
-      const primaryDropzoneRect = resolveValidStageRect(
-        primaryDropzoneRef.current?.getBoundingClientRect() ?? null
-      );
-      if (primaryDropzoneRect) return primaryDropzoneRect;
-      return resolveValidStageRect(currentTarget?.getBoundingClientRect() ?? null);
-    },
-    []
-  );
+  const resolveInlineStageRect = React.useCallback((): DOMRect | null => {
+    return resolveValidStageRect(primaryDropzoneRef.current?.getBoundingClientRect() ?? null);
+  }, []);
 
   const resolveStageFlattenSnapshot = React.useCallback(() => {
     const modalStageRect = isMarkupExpandSelected
@@ -2263,7 +2245,6 @@ export function ExpertEditPanelView({
   ]);
 
   const {
-    clearMarkupPanGestureState,
     handleMoveZoomSliderChange,
     resetMarkupViewport,
     beginMarkupPanGesture,
@@ -2283,7 +2264,7 @@ export function ExpertEditPanelView({
     setMarkupModalViewportSize,
     resolveStageRect: (scope, currentTarget) => {
       if (scope === "inline") {
-        return resolveInlineStageRect(currentTarget);
+        return resolveInlineStageRect();
       }
       return currentTarget.getBoundingClientRect();
     },
@@ -3254,11 +3235,11 @@ export function ExpertEditPanelView({
   }, [closeStageContextMenu, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
-    const inlineStageElement = inlineStageWrapperRef.current;
+    const inlineStageElement = primaryDropzoneRef.current;
     if (!inlineStageElement) return;
 
     const updateInlineSize = () => {
-      const nextViewportSize = resolveStageViewportSize(resolveInlineStageRect(inlineStageElement));
+      const nextViewportSize = resolveStageViewportSize(resolveInlineStageRect());
       setInlineStageViewportSize((previous) =>
         previous.width === nextViewportSize.width && previous.height === nextViewportSize.height
           ? previous
@@ -4562,7 +4543,7 @@ export function ExpertEditPanelView({
             onPointerLeave={handleInlineStagePointerLeaveCapture}
             onWheelCapture={handleInlineStageWheelCapture}
           >
-            <div className="edit-expert-primary-stage-shell" style={inlinePrimaryStageShellStyle}>
+            <div className="edit-expert-primary-stage-shell" style={primaryStageStyle}>
               <div
                 ref={primaryDropzoneRef}
                 className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
@@ -4588,7 +4569,7 @@ export function ExpertEditPanelView({
                 aria-label="Primary edit image"
                 aria-busy={isPrimaryStageBusy || undefined}
               >
-                <div className="edit-expert-markup-viewport">
+                <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle}>
                   {hasPrimaryCompositePreview ? (
                     <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
                       <div className="edit-expert-primary-layer-content-clip">

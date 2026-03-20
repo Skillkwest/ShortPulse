@@ -1,6 +1,8 @@
 import {
   mapPixelPointBetweenSpacesViaScene,
   resolveIsotropicScaleBetweenSpaces,
+  resolveSurfacePointFromClientPoint,
+  resolveSurfacePointFromViewportSamplePoint,
 } from "./stageSceneGeometry";
 
 export type InpaintPoint = {
@@ -39,20 +41,20 @@ export const resolveSceneCanvasPoint = ({
   viewportOffsetX?: number;
   viewportOffsetY?: number;
 }): InpaintPoint => {
-  const rawX = clientX - rect.left;
-  const rawY = clientY - rect.top;
-  if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
-    return {
-      x: rawX - viewportOffsetX,
-      y: rawY - viewportOffsetY,
-    };
-  }
-  const centerX = rect.width / 2;
-  const centerY = rect.height / 2;
-  return {
-    x: centerX + (rawX - centerX - viewportOffsetX) / sceneScale,
-    y: centerY + (rawY - centerY - viewportOffsetY) / sceneScale,
+  const samplePoint = {
+    x: clientX - rect.left,
+    y: clientY - rect.top,
   };
+  return resolveSurfacePointFromViewportSamplePoint({
+    point: samplePoint,
+    viewportTransform: {
+      scale: sceneScale,
+      offsetX: viewportOffsetX,
+      offsetY: viewportOffsetY,
+    },
+    viewportWidth: rect.width,
+    viewportHeight: rect.height,
+  });
 };
 
 const toSurfaceCanvasPoint = (
@@ -62,16 +64,16 @@ const toSurfaceCanvasPoint = (
   viewportOffsetX = 0,
   viewportOffsetY = 0
 ): InpaintPoint | null => {
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
-  return resolveSceneCanvasPoint({
+  return resolveSurfacePointFromClientPoint({
     clientX: event.clientX,
     clientY: event.clientY,
     rect,
-    sceneScale,
-    viewportOffsetX,
-    viewportOffsetY,
+    viewportTransform: {
+      scale: sceneScale,
+      offsetX: viewportOffsetX,
+      offsetY: viewportOffsetY,
+    },
+    clampToBounds: false,
   });
 };
 
@@ -82,21 +84,23 @@ export const toClampedCanvasPoint = (
   viewportOffsetX = 0,
   viewportOffsetY = 0
 ): InpaintPoint => {
-  const rawX = clamp(event.clientX - rect.left, 0, rect.width);
-  const rawY = clamp(event.clientY - rect.top, 0, rect.height);
-  if (!Number.isFinite(sceneScale) || sceneScale <= 0 || sceneScale === 1) {
-    return {
-      x: clamp(rawX - viewportOffsetX, 0, rect.width),
-      y: clamp(rawY - viewportOffsetY, 0, rect.height),
-    };
+  const point = resolveSurfacePointFromClientPoint({
+    clientX: event.clientX,
+    clientY: event.clientY,
+    rect,
+    viewportTransform: {
+      scale: sceneScale,
+      offsetX: viewportOffsetX,
+      offsetY: viewportOffsetY,
+    },
+    clampToBounds: true,
+  });
+  if (point) {
+    return point;
   }
-  const centerX = rect.width / 2;
-  const centerY = rect.height / 2;
-  const sceneX = centerX + (rawX - centerX - viewportOffsetX) / sceneScale;
-  const sceneY = centerY + (rawY - centerY - viewportOffsetY) / sceneScale;
   return {
-    x: clamp(sceneX, 0, rect.width),
-    y: clamp(sceneY, 0, rect.height),
+    x: 0,
+    y: 0,
   };
 };
 

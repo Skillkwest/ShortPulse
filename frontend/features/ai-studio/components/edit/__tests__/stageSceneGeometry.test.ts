@@ -8,6 +8,9 @@ import {
   resolvePixelPointFromSceneSpace,
   resolveSceneMappedDrawRect,
   resolveScenePointFromPixelSpace,
+  resolveSurfacePointFromClientPoint,
+  resolveSurfacePointFromViewportSamplePoint,
+  resolveViewportSamplePointFromSurfacePoint,
 } from "../stageSceneGeometry";
 
 describe("stageSceneGeometry", () => {
@@ -88,5 +91,68 @@ describe("stageSceneGeometry", () => {
     expect(drawRect.width).toBeCloseTo(568.888, 2);
     expect(drawRect.height).toBeCloseTo(320, 2);
     expect(drawRect.scale).toBeCloseTo(1.777, 2);
+  });
+
+  it("round-trips viewport-transformed sample points through a single inverse", () => {
+    const surfacePoint = { x: 84.5, y: 52.25 };
+    const viewportTransform = {
+      scale: 2,
+      offsetX: 12,
+      offsetY: -8,
+    };
+    const samplePoint = resolveViewportSamplePointFromSurfacePoint({
+      point: surfacePoint,
+      viewportTransform,
+      viewportWidth: 200,
+      viewportHeight: 100,
+    });
+    const resolvedSurfacePoint = resolveSurfacePointFromViewportSamplePoint({
+      point: samplePoint,
+      viewportTransform,
+      viewportWidth: 200,
+      viewportHeight: 100,
+    });
+    expect(resolvedSurfacePoint.x).toBeCloseTo(surfacePoint.x, 6);
+    expect(resolvedSurfacePoint.y).toBeCloseTo(surfacePoint.y, 6);
+  });
+
+  it("resolves client points through viewport inverse and clamps when requested", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+    const unclamped = resolveSurfacePointFromClientPoint({
+      clientX: 60,
+      clientY: 45,
+      rect,
+      viewportTransform: {
+        scale: 0.5,
+        offsetX: 0,
+        offsetY: 0,
+      },
+      clampToBounds: false,
+    });
+    expect(unclamped).toEqual({
+      x: 0,
+      y: 0,
+    });
+
+    const clamped = resolveSurfacePointFromClientPoint({
+      clientX: -30,
+      clientY: 400,
+      rect,
+      viewportTransform: {
+        scale: 1,
+        offsetX: 0,
+        offsetY: 0,
+      },
+      clampToBounds: true,
+    });
+    expect(clamped).toEqual({
+      x: 0,
+      y: 100,
+    });
   });
 });

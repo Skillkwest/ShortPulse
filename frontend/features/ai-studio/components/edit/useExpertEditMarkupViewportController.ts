@@ -147,9 +147,12 @@ export const useExpertEditMarkupViewportController = ({
         return false;
       }
       event.preventDefault();
-      const stageRect =
-        resolveStageRect?.(scope, event.currentTarget) ??
-        event.currentTarget.getBoundingClientRect();
+      const stageRect = resolveStageRect
+        ? resolveStageRect(scope, event.currentTarget)
+        : event.currentTarget.getBoundingClientRect();
+      if (!stageRect) {
+        return false;
+      }
       if (stageRect.width <= 0 || stageRect.height <= 0) {
         return false;
       }
@@ -241,9 +244,10 @@ export const useExpertEditMarkupViewportController = ({
   const handleMarkupViewportWheel = React.useCallback(
     (event: React.WheelEvent<HTMLDivElement>, scope: ExpertEditStageScope) => {
       if (!shouldApplyMarkupViewport) return;
-      const stageRect =
-        resolveStageRect?.(scope, event.currentTarget) ??
-        event.currentTarget.getBoundingClientRect();
+      const stageRect = resolveStageRect
+        ? resolveStageRect(scope, event.currentTarget)
+        : event.currentTarget.getBoundingClientRect();
+      if (!stageRect) return;
       if (stageRect.width <= 0 || stageRect.height <= 0) return;
       event.preventDefault();
       const stageSize = syncViewportSizeByScope(scope, stageRect);

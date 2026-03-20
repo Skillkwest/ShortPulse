@@ -4,7 +4,7 @@
  */
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
-type AgentRouteTelemetryTag = "generate-prompt" | "describe-image";
+type AgentRouteTelemetryTag = "generate-prompt" | "describe-image" | "extract-style";
 
 /**
  * Emits a normalized telemetry event for a route machine outcome payload.

@@ -55,6 +55,10 @@ describe("POST /api/ai/extract-style", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
+        decision: "error",
+        outcome_class: "route_error",
+        reason_code: "REQUEST_INVALID",
+        retryable: false,
         error: "imageUrl is required",
       })
     );
@@ -95,6 +99,10 @@ describe("POST /api/ai/extract-style", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
+        decision: "allow",
+        outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
+        retryable: false,
         stylePrompt:
           "Photographic, cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
         styleTitle: "Photographic Cinematic Editorial Photography",
@@ -141,6 +149,10 @@ describe("POST /api/ai/extract-style", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
+        decision: "allow",
+        outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
+        retryable: false,
         styleTitle: "Noir Bloom",
         stylePrompt:
           "Photographic, cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
@@ -176,7 +188,51 @@ describe("POST /api/ai/extract-style", () => {
     expect(res.status).toHaveBeenCalledWith(502);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        retryable: true,
         error: "No style prompt returned",
+        fallback_reason: "stage_style_prompt_missing",
+      })
+    );
+  });
+
+  it("classifies upstream failures with normalized fallback_reason labels", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "Service unavailable",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "Service unavailable",
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/image.png" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        retryable: true,
+        fallback_reason: "upstream_unavailable",
       })
     );
   });

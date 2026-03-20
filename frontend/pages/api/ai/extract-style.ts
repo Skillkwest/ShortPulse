@@ -6,6 +6,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { applyAgentLegacyDeprecationHeaders } from "../../../features/agent-runtime/legacyDeprecation";
 import { agentRuntimeService } from "../../../features/agent-runtime/agentRuntimeService";
+import { buildAgentMachineOutcome } from "../../../features/agent-runtime/agentMachineOutcome";
 import type { StyleExtractionDiagnostics } from "../../../features/agent-runtime/legacyStyleExtractionService";
 
 const applyDiagnosticsHeaders = (
@@ -40,7 +41,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const routeLabel = "ai/extract-style";
   applyAgentLegacyDeprecationHeaders(res);
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      ...buildAgentMachineOutcome({
+        outcomeClass: "route_error",
+        reasonCode: "REQUEST_INVALID",
+      }),
+      error: "Method not allowed",
+    });
   }
 
   const user = await requireApiUser(req, res);

@@ -5,7 +5,11 @@
  */
 import { createHash } from "node:crypto";
 
-export type PromptCompilerRoute = "studio-agent" | "generate-prompt" | "describe-image";
+export type PromptCompilerRoute =
+  | "studio-agent"
+  | "generate-prompt"
+  | "describe-image"
+  | "extract-style";
 
 const normalizePromptSegment = (value: string): string =>
   value.trim().replace(/\s+/g, " ").toLowerCase();

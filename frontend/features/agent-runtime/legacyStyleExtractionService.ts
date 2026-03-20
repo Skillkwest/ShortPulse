@@ -8,6 +8,11 @@ import { loadAgentPrompt } from "../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../lib/agentPromptsConfig";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
+import {
+  buildPromptCompilerCacheScopeKey,
+  resolvePromptTemplateVersion,
+} from "./promptCompilerCacheScopeKey";
+import { emitAgentRouteOutcomeTelemetry } from "./agentRouteTelemetry";
 import { enforceLeadingHardStyleClass } from "./styleExtractionPromptPolicy";
 import {
   extractImageDescriptionText,
@@ -18,6 +23,9 @@ import {
 import { probeImageUrlForDescribe } from "../../lib/server/api/imageDescribeUrlGuard";
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
+import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
+import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
 const STYLE_EXTRACTOR_ID: AgentPromptId = "OPENAI_PROMPT_STYLE_EXTRACT";
 const DEFAULT_VISION_MODEL = "gpt-5-nano";
@@ -196,13 +204,14 @@ const isRefusalOrFallbackText = (value: string): boolean => {
 
 type LegacyStyleExtractionSuccess = {
   ok: true;
-  payload: {
+  payload: AgentMachineOutcomeFields & {
     stylePrompt: string;
     styleTitle: string;
     usage: {
       inputTokens?: number;
       outputTokens?: number;
     };
+    fallback_reason?: string;
   };
   diagnostics?: StyleExtractionDiagnostics;
 };
@@ -210,10 +219,11 @@ type LegacyStyleExtractionSuccess = {
 type LegacyStyleExtractionFailure = {
   ok: false;
   status: number;
-  payload: {
+  payload: AgentMachineOutcomeFields & {
     error: string;
     detail?: string;
     model?: string;
+    fallback_reason?: string;
   };
   diagnostics?: StyleExtractionDiagnostics;
 };
@@ -246,6 +256,46 @@ export const executeLegacyStyleExtraction = async ({
 }): Promise<LegacyStyleExtractionResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
   const systemPrompt = loadAgentPrompt(STYLE_EXTRACTOR_ID, process.env[STYLE_EXTRACTOR_ID]);
+  const promptTemplateVersion = systemPrompt
+    ? resolvePromptTemplateVersion({
+        route: "extract-style",
+        prompts: [systemPrompt],
+      })
+    : null;
+  const runtimeScopeKey = promptTemplateVersion
+    ? buildPromptCompilerCacheScopeKey({
+        route: "extract-style",
+        promptTemplateVersion,
+        policySchemaVersion: null,
+        controlPlanePolicyVersion: null,
+      })
+    : null;
+  const emitStyleRouteTelemetry = ({
+    statusCode,
+    machineOutcome,
+  }: {
+    statusCode: number;
+    machineOutcome: AgentMachineOutcomeFields;
+  }) => {
+    emitAgentRouteOutcomeTelemetry({
+      telemetryTag: "extract-style",
+      routeLabel,
+      statusCode,
+      machineOutcome,
+      policyVersion: null,
+      policySchemaVersion: null,
+      promptTemplateVersion,
+      runtimeScopeKey,
+      profileId: null,
+      modality: "image",
+      category: null,
+      decisionAction: null,
+      decisionSource: null,
+      providerBlocked: null,
+      hardFloorViolation: null,
+      rollbackTriggered: null,
+    });
+  };
 
   if (!apiKey) {
     await logGenerationFailure({
@@ -257,7 +307,22 @@ export const executeLegacyStyleExtraction = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 500, payload: { error: "OPENAI_API_KEY is not set" } };
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "CONFIG_MISSING",
+    });
+    emitStyleRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
+    return {
+      ok: false,
+      status: 500,
+      payload: {
+        ...machineOutcome,
+        error: "OPENAI_API_KEY is not set",
+      },
+    };
   }
 
   if (!systemPrompt) {
@@ -270,10 +335,21 @@ export const executeLegacyStyleExtraction = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "CONFIG_MISSING",
+    });
+    emitStyleRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 500,
-      payload: { error: `${STYLE_EXTRACTOR_ID} is not set` },
+      payload: {
+        ...machineOutcome,
+        error: `${STYLE_EXTRACTOR_ID} is not set`,
+      },
     };
   }
 
@@ -287,7 +363,22 @@ export const executeLegacyStyleExtraction = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 400, payload: { error: "imageUrl is required" } };
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "REQUEST_INVALID",
+    });
+    emitStyleRouteTelemetry({
+      statusCode: 400,
+      machineOutcome,
+    });
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        ...machineOutcome,
+        error: "imageUrl is required",
+      },
+    };
   }
 
   try {
@@ -317,10 +408,26 @@ export const executeLegacyStyleExtraction = async ({
           total_ms: normalizeDuration(Date.now() - extractionStartedAt),
         },
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "route_error",
+        reasonCode: "REQUEST_INVALID",
+      });
+      emitStyleRouteTelemetry({
+        statusCode: imageProbe.statusCode,
+        machineOutcome,
+      });
       return {
         ok: false,
         status: imageProbe.statusCode,
-        payload: { error: imageProbe.message, detail: imageProbe.detail },
+        payload: {
+          ...machineOutcome,
+          error: imageProbe.message,
+          detail: imageProbe.detail,
+          fallback_reason: resolveStudioAgentFallbackReasonLabel({
+            status: imageProbe.statusCode,
+            detail: imageProbe.detail ?? imageProbe.message,
+          }),
+        },
         diagnostics: {
           attemptCount: null,
           probeMs,
@@ -376,6 +483,10 @@ export const executeLegacyStyleExtraction = async ({
     if (!extractionAttempt.ok) {
       const detail = extractionAttempt.detail;
       const modelUsedForFailure = extractionAttempt.model;
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        status: extractionAttempt.status,
+        detail,
+      });
       await logGenerationFailure({
         req,
         routeLabel,
@@ -395,12 +506,22 @@ export const executeLegacyStyleExtraction = async ({
           total_ms: normalizeDuration(Date.now() - extractionStartedAt),
         },
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "upstream_error",
+        reasonCode: "UPSTREAM_ERROR",
+      });
+      emitStyleRouteTelemetry({
+        statusCode: extractionAttempt.status,
+        machineOutcome,
+      });
       return {
         ok: false,
         status: extractionAttempt.status,
         payload: {
+          ...machineOutcome,
           error: "Upstream error",
           detail,
+          fallback_reason: fallbackReason,
           ...(extractionAttempt.status < 500 && modelUsedForFailure
             ? { model: modelUsedForFailure }
             : {}),
@@ -445,12 +566,26 @@ export const executeLegacyStyleExtraction = async ({
           model: modelUsed,
         },
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "upstream_error",
+        reasonCode: "UPSTREAM_ERROR",
+      });
+      emitStyleRouteTelemetry({
+        statusCode: 502,
+        machineOutcome,
+      });
       return {
         ok: false,
         status: 502,
         payload: {
+          ...machineOutcome,
           error: "No style prompt returned",
           detail: "Unable to extract style descriptors from the provided image.",
+          fallback_reason: resolveStudioAgentFallbackReasonLabel({
+            stage: "style_prompt_missing",
+            status: 502,
+            detail: extractedText ?? "No style prompt returned",
+          }),
         },
         diagnostics: {
           attemptCount,
@@ -469,10 +604,19 @@ export const executeLegacyStyleExtraction = async ({
         : {};
     const promptTokens = usage.prompt_tokens;
     const completionTokens = usage.completion_tokens;
+    const successOutcome = buildAgentMachineOutcome({
+      outcomeClass: "success_prompt",
+      reasonCode: "SUCCESS_PROMPT",
+    });
+    emitStyleRouteTelemetry({
+      statusCode: 200,
+      machineOutcome: successOutcome,
+    });
 
     return {
       ok: true,
       payload: {
+        ...successOutcome,
         stylePrompt,
         styleTitle,
         usage: {
@@ -490,6 +634,7 @@ export const executeLegacyStyleExtraction = async ({
       },
     };
   } catch (error) {
+    const detail = String(error);
     await logGenerationFailure({
       req,
       routeLabel,
@@ -500,13 +645,27 @@ export const executeLegacyStyleExtraction = async ({
       userId: user.id,
       userEmail: user.email ?? null,
       metadata: {
-        detail: String(error),
+        detail,
       },
+    });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "upstream_error",
+      reasonCode: "UPSTREAM_ERROR",
+    });
+    emitStyleRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
     });
     return {
       ok: false,
       status: 500,
-      payload: { error: "Style extraction failed" },
+      payload: {
+        ...machineOutcome,
+        error: "Style extraction failed",
+        fallback_reason: resolveStudioAgentFallbackReasonLabel({
+          detail,
+        }),
+      },
     };
   }
 };

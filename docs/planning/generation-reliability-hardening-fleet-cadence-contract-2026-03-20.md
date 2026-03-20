@@ -1,32 +1,32 @@
 # Generation Reliability Hardening Fleet Cadence Contract (2026-03-20)
 
 Last updated: 2026-03-20  
-Status: Active (planning target-state contract; implementation ready)  
+Status: Active (hourly cadence implemented; rollback contract active)  
 Program anchor: docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md
 
 ## Purpose
-Define one canonical current-state and target-state contract for admin fleet scheduler cadence so hourly rollout planning is explicit and reversible.
+Define one canonical implemented-state and rollback contract for admin fleet scheduler cadence so hourly operation remains explicit and reversible.
 
 ## Cadence States
 Current state (authoritative runtime today):
-1. Job name: shortpulse_admin_user_health_fleet_daily
-2. Schedule: 0 4 * * * (daily at 04:00 UTC)
+1. Job name: shortpulse_admin_user_health_fleet_hourly
+2. Schedule: 0 * * * * (hourly at minute 0 UTC)
 3. Script authority: sql/configure_admin_user_health_fleet_scheduler_supabase.sql
 4. Ops docs: docs/deployment.md, docs/sops/sop_admin_user_health_fleet_operations.md, docs/monitoring.md, docs/operator-map.md
 
-Target state (planned, not implemented yet):
-1. Fleet scan cadence target: 0 * * * * (hourly)
-2. Scheduler ownership remains Supabase pg_cron + Vault.
-3. Recovery scheduler remains high-frequency (every minute) and is explicitly non-regressing in this program.
-4. Rollout only after R2 policy slices are complete and implementation-entry checklist passes.
+Rollback baseline (if hourly is rolled back):
+1. Job name: shortpulse_admin_user_health_fleet_daily
+2. Schedule: 0 4 * * * (daily at 04:00 UTC)
+3. Scheduler ownership remains Supabase pg_cron + Vault.
+4. Recovery scheduler remains high-frequency (every minute) and is explicitly non-regressing in this program.
 
-## Implementation Preconditions
-All must be true before any cadence change:
+## Implementation Preconditions (Historical Gate For Rollout)
+All were required before cadence promotion to hourly:
 1. R1 control-plane diagnostics contract is completed with canonical missing/inactive/failing/stalled checks.
 2. R2 scheduler policy slices R2-S1 through R2-S4 are completed or waived with risk rationale.
 3. Route parity check passes for the target deployment alias.
 4. Secret rotation contract is verified for cron auth paths.
-5. Baseline evidence packet includes current daily run health and runtime duration percentiles.
+5. Baseline evidence packet includes pre-change run health and runtime duration percentiles.
 
 ## Promote/Hold/Rollback Contract
 Promote to hourly only when:
@@ -50,6 +50,7 @@ Required evidence packet for cadence transition:
 2. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-s2-recovery-cadence-guardrail.md
 3. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-s3-scheduler-secret-rotation-contract.md
 4. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-s4-route-parity-precondition.md
+5. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-i1-hourly-fleet-cadence-implementation.md
 
 Validation gates:
 1. npm -C frontend run docs:check

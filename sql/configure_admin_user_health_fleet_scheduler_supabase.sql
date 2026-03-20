@@ -1,6 +1,6 @@
 -- Configure Supabase Cron for admin user-health fleet scans.
--- Current default schedule in this script is daily (04:00 UTC).
--- Hourly target cadence is tracked in planning contract:
+-- Current default schedule in this script is hourly.
+-- Cadence contract authority:
 -- docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md
 -- This is an environment-level ops script (not a schema migration).
 --
@@ -182,25 +182,27 @@ declare
   v_existing_job_id bigint;
   v_new_job_id bigint;
 begin
-  select j.jobid
-    into v_existing_job_id
-  from cron.job j
-  where j.jobname = 'shortpulse_admin_user_health_fleet_daily'
-  limit 1;
-
-  if v_existing_job_id is not null then
+  -- Unschedule any legacy fleet jobs to avoid duplicates during cadence transition.
+  for v_existing_job_id in
+    select j.jobid
+    from cron.job j
+    where j.jobname in (
+      'shortpulse_admin_user_health_fleet_daily',
+      'shortpulse_admin_user_health_fleet_hourly'
+    )
+  loop
     perform cron.unschedule(v_existing_job_id);
-  end if;
+  end loop;
 
-  -- Daily at 04:00 UTC.
+  -- Hourly at minute 0 UTC.
   select cron.schedule(
-    'shortpulse_admin_user_health_fleet_daily',
-    '0 4 * * *',
+    'shortpulse_admin_user_health_fleet_hourly',
+    '0 * * * *',
     'select public.invoke_admin_user_health_fleet_scheduler();'
   )
     into v_new_job_id;
 
-  raise notice 'Scheduled job shortpulse_admin_user_health_fleet_daily with jobid=%', v_new_job_id;
+  raise notice 'Scheduled job shortpulse_admin_user_health_fleet_hourly with jobid=%', v_new_job_id;
 end;
 $$;
 
@@ -215,12 +217,12 @@ $$;
 --
 -- select jobid, jobname, schedule, command, active
 -- from cron.job
--- where jobname = 'shortpulse_admin_user_health_fleet_daily';
+-- where jobname = 'shortpulse_admin_user_health_fleet_hourly';
 --
 -- select jobid, status, start_time, end_time, return_message
 -- from cron.job_run_details
 -- where jobid = (
---   select jobid from cron.job where jobname = 'shortpulse_admin_user_health_fleet_daily'
+--   select jobid from cron.job where jobname = 'shortpulse_admin_user_health_fleet_hourly'
 -- )
 -- order by start_time desc
 -- limit 20;
@@ -232,7 +234,10 @@ $$;
 -- begin
 --   select jobid into v_job_id
 --   from cron.job
---   where jobname = 'shortpulse_admin_user_health_fleet_daily'
+--   where jobname in (
+--     'shortpulse_admin_user_health_fleet_hourly',
+--     'shortpulse_admin_user_health_fleet_daily'
+--   )
 --   limit 1;
 --
 --   if v_job_id is not null then

@@ -77,3 +77,4 @@ Runtime implementation slices are gated until:
 15. Finalized all remaining reliability evidence packets and removed placeholder packet content for `R0-S3`, `R1-S3`, `R2-S3`, `R2-S4`, `R3-S3`, `R3-S4`, `R4-S3`, `R4-S4`, `R5-S3`, `R5-S4`, `R6-S3`, and `R6-S4`.
 16. Marked all master rows `R-M01` through `R-M12` as `Completed` with linked evidence.
 17. Transitioned tracker state to planning-complete and implementation-ready pending execution kickoff.
+18. Implementation slice `R2-I1` applied: fleet scheduler cadence moved to hourly (`shortpulse_admin_user_health_fleet_hourly`, `0 * * * *`) with daily rollback baseline preserved; evidence: `docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-i1-hourly-fleet-cadence-implementation.md`.

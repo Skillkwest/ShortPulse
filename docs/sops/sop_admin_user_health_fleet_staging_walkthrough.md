@@ -160,12 +160,12 @@ Success criteria:
 ```sql
 select jobid, jobname, schedule, command, active
 from cron.job
-where jobname = 'shortpulse_admin_user_health_fleet_daily';
+where jobname = 'shortpulse_admin_user_health_fleet_hourly';
 ```
 
 Expected:
 - `active = true`
-- `schedule = '0 4 * * *'` (daily 04:00 UTC).
+- `schedule = '0 * * * *'` (hourly at minute 0 UTC).
 
 ## Step 9: Verify cron history after scheduled tick
 ```sql
@@ -173,7 +173,7 @@ select jobid, status, start_time, end_time, return_message
 from cron.job_run_details
 where jobid = (
   select jobid from cron.job
-  where jobname = 'shortpulse_admin_user_health_fleet_daily'
+  where jobname = 'shortpulse_admin_user_health_fleet_hourly'
 )
 order by start_time desc
 limit 20;

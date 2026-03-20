@@ -308,8 +308,8 @@ Notes:
 ## Admin fleet scheduler (Supabase Cron)
 
 Use Supabase Cron for the admin fleet-health scan route.
-Current state: daily cadence.  
-Planned target state (reliability program `R2`): hourly cadence after gated implementation approval.
+Current state: hourly cadence (implemented).  
+Prior baseline: daily cadence (`0 4 * * *`) retained as rollback target.
 
 1. Set `SHORTPULSE_USER_HEALTH_FLEET_ENABLED=true` and configure:
    - `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
@@ -321,7 +321,7 @@ Planned target state (reliability program `R2`): hourly cadence after gated impl
    ```sql
    select jobid, jobname, schedule, command, active
    from cron.job
-   where jobname = 'shortpulse_admin_user_health_fleet_daily';
+   where jobname = 'shortpulse_admin_user_health_fleet_hourly';
    ```
 5. Verify recent execution outcomes:
    ```sql
@@ -330,7 +330,7 @@ Planned target state (reliability program `R2`): hourly cadence after gated impl
    where jobid = (
      select jobid
      from cron.job
-     where jobname = 'shortpulse_admin_user_health_fleet_daily'
+     where jobname = 'shortpulse_admin_user_health_fleet_hourly'
    )
    order by start_time desc
    limit 20;
@@ -340,8 +340,8 @@ Notes:
 - Vercel Cron is not required for this route.
 - Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with generation-recovery operations.
 - Cadence contract authority:
-  - current: `0 4 * * *` (daily),
-  - target (planned, not yet active): `0 * * * *` (hourly),
+  - current: `0 * * * *` (hourly),
+  - rollback baseline: `0 4 * * *` (daily),
   - see `docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`.
 
 ### Methodical drain cycle (operations)

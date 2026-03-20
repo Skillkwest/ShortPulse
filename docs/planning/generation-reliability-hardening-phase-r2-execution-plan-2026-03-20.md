@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Engineering  
-Status: Planning Complete (implementation ready; no runtime changes started)
+Status: Planning Complete (implementation in progress; runtime changes started)
 
 ## Summary
 Phase `R2` hardens scheduler policy and operations contracts.

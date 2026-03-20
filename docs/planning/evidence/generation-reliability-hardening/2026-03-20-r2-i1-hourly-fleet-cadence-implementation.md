@@ -55,7 +55,7 @@
 2. Execute next slice for R1 control-plane diagnostics automation and alert thresholds.
 
 ## Linked PR Or Commit
-- linked_pr_or_commit: working-tree (pending commit)
+- linked_pr_or_commit: `7b0ec0cd`
 
 ## References
 1. docs/planning/generation-reliability-hardening-phase-r2-execution-plan-2026-03-20.md

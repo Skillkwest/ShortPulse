@@ -54,7 +54,7 @@
 2. Wire alert-threshold automation from these outputs in a subsequent control-plane slice.
 
 ## Linked PR Or Commit
-- linked_pr_or_commit: working-tree (pending commit)
+- linked_pr_or_commit: `ba2e7668`
 
 ## References
 1. docs/planning/generation-reliability-hardening-phase-r1-execution-plan-2026-03-20.md

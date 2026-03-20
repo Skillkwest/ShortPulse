@@ -1467,7 +1467,7 @@
 }
 
 .edit-expert-stage-wrapper.is-transform-overlay-active {
-  overflow: visible;
+  overflow: hidden;
 }
 
 .edit-expert-primary-column > .edit-expert-column-wrapper--center:first-child {
@@ -1500,7 +1500,7 @@
 }
 
 .edit-expert-primary-dropzone.is-transform-overlay-active {
-  overflow: visible;
+  overflow: hidden;
 }
 
 .edit-expert-primary-dropzone:hover {

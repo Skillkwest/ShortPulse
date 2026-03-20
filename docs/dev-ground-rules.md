@@ -18,6 +18,7 @@ Use this document to keep the expectations clear whenever I’m making changes i
 14. **Plan-first refactors.** For structural changes: audit first, propose the modular plan (folders/files and responsibilities), then execute incrementally and validate that structure/line limits are met.
 15. **Keep structure manageable.** Use feature/domain folders, avoid deep nesting and circular deps, isolate side effects, and keep business logic out of UI glue.
 16. **Use Supabase CLI and avoid Docker for Supabase ops.** For Supabase access in this repo, use Supabase CLI with explicit hosted targets; do not run Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
+17. **Treat `npm run db:reset` as blocked by policy.** The script intentionally exits non-zero to prevent local reset workflows that violate this repo's Supabase operations policy.
 
 ## Canonical run commands (always respond with these)
 - **Frontend startup** (new terminal):

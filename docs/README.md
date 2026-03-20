@@ -211,6 +211,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`
 - `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`
+- `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-1-execution-plan-2026-03-20.md`
 - `docs/planning/ai-studio-properties-panels-modularization-program.md`
 - `docs/planning/ai-studio-properties-panels-modularization-tracker.md`
 - `docs/planning/ai-studio-create-character-mode-hardening-plan.md`
@@ -353,7 +354,9 @@ Start here for all repository documentation.
 - `skills/skill-session-startup-contract/SKILL.md`
 - `skills/skill-pricing-audit/SKILL.md`
 - `skills/skill-doc-index/SKILL.md`
+- `skills/skill-media-storage-deploy-gate/SKILL.md`
 - `skills/skill-ui-ux-critic/SKILL.md`
+- `skills/palette-normalizer/SKILL.md`
 - `skills/skill-mvp-security-audit/SKILL.md`
 - `skills/skill-mvp-modularization-pass/SKILL.md`
 - `skills/skill-mvp-docs-sop-governance/SKILL.md`

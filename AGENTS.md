@@ -11,8 +11,13 @@ This folder contains the active ShortPulse product repo.
 From `ShortPulse/`:
 ```bash
 cd frontend
-npm install
 npm run dev
+```
+
+One-time setup (new environment or when dependencies change):
+```bash
+cd frontend
+npm install
 ```
 
 Optional checks:
@@ -32,7 +37,7 @@ npm run build
 - For durable architecture decisions, add an ADR under `docs/adr/`.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
 - Mini Ecosystem isolation policy: treat `mini-ecosystem/` as a separate entity and exclude it from default audits, inspections, and build-planning context unless the user explicitly requests Mini Ecosystem scope.
-- After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggusted next steps upon completion of your task.
+- After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggested next steps upon completion of your task.
 
 ## Workspace safety guardrails (mandatory)
 - Never move or rename generated/build artifact directories (for example `frontend/.next`) to another path inside this repository as a backup.

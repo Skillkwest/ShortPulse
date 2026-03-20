@@ -34,7 +34,8 @@ Purpose: reduce change risk and improve maintainability by splitting high-churn 
 - Add or adjust tests around extracted business logic and edge paths.
 - Validate API route behavior when splitting server utilities.
 4. Enforce limits
-- Target no core source file above `800` lines in this pass.
+- Target core source files at ~`500` lines.
+- Temporary exceptions up to `800` lines are allowed only with explicit rationale and a dated follow-up split plan.
 - Avoid creating new files above `500` lines without explicit rationale.
 5. Track plan evidence
 - Update the relevant Phase 3 checklist item(s) in `docs/planning/mvp-pretester-full-audit-remediation-plan.md`.

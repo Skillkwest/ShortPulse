@@ -410,3 +410,11 @@ Tracker contract: `docs/planning/lane-f-tracker-spec-2026-03-16.md`
   - `docs/planning/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md`
 - Started Lane B B2-01 Expert Edit seam extraction; moved Character Picker modal plus preset/blob/canvas/color helpers into dedicated edit modules with parity checks green:
   - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-1.md`
+
+### 2026-03-20
+
+- Completed a focused governance parity cleanup slice for active instruction surfaces:
+  - aligned startup command wording in `AGENTS.md` with canonical run-command policy,
+  - aligned file-size guidance between `docs/conventions.md` and `skills/skill-mvp-modularization-pass/SKILL.md`,
+  - restored skill index parity in `docs/README.md` and `docs/agent-playbook.md`,
+  - enforced Supabase reset policy through guarded `frontend/package.json` `db:reset` behavior.

@@ -4,6 +4,7 @@ Purpose: unify coding standards across the refactored codebase.
 
 ## File size and structure
 - Aim to keep each file under ~500 lines; if it grows beyond that, note the reason and plan a split.
+- Temporary exceptions above ~500 are allowed only with explicit rationale and a follow-up split plan.
 - One responsibility per file; avoid mixed concerns (UI + data + logic).
 - Pages should orchestrate; business logic lives in feature `logic/` or `utils/`.
 

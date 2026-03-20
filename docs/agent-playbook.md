@@ -46,6 +46,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
 - Use `skills/skill-ui-ux-critic/SKILL.md` for UI-focused PR audits and trend-fit recommendations.
+- Use `skills/palette-normalizer/SKILL.md` for dry-run-first CSS palette drift audits and safe normalization passes.
 - Use `skills/skill-mvp-security-audit/SKILL.md` when executing P0 security blockers from the MVP pre-tester remediation plan.
 - Use `skills/skill-mvp-modularization-pass/SKILL.md` when splitting oversized files and enforcing modularity thresholds.
 - Use `skills/skill-mvp-docs-sop-governance/SKILL.md` when resolving docs/SOP drift and archive/index hygiene.

@@ -7,6 +7,11 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - added an explicit `Unreleased` section as the active entry point,
   - split pre-normalization notes behind a legacy marker so chronology/future-date checks can enforce the active timeline without rewriting imported history,
   - activated machine-checkable changelog chronology governance through `scripts/check_docs_semantic_drift.js`.
+- Governance cleanup slice (instruction/skill parity):
+  - aligned startup command wording across root instructions (`npm run dev` as default; `npm install` as one-time setup),
+  - aligned modularization size guidance with core conventions (~500 target with explicit temporary exception policy),
+  - restored skill discoverability parity in docs indexes/playbook (`skill-media-storage-deploy-gate`, `palette-normalizer`),
+  - enforced Supabase reset policy via guarded `db:reset` script contract in `frontend/package.json`.
 
 ## Legacy Imported Entries (pre-2026-03-17 normalization)
 

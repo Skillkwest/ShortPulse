@@ -15,6 +15,8 @@ Central index for evidence artifacts supporting Expert Edit, including the coord
    - Repo-backed gap inventory showing current automated coverage and remaining CP-004 blockers (`zoom=4`, canonical pan tuples, `4:3` stage, DPR matrix).
 5. `2026-03-20-cp303-zoom-clamp-parity.md`
    - Phase 3 CP-303 packet proving one shared zoom clamp authority across viewport and flatten camera contracts.
+6. `2026-03-20-cp301-cp302-mask-export-contract-progress.md`
+   - Phase 3 CP-301/CP-302 progress packet for canonical selected-layer mask resolution and flatten-consistent mask export mapping.
 
 ### Existing Expert Edit Artifacts
 1. `2026-03-04-model-capability-notes.md`

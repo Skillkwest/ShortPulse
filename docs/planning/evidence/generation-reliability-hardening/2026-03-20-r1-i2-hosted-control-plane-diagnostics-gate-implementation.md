@@ -18,6 +18,8 @@
 2. `supabase --version`
 3. `npm -C frontend run docs:check`
 4. `gh workflow run reliability-control-plane-diagnostics.yml -f target_environment=staging -f mode=warn`
+5. `gh run watch 23358875723 --interval 5 --exit-status`
+6. `gh run download 23358875723 -n reliability-control-plane-diagnostics -D /tmp/reliability-diagnostics-run-23358875723`
 
 ## Results
 1. Added workflow: `.github/workflows/reliability-control-plane-diagnostics.yml`.
@@ -27,7 +29,16 @@
    - `docs/planning/ci-policy-checks.md`
    - `docs/sops/sop_sql_migration_operations.md`
    - `docs/sops/sop_generation_recovery_diagnostics.md`
-4. Workflow dispatch attempt is currently blocked until the workflow exists on the default branch (GitHub API returns 404 when dispatching by filename before merge).
+4. Merged workflow/script to default branch via PR `#36` (`107c673651db29b3adebd996d30c574799f5b14d`), then merged missing control-plane SQL bundle via PR `#37` (`538b2408e55893453ba43fad32a07dbc90016ff4`).
+5. Hosted staging diagnostics run completed successfully in warn mode:
+   - run_id: `23358875723`
+   - run_url: `https://github.com/sleepyseamonster/ShortPulse/actions/runs/23358875723`
+   - artifact: `/tmp/reliability-diagnostics-run-23358875723/`
+6. Baseline findings from run `23358875723`:
+   - `check_control_plane_scheduler_health.sql`: `scheduler_alive = true`; `shortpulse_generation_recovery_every_minute` healthy (`360/360` succeeded over 6h); `shortpulse_admin_user_health_fleet_hourly` missing in staging control-plane.
+   - `check_pg_net_failure_taxonomy.sql`: pending queue depth `0`; failure class summary `http_4xx = 360`, all sampled rows `401`.
+   - `check_runtime_sql_security_audit.sql`: `156/156` checks passing, `0` failing.
+   - `check_generation_settlement_integrity.sql`: `missing_charge_count = 0`; `duplicate_charge_key_count = 0`.
 
 ## Validation
 - Targeted validation outcome: Pass. Workflow and runbook contract are internally aligned.
@@ -47,21 +58,22 @@
 
 ## Audit Findings
 ### blocking
-1. Staging diagnostics execution evidence is still pending because workflow dispatch requires the workflow file on default branch.
+1. Staging scheduler state is not aligned with the hourly policy: `shortpulse_admin_user_health_fleet_hourly` is missing in `cron.job`.
+2. `pg_net` responses show sustained `401` for diagnostics dispatch path, so control-plane auth is not yet healthy in staging.
 
 ### non-blocking
-1. Existing reliability implementation evidence packets still contain placeholder `linked_pr_or_commit` values and should be normalized in a future cleanup pass.
+1. Diagnostics are currently in `mode=warn`; enforce mode should remain disabled until blocking findings are resolved.
 
 ### deferred
 1. Automated threshold extraction from diagnostics logs remains a later control-plane automation slice.
 
 ## Follow-up Actions
-1. Merge commit `2cfbc5f5` to default branch so hosted workflow dispatch is available.
-2. Run `target_environment=staging`, `mode=warn`, then attach run URL + artifacts to the next evidence packet.
-3. Promote to `mode=enforce` only after one successful staging baseline run and threshold review.
+1. Apply the fleet scheduler cadence SQL in staging and verify `shortpulse_admin_user_health_fleet_hourly` exists/active in `cron.job`.
+2. Fix scheduler auth path (cron secret alignment/rotation + endpoint verification) until `check_pg_net_failure_taxonomy.sql` no longer reports sustained `401`.
+3. Re-run warn-mode diagnostics and promote to `mode=enforce` only after the above two blockers clear.
 
 ## Linked PR Or Commit
-- linked_pr_or_commit: `2cfbc5f5`
+- linked_pr_or_commit: `107c673651db29b3adebd996d30c574799f5b14d`, `538b2408e55893453ba43fad32a07dbc90016ff4`
 
 ## References
 1. `docs/planning/generation-reliability-hardening-phase-r1-execution-plan-2026-03-20.md`

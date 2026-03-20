@@ -310,6 +310,7 @@ export const executeStudioAgentCoordinator = async ({
         traceId,
         canonicalPrompt: effectiveCanonical,
         reasonCode,
+        fallbackReason,
       }),
     };
   };

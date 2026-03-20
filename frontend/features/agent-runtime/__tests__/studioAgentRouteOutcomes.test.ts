@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildStudioAgentInfraFallbackPayload,
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
@@ -212,6 +213,27 @@ describe("studioAgentRouteOutcomes", () => {
       actions: undefined,
       canonicalPrompt: "existing canonical",
       traceId: "trace-refuse",
+    });
+  });
+
+  it("builds infra fallback payload with optional fallback reason label", () => {
+    expect(
+      buildStudioAgentInfraFallbackPayload({
+        traceId: "trace-fallback",
+        canonicalPrompt: "existing canonical",
+        reasonCode: "INFRA_FALLBACK_TIMEOUT",
+        fallbackReason: "timeout",
+      })
+    ).toEqual({
+      decision: "allow",
+      outcome_class: "fallback_infra",
+      reason_code: "INFRA_FALLBACK_TIMEOUT",
+      retryable: true,
+      message: "I can't process that request right now. Please try again.",
+      actions: undefined,
+      fallback_reason: "timeout",
+      canonicalPrompt: "existing canonical",
+      traceId: "trace-fallback",
     });
   });
 });

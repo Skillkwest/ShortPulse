@@ -280,10 +280,12 @@ export const buildStudioAgentInfraFallbackPayload = ({
   traceId,
   canonicalPrompt,
   reasonCode = "INFRA_FALLBACK_TRANSIENT",
+  fallbackReason,
 }: {
   traceId: string;
   canonicalPrompt: string | null;
   reasonCode?: "INFRA_FALLBACK_TRANSIENT" | "INFRA_FALLBACK_TIMEOUT" | "INFRA_FALLBACK_RATE_LIMIT";
+  fallbackReason?: string;
 }) => ({
   ...buildAgentMachineOutcome({
     outcomeClass: "fallback_infra",
@@ -291,6 +293,7 @@ export const buildStudioAgentInfraFallbackPayload = ({
   }),
   message: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
   actions: undefined,
+  ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
   canonicalPrompt,
   traceId,
 });

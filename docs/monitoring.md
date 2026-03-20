@@ -53,8 +53,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 ### Admin fleet health monitoring
 - Fleet scan trigger route: `/api/internal/admin-user-health-fleet/run`.
 - Cadence state:
-  - current runtime baseline: daily,
-  - target-state (planned, gated): hourly after reliability `R2` implementation approval.
+  - current runtime baseline: hourly,
+  - rollback baseline: daily (`0 4 * * *`) if hourly health degrades.
 - Primary fleet read surface: `/api/admin/user-health-fleet` and `/admin/user-health-fleet`.
 - Treat these response/run fields as health signals:
   - execution: `status`, `targeted`, `processed`, `failed`, `partial`, `durationMs`
@@ -63,10 +63,14 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Report-only escalation source:
   - `ops.user_health_fleet` events in `app_error_events`/`app_error_logs` (no auto-remediation or auto-refund mutations).
 - Baseline expectations:
-  - current baseline: one completed (or intentionally partial) run per day,
-  - target baseline after approved cadence cutover: at least one completed run per hour,
+  - current baseline: at least one completed run per hour,
   - no sustained run-lock condition (`status='running'` without progress),
   - partial runs and degraded reads should include actionable reason text and operator follow-up.
+
+### Control-Plane Diagnostics Bundle
+- Scheduler/cron diagnostics: `sql/check_control_plane_scheduler_health.sql`.
+- `pg_net` diagnostics taxonomy: `sql/check_pg_net_failure_taxonomy.sql`.
+- Use these scripts as the canonical R1 control-plane checks before and during incident escalation.
 
 ## Admin triage controls
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.

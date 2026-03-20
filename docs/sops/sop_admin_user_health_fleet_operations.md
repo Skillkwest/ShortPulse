@@ -55,6 +55,9 @@ Scheduler trigger:
 - Do not use Vercel Cron for this workflow; scheduler ownership stays in Supabase Cron + Vault.
 - Hourly cadence is implemented under reliability phase `R2` and governed by the cadence contract:
   - `docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`
+- Canonical control-plane diagnostics before/after scheduler changes:
+  - `sql/check_control_plane_scheduler_health.sql`
+  - `sql/check_pg_net_failure_taxonomy.sql`
 
 ## Interpreting Run Results
 Primary fields:

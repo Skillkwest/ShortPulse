@@ -35,6 +35,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
 - `sql/check_runtime_sql_security_audit.sql`: runtime RPC security-definer + execute-grant audit (read-only).
 - `sql/check_generation_settlement_integrity.sql`: released-success settlement leakage diagnostics (read-only).
+- `sql/check_control_plane_scheduler_health.sql`: canonical `pg_cron` liveness/missing/inactive/failing/stalled diagnostics (read-only).
+- `sql/check_pg_net_failure_taxonomy.sql`: canonical `pg_net` queue-depth/failure-taxonomy diagnostics (read-only).
 - `sql/check_agent_safety_policy_control_plane.sql`: agent safety control-plane table/function/execute-posture diagnostics (read-only).
 
 ### 2) Ordered migrations (`sql/migrations/`)

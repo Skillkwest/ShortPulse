@@ -300,6 +300,9 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
    order by start_time desc
    limit 20;
    ```
+7. Run canonical control-plane diagnostics:
+   - `sql/check_control_plane_scheduler_health.sql`
+   - `sql/check_pg_net_failure_taxonomy.sql`
 
 Notes:
 - Vercel cron is not required for this route.
@@ -335,6 +338,9 @@ Prior baseline: daily cadence (`0 4 * * *`) retained as rollback target.
    order by start_time desc
    limit 20;
    ```
+6. Run canonical control-plane diagnostics:
+   - `sql/check_control_plane_scheduler_health.sql`
+   - `sql/check_pg_net_failure_taxonomy.sql`
 
 Notes:
 - Vercel Cron is not required for this route.

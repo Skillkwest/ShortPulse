@@ -16,6 +16,8 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 - SQL diagnostics/scripts:
   - `sql/check_generation_queue_blockers.sql`
   - `sql/check_generation_settlement_integrity.sql`
+  - `sql/check_control_plane_scheduler_health.sql`
+  - `sql/check_pg_net_failure_taxonomy.sql`
   - `sql/check_runtime_sql_security_audit.sql`
 - Runtime endpoints:
   - `/api/internal/generation-recovery/run`
@@ -72,8 +74,11 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 
 ## Operator Playbooks
 ### 1) Read-only diagnostics first
-1. Run `sql/check_generation_queue_blockers.sql`.
-2. Capture:
+1. Run control-plane diagnostics:
+   - `sql/check_control_plane_scheduler_health.sql`
+   - `sql/check_pg_net_failure_taxonomy.sql`
+2. Run `sql/check_generation_queue_blockers.sql`.
+3. Capture:
    - provider-attached reserved holds by age bucket
    - queue depth by status (`queued`, `dispatching`, `exhausted`)
    - queue hotspots by user/model/status
@@ -99,8 +104,10 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 4. If needed, run reservation release helper only for confirmed stale candidates.
 
 ### 4) Post-remediation integrity + security checks
-1. Run `sql/check_generation_settlement_integrity.sql`.
-2. Run `sql/check_runtime_sql_security_audit.sql`.
+1. Re-run `sql/check_control_plane_scheduler_health.sql`.
+2. Re-run `sql/check_pg_net_failure_taxonomy.sql`.
+3. Run `sql/check_generation_settlement_integrity.sql`.
+4. Run `sql/check_runtime_sql_security_audit.sql`.
 3. Require:
    - no missing/duplicate settlement keys
    - security audit summary `failing_checks = 0`.

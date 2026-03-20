@@ -78,3 +78,4 @@ Runtime implementation slices are gated until:
 16. Marked all master rows `R-M01` through `R-M12` as `Completed` with linked evidence.
 17. Transitioned tracker state to planning-complete and implementation-ready pending execution kickoff.
 18. Implementation slice `R2-I1` applied: fleet scheduler cadence moved to hourly (`shortpulse_admin_user_health_fleet_hourly`, `0 * * * *`) with daily rollback baseline preserved; evidence: `docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-i1-hourly-fleet-cadence-implementation.md`.
+19. Implementation slice `R1-I1` applied: canonical control-plane SQL diagnostics bundles added for `pg_cron` and `pg_net`; evidence: `docs/planning/evidence/generation-reliability-hardening/2026-03-20-r1-i1-control-plane-diagnostics-bundle-implementation.md`.

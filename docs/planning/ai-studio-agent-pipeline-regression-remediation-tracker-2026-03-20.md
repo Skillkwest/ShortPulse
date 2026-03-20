@@ -85,8 +85,9 @@ Phase implementation is allowed when:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-runtime-scope-telemetry-parity-generate-describe.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-precedence-cache-ttl-proof-tests.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-canary-threshold-decision-utility.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-rollback-drill-local-dry-run.md`
    - next gate actions:
-     - Complete precedence-proof, canary delta packet, and rollback drill packet required for `PX-03` closeout.
+     - Complete staging canary delta packet and staging rollback drill packet required for `PX-03` closeout.
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:

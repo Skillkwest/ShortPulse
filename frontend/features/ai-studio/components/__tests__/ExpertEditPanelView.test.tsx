@@ -1979,6 +1979,130 @@ describe("ExpertEditPanelView", () => {
     expect(overlay?.querySelectorAll("polyline").length ?? 0).toBe(1);
   });
 
+  it("terminates inline markup draw gestures on pointer cancel", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-cancel-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 931,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 70,
+      clientY: 80,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 931,
+      pointerType: "mouse",
+      clientX: 140,
+      clientY: 150,
+    });
+
+    const strokeBeforeCancel = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(strokeBeforeCancel).not.toBeNull();
+    const pointsBeforeCancel = strokeBeforeCancel?.getAttribute("points") ?? "";
+
+    fireEvent.pointerCancel(primaryDropzone, {
+      pointerId: 931,
+      pointerType: "mouse",
+      clientX: 140,
+      clientY: 150,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 931,
+      pointerType: "mouse",
+      clientX: 250,
+      clientY: 260,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 931,
+      pointerType: "mouse",
+      clientX: 250,
+      clientY: 260,
+    });
+
+    const strokeAfterCancel = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(strokeAfterCancel).not.toBeNull();
+    expect(strokeAfterCancel?.getAttribute("points") ?? "").toBe(pointsBeforeCancel);
+  });
+
+  it("terminates inline markup draw gestures on pointer leave", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-leave-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    mockElementRect(primaryDropzone, createSquareRect(320));
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 932,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 74,
+      clientY: 88,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 932,
+      pointerType: "mouse",
+      clientX: 146,
+      clientY: 162,
+    });
+
+    const strokeBeforeLeave = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(strokeBeforeLeave).not.toBeNull();
+    const pointsBeforeLeave = strokeBeforeLeave?.getAttribute("points") ?? "";
+
+    fireEvent.pointerLeave(primaryDropzone, {
+      pointerId: 932,
+      pointerType: "mouse",
+      clientX: 146,
+      clientY: 162,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 932,
+      pointerType: "mouse",
+      clientX: 260,
+      clientY: 270,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 932,
+      pointerType: "mouse",
+      clientX: 260,
+      clientY: 270,
+    });
+
+    const strokeAfterLeave = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay polyline"
+    ) as SVGPolylineElement | null;
+    expect(strokeAfterLeave).not.toBeNull();
+    expect(strokeAfterLeave?.getAttribute("points") ?? "").toBe(pointsBeforeLeave);
+  });
+
   it("applies selected markup color to newly drawn pen strokes", async () => {
     render(
       <ExpertEditPanelView
@@ -4598,9 +4722,23 @@ describe("ExpertEditPanelView", () => {
         clientX: 2,
         clientY: 2,
       });
+      fireEvent.pointerCancel(primaryDropzone, {
+        pointerId: 1,
+        pointerType: "mouse",
+        clientX: 2,
+        clientY: 2,
+      });
+      fireEvent.pointerLeave(primaryDropzone, {
+        pointerId: 1,
+        pointerType: "mouse",
+        clientX: 2,
+        clientY: 2,
+      });
       expect(onPointerDown).toHaveBeenCalledTimes(1);
       expect(onPointerMove).toHaveBeenCalledTimes(1);
       expect(onPointerUp).toHaveBeenCalledTimes(1);
+      expect(onPointerCancel).toHaveBeenCalledTimes(1);
+      expect(onPointerLeave).toHaveBeenCalledTimes(1);
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
     }
@@ -4610,6 +4748,8 @@ describe("ExpertEditPanelView", () => {
     const onPointerDown = vi.fn();
     const onPointerMove = vi.fn();
     const onPointerUp = vi.fn();
+    const onPointerCancel = vi.fn();
+    const onPointerLeave = vi.fn();
     const clearSelectedLayerMask = vi.fn();
     const invertSelectedLayerMask = vi.fn();
     const useInpaintMaskControllerSpy = vi
@@ -4628,8 +4768,8 @@ describe("ExpertEditPanelView", () => {
         onPointerDown,
         onPointerMove,
         onPointerUp,
-        onPointerCancel: vi.fn(),
-        onPointerLeave: vi.fn(),
+        onPointerCancel,
+        onPointerLeave,
       });
     try {
       render(
@@ -4676,9 +4816,23 @@ describe("ExpertEditPanelView", () => {
         clientX: 42,
         clientY: 36,
       });
+      fireEvent.pointerCancel(modalStage as HTMLElement, {
+        pointerId: 11,
+        pointerType: "mouse",
+        clientX: 42,
+        clientY: 36,
+      });
+      fireEvent.pointerLeave(modalStage as HTMLElement, {
+        pointerId: 11,
+        pointerType: "mouse",
+        clientX: 42,
+        clientY: 36,
+      });
       expect(onPointerDown).toHaveBeenCalledTimes(1);
       expect(onPointerMove).toHaveBeenCalledTimes(1);
       expect(onPointerUp).toHaveBeenCalledTimes(1);
+      expect(onPointerCancel).toHaveBeenCalledTimes(1);
+      expect(onPointerLeave).toHaveBeenCalledTimes(1);
 
       fireEvent.click(
         within(modalInpaintPanel).getByRole("button", { name: /invert in-paint selection/i })

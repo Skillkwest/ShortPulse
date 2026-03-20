@@ -19,6 +19,8 @@ Central index for evidence artifacts supporting Expert Edit, including the coord
    - Phase 3 CP-301/CP-302 status packet for canonical selected-layer mask resolution and flatten-consistent mask export mapping, including explicit `CP-301 PASS` and `CP-302 HOLD` decision states.
 7. `2026-03-20-cp401-transform-threshold-harness-progress.md`
    - Phase 4 CP-401 progress packet covering canonical zoom/pan transform-harness matrix assertions in unit suites.
+8. `2026-03-20-cp402-pointer-lifecycle-integration-progress.md`
+   - Phase 4 CP-402 progress packet covering inline/modal pointer lifecycle parity assertions for cancel/leave terminal paths.
 
 ### Existing Expert Edit Artifacts
 1. `2026-03-04-model-capability-notes.md`

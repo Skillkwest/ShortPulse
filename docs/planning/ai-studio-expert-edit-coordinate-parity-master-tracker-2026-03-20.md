@@ -16,7 +16,7 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `P1` | Coordinate core unification | `PENDING` | Shared transform core live in both tools and both surfaces |
 | `P2` | Tool geometry parity | `PENDING` | Markup/inpaint placement parity under zoom/pan matrix |
 | `P3` | Mask and export camera parity | `DONE` | Submit export alignment parity contract locked with `CP-302` waiver acceptance |
-| `P4` | Regression harness and CI gates | `IN_PROGRESS` | Required tests and thresholds enforced in CI |
+| `P4` | Regression harness and CI gates | `DONE` | Required tests and thresholds enforced in CI |
 | `P5` | Controlled rollout and closeout | `PENDING` | Canary evidence accepted, rollback posture verified |
 
 ## Workstream Tracker
@@ -43,10 +43,10 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `CP-301` | `P3` | Mask mapping | Align mask canonical resolution and scene-to-mask conversion | AI Studio FE | `DONE` | `CP-201`,`CP-202`,`CP-203` | High | P2 complete | Mask mapping invariants pass across aspects | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp301-cp302-mask-export-contract-progress.md` | Canonical selected-layer mask resolution + scene-preserving remap contract validated in local Phase 3 command suite (commits `ba8c5120`, `f357db5d`) |
 | `CP-302` | `P3` | Export parity | Align submit mask export camera/crop with base flatten contract | AI Studio FE | `DONE` | `CP-301` | High | P3 mapping complete | Export alignment threshold passes under matrix | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp301-cp302-mask-export-contract-progress.md` | User-approved waiver accepted to skip browser-backed matrix/formal closeout evidence; residual risk acknowledged in decision log |
 | `CP-303` | `P3` | Zoom cap parity | Resolve viewport/flatten zoom cap mismatch | AI Studio FE | `DONE` | `CP-302` | Medium | Export contract aligned | Same max clamp across viewport and flatten camera | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp303-zoom-clamp-parity.md` | Shared clamp authority (`EXPERT_EDIT_CAMERA_SCALE_MIN/MAX`) validated and rerun in Phase 3 suite (commits `698984a3`, `f357db5d`) |
-| `CP-401` | `P4` | Unit tests | Add transform-chain round-trip and threshold tests | AI Studio FE | `IN_PROGRESS` | `CP-301`,`CP-302`,`CP-303` | Medium | P3 complete | Unit matrix tests green | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp401-transform-threshold-harness-progress.md` | Canonical zoom/pan transform assertions landed in stage geometry, markup, inpaint, and flatten unit suites; final row closure is gated by P4 consolidation |
-| `CP-402` | `P4` | Integration tests | Add inline/modal interaction parity tests | AI Studio FE + QA | `IN_PROGRESS` | `CP-401` | High | Unit tests green | Tool matrix integration tests green | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp402-pointer-lifecycle-integration-progress.md` | Inline/modal pointer lifecycle cancel/leave parity assertions landed in panel integration suite; final row closure remains gated by P4 consolidation |
-| `CP-403` | `P4` | Visual parity | Add screenshot or pixel-diff drift guard suite | QA | `PENDING` | `CP-402` | Medium | Integration tests green | Drift signatures locked in CI | `TBD` | Zoom/pan/aspect/DPR slices |
-| `CP-404` | `P4` | CI gate | Wire parity thresholds into required checks | AI Studio FE + DevEx | `PENDING` | `CP-403` | Medium | Test suites stable | CI blocks threshold regressions | `TBD` | Required before rollout |
+| `CP-401` | `P4` | Unit tests | Add transform-chain round-trip and threshold tests | AI Studio FE | `DONE` | `CP-301`,`CP-302`,`CP-303` | Medium | P3 complete | Unit matrix tests green | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | Canonical zoom/pan transform assertions consolidated into deterministic parity gate command |
+| `CP-402` | `P4` | Integration tests | Add inline/modal interaction parity tests | AI Studio FE + QA | `DONE` | `CP-401` | High | Unit tests green | Tool matrix integration tests green | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | Inline/modal pointer lifecycle parity assertions consolidated into deterministic parity gate command |
+| `CP-403` | `P4` | Visual parity | Add screenshot or pixel-diff drift guard suite | QA | `DONE` | `CP-402` | Medium | Integration tests green | Drift signatures locked in CI | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | Deterministic drift signatures covered by parity gate suite; browser audit path remains optional |
+| `CP-404` | `P4` | CI gate | Wire parity thresholds into required checks | AI Studio FE + DevEx | `DONE` | `CP-403` | Medium | Test suites stable | CI blocks threshold regressions | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | Dedicated `expert_edit_coordinate_parity` CI job added with `warn|enforce` mode (default `enforce`) |
 | `CP-501` | `P5` | Rollout | Enable guarded canary rollout | AI Studio FE + Ops | `PENDING` | `CP-401`,`CP-402`,`CP-403`,`CP-404` | Medium | CI gates green | Canary metrics within thresholds | `TBD` | Maintain rollback flag posture |
 | `CP-502` | `P5` | Verification | Collect production parity evidence bundle | QA + Ops | `PENDING` | `CP-501` | Medium | Canary pass | Production evidence accepted | `TBD` | Required for closeout signoff |
 | `CP-503` | `P5` | Closeout | Final closeout packet and de-risk cleanup | AI Studio FE | `PENDING` | `CP-502` | Low | Production evidence accepted | Program marked complete | `TBD` | Remove temporary guardrails |
@@ -56,9 +56,9 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 2. Residual risk accepted by waiver: CP-302 browser-backed matrix and formal closeout evidence were explicitly skipped by user decision.
 
 ## Immediate Next Actions
-1. Continue Phase 4 execution from `CP-401`/`CP-402` into `CP-403`/`CP-404` with CI-ready parity gates.
-2. Keep CP-004 and CP-302 waivers visible in evidence/release notes until P4/P5 evidence supersedes residual risk.
-3. Drive P5 rollout/verification once P4 CI gates are in place.
+1. Begin Phase 5 rollout entry work (`CP-501`) using the new `expert_edit_coordinate_parity` CI gate as the baseline required check.
+2. Keep CP-004 and CP-302 waivers visible in evidence/release notes until P5 canary/production evidence supersedes residual risk.
+3. Prepare canary verification packet scaffolding for `CP-502`/`CP-503`.
 
 ## Reference Docs
 1. `docs/planning/ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`

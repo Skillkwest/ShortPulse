@@ -64,8 +64,8 @@ Objective:
 
 Target modules:
 1. `frontend/features/ai-studio/logic/__tests__/expertEditStageFlatten.test.ts`
-2. `frontend/tests/e2e/ai-studio-expert-edit-parity.audit.js` (new)
-3. `frontend/package.json` (new focused parity command wiring)
+2. `frontend/tests/e2e/expert-edit-coordinate-parity.audit.js`
+3. `frontend/package.json` (focused parity command wiring)
 
 Deliverables:
 1. Pixel or screenshot drift checks cover pointer-to-stroke placement and export-crop alignment signatures.
@@ -79,7 +79,8 @@ Objective:
 Target modules:
 1. `.github/workflows/ci.yml`
 2. `frontend/package.json`
-3. `scripts/` parity gate utility entrypoint (new, if needed)
+3. Optional browser-backed parity audit entrypoint:
+   - `frontend/tests/e2e/expert-edit-coordinate-parity.audit.js`
 
 Deliverables:
 1. Dedicated coordinate-parity gate command aggregates required unit/integration/visual checks.
@@ -102,10 +103,11 @@ Minimum required commands:
 3. `npm -C frontend run test -- features/ai-studio/components/edit/__tests__/useInpaintMaskController.test.ts`
 4. `npm -C frontend run test -- features/ai-studio/logic/__tests__/expertEditStageFlatten.test.ts`
 5. `npm -C frontend run test -- features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
-6. `npm -C frontend run type-check`
-7. `npm -C frontend run lint`
-8. `npm -C frontend run build`
-9. `npm -C frontend run docs:check`
+6. `npm -C frontend run test:expert-edit:coordinate-parity:gate`
+7. `npm -C frontend run type-check`
+8. `npm -C frontend run lint`
+9. `npm -C frontend run build`
+10. `npm -C frontend run docs:check`
 
 ## Exit Criteria
 1. `CP-401`, `CP-402`, `CP-403`, and `CP-404` are all marked `DONE`.

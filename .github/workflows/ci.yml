@@ -162,6 +162,92 @@ jobs:
         run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm run type-check
 
+  expert_edit_coordinate_parity:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect Expert Edit coordinate-parity-impacting changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            expert_edit_coordinate_parity:
+              - 'frontend/features/ai-studio/components/edit/**'
+              - 'frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx'
+              - 'frontend/features/ai-studio/logic/expertEditStageFlatten.ts'
+              - 'frontend/features/ai-studio/logic/__tests__/expertEditStageFlatten.test.ts'
+              - 'frontend/tests/e2e/expert-edit-coordinate-parity.audit.js'
+              - 'frontend/package.json'
+              - 'docs/planning/ai-studio-expert-edit-coordinate-parity-*.md'
+              - 'docs/planning/evidence/ai-studio-expert-edit/**'
+              - '.github/workflows/ci.yml'
+      - name: Decide whether to run Expert Edit coordinate parity gate
+        id: should_run
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=run_all_non_pr" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.changes.outputs.expert_edit_coordinate_parity || 'false' }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=changed_files" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "reason=no_expert_edit_coordinate_parity_changes" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies (npm ci with transient retry)
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
+      - name: Run Expert Edit coordinate parity gate (warn/enforce)
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        env:
+          EXPERT_EDIT_COORDINATE_PARITY_MODE: ${{ vars.EXPERT_EDIT_COORDINATE_PARITY_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${EXPERT_EDIT_COORDINATE_PARITY_MODE:-enforce}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown EXPERT_EDIT_COORDINATE_PARITY_MODE='$MODE'. Falling back to 'enforce'."
+            MODE="enforce"
+          fi
+
+          set +e
+          npm run test:expert-edit:coordinate-parity:gate
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "expert_edit_coordinate_parity passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            echo "Optional browser-backed audit remains available via npm run test:expert-edit:coordinate-parity:browser-audit." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::expert_edit_coordinate_parity failed in warn mode."
+            echo "expert_edit_coordinate_parity failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "expert_edit_coordinate_parity failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+      - name: Expert Edit coordinate parity gate skipped
+        if: ${{ steps.should_run.outputs.run != 'true' }}
+        run: |
+          echo "Expert Edit coordinate parity gate skipped because no coordinate-parity-impacting files changed in this PR." >> "$GITHUB_STEP_SUMMARY"
+
   docs_semantic_drift:
     runs-on: ubuntu-latest
     defaults:

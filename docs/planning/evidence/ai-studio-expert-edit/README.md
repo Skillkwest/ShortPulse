@@ -21,6 +21,8 @@ Central index for evidence artifacts supporting Expert Edit, including the coord
    - Phase 4 CP-401 progress packet covering canonical zoom/pan transform-harness matrix assertions in unit suites.
 8. `2026-03-20-cp402-pointer-lifecycle-integration-progress.md`
    - Phase 4 CP-402 progress packet covering inline/modal pointer lifecycle parity assertions for cancel/leave terminal paths.
+9. `2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md`
+   - Phase 4 CP-403/CP-404 closeout packet for deterministic parity gate scripts and CI enforce-mode wiring (consolidates CP-401/CP-402 closure).
 
 ### Existing Expert Edit Artifacts
 1. `2026-03-04-model-capability-notes.md`

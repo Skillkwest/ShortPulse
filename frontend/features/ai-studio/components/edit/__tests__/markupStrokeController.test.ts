@@ -85,6 +85,51 @@ describe("markupStrokeController", () => {
     });
   });
 
+  it("keeps pointer-to-scene mapping stable across canonical zoom and pan tuples", () => {
+    const rect = {
+      left: 20,
+      top: 40,
+      width: 1200,
+      height: 900,
+    } as DOMRect;
+    const clientX = rect.left + 0.62 * rect.width;
+    const clientY = rect.top + 0.41 * rect.height;
+    const zoomLevels = [0.5, 1, 2, 4];
+    const panTuples = [
+      { x: 0, y: 0 },
+      { x: 37, y: -19 },
+      { x: -120, y: 80 },
+    ];
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const sampleX = clientX - rect.left;
+    const sampleY = clientY - rect.top;
+
+    zoomLevels.forEach((zoom) => {
+      panTuples.forEach((pan) => {
+        const point = resolveMarkupPointerPoint({
+          clientX,
+          clientY,
+          rect,
+          viewport: {
+            scale: zoom,
+            offsetXRatio: pan.x / rect.width,
+            offsetYRatio: pan.y / rect.height,
+          },
+          applyViewportTransform: true,
+        });
+        const expectedSurfaceX = centerX + (sampleX - centerX - pan.x) / zoom;
+        const expectedSurfaceY = centerY + (sampleY - centerY - pan.y) / zoom;
+        const expectedSceneX = (expectedSurfaceX - centerX) / rect.height;
+        const expectedSceneY = (expectedSurfaceY - centerY) / rect.height;
+
+        expect(point).not.toBeNull();
+        expect(point?.sceneX ?? 0).toBeCloseTo(expectedSceneX, 6);
+        expect(point?.sceneY ?? 0).toBeCloseTo(expectedSceneY, 6);
+      });
+    });
+  });
+
   it("appends stroke points only after minimum movement threshold", () => {
     const stroke: MarkupStroke = {
       id: "stroke-1",

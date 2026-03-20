@@ -102,6 +102,38 @@ describe("expertEditStageFlatten", () => {
     ).toBe(0.5);
   });
 
+  it("normalizes canonical zoom and pan tuples into output-space camera offsets", () => {
+    const zoomLevels = [0.5, 1, 2, 4];
+    const panTuples = [
+      { x: 0, y: 0 },
+      { x: 37, y: -19 },
+      { x: -120, y: 80 },
+    ];
+    const viewportWidth = 1200;
+    const viewportHeight = 900;
+    const outputWidth = 1000;
+    const outputHeight = 750;
+
+    zoomLevels.forEach((zoom) => {
+      panTuples.forEach((pan) => {
+        const transform = resolveStageFlattenCameraTransform({
+          camera: {
+            scale: zoom,
+            offsetX: pan.x,
+            offsetY: pan.y,
+            viewportWidth,
+            viewportHeight,
+          },
+          outputWidth,
+          outputHeight,
+        });
+        expect(transform.scale).toBeCloseTo(zoom, 6);
+        expect(transform.offsetX).toBeCloseTo((pan.x / viewportWidth) * outputWidth, 6);
+        expect(transform.offsetY).toBeCloseTo((pan.y / viewportHeight) * outputHeight, 6);
+      });
+    });
+  });
+
   it("builds deterministic draw instructions with transform clamping", () => {
     const instructions = buildStageFlattenDrawPlan({
       decodedLayers: [

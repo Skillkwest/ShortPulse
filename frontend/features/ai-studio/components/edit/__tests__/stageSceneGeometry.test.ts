@@ -155,4 +155,77 @@ describe("stageSceneGeometry", () => {
       y: 100,
     });
   });
+
+  it("round-trips canonical zoom and pan tuples through viewport transforms", () => {
+    const zoomLevels = [0.5, 1, 2, 4];
+    const panTuples = [
+      { x: 0, y: 0 },
+      { x: 37, y: -19 },
+      { x: -120, y: 80 },
+    ];
+    const surfacePoints = [
+      { x: 100, y: 80 },
+      { x: 640.25, y: 450.5 },
+      { x: 1110, y: 760 },
+    ];
+    const rect = {
+      left: 24,
+      top: 16,
+      width: 1200,
+      height: 900,
+    } as DOMRect;
+
+    zoomLevels.forEach((zoom) => {
+      panTuples.forEach((pan) => {
+        surfacePoints.forEach((surfacePoint) => {
+          const samplePoint = resolveViewportSamplePointFromSurfacePoint({
+            point: surfacePoint,
+            viewportTransform: {
+              scale: zoom,
+              offsetX: pan.x,
+              offsetY: pan.y,
+            },
+            viewportWidth: rect.width,
+            viewportHeight: rect.height,
+          });
+          const inverseSurfacePoint = resolveSurfacePointFromViewportSamplePoint({
+            point: samplePoint,
+            viewportTransform: {
+              scale: zoom,
+              offsetX: pan.x,
+              offsetY: pan.y,
+            },
+            viewportWidth: rect.width,
+            viewportHeight: rect.height,
+          });
+          const clientResolvedPoint = resolveSurfacePointFromClientPoint({
+            clientX: rect.left + samplePoint.x,
+            clientY: rect.top + samplePoint.y,
+            rect,
+            viewportTransform: {
+              scale: zoom,
+              offsetX: pan.x,
+              offsetY: pan.y,
+            },
+            clampToBounds: false,
+          });
+
+          expect(inverseSurfacePoint.x).toBeCloseTo(surfacePoint.x, 6);
+          expect(inverseSurfacePoint.y).toBeCloseTo(surfacePoint.y, 6);
+          const sampleIsInBounds =
+            samplePoint.x >= 0 &&
+            samplePoint.x <= rect.width &&
+            samplePoint.y >= 0 &&
+            samplePoint.y <= rect.height;
+          if (!sampleIsInBounds) {
+            expect(clientResolvedPoint).toBeNull();
+            return;
+          }
+          expect(clientResolvedPoint).not.toBeNull();
+          expect(clientResolvedPoint?.x ?? 0).toBeCloseTo(surfacePoint.x, 6);
+          expect(clientResolvedPoint?.y ?? 0).toBeCloseTo(surfacePoint.y, 6);
+        });
+      });
+    });
+  });
 });

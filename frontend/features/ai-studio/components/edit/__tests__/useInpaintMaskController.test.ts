@@ -440,6 +440,56 @@ describe("useInpaintMaskController helpers", () => {
     });
   });
 
+  it("keeps mask interaction mapping deterministic across canonical zoom and pan tuples", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 400,
+      height: 300,
+    } as DOMRect;
+    const maskWidth = 800;
+    const maskHeight = 600;
+    const clientX = rect.left + 0.67 * rect.width;
+    const clientY = rect.top + 0.39 * rect.height;
+    const sampleX = clientX - rect.left;
+    const sampleY = clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const maskCenterX = maskWidth / 2;
+    const maskCenterY = maskHeight / 2;
+    const zoomLevels = [0.5, 1, 2, 4];
+    const panTuples = [
+      { x: 0, y: 0 },
+      { x: 37, y: -19 },
+      { x: -120, y: 80 },
+    ];
+
+    zoomLevels.forEach((zoom) => {
+      panTuples.forEach((pan) => {
+        const point = resolveMaskInteractionPoint({
+          sampleEvent: { clientX, clientY },
+          interactionRect: rect,
+          maskWidth,
+          maskHeight,
+          sceneScale: zoom,
+          viewportOffsetX: pan.x,
+          viewportOffsetY: pan.y,
+          clampToBounds: false,
+        });
+        const surfaceX = centerX + (sampleX - centerX - pan.x) / zoom;
+        const surfaceY = centerY + (sampleY - centerY - pan.y) / zoom;
+        const sceneX = (surfaceX - centerX) / rect.height;
+        const sceneY = (surfaceY - centerY) / rect.height;
+        const expectedMaskX = Math.min(maskWidth, Math.max(0, maskCenterX + sceneX * maskHeight));
+        const expectedMaskY = Math.min(maskHeight, Math.max(0, maskCenterY + sceneY * maskHeight));
+
+        expect(point).not.toBeNull();
+        expect(point?.x ?? 0).toBeCloseTo(expectedMaskX, 6);
+        expect(point?.y ?? 0).toBeCloseTo(expectedMaskY, 6);
+      });
+    });
+  });
+
   it("clamps out-of-bounds interaction samples after inverse mapping", () => {
     const rect = {
       left: 10,

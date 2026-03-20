@@ -209,6 +209,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
 - `docs/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
+- `docs/planning/ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`
+- `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`
 - `docs/planning/ai-studio-properties-panels-modularization-program.md`
 - `docs/planning/ai-studio-properties-panels-modularization-tracker.md`
 - `docs/planning/ai-studio-create-character-mode-hardening-plan.md`
@@ -224,6 +226,10 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-agent-modularization-tracker.md`
 - `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
 - `docs/planning/ai-studio-agent-safety-control-plane-tracker.md`
+- `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
+- `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
+- `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
+- `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 - `docs/planning/ai-studio-ux-prompt-adjacency-rollout-plan.md`
 - `docs/planning/ai-studio-ux-prompt-adjacency-rollout-tracker.md`
 - `docs/planning/ai-studio-webhook-canary-closeout-plan.md`
@@ -258,6 +264,8 @@ Start here for all repository documentation.
 - `docs/planning/evidence/lane-e/README.md`
 - `docs/planning/evidence/lane-f/README.md`
 - `docs/planning/evidence/generation-pipeline-hardening/README.md`
+- `docs/planning/evidence/agent-pipeline-remediation/README.md`
+- `docs/planning/evidence/agent-pipeline-remediation/phase-1/README.md`
 - `docs/planning/evidence/media-rendering-hardening-v2/README.md`
 - `docs/planning/evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`
 - `docs/planning/evidence/unified-buildout/phase-13/README.md`
@@ -308,6 +316,9 @@ Start here for all repository documentation.
 - `docs/adr/0040-character-panel-media-isolation-v2.md`
 - `docs/adr/0041-foundational-modularization-governance-and-size-gates.md`
 - `docs/adr/0042-ai-studio-properties-panel-workflow-contract.md`
+- `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
+- `docs/adr/0044-media-rendering-surface-delivery-policy-and-adr-reconciliation.md`
+- `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
 
 ## Archive
 - `docs/archive/README.md`

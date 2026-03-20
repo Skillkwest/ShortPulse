@@ -62,13 +62,12 @@ import {
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import {
-  createInitialWorkflowPanelVisibility,
+  createInitialPanelVisibility,
   resolveEffectivePanelVisibility,
   resolveHeaderShortcutStateMap,
-  resolvePanelVisibilityWorkflowKey,
-  toggleWorkflowPanelVisibilityByShortcut,
+  togglePanelVisibilityByShortcut,
   type HeaderShortcutId,
-  type WorkflowPanelVisibilityByWorkflow,
+  type PanelVisibilityState,
 } from "../logic/panelVisibility";
 import {
   resolveExpertEditPresetCatalog,
@@ -623,8 +622,9 @@ export function AiStudioPageContent({
     propertiesPanelKind === "edit" && propertiesEditExpert.expertEditEligible;
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
-  const [panelVisibilityByWorkflow, setPanelVisibilityByWorkflow] =
-    React.useState<WorkflowPanelVisibilityByWorkflow>(createInitialWorkflowPanelVisibility);
+  const [panelVisibility, setPanelVisibility] = React.useState<PanelVisibilityState>(
+    createInitialPanelVisibility
+  );
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
   const {
@@ -734,8 +734,6 @@ export function AiStudioPageContent({
   React.useEffect(() => {
     onSelectedStyleContextChange?.(selectedStyleContext);
   }, [onSelectedStyleContextChange, selectedStyleContext]);
-  const workflowPanelVisibilityKey = resolvePanelVisibilityWorkflowKey(selectedTool);
-  const workflowPanelVisibility = panelVisibilityByWorkflow[workflowPanelVisibilityKey];
   const isQuickSlotToggleAvailable = Boolean(
     resolvedReferenceGridProps.onAddCuratedReference &&
     resolvedReferenceGridProps.onRemoveCuratedReference &&
@@ -762,7 +760,7 @@ export function AiStudioPageContent({
       };
     }
     const baseVisibility = resolveEffectivePanelVisibility({
-      workflowVisibility: workflowPanelVisibility,
+      panelVisibility,
       availability: panelToggleAvailability,
     });
     if (selectedTool === "styles") {
@@ -778,8 +776,8 @@ export function AiStudioPageContent({
     isPrimaryCharacterPanelOpen,
     isQuickSlotToggleAvailable,
     panelToggleAvailability,
+    panelVisibility,
     selectedTool,
-    workflowPanelVisibility,
   ]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
   const headerShortcutStates = React.useMemo(
@@ -792,16 +790,15 @@ export function AiStudioPageContent({
   );
   const handleHeaderShortcutToggle = React.useCallback(
     (shortcutId: HeaderShortcutId) => {
-      setPanelVisibilityByWorkflow((previous) => {
-        return toggleWorkflowPanelVisibilityByShortcut({
-          byWorkflow: previous,
-          workflowKey: workflowPanelVisibilityKey,
+      setPanelVisibility((previous) => {
+        return togglePanelVisibilityByShortcut({
+          panelVisibility: previous,
           shortcutId,
           availability: panelToggleAvailability,
         });
       });
     },
-    [panelToggleAvailability, workflowPanelVisibilityKey]
+    [panelToggleAvailability]
   );
   const { activeCount } = useOutputCounts();
   const isPerformanceDenseSession =
@@ -853,9 +850,10 @@ export function AiStudioPageContent({
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
     const isEditToolSelected = selectedTool === "edit";
-    const shouldExpandForEditSelection =
-      isEditToolSelected && previousSelectedTool !== selectedTool;
-    if (shouldExpandForEditSelection) {
+    const isCharacterToolSelected = selectedTool === "character";
+    const shouldExpandForToolSelection =
+      (isEditToolSelected || isCharacterToolSelected) && previousSelectedTool !== selectedTool;
+    if (shouldExpandForToolSelection) {
       expandToMax();
       previousSelectedToolRef.current = selectedTool;
       return;
@@ -875,32 +873,24 @@ export function AiStudioPageContent({
   }, [collapseToMin, expandToMax, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
-    setPanelVisibilityByWorkflow((previous) => {
-      return toggleWorkflowPanelVisibilityByShortcut({
-        byWorkflow: previous,
-        workflowKey: workflowPanelVisibilityKey,
+    setPanelVisibility((previous) => {
+      return togglePanelVisibilityByShortcut({
+        panelVisibility: previous,
         shortcutId: "styles",
         availability: panelToggleAvailability,
       });
     });
-  }, [panelToggleAvailability, workflowPanelVisibilityKey]);
-  const handleSelectedStyleIdChange = React.useCallback(
-    (styleId: string | null) => {
-      setSelectedStyleId(styleId);
-      setPanelVisibilityByWorkflow((previous) => {
-        const workflowState = previous[workflowPanelVisibilityKey];
-        if (!workflowState?.styles) return previous;
-        return {
-          ...previous,
-          [workflowPanelVisibilityKey]: {
-            ...workflowState,
-            styles: false,
-          },
-        };
-      });
-    },
-    [workflowPanelVisibilityKey]
-  );
+  }, [panelToggleAvailability]);
+  const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
+    setSelectedStyleId(styleId);
+    setPanelVisibility((previous) => {
+      if (!previous.styles) return previous;
+      return {
+        ...previous,
+        styles: false,
+      };
+    });
+  }, []);
   const resolvedExpertEditProperties = React.useMemo(
     () => ({
       ...propertiesEditExpert,

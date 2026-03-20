@@ -74,8 +74,24 @@ describe("deriveCreateSelectorViewState", () => {
       imageResolution: "not-a-resolution",
     });
 
-    expect(state.imageResolutionValue).toBe("model_default");
+    expect(state.imageResolutionValue).toBe("auto_2K");
     expect(state.shouldShowImageResolutionCard).toBe(true);
     expect(state.imageResolutionOptions.length).toBeGreaterThan(0);
+  });
+
+  it("normalizes legacy model_default seedream selections to auto_2K", () => {
+    const state = deriveCreateSelectorViewState({
+      mode: "image",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      isModelModalOpen: false,
+      modelModalAnchor: null,
+      isGenerateDisabled: false,
+      hasSufficientCreditsForOutputGenerate: true,
+      characterModeEnabled: false,
+      selectedCharacterId: "",
+      imageResolution: "model_default",
+    });
+
+    expect(state.imageResolutionValue).toBe("auto_2K");
   });
 });

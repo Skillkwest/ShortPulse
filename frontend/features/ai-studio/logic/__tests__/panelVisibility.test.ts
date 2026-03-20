@@ -1,41 +1,29 @@
 /**
  * Panel visibility logic tests.
- * Verifies workflow mapping, availability-gated derivation, and per-workflow shortcut toggles.
+ * Verifies global initialization, availability-gated derivation, and shortcut toggles.
  */
 import { describe, expect, it } from "vitest";
 import {
-  createInitialWorkflowPanelVisibility,
+  createInitialPanelVisibility,
   resolveEffectivePanelVisibility,
   resolveHeaderShortcutStateMap,
-  resolvePanelVisibilityWorkflowKey,
-  toggleWorkflowPanelVisibilityByShortcut,
+  togglePanelVisibilityByShortcut,
 } from "../panelVisibility";
 
 describe("panelVisibility", () => {
-  it("resolves workflow buckets for tool aliases", () => {
-    expect(resolvePanelVisibilityWorkflowKey("create")).toBe("create");
-    expect(resolvePanelVisibilityWorkflowKey("text")).toBe("create");
-    expect(resolvePanelVisibilityWorkflowKey("kling")).toBe("create");
-    expect(resolvePanelVisibilityWorkflowKey("edit")).toBe("edit");
-    expect(resolvePanelVisibilityWorkflowKey("image")).toBe("edit");
-    expect(resolvePanelVisibilityWorkflowKey("video")).toBe("video");
-    expect(resolvePanelVisibilityWorkflowKey("canvas")).toBe("canvas");
-    expect(resolvePanelVisibilityWorkflowKey(null)).toBe("create");
-  });
+  it("creates a fresh panel visibility state per initialization call", () => {
+    const first = createInitialPanelVisibility();
+    const second = createInitialPanelVisibility();
 
-  it("creates a fresh state map per initialization call", () => {
-    const first = createInitialWorkflowPanelVisibility();
-    const second = createInitialWorkflowPanelVisibility();
+    first.canvas = true;
 
-    first.create.canvas = true;
-
-    expect(second.create.canvas).toBe(false);
+    expect(second.canvas).toBe(false);
   });
 
   it("resolves effective visibility using availability gates", () => {
-    const byWorkflow = createInitialWorkflowPanelVisibility();
+    const panelVisibility = createInitialPanelVisibility();
     const resolved = resolveEffectivePanelVisibility({
-      workflowVisibility: byWorkflow.create,
+      panelVisibility,
       availability: {
         canvas: false,
         quickSlot: true,
@@ -72,33 +60,29 @@ describe("panelVisibility", () => {
     expect(state.styles).toEqual({ pressed: false, disabled: false });
   });
 
-  it("toggles shortcuts for only the active workflow and respects availability", () => {
-    const initial = createInitialWorkflowPanelVisibility();
+  it("toggles shortcuts globally and respects availability", () => {
+    const initial = createInitialPanelVisibility();
     const availability = { canvas: true, quickSlot: false, styles: true };
 
-    const toggledCanvas = toggleWorkflowPanelVisibilityByShortcut({
-      byWorkflow: initial,
-      workflowKey: "edit",
+    const toggledCanvas = togglePanelVisibilityByShortcut({
+      panelVisibility: initial,
       shortcutId: "canvas",
       availability,
     });
-    expect(toggledCanvas.edit.canvas).toBe(true);
-    expect(toggledCanvas.create.canvas).toBe(false);
+    expect(toggledCanvas.canvas).toBe(true);
 
-    const noQuickSlotChange = toggleWorkflowPanelVisibilityByShortcut({
-      byWorkflow: toggledCanvas,
-      workflowKey: "edit",
+    const noQuickSlotChange = togglePanelVisibilityByShortcut({
+      panelVisibility: toggledCanvas,
       shortcutId: "quick-slot-inventory",
       availability,
     });
     expect(noQuickSlotChange).toBe(toggledCanvas);
 
-    const toggledStyles = toggleWorkflowPanelVisibilityByShortcut({
-      byWorkflow: toggledCanvas,
-      workflowKey: "edit",
+    const toggledStyles = togglePanelVisibilityByShortcut({
+      panelVisibility: toggledCanvas,
       shortcutId: "styles",
       availability,
     });
-    expect(toggledStyles.edit.styles).toBe(true);
+    expect(toggledStyles.styles).toBe(true);
   });
 });

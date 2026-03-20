@@ -41,6 +41,21 @@ describe("characterGridPreviewUrl", () => {
     ).toBe(variantUrl);
   });
 
+  it("keeps signed storage URLs unchanged when adaptive preview is enabled", () => {
+    const signedUrl =
+      "https://supabase.test/storage/v1/object/sign/media_library/user-1/upload/original.png?token=abc";
+
+    expect(
+      resolveCharacterGridPreviewUrl({
+        url: signedUrl,
+        adaptivePreviewEnabled: true,
+        pressureLevel: 1,
+        cardLongEdgePx: 320,
+        devicePixelRatio: 1,
+      })
+    ).toBe(signedUrl);
+  });
+
   it("compacts non-variant remote URLs when adaptive preview is enabled", () => {
     const resolved = resolveCharacterGridPreviewUrl({
       url: "http://localhost/media/original.png",

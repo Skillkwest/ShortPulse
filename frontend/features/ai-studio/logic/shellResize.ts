@@ -122,11 +122,9 @@ export const isAiShellResizeViewport = (viewportWidth: number): boolean =>
 /**
  * Indicates whether selecting the next tool should collapse the properties column to its minimum.
  * Inputs: previous and next tool ids.
- * Output: true only for a new edit/video/character tool selection.
+ * Output: true only for a new video-tool selection.
  */
 export const shouldCollapseAiShellOnToolSelect = (
   previousTool: string | null,
   nextTool: string | null
-): boolean =>
-  (nextTool === "edit" || nextTool === "video" || nextTool === "character") &&
-  nextTool !== previousTool;
+): boolean => nextTool === "video" && nextTool !== previousTool;

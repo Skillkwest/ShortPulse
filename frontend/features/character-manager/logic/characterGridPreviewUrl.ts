@@ -1,6 +1,7 @@
 import { resolveAdaptiveMedia, resolveAdaptiveSourceKind } from "../../../lib/adaptive-media";
 
 const DURABLE_VARIANT_PATH_SEGMENT = "/variants/";
+const SUPABASE_SIGNED_STORAGE_PATH_PATTERN = /\/storage\/v1\/(?:object|render\/image)\/sign\//i;
 
 const hasDurableVariantUrl = (value: string): boolean => {
   if (value.includes(DURABLE_VARIANT_PATH_SEGMENT)) return true;
@@ -9,6 +10,12 @@ const hasDurableVariantUrl = (value: string): boolean => {
   } catch {
     return false;
   }
+};
+
+const isSupabaseSignedStorageUrl = (value: string): boolean => {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return SUPABASE_SIGNED_STORAGE_PATH_PATTERN.test(trimmed);
 };
 
 type ResolveCharacterGridPreviewUrlArgs = {
@@ -30,6 +37,7 @@ export const resolveCharacterGridPreviewUrl = ({
   if (!trimmed) return null;
   if (!adaptivePreviewEnabled) return trimmed;
   if (hasDurableVariantUrl(trimmed)) return trimmed;
+  if (isSupabaseSignedStorageUrl(trimmed)) return trimmed;
 
   const resolved = resolveAdaptiveMedia({
     surface: "character-grid",

@@ -1539,6 +1539,57 @@ describe("ExpertEditPanelView", () => {
     expect(markupTab).toHaveAttribute("aria-selected", "true");
   });
 
+  it("hides the reference-images and styles row in Inpaint and Markup generation modes", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
+    const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
+
+    expect(screen.getByText("Reference Images")).toBeInTheDocument();
+    expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
+
+    fireEvent.click(inpaintTab);
+    expect(screen.queryByText("Reference Images")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Secondary edit image 1")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
+
+    fireEvent.click(markupTab);
+    expect(screen.queryByText("Reference Images")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Secondary edit image 1")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
+
+    fireEvent.click(standardTab);
+    expect(screen.getByText("Reference Images")).toBeInTheDocument();
+    expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
+  });
+
+  it("uses a taller canvas layout in Inpaint and Markup generation modes", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const panel = screen.getByRole("group", { name: /expert edit composer/i });
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
+    const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
+
+    expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
+
+    fireEvent.click(inpaintTab);
+    expect(panel).toHaveClass("is-generation-mode-tall-stage");
+
+    fireEvent.click(markupTab);
+    expect(panel).toHaveClass("is-generation-mode-tall-stage");
+
+    fireEvent.click(standardTab);
+    expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
+  });
+
   it("swaps the left rail selected mode panel as generation mode tabs change", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
@@ -3542,7 +3593,7 @@ describe("ExpertEditPanelView", () => {
     expect(translateY).toBeGreaterThan(10);
   });
 
-  it("does not render transform indicator overlays in move mode", async () => {
+  it("renders selected-layer transform overlay and corner handles in move mode", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -3555,9 +3606,139 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    expect(document.querySelector(".edit-expert-transform-gizmo")).toBeNull();
-    expect(document.querySelector(".edit-expert-transform-gizmo-box")).toBeNull();
-    expect(document.querySelector(".edit-expert-transform-gizmo-handle")).toBeNull();
+    expect(screen.getByLabelText("Primary edit image")).toHaveClass("is-transform-overlay-active");
+    expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
+    (["nw", "ne", "se", "sw"] as const).forEach((corner) => {
+      expect(screen.getByTestId(`edit-expert-transform-handle-inline-${corner}`)).toHaveAttribute(
+        "data-edit-expert-transform-drag-mode",
+        "resize"
+      );
+    });
+  });
+
+  it("resizes the selected layer when dragging an inline corner transform handle", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/resize-corner-handle-target.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+    const initialScale = readFrameScale(frame);
+
+    fireEvent.pointerDown(screen.getByTestId("edit-expert-transform-handle-inline-ne"), {
+      pointerId: 63,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 196,
+      clientY: 4,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 63,
+      pointerType: "mouse",
+      clientX: 236,
+      clientY: -24,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 63,
+      pointerType: "mouse",
+      clientX: 236,
+      clientY: -24,
+    });
+
+    expect(readFrameScale(frame)).toBeGreaterThan(initialScale);
+  });
+
+  it("keeps transform overlay chrome fixed-size while selection dimensions scale", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/fixed-transform-overlay-chrome.png"
+        referenceText="prompt text"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
+
+    const overlay = screen.getByTestId("edit-expert-transform-overlay-inline");
+    const overlayBox = overlay.querySelector(
+      ".edit-expert-primary-layer-selection-box"
+    ) as HTMLDivElement | null;
+    expect(overlayBox).not.toBeNull();
+    const initialOverlayBoxWidthPercent = Number.parseFloat(overlayBox?.style.width ?? "0");
+    expect(initialOverlayBoxWidthPercent).toBeGreaterThan(0);
+    expect(overlay.style.transform).not.toContain("scale(");
+
+    fireEvent.pointerDown(screen.getByTestId("edit-expert-transform-handle-inline-ne"), {
+      pointerId: 263,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 196,
+      clientY: 4,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 263,
+      pointerType: "mouse",
+      clientX: 236,
+      clientY: -24,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 263,
+      pointerType: "mouse",
+      clientX: 236,
+      clientY: -24,
+    });
+
+    const resizedOverlay = screen.getByTestId("edit-expert-transform-overlay-inline");
+    const resizedOverlayBox = resizedOverlay.querySelector(
+      ".edit-expert-primary-layer-selection-box"
+    ) as HTMLDivElement | null;
+    expect(resizedOverlay.style.transform).not.toContain("scale(");
+    expect(Number.parseFloat(resizedOverlayBox?.style.width ?? "0")).toBeGreaterThan(
+      initialOverlayBoxWidthPercent
+    );
   });
 
   it("undoes and redoes move transforms from the move history controls", async () => {

@@ -114,8 +114,39 @@ body.character-manager-body {
   max-width: none;
 }
 
-.character-manager-page--embedded .character-quickswap-active-scroll {
-  --character-quickswap-visible-rows: 3;
+.character-manager-page--embedded .character-section--reference-drop {
+  padding: 10px;
+  gap: 8px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop
+  .character-reference-drop-content {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop
+  .character-quickswap-active-scroll {
+  min-height: 0;
+}
+
+.character-manager-page--embedded .character-section--reference-drop .character-section-head {
+  margin-bottom: 2px;
+}
+
+.character-manager-page--embedded .character-section--reference-drop .character-section-helper {
+  display: none;
+}
+
+.character-manager-page--embedded .character-simple-dropzone--compact {
+  min-height: 72px;
+  padding: 6px 10px;
 }
 
 .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
@@ -1554,6 +1585,7 @@ body.character-manager-body {
   --character-quickswap-columns: 3;
   --character-quickswap-visible-rows: 4;
   --character-quickswap-grid-gap: 4px;
+  --character-quickswap-max-height-cap: 62vh;
   --character-quickswap-card-width: min(
     220px,
     calc(
@@ -1562,9 +1594,12 @@ body.character-manager-body {
     )
   );
   --character-quickswap-card-height: calc(var(--character-quickswap-card-width) * 5 / 4);
-  max-height: calc(
-    (var(--character-quickswap-card-height) * var(--character-quickswap-visible-rows)) +
-      (var(--character-quickswap-grid-gap) * (var(--character-quickswap-visible-rows) - 1)) + 2px
+  max-height: min(
+    calc(
+      (var(--character-quickswap-card-height) * var(--character-quickswap-visible-rows)) +
+        (var(--character-quickswap-grid-gap) * (var(--character-quickswap-visible-rows) - 1)) + 2px
+    ),
+    var(--character-quickswap-max-height-cap)
   );
   overflow-y: auto;
   overflow-x: hidden;
@@ -3068,6 +3103,8 @@ body.character-manager-body {
 @media (max-width: 860px) {
   .character-quickswap-active-scroll {
     --character-quickswap-columns: 2;
+    --character-quickswap-visible-rows: 2;
+    --character-quickswap-max-height-cap: 44vh;
   }
 
   .character-section-title-row {

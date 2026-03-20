@@ -354,10 +354,9 @@ const registry: Record<string, ModelConfig> = {
     pricingStrategy: "seedream-per-image",
     defaultResolution: contractDefaultResolution(
       "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      "model_default"
+      "auto_2K"
     ),
     allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v4.5/text-to-image", [
-      "model_default",
       "auto_2K",
       "auto_4K",
     ]),
@@ -381,12 +380,8 @@ const registry: Record<string, ModelConfig> = {
       "16:9",
     ]),
     pricingStrategy: "seedream-per-image",
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/bytedance/seedream/v4.5/edit",
-      "model_default"
-    ),
+    defaultResolution: contractDefaultResolution("fal-ai/bytedance/seedream/v4.5/edit", "auto_2K"),
     allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v4.5/edit", [
-      "model_default",
       "auto_2K",
       "auto_4K",
     ]),

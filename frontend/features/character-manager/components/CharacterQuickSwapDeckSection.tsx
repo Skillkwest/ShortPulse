@@ -38,6 +38,11 @@ type CharacterQuickSwapDeckSectionProps = {
     url: string | null | undefined,
     cardLongEdgePx: number
   ) => string | null;
+  resolveQuickSwapPreviewUrl?: (
+    item: CharacterQuickSwapItem,
+    cardLongEdgePx: number
+  ) => string | null;
+  onCardPreviewError?: (item: CharacterQuickSwapItem, failedUrl: string | null) => void;
   onDragEnter: (event: React.DragEvent<HTMLElement>) => void;
   onDragOver: (event: React.DragEvent<HTMLElement>) => void;
   onDragLeave: (event: React.DragEvent<HTMLElement>) => void;
@@ -98,6 +103,8 @@ export function CharacterQuickSwapDeckSection({
   onReferenceDragEnd,
   onOpenReferencePreview,
   resolveCharacterGridPreviewUrl,
+  resolveQuickSwapPreviewUrl,
+  onCardPreviewError,
   onDragEnter,
   onDragOver,
   onDragLeave,
@@ -391,11 +398,21 @@ export function CharacterQuickSwapDeckSection({
                   title="Double-click to preview this reference image"
                 >
                   <Image
-                    src={resolveCharacterGridPreviewUrl(item.previewUrl, 320) ?? item.previewUrl}
+                    src={
+                      (resolveQuickSwapPreviewUrl
+                        ? resolveQuickSwapPreviewUrl(item, 320)
+                        : resolveCharacterGridPreviewUrl(item.previewUrl, 320)) ?? item.previewUrl
+                    }
                     alt={`Reference ${absoluteIndex + 1}`}
                     className="character-reference-upload-image"
                     width={320}
                     height={240}
+                    onError={(event) => {
+                      onCardPreviewError?.(
+                        item,
+                        event.currentTarget.currentSrc || event.currentTarget.src || null
+                      );
+                    }}
                     unoptimized
                   />
                 </div>
@@ -474,12 +491,21 @@ export function CharacterQuickSwapDeckSection({
                     <div className="character-reference-upload-image-wrap">
                       <Image
                         src={
-                          resolveCharacterGridPreviewUrl(item.previewUrl, 220) ?? item.previewUrl
+                          (resolveQuickSwapPreviewUrl
+                            ? resolveQuickSwapPreviewUrl(item, 220)
+                            : resolveCharacterGridPreviewUrl(item.previewUrl, 220)) ??
+                          item.previewUrl
                         }
                         alt="Archived reference"
                         className="character-reference-upload-image"
                         width={220}
                         height={180}
+                        onError={(event) => {
+                          onCardPreviewError?.(
+                            item,
+                            event.currentTarget.currentSrc || event.currentTarget.src || null
+                          );
+                        }}
                         unoptimized
                       />
                     </div>

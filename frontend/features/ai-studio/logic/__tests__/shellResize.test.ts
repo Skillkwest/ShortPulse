@@ -129,10 +129,10 @@ describe("isAiShellResizeViewport", () => {
 });
 
 describe("shouldCollapseAiShellOnToolSelect", () => {
-  it("collapses when switching to edit/video/character tools", () => {
-    expect(shouldCollapseAiShellOnToolSelect(null, "edit")).toBe(true);
+  it("collapses when switching to video tool", () => {
+    expect(shouldCollapseAiShellOnToolSelect(null, "edit")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("text", "video")).toBe(true);
-    expect(shouldCollapseAiShellOnToolSelect("text", "character")).toBe(true);
+    expect(shouldCollapseAiShellOnToolSelect("text", "character")).toBe(false);
   });
 
   it("does not collapse when re-selecting the same tool or choosing other tools", () => {

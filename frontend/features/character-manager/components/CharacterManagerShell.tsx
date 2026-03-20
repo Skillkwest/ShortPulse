@@ -89,6 +89,7 @@ const DRAG_GHOST_SCALE = 0.74;
 const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
   ".character-reference-upload-image-wrap, .character-character-sheet-media";
 const MEDIA_BUCKET = "media_library";
+const CHARACTER_CARD_PREVIEW_SIGN_RETRY_LIMIT = 1;
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -184,10 +185,15 @@ export function CharacterManagerShell({
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
   );
+  const [cardPreviewUrlByStoragePath, setCardPreviewUrlByStoragePath] = useState<
+    Record<string, string>
+  >({});
+  const cardPreviewRetryCountRef = useRef<Record<string, number>>({});
   const characterNameInputRef = useRef<HTMLInputElement | null>(null);
   const profileFileInputRef = useRef<HTMLInputElement | null>(null);
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
   const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
+  const rootContainerRef = useRef<HTMLElement | null>(null);
   const dragGhostMapRef = useRef(new Map<HTMLElement, HTMLElement>());
   const fileDragDepthRef = useRef(0);
   const pageBusy =
@@ -327,6 +333,34 @@ export function CharacterManagerShell({
     referencePreview && quickSwapActiveItems[referencePreview.index]
       ? quickSwapActiveItems[referencePreview.index]
       : null;
+  const refreshCardPreviewSignedUrl = useCallback(
+    (storagePath: string | null | undefined, failedUrl?: string | null) => {
+      const trimmedStoragePath = storagePath?.trim() ?? "";
+      if (!trimmedStoragePath) return;
+      const attempts = cardPreviewRetryCountRef.current[trimmedStoragePath] ?? 0;
+      if (attempts >= CHARACTER_CARD_PREVIEW_SIGN_RETRY_LIMIT) return;
+      cardPreviewRetryCountRef.current[trimmedStoragePath] = attempts + 1;
+
+      void getSignedMediaUrl({
+        bucket: MEDIA_BUCKET,
+        storagePath: trimmedStoragePath,
+        expiresInSeconds: 3600,
+        forceRefresh: true,
+      }).then((signedUrl) => {
+        const nextUrl = signedUrl?.trim() ?? "";
+        if (!nextUrl) return;
+        if (failedUrl && failedUrl.trim() === nextUrl) return;
+        setCardPreviewUrlByStoragePath((prev) => {
+          if (prev[trimmedStoragePath] === nextUrl) return prev;
+          return {
+            ...prev,
+            [trimmedStoragePath]: nextUrl,
+          };
+        });
+      });
+    },
+    []
+  );
   const resolveCharacterGridPreviewUrl = useCallback(
     (url: string | null | undefined, cardLongEdgePx: number): string | null => {
       return resolveCharacterGridPreviewUrlForSurface({
@@ -338,6 +372,25 @@ export function CharacterManagerShell({
       });
     },
     [characterGridAdaptivePressure.previewPressureLevel, characterGridAdaptivePreviewEnabled]
+  );
+  const resolveCharacterCardPreviewUrl = useCallback(
+    ({
+      previewUrl,
+      storagePath,
+      cardLongEdgePx,
+    }: {
+      previewUrl: string | null | undefined;
+      storagePath: string | null | undefined;
+      cardLongEdgePx: number;
+    }): string | null => {
+      const trimmedStoragePath = storagePath?.trim() ?? "";
+      const signedOverride = trimmedStoragePath
+        ? (cardPreviewUrlByStoragePath[trimmedStoragePath] ?? null)
+        : null;
+      const sourceUrl = signedOverride ?? previewUrl;
+      return resolveCharacterGridPreviewUrl(sourceUrl, cardLongEdgePx) ?? sourceUrl ?? null;
+    },
+    [cardPreviewUrlByStoragePath, resolveCharacterGridPreviewUrl]
   );
   const quickSwapItemById = useMemo(
     () => new Map(quickSwapActiveItems.map((item) => [item.id, item])),
@@ -375,6 +428,21 @@ export function CharacterManagerShell({
   const rootClassName = isEmbeddedSurface
     ? "character-manager-page character-manager-page--embedded"
     : "page page-wide character-manager-page";
+  useEffect(() => {
+    if (!isEmbeddedSurface || activeTab !== "create") return;
+    const rootNode = rootContainerRef.current;
+    if (!rootNode) return;
+    const propertiesPanel = rootNode.closest(".ai-properties");
+    if (!(propertiesPanel instanceof HTMLElement)) return;
+    const previousOverflowY = propertiesPanel.style.overflowY;
+    const previousOverscrollBehaviorY = propertiesPanel.style.overscrollBehaviorY;
+    propertiesPanel.style.overflowY = "hidden";
+    propertiesPanel.style.overscrollBehaviorY = "none";
+    return () => {
+      propertiesPanel.style.overflowY = previousOverflowY;
+      propertiesPanel.style.overscrollBehaviorY = previousOverscrollBehaviorY;
+    };
+  }, [activeTab, isEmbeddedSurface]);
   const clearAllMessages = useCallback(() => {
     clearMessages();
     clearQuickSwapError();
@@ -399,6 +467,10 @@ export function CharacterManagerShell({
     if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
     fileDragDepthRef.current = 0;
   }, [showQuickSwapCollapseToggle, isQuickSwapCollapsed]);
+  useEffect(() => {
+    setCardPreviewUrlByStoragePath({});
+    cardPreviewRetryCountRef.current = {};
+  }, [selectedCharacterId]);
 
   useVisibleErrorTelemetry({
     source: "client.character_manager.error_banner",
@@ -1040,6 +1112,9 @@ export function CharacterManagerShell({
 
   return (
     <RootContainer
+      ref={(node) => {
+        rootContainerRef.current = node;
+      }}
       id={isEmbeddedSurface ? undefined : "main-content"}
       className={rootClassName}
       data-beginner-mode={effectiveBeginnerMode ? "on" : "off"}
@@ -1285,6 +1360,16 @@ export function CharacterManagerShell({
                   onReferenceDragEnd={handleReferenceDragEnd}
                   onOpenReferencePreview={openReferencePreview}
                   resolveCharacterGridPreviewUrl={resolveCharacterGridPreviewUrl}
+                  resolveQuickSwapPreviewUrl={(item, cardLongEdgePx) =>
+                    resolveCharacterCardPreviewUrl({
+                      previewUrl: item.previewUrl,
+                      storagePath: item.storagePath,
+                      cardLongEdgePx,
+                    })
+                  }
+                  onCardPreviewError={(item, failedUrl) => {
+                    refreshCardPreviewSignedUrl(item.storagePath, failedUrl);
+                  }}
                   onDragEnter={(event) => {
                     if (isQuickSwapCollapsed) return;
                     if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
@@ -1615,15 +1700,24 @@ export function CharacterManagerShell({
                               {assignedReference?.previewUrl ? (
                                 <Image
                                   src={
-                                    resolveCharacterGridPreviewUrl(
-                                      assignedReference.previewUrl,
-                                      300
-                                    ) ?? assignedReference.previewUrl
+                                    resolveCharacterCardPreviewUrl({
+                                      previewUrl: assignedReference.previewUrl,
+                                      storagePath: assignedReference.storagePath,
+                                      cardLongEdgePx: 300,
+                                    }) ?? assignedReference.previewUrl
                                   }
                                   alt={`${dropZone.label} reference`}
                                   className="character-character-sheet-image"
                                   width={240}
                                   height={300}
+                                  onError={(event) => {
+                                    refreshCardPreviewSignedUrl(
+                                      assignedReference.storagePath,
+                                      event.currentTarget.currentSrc ||
+                                        event.currentTarget.src ||
+                                        null
+                                    );
+                                  }}
                                   unoptimized
                                 />
                               ) : (

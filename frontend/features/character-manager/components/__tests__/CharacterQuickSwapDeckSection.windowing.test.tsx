@@ -182,4 +182,26 @@ describe("CharacterQuickSwapDeckSection windowing", () => {
       expect(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument();
     });
   });
+
+  it("forwards card image errors to the preview error callback", async () => {
+    const onCardPreviewError = vi.fn();
+    renderSection({
+      activeItems: createQuickSwapItems(2, "active"),
+      archivedItems: [],
+      archivedCount: 0,
+      hasMoreArchived: false,
+      onCardPreviewError,
+    });
+
+    const firstImage = await screen.findByAltText("Reference 1");
+    fireEvent.error(firstImage);
+
+    expect(onCardPreviewError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "active-1",
+        storagePath: "user-1/characters/char-1/quickswap/active-1.png",
+      }),
+      expect.any(String)
+    );
+  });
 });

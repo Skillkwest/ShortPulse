@@ -142,4 +142,27 @@ describe("CharacterPanel layout", () => {
     expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
   });
+
+  it("locks properties rail scrolling only while Character Profile tab is active", () => {
+    const { container } = render(
+      <div className="ai-properties" style={{ overflowY: "auto", overscrollBehaviorY: "auto" }}>
+        <CharacterPanel beginnerMode />
+      </div>
+    );
+    const propertiesRail = container.querySelector(".ai-properties") as HTMLDivElement | null;
+    if (!propertiesRail) {
+      throw new Error("Expected ai-properties wrapper to exist.");
+    }
+
+    expect(propertiesRail.style.overflowY).toBe("auto");
+    expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
+    expect(propertiesRail.style.overflowY).toBe("hidden");
+    expect(propertiesRail.style.overscrollBehaviorY).toBe("none");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Manage Characters" }));
+    expect(propertiesRail.style.overflowY).toBe("auto");
+    expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
+  });
 });

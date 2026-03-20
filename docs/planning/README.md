@@ -90,6 +90,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`: execution tracker for reference-only session persistence slices and gates.
 - `ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`: implementation plan for Expert Edit properties panel rollout with legacy fallback and kill switch.
 - `ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`: execution tracker for Expert Edit phases, gates, and commit checkpoints.
+- `ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`: decision-locked master roadmap for canonical coordinate/interaction parity across Expert Edit inline + modal markup/inpaint workflows.
+- `ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`: master execution tracker with phase gates, risk controls, and evidence requirements for coordinate parity hardening.
 - `ai-studio-properties-panels-modularization-program.md`: completed modularization program for AI Studio properties-panel workflow architecture and beginner-mode hardening.
 - `ai-studio-properties-panels-modularization-tracker.md`: execution tracker for the properties-panels modularization program.
 - `ai-studio-create-character-mode-hardening-plan.md`: hardening plan for Create Character Mode model mapping and submit invariants.
@@ -105,6 +107,10 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-agent-modularization-tracker.md`: execution tracker for phase checklists, risks, blockers, rollout rings, and evidence links.
 - `ai-studio-agent-safety-control-plane-plan.md`: Wave F safety policy control-plane implementation plan (modality profiles, hard floors, admin operations, rollback/cooldown).
 - `ai-studio-agent-safety-control-plane-tracker.md`: Wave F execution tracker for safety control-plane phases, validation gates, and evidence.
+- `ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`: short three-phase roadmap to remediate March 2026 agent pipeline regressions (policy parity, prompt continuity, and rollout hardening).
+- `ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`: execution tracker for roadmap phases, row-level ownership, validation bundles, and evidence capture.
+- `ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`: decision-complete OpenAI-only Phase 1 implementation plan with additive outcome contract and validation gates.
+- `ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`: decision-complete OpenAI-only Phase 2 implementation plan for scoped precheck enforcement, continuity hardening, and runtime truth gating.
 - `ai-studio-ux-prompt-adjacency-rollout-plan.md`: Wave G consolidated UX + prompt-adjacency rollout plan (scope, gates, rollback posture).
 - `ai-studio-ux-prompt-adjacency-rollout-tracker.md`: Wave G execution tracker for prompt-adjacent contract consolidation and UX rollout gates.
 - `ai-studio-webhook-canary-closeout-plan.md`: Wave H controlled webhook canary closeout plan (windowed thresholds, promote/hold/rollback decisioning).
@@ -151,6 +157,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/generation-pipeline-hardening/README.md`: evidence packet schema and naming contract for Track P1 generation-pipeline hardening slices.
 - `evidence/media-rendering-hardening-v2/README.md`: evidence index and packet naming contract for media rendering hardening v2 slices.
 - `evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`: reusable evidence packet template for media rendering hardening v2 slices.
+- `evidence/agent-pipeline-remediation/README.md`: evidence index and packet minimums for the AI Studio agent pipeline regression remediation program.
+- `evidence/agent-pipeline-remediation/phase-1/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 1 remediation validation.
 - `evidence/README.md`: top-level planning evidence index, including lane-specific evidence namespaces.
 
 ## Maintenance

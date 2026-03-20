@@ -145,8 +145,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - FLUX models / Nano Banana: `model_default` (no separate resolution enum exposed in current UI payload mapping).
   - Nano Banana 2 + Nano Banana 2 Edit: `0.5K`, `1K`, `2K`, `4K`.
   - Nano Banana Pro + Nano Banana Pro Edit: `1K`, `2K`, `4K`.
-  - Seedream 4.5 + Seedream 4.5 Edit: `model_default`, `auto_2K`, `auto_4K`.
-- Seedream 5 Lite + Seedream 5 Lite Edit: `auto_2K`, `auto_3K`.
+  - Seedream 4.5 + Seedream 4.5 Edit: `auto_2K` (default), `auto_4K`.
+  - Seedream 5 Lite + Seedream 5 Lite Edit: `auto_2K`, `auto_3K`.
 
 ## Expert Edit properties panel behavior
 

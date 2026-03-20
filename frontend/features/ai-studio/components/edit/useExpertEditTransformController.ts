@@ -51,6 +51,18 @@ type UseExpertEditTransformControllerResult = {
   handleMovePointerLeave: (event: React.PointerEvent<HTMLDivElement>) => void;
 };
 
+const resolveDragModeFromPointerTarget = (
+  target: EventTarget | null
+): TransformPointerSession["dragMode"] | null => {
+  if (!(target instanceof Element)) return null;
+  const dragHandle = target.closest<HTMLElement>("[data-edit-expert-transform-drag-mode]");
+  const dragMode = dragHandle?.dataset.editExpertTransformDragMode;
+  if (dragMode === "move" || dragMode === "resize" || dragMode === "rotate") {
+    return dragMode;
+  }
+  return null;
+};
+
 /**
  * Returns the pointer handlers for move/resize/rotate stage interactions.
  */
@@ -119,10 +131,13 @@ export const useExpertEditTransformController = ({
         viewportOffsetX: shouldApplyViewportTransform ? viewportOffsetXRatio * rect.width : 0,
         viewportOffsetY: shouldApplyViewportTransform ? viewportOffsetYRatio * rect.height : 0,
       });
-      const dragMode = resolveTransformDragMode({
-        altKey: event.altKey,
-        shiftKey: event.shiftKey,
-      });
+      const targetDragMode = resolveDragModeFromPointerTarget(event.target);
+      const dragMode =
+        targetDragMode ??
+        resolveTransformDragMode({
+          altKey: event.altKey,
+          shiftKey: event.shiftKey,
+        });
       event.preventDefault();
       if (event.currentTarget.setPointerCapture) {
         event.currentTarget.setPointerCapture(event.pointerId);

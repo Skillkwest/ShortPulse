@@ -1,21 +1,15 @@
 /**
  * AI Studio right-rail panel visibility domain helpers.
- * Centralizes workflow-scoped visibility state, derived render visibility, and header toggle behavior.
+ * Centralizes global visibility state, derived render visibility, and header toggle behavior.
  */
-import type { ToolId } from "../types";
 
 export type HeaderShortcutId = "canvas" | "quick-slot-inventory" | "reference-grid" | "styles";
-export type WorkflowPanelVisibilityKey = "create" | "edit" | "video" | "canvas";
-export type WorkflowPanelVisibilityState = {
+export type PanelVisibilityState = {
   canvas: boolean;
   quickSlot: boolean;
   referenceGrid: boolean;
   styles: boolean;
 };
-export type WorkflowPanelVisibilityByWorkflow = Record<
-  WorkflowPanelVisibilityKey,
-  WorkflowPanelVisibilityState
->;
 export type PanelToggleAvailability = {
   canvas: boolean;
   quickSlot: boolean;
@@ -33,17 +27,15 @@ export type HeaderShortcutState = {
 };
 export type HeaderShortcutStateMap = Record<HeaderShortcutId, HeaderShortcutState>;
 
-const DEFAULT_WORKFLOW_PANEL_VISIBILITY_TEMPLATE: WorkflowPanelVisibilityByWorkflow = {
-  // Canvas rail panel starts hidden by default for non-canvas workflows on fresh loads/sessions.
-  create: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
-  edit: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
-  video: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
-  canvas: { canvas: false, quickSlot: true, referenceGrid: true, styles: false },
+const DEFAULT_PANEL_VISIBILITY_STATE: PanelVisibilityState = {
+  // Canvas rail panel starts hidden by default on fresh loads/sessions.
+  canvas: false,
+  quickSlot: true,
+  referenceGrid: true,
+  styles: false,
 };
 
-const cloneWorkflowPanelVisibilityState = (
-  state: WorkflowPanelVisibilityState
-): WorkflowPanelVisibilityState => ({
+const clonePanelVisibilityState = (state: PanelVisibilityState): PanelVisibilityState => ({
   canvas: state.canvas,
   quickSlot: state.quickSlot,
   referenceGrid: state.referenceGrid,
@@ -51,49 +43,25 @@ const cloneWorkflowPanelVisibilityState = (
 });
 
 /**
- * Creates a fresh workflow visibility map for local UI state initialization.
+ * Creates a fresh visibility snapshot for local UI state initialization.
  */
-export const createInitialWorkflowPanelVisibility = (): WorkflowPanelVisibilityByWorkflow => ({
-  create: cloneWorkflowPanelVisibilityState(DEFAULT_WORKFLOW_PANEL_VISIBILITY_TEMPLATE.create),
-  edit: cloneWorkflowPanelVisibilityState(DEFAULT_WORKFLOW_PANEL_VISIBILITY_TEMPLATE.edit),
-  video: cloneWorkflowPanelVisibilityState(DEFAULT_WORKFLOW_PANEL_VISIBILITY_TEMPLATE.video),
-  canvas: cloneWorkflowPanelVisibilityState(DEFAULT_WORKFLOW_PANEL_VISIBILITY_TEMPLATE.canvas),
-});
+export const createInitialPanelVisibility = (): PanelVisibilityState =>
+  clonePanelVisibilityState(DEFAULT_PANEL_VISIBILITY_STATE);
 
 /**
- * Resolves the workflow bucket used for per-workflow panel visibility persistence.
- */
-export const resolvePanelVisibilityWorkflowKey = (
-  tool: ToolId | null
-): WorkflowPanelVisibilityKey => {
-  switch (tool) {
-    case "edit":
-    case "image":
-      return "edit";
-    case "video":
-      return "video";
-    case "canvas":
-      return "canvas";
-    default:
-      // Create group intentionally includes create/text/kling and all non-panel workflows.
-      return "create";
-  }
-};
-
-/**
- * Applies runtime availability gates to a workflow visibility snapshot to produce render visibility.
+ * Applies runtime availability gates to panel visibility to produce render visibility.
  */
 export const resolveEffectivePanelVisibility = ({
-  workflowVisibility,
+  panelVisibility,
   availability,
 }: {
-  workflowVisibility: WorkflowPanelVisibilityState;
+  panelVisibility: PanelVisibilityState;
   availability: PanelToggleAvailability;
 }): EffectivePanelVisibility => ({
-  canvas: availability.canvas && workflowVisibility.canvas,
-  quickSlot: availability.quickSlot && workflowVisibility.quickSlot,
-  referenceGrid: workflowVisibility.referenceGrid,
-  styles: availability.styles && workflowVisibility.styles,
+  canvas: availability.canvas && panelVisibility.canvas,
+  quickSlot: availability.quickSlot && panelVisibility.quickSlot,
+  referenceGrid: panelVisibility.referenceGrid,
+  styles: availability.styles && panelVisibility.styles,
 });
 
 /**
@@ -124,47 +92,37 @@ export const resolveHeaderShortcutStateMap = ({
   },
 });
 
-const withWorkflowStateUpdate = (
-  byWorkflow: WorkflowPanelVisibilityByWorkflow,
-  workflowKey: WorkflowPanelVisibilityKey,
-  resolver: (state: WorkflowPanelVisibilityState) => WorkflowPanelVisibilityState
-): WorkflowPanelVisibilityByWorkflow => {
-  const currentWorkflowState = byWorkflow[workflowKey];
-  const nextWorkflowState = resolver(currentWorkflowState);
-  if (nextWorkflowState === currentWorkflowState) return byWorkflow;
-  return {
-    ...byWorkflow,
-    [workflowKey]: nextWorkflowState,
-  };
-};
-
 /**
- * Toggles a single header shortcut for the active workflow while respecting toggle availability.
+ * Toggles a single header shortcut while respecting toggle availability.
  */
-export const toggleWorkflowPanelVisibilityByShortcut = ({
-  byWorkflow,
-  workflowKey,
+export const togglePanelVisibilityByShortcut = ({
+  panelVisibility,
   shortcutId,
   availability,
 }: {
-  byWorkflow: WorkflowPanelVisibilityByWorkflow;
-  workflowKey: WorkflowPanelVisibilityKey;
+  panelVisibility: PanelVisibilityState;
   shortcutId: HeaderShortcutId;
   availability: PanelToggleAvailability;
-}): WorkflowPanelVisibilityByWorkflow => {
+}): PanelVisibilityState => {
   if (shortcutId === "styles") {
-    if (!availability.styles) return byWorkflow;
-    return withWorkflowStateUpdate(byWorkflow, workflowKey, (state) => ({
-      ...state,
-      styles: !state.styles,
-    }));
+    if (!availability.styles) return panelVisibility;
+    return {
+      ...panelVisibility,
+      styles: !panelVisibility.styles,
+    };
   }
-  if (shortcutId === "canvas" && !availability.canvas) return byWorkflow;
-  if (shortcutId === "quick-slot-inventory" && !availability.quickSlot) return byWorkflow;
-  return withWorkflowStateUpdate(byWorkflow, workflowKey, (state) => ({
-    ...state,
-    canvas: shortcutId === "canvas" ? !state.canvas : state.canvas,
-    quickSlot: shortcutId === "quick-slot-inventory" ? !state.quickSlot : state.quickSlot,
-    referenceGrid: shortcutId === "reference-grid" ? !state.referenceGrid : state.referenceGrid,
-  }));
+  if (shortcutId === "canvas" && !availability.canvas) return panelVisibility;
+  if (shortcutId === "quick-slot-inventory" && !availability.quickSlot) return panelVisibility;
+  return {
+    ...panelVisibility,
+    canvas: shortcutId === "canvas" ? !panelVisibility.canvas : panelVisibility.canvas,
+    quickSlot:
+      shortcutId === "quick-slot-inventory"
+        ? !panelVisibility.quickSlot
+        : panelVisibility.quickSlot,
+    referenceGrid:
+      shortcutId === "reference-grid"
+        ? !panelVisibility.referenceGrid
+        : panelVisibility.referenceGrid,
+  };
 };

@@ -57,3 +57,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0042-ai-studio-properties-panel-workflow-contract.md`
 - `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
 - `docs/adr/0044-media-rendering-surface-delivery-policy-and-adr-reconciliation.md`
+- `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`

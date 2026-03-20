@@ -358,6 +358,33 @@ const STATUS_TOAST_VISIBLE_MS = 1_000;
 const STATUS_TOAST_FADE_MS = 220;
 const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
+const selectedLayerTransformHandleCorners = ["nw", "ne", "se", "sw"] as const;
+
+const resolveLayerFrameTransformStyle = (layer: ExpertEditLayer) =>
+  `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${
+    Math.round(layer.transform.translateYRatio * 1000) / 10
+  }%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`;
+
+const resolveLayerOverlayTransformStyle = (layer: ExpertEditLayer) =>
+  `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${
+    Math.round(layer.transform.translateYRatio * 1000) / 10
+  }%) rotate(${layer.transform.rotationDeg}deg)`;
+
+const resolveImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> =>
+  new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("Image dimension resolution requires a browser environment."));
+      return;
+    }
+    const image = new window.Image();
+    image.onload = () =>
+      resolve({
+        width: Math.max(1, image.naturalWidth || 1),
+        height: Math.max(1, image.naturalHeight || 1),
+      });
+    image.onerror = () => reject(new Error("Unable to resolve image dimensions."));
+    image.src = url;
+  });
 const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
 const FLATTEN_IMAGE_ACTION_ID = "flatten-image";
 const TRANSFORM_HISTORY_LIMIT = 80;
@@ -612,6 +639,9 @@ export function ExpertEditPanelView({
   const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
     ...initialSessionState.layerState.layers,
   ]);
+  const [layerImageDimensionCache, setLayerImageDimensionCache] = React.useState<
+    Record<string, { url: string; width: number; height: number }>
+  >({});
   const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>(
     initialSessionState.layerState.foundationLayerId
   );
@@ -701,6 +731,83 @@ export function ExpertEditPanelView({
   const selectedStyleId = controlledSelectedStyleId ?? null;
   const selectedLayer = layers[resolvedSelectedLayerIndex] ?? null;
   const selectedLayerImageUrl = selectedLayer?.imageUrl ?? null;
+  React.useEffect(() => {
+    setLayerImageDimensionCache((previousCache) => {
+      let didChange = false;
+      const nextCache: Record<string, { url: string; width: number; height: number }> = {};
+      layers.forEach((layer) => {
+        if (!layer.imageUrl) return;
+        const cached = previousCache[layer.id];
+        if (!cached || cached.url !== layer.imageUrl) {
+          didChange = true;
+          return;
+        }
+        nextCache[layer.id] = cached;
+      });
+      if (!didChange && Object.keys(previousCache).length === Object.keys(nextCache).length) {
+        return previousCache;
+      }
+      return nextCache;
+    });
+  }, [layers]);
+  React.useEffect(() => {
+    const pendingLayers = layers.filter((layer) => {
+      if (!layer.imageUrl) return false;
+      const cached = layerImageDimensionCache[layer.id];
+      return !cached || cached.url !== layer.imageUrl;
+    });
+    if (pendingLayers.length <= 0) return;
+
+    let isCancelled = false;
+    pendingLayers.forEach((layer) => {
+      const imageUrl = layer.imageUrl;
+      if (!imageUrl) return;
+      void resolveImageDimensionsFromUrl(imageUrl)
+        .then((dimensions) => {
+          if (isCancelled) return;
+          setLayerImageDimensionCache((previousCache) => {
+            const current = previousCache[layer.id];
+            if (
+              current &&
+              current.url === imageUrl &&
+              current.width === dimensions.width &&
+              current.height === dimensions.height
+            ) {
+              return previousCache;
+            }
+            return {
+              ...previousCache,
+              [layer.id]: {
+                url: imageUrl,
+                width: dimensions.width,
+                height: dimensions.height,
+              },
+            };
+          });
+        })
+        .catch(() => {
+          if (isCancelled) return;
+          setLayerImageDimensionCache((previousCache) => {
+            const current = previousCache[layer.id];
+            if (current && current.url === imageUrl) {
+              return previousCache;
+            }
+            return {
+              ...previousCache,
+              [layer.id]: {
+                url: imageUrl,
+                width: 1,
+                height: 1,
+              },
+            };
+          });
+        });
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [layerImageDimensionCache, layers]);
   const populatedLayerCount = React.useMemo(
     () => layers.filter((layer) => layerHasImage(layer)).length,
     [layers]
@@ -818,6 +925,8 @@ export function ExpertEditPanelView({
   );
   const isInpaintSubmitMode = effectiveEditSubmitIntent === "inpaint";
   const isMarkupSubmitMode = effectiveEditSubmitIntent === "markup";
+  const shouldUseTallCanvasLayout = isInpaintSubmitMode || isMarkupSubmitMode;
+  const shouldShowSecondaryReferenceAndStylesRow = !isInpaintSubmitMode && !isMarkupSubmitMode;
   const shouldHideSelectedModeRailPanel =
     isGenerationModeToggleEnabled && effectiveEditSubmitIntent === "standard";
   const isInpaintLikeToolSelected = isInpaintToolSelected || isVideoToolSelected;
@@ -1286,6 +1395,23 @@ export function ExpertEditPanelView({
     Boolean(selectedLayerImageUrl) &&
     imageHasInteractiveMask;
   const shouldShowMarkupBrushReticle = isVideoToolSelected && hasPrimaryCompositePreview;
+  const shouldShowSelectedLayerTransformOverlay =
+    isMoveToolSelected && Boolean(selectedLayerImageUrl) && hasPrimaryCompositePreview;
+  const selectedLayerImageAspectRatio = React.useMemo(() => {
+    if (!selectedLayer?.imageUrl) return 1;
+    const dimensions = layerImageDimensionCache[selectedLayer.id];
+    if (!dimensions || dimensions.url !== selectedLayer.imageUrl || dimensions.height <= 0) {
+      return 1;
+    }
+    return Math.max(0.0001, dimensions.width / dimensions.height);
+  }, [layerImageDimensionCache, selectedLayer]);
+  const selectedLayerTransformOverlayStyle = React.useMemo<React.CSSProperties | null>(() => {
+    if (!selectedLayer) return null;
+    return {
+      transform: resolveLayerOverlayTransformStyle(selectedLayer),
+      transformOrigin: "center center",
+    };
+  }, [selectedLayer]);
   const morePresetsSurfaceId = React.useId();
   const primaryDropzoneCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
@@ -4251,11 +4377,60 @@ export function ExpertEditPanelView({
     );
   };
 
+  const renderSelectedLayerTransformOverlay = (
+    scope: "inline" | "modal"
+  ): React.ReactNode | null => {
+    if (!shouldShowSelectedLayerTransformOverlay || !selectedLayerTransformOverlayStyle) {
+      return null;
+    }
+    const viewportSize = scope === "modal" ? markupModalViewportSize : inlineDropzoneViewportSize;
+    const resolvedDropzoneAspectRatio =
+      viewportSize.width > 1 && viewportSize.height > 1
+        ? viewportSize.width / viewportSize.height
+        : primaryDropzoneAspectRatioValue;
+    let selectionBoxWidthPercent = 100;
+    let selectionBoxHeightPercent = 100;
+    if (selectedLayerImageAspectRatio > resolvedDropzoneAspectRatio) {
+      selectionBoxHeightPercent =
+        (resolvedDropzoneAspectRatio / selectedLayerImageAspectRatio) * 100;
+    } else {
+      selectionBoxWidthPercent =
+        (selectedLayerImageAspectRatio / resolvedDropzoneAspectRatio) * 100;
+    }
+    const selectedLayerScale = Math.max(0.0001, selectedLayer?.transform.scale ?? 1);
+    return (
+      <div
+        className="edit-expert-primary-layer-selection-overlay"
+        style={selectedLayerTransformOverlayStyle}
+        aria-hidden="true"
+        data-testid={`edit-expert-transform-overlay-${scope}`}
+      >
+        <div
+          className="edit-expert-primary-layer-selection-box"
+          style={{
+            width: `${Math.max(0.0001, selectionBoxWidthPercent * selectedLayerScale)}%`,
+            height: `${Math.max(0.0001, selectionBoxHeightPercent * selectedLayerScale)}%`,
+          }}
+        >
+          <span className="edit-expert-primary-layer-selection-outline" />
+          {selectedLayerTransformHandleCorners.map((corner) => (
+            <span
+              key={`${scope}-selected-layer-handle-${corner}`}
+              className={`edit-expert-primary-layer-selection-handle is-corner-${corner}`}
+              data-edit-expert-transform-drag-mode="resize"
+              data-testid={`edit-expert-transform-handle-${scope}-${corner}`}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className={`tool-properties edit-expert-panel ${
         isMarkupExpandSelected ? "is-markup-modal-open" : ""
-      }`.trim()}
+      } ${shouldUseTallCanvasLayout ? "is-generation-mode-tall-stage" : ""}`.trim()}
       role="group"
       aria-label="Expert edit composer"
       onDragEnterCapture={handleMarkupModalRootDragCapture}
@@ -4377,7 +4552,9 @@ export function ExpertEditPanelView({
           ) : null}
           <div
             ref={inlineStageWrapperRef}
-            className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-stage-wrapper"
+            className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-stage-wrapper ${
+              shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""
+            }`.trim()}
             onPointerDownCapture={handleInlineStagePointerDownCapture}
             onPointerMoveCapture={handleInlineStagePointerMoveCapture}
             onPointerUpCapture={handleInlineStagePointerUpCapture}
@@ -4390,7 +4567,9 @@ export function ExpertEditPanelView({
                 ref={primaryDropzoneRef}
                 className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
                   isMorePresetsSurfaceOpen ? "is-presets-open" : ""
-                } ${primaryDragActive ? "is-dragging" : ""}`}
+                } ${primaryDragActive ? "is-dragging" : ""} ${
+                  shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""
+                }`}
                 style={primaryDropzoneStyle}
                 onDrop={handlePrimaryDrop}
                 onDragEnter={handlePrimaryDragEnter}
@@ -4412,92 +4591,95 @@ export function ExpertEditPanelView({
                 <div className="edit-expert-markup-viewport">
                   {hasPrimaryCompositePreview ? (
                     <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
-                      {layers.map((layer, index) =>
-                        layer.imageUrl ? (
-                          <div
-                            key={layer.id}
-                            className="edit-expert-primary-layer-frame"
-                            style={{
-                              backgroundImage: `url(${layer.imageUrl})`,
-                              zIndex: layers.length - index,
-                              opacity: clampLayerOpacity(layer.opacity),
-                              transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
-                              transformOrigin: "center center",
-                            }}
-                          />
-                        ) : null
-                      )}
-                      <canvas
-                        ref={overlayCanvasRef}
-                        className="edit-expert-inpaint-overlay-canvas"
-                        aria-hidden="true"
-                      />
-                      {renderMarkupStrokeOverlay(
-                        "inline",
-                        inlineDropzoneViewportSize,
-                        primaryDropzoneRef.current
-                      )}
-                      {isFlattenPending ? (
-                        <div
-                          className="edit-expert-primary-layer-loading-overlay"
-                          data-testid="edit-expert-flatten-loading-overlay"
-                        >
-                          <div
-                            className="edit-expert-primary-layer-loading"
-                            role="status"
-                            aria-label="Flattening layers"
-                            aria-live="polite"
-                          >
-                            <span
-                              className="edit-expert-primary-layer-loading-spinner"
-                              aria-hidden="true"
+                      <div className="edit-expert-primary-layer-content-clip">
+                        {layers.map((layer, index) =>
+                          layer.imageUrl ? (
+                            <div
+                              key={layer.id}
+                              className="edit-expert-primary-layer-frame"
+                              style={{
+                                backgroundImage: `url(${layer.imageUrl})`,
+                                zIndex: layers.length - index,
+                                opacity: clampLayerOpacity(layer.opacity),
+                                transform: resolveLayerFrameTransformStyle(layer),
+                                transformOrigin: "center center",
+                              }}
                             />
-                            <span className="edit-expert-primary-layer-loading-text">
-                              Flattening layers...
-                            </span>
-                          </div>
-                        </div>
-                      ) : isRemoveBackgroundPending ? (
-                        <div
-                          className="edit-expert-primary-layer-loading-overlay"
-                          data-testid="edit-expert-remove-background-loading-overlay"
-                        >
+                          ) : null
+                        )}
+                        <canvas
+                          ref={overlayCanvasRef}
+                          className="edit-expert-inpaint-overlay-canvas"
+                          aria-hidden="true"
+                        />
+                        {renderMarkupStrokeOverlay(
+                          "inline",
+                          inlineDropzoneViewportSize,
+                          primaryDropzoneRef.current
+                        )}
+                        {isFlattenPending ? (
                           <div
-                            className="edit-expert-primary-layer-loading"
-                            role="status"
-                            aria-label="Removing background"
-                            aria-live="polite"
+                            className="edit-expert-primary-layer-loading-overlay"
+                            data-testid="edit-expert-flatten-loading-overlay"
                           >
-                            <span
-                              className="edit-expert-primary-layer-loading-spinner"
-                              aria-hidden="true"
-                            />
-                            <span className="edit-expert-primary-layer-loading-text">
-                              Removing background...
-                            </span>
+                            <div
+                              className="edit-expert-primary-layer-loading"
+                              role="status"
+                              aria-label="Flattening layers"
+                              aria-live="polite"
+                            >
+                              <span
+                                className="edit-expert-primary-layer-loading-spinner"
+                                aria-hidden="true"
+                              />
+                              <span className="edit-expert-primary-layer-loading-text">
+                                Flattening layers...
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ) : isPrimaryStageGenerating ? (
-                        <div
-                          className="edit-expert-primary-layer-loading-overlay"
-                          data-testid="edit-expert-inline-generate-loading-overlay"
-                        >
+                        ) : isRemoveBackgroundPending ? (
                           <div
-                            className="edit-expert-primary-layer-loading"
-                            role="status"
-                            aria-label="Generating image"
-                            aria-live="polite"
+                            className="edit-expert-primary-layer-loading-overlay"
+                            data-testid="edit-expert-remove-background-loading-overlay"
                           >
-                            <span
-                              className="edit-expert-primary-layer-loading-spinner"
-                              aria-hidden="true"
-                            />
-                            <span className="edit-expert-primary-layer-loading-text">
-                              Generating...
-                            </span>
+                            <div
+                              className="edit-expert-primary-layer-loading"
+                              role="status"
+                              aria-label="Removing background"
+                              aria-live="polite"
+                            >
+                              <span
+                                className="edit-expert-primary-layer-loading-spinner"
+                                aria-hidden="true"
+                              />
+                              <span className="edit-expert-primary-layer-loading-text">
+                                Removing background...
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ) : null}
+                        ) : isPrimaryStageGenerating ? (
+                          <div
+                            className="edit-expert-primary-layer-loading-overlay"
+                            data-testid="edit-expert-inline-generate-loading-overlay"
+                          >
+                            <div
+                              className="edit-expert-primary-layer-loading"
+                              role="status"
+                              aria-label="Generating image"
+                              aria-live="polite"
+                            >
+                              <span
+                                className="edit-expert-primary-layer-loading-spinner"
+                                aria-hidden="true"
+                              />
+                              <span className="edit-expert-primary-layer-loading-text">
+                                Generating...
+                              </span>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      {renderSelectedLayerTransformOverlay("inline")}
                     </div>
                   ) : (
                     <div className="edit-expert-markup-viewport-empty-state">
@@ -4708,58 +4890,66 @@ export function ExpertEditPanelView({
                   </div>
                 </div>
               ) : null}
-              <div className="edit-expert-secondary-control">
-                <p className="edit-expert-secondary-title">Reference Images</p>
-                <div className="edit-expert-secondary-row">
-                  {secondaries.map((index) => {
-                    const previewUrl = extraImageUrls[index];
-                    const inputRef = inputRefs[index];
-                    return (
-                      <div
-                        className="edit-expert-secondary-slot"
-                        key={`expert-edit-secondary-${index}`}
-                      >
-                        <div
-                          className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
-                            extraDragActive[index] ? "is-dragging" : ""
-                          }`}
-                          draggable={Boolean(previewUrl)}
-                          onDragStart={(event) => handleSecondaryPromptTokenDragStart(event, index)}
-                          onDrop={handleExtraDrop(index)}
-                          onDragEnter={handleExtraDragEnter(index)}
-                          onDragOver={handleExtraDragOver(index)}
-                          onDragLeave={handleExtraDragLeave(index)}
-                          onClick={() => inputRef.current?.click()}
-                          style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
-                          aria-label={`Secondary edit image ${index + 1}`}
-                        >
-                          {previewUrl ? (
-                            <button
-                              type="button"
-                              className="dropzone-clear"
-                              aria-label={`Remove secondary image ${index + 1}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onExtraImageChange(index, null);
-                              }}
+              {shouldShowSecondaryReferenceAndStylesRow ? (
+                <>
+                  <div className="edit-expert-secondary-control">
+                    <p className="edit-expert-secondary-title">Reference Images</p>
+                    <div className="edit-expert-secondary-row">
+                      {secondaries.map((index) => {
+                        const previewUrl = extraImageUrls[index];
+                        const inputRef = inputRefs[index];
+                        return (
+                          <div
+                            className="edit-expert-secondary-slot"
+                            key={`expert-edit-secondary-${index}`}
+                          >
+                            <div
+                              className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
+                                extraDragActive[index] ? "is-dragging" : ""
+                              }`}
+                              draggable={Boolean(previewUrl)}
+                              onDragStart={(event) =>
+                                handleSecondaryPromptTokenDragStart(event, index)
+                              }
+                              onDrop={handleExtraDrop(index)}
+                              onDragEnter={handleExtraDragEnter(index)}
+                              onDragOver={handleExtraDragOver(index)}
+                              onDragLeave={handleExtraDragLeave(index)}
+                              onClick={() => inputRef.current?.click()}
+                              style={
+                                previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined
+                              }
+                              aria-label={`Secondary edit image ${index + 1}`}
                             >
-                              <TrashSimple size={14} weight="regular" />
-                            </button>
-                          ) : (
-                            <Plus size={18} weight="regular" />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <StylesControl
-                isOpen={isStylesPanelOpen}
-                selectedStyleId={selectedStyleId}
-                styles={stylesCatalog}
-                onToggle={handleStylesPanelToggle}
-              />
+                              {previewUrl ? (
+                                <button
+                                  type="button"
+                                  className="dropzone-clear"
+                                  aria-label={`Remove secondary image ${index + 1}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onExtraImageChange(index, null);
+                                  }}
+                                >
+                                  <TrashSimple size={14} weight="regular" />
+                                </button>
+                              ) : (
+                                <Plus size={18} weight="regular" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <StylesControl
+                    isOpen={isStylesPanelOpen}
+                    selectedStyleId={selectedStyleId}
+                    styles={stylesCatalog}
+                    onToggle={handleStylesPanelToggle}
+                  />
+                </>
+              ) : null}
             </div>
             <div className="edit-expert-bottom-row">
               <div className="edit-expert-prompt-shell">
@@ -4886,6 +5076,9 @@ export function ExpertEditPanelView({
         modalRef={handleMarkupModalRef}
         controlsColumnRef={handleMarkupModalControlsRef}
         stageRef={handleMarkupModalStageRef}
+        stageClassName={
+          shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : undefined
+        }
         stageStyle={markupModalStageStyle}
         generalPanel={renderMarkupModalGeneralPanel()}
         movePanel={renderMarkupModalMovePanel()}
@@ -4894,31 +5087,34 @@ export function ExpertEditPanelView({
         stageContent={
           <div className="edit-expert-markup-viewport" style={modalMarkupViewportStyle}>
             <div className="edit-expert-primary-layer-canvas" aria-hidden="true">
-              {layers.map((layer, index) =>
-                layer.imageUrl ? (
-                  <div
-                    key={`markup-modal-${layer.id}`}
-                    className="edit-expert-primary-layer-frame"
-                    style={{
-                      backgroundImage: `url(${layer.imageUrl})`,
-                      zIndex: layers.length - index,
-                      opacity: clampLayerOpacity(layer.opacity),
-                      transform: `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${Math.round(layer.transform.translateYRatio * 1000) / 10}%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
-                      transformOrigin: "center center",
-                    }}
-                  />
-                ) : null
-              )}
-              <canvas
-                ref={modalOverlayCanvasRef}
-                className="edit-expert-inpaint-overlay-canvas"
-                aria-hidden="true"
-              />
-              {renderMarkupStrokeOverlay(
-                "modal",
-                markupModalViewportSize,
-                markupModalStageRef.current
-              )}
+              <div className="edit-expert-primary-layer-content-clip">
+                {layers.map((layer, index) =>
+                  layer.imageUrl ? (
+                    <div
+                      key={`markup-modal-${layer.id}`}
+                      className="edit-expert-primary-layer-frame"
+                      style={{
+                        backgroundImage: `url(${layer.imageUrl})`,
+                        zIndex: layers.length - index,
+                        opacity: clampLayerOpacity(layer.opacity),
+                        transform: resolveLayerFrameTransformStyle(layer),
+                        transformOrigin: "center center",
+                      }}
+                    />
+                  ) : null
+                )}
+                <canvas
+                  ref={modalOverlayCanvasRef}
+                  className="edit-expert-inpaint-overlay-canvas"
+                  aria-hidden="true"
+                />
+                {renderMarkupStrokeOverlay(
+                  "modal",
+                  markupModalViewportSize,
+                  markupModalStageRef.current
+                )}
+              </div>
+              {renderSelectedLayerTransformOverlay("modal")}
             </div>
           </div>
         }

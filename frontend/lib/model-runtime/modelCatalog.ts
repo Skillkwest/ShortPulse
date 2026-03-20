@@ -505,8 +505,8 @@ const catalog: Record<string, ModelCatalogEntry> = {
     submitAspectField: "image_size",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default", "auto_2K", "auto_4K"],
+    defaultResolution: "auto_2K",
+    allowedResolutions: ["auto_2K", "auto_4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image",
     falStatusBaseUrls: [
       "https://queue.fal.run/fal-ai/bytedance/requests",
@@ -533,8 +533,8 @@ const catalog: Record<string, ModelCatalogEntry> = {
     submitAspectField: "image_size",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default", "auto_2K", "auto_4K"],
+    defaultResolution: "auto_2K",
+    allowedResolutions: ["auto_2K", "auto_4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit",
     falStatusBaseUrls: [
       "https://queue.fal.run/fal-ai/bytedance/requests",

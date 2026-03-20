@@ -23,6 +23,9 @@ export type StudioAgentSafetyStage = "input_precheck" | "output_postprocess";
 
 export type StudioAgentSafetyTelemetryFields = {
   policyVersion?: number | null;
+  policySchemaVersion?: number | null;
+  promptTemplateVersion?: string | null;
+  runtimeScopeKey?: string | null;
   profileId?: SafetyProfileId | null;
   modality?: SafetyModality | null;
   category?: SafetyCategoryId | null;
@@ -87,6 +90,9 @@ export const emitStudioAgentTurnTelemetry = ({
       ...(safetySource ? { safety_source: safetySource } : {}),
       ...(typeof safetyFallback === "boolean" ? { safety_fallback: safetyFallback } : {}),
       policy_version: safetyTelemetry?.policyVersion ?? null,
+      policy_schema_version: safetyTelemetry?.policySchemaVersion ?? null,
+      prompt_template_version: safetyTelemetry?.promptTemplateVersion ?? null,
+      runtime_scope_key: safetyTelemetry?.runtimeScopeKey ?? null,
       profile_id: safetyTelemetry?.profileId ?? null,
       modality: safetyTelemetry?.modality ?? null,
       category: safetyTelemetry?.category ?? null,
@@ -108,6 +114,9 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
   rewrittenFieldCount,
   providerCallSkipped,
   policyVersion,
+  policySchemaVersion,
+  promptTemplateVersion,
+  runtimeScopeKey,
   profileId,
   modality,
   category,
@@ -123,6 +132,9 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
   rewrittenFieldCount: number;
   providerCallSkipped: boolean;
   policyVersion: number | null;
+  policySchemaVersion?: number | null;
+  promptTemplateVersion?: string | null;
+  runtimeScopeKey?: string | null;
   profileId: SafetyProfileId | null;
   modality: SafetyModality;
   category: SafetyCategoryId | null;
@@ -142,6 +154,9 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
       rewritten_field_count: rewrittenFieldCount,
       provider_call_skipped: providerCallSkipped,
       policy_version: policyVersion,
+      policy_schema_version: policySchemaVersion ?? null,
+      prompt_template_version: promptTemplateVersion ?? null,
+      runtime_scope_key: runtimeScopeKey ?? null,
       profile_id: profileId,
       modality,
       category,

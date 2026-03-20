@@ -24,3 +24,4 @@ Required packet minimums:
 Current gate packets:
 1. `2026-03-20-phase-1-entry-gate-signoff.md` (Phase 1 dependency signoff and waiver record for `M-01`, `M-02`, `M-08`, `M-09`).
 2. `ws-3/2026-03-20-m07-openai-policy-envelope-matrix-and-nightly-validation-plan.md` (`M-07` policy-layer/empirical-layer envelope matrix plus nightly validation plan).
+3. `ws-4/2026-03-20-m10-cache-key-and-invalidation-contract.md` (`M-10` prompt/schema/control-plane cache-scope key contract plus drift simulation evidence).

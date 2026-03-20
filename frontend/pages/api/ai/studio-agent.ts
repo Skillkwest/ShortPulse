@@ -40,6 +40,10 @@ import {
   buildStudioAgentImageSummaryMap,
   describeStudioAgentVisionSummaryError,
 } from "../../../features/agent-runtime/studioAgentVisionSummaries";
+import {
+  buildPromptCompilerCacheScopeKey,
+  resolvePromptTemplateVersion,
+} from "../../../features/agent-runtime/promptCompilerCacheScopeKey";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
@@ -119,6 +123,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error: "STUDIO_AGENT_SYSTEM prompt missing",
     });
   }
+  const promptTemplateVersion = resolvePromptTemplateVersion({
+    route: "studio-agent",
+    prompts: [systemPrompt, thinkerPrompt ?? "", formatterPrompt ?? "", imageDescribePrompt ?? ""],
+  });
 
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
   let messages = requestEnvelope.value.messages;
@@ -140,6 +148,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const safetyPolicyDocument = resolveSafetyPolicyDocument({
     activePolicy: safetyProfile.activePolicy,
     profileId: safetyProfileId,
+  });
+  const safetyPolicySchemaVersion = safetyPolicyDocument.schemaVersion;
+  const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
+    route: "studio-agent",
+    promptTemplateVersion,
+    policySchemaVersion: safetyPolicySchemaVersion,
+    controlPlanePolicyVersion: safetyProfile.policyVersion,
   });
   const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
     .trim()
@@ -228,6 +243,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       rewrittenFieldCount: precheckResult.rewrittenFieldCount,
       providerCallSkipped: precheckResult.providerCallSkipped,
       policyVersion: safetyProfile.policyVersion,
+      policySchemaVersion: safetyPolicySchemaVersion,
+      promptTemplateVersion,
+      runtimeScopeKey,
       profileId: safetyTelemetryProfileId,
       modality: precheckResult.decision?.modality ?? "text",
       category: precheckResult.decision?.category ?? null,
@@ -341,6 +359,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     safetyProfileId,
     safetyPolicyDocument,
     safetyPolicyVersion: safetyProfile.policyVersion,
+    safetyPolicySchemaVersion,
+    safetyPromptTemplateVersion: promptTemplateVersion,
+    runtimeScopeKey,
     safetyEnvironment,
     safetyDevAbsoluteZeroEnabled,
     safetyProviderErrorMode,

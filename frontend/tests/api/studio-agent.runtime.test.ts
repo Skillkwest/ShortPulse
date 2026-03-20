@@ -450,6 +450,11 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({
         policy_version: 7,
         profile_id: "staging_lenient",
+        policy_schema_version: 2,
+        prompt_template_version: expect.stringMatching(/^ptv_[a-f0-9]{16}$/),
+        runtime_scope_key: expect.stringMatching(
+          /^route:studio-agent\|prompt:ptv_[a-f0-9]{16}\|schema:2\|policy:7$/
+        ),
       })
     );
     infoSpy.mockRestore();

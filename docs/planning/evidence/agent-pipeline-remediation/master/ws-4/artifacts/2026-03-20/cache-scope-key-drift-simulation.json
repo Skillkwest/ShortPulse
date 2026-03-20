@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-03-20T19:40:00.000Z",
+  "route": "studio-agent",
+  "baseline": {
+    "promptTemplateVersion": "ptv_56be8426fcd0b323",
+    "policySchemaVersion": 2,
+    "controlPlanePolicyVersion": 7,
+    "runtimeScopeKey": "route:studio-agent|prompt:ptv_56be8426fcd0b323|schema:2|policy:7"
+  },
+  "simulations": [
+    {
+      "name": "prompt_template_drift",
+      "promptTemplateVersion": "ptv_56be8426fcd0b324",
+      "policySchemaVersion": 2,
+      "controlPlanePolicyVersion": 7,
+      "runtimeScopeKey": "route:studio-agent|prompt:ptv_56be8426fcd0b324|schema:2|policy:7",
+      "invalidated": true
+    },
+    {
+      "name": "policy_schema_drift",
+      "promptTemplateVersion": "ptv_56be8426fcd0b323",
+      "policySchemaVersion": 3,
+      "controlPlanePolicyVersion": 7,
+      "runtimeScopeKey": "route:studio-agent|prompt:ptv_56be8426fcd0b323|schema:3|policy:7",
+      "invalidated": true
+    },
+    {
+      "name": "control_plane_policy_drift",
+      "promptTemplateVersion": "ptv_56be8426fcd0b323",
+      "policySchemaVersion": 2,
+      "controlPlanePolicyVersion": 8,
+      "runtimeScopeKey": "route:studio-agent|prompt:ptv_56be8426fcd0b323|schema:2|policy:8",
+      "invalidated": true
+    }
+  ]
+}

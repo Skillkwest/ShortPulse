@@ -140,6 +140,9 @@ export const executeStudioAgentCoordinator = async ({
   safetyProfileId,
   safetyPolicyDocument,
   safetyPolicyVersion,
+  safetyPolicySchemaVersion,
+  safetyPromptTemplateVersion,
+  runtimeScopeKey,
   safetyEnvironment,
   safetyDevAbsoluteZeroEnabled,
   safetyProviderErrorMode,
@@ -180,6 +183,9 @@ export const executeStudioAgentCoordinator = async ({
   safetyProfileId?: string | null;
   safetyPolicyDocument: SafetyPolicyDocumentV2;
   safetyPolicyVersion?: number | null;
+  safetyPolicySchemaVersion?: number | null;
+  safetyPromptTemplateVersion?: string | null;
+  runtimeScopeKey?: string | null;
   safetyEnvironment: SafetyEnvironment;
   safetyDevAbsoluteZeroEnabled: boolean;
   safetyProviderErrorMode: ProviderErrorNormalizationMode;
@@ -260,6 +266,9 @@ export const executeStudioAgentCoordinator = async ({
       fallbackReason,
       safetyTelemetry: {
         policyVersion: resolvedSafetyPolicyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion ?? null,
+        promptTemplateVersion: safetyPromptTemplateVersion ?? null,
+        runtimeScopeKey: runtimeScopeKey ?? null,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
       },
@@ -318,6 +327,9 @@ export const executeStudioAgentCoordinator = async ({
         stageLatencyMs,
         safetyTelemetry: {
           policyVersion: resolvedSafetyPolicyVersion,
+          policySchemaVersion: safetyPolicySchemaVersion ?? null,
+          promptTemplateVersion: safetyPromptTemplateVersion ?? null,
+          runtimeScopeKey: runtimeScopeKey ?? null,
           profileId: safetyTelemetryProfileId,
           modality: safetyModality,
           decisionAction: "refuse",
@@ -360,6 +372,9 @@ export const executeStudioAgentCoordinator = async ({
       stageLatencyMs,
       safetyTelemetry: {
         policyVersion: resolvedSafetyPolicyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion ?? null,
+        promptTemplateVersion: safetyPromptTemplateVersion ?? null,
+        runtimeScopeKey: runtimeScopeKey ?? null,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
         providerBlocked: safetyRefusal,
@@ -614,6 +629,9 @@ export const executeStudioAgentCoordinator = async ({
       safetyDebugEnabled,
       safetyTelemetry: {
         policyVersion: resolvedSafetyPolicyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion ?? null,
+        promptTemplateVersion: safetyPromptTemplateVersion ?? null,
+        runtimeScopeKey: runtimeScopeKey ?? null,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
         category: safetyDecisionCategory,
@@ -919,6 +937,9 @@ export const executeStudioAgentCoordinator = async ({
       stageLatencyMs,
       safetyTelemetry: {
         policyVersion: resolvedSafetyPolicyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion ?? null,
+        promptTemplateVersion: safetyPromptTemplateVersion ?? null,
+        runtimeScopeKey: runtimeScopeKey ?? null,
         profileId: safetyTelemetryProfileId,
         modality: safetyModality,
       },

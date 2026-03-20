@@ -1,0 +1,43 @@
+{
+  "environment": "staging",
+  "ring": "preview_canary",
+  "controlWindow": {
+    "label": "control-window",
+    "startUtc": "2026-03-20T00:00:00.000Z",
+    "endUtc": "2026-03-20T04:00:00.000Z",
+    "volume": 1000
+  },
+  "canaryWindow": {
+    "label": "canary-window",
+    "startUtc": "2026-03-20T04:00:00.000Z",
+    "endUtc": "2026-03-20T08:00:00.000Z",
+    "volume": 1000
+  },
+  "metrics": {
+    "schema_failure_rate": {
+      "control": 0.2,
+      "canary": 0.2
+    },
+    "fallback_rate": {
+      "control": 0.4,
+      "canary": 0.4
+    },
+    "false_refusal_rate": {
+      "control": 0.5,
+      "canary": 0.5
+    },
+    "repair_rate": {
+      "control": 0.4,
+      "canary": 0.4
+    },
+    "p95_latency_ms": {
+      "control": 2000,
+      "canary": 2000
+    },
+    "error_rate": {
+      "control": 0.3,
+      "canary": 0.3
+    }
+  }
+}
+

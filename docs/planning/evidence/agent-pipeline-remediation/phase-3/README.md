@@ -28,3 +28,4 @@ Current packets:
 2. `2026-03-20-phase-3-precedence-cache-ttl-proof-tests.md` (runtime precedence/cache TTL proof test expansion for control-plane profile resolution).
 3. `2026-03-20-phase-3-canary-threshold-decision-utility.md` (deterministic canary promote/hold/rollback decision utility and tests).
 4. `2026-03-20-phase-3-rollback-drill-local-dry-run.md` (local rollback verification bundle; staging drill remains required for closeout).
+5. `2026-03-20-phase-3-staging-canary-delta-packet-generator-tooling.md` (deterministic staging canary markdown packet generator + input/output template artifacts).

@@ -273,9 +273,11 @@ export const executeLegacyStyleExtraction = async ({
   const emitStyleRouteTelemetry = ({
     statusCode,
     machineOutcome,
+    fallbackReason,
   }: {
     statusCode: number;
     machineOutcome: AgentMachineOutcomeFields;
+    fallbackReason?: string | null;
   }) => {
     emitAgentRouteOutcomeTelemetry({
       telemetryTag: "extract-style",
@@ -294,6 +296,7 @@ export const executeLegacyStyleExtraction = async ({
       providerBlocked: null,
       hardFloorViolation: null,
       rollbackTriggered: null,
+      fallbackReason,
     });
   };
 
@@ -412,9 +415,14 @@ export const executeLegacyStyleExtraction = async ({
         outcomeClass: "route_error",
         reasonCode: "REQUEST_INVALID",
       });
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        status: imageProbe.statusCode,
+        detail: imageProbe.detail ?? imageProbe.message,
+      });
       emitStyleRouteTelemetry({
         statusCode: imageProbe.statusCode,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: false,
@@ -423,10 +431,7 @@ export const executeLegacyStyleExtraction = async ({
           ...machineOutcome,
           error: imageProbe.message,
           detail: imageProbe.detail,
-          fallback_reason: resolveStudioAgentFallbackReasonLabel({
-            status: imageProbe.statusCode,
-            detail: imageProbe.detail ?? imageProbe.message,
-          }),
+          fallback_reason: fallbackReason,
         },
         diagnostics: {
           attemptCount: null,
@@ -513,6 +518,7 @@ export const executeLegacyStyleExtraction = async ({
       emitStyleRouteTelemetry({
         statusCode: extractionAttempt.status,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: false,
@@ -570,9 +576,15 @@ export const executeLegacyStyleExtraction = async ({
         outcomeClass: "upstream_error",
         reasonCode: "UPSTREAM_ERROR",
       });
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        stage: "style_prompt_missing",
+        status: 502,
+        detail: extractedText ?? "No style prompt returned",
+      });
       emitStyleRouteTelemetry({
         statusCode: 502,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: false,
@@ -581,11 +593,7 @@ export const executeLegacyStyleExtraction = async ({
           ...machineOutcome,
           error: "No style prompt returned",
           detail: "Unable to extract style descriptors from the provided image.",
-          fallback_reason: resolveStudioAgentFallbackReasonLabel({
-            stage: "style_prompt_missing",
-            status: 502,
-            detail: extractedText ?? "No style prompt returned",
-          }),
+          fallback_reason: fallbackReason,
         },
         diagnostics: {
           attemptCount,
@@ -652,9 +660,13 @@ export const executeLegacyStyleExtraction = async ({
       outcomeClass: "upstream_error",
       reasonCode: "UPSTREAM_ERROR",
     });
+    const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+      detail,
+    });
     emitStyleRouteTelemetry({
       statusCode: 500,
       machineOutcome,
+      fallbackReason,
     });
     return {
       ok: false,
@@ -662,9 +674,7 @@ export const executeLegacyStyleExtraction = async ({
       payload: {
         ...machineOutcome,
         error: "Style extraction failed",
-        fallback_reason: resolveStudioAgentFallbackReasonLabel({
-          detail,
-        }),
+        fallback_reason: fallbackReason,
       },
     };
   }

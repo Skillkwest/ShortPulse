@@ -227,6 +227,7 @@ export const executeLegacyImageDescribe = async ({
     providerBlocked,
     hardFloorViolation,
     rollbackTriggered,
+    fallbackReason,
   }: {
     statusCode: number;
     machineOutcome: AgentMachineOutcomeFields;
@@ -236,6 +237,7 @@ export const executeLegacyImageDescribe = async ({
     providerBlocked?: boolean | null;
     hardFloorViolation?: boolean | null;
     rollbackTriggered?: boolean | null;
+    fallbackReason?: string | null;
   }) => {
     emitAgentRouteOutcomeTelemetry({
       telemetryTag: "describe-image",
@@ -254,6 +256,7 @@ export const executeLegacyImageDescribe = async ({
       providerBlocked: providerBlocked ?? null,
       hardFloorViolation: hardFloorViolation ?? null,
       rollbackTriggered: rollbackTriggered ?? null,
+      fallbackReason,
     });
   };
 
@@ -584,6 +587,7 @@ export const executeLegacyImageDescribe = async ({
         emitDescribeRouteTelemetry({
           statusCode: 200,
           machineOutcome,
+          fallbackReason,
         });
         return {
           ok: true,
@@ -643,14 +647,15 @@ export const executeLegacyImageDescribe = async ({
           user_lane_fallback: true,
         },
       });
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        status: 502,
+        detail: "No description returned",
+      });
       emitDescribeFallbackTelemetry({
         routeLabel,
         failureClass: providerError.failureClass,
         detail: "No description returned",
-        fallbackReason: resolveStudioAgentFallbackReasonLabel({
-          status: 502,
-          detail: "No description returned",
-        }),
+        fallbackReason,
         policyVersion: safetyPolicyVersion,
         policySchemaVersion: safetyPolicySchemaVersion,
         promptTemplateVersion,
@@ -667,15 +672,13 @@ export const executeLegacyImageDescribe = async ({
       emitDescribeRouteTelemetry({
         statusCode: 200,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: true,
         payload: {
           description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
-          fallback_reason: resolveStudioAgentFallbackReasonLabel({
-            status: 502,
-            detail: "No description returned",
-          }),
+          fallback_reason: fallbackReason,
           usage: {},
           ...machineOutcome,
         },
@@ -823,6 +826,7 @@ export const executeLegacyImageDescribe = async ({
       emitDescribeRouteTelemetry({
         statusCode: 200,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: true,

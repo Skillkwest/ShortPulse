@@ -93,6 +93,7 @@ export const executeLegacyPromptGeneration = async ({
     decisionAction,
     decisionSource,
     providerBlocked,
+    fallbackReason,
   }: {
     statusCode: number;
     machineOutcome: AgentMachineOutcomeFields;
@@ -100,6 +101,7 @@ export const executeLegacyPromptGeneration = async ({
     decisionAction?: string | null;
     decisionSource?: string | null;
     providerBlocked?: boolean | null;
+    fallbackReason?: string | null;
   }) => {
     emitAgentRouteOutcomeTelemetry({
       telemetryTag: "generate-prompt",
@@ -116,6 +118,7 @@ export const executeLegacyPromptGeneration = async ({
       decisionAction,
       decisionSource,
       providerBlocked,
+      fallbackReason,
     });
   };
   if (!apiKey) {
@@ -333,6 +336,7 @@ export const executeLegacyPromptGeneration = async ({
       emitPromptRouteTelemetry({
         statusCode: response.status,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: false,
@@ -365,9 +369,14 @@ export const executeLegacyPromptGeneration = async ({
         outcomeClass: "upstream_error",
         reasonCode: "UPSTREAM_ERROR",
       });
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        stage: "prompt_missing",
+        status: 502,
+      });
       emitPromptRouteTelemetry({
         statusCode: 502,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: false,
@@ -375,10 +384,7 @@ export const executeLegacyPromptGeneration = async ({
         payload: {
           ...machineOutcome,
           error: "No prompt returned",
-          fallback_reason: resolveStudioAgentFallbackReasonLabel({
-            stage: "prompt_missing",
-            status: 502,
-          }),
+          fallback_reason: fallbackReason,
         },
       };
     }
@@ -423,9 +429,13 @@ export const executeLegacyPromptGeneration = async ({
       outcomeClass: "upstream_error",
       reasonCode: "UPSTREAM_ERROR",
     });
+    const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+      detail,
+    });
     emitPromptRouteTelemetry({
       statusCode: 500,
       machineOutcome,
+      fallbackReason,
     });
     return {
       ok: false,
@@ -434,9 +444,7 @@ export const executeLegacyPromptGeneration = async ({
         ...machineOutcome,
         error: "Prompt generation failed",
         detail,
-        fallback_reason: resolveStudioAgentFallbackReasonLabel({
-          detail,
-        }),
+        fallback_reason: fallbackReason,
       },
     };
   }

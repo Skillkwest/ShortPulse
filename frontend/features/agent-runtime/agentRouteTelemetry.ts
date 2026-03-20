@@ -26,6 +26,7 @@ export const emitAgentRouteOutcomeTelemetry = ({
   providerBlocked,
   hardFloorViolation,
   rollbackTriggered,
+  fallbackReason,
 }: {
   telemetryTag: AgentRouteTelemetryTag;
   routeLabel: string;
@@ -43,6 +44,7 @@ export const emitAgentRouteOutcomeTelemetry = ({
   providerBlocked?: boolean | null;
   hardFloorViolation?: boolean | null;
   rollbackTriggered?: boolean | null;
+  fallbackReason?: string | null;
 }) => {
   console.info(
     `[${telemetryTag}][telemetry]`,
@@ -65,6 +67,7 @@ export const emitAgentRouteOutcomeTelemetry = ({
       provider_blocked: providerBlocked ?? null,
       hard_floor_violation: hardFloorViolation ?? null,
       rollback_triggered: rollbackTriggered ?? null,
+      fallback_reason: fallbackReason ?? null,
     })
   );
 };

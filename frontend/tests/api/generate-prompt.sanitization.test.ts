@@ -230,6 +230,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
   });
 
   it("returns responses upstream error when chat fallback is disabled", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
     process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "false";
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -267,6 +268,20 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         }),
       })
     );
+    const telemetryCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[generate-prompt][telemetry]"
+    );
+    const telemetryPayload = telemetryCall
+      ? (JSON.parse(String(telemetryCall[1])) as Record<string, unknown>)
+      : null;
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        fallback_reason: "responses_unavailable",
+      })
+    );
     expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
       {
         "decision": "error",
@@ -278,6 +293,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         "retryable": true,
       }
     `);
+    infoSpy.mockRestore();
   });
 
   it("classifies upstream 429 failures as rate-limited", async () => {

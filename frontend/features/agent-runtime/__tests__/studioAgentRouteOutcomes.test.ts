@@ -103,7 +103,7 @@ describe("studioAgentRouteOutcomes", () => {
     infoSpy.mockRestore();
   });
 
-  it("builds upstream error payloads with optional stage", () => {
+  it("builds upstream error payloads with optional stage and fallback reason", () => {
     expect(
       buildStudioAgentUpstreamErrorPayload({
         traceId: "trace-1",
@@ -124,6 +124,7 @@ describe("studioAgentRouteOutcomes", () => {
         traceId: "trace-2",
         detail: "upstream detail",
         stage: "thinker",
+        fallbackReason: "stage_thinker",
       })
     ).toEqual({
       decision: "error",
@@ -132,6 +133,7 @@ describe("studioAgentRouteOutcomes", () => {
       retryable: true,
       error: "Upstream error (thinker)",
       detail: "upstream detail",
+      fallback_reason: "stage_thinker",
       traceId: "trace-2",
     });
   });

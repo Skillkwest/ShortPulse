@@ -242,11 +242,13 @@ export const buildStudioAgentUpstreamErrorPayload = ({
   traceId,
   detail,
   stage,
+  fallbackReason,
   reasonCode = "UPSTREAM_ERROR",
 }: {
   traceId: string;
   detail: string;
   stage?: string;
+  fallbackReason?: string;
   reasonCode?: "UPSTREAM_ERROR";
 }) => ({
   ...buildAgentMachineOutcome({
@@ -255,6 +257,7 @@ export const buildStudioAgentUpstreamErrorPayload = ({
   }),
   error: stage ? `Upstream error (${stage})` : "Upstream error",
   detail,
+  ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
   traceId,
 });
 

@@ -1139,6 +1139,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   });
 
   it("keeps non-safety 401 upstream failures as transport errors in single-stage mode", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
       new Response('{"error":{"message":"invalid api key"}}', {
         status: 401,
@@ -1172,8 +1173,18 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         outcome_class: "upstream_error",
         reason_code: "UPSTREAM_ERROR",
         retryable: true,
+        fallback_reason: "upstream_error",
       })
     );
+    const upstreamTelemetry = extractTelemetryPayloads(infoSpy).find(
+      (entry) => entry.outcome_class === "upstream_error"
+    );
+    expect(upstreamTelemetry).toEqual(
+      expect.objectContaining({
+        fallback_reason: "upstream_error",
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("maps single-stage safety upstream failures to refusal response", async () => {
@@ -1296,6 +1307,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   });
 
   it("keeps non-safety 401 upstream failures as transport errors in v2 mode", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
     runThinkerFormatterTurnMock.mockResolvedValue({
@@ -1332,8 +1344,18 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         outcome_class: "upstream_error",
         reason_code: "UPSTREAM_ERROR",
         retryable: true,
+        fallback_reason: "stage_thinker",
       })
     );
+    const upstreamTelemetry = extractTelemetryPayloads(infoSpy).find(
+      (entry) => entry.outcome_class === "upstream_error"
+    );
+    expect(upstreamTelemetry).toEqual(
+      expect.objectContaining({
+        fallback_reason: "stage_thinker",
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("maps transient v2 upstream failures to assistant fallback", async () => {

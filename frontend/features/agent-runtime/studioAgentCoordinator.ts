@@ -371,6 +371,12 @@ export const executeStudioAgentCoordinator = async ({
         failureClass,
       };
     }
+    const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+      stage,
+      status,
+      detail,
+    });
+
     emitStudioAgentTurnTelemetry({
       flow: orchestration.flow,
       path,
@@ -380,6 +386,7 @@ export const executeStudioAgentCoordinator = async ({
       retryUsed,
       retryCount,
       reasonCode: "UPSTREAM_ERROR",
+      fallbackReason,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyTelemetry: {
@@ -397,6 +404,7 @@ export const executeStudioAgentCoordinator = async ({
       payload: buildStudioAgentUpstreamErrorPayload({
         stage,
         detail: handling.detailForClient ?? detail,
+        fallbackReason,
         traceId,
       }),
       failureClass,

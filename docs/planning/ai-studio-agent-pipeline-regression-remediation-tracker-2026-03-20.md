@@ -102,6 +102,7 @@ Phase implementation is allowed when:
      - owner directive: staging-only; production rollout execution deferred.
    - active entry-status packet:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-entry-gate-status-staging-directive.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-rollout-readiness-checklist-staging-directive.md`
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:

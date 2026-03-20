@@ -23,6 +23,8 @@ Record current Phase 4 entry-gate readiness and blockers so execution does not d
 ## Allowed Work While Blocked
 1. Documentation and readiness prep only (checklists, templates, operational ownership mapping).
 2. No production-ring execution (`internal -> preview -> production`) until blockers above are cleared.
+3. Active readiness checklist packet:
+   - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-rollout-readiness-checklist-staging-directive.md`
 
 ## Unblock Triggers
 1. Explicit owner directive to proceed beyond staging-only scope.

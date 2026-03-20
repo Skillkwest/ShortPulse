@@ -22,6 +22,7 @@ Required packet contents:
 
 Current packets:
 1. `2026-03-20-phase-4-entry-gate-status-staging-directive.md` (entry-gate readiness and blocker packet under the active staging-only directive).
+2. `2026-03-20-phase-4-rollout-readiness-checklist-staging-directive.md` (concrete rollout-readiness checklist with `Hold` gate decision under active staging-only scope).
 
 Template pack:
 1. `rollout-checklist-template.md`

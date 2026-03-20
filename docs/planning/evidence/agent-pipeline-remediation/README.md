@@ -39,6 +39,7 @@ Scope amendment record:
 16. Phase 3 closeout packet (staging scope): `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md`.
 17. Phase 4 entry-gate status packet (staging directive): `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-entry-gate-status-staging-directive.md`.
 18. Master signoff waiver packet (`M-15`, staging directive): `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-m15-master-signoff-staging-directive-waiver.md`.
+19. Phase 4 rollout-readiness checklist packet (staging directive): `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-rollout-readiness-checklist-staging-directive.md`.
 
 ## Expected Phase Folders
 1. `master/` for workstream-level architecture, policy, and governance gate evidence.

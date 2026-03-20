@@ -34,16 +34,29 @@ Forbidden:
 2. Maintaining separate ad hoc inverse math in markup and inpaint controllers.
 
 ### 3) Viewport Truth
-Authoritative stage rects are:
-1. Inline: `primaryDropzoneRef` rect.
-2. Modal: `markupModalStageRef` rect.
+Authoritative rects are split by contract:
+1. Inline camera/viewport framing: `inlineStageWrapperRef` rect.
+2. Inline draw/pointer sampling: `primaryDropzoneRef` rect.
+3. Modal camera + draw/pointer sampling: `markupModalStageRef` rect.
 
-`inlineStageWrapperRef` is non-authoritative for draw/unproject/export camera mapping.
+Inline camera framing and inline pointer sampling are intentionally different authorities and must remain explicitly mapped in controller wiring.
 
 ### 4) Transform Ownership
 Interaction surfaces stay layout-only (no camera transform on the event target element).
 
-Camera/viewport transform is applied to render content and overlays derived from shared transform state. Inline and modal must follow the same ownership rule.
+Camera/viewport transform is applied to render content and overlays derived from shared transform state.
+
+Inline ownership:
+1. Camera transform is applied on the primary stage shell/wrapper surface.
+2. Pointer sampling surface remains the primary dropzone.
+
+Modal ownership:
+1. Camera transform is applied on modal markup viewport content inside modal stage.
+2. Pointer sampling surface remains modal stage.
+
+Overflow contract:
+1. Wrapper/stage-level clipping must prevent camera/image spill outside frame.
+2. Dropzone overlay affordances (selected outline/handles) may render outside image bounds while transform overlay is active.
 
 ### 5) Inpaint Brush Contract
 Inpaint brush diameter source-of-truth is `mask pixels`.

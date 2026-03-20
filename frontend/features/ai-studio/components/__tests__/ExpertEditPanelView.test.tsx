@@ -3045,6 +3045,7 @@ describe("ExpertEditPanelView", () => {
     });
     const afterDropzoneWheel = readMarkupViewportTransform();
     expect(afterDropzoneWheel).not.toBeNull();
+    expect(afterDropzoneWheel?.viewport).toHaveClass("edit-expert-primary-stage-shell");
     expect(afterDropzoneWheel?.scale ?? 0).toBeGreaterThan(1);
 
     const primaryColumn = container.querySelector(".edit-expert-primary-column");
@@ -3060,6 +3061,7 @@ describe("ExpertEditPanelView", () => {
     });
     const afterBackdropZoom = readMarkupViewportTransform();
     expect(afterBackdropZoom).not.toBeNull();
+    expect(afterBackdropZoom?.viewport).toHaveClass("edit-expert-primary-stage-shell");
     expect(afterBackdropZoom?.scale ?? 0).toBeGreaterThan(afterDropzoneWheel?.scale ?? 0);
 
     const markupPanel = screen.getByRole("group", { name: /markup tools/i });
@@ -3068,6 +3070,7 @@ describe("ExpertEditPanelView", () => {
     const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
     const modalViewport = readMarkupViewportTransform(expandedModal);
     expect(modalViewport).not.toBeNull();
+    expect(modalViewport?.viewport).toHaveClass("edit-expert-markup-viewport");
     expect(modalViewport?.scale ?? 0).toBeCloseTo(afterBackdropZoom?.scale ?? 0, 4);
 
     const modalStage = expandedModal.querySelector(

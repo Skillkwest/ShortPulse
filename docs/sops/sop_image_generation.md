@@ -176,6 +176,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   20. Aspect-selector changes are framing-only: markup stroke geometry and inpaint mask geometry are stored in isotropic scene space and remapped per frame, so switching ratios (`1:1`, `16:9`, `9:16`, `4:5`, `5:4`, etc.) can clip content but must never stretch/squish it.
   21. Expert Edit session persistence is unified and page-scoped: layer stack state plus markup/inpaint histories persist across workflow/tool tab switches within the active AI Studio session, including Undo/Redo stacks; the payload resets when `sid` changes.
   22. Prototype flag `NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED=true` changes collapsed `Tools` click behavior to open expanded Markup modal directly and forces tools back to collapsed on modal close.
+  23. Inline stage transform ownership is split by contract: wrapper/shell owns camera transform state for zoom/pan/flatten viewport framing, primary dropzone remains the pointer sampling surface for draw/transform tools, and transform-overlay affordances may render outside the image bounds while wrapper-level clipping prevents camera/image spill outside the stage frame.
 - Prompt guard policy for Edit submit is model-capability driven (`editPromptPolicy`); unknown capability defaults to prompt required.
 - Token workflow details are maintained in `docs/sops/sop_ai_studio_expert_edit_prompt_references.md` (canonical SOP for grammar, UI behavior, preflight, and compilation rules).
 

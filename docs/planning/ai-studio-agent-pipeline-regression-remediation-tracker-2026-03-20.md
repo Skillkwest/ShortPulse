@@ -87,8 +87,10 @@ Phase implementation is allowed when:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-canary-threshold-decision-utility.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-rollback-drill-local-dry-run.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-delta-packet-generator-tooling.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-live-canary-delta-packet.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-window-sufficiency-waiver.md`
    - next gate actions:
-     - Capture staging canary delta packet from live telemetry windows (generator tooling landed in Phase 3 evidence).
+     - Canary window-duration sufficiency is owner-waived for current staging cycle; use linked waiver evidence.
      - Complete staging rollback drill packet required for `PX-03` closeout.
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
@@ -119,7 +121,7 @@ This section defines the execution stop condition for the current owner directiv
    - no production rollout work required for this task.
 2. Required completion gates:
    - `PX-03` marked `Completed` with linked evidence,
-   - Phase 3 staging canary delta packet captured from live staging telemetry windows,
+   - Phase 3 staging canary delta packet captured from live staging telemetry windows (ring-duration sufficiency pass or explicit owner waiver linked),
    - Phase 3 staging rollback drill packet captured and linked,
    - required validation bundle recorded for the closeout update (`lint`, `type-check`, `build`, `docs:check`).
 3. Documentation state:

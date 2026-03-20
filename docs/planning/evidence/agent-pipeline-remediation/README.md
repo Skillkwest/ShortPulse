@@ -23,6 +23,8 @@ Scope lock:
 Scope amendment record:
 1. 2026-03-20 Phase 2 amendment: limited shared precheck parity updates touched Fal submit precheck wiring/tests without provider migration or payload-contract changes.
 2. Amendment evidence packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`.
+3. Follow-up continuity packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`.
+4. Follow-up quality/refusal + runtime-truth local baseline packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`.
 
 ## Expected Phase Folders
 1. `master/` for workstream-level architecture, policy, and governance gate evidence.

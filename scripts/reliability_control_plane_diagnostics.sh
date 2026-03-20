@@ -25,11 +25,18 @@ if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
   exit 1
 fi
 
+MODE="${RELIABILITY_DIAGNOSTICS_MODE:-warn}"
+if [[ "$MODE" != "warn" && "$MODE" != "enforce" ]]; then
+  echo "[reliability-diagnostics] Unknown mode '$MODE'. Allowed: warn, enforce."
+  exit 1
+fi
+
 SQL_FILES=(
   "$ROOT_DIR/sql/check_control_plane_scheduler_health.sql"
   "$ROOT_DIR/sql/check_pg_net_failure_taxonomy.sql"
   "$ROOT_DIR/sql/check_runtime_sql_security_audit.sql"
   "$ROOT_DIR/sql/check_generation_settlement_integrity.sql"
+  "$ROOT_DIR/sql/check_control_plane_enforce_gate.sql"
 )
 
 mkdir -p "$LOG_DIR"
@@ -38,6 +45,7 @@ COMBINED_LOG="$LOG_DIR/combined.log"
 
 echo "[reliability-diagnostics] Writing logs to: $LOG_DIR"
 echo "[reliability-diagnostics] Starting diagnostics run..."
+echo "[reliability-diagnostics] Mode: $MODE"
 
 run_sql_file() {
   local sql_file="$1"
@@ -61,6 +69,26 @@ for sql_file in "${SQL_FILES[@]}"; do
   run_sql_file "$sql_file"
 done
 
+if [[ "$MODE" == "enforce" ]]; then
+  ENFORCE_LOG="$LOG_DIR/check_control_plane_enforce_gate_enforce.log"
+  enforce_output="$(
+    "$PSQL_BIN" "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At \
+      -f "$ROOT_DIR/sql/check_control_plane_enforce_gate.sql" \
+      2>&1 | tee "$ENFORCE_LOG" | tee -a "$COMBINED_LOG"
+  )"
+  failing_count="$(printf '%s\n' "$enforce_output" | tail -n 1 | tr -d '[:space:]')"
+
+  if [[ ! "$failing_count" =~ ^[0-9]+$ ]]; then
+    echo "[reliability-diagnostics] Unable to parse enforce gate failure count."
+    exit 1
+  fi
+
+  if (( failing_count > 0 )); then
+    echo "[reliability-diagnostics] Enforce gate failed with failing_check_count=$failing_count"
+    exit 1
+  fi
+fi
+
 echo "[reliability-diagnostics] Completed successfully."
 echo "[reliability-diagnostics] Combined log: $COMBINED_LOG"
 
@@ -69,6 +97,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "## Reliability Diagnostics"
     echo ""
     echo "- Status: PASS (SQL execution)"
+    echo "- Mode: \`$MODE\`"
     echo "- Log directory: \`$LOG_DIR\`"
     echo "- Combined log: \`$COMBINED_LOG\`"
     echo "- SQL files:"
@@ -76,5 +105,6 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "  - \`sql/check_pg_net_failure_taxonomy.sql\`"
     echo "  - \`sql/check_runtime_sql_security_audit.sql\`"
     echo "  - \`sql/check_generation_settlement_integrity.sql\`"
+    echo "  - \`sql/check_control_plane_enforce_gate.sql\`"
   } >> "$GITHUB_STEP_SUMMARY"
 fi

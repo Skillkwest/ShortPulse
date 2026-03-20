@@ -18,6 +18,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
   - `sql/check_generation_settlement_integrity.sql`
   - `sql/check_control_plane_scheduler_health.sql`
   - `sql/check_pg_net_failure_taxonomy.sql`
+  - `sql/check_control_plane_enforce_gate.sql`
   - `sql/check_runtime_sql_security_audit.sql`
 - Runtime endpoints:
   - `/api/internal/generation-recovery/run`

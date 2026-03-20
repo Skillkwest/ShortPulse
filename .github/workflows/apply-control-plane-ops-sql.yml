@@ -1,0 +1,107 @@
+name: Apply Control-Plane Ops SQL
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "GitHub Environment containing SUPABASE_DB_URL"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      operation:
+        description: "Control-plane SQL operation to apply"
+        required: true
+        type: choice
+        options:
+          - configure_bypass_secret
+          - configure_generation_recovery_scheduler
+          - configure_admin_user_health_fleet_scheduler
+      confirm_token:
+        description: "Type apply-control-plane-ops to confirm"
+        required: true
+        type: string
+
+concurrency:
+  group: apply-control-plane-ops-sql-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
+jobs:
+  apply_control_plane_ops_sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.target_environment }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply selected control-plane SQL
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BYPASS_TOKEN: ${{ secrets.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN }}
+          OPERATION: ${{ github.event.inputs.operation }}
+          CONFIRM_TOKEN: ${{ github.event.inputs.confirm_token }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
+
+          if [ "$CONFIRM_TOKEN" != "apply-control-plane-ops" ]; then
+            echo "::error::Confirmation token mismatch."
+            exit 1
+          fi
+
+          case "$OPERATION" in
+            configure_bypass_secret)
+              SQL_FILE="sql/configure_control_plane_scheduler_bypass_secret_supabase.sql"
+              if [ -z "${BYPASS_TOKEN:-}" ]; then
+                echo "::error::Missing environment secret SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN."
+                exit 1
+              fi
+              echo "Applying $SQL_FILE"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -v bypass_token="$BYPASS_TOKEN" -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+              ;;
+            configure_generation_recovery_scheduler)
+              SQL_FILE="sql/configure_generation_recovery_scheduler_supabase.sql"
+              echo "Applying $SQL_FILE"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+              ;;
+            configure_admin_user_health_fleet_scheduler)
+              SQL_FILE="sql/configure_admin_user_health_fleet_scheduler_supabase.sql"
+              echo "Applying $SQL_FILE"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+              ;;
+            *)
+              echo "::error::Unsupported operation: $OPERATION"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "### Control-Plane Ops SQL"
+            echo "- Environment: ${{ github.event.inputs.target_environment }}"
+            echo "- Operation: $OPERATION"
+            echo "- SQL file: \`$SQL_FILE\`"
+            echo "- Result: success"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload apply log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-plane-ops-sql-${{ github.run_id }}
+          path: /tmp/control_plane_ops_sql.log
+          if-no-files-found: ignore

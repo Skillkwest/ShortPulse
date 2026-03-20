@@ -1,6 +1,6 @@
 # SOP: Admin User Health Fleet Staging Walkthrough (Simple)
 
-Purpose: provide a plain-language, click-by-click setup for enabling daily fleet health scans in the staging environment.
+Purpose: provide a plain-language, click-by-click setup for enabling hourly fleet health scans in the staging environment.
 
 ## Who this is for
 - Operators who are not sure where each value lives.
@@ -12,7 +12,7 @@ Purpose: provide a plain-language, click-by-click setup for enabling daily fleet
   - stores route runtime env vars (`SHORTPULSE_USER_HEALTH_FLEET_*`).
 - `Staging Supabase`:
   - stores Vault secrets used by Supabase Cron.
-  - runs the cron job that calls the Vercel URL daily.
+  - runs the cron job that calls the Vercel URL hourly.
 
 Never mix environments. Staging Supabase must call staging Vercel.
 
@@ -119,7 +119,10 @@ If your URL shows a Vercel protection page (`Authentication Required`), cron can
 
 Fix options:
 1. Use an unprotected staging alias/domain for cron.
-2. Or adjust Vercel protection so this route is reachable non-interactively.
+2. Or set a Vault bypass secret used by scheduler functions:
+   - `shortpulse_vercel_protection_bypass_token`
+   - value must match Vercel deployment-protection bypass token.
+3. Or adjust Vercel protection so this route is reachable non-interactively.
 
 ## Step 5: Trigger one manual scheduler dispatch
 In staging Supabase SQL Editor:
@@ -187,6 +190,7 @@ Note:
   - Check `net._http_response` for 401/404/timeout.
 - Symptom: 401 in `net._http_response`.
   - Verify Vault secret equals Vercel secret exactly.
+  - If deployment protection is enabled, verify Vault includes `shortpulse_vercel_protection_bypass_token`.
   - Verify no Vercel protection page is blocking route access.
 - Symptom: 404 in `net._http_response`.
   - Verify route exists in deployed build and `SHORTPULSE_USER_HEALTH_FLEET_ENABLED=true`.

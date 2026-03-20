@@ -45,6 +45,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           MODE_INPUT: ${{ github.event.inputs.mode }}
+          RELIABILITY_DIAGNOSTICS_MODE: ${{ github.event.inputs.mode }}
           RELIABILITY_DIAGNOSTICS_LOG_DIR: /tmp/reliability_control_plane_diagnostics
         run: |
           set -euo pipefail

@@ -225,6 +225,7 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
 3. In Supabase Vault for each environment, create:
    - `shortpulse_recovery_run_url` = full endpoint URL (for example `https://<deployment-domain>/api/internal/generation-recovery/run`)
    - `shortpulse_reconciler_cron_secret` = same value as `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+   - optional when deployment protection is enabled: `shortpulse_vercel_protection_bypass_token` = Vercel protection bypass token
    - Use idempotent SQL to create-or-update (safe on reruns):
    ```sql
    do $$
@@ -307,6 +308,7 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
 Notes:
 - Vercel cron is not required for this route.
 - `CRON_SECRET` remains optional for manual cURL/bearer invocation and non-Supabase fallback workflows.
+- If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
 
 ## Admin fleet scheduler (Supabase Cron)
 
@@ -319,6 +321,7 @@ Prior baseline: daily cadence (`0 4 * * *`) retained as rollback target.
 2. In Supabase Vault for each environment, create:
    - `shortpulse_user_health_fleet_run_url` = full endpoint URL (for example `https://<deployment-domain>/api/internal/admin-user-health-fleet/run`)
    - `shortpulse_user_health_fleet_cron_secret` = same value as `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
+   - optional when deployment protection is enabled: `shortpulse_vercel_protection_bypass_token` = Vercel protection bypass token
 3. Run `sql/configure_admin_user_health_fleet_scheduler_supabase.sql` in the target Supabase project.
 4. Verify scheduler state:
    ```sql
@@ -345,6 +348,7 @@ Prior baseline: daily cadence (`0 4 * * *`) retained as rollback target.
 Notes:
 - Vercel Cron is not required for this route.
 - Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with generation-recovery operations.
+- If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
 - Cadence contract authority:
   - current: `0 * * * *` (hourly),
   - rollback baseline: `0 4 * * *` (daily),

@@ -6,6 +6,9 @@
 --      Example value: https://<deployment-domain>/api/internal/generation-recovery/run
 --   2) shortpulse_reconciler_cron_secret
 --      Example value: <same secret as SHORTPULSE_FAL_RECONCILER_CRON_SECRET>
+-- Optional:
+--   3) shortpulse_vercel_protection_bypass_token
+--      Used only when target deployment is protected by Vercel auth.
 --
 -- Idempotent Vault setup (run separately with real values):
 -- do $$
@@ -75,6 +78,7 @@ as $$
 declare
   v_recovery_run_url text;
   v_reconciler_secret text;
+  v_vercel_protection_bypass_token text;
   v_request_id bigint;
 begin
   select s.decrypted_secret
@@ -88,6 +92,13 @@ begin
     into v_reconciler_secret
   from vault.decrypted_secrets s
   where s.name = 'shortpulse_reconciler_cron_secret'
+  order by s.created_at desc
+  limit 1;
+
+  select s.decrypted_secret
+    into v_vercel_protection_bypass_token
+  from vault.decrypted_secrets s
+  where s.name = 'shortpulse_vercel_protection_bypass_token'
   order by s.created_at desc
   limit 1;
 
@@ -105,9 +116,12 @@ begin
 
   select net.http_post(
     url := trim(v_recovery_run_url),
-    headers := jsonb_build_object(
-      'content-type', 'application/json',
-      'authorization', format('Bearer %s', trim(v_reconciler_secret))
+    headers := jsonb_strip_nulls(
+      jsonb_build_object(
+        'content-type', 'application/json',
+        'authorization', format('Bearer %s', trim(v_reconciler_secret)),
+        'x-vercel-protection-bypass', nullif(trim(coalesce(v_vercel_protection_bypass_token, '')), '')
+      )
     ),
     body := '{}'::jsonb
   )

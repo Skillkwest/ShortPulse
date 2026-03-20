@@ -10,6 +10,7 @@ Owner: Engineering
 - `frontend`
 - `phase11_fal_regression`
 - `type_check`
+- `expert_edit_coordinate_parity`
 - `docs_semantic_drift`
 - `migration_parity`
 - `sql_lint`
@@ -139,6 +140,17 @@ Mode policy:
 - Mode variable: `PHASE11_FAL_REGRESSION_MODE=warn|enforce` (defaults to `enforce`)
 - Policy intent: preserve `/api/fal/*` contract parity and provider-boundary no-regression during Phase 11 work while Kie rollout remains off-path.
 
+## Expert Edit coordinate parity lane
+
+- Gate job ID: `expert_edit_coordinate_parity`
+- Command: `npm run test:expert-edit:coordinate-parity:gate`
+- Optional browser audit command: `npm run test:expert-edit:coordinate-parity:browser-audit`
+- Trigger policy:
+  - Always on non-PR runs (`push`, `workflow_dispatch`)
+  - PR runs only when Expert Edit coordinate-parity-impacting files change
+- Mode variable: `EXPERT_EDIT_COORDINATE_PARITY_MODE=warn|enforce` (defaults to `enforce`)
+- Policy intent: preserve Expert Edit pointer/stroke/export parity thresholds by running deterministic transform/integration drift suites as a required CI gate.
+
 ## SQL lint gate
 
 - Command: `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning`
@@ -178,6 +190,10 @@ Mode policy:
   - Trigger: `workflow_dispatch`
   - Concurrency group: `reliability-control-plane-diagnostics-${{ github.event.inputs.target_environment }}`
   - Cancellation posture: no auto-cancel; environment-targeted diagnostics runs serialize
+- `Apply Control-Plane Ops SQL`
+  - Trigger: `workflow_dispatch`
+  - Concurrency group: `apply-control-plane-ops-sql-${{ github.event.inputs.target_environment }}`
+  - Cancellation posture: no auto-cancel; environment-targeted SQL apply runs serialize
 - Merge-queue readiness posture:
   - `merge_group` is not enabled today and is not implied by current required-check policy.
   - If merge queue is adopted later, any required-check workflow must add `merge_group` in the same PR that changes repository merge policy.
@@ -290,8 +306,26 @@ Mode policy:
   - `sql/check_pg_net_failure_taxonomy.sql`
   - `sql/check_runtime_sql_security_audit.sql`
   - `sql/check_generation_settlement_integrity.sql`
+  - `sql/check_control_plane_enforce_gate.sql`
 - Modes: `warn` and `enforce` via dispatch input
+- Enforce semantics:
+  - `enforce` fails when SQL execution fails or `check_control_plane_enforce_gate.sql` reports non-zero `failing_check_count`.
+  - `warn` records diagnostics without blocking execution.
 - Evidence: upload diagnostics artifact and link run URL in reliability evidence packet.
+
+## Control-plane ops SQL apply workflow
+
+- Workflow: `.github/workflows/apply-control-plane-ops-sql.yml`
+- Trigger: `workflow_dispatch`
+- Job ID: `apply_control_plane_ops_sql`
+- Secret source:
+  - GitHub Environment secret `SUPABASE_DB_URL` (`staging`/`production`)
+  - GitHub Environment secret `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN` (required for `configure_bypass_secret`)
+- Inputs: `operation` (`configure_bypass_secret|configure_generation_recovery_scheduler|configure_admin_user_health_fleet_scheduler`), `confirm_token`
+- Safety controls:
+  - explicit operation selection
+  - fixed confirmation token (`apply-control-plane-ops`)
+  - bypass operation hard-fails if bypass secret is unset
 
 ## Branch protection mapping
 

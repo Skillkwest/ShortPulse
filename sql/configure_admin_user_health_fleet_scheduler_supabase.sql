@@ -9,6 +9,9 @@
 --      Example: https://<deployment-domain>/api/internal/admin-user-health-fleet/run
 --   2) shortpulse_user_health_fleet_cron_secret
 --      Example: same value as SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET
+-- Optional:
+--   3) shortpulse_vercel_protection_bypass_token
+--      Used only when target deployment is protected by Vercel auth.
 --
 -- This script auto-provisions the two fleet Vault secrets using existing recovery
 -- scheduler Vault secrets when available:
@@ -128,6 +131,7 @@ as $$
 declare
   v_run_url text;
   v_secret text;
+  v_vercel_protection_bypass_token text;
   v_request_id bigint;
 begin
   select s.decrypted_secret
@@ -141,6 +145,13 @@ begin
     into v_secret
   from vault.decrypted_secrets s
   where s.name = 'shortpulse_user_health_fleet_cron_secret'
+  order by s.created_at desc
+  limit 1;
+
+  select s.decrypted_secret
+    into v_vercel_protection_bypass_token
+  from vault.decrypted_secrets s
+  where s.name = 'shortpulse_vercel_protection_bypass_token'
   order by s.created_at desc
   limit 1;
 
@@ -158,9 +169,12 @@ begin
 
   select net.http_post(
     url := trim(v_run_url),
-    headers := jsonb_build_object(
-      'content-type', 'application/json',
-      'authorization', format('Bearer %s', trim(v_secret))
+    headers := jsonb_strip_nulls(
+      jsonb_build_object(
+        'content-type', 'application/json',
+        'authorization', format('Bearer %s', trim(v_secret)),
+        'x-vercel-protection-bypass', nullif(trim(coalesce(v_vercel_protection_bypass_token, '')), '')
+      )
     ),
     body := '{}'::jsonb
   )

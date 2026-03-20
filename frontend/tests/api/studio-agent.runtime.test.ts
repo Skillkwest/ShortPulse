@@ -203,6 +203,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({
         message: "I cannot describe this.",
         actions: undefined,
+        decision: "refuse",
+        outcome_class: "refusal_safety",
+        reason_code: "SAFETY_INPUT_REFUSAL",
+        retryable: false,
       })
     );
     const precheckTelemetry = extractInputPrecheckTelemetryPayloads(infoSpy)[0];
@@ -586,6 +590,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         message: "I cannot describe this.",
         actions: undefined,
         canonicalPrompt: "existing canonical prompt",
+        decision: "refuse",
+        outcome_class: "refusal_model",
+        reason_code: "PROVIDER_SAFETY_REFUSAL",
+        retryable: false,
       })
     );
     expect(readAgentConversationCanonicalPromptMock).toHaveBeenCalledWith({
@@ -947,6 +955,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         message: "I can't process that request right now. Please try again.",
         actions: undefined,
         canonicalPrompt: null,
+        decision: "allow",
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        retryable: true,
       })
     );
   });
@@ -985,6 +997,9 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({
         message: "I can't process that request right now. Please try again.",
         actions: undefined,
+        decision: "allow",
+        outcome_class: "fallback_infra",
+        retryable: true,
       })
     );
   });
@@ -1017,6 +1032,14 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(payload?.error).toBe("Upstream error");
     expect(payload?.detail).toContain("invalid api key");
     expect(payload?.message).toBeUndefined();
+    expect(payload).toEqual(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        retryable: true,
+      })
+    );
   });
 
   it("maps single-stage safety upstream failures to refusal response", async () => {
@@ -1045,6 +1068,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         message: "I cannot describe this.",
         actions: undefined,
         canonicalPrompt: null,
+        decision: "refuse",
+        outcome_class: "refusal_safety",
+        reason_code: "PROVIDER_SAFETY_REFUSAL",
+        retryable: false,
       })
     );
   });
@@ -1165,6 +1192,14 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(payload?.error).toBe("Upstream error (thinker)");
     expect(payload?.detail).toBe("invalid api key");
     expect(payload?.message).toBeUndefined();
+    expect(payload).toEqual(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        retryable: true,
+      })
+    );
   });
 
   it("maps transient v2 upstream failures to assistant fallback", async () => {
@@ -1196,6 +1231,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({
         message: "I can't process that request right now. Please try again.",
         actions: undefined,
+        decision: "allow",
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        retryable: true,
       })
     );
   });
@@ -1281,6 +1320,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({
         message: "I cannot describe this.",
         actions: undefined,
+        decision: "refuse",
+        outcome_class: "refusal_safety",
+        reason_code: "PROVIDER_SAFETY_REFUSAL",
+        retryable: false,
       })
     );
   });
@@ -1389,6 +1432,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({
         message: "I can't process that request right now. Please try again.",
         actions: undefined,
+        decision: "allow",
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        retryable: true,
       })
     );
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
@@ -1410,6 +1457,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "INVALID_MESSAGE_ROLE",
+        decision: "error",
+        outcome_class: "route_error",
+        reason_code: "REQUEST_INVALID",
+        retryable: false,
       })
     );
   });
@@ -1429,6 +1480,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "INVALID_SESSION_KEY",
+        decision: "error",
+        outcome_class: "route_error",
+        reason_code: "REQUEST_INVALID",
+        retryable: false,
       })
     );
   });
@@ -1450,6 +1505,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "AGENT_DISABLED",
+        decision: "error",
+        outcome_class: "route_error",
+        reason_code: "CONFIG_MISSING",
+        retryable: false,
       })
     );
   });
@@ -1495,6 +1554,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         traceId: "req-header-123",
+        decision: "error",
+        outcome_class: "route_error",
+        reason_code: "REQUEST_INVALID",
+        retryable: false,
       })
     );
   });

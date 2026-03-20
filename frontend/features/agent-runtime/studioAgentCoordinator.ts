@@ -38,6 +38,7 @@ import {
   isStudioAgentSafetyRefusalUpstreamError,
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "./studioAgentRouteOutcomes";
+import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "./agentMachineOutcome";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 import { executeStudioAgentV2Turn } from "./studioAgentV2Turn";
 
@@ -231,13 +232,21 @@ export const executeStudioAgentCoordinator = async ({
     retryUsed,
     retryCount,
     fallbackReason,
+    failureStatus,
+    failureDetail,
   }: {
     path: string;
     model: string;
     retryUsed: boolean;
     retryCount: number;
     fallbackReason: string;
+    failureStatus?: number;
+    failureDetail?: string;
   }): { status: number; payload: Record<string, unknown> } => {
+    const reasonCode = resolveInfraFallbackReasonCode({
+      status: failureStatus,
+      detail: failureDetail ?? fallbackReason,
+    });
     emitStudioAgentTurnTelemetry({
       flow: orchestration.flow,
       path,
@@ -260,6 +269,7 @@ export const executeStudioAgentCoordinator = async ({
       payload: buildStudioAgentInfraFallbackPayload({
         traceId,
         canonicalPrompt: effectiveCanonical,
+        reasonCode,
       }),
     };
   };
@@ -319,6 +329,7 @@ export const executeStudioAgentCoordinator = async ({
         payload: buildStudioAgentSafetyRefusalPayload({
           traceId,
           canonicalPrompt: effectiveCanonical,
+          reasonCode: "PROVIDER_SAFETY_REFUSAL",
         }),
         failureClass,
       };
@@ -331,6 +342,8 @@ export const executeStudioAgentCoordinator = async ({
           retryUsed,
           retryCount,
           fallbackReason: stage ?? (detail.slice(0, 120) || "runtime_failure"),
+          failureStatus: status,
+          failureDetail: detail,
         }),
         failureClass,
       };
@@ -611,12 +624,26 @@ export const executeStudioAgentCoordinator = async ({
         rollbackTriggered: safetyRollbackTriggered,
       },
     });
+    const finalOutcomeClass = finalRefusal
+      ? safetyForcedRefusal
+        ? "refusal_safety"
+        : "refusal_model"
+      : "success_prompt";
+    const finalReasonCode = finalRefusal
+      ? safetyForcedRefusal
+        ? "SAFETY_OUTPUT_REFUSAL"
+        : "PROVIDER_SAFETY_REFUSAL"
+      : "SUCCESS_PROMPT";
 
     return {
       status: 200,
       payload: {
         ...finalParsed,
         ...(usage ? { usage } : {}),
+        ...buildAgentMachineOutcome({
+          outcomeClass: finalOutcomeClass,
+          reasonCode: finalReasonCode,
+        }),
         canonicalPrompt: finalResolvedCanonical,
         traceId,
       },
@@ -877,6 +904,7 @@ export const executeStudioAgentCoordinator = async ({
         retryUsed: false,
         retryCount: 0,
         fallbackReason: "route_exception",
+        failureDetail,
       });
     }
     emitStudioAgentTurnTelemetry({

@@ -70,7 +70,11 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     );
     expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
       {
+        "decision": "allow",
+        "outcome_class": "success_prompt",
         "prompt": "An ancient Mayan temple rises from dense jungle.",
+        "reason_code": "SUCCESS_PROMPT",
+        "retryable": false,
         "usage": {
           "inputTokens": 22,
           "outputTokens": 15,
@@ -102,7 +106,15 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     await generatePromptHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(502);
-    expect(res.json).toHaveBeenCalledWith({ error: "No prompt returned" });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "No prompt returned",
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        retryable: true,
+      })
+    );
   });
 
   it("uses responses endpoint when responses mode is enabled", async () => {
@@ -142,7 +154,11 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     );
     expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
       {
+        "decision": "allow",
+        "outcome_class": "success_prompt",
         "prompt": "A cinematic portrait at golden hour.",
+        "reason_code": "SUCCESS_PROMPT",
+        "retryable": false,
         "usage": {
           "inputTokens": 18,
           "outputTokens": 11,
@@ -209,8 +225,12 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     );
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith({
+      decision: "error",
       error: "Upstream error",
       detail: "responses unavailable",
+      outcome_class: "upstream_error",
+      reason_code: "UPSTREAM_ERROR",
+      retryable: true,
     });
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -223,8 +243,12 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     );
     expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
       {
+        "decision": "error",
         "detail": "responses unavailable",
         "error": "Upstream error",
+        "outcome_class": "upstream_error",
+        "reason_code": "UPSTREAM_ERROR",
+        "retryable": true,
       }
     `);
   });
@@ -244,8 +268,12 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
 
     expect(res.status).toHaveBeenCalledWith(429);
     expect(res.json).toHaveBeenCalledWith({
+      decision: "error",
       error: "Upstream error",
       detail: "rate limited",
+      outcome_class: "upstream_error",
+      reason_code: "UPSTREAM_ERROR",
+      retryable: true,
     });
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -270,7 +298,11 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
+      decision: "refuse",
+      outcome_class: "refusal_safety",
       prompt: "I cannot describe this.",
+      reason_code: "SAFETY_INPUT_REFUSAL",
+      retryable: false,
       usage: {},
     });
   });

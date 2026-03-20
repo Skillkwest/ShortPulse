@@ -138,7 +138,11 @@ describe("POST /api/ai/describe-image", () => {
     );
     expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
       {
+        "decision": "allow",
         "description": "A person standing in a neon-lit alley.",
+        "outcome_class": "success_prompt",
+        "reason_code": "SUCCESS_PROMPT",
+        "retryable": false,
         "usage": {
           "inputTokens": 10,
           "outputTokens": 12,
@@ -504,7 +508,11 @@ describe("POST /api/ai/describe-image", () => {
     );
     expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
       {
+        "decision": "allow",
         "description": "A futuristic city skyline at night.",
+        "outcome_class": "success_prompt",
+        "reason_code": "SUCCESS_PROMPT",
+        "retryable": false,
         "usage": {
           "inputTokens": 16,
           "outputTokens": 9,
@@ -581,6 +589,10 @@ describe("POST /api/ai/describe-image", () => {
     expect(String(fetchMock.mock.calls[1]?.[0] ?? "")).toBe("https://api.openai.com/v1/responses");
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
+      decision: "error",
+      outcome_class: "upstream_error",
+      reason_code: "UPSTREAM_ERROR",
+      retryable: true,
       error: "Upstream error",
       detail: "responses rejected image payload",
       model: "gpt-5-nano",
@@ -598,9 +610,13 @@ describe("POST /api/ai/describe-image", () => {
     );
     expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
       {
+        "decision": "error",
         "detail": "responses rejected image payload",
         "error": "Upstream error",
         "model": "gpt-5-nano",
+        "outcome_class": "upstream_error",
+        "reason_code": "UPSTREAM_ERROR",
+        "retryable": true,
       }
     `);
   });

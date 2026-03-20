@@ -62,6 +62,10 @@ describe("studioAgentRouteOutcomes", () => {
         detail: "upstream detail",
       })
     ).toEqual({
+      decision: "error",
+      outcome_class: "upstream_error",
+      reason_code: "UPSTREAM_ERROR",
+      retryable: true,
       error: "Upstream error",
       detail: "upstream detail",
       traceId: "trace-1",
@@ -74,6 +78,10 @@ describe("studioAgentRouteOutcomes", () => {
         stage: "thinker",
       })
     ).toEqual({
+      decision: "error",
+      outcome_class: "upstream_error",
+      reason_code: "UPSTREAM_ERROR",
+      retryable: true,
       error: "Upstream error (thinker)",
       detail: "upstream detail",
       traceId: "trace-2",
@@ -87,6 +95,10 @@ describe("studioAgentRouteOutcomes", () => {
         detail: "transport timed out",
       })
     ).toEqual({
+      decision: "error",
+      outcome_class: "route_error",
+      reason_code: "ROUTE_ERROR",
+      retryable: true,
       error: "Agent call failed",
       detail: "transport timed out",
       traceId: "trace-3",
@@ -145,6 +157,10 @@ describe("studioAgentRouteOutcomes", () => {
         canonicalPrompt: "existing canonical",
       })
     ).toEqual({
+      decision: "refuse",
+      outcome_class: "refusal_safety",
+      reason_code: "SAFETY_OUTPUT_REFUSAL",
+      retryable: false,
       message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
       actions: undefined,
       canonicalPrompt: "existing canonical",

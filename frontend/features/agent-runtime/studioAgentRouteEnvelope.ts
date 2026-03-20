@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { AgentContext, AgentMessage } from "../../prefabs/agent";
+import type {
+  AgentMachineOutcomeFields,
+  AgentReasonCode,
+} from "../../prefabs/agent/outcomeContract";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
+import { buildAgentMachineOutcome } from "./agentMachineOutcome";
 import {
   STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS,
   STUDIO_AGENT_RATE_LIMIT_WINDOW_MS,
@@ -30,7 +35,7 @@ export type StudioAgentErrorResponse = {
   message: string;
   details?: Record<string, unknown>;
   traceId: string;
-};
+} & AgentMachineOutcomeFields;
 
 type StudioAgentRequestEnvelopeSuccess = {
   ok: true;
@@ -75,7 +80,23 @@ export const sendStudioAgentError = (
   res: NextApiResponse,
   status: number,
   payload: StudioAgentErrorResponse
-) => res.status(status).json(payload);
+): void => {
+  const reasonCode = resolveRouteErrorReasonCode(payload.code);
+  res.status(status).json({
+    ...buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode,
+    }),
+    ...payload,
+  });
+};
+
+const resolveRouteErrorReasonCode = (
+  code: StudioAgentErrorCode
+): Extract<AgentReasonCode, "REQUEST_INVALID" | "CONFIG_MISSING"> => {
+  if (code === "AGENT_DISABLED") return "CONFIG_MISSING";
+  return "REQUEST_INVALID";
+};
 
 export const isStudioAgentFeatureEnabled = ({
   serverFlag,

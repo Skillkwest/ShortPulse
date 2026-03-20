@@ -1,4 +1,5 @@
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
+import { buildAgentMachineOutcome } from "./agentMachineOutcome";
 import type {
   SafetyCategoryId,
   SafetyModality,
@@ -160,11 +161,17 @@ export const buildStudioAgentUpstreamErrorPayload = ({
   traceId,
   detail,
   stage,
+  reasonCode = "UPSTREAM_ERROR",
 }: {
   traceId: string;
   detail: string;
   stage?: string;
+  reasonCode?: "UPSTREAM_ERROR";
 }) => ({
+  ...buildAgentMachineOutcome({
+    outcomeClass: "upstream_error",
+    reasonCode,
+  }),
   error: stage ? `Upstream error (${stage})` : "Upstream error",
   detail,
   traceId,
@@ -173,10 +180,16 @@ export const buildStudioAgentUpstreamErrorPayload = ({
 export const buildStudioAgentRouteFailurePayload = ({
   traceId,
   detail,
+  reasonCode = "ROUTE_ERROR",
 }: {
   traceId: string;
   detail: string;
+  reasonCode?: "ROUTE_ERROR" | "REQUEST_INVALID" | "AUTH_REQUIRED" | "CONFIG_MISSING";
 }) => ({
+  ...buildAgentMachineOutcome({
+    outcomeClass: "route_error",
+    reasonCode,
+  }),
   error: "Agent call failed",
   detail,
   traceId,
@@ -185,10 +198,16 @@ export const buildStudioAgentRouteFailurePayload = ({
 export const buildStudioAgentInfraFallbackPayload = ({
   traceId,
   canonicalPrompt,
+  reasonCode = "INFRA_FALLBACK_TRANSIENT",
 }: {
   traceId: string;
   canonicalPrompt: string | null;
+  reasonCode?: "INFRA_FALLBACK_TRANSIENT" | "INFRA_FALLBACK_TIMEOUT" | "INFRA_FALLBACK_RATE_LIMIT";
 }) => ({
+  ...buildAgentMachineOutcome({
+    outcomeClass: "fallback_infra",
+    reasonCode,
+  }),
   message: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
   actions: undefined,
   canonicalPrompt,
@@ -225,10 +244,16 @@ export const isStudioAgentSafetyRefusalUpstreamError = ({
 export const buildStudioAgentSafetyRefusalPayload = ({
   traceId,
   canonicalPrompt,
+  reasonCode = "SAFETY_OUTPUT_REFUSAL",
 }: {
   traceId: string;
   canonicalPrompt: string | null;
+  reasonCode?: "SAFETY_INPUT_REFUSAL" | "SAFETY_OUTPUT_REFUSAL" | "PROVIDER_SAFETY_REFUSAL";
 }) => ({
+  ...buildAgentMachineOutcome({
+    outcomeClass: "refusal_safety",
+    reasonCode,
+  }),
   message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
   actions: undefined,
   canonicalPrompt,

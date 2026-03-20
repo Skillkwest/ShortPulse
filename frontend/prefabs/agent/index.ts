@@ -3,6 +3,7 @@
  * Use these imports when wiring agent UI across features/pages.
  */
 export * from "./types";
+export * from "./outcomeContract";
 export * from "./buttons/AgentSendButton";
 export * from "./buttons/AgentEnhanceButton";
 export * from "./buttons/AgentSaveButton";

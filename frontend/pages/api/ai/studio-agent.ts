@@ -21,6 +21,7 @@ import {
 import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
 import { resolveProviderErrorNormalizationMode } from "../../../features/agent-runtime/safetyPolicy/providerErrorPolicy";
 import {
+  buildStudioAgentRouteFailurePayload,
   buildStudioAgentSafetyRefusalPayload,
   emitStudioAgentInputPrecheckTelemetry,
 } from "../../../features/agent-runtime/studioAgentRouteOutcomes";
@@ -85,7 +86,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY is not set", traceId });
+    return res.status(500).json({
+      ...buildStudioAgentRouteFailurePayload({
+        traceId,
+        detail: "OPENAI_API_KEY is not set",
+        reasonCode: "CONFIG_MISSING",
+      }),
+      error: "OPENAI_API_KEY is not set",
+    });
   }
 
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
@@ -99,7 +107,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     process.env.OPENAI_PROMPT_IMAGE_DESCRIBE
   );
   if (!systemPrompt) {
-    return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing", traceId });
+    return res.status(500).json({
+      ...buildStudioAgentRouteFailurePayload({
+        traceId,
+        detail: "STUDIO_AGENT_SYSTEM prompt missing",
+        reasonCode: "CONFIG_MISSING",
+      }),
+      error: "STUDIO_AGENT_SYSTEM prompt missing",
+    });
   }
 
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
@@ -219,6 +234,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       buildStudioAgentSafetyRefusalPayload({
         traceId,
         canonicalPrompt: precheckResult.canonicalPrompt,
+        reasonCode: "SAFETY_INPUT_REFUSAL",
       })
     );
   }

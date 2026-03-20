@@ -13,6 +13,7 @@ import type {
 } from "../../prefabs/agent";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 import { runStudioAgentSafetyInputPrecheck } from "../agent-runtime/studioAgentSafetyInputPrecheck";
+import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "../agent-runtime/studioAgentFailurePolicy";
 import { resolveSafetyEnvironment } from "../agent-runtime/safetyPolicy/decisionEngine";
 import type { SafetyModality } from "../agent-runtime/safetyPolicy/types";
 import { buildAgentContext } from "./logic/contextBuilder";
@@ -224,6 +225,61 @@ export const useAiAgent = ({
         };
         const transportResult = await sendStudioAgentTurn(body);
         if (!transportResult.ok) {
+          const machineDecision = transportResult.parsedError?.decision;
+          const machineOutcomeClass = transportResult.parsedError?.outcome_class;
+          if (machineDecision === "refuse") {
+            const refusalText =
+              resolveSafetyRefusalText(
+                transportResult.parsedError?.message ??
+                  transportResult.parsedError?.detail ??
+                  transportResult.parsedError?.error
+              ) ?? SAFETY_REFUSAL_MESSAGE;
+            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+              id: createAgentMessageId("assistant"),
+              content: refusalText,
+            });
+            setMessages(nextAssistantMessages);
+            messagesRef.current = nextAssistantMessages;
+            return {
+              response: {
+                message: refusalText,
+                actions: undefined,
+                decision: "refuse",
+                outcome_class: machineOutcomeClass ?? "refusal_safety",
+                reason_code: transportResult.parsedError?.reason_code,
+                retryable: transportResult.parsedError?.retryable,
+              },
+              actions: undefined,
+            };
+          }
+          if (machineDecision === "allow" && machineOutcomeClass === "fallback_infra") {
+            const fallbackText = normalizeErrorText(
+              transportResult.parsedError?.message ??
+                transportResult.parsedError?.detail ??
+                transportResult.parsedError?.error,
+              {
+                fallback: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+                maxLength: 160,
+              }
+            );
+            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+              id: createAgentMessageId("assistant"),
+              content: fallbackText,
+            });
+            setMessages(nextAssistantMessages);
+            messagesRef.current = nextAssistantMessages;
+            return {
+              response: {
+                message: fallbackText,
+                actions: undefined,
+                decision: "allow",
+                outcome_class: "fallback_infra",
+                reason_code: transportResult.parsedError?.reason_code,
+                retryable: transportResult.parsedError?.retryable,
+              },
+              actions: undefined,
+            };
+          }
           const refusalText = resolveSafetyRefusalText(
             transportResult.parsedError ?? transportResult.detail
           );

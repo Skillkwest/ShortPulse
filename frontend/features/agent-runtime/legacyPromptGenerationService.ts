@@ -10,12 +10,14 @@ import { runStudioAgentSafetyInputPrecheck } from "./studioAgentSafetyInputPrech
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
+import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
 const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";
 
 type LegacyPromptSuccess = {
   ok: true;
-  payload: {
+  payload: AgentMachineOutcomeFields & {
     prompt: string;
     usage: {
       inputTokens?: number;
@@ -27,7 +29,7 @@ type LegacyPromptSuccess = {
 type LegacyPromptFailure = {
   ok: false;
   status: number;
-  payload: {
+  payload: AgentMachineOutcomeFields & {
     error: string;
     detail?: string;
   };
@@ -76,7 +78,17 @@ export const executeLegacyPromptGeneration = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 500, payload: { error: "OPENAI_API_KEY is not set" } };
+    return {
+      ok: false,
+      status: 500,
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "route_error",
+          reasonCode: "CONFIG_MISSING",
+        }),
+        error: "OPENAI_API_KEY is not set",
+      },
+    };
   }
 
   if (!systemPrompt) {
@@ -89,7 +101,17 @@ export const executeLegacyPromptGeneration = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 500, payload: { error: "OPENAI_PROMPT_SYSTEM is not set" } };
+    return {
+      ok: false,
+      status: 500,
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "route_error",
+          reasonCode: "CONFIG_MISSING",
+        }),
+        error: "OPENAI_PROMPT_SYSTEM is not set",
+      },
+    };
   }
 
   if (typeof prompt !== "string" || !prompt.trim()) {
@@ -102,7 +124,17 @@ export const executeLegacyPromptGeneration = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 400, payload: { error: "Prompt is required" } };
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "route_error",
+          reasonCode: "REQUEST_INVALID",
+        }),
+        error: "Prompt is required",
+      },
+    };
   }
   let providerPrompt = prompt;
   const precheckResult = runStudioAgentSafetyInputPrecheck({
@@ -138,6 +170,10 @@ export const executeLegacyPromptGeneration = async ({
       payload: {
         prompt: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
         usage: {},
+        ...buildAgentMachineOutcome({
+          outcomeClass: "refusal_safety",
+          reasonCode: "SAFETY_INPUT_REFUSAL",
+        }),
       },
     };
   }
@@ -185,7 +221,18 @@ export const executeLegacyPromptGeneration = async ({
         userEmail: user.email ?? null,
         metadata: { detail },
       });
-      return { ok: false, status: response.status, payload: { error: "Upstream error", detail } };
+      return {
+        ok: false,
+        status: response.status,
+        payload: {
+          ...buildAgentMachineOutcome({
+            outcomeClass: "upstream_error",
+            reasonCode: "UPSTREAM_ERROR",
+          }),
+          error: "Upstream error",
+          detail,
+        },
+      };
     }
 
     const data = await response.json();
@@ -203,7 +250,17 @@ export const executeLegacyPromptGeneration = async ({
         userId: user.id,
         userEmail: user.email ?? null,
       });
-      return { ok: false, status: 502, payload: { error: "No prompt returned" } };
+      return {
+        ok: false,
+        status: 502,
+        payload: {
+          ...buildAgentMachineOutcome({
+            outcomeClass: "upstream_error",
+            reasonCode: "UPSTREAM_ERROR",
+          }),
+          error: "No prompt returned",
+        },
+      };
     }
 
     return {
@@ -214,6 +271,10 @@ export const executeLegacyPromptGeneration = async ({
           inputTokens: typeof promptTokens === "number" ? promptTokens : undefined,
           outputTokens: typeof completionTokens === "number" ? completionTokens : undefined,
         },
+        ...buildAgentMachineOutcome({
+          outcomeClass: "success_prompt",
+          reasonCode: "SUCCESS_PROMPT",
+        }),
       },
     };
   } catch (error) {
@@ -231,7 +292,14 @@ export const executeLegacyPromptGeneration = async ({
     return {
       ok: false,
       status: 500,
-      payload: { error: "Prompt generation failed", detail: String(error) },
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "upstream_error",
+          reasonCode: "UPSTREAM_ERROR",
+        }),
+        error: "Prompt generation failed",
+        detail: String(error),
+      },
     };
   }
 };

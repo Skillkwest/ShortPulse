@@ -331,6 +331,74 @@ describe("useAiAgent", () => {
     );
   });
 
+  it("prioritizes machine refusal fields over legacy string heuristics", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "blocked by policy profile",
+          decision: "refuse",
+          outcome_class: "refusal_safety",
+          reason_code: "SAFETY_INPUT_REFUSAL",
+          retryable: false,
+        }),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "request",
+        payloadText: "request",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "I cannot describe this.",
+      })
+    );
+  });
+
+  it("prioritizes machine fallback fields over non-actionable transport errors", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "temporary upstream saturation",
+          decision: "allow",
+          outcome_class: "fallback_infra",
+          reason_code: "INFRA_FALLBACK_TRANSIENT",
+          retryable: true,
+        }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "request",
+        payloadText: "request",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "temporary upstream saturation",
+      })
+    );
+  });
+
   it("surfaces structured infra errors in hook state", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "Upstream error", detail: "invalid api key" }), {

@@ -29,6 +29,8 @@ import {
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "./studioAgentRouteOutcomes";
 import type { SafetyCategoryId } from "./safetyPolicy/types";
+import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "./agentMachineOutcome";
+import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
 const IMAGE_DESCRIBER_ID: AgentPromptId = "OPENAI_PROMPT_IMAGE_DESCRIBE";
 const DEFAULT_VISION_MODEL = "gpt-5-nano";
@@ -106,7 +108,7 @@ const emitDescribeFallbackTelemetry = ({
 
 type LegacyImageDescribeSuccess = {
   ok: true;
-  payload: {
+  payload: AgentMachineOutcomeFields & {
     description: string;
     usage: {
       inputTokens?: number;
@@ -118,7 +120,7 @@ type LegacyImageDescribeSuccess = {
 type LegacyImageDescribeFailure = {
   ok: false;
   status: number;
-  payload: {
+  payload: AgentMachineOutcomeFields & {
     error: string;
     detail?: string;
     model?: string;
@@ -190,7 +192,17 @@ export const executeLegacyImageDescribe = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 500, payload: { error: "OPENAI_API_KEY is not set" } };
+    return {
+      ok: false,
+      status: 500,
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "route_error",
+          reasonCode: "CONFIG_MISSING",
+        }),
+        error: "OPENAI_API_KEY is not set",
+      },
+    };
   }
 
   if (!systemPrompt) {
@@ -203,7 +215,17 @@ export const executeLegacyImageDescribe = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 500, payload: { error: `${IMAGE_DESCRIBER_ID} is not set` } };
+    return {
+      ok: false,
+      status: 500,
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "route_error",
+          reasonCode: "CONFIG_MISSING",
+        }),
+        error: `${IMAGE_DESCRIBER_ID} is not set`,
+      },
+    };
   }
 
   if (typeof imageUrl !== "string" || !imageUrl.trim()) {
@@ -216,7 +238,17 @@ export const executeLegacyImageDescribe = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
-    return { ok: false, status: 400, payload: { error: "imageUrl is required" } };
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "route_error",
+          reasonCode: "REQUEST_INVALID",
+        }),
+        error: "imageUrl is required",
+      },
+    };
   }
 
   try {
@@ -238,7 +270,14 @@ export const executeLegacyImageDescribe = async ({
       return {
         ok: false,
         status: imageProbe.statusCode,
-        payload: { error: imageProbe.message, detail: imageProbe.detail },
+        payload: {
+          ...buildAgentMachineOutcome({
+            outcomeClass: "route_error",
+            reasonCode: "REQUEST_INVALID",
+          }),
+          error: imageProbe.message,
+          detail: imageProbe.detail,
+        },
       };
     }
     const preflightResult = await runImageSafetyPreflight({
@@ -280,6 +319,10 @@ export const executeLegacyImageDescribe = async ({
         payload: {
           description: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
           usage: {},
+          ...buildAgentMachineOutcome({
+            outcomeClass: "refusal_safety",
+            reasonCode: "SAFETY_INPUT_REFUSAL",
+          }),
         },
       };
     }
@@ -345,6 +388,10 @@ export const executeLegacyImageDescribe = async ({
           payload: {
             description: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
             usage: {},
+            ...buildAgentMachineOutcome({
+              outcomeClass: "refusal_model",
+              reasonCode: "PROVIDER_SAFETY_REFUSAL",
+            }),
           },
         };
       }
@@ -380,6 +427,13 @@ export const executeLegacyImageDescribe = async ({
           payload: {
             description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
             usage: {},
+            ...buildAgentMachineOutcome({
+              outcomeClass: "fallback_infra",
+              reasonCode: resolveInfraFallbackReasonCode({
+                status: describeAttempt.status,
+                detail,
+              }),
+            }),
           },
         };
       }
@@ -387,6 +441,10 @@ export const executeLegacyImageDescribe = async ({
         ok: false,
         status: describeAttempt.status,
         payload: {
+          ...buildAgentMachineOutcome({
+            outcomeClass: "upstream_error",
+            reasonCode: "UPSTREAM_ERROR",
+          }),
           error: "Upstream error",
           ...(providerError.detailForClient ? { detail: providerError.detailForClient } : {}),
           ...(describeAttempt.status < 500 && modelUsed ? { model: modelUsed } : {}),
@@ -432,6 +490,10 @@ export const executeLegacyImageDescribe = async ({
         payload: {
           description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
           usage: {},
+          ...buildAgentMachineOutcome({
+            outcomeClass: "fallback_infra",
+            reasonCode: "INFRA_FALLBACK_TRANSIENT",
+          }),
         },
       };
     }
@@ -499,6 +561,16 @@ export const executeLegacyImageDescribe = async ({
         : safetyPostProcessResult.outcome === "rewritten"
           ? safetyPostProcessResult.text
           : STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE;
+    const outputMachineOutcome =
+      safetyPostProcessResult.outcome === "refusal"
+        ? buildAgentMachineOutcome({
+            outcomeClass: "refusal_safety",
+            reasonCode: "SAFETY_OUTPUT_REFUSAL",
+          })
+        : buildAgentMachineOutcome({
+            outcomeClass: "success_prompt",
+            reasonCode: "SUCCESS_PROMPT",
+          });
 
     return {
       ok: true,
@@ -508,6 +580,7 @@ export const executeLegacyImageDescribe = async ({
           inputTokens: typeof promptTokens === "number" ? promptTokens : undefined,
           outputTokens: typeof completionTokens === "number" ? completionTokens : undefined,
         },
+        ...outputMachineOutcome,
       },
     };
   } catch (error) {
@@ -542,13 +615,23 @@ export const executeLegacyImageDescribe = async ({
         payload: {
           description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
           usage: {},
+          ...buildAgentMachineOutcome({
+            outcomeClass: "fallback_infra",
+            reasonCode: resolveInfraFallbackReasonCode({ detail }),
+          }),
         },
       };
     }
     return {
       ok: false,
       status: 500,
-      payload: { error: "Image description failed" },
+      payload: {
+        ...buildAgentMachineOutcome({
+          outcomeClass: "upstream_error",
+          reasonCode: "UPSTREAM_ERROR",
+        }),
+        error: "Image description failed",
+      },
     };
   }
 };

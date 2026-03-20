@@ -2,6 +2,8 @@
  * Types for the AI Studio Agent collaboration layer.
  * Shared by UI prefabs, feature logic, and API handlers.
  */
+import type { AgentDecision, AgentOutcomeClass, AgentReasonCode } from "./outcomeContract";
+
 export type AgentMessageRole = "user" | "assistant" | "system" | "observation";
 export type AgentApiMessageRole = "user" | "assistant";
 
@@ -103,6 +105,15 @@ export type AgentResponse = {
     inputTokens?: number;
     outputTokens?: number;
   };
+  /**
+   * Additive machine-readable outcome fields.
+   * During rollout, callers should prefer these fields when present and
+   * gracefully fallback to legacy message/error heuristics when absent.
+   */
+  decision?: AgentDecision;
+  outcome_class?: AgentOutcomeClass;
+  reason_code?: AgentReasonCode;
+  retryable?: boolean;
   canonicalPrompt?: string | null;
   traceId?: string;
 };

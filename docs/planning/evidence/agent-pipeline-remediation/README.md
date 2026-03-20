@@ -35,6 +35,8 @@ Scope amendment record:
 12. Phase 3 staging canary packet generator tooling packet: `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-delta-packet-generator-tooling.md`.
 13. Phase 3 staging live canary delta packet: `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-live-canary-delta-packet.md`.
 14. Phase 3 staging canary-window sufficiency waiver: `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-window-sufficiency-waiver.md`.
+15. Phase 3 staging rollback drill packet: `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-rollback-drill-packet.md`.
+16. Phase 3 closeout packet (staging scope): `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md`.
 
 ## Expected Phase Folders
 1. `master/` for workstream-level architecture, policy, and governance gate evidence.

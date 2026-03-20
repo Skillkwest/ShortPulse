@@ -31,3 +31,5 @@ Current packets:
 5. `2026-03-20-phase-3-staging-canary-delta-packet-generator-tooling.md` (deterministic staging canary markdown packet generator + input/output template artifacts).
 6. `2026-03-20-phase-3-staging-live-canary-delta-packet.md` (live staging control-vs-canary packet capture; current run remains `insufficient_data` on ring-duration sufficiency).
 7. `2026-03-20-phase-3-staging-canary-window-sufficiency-waiver.md` (owner-directed waiver to use current staging canary results without 60-minute rerun).
+8. `2026-03-20-phase-3-staging-rollback-drill-packet.md` (staging rollback drill execution packet with preflight, execute-rollback result, and post-state integrity checks).
+9. `2026-03-20-phase-3-closeout-packet-staging-scope.md` (Phase 3 staging-scope closeout decision packet linked to `PX-03`).

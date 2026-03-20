@@ -14,7 +14,7 @@ Phase 1 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-
 Phase 2 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 Phase 3 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 Phase 4 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
-Status: Active (master planning complete; Phase 2 closeout complete with staging scope; Phase 3 implementation in progress)
+Status: Active (master planning complete; Phase 2 and Phase 3 closeout complete with staging scope; Phase 4 planning pending)
 
 ## Master Status Overview
 | Workstream | Status | Owner | Entry Gate | Exit Gate | Evidence |
@@ -50,7 +50,7 @@ Status: Active (master planning complete; Phase 2 closeout complete with staging
 | --- | --- | --- | --- | --- | --- | --- |
 | PX-01 | Phase 1 closeout packet linked and approved | AI Platform + Frontend | Planned | Medium | Phase 1 exit criteria pass + evidence links complete | Pending |
 | PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | Completed (Staging Scope) | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md` |
-| PX-03 | Phase 3 closeout packet linked and approved | Platform Ops + Platform + AI Platform | In Progress | High | Phase 3 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-runtime-scope-telemetry-parity-generate-describe.md` |
+| PX-03 | Phase 3 closeout packet linked and approved | Platform Ops + Platform + AI Platform | Completed (Staging Scope) | High | Phase 3 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md` |
 | PX-04 | Phase 4 closeout packet linked and approved | Platform Ops + AI Platform + Frontend | Planned | High | Phase 4 exit criteria pass + evidence links complete | Pending |
 
 ## Phase Execution Gate
@@ -75,7 +75,7 @@ Phase implementation is allowed when:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`
    - scope/enforcement parity, local+staging runtime truth, and comparative quality/refusal gates are complete.
    - production runtime-truth capture is deferred by owner directive for this phase and remains a follow-up item.
-3. Phase 3: In Progress (started 2026-03-20)
+3. Phase 3: Complete (2026-03-20, staging scope)
    - dependency check:
      - Phase 1 exit criteria: satisfied.
      - Phase 2 exit criteria: satisfied (staging scope closeout).
@@ -89,9 +89,12 @@ Phase implementation is allowed when:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-delta-packet-generator-tooling.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-live-canary-delta-packet.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-window-sufficiency-waiver.md`
-   - next gate actions:
-     - Canary window-duration sufficiency is owner-waived for current staging cycle; use linked waiver evidence.
-     - Complete staging rollback drill packet required for `PX-03` closeout.
+      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-rollback-drill-packet.md`
+      - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md`
+   - closeout outcome:
+     - Canary window-duration sufficiency is owner-waived for current staging cycle; waiver linked and approved for this scope.
+     - Staging rollback drill packet is complete and linked.
+     - `PX-03` updated to `Completed (Staging Scope)`.
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:
@@ -128,6 +131,8 @@ This section defines the execution stop condition for the current owner directiv
    - tracker status and Phase 3 evidence index updated to show `PX-03` completion and residual follow-ups (if any) explicitly out of scope.
 4. Stop-work rule:
    - once all gates above are satisfied, execution status is `Done (Staging Scope)` and no further implementation work is performed unless a new owner directive reopens scope.
+5. Current completion check (2026-03-20):
+   - all required staging-scope gates are satisfied; execution status is `Done (Staging Scope)`.
 
 ## Validation Command Bundle (for Master Planning Artifacts)
 1. `npm -C frontend run docs:check`

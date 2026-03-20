@@ -1,0 +1,236 @@
+{
+  "capturedAt": "2026-03-20T22:15:11.458Z",
+  "mode": "execute_rollback",
+  "reason": "phase3_staging_rollback_drill_execution",
+  "source": "phase3_ops",
+  "cooldownHours": 1,
+  "activePolicyBefore": [
+    {
+      "active_profile_id": "prod_safe_v1",
+      "active_policy_version": 3,
+      "active_policy": {
+        "input": {
+          "text": {
+            "text": {
+              "hate": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              },
+              "sexual": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "rewrite"
+              },
+              "violence": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "allow"
+              },
+              "self_harm": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              }
+            },
+            "image": {
+              "hate": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              },
+              "sexual": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "rewrite"
+              },
+              "violence": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "allow"
+              },
+              "self_harm": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              }
+            },
+            "video": {
+              "hate": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              },
+              "sexual": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "rewrite"
+              },
+              "violence": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "allow"
+              },
+              "self_harm": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              }
+            }
+          },
+          "image_preflight": {
+            "enabled": true,
+            "thresholds": {
+              "hate": 0.8,
+              "sexual": 0.75,
+              "violence": 0.8,
+              "self_harm": 0.8
+            }
+          }
+        },
+        "generation": {
+          "defaults": {
+            "image": {
+              "level": "moderate"
+            },
+            "video": {
+              "level": "moderate"
+            }
+          },
+          "per_model": {}
+        },
+        "postprocess": {
+          "mode": "shadow"
+        },
+        "schemaVersion": 2
+      },
+      "active_policy_version_id": 5,
+      "last_known_safe_profile_id": "prod_safe_v1",
+      "last_known_safe_policy_version": 3,
+      "last_known_safe_policy_version_id": 5,
+      "cooldown_until": null,
+      "updated_at": "2026-03-03T00:10:23.600619+00:00",
+      "updated_by_user_id": null,
+      "updated_by_email": "local_tuning_script@shortpulse.test"
+    }
+  ],
+  "rollbackResult": [
+    {
+      "status": "already_safe",
+      "active_profile_id": "prod_safe_v1",
+      "active_policy_version": 3,
+      "cooldown_until": "2026-03-20T23:15:11.851593+00:00",
+      "message": null
+    }
+  ],
+  "activePolicyAfter": [
+    {
+      "active_profile_id": "prod_safe_v1",
+      "active_policy_version": 3,
+      "active_policy": {
+        "input": {
+          "text": {
+            "text": {
+              "hate": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              },
+              "sexual": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "rewrite"
+              },
+              "violence": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "allow"
+              },
+              "self_harm": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              }
+            },
+            "image": {
+              "hate": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              },
+              "sexual": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "rewrite"
+              },
+              "violence": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "allow"
+              },
+              "self_harm": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              }
+            },
+            "video": {
+              "hate": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              },
+              "sexual": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "rewrite"
+              },
+              "violence": {
+                "level": "rewrite",
+                "explicitAction": "refuse",
+                "suggestiveAction": "allow"
+              },
+              "self_harm": {
+                "level": "refuse",
+                "explicitAction": "refuse",
+                "suggestiveAction": "refuse"
+              }
+            }
+          },
+          "image_preflight": {
+            "enabled": true,
+            "thresholds": {
+              "hate": 0.8,
+              "sexual": 0.75,
+              "violence": 0.8,
+              "self_harm": 0.8
+            }
+          }
+        },
+        "generation": {
+          "defaults": {
+            "image": {
+              "level": "moderate"
+            },
+            "video": {
+              "level": "moderate"
+            }
+          },
+          "per_model": {}
+        },
+        "postprocess": {
+          "mode": "shadow"
+        },
+        "schemaVersion": 2
+      },
+      "active_policy_version_id": 5,
+      "last_known_safe_profile_id": "prod_safe_v1",
+      "last_known_safe_policy_version": 3,
+      "last_known_safe_policy_version_id": 5,
+      "cooldown_until": "2026-03-20T23:15:11.851593+00:00",
+      "updated_at": "2026-03-20T22:15:11.851593+00:00",
+      "updated_by_user_id": null,
+      "updated_by_email": null
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Platform Ops + Platform + AI Platform  
-Status: Planned (rebaselined to master roadmap; implementation pending)
+Status: Completed (staging-scoped closeout)
 
 ## Summary
 Phase 3 operationalizes rollout governance for the OpenAI prompt-compiler lanes.  
@@ -17,6 +17,10 @@ In-scope endpoints:
 Out-of-scope:
 1. `fal-submit` implementation changes.
 2. Provider migration or policy-envelope expansion outside approved matrix.
+
+Scope amendment (2026-03-20):
+1. Owner-directed execution is staging-only for Phase 3 closeout.
+2. Canary ring-duration sufficiency (`>=60` minutes for `internal_verification`) is waived for this staging cycle with explicit evidence linkage.
 
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
@@ -91,6 +95,6 @@ Phase 3 implementation may begin when these gates are met:
 
 ## Exit Criteria
 1. Precedence and cache contracts are documented, tested, and enforced in CI.
-2. Canary window passes all threshold gates with evidence attached.
+2. Canary packet and threshold decision evidence are attached for the active staging scope (ring-duration sufficiency pass or explicit owner waiver linked for this cycle).
 3. Rollback drill passes and archive packet is complete.
 4. Master tracker row `PX-03` is complete with phase evidence links.

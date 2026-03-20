@@ -15,7 +15,7 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `P0` | Contract lock and baseline spec | `DONE` | ADR + master docs indexed; baseline evidence packet |
 | `P1` | Coordinate core unification | `PENDING` | Shared transform core live in both tools and both surfaces |
 | `P2` | Tool geometry parity | `PENDING` | Markup/inpaint placement parity under zoom/pan matrix |
-| `P3` | Mask and export camera parity | `PENDING` | Submit export alignment parity under matrix |
+| `P3` | Mask and export camera parity | `IN_PROGRESS` | Submit export alignment parity under matrix |
 | `P4` | Regression harness and CI gates | `PENDING` | Required tests and thresholds enforced in CI |
 | `P5` | Controlled rollout and closeout | `PENDING` | Canary evidence accepted, rollback posture verified |
 
@@ -42,7 +42,7 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `CP-203` | `P2` | Inpaint lasso | Apply explicit `evenodd` lasso fill and self-intersection characterization | AI Studio FE | `PENDING` | `CP-101`,`CP-102`,`CP-103` | Medium | P1 complete | Figure-eight and nested-loop deterministic parity tests pass | `TBD` | Remove implicit default rule ambiguity |
 | `CP-301` | `P3` | Mask mapping | Align mask canonical resolution and scene-to-mask conversion | AI Studio FE | `PENDING` | `CP-201`,`CP-202`,`CP-203` | High | P2 complete | Mask mapping invariants pass across aspects | `TBD` | Image-space canonical mask basis |
 | `CP-302` | `P3` | Export parity | Align submit mask export camera/crop with base flatten contract | AI Studio FE | `PENDING` | `CP-301` | High | P3 mapping complete | Export alignment threshold passes under matrix | `TBD` | Includes non-zero pan cases |
-| `CP-303` | `P3` | Zoom cap parity | Resolve viewport/flatten zoom cap mismatch | AI Studio FE | `PENDING` | `CP-302` | Medium | Export contract aligned | Same max clamp across viewport and flatten camera | `TBD` | Prevent high-zoom WYSIWYG drift |
+| `CP-303` | `P3` | Zoom cap parity | Resolve viewport/flatten zoom cap mismatch | AI Studio FE | `IN_PROGRESS` | `CP-302` | Medium | Export contract aligned | Same max clamp across viewport and flatten camera | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp303-zoom-clamp-parity.md` | Shared clamp authority landed in commit `698984a3`; rerun as part of CP-302 closeout |
 | `CP-401` | `P4` | Unit tests | Add transform-chain round-trip and threshold tests | AI Studio FE | `PENDING` | `CP-301`,`CP-302`,`CP-303` | Medium | P3 complete | Unit matrix tests green | `TBD` | Numeric assertions only |
 | `CP-402` | `P4` | Integration tests | Add inline/modal interaction parity tests | AI Studio FE + QA | `PENDING` | `CP-401` | High | Unit tests green | Tool matrix integration tests green | `TBD` | Pointer lifecycle/cancel coverage |
 | `CP-403` | `P4` | Visual parity | Add screenshot or pixel-diff drift guard suite | QA | `PENDING` | `CP-402` | Medium | Integration tests green | Drift signatures locked in CI | `TBD` | Zoom/pan/aspect/DPR slices |

@@ -5,13 +5,13 @@
 2. Phase / Tracker rows: `P3 / CP-303`
 3. Date (UTC): `2026-03-20`
 4. Owners: AI Studio FE
-5. Branch / commit: `editor-fix / 698984a3`
+5. Branch / commits: `editor-fix / 698984a3, f357db5d`
 6. Environment: local dev workspace (`frontend`)
 
 ## Scope
 1. Surfaces covered: inline + modal (camera contract shared by both)
 2. Modes covered: stage flatten camera path, inpaint submit camera path
-3. Matrix slices covered: clamp-boundary unit/integration assertions (not full parity matrix)
+3. Matrix slices covered: clamp-boundary unit/integration assertions plus rerun in full local Phase 3 validation suite
 
 ## Implementation Evidence
 1. Added shared clamp contract:
@@ -36,11 +36,13 @@
 1. All listed commands passed.
 2. `lint` reported pre-existing warnings outside the CP-303 files; no new lint errors were introduced.
 
+## Status Decision
+1. `CP-303`: `PASS` and ready for `DONE` in tracker.
+
 ## Threshold Notes
 1. CP-303 acceptance target is shared clamp parity between viewport and flatten camera.
 2. Clamp parity is now enforced by one authority (`EXPERT_EDIT_CAMERA_SCALE_MIN/MAX`) and unit-tested at both ends (`0.5`, `4`).
 3. Full export alignment matrix verification remains in CP-302/CP-301 closure scope.
 
 ## Follow-up Required
-1. Re-run this packet’s command set after CP-302 submit/export camera-crop parity changes.
-2. Fold CP-303 clamp proof into Phase 3 consolidated evidence packet at closeout.
+1. Keep CP-303 covered by downstream Phase 4 regression harness (`CP-401` through `CP-404`) to guard against future clamp constant drift.

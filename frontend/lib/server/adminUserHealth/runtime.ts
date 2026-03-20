@@ -14,6 +14,12 @@ export type AdminUserHealthFleetRuntimeFlags = {
   incidentsEnabled: boolean;
   criticalRiskThreshold: number;
   warningCostWithoutSuccessThresholdCents: number;
+  drainageEnabled: boolean;
+  drainageMinAgeSeconds: number;
+  drainageBatchSize: number;
+  drainageProviderAttachedEnabled: boolean;
+  drainageProviderAttachedMinAgeSeconds: number;
+  drainageProviderAttachedOrphanMinAgeSeconds: number;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -84,6 +90,35 @@ export const readAdminUserHealthFleetRuntimeFlags = (): AdminUserHealthFleetRunt
       2000,
       1,
       1_000_000_000
+    ),
+    drainageEnabled: parseBoolean(process.env.SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_ENABLED, false),
+    drainageMinAgeSeconds: parseInteger(
+      process.env.SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_MIN_AGE_SECONDS,
+      900,
+      0,
+      7 * 24 * 60 * 60
+    ),
+    drainageBatchSize: parseInteger(
+      process.env.SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_BATCH_SIZE,
+      200,
+      1,
+      10_000
+    ),
+    drainageProviderAttachedEnabled: parseBoolean(
+      process.env.SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_PROVIDER_ATTACHED_ENABLED,
+      false
+    ),
+    drainageProviderAttachedMinAgeSeconds: parseInteger(
+      process.env.SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_PROVIDER_ATTACHED_MIN_AGE_SECONDS,
+      7200,
+      0,
+      30 * 24 * 60 * 60
+    ),
+    drainageProviderAttachedOrphanMinAgeSeconds: parseInteger(
+      process.env.SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_PROVIDER_ATTACHED_ORPHAN_MIN_AGE_SECONDS,
+      86400,
+      0,
+      365 * 24 * 60 * 60
     ),
   };
 };

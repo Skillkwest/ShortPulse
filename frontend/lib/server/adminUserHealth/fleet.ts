@@ -79,6 +79,13 @@ type NormalizedLedgerRow = {
 
 type ScanRunStatus = "running" | "completed" | "partial" | "failed";
 
+type FleetDrainageSummary = {
+  enabled: boolean;
+  scanned: number;
+  released: number;
+  errors: number;
+};
+
 export type FleetScanRunResult = {
   ok: boolean;
   runId: string | null;
@@ -90,6 +97,7 @@ export type FleetScanRunResult = {
   criticalUsers: number;
   warningUsers: number;
   totalCostWithoutSuccessCents: number;
+  drainage: FleetDrainageSummary;
   durationMs: number;
   errors: string[];
 };
@@ -134,6 +142,109 @@ const chunk = <T>(rows: T[], size: number): T[][] => {
     out.push(rows.slice(index, index + size));
   }
   return out;
+};
+
+const parseDrainageMetrics = (
+  value: unknown
+): { scanned: number; released: number; errors: number } => {
+  const row =
+    Array.isArray(value) && value.length > 0 && value[0] && typeof value[0] === "object"
+      ? (value[0] as Record<string, unknown>)
+      : value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
+
+  if (!row) {
+    return { scanned: 0, released: 0, errors: 0 };
+  }
+
+  const scanned = Math.max(0, Math.trunc(toNumber(row.scanned_count ?? row.scanned)));
+  const released = Math.max(0, Math.trunc(toNumber(row.released_count ?? row.released)));
+  const errors = Math.max(0, Math.trunc(toNumber(row.error_count ?? row.errors)));
+  return { scanned, released, errors };
+};
+
+const runFleetDrainage = async (): Promise<{
+  summary: FleetDrainageSummary;
+  warnings: string[];
+}> => {
+  const flags = readAdminUserHealthFleetRuntimeFlags();
+  const summary: FleetDrainageSummary = {
+    enabled: flags.drainageEnabled || flags.drainageProviderAttachedEnabled,
+    scanned: 0,
+    released: 0,
+    errors: 0,
+  };
+  if (!summary.enabled) {
+    return { summary, warnings: [] };
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const warnings: string[] = [];
+
+  if (flags.drainageEnabled) {
+    try {
+      const response = await supabaseAdmin.rpc("release_stale_generation_reservations", {
+        p_limit: flags.drainageBatchSize,
+        p_min_age_seconds: flags.drainageMinAgeSeconds,
+      });
+      if (response.error) {
+        summary.errors += 1;
+        warnings.push(
+          `Fleet drainage failed for release_stale_generation_reservations: ${
+            response.error.message || "unknown error"
+          }`
+        );
+      } else {
+        const metrics = parseDrainageMetrics(response.data);
+        summary.scanned += metrics.scanned;
+        summary.released += metrics.released;
+        summary.errors += metrics.errors;
+      }
+    } catch (error) {
+      summary.errors += 1;
+      warnings.push(
+        `Fleet drainage failed for release_stale_generation_reservations: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`
+      );
+    }
+  }
+
+  if (flags.drainageProviderAttachedEnabled) {
+    try {
+      const response = await supabaseAdmin.rpc(
+        "release_stale_provider_attached_generation_reservations",
+        {
+          p_limit: flags.drainageBatchSize,
+          p_min_age_seconds: flags.drainageProviderAttachedMinAgeSeconds,
+          p_orphan_min_age_seconds: flags.drainageProviderAttachedOrphanMinAgeSeconds,
+        }
+      );
+      if (response.error) {
+        summary.errors += 1;
+        warnings.push(
+          `Fleet drainage failed for release_stale_provider_attached_generation_reservations: ${
+            response.error.message || "unknown error"
+          }`
+        );
+      } else {
+        const metrics = parseDrainageMetrics(response.data);
+        summary.scanned += metrics.scanned;
+        summary.released += metrics.released;
+        summary.errors += metrics.errors;
+      }
+    } catch (error) {
+      summary.errors += 1;
+      warnings.push(
+        `Fleet drainage failed for release_stale_provider_attached_generation_reservations: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`
+      );
+    }
+  }
+
+  return { summary, warnings };
 };
 
 const evaluateCostWithoutSuccess = ({
@@ -566,6 +677,12 @@ export const runAdminUserHealthFleetScan = async ({
 }): Promise<FleetScanRunResult> => {
   const flags = readAdminUserHealthFleetRuntimeFlags();
   const startedAtMs = Date.now();
+  const defaultDrainageSummary: FleetDrainageSummary = {
+    enabled: flags.drainageEnabled || flags.drainageProviderAttachedEnabled,
+    scanned: 0,
+    released: 0,
+    errors: 0,
+  };
 
   const startRunResult = await startFleetScanRun({
     lookbackDays: flags.lookbackDays,
@@ -586,6 +703,7 @@ export const runAdminUserHealthFleetScan = async ({
       criticalUsers: 0,
       warningUsers: 0,
       totalCostWithoutSuccessCents: 0,
+      drainage: defaultDrainageSummary,
       durationMs: Math.max(0, Date.now() - startedAtMs),
       errors: ["A fleet scan run is already active."],
     };
@@ -601,8 +719,16 @@ export const runAdminUserHealthFleetScan = async ({
   let criticalUsers = 0;
   let warningUsers = 0;
   let totalCostWithoutSuccessCents = 0;
+  let drainageSummary: FleetDrainageSummary = defaultDrainageSummary;
 
   try {
+    const drainageResult = await runFleetDrainage();
+    drainageSummary = drainageResult.summary;
+    if (drainageResult.warnings.length > 0) {
+      partialData = true;
+      runErrors.push(...drainageResult.warnings);
+    }
+
     const targets = await loadFleetTargetUsers({
       activeWindowDays: flags.activeWindowDays,
       maxUsers: flags.maxUsersPerRun,
@@ -694,6 +820,10 @@ export const runAdminUserHealthFleetScan = async ({
         critical_users: criticalUsers,
         warning_users: warningUsers,
         total_cost_without_success_cents: totalCostWithoutSuccessCents,
+        drainage_enabled: drainageSummary.enabled,
+        drainage_scanned: drainageSummary.scanned,
+        drainage_released: drainageSummary.released,
+        drainage_errors: drainageSummary.errors,
       },
     });
 
@@ -708,6 +838,7 @@ export const runAdminUserHealthFleetScan = async ({
       criticalUsers,
       warningUsers,
       totalCostWithoutSuccessCents,
+      drainage: drainageSummary,
       durationMs: Math.max(0, Date.now() - startedAtMs),
       errors: Array.from(new Set(runErrors)).slice(0, 12),
     };
@@ -726,6 +857,10 @@ export const runAdminUserHealthFleetScan = async ({
         critical_users: criticalUsers,
         warning_users: warningUsers,
         total_cost_without_success_cents: totalCostWithoutSuccessCents,
+        drainage_enabled: drainageSummary.enabled,
+        drainage_scanned: drainageSummary.scanned,
+        drainage_released: drainageSummary.released,
+        drainage_errors: drainageSummary.errors,
       },
     });
     throw error;

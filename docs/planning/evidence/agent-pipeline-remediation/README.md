@@ -30,6 +30,7 @@ Scope amendment record:
 7. Phase 2 closeout packet (staging scope): `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`.
 8. Phase 3 telemetry parity packet: `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-runtime-scope-telemetry-parity-generate-describe.md`.
 9. Phase 3 precedence/cache proof packet: `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-precedence-cache-ttl-proof-tests.md`.
+10. Phase 3 canary-threshold utility packet: `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-canary-threshold-decision-utility.md`.
 
 ## Expected Phase Folders
 1. `master/` for workstream-level architecture, policy, and governance gate evidence.

@@ -26,3 +26,4 @@ Required packet contents:
 Current packets:
 1. `2026-03-20-phase-3-runtime-scope-telemetry-parity-generate-describe.md` (runtime-scope telemetry parity slice for `generate-prompt` and `describe-image`).
 2. `2026-03-20-phase-3-precedence-cache-ttl-proof-tests.md` (runtime precedence/cache TTL proof test expansion for control-plane profile resolution).
+3. `2026-03-20-phase-3-canary-threshold-decision-utility.md` (deterministic canary promote/hold/rollback decision utility and tests).

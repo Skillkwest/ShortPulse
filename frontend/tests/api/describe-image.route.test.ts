@@ -659,6 +659,7 @@ describe("POST /api/ai/describe-image", () => {
       retryable: true,
       error: "Upstream error",
       detail: "responses rejected image payload",
+      fallback_reason: "upstream_error",
       model: "gpt-5-nano",
     });
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
@@ -677,11 +678,42 @@ describe("POST /api/ai/describe-image", () => {
         "decision": "error",
         "detail": "responses rejected image payload",
         "error": "Upstream error",
+        "fallback_reason": "upstream_error",
         "model": "gpt-5-nano",
         "outcome_class": "upstream_error",
         "reason_code": "UPSTREAM_ERROR",
         "retryable": true,
       }
     `);
+  });
+
+  it("classifies thrown transport failures with normalized fallback_reason labels", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockRejectedValueOnce(new Error("upstream timeout"));
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/public.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "allow",
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        retryable: true,
+        fallback_reason: "upstream_unavailable",
+      })
+    );
   });
 });

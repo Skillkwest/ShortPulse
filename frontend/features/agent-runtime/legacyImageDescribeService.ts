@@ -158,6 +158,7 @@ type LegacyImageDescribeFailure = {
     error: string;
     detail?: string;
     model?: string;
+    fallback_reason?: string;
   };
 };
 
@@ -603,9 +604,14 @@ export const executeLegacyImageDescribe = async ({
         outcomeClass: "upstream_error",
         reasonCode: "UPSTREAM_ERROR",
       });
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        status: describeAttempt.status,
+        detail,
+      });
       emitDescribeRouteTelemetry({
         statusCode: describeAttempt.status,
         machineOutcome,
+        fallbackReason,
       });
       return {
         ok: false,
@@ -614,6 +620,7 @@ export const executeLegacyImageDescribe = async ({
           ...machineOutcome,
           error: "Upstream error",
           ...(providerError.detailForClient ? { detail: providerError.detailForClient } : {}),
+          fallback_reason: fallbackReason,
           ...(describeAttempt.status < 500 && modelUsed ? { model: modelUsed } : {}),
         },
       };
@@ -842,9 +849,13 @@ export const executeLegacyImageDescribe = async ({
       outcomeClass: "upstream_error",
       reasonCode: "UPSTREAM_ERROR",
     });
+    const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+      detail,
+    });
     emitDescribeRouteTelemetry({
       statusCode: 500,
       machineOutcome,
+      fallbackReason,
     });
     return {
       ok: false,
@@ -852,6 +863,7 @@ export const executeLegacyImageDescribe = async ({
       payload: {
         ...machineOutcome,
         error: "Image description failed",
+        fallback_reason: fallbackReason,
       },
     };
   }

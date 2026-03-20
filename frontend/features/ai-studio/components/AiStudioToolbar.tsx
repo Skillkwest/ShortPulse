@@ -164,7 +164,9 @@ function AiStudioToolbarComponent({
                     : selectedTool === tool.id;
           return (
             <React.Fragment key={tool.id}>
-              {tool.id === "canvas" ? <div className="toolbar-divider" aria-hidden="true" /> : null}
+              {tool.id === "canvas" ? (
+                <div className="toolbar-divider toolbar-divider-before-canvas" aria-hidden="true" />
+              ) : null}
               <button
                 type="button"
                 className={`toolbar-item ${isActive ? "is-active" : ""}`}

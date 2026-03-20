@@ -1307,6 +1307,12 @@ body.ai-shell-resizing * {
   overflow: hidden;
 }
 
+/* Canvas workflow access is intentionally hidden from the left toolbar. */
+.toolbar-item[data-tool-id="canvas"],
+.toolbar-divider.toolbar-divider-before-canvas {
+  display: none;
+}
+
 /* Primary workflow buttons: Create, Video, Sound, Kling, and Edit */
 .toolbar-item[data-tool-id="create"],
 .toolbar-item[data-tool-id="kling"],

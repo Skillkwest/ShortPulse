@@ -39,6 +39,9 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Prefer existing helpers/components before adding new dependencies.
 - Keep UI consistent with existing palette/spacing (see `docs/styles-structure.md`).
 - For large refactors, propose a plan and execute incrementally; avoid exceeding file size limits.
+- Keep documentation contract-driven and no-bloat:
+  - update docs when behavior/contracts/gates change,
+  - prefer updating existing docs over creating new planning docs unless a new durable artifact is required.
 
 ## Maintenance skills
 - Run `npm -C frontend run docs:check` to validate markdown/index integrity plus semantic parity checks (routes, API inventory, migrations, archive manifest).

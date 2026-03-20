@@ -40,6 +40,26 @@ Phase 2 implementation may begin when these gates are met:
 2. Master rows `M-04`, `M-05`, `M-06`, `M-09`, and `M-12` are approved or explicitly waived with risk signoff.
 3. Outcome/reason taxonomy from Phase 1 is stable in staging.
 
+## Execution Discipline (No-Bloat / No-Regression)
+1. Execute in small vertical slices only (single behavior contract per slice).
+2. Start each slice with an explicit contract statement:
+   - inputs and outputs,
+   - invariants to preserve,
+   - expected failure behavior.
+3. Add or update targeted tests for touched logic before implementation changes.
+4. Keep diffs minimal and scoped; no opportunistic refactors outside the active slice.
+5. Validation per slice:
+   - targeted tests for touched paths,
+   - `npm -C frontend run type-check`.
+6. Validation at phase checkpoint/closeout:
+   - `npm -C frontend run lint`,
+   - `npm -C frontend run build`,
+   - `npm -C frontend run docs:check`.
+7. After each slice, perform a self-audit for:
+   - regression risk,
+   - code/documentation bloat risk,
+   - contract drift between implementation and planning docs.
+
 ## Implementation Decisions
 1. Precheck enforcement scope contract:
    - Hard refusal scope: latest user turn + canonical prompt.

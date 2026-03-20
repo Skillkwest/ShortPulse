@@ -72,6 +72,21 @@ Phase implementation is allowed when:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`
    - scope/enforcement parity and local continuity/quality baselines are captured; preview/production runtime-truth capture, approved golden delta reporting, and closeout signoff remain pending.
 
+## PX-02 Timeboxed Closeout Gate (2026-03-20)
+1. Timebox:
+   - complete remaining Phase 2 closeout evidence in the next focused execution window before starting net-new Phase 3 implementation.
+2. Required remaining artifacts:
+   - preview runtime-truth packet,
+   - production runtime-truth packet,
+   - approved golden quality + false-refusal comparative report.
+3. Required closeout validation bundle:
+   - `npm -C frontend run lint`,
+   - `npm -C frontend run type-check`,
+   - `npm -C frontend run build`,
+   - `npm -C frontend run docs:check`.
+4. Completion rule:
+   - update `PX-02` to `Completed` only when all required artifacts and validation outputs are linked in the Phase 2 evidence index.
+
 ## Program Completion Gate
 Program closeout/signoff requires:
 1. Master rows `M-01` through `M-15` complete (or explicitly waived with risk signoff).

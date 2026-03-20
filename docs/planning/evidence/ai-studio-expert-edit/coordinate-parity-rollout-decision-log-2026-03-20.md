@@ -18,6 +18,7 @@ Track promote/hold/rollback decisions for the Expert Edit coordinate-parity prog
 | 2026-03-20 | `CP-403` | `PASS` | Deterministic drift signatures are enforced by parity gate suites; optional browser-backed audit remains available for additional runtime evidence | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | QA + AI Studio FE |
 | 2026-03-20 | `CP-404` | `PASS` | Dedicated CI gate job (`expert_edit_coordinate_parity`) is wired with warn/enforce policy and enforce default | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | AI Studio FE + DevEx |
 | 2026-03-20 | `CP-501` | `IN_PROGRESS` | Canary entry criteria and rollback contract are now locked; rollout execution is in progress pending canary matrix evidence | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp501-canary-entry-and-rollback-contract.md` | AI Studio FE + QA + Ops |
+| 2026-03-20 | `CP-501` | `HOLD` | Deterministic canary checks passed, but browser-backed parity matrix capture is blocked in this workspace because `PLAYWRIGHT_AUDIT_EMAIL` is not configured | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp501-canary-matrix-progress.md` | AI Studio FE + QA + Ops |
 | 2026-03-20 | `CP-502` | `PENDING` | Production verification not started | `TBD` | QA + Ops |
 | 2026-03-20 | `CP-503` | `PENDING` | Closeout not started | `TBD` | AI Studio FE |
 

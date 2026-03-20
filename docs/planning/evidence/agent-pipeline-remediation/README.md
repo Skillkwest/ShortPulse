@@ -25,6 +25,9 @@ Scope amendment record:
 2. Amendment evidence packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`.
 3. Follow-up continuity packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`.
 4. Follow-up quality/refusal + runtime-truth local baseline packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`.
+5. Staging runtime-truth packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-runtime-truth-staging-packet.md`.
+6. Golden quality + false-refusal comparative report: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-golden-quality-false-refusal-comparative-report.md`.
+7. Phase 2 closeout packet (staging scope): `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`.
 
 ## Expected Phase Folders
 1. `master/` for workstream-level architecture, policy, and governance gate evidence.

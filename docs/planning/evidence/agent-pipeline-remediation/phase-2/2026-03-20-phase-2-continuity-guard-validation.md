@@ -34,6 +34,6 @@ From `tests/api/studio-agent.runtime.test.ts`:
 1. Local continuity regression suite passed.
 2. No local evidence of fallback/refusal canonical pollution in covered paths.
 
-## Remaining Runtime-Truth Gap
-1. Preview and production runtime truth capture for continuity invariants is pending.
-2. A follow-up packet must include environment snapshots and trace excerpts for those environments.
+## Runtime-Truth Follow-Up
+1. Staging runtime truth capture is now linked in `2026-03-20-phase-2-runtime-truth-staging-packet.md`.
+2. Production runtime truth capture is deferred beyond Phase 2 by owner directive (2026-03-20).

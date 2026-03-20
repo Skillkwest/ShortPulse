@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Frontend + AI Platform  
-Status: In Progress (precheck scope, telemetry, and field-mode parity slices implemented)
+Status: Completed (staging-scoped closeout)
 
 ## Summary
 Phase 2 hardens prompt quality and canonical continuity while narrowing safety precheck blast radius.  
@@ -21,6 +21,7 @@ Out-of-scope:
 Scope amendment (2026-03-20):
 1. Limited shared precheck parity updates touched Fal submit route wiring/tests to keep shared safety-lane behavior aligned across runtime entry points.
 2. No provider integration contract changes were introduced.
+3. Owner-directed runtime-truth scope for Phase 2 closeout is local + staging; production capture is deferred.
 
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
@@ -71,7 +72,7 @@ Phase 2 implementation may begin when these gates are met:
    - Do not promote infra fallback assistant text into canonical continuity state.
    - Canonical state commits occur only from validated prompt outputs.
 4. Runtime truth discipline:
-   - Collect and archive profile/flag/control-plane snapshots for local, preview, and production at pre- and post-phase checkpoints.
+   - Collect and archive profile/flag/control-plane snapshots for local and staging for this phase scope.
 
 ## Work Breakdown
 1. Scope contract implementation:
@@ -98,6 +99,9 @@ Evidence:
 1. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`
 2. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`
 3. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`
+4. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-runtime-truth-staging-packet.md`
+5. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-golden-quality-false-refusal-comparative-report.md`
+6. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`
 
 ## Validation
 1. Safety scope tests:
@@ -121,4 +125,5 @@ Evidence:
 2. Prompt continuity metrics meet or exceed baseline.
 3. No net increase in false-positive refusals on the approved corpus.
 4. Runtime truth packets (`local`, `preview`, `production`) are captured and linked.
+   - scope amendment: `local` + `staging` captured for this phase closeout.
 5. Master tracker row `PX-02` is complete with phase evidence links.

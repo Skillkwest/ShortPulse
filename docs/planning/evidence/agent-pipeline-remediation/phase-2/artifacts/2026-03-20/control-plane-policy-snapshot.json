@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "capturedAt": "2026-03-20T19:14:34.715Z",
+  "activeProfileId": "prod_safe_v1",
+  "activePolicyVersion": 3,
+  "cooldownUntil": null,
+  "schemaVersion": 2,
+  "postprocessMode": "shadow"
+}

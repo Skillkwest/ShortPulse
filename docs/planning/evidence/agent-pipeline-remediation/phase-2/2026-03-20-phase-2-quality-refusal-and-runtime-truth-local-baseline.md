@@ -2,7 +2,7 @@
 
 Date: 2026-03-20  
 Phase: 2  
-Status: In progress (local baseline captured; preview/production capture pending)
+Status: Updated (local baseline captured; staging comparative captured; production deferred by owner directive)
 
 ## Objective
 Capture a local baseline for:
@@ -29,7 +29,7 @@ Local regression corpus does not show a net increase in unexpected refusals in c
 
 Current limits:
 1. Corpus is test-suite based (not full production replay).
-2. Preview/production false-refusal delta remains pending.
+2. Production false-refusal delta is deferred for this phase scope.
 
 ## Golden Prompt Quality Delta (Local)
 Prompt-quality guard remains green for covered route contracts:
@@ -38,16 +38,15 @@ Prompt-quality guard remains green for covered route contracts:
 
 Current limits:
 1. No offline “golden dataset” delta report was executed in this packet.
-2. Preview/production quality deltas remain pending.
+2. Production quality delta is deferred for this phase scope.
 
 ## Runtime Truth Snapshot Status
 | Environment | Snapshot Status | Notes |
 | --- | --- | --- |
 | local | Captured | Based on local test + type-check bundle in this packet. |
-| preview | Pending | Requires environment-level flag/profile snapshot and trace capture. |
-| production | Pending | Requires environment-level flag/profile snapshot and trace capture. |
+| staging | Captured | Linked in `2026-03-20-phase-2-runtime-truth-staging-packet.md`. |
+| production | Deferred | Owner directive on 2026-03-20 scopes Phase 2 closeout to staging runtime truth. |
 
 ## Remaining Work
-1. Add preview runtime truth capture packet.
-2. Add production runtime truth capture packet.
-3. Attach approved golden dataset + false-refusal comparative report for Phase 2 closeout.
+1. Attach staging-scoped closeout packet and tracker completion update.
+2. Keep production runtime-truth capture as deferred follow-up work item (outside this phase scope).

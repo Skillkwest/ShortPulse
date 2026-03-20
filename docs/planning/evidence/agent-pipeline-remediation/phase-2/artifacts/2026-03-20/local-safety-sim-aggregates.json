@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-03-20T19:21:11Z",
+  "total": 24,
+  "refusal": 0,
+  "fallback": 0,
+  "safe_or_rewrite": 24,
+  "non200": 0,
+  "missingApplyPrompt": 0,
+  "unsafeLeak": 0
+}

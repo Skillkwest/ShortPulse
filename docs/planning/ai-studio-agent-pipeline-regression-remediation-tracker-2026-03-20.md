@@ -14,7 +14,7 @@ Phase 1 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-
 Phase 2 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 Phase 3 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 Phase 4 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
-Status: Active (master planning and Phase 1/2/3/4 planning complete; Phase 2 implementation is in progress)
+Status: Active (master planning and Phase 1/2/3/4 planning complete; Phase 2 closeout complete with staging scope)
 
 ## Master Status Overview
 | Workstream | Status | Owner | Entry Gate | Exit Gate | Evidence |
@@ -49,7 +49,7 @@ Status: Active (master planning and Phase 1/2/3/4 planning complete; Phase 2 imp
 | ID | Task | Owner | Status | Risk | Validation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | PX-01 | Phase 1 closeout packet linked and approved | AI Platform + Frontend | Planned | Medium | Phase 1 exit criteria pass + evidence links complete | Pending |
-| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | In Progress | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-2/README.md` |
+| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | Completed (Staging Scope) | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md` |
 | PX-03 | Phase 3 closeout packet linked and approved | Platform Ops + Platform + AI Platform | Planned | High | Phase 3 exit criteria pass + evidence links complete | Pending |
 | PX-04 | Phase 4 closeout packet linked and approved | Platform Ops + AI Platform + Frontend | Planned | High | Phase 4 exit criteria pass + evidence links complete | Pending |
 
@@ -65,27 +65,31 @@ Phase implementation is allowed when:
 1. Phase 1: Ready (2026-03-20)
    - dependencies reviewed in `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`.
    - `M-01` and `M-08` marked complete; `M-02` and `M-09` explicitly waived for Phase 1 entry with carry-forward requirements.
-2. Phase 2: In progress (2026-03-20)
+2. Phase 2: Complete (2026-03-20, staging scope)
    - active evidence packets:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`
-   - scope/enforcement parity and local continuity/quality baselines are captured; preview/production runtime-truth capture, approved golden delta reporting, and closeout signoff remain pending.
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-runtime-truth-staging-packet.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-golden-quality-false-refusal-comparative-report.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`
+   - scope/enforcement parity, local+staging runtime truth, and comparative quality/refusal gates are complete.
+   - production runtime-truth capture is deferred by owner directive for this phase and remains a follow-up item.
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:
-   - complete remaining Phase 2 closeout evidence in the next focused execution window before starting net-new Phase 3 implementation.
+   - completed in this execution window.
 2. Required remaining artifacts:
-   - preview runtime-truth packet,
-   - production runtime-truth packet,
-   - approved golden quality + false-refusal comparative report.
+   - staging runtime-truth packet,
+   - approved golden quality + false-refusal comparative report,
+   - phase closeout packet with staging scope decision record.
 3. Required closeout validation bundle:
    - `npm -C frontend run lint`,
    - `npm -C frontend run type-check`,
    - `npm -C frontend run build`,
    - `npm -C frontend run docs:check`.
 4. Completion rule:
-   - update `PX-02` to `Completed` only when all required artifacts and validation outputs are linked in the Phase 2 evidence index.
+   - satisfied; `PX-02` updated to completed with staging scope.
 
 ## Program Completion Gate
 Program closeout/signoff requires:

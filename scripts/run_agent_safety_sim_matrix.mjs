@@ -206,8 +206,14 @@ const requestOne = async ({
   workerId,
   token,
   requestTimeoutMs,
+  vercelBypassToken,
 }) => {
   const requestId = `${runId}-${category}-req-${requestIndex}`;
+  const requestUrl = vercelBypassToken
+    ? `${baseUrl}/api/ai/studio-agent?x-vercel-protection-bypass=${encodeURIComponent(
+        vercelBypassToken
+      )}`
+    : `${baseUrl}/api/ai/studio-agent`;
   const body = {
     traceId: requestId,
     clientSessionKey: `${runId}-${category}-worker-${workerId}`,
@@ -224,13 +230,14 @@ const requestOne = async ({
   const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
 
   try {
-    const response = await fetch(`${baseUrl}/api/ai/studio-agent`, {
+    const headers = {
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+      "x-shortpulse-request-id": requestId,
+    };
+    const response = await fetch(requestUrl, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-        "x-shortpulse-request-id": requestId,
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -245,8 +252,14 @@ const requestOne = async ({
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       networkError = `timeout_after_${requestTimeoutMs}ms`;
+    } else if (error instanceof Error) {
+      const causeDetail =
+        error.cause && typeof error.cause === "object" && "message" in error.cause
+          ? String(error.cause.message)
+          : null;
+      networkError = causeDetail ? `${error.message} (${causeDetail})` : error.message;
     } else {
-      networkError = error instanceof Error ? error.message : String(error);
+      networkError = String(error);
     }
   } finally {
     clearTimeout(timeoutId);
@@ -339,6 +352,7 @@ const runCategory = async ({
   strictGate,
   suggestiveGate,
   expectedOutcome,
+  vercelBypassToken,
 }) => {
   const users = [];
   const records = [];
@@ -373,6 +387,7 @@ const runCategory = async ({
             workerId: user.workerId,
             token: user.accessToken,
             requestTimeoutMs,
+            vercelBypassToken,
           });
           records.push(record);
         }
@@ -396,6 +411,7 @@ const runCategory = async ({
             workerId: user.workerId,
             token: user.accessToken,
             requestTimeoutMs,
+            vercelBypassToken,
           });
           records.push(record);
         }
@@ -490,6 +506,11 @@ const main = async () => {
   const requestTimeoutMs = asInt(args["request-timeout-ms"], 45000);
   const outputDir = args["output-dir"] ? path.resolve(args["output-dir"]) : os.tmpdir();
   const baseUrl = args["base-url"] ?? process.env.SHORTPULSE_API_BASE_URL ?? "http://localhost:3000";
+  const vercelBypassToken =
+    args["vercel-bypass-token"] ??
+    process.env.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN ??
+    process.env.VERCEL_AUTOMATION_BYPASS_TOKEN ??
+    "";
 
   const selectedCategories = args.categories
     ? args.categories
@@ -538,6 +559,7 @@ const main = async () => {
       strictGate,
       suggestiveGate,
       expectedOutcome,
+      vercelBypassToken,
     });
     console.log(
       `[${runId}] track=${track} category=${category} done expectedPassRate=${categoryResult.summary.expectedPassRate.toFixed(
@@ -565,6 +587,7 @@ const main = async () => {
     finishedAt: new Date().toISOString(),
     workerCount,
     requestTimeoutMs,
+    vercelBypassEnabled: Boolean(vercelBypassToken),
     totalRequestsPerCategory: totalRequests,
     selectedCategories,
     totals: {

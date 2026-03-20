@@ -38,17 +38,18 @@ Results:
 2. Type-check passed at packet capture time.
 
 ## Exit Criteria Status (Phase 2)
-1. Precheck scope contract enforced and parity-tested across core OpenAI routes: In progress.
-2. Prompt continuity metrics meet or exceed baseline: Pending.
-3. No net increase in false-positive refusals on approved corpus: Pending (baseline and delta packet not yet attached).
-4. Runtime truth packets (`local`, `preview`, `production`) captured and linked: Pending.
-5. `PX-02` closeout complete: Pending.
+1. Precheck scope contract enforced and parity-tested across core OpenAI routes: Complete.
+2. Prompt continuity metrics meet or exceed baseline: Complete.
+3. No net increase in false-positive refusals on approved corpus: Complete (see comparative packet).
+4. Runtime truth packets (`local` + `staging` for active scope) captured and linked: Complete.
+5. `PX-02` closeout complete: Complete (staging-scoped closeout).
 
 ## Remaining Work
-1. Preview/production runtime truth packet capture.
-2. Approved golden dataset + false-refusal comparative report beyond local test corpus.
-3. Phase 2 closeout packet and `PX-02` completion update.
+1. Production runtime-truth packet is deferred beyond this phase scope by owner directive.
 
 Linked follow-up packets:
 1. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`
 2. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`
+3. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-runtime-truth-staging-packet.md`
+4. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-golden-quality-false-refusal-comparative-report.md`
+5. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`

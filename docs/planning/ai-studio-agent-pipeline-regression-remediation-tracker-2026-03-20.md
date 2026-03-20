@@ -43,7 +43,7 @@ Status: Active (master planning complete; Phase 2 and Phase 3 closeout complete 
 | M-12 | Define compiler-specific eval gates (schema/fidelity/continuity/false-refusal) | Frontend + AI Platform | Completed | High | CI gate definitions + baseline dataset report | `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/2026-03-20-m12-compiler-eval-gates-and-baseline.md` |
 | M-13 | Define production-trace adversarial mining loop and corpus promotion rules | AI Platform | Completed | Medium | Corpus lifecycle SOP + sample packet review | `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/2026-03-20-m13-adversarial-trace-mining-and-corpus-promotion.md` |
 | M-14 | Define canary thresholds and rollback triggers for compiler-native metrics | Platform Ops | Completed | High | Threshold contract + canary policy doc + rollback drill checklist | `docs/planning/evidence/agent-pipeline-remediation/master/ws-6/2026-03-20-m14-canary-thresholds-and-rollback-drill.md` |
-| M-15 | Build master signoff packet enabling phase implementation start and gated execution | Engineering | Planned | High | All M-01 through M-14 complete with evidence | Pending |
+| M-15 | Build master signoff packet enabling phase implementation start and gated execution | Engineering | Waived (Staging Scope Directive) | High | Explicit waiver + carry-forward requirements documented | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-m15-master-signoff-staging-directive-waiver.md` |
 
 ## Phase Closeout Rows
 | ID | Task | Owner | Status | Risk | Validation | Evidence |
@@ -98,7 +98,7 @@ Phase implementation is allowed when:
 4. Phase 4: Not Started (2026-03-20)
    - entry gate status:
      - `PX-03`: satisfied.
-     - `M-15`: pending (master signoff packet not complete).
+     - `M-15`: waived for staging-only directive (master waiver packet linked).
      - owner directive: staging-only; production rollout execution deferred.
    - active entry-status packet:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-entry-gate-status-staging-directive.md`

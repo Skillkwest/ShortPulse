@@ -29,3 +29,4 @@ Current gate packets:
 5. `ws-5/2026-03-20-m12-compiler-eval-gates-and-baseline.md` (`M-12` compiler eval-gate contract and baseline dataset report).
 6. `ws-5/2026-03-20-m13-adversarial-trace-mining-and-corpus-promotion.md` (`M-13` adversarial trace-mining lifecycle and corpus promotion packet).
 7. `ws-6/2026-03-20-m14-canary-thresholds-and-rollback-drill.md` (`M-14` canary threshold binding and rollback drill checklist packet).
+8. `2026-03-20-m15-master-signoff-staging-directive-waiver.md` (`M-15` staging-scope waiver and carry-forward risk contract for unresolved master rows).

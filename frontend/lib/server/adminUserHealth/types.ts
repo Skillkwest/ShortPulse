@@ -75,6 +75,13 @@ export type FleetSnapshotDraft = {
 
 export type FleetRunStatus = "running" | "completed" | "partial" | "failed";
 
+export type FleetRunDrainage = {
+  enabled: boolean;
+  scanned: number;
+  released: number;
+  errors: number;
+};
+
 export type FleetRunRow = {
   id: string;
   triggerSource: "scheduled" | "manual";
@@ -91,6 +98,7 @@ export type FleetRunRow = {
   durationMs: number | null;
   errorSummary: string | null;
   metadata: Record<string, unknown> | null;
+  drainage: FleetRunDrainage;
 };
 
 export type FleetSummary = {

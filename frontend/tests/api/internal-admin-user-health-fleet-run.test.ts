@@ -82,6 +82,12 @@ describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
       criticalUsers: 0,
       warningUsers: 1,
       totalCostWithoutSuccessCents: 50,
+      drainage: {
+        enabled: true,
+        scanned: 7,
+        released: 2,
+        errors: 0,
+      },
       durationMs: 1234,
       errors: [],
     });
@@ -100,6 +106,12 @@ describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
         ok: true,
         status: "completed",
         runId: "run-1",
+        drainage: expect.objectContaining({
+          enabled: true,
+          scanned: 7,
+          released: 2,
+          errors: 0,
+        }),
       })
     );
   });

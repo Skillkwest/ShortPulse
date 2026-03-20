@@ -60,6 +60,12 @@ describe("GET /api/admin/user-health-fleet", () => {
         durationMs: 10_000,
         errorSummary: null,
         metadata: {},
+        drainage: {
+          enabled: true,
+          scanned: 12,
+          released: 4,
+          errors: 0,
+        },
       },
       summary: {
         criticalCount: 1,

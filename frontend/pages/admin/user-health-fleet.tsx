@@ -112,6 +112,13 @@ export default function AdminUserHealthFleetPage() {
     return styles.pillCritical;
   }, [report?.run]);
 
+  const drainageCardClass = useMemo(() => {
+    if (!report?.run?.drainage.enabled) return styles.pillConfidenceMedium;
+    if (report.run.drainage.errors > 0) return styles.pillCritical;
+    if (report.run.drainage.released > 0) return styles.pillOk;
+    return styles.pillWarn;
+  }, [report?.run?.drainage]);
+
   if (loading || isAdminAccessLoading) {
     return (
       <main className={`page page-wide ${styles.adminPage}`}>
@@ -307,6 +314,23 @@ export default function AdminUserHealthFleetPage() {
               <p className={styles.adminSubtext}>
                 stuck {formatNumber(report.summary.totalStuckGenerations)} · exhausted{" "}
                 {formatNumber(report.summary.totalExhaustedQueueRows)}
+              </p>
+            </div>
+            <div className={styles.adminCard}>
+              <div className={styles.adminCardTop}>
+                <span className={styles.adminLabel}>Drainage</span>
+              </div>
+              <p className={styles.adminMetric}>
+                {report.run.drainage.enabled
+                  ? `${formatNumber(report.run.drainage.released)} released`
+                  : "disabled"}
+              </p>
+              <p className={styles.adminSubtext}>
+                <span className={`${styles.pill} ${drainageCardClass}`}>
+                  {report.run.drainage.enabled ? "enabled" : "off"}
+                </span>{" "}
+                scanned {formatNumber(report.run.drainage.scanned)} · errors{" "}
+                {formatNumber(report.run.drainage.errors)}
               </p>
             </div>
           </section>

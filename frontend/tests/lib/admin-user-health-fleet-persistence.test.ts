@@ -38,7 +38,13 @@ describe("admin user health fleet persistence", () => {
         finished_at: "2026-03-17T00:10:00.000Z",
         duration_ms: 10000,
         error_summary: "partial",
-        metadata: { foo: "bar" },
+        metadata: {
+          foo: "bar",
+          drainage_enabled: true,
+          drainage_scanned: 17,
+          drainage_released: 5,
+          drainage_errors: 1,
+        },
       })
     ).toEqual(
       expect.objectContaining({
@@ -48,6 +54,12 @@ describe("admin user health fleet persistence", () => {
         targetCount: 10,
         processedCount: 8,
         failedCount: 2,
+        drainage: {
+          enabled: true,
+          scanned: 17,
+          released: 5,
+          errors: 1,
+        },
       })
     );
   });

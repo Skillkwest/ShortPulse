@@ -316,6 +316,12 @@ export type AdminUserHealthFleetRun = {
   durationMs: number | null;
   errorSummary: string | null;
   metadata: Record<string, unknown> | null;
+  drainage: {
+    enabled: boolean;
+    scanned: number;
+    released: number;
+    errors: number;
+  };
 };
 
 export type AdminUserHealthFleetSnapshot = {

@@ -39,9 +39,27 @@ const asObject = (value: unknown): Record<string, unknown> | null => {
   return value as Record<string, unknown>;
 };
 
+const parseDrainageFromMetadata = (metadata: Record<string, unknown> | null) => {
+  const enabledValue = metadata?.drainage_enabled;
+  const scannedValue = metadata?.drainage_scanned;
+  const releasedValue = metadata?.drainage_released;
+  const errorsValue = metadata?.drainage_errors;
+  const enabled = enabledValue === true;
+  const scanned = Math.max(0, Math.trunc(toNumber(scannedValue)));
+  const released = Math.max(0, Math.trunc(toNumber(releasedValue)));
+  const errors = Math.max(0, Math.trunc(toNumber(errorsValue)));
+  return {
+    enabled,
+    scanned,
+    released,
+    errors,
+  };
+};
+
 export const parseFleetRunRow = (value: unknown): FleetRunRow | null => {
   const row = asObject(value);
   if (!row || typeof row.id !== "string") return null;
+  const metadata = asObject(row.metadata);
   return {
     id: row.id,
     triggerSource: normalizeTriggerSource(row.trigger_source),
@@ -65,7 +83,8 @@ export const parseFleetRunRow = (value: unknown): FleetRunRow | null => {
       ? Math.trunc(toNumber(row.duration_ms))
       : null,
     errorSummary: typeof row.error_summary === "string" ? row.error_summary : null,
-    metadata: asObject(row.metadata),
+    metadata,
+    drainage: parseDrainageFromMetadata(metadata),
   };
 };
 

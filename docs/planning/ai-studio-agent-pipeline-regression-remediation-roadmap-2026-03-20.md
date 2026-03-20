@@ -149,3 +149,9 @@ Exit criteria:
 3. Phase planning can proceed without unresolved architecture/policy ambiguity.
 4. Phase execution can proceed when the active phase entry gates and referenced master rows are satisfied (or explicitly waived).
 5. Phase completion is recognized only when matching phase closeout rows are complete in the master tracker.
+
+## Done-State Clarification (Current Staging Directive)
+1. The master definition above remains the full-program closeout contract.
+2. For the current staging-only execution directive, task completion is controlled by:
+   - `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md` section `Task Done State (Staging Scope Directive)`.
+3. Under this directive, implementation work stops once the tracker-defined staging done state is satisfied and marked `Done (Staging Scope)`.

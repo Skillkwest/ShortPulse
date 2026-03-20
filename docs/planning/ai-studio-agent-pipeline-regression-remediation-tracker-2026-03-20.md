@@ -112,6 +112,21 @@ Program closeout/signoff requires:
 2. Phase closeout rows `PX-01` through `PX-04` complete with linked evidence.
 3. Final signoff packet links all required evidence and validation outcomes.
 
+## Task Done State (Staging Scope Directive)
+This section defines the execution stop condition for the current owner directive:
+1. Scope lock:
+   - staging-only completion target,
+   - no production rollout work required for this task.
+2. Required completion gates:
+   - `PX-03` marked `Completed` with linked evidence,
+   - Phase 3 staging canary delta packet captured from live staging telemetry windows,
+   - Phase 3 staging rollback drill packet captured and linked,
+   - required validation bundle recorded for the closeout update (`lint`, `type-check`, `build`, `docs:check`).
+3. Documentation state:
+   - tracker status and Phase 3 evidence index updated to show `PX-03` completion and residual follow-ups (if any) explicitly out of scope.
+4. Stop-work rule:
+   - once all gates above are satisfied, execution status is `Done (Staging Scope)` and no further implementation work is performed unless a new owner directive reopens scope.
+
 ## Validation Command Bundle (for Master Planning Artifacts)
 1. `npm -C frontend run docs:check`
 2. Any row-specific dry-run checks and fixture validations documented in evidence.

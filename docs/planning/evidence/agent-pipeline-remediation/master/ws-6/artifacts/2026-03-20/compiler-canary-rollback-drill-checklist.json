@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-03-20T20:40:00.000Z",
+  "scope": "staging_only",
+  "thresholdContract": "docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md",
+  "canaryPolicyDoc": "docs/sops/sop_ai_studio_agent_rollout_operations.md",
+  "drillChecklist": [
+    {
+      "step": "Capture baseline snapshot (metrics, active flags, runtime scope key lineage).",
+      "passCondition": "Baseline packet archived before rollback action."
+    },
+    {
+      "step": "Apply rollback lever 1: STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true",
+      "passCondition": "Fallback lever applied and route remains healthy."
+    },
+    {
+      "step": "Apply rollback lever 2 when required: STUDIO_AGENT_SINGLE_STAGE_ENABLED=false",
+      "passCondition": "Legacy lane route path observed without contract drift."
+    },
+    {
+      "step": "Verify response contract invariants",
+      "passCondition": "Agent-Contract-Version unchanged; refusal/fallback reason-code taxonomy unchanged."
+    },
+    {
+      "step": "Verify continuity invariants",
+      "passCondition": "No canonical pollution on refusal/fallback paths."
+    },
+    {
+      "step": "Execute validation bundle",
+      "passCondition": "studio-agent.runtime, generate-prompt.sanitization, describe-image.route, and docs:check all pass."
+    },
+    {
+      "step": "Record operator packet",
+      "passCondition": "Timestamp, owner, command summary, and pass/fail outcome captured."
+    }
+  ],
+  "rollbackTriggers": {
+    "schemaFailureRateDeltaRollback": "> +0.50pp",
+    "fallbackRateDeltaRollback": "> +1.50pp",
+    "falseRefusalRateDeltaRollback": "> +1.75pp",
+    "repairRateDeltaRollback": "> +1.75pp",
+    "p95LatencyDeltaRollback": "> +35%",
+    "errorRateRollback": "> 1.00%"
+  }
+}

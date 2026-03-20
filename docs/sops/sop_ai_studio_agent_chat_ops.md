@@ -91,3 +91,61 @@ Prompt ownership rule:
 - No streaming UI; large responses wait for full completion.
 - Video references are ignored for vision; only prompt text from video cards is used.
 - Server vision runs in `/api/ai/studio-agent` for chat attachment turns; manual describe actions still use `/api/ai/describe-image`.
+
+## Adversarial Corpus Lifecycle (Staging Scope)
+Use this lifecycle when maintaining the prompt-compiler adversarial regression corpus for the remediation stream.
+
+Sources (structured runtime telemetry):
+1. `studio-agent`:
+   - `[studio-agent][telemetry]`
+   - `[studio-agent][safety-input-precheck]`
+2. `describe-image`:
+   - `[describe-image][safety]`
+   - `[describe-image][fallback]`
+3. `generate-prompt`:
+   - `[generate-prompt][safety-input-precheck]`
+
+Candidate intake rules:
+1. Include events where one of these is true:
+   - `status != 200`
+   - `decision_action=refuse` on approved non-refusal corpus rows
+   - `outcome_class=fallback_infra`
+   - `runtime_scope_key` changed with unexpected behavior delta
+2. Include only canonical remediation routes:
+   - `/api/ai/studio-agent`
+   - `/api/ai/generate-prompt`
+   - `/api/ai/describe-image`
+3. Exclude non-remediation routes and non-deterministic UI-only artifacts.
+
+Normalization and dedupe:
+1. Build a dedupe fingerprint from:
+   - `route`
+   - `flow/path` (when present)
+   - `category` (if present)
+   - `decision_action` + `reason_code`
+   - `runtime_scope_key`
+2. Keep one representative sample per fingerprint per 24h window.
+
+Promotion rules (candidate -> active corpus):
+1. Promote when any condition is met:
+   - incident-triggered regression (false refusal, fallback spike, or continuity break),
+   - schema/contract regression surfaced by CI,
+   - prompt-injection-like control-surface signal (instruction-like user/reference text causing policy bypass attempts).
+2. Every promoted sample must include:
+   - redacted request prompt/context payload,
+   - observed response payload,
+   - expected outcome class,
+   - gate owner and decision timestamp.
+
+Demotion/retirement rules:
+1. Retire samples only after:
+   - two consecutive green checkpoint runs with matching runtime scope key lineage,
+   - no incident recurrences for 14 days.
+2. Keep retired samples archived under evidence artifacts for auditability.
+
+Storage and review cadence:
+1. Store active corpus artifacts under:
+   - `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/artifacts/`
+2. Review cadence:
+   - daily quick triage for new candidates,
+   - weekly promotion/retirement decision review.

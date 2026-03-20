@@ -27,3 +27,5 @@ Current gate packets:
 3. `ws-4/2026-03-20-m10-cache-key-and-invalidation-contract.md` (`M-10` prompt/schema/control-plane cache-scope key contract plus drift simulation evidence).
 4. `ws-4/2026-03-20-m11-latency-cost-experiment-matrix.md` (`M-11` staging lane experiment matrix with pass/fail thresholds and command contract).
 5. `ws-5/2026-03-20-m12-compiler-eval-gates-and-baseline.md` (`M-12` compiler eval-gate contract and baseline dataset report).
+6. `ws-5/2026-03-20-m13-adversarial-trace-mining-and-corpus-promotion.md` (`M-13` adversarial trace-mining lifecycle and corpus promotion packet).
+7. `ws-6/2026-03-20-m14-canary-thresholds-and-rollback-drill.md` (`M-14` canary threshold binding and rollback drill checklist packet).

@@ -39,6 +39,18 @@ If there is no external production traffic cohort yet, production rings may be f
 5. Rollback path for current ring is verified and documented.
 6. If DEP-03 waiver is active, manual compensating-control evidence is attached for the ring.
 
+Compiler-native threshold binding (mandatory for remediation lanes):
+1. Use `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md` as the only numeric source of truth.
+2. Promotion/hold/rollback decisions must evaluate:
+   - `schema_failure_rate` delta
+   - `fallback_rate` delta
+   - `false_refusal_rate` delta
+   - `repair_rate` delta
+   - `p95_latency_ms` delta
+   - `error_rate` absolute
+3. If any rollback threshold is breached, rollback is immediate and ring promotion is blocked.
+4. Hold-level breaches require hold-and-observe behavior; no ad hoc promotion overrides.
+
 ## Freeze Triggers
 1. Any hard-threshold breach in performance/reliability budgets.
 2. Continuity SLI < 99.5%.
@@ -53,6 +65,29 @@ If there is no external production traffic cohort yet, production rings may be f
 5. Legacy wrapper failure: bypass wrapper to canonical endpoint for first-party callers (target <= 30 minutes).
 
 Rollback-first posture is mandatory unless explicitly waived by incident command.
+
+## Rollback Drill Checklist (Required Before Ring Promotion)
+Execute and attach a rollback drill packet before advancing rings for remediation scope.
+
+Checklist:
+1. Confirm current ring baseline snapshot is archived (metrics + active flags + runtime scope key lineage).
+2. Trigger rollback lever sequence in staging:
+   - `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`
+   - if needed, `STUDIO_AGENT_SINGLE_STAGE_ENABLED=false`
+3. Verify contracts after rollback:
+   - `Agent-Contract-Version` unchanged
+   - refusal/fallback reason-code contract unchanged
+   - canonical continuity guard behavior unchanged
+4. Run required validation bundle:
+   - `npm -C frontend run test -- tests/api/studio-agent.runtime.test.ts`
+   - `npm -C frontend run test -- tests/api/generate-prompt.sanitization.test.ts`
+   - `npm -C frontend run test -- tests/api/describe-image.route.test.ts`
+   - `npm -C frontend run docs:check`
+5. Record rollback drill outcome with:
+   - timestamps,
+   - operator,
+   - command transcript summary,
+   - pass/fail and follow-up actions.
 
 ## Prompt-Only Runtime Ring Controls
 For the prompt-only single-stage release, ring operators must apply flags in this order:

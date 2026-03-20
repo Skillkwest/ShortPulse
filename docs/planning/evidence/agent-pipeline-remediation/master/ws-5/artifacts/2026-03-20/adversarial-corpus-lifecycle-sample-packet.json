@@ -1,0 +1,62 @@
+{
+  "capturedAt": "2026-03-20T20:35:00.000Z",
+  "scope": "staging_only",
+  "sopReference": "docs/sops/sop_ai_studio_agent_chat_ops.md",
+  "intakeSources": [
+    "[studio-agent][telemetry]",
+    "[studio-agent][safety-input-precheck]",
+    "[describe-image][safety]",
+    "[generate-prompt][safety-input-precheck]"
+  ],
+  "promotionRules": {
+    "incidentTriggeredRegression": true,
+    "ciContractRegression": true,
+    "injectionLikeControlSurfaceSignal": true
+  },
+  "dedupeFingerprintFields": [
+    "route",
+    "path_or_flow",
+    "category",
+    "decision_action",
+    "reason_code",
+    "runtime_scope_key"
+  ],
+  "sampleReviewPacket": [
+    {
+      "sampleId": "sp-2026-03-20-001",
+      "route": "/api/ai/studio-agent",
+      "sourceEvent": "[studio-agent][telemetry]",
+      "pathOrFlow": "single_stage",
+      "category": "sexual_explicit",
+      "decisionAction": "refuse",
+      "reasonCode": "SAFETY_OUTPUT_REFUSAL",
+      "runtimeScopeKey": "route:studio-agent|prompt:ptv_56be8426fcd0b323|schema:2|policy:1",
+      "classification": "expected_refusal_lane",
+      "promotionDecision": "keep_as_guard_sample"
+    },
+    {
+      "sampleId": "sp-2026-03-20-002",
+      "route": "/api/ai/describe-image",
+      "sourceEvent": "[describe-image][fallback]",
+      "pathOrFlow": "n/a",
+      "category": "safe",
+      "decisionAction": "allow",
+      "reasonCode": "INFRA_FALLBACK_TRANSIENT",
+      "runtimeScopeKey": null,
+      "classification": "infra_fallback_guard",
+      "promotionDecision": "keep_as_guard_sample"
+    },
+    {
+      "sampleId": "sp-2026-03-20-003",
+      "route": "/api/ai/generate-prompt",
+      "sourceEvent": "[generate-prompt][safety-input-precheck]",
+      "pathOrFlow": "n/a",
+      "category": "sexual_explicit",
+      "decisionAction": "refuse",
+      "reasonCode": "SAFETY_INPUT_REFUSAL",
+      "runtimeScopeKey": null,
+      "classification": "expected_refusal_lane",
+      "promotionDecision": "keep_as_guard_sample"
+    }
+  ]
+}

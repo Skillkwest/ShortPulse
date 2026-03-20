@@ -137,6 +137,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         outcome_class: "upstream_error",
         reason_code: "UPSTREAM_ERROR",
         retryable: true,
+        fallback_reason: "stage_prompt_missing",
       })
     );
   });
@@ -252,6 +253,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       decision: "error",
       error: "Upstream error",
       detail: "responses unavailable",
+      fallback_reason: "responses_unavailable",
       outcome_class: "upstream_error",
       reason_code: "UPSTREAM_ERROR",
       retryable: true,
@@ -270,6 +272,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         "decision": "error",
         "detail": "responses unavailable",
         "error": "Upstream error",
+        "fallback_reason": "responses_unavailable",
         "outcome_class": "upstream_error",
         "reason_code": "UPSTREAM_ERROR",
         "retryable": true,
@@ -295,6 +298,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       decision: "error",
       error: "Upstream error",
       detail: "rate limited",
+      fallback_reason: "rate_limit",
       outcome_class: "upstream_error",
       reason_code: "UPSTREAM_ERROR",
       retryable: true,
@@ -306,6 +310,29 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         metadata: expect.objectContaining({
           detail: "rate limited",
         }),
+      })
+    );
+  });
+
+  it("classifies thrown transport failures with normalized fallback_reason labels", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("upstream timeout"));
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait with cinematic lighting" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        retryable: true,
+        fallback_reason: "timeout",
       })
     );
   });

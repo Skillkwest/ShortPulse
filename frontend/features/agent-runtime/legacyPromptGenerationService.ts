@@ -19,6 +19,7 @@ import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
 const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";
@@ -40,6 +41,7 @@ type LegacyPromptFailure = {
   payload: AgentMachineOutcomeFields & {
     error: string;
     detail?: string;
+    fallback_reason?: string;
   };
 };
 
@@ -310,6 +312,10 @@ export const executeLegacyPromptGeneration = async ({
 
     if (!response.ok) {
       const detail = await response.text();
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        status: response.status,
+        detail,
+      });
       await logGenerationFailure({
         req,
         routeLabel,
@@ -335,6 +341,7 @@ export const executeLegacyPromptGeneration = async ({
           ...machineOutcome,
           error: "Upstream error",
           detail,
+          fallback_reason: fallbackReason,
         },
       };
     }
@@ -368,6 +375,10 @@ export const executeLegacyPromptGeneration = async ({
         payload: {
           ...machineOutcome,
           error: "No prompt returned",
+          fallback_reason: resolveStudioAgentFallbackReasonLabel({
+            stage: "prompt_missing",
+            status: 502,
+          }),
         },
       };
     }
@@ -396,6 +407,7 @@ export const executeLegacyPromptGeneration = async ({
       },
     };
   } catch (error) {
+    const detail = String(error);
     await logGenerationFailure({
       req,
       routeLabel,
@@ -405,7 +417,7 @@ export const executeLegacyPromptGeneration = async ({
       stack: error instanceof Error ? (error.stack ?? null) : null,
       userId: user.id,
       userEmail: user.email ?? null,
-      metadata: { detail: String(error) },
+      metadata: { detail },
     });
     const machineOutcome = buildAgentMachineOutcome({
       outcomeClass: "upstream_error",
@@ -421,7 +433,10 @@ export const executeLegacyPromptGeneration = async ({
       payload: {
         ...machineOutcome,
         error: "Prompt generation failed",
-        detail: String(error),
+        detail,
+        fallback_reason: resolveStudioAgentFallbackReasonLabel({
+          detail,
+        }),
       },
     };
   }

@@ -114,6 +114,7 @@ export type AgentResponse = {
   outcome_class?: AgentOutcomeClass;
   reason_code?: AgentReasonCode;
   retryable?: boolean;
+  fallback_reason?: string;
   canonicalPrompt?: string | null;
   traceId?: string;
 };

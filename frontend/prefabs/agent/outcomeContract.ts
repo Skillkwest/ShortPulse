@@ -31,4 +31,5 @@ export type AgentMachineOutcomeFields = {
   outcome_class?: AgentOutcomeClass;
   reason_code?: AgentReasonCode;
   retryable?: boolean;
+  fallback_reason?: string;
 };

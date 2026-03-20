@@ -374,6 +374,7 @@ describe("useAiAgent", () => {
           outcome_class: "fallback_infra",
           reason_code: "INFRA_FALLBACK_TRANSIENT",
           retryable: true,
+          fallback_reason: "responses_unavailable",
         }),
         {
           status: 503,
@@ -382,14 +383,29 @@ describe("useAiAgent", () => {
       )
     );
     const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    let sendResult:
+      | {
+          response: unknown;
+          actions: unknown;
+        }
+      | undefined;
 
     await act(async () => {
-      await result.current.send({
+      sendResult = await result.current.send({
         text: "request",
         payloadText: "request",
       });
     });
 
+    expect(sendResult).toEqual(
+      expect.objectContaining({
+        response: expect.objectContaining({
+          outcome_class: "fallback_infra",
+          reason_code: "INFRA_FALLBACK_TRANSIENT",
+          fallback_reason: "responses_unavailable",
+        }),
+      })
+    );
     expect(result.current.error).toBeNull();
     expect(result.current.messages.at(-1)).toEqual(
       expect.objectContaining({

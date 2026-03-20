@@ -21,6 +21,7 @@ export type StudioAgentTransportErrorPayload = {
   outcome_class?: AgentOutcomeClass;
   reason_code?: AgentReasonCode;
   retryable?: boolean;
+  fallback_reason?: string;
 };
 
 export type StudioAgentTransportResult =
@@ -79,6 +80,8 @@ const parseErrorPayload = (value: unknown): StudioAgentTransportErrorPayload | n
         ? record.reason_code
         : undefined,
     retryable: typeof record.retryable === "boolean" ? record.retryable : undefined,
+    fallback_reason:
+      typeof record.fallback_reason === "string" ? record.fallback_reason : undefined,
   };
 };
 

@@ -257,6 +257,7 @@ export const useAiAgent = ({
                 outcome_class: machineOutcomeClass ?? "refusal_safety",
                 reason_code: transportResult.parsedError?.reason_code,
                 retryable: transportResult.parsedError?.retryable,
+                fallback_reason: transportResult.parsedError?.fallback_reason,
               },
               actions: undefined,
             };
@@ -285,6 +286,7 @@ export const useAiAgent = ({
                 outcome_class: "fallback_infra",
                 reason_code: transportResult.parsedError?.reason_code,
                 retryable: transportResult.parsedError?.retryable,
+                fallback_reason: transportResult.parsedError?.fallback_reason,
               },
               actions: undefined,
             };

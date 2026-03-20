@@ -6,7 +6,10 @@ import { resolveRuntimeSafetyProfile } from "../../lib/server/api/agentSafetyPol
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
 import { fetchOpenAiCompatibleChatCompletion } from "../../lib/server/api/openAiCompat";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
-import { runStudioAgentSafetyInputPrecheck } from "./studioAgentSafetyInputPrecheck";
+import {
+  resolveStudioAgentSafetyInputPrecheckFieldModes,
+  runStudioAgentSafetyInputPrecheck,
+} from "./studioAgentSafetyInputPrecheck";
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
@@ -148,6 +151,10 @@ export const executeLegacyPromptGeneration = async ({
     devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
     policyDocument: safetyPolicyDocument,
     rewriteRecheckMode: "allow_or_rewrite",
+    fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+      sharedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+      scopedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATE_PROMPT,
+    }),
   });
   if (precheckResult.outcome === "refusal") {
     console.info(

@@ -12,7 +12,10 @@ import type {
   AgentResponse,
 } from "../../prefabs/agent";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
-import { runStudioAgentSafetyInputPrecheck } from "../agent-runtime/studioAgentSafetyInputPrecheck";
+import {
+  resolveStudioAgentSafetyInputPrecheckFieldModes,
+  runStudioAgentSafetyInputPrecheck,
+} from "../agent-runtime/studioAgentSafetyInputPrecheck";
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "../agent-runtime/studioAgentFailurePolicy";
 import { resolveSafetyEnvironment } from "../agent-runtime/safetyPolicy/decisionEngine";
 import type { SafetyModality } from "../agent-runtime/safetyPolicy/types";
@@ -191,6 +194,11 @@ export const useAiAgent = ({
           environment: resolveSafetyEnvironment(process.env.NODE_ENV),
           devAbsoluteZeroEnabled: isClientDevAbsoluteZeroEnabled(),
           rewriteRecheckMode: "allow_or_rewrite",
+          fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+            sharedRawValue: process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+            scopedRawValue:
+              process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
+          }),
         });
         if (inputPrecheckResult.outcome === "refusal") {
           const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {

@@ -27,7 +27,10 @@ import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDis
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
-import { runStudioAgentSafetyInputPrecheck } from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
+import {
+  resolveStudioAgentSafetyInputPrecheckFieldModes,
+  runStudioAgentSafetyInputPrecheck,
+} from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
 import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
 import { enforceServerGenerationSafetyPayload } from "../../../features/agent-runtime/safetyPolicy/generationSafetyPolicy";
 import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
@@ -187,6 +190,11 @@ export const createFalSubmitHandler = ({
       environment: resolveSafetyEnvironment(process.env.NODE_ENV),
       devAbsoluteZeroEnabled: process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true",
       policyDocument: safetyPolicyDocument,
+      fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+        sharedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+        scopedRawValue:
+          process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT,
+      }),
     });
     if (promptPrecheck.outcome === "refusal") {
       await logGenerationFailure({

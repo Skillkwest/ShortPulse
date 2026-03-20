@@ -44,6 +44,23 @@ const DEFAULT_SAFETY_INPUT_PRECHECK_FIELD_MODES: Record<
   canonical_prompt: "enforce",
 };
 
+const PRECHECK_FIELD_NAMES: StudioAgentSafetyInputPrecheckField[] = [
+  "latest_user_turn",
+  "history_user_turn",
+  "active_prompt",
+  "last_assistant_message",
+  "reference_prompt_snippet",
+  "reference_caption",
+  "canonical_prompt",
+];
+
+const PRECHECK_FIELD_MODES = new Set<StudioAgentSafetyInputPrecheckFieldMode>([
+  "enforce",
+  "rewrite_only",
+  "shadow",
+  "off",
+]);
+
 export type StudioAgentSafetyInputPrecheckResult<TContext extends AgentContext = AgentContext> = {
   outcome: StudioAgentSafetyInputPrecheckOutcome;
   messages: AgentMessage[];
@@ -99,6 +116,52 @@ const cloneContext = <TContext extends AgentContext>(context: TContext): TContex
       ? context.references.map((reference) => ({ ...reference }))
       : context.references,
   }) as TContext;
+
+const parseFieldModes = (
+  rawValue?: string | null
+): Partial<
+  Record<StudioAgentSafetyInputPrecheckField, StudioAgentSafetyInputPrecheckFieldMode>
+> => {
+  if (typeof rawValue !== "string") return {};
+  const normalized = rawValue.trim();
+  if (!normalized.length) return {};
+  try {
+    const parsed = JSON.parse(normalized);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const record = parsed as Record<string, unknown>;
+    const next: Partial<
+      Record<StudioAgentSafetyInputPrecheckField, StudioAgentSafetyInputPrecheckFieldMode>
+    > = {};
+    for (const fieldName of PRECHECK_FIELD_NAMES) {
+      const modeCandidate = record[fieldName];
+      if (typeof modeCandidate !== "string") continue;
+      const normalizedMode = modeCandidate.trim().toLowerCase();
+      if (!PRECHECK_FIELD_MODES.has(normalizedMode as StudioAgentSafetyInputPrecheckFieldMode)) {
+        continue;
+      }
+      next[fieldName] = normalizedMode as StudioAgentSafetyInputPrecheckFieldMode;
+    }
+    return next;
+  } catch {
+    return {};
+  }
+};
+
+/**
+ * Resolves precheck field modes from shared and route-scoped JSON env overrides.
+ */
+export const resolveStudioAgentSafetyInputPrecheckFieldModes = ({
+  sharedRawValue,
+  scopedRawValue,
+}: {
+  sharedRawValue?: string | null;
+  scopedRawValue?: string | null;
+}): Partial<
+  Record<StudioAgentSafetyInputPrecheckField, StudioAgentSafetyInputPrecheckFieldMode>
+> => ({
+  ...parseFieldModes(sharedRawValue),
+  ...parseFieldModes(scopedRawValue),
+});
 
 const buildScopeTelemetry = ({
   state,

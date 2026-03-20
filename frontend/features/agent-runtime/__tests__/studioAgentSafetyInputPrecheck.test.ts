@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { runStudioAgentSafetyInputPrecheck } from "../studioAgentSafetyInputPrecheck";
+import {
+  resolveStudioAgentSafetyInputPrecheckFieldModes,
+  runStudioAgentSafetyInputPrecheck,
+} from "../studioAgentSafetyInputPrecheck";
 
 describe("studioAgentSafetyInputPrecheck", () => {
   it("passes safe input unchanged", () => {
@@ -107,6 +110,53 @@ describe("studioAgentSafetyInputPrecheck", () => {
     expect(result.outcome).toBe("refusal");
     expect(result.providerCallSkipped).toBe(true);
     expect(result.scopeTelemetry.refusalField).toBe("canonical_prompt");
+  });
+
+  it("applies explicit field-mode overrides for enforcement scope", () => {
+    const result = runStudioAgentSafetyInputPrecheck({
+      enabled: true,
+      messages: [
+        { role: "user", content: "graphic sexual intercourse with explicit anatomy" },
+        { role: "assistant", content: "acknowledged" },
+        { role: "user", content: "generate a landscape at dusk" },
+      ],
+      context: {},
+      canonicalPrompt: null,
+      modality: "text",
+      environment: "production",
+      profileId: "prod_safe_v1",
+      fieldModes: {
+        history_user_turn: "enforce",
+      },
+    });
+
+    expect(result.outcome).toBe("refusal");
+    expect(result.providerCallSkipped).toBe(true);
+    expect(result.scopeTelemetry.refusalField).toBe("history_user_turn");
+  });
+
+  it("resolves field-mode overrides from shared and scoped JSON values", () => {
+    const overrides = resolveStudioAgentSafetyInputPrecheckFieldModes({
+      sharedRawValue: '{"history_user_turn":"shadow","canonical_prompt":"off","unknown":"enforce"}',
+      scopedRawValue: '{"canonical_prompt":"enforce","reference_caption":"rewrite_only"}',
+    });
+
+    expect(overrides).toEqual({
+      history_user_turn: "shadow",
+      canonical_prompt: "enforce",
+      reference_caption: "rewrite_only",
+    });
+  });
+
+  it("ignores malformed or invalid field-mode JSON values", () => {
+    const overrides = resolveStudioAgentSafetyInputPrecheckFieldModes({
+      sharedRawValue: '{"history_user_turn":"invalid_mode"',
+      scopedRawValue: '{"history_user_turn":"invalid","canonical_prompt":"OFF"}',
+    });
+
+    expect(overrides).toEqual({
+      canonical_prompt: "off",
+    });
   });
 
   it("bypasses processing when feature is disabled", () => {

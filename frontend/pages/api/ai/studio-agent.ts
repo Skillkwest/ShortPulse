@@ -13,7 +13,10 @@ import {
   resolveStudioAgentOpenAiConfig,
 } from "../../../features/agent-runtime/studioAgentOpenAiGateway";
 import { executeStudioAgentCoordinator } from "../../../features/agent-runtime/studioAgentCoordinator";
-import { runStudioAgentSafetyInputPrecheck } from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
+import {
+  resolveStudioAgentSafetyInputPrecheckFieldModes,
+  runStudioAgentSafetyInputPrecheck,
+} from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
 import {
   resolveSafetyEnvironment,
   resolveSafetyModality,
@@ -207,6 +210,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
     policyDocument: safetyPolicyDocument,
     rewriteRecheckMode: "allow_or_rewrite",
+    fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+      sharedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+      scopedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
+    }),
   });
   const safetyTelemetryProfileId =
     safetyProfileId === "prod_safe_v1" ||

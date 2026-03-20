@@ -383,11 +383,50 @@ describe("POST /api/internal/generation-recovery/run", () => {
     expect(updateSelectMock).toHaveBeenCalledTimes(2);
     expect(recoveryAttemptFilter.eq).toHaveBeenCalledWith("recovery_attempts", 0);
     expect(recoveryAttemptFilter.is).toHaveBeenCalledWith("recovery_attempts", null);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "internal/generation-recovery/run",
+        metadata: expect.objectContaining({
+          stage: "claim_generation_recovery_batch_rpc",
+        }),
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
         claimed: 1,
+      })
+    );
+  });
+
+  it("requeues allowlist-skipped recoveries without consuming retry budget", async () => {
+    process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "fal-ai/non-match";
+
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.updateEq2).toHaveBeenCalledWith("user_id", "user-1");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        claimed: 1,
+        skipped: 1,
+        errors: 0,
       })
     );
   });

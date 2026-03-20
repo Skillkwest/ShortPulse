@@ -25,6 +25,8 @@ type ReservationCleanupMetrics = {
   errors: number;
 };
 
+const ALLOWLIST_SKIP_RETRY_DELAY_SECONDS = 15 * 60;
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -183,6 +185,26 @@ const claimFallback = async ({
   return claimed;
 };
 
+const requeueAllowlistSkippedGeneration = async ({
+  supabaseAdmin,
+  row,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  row: ClaimedGeneration;
+}) => {
+  const previousAttempts = Math.max((row.recovery_attempts ?? 1) - 1, 0);
+  const retryAtIso = new Date(Date.now() + ALLOWLIST_SKIP_RETRY_DELAY_SECONDS * 1000).toISOString();
+  return supabaseAdmin
+    .from("ai_generations")
+    .update({
+      recovery_state: "queued",
+      recovery_attempts: previousAttempts,
+      next_recovery_at: retryAtIso,
+    })
+    .eq("id", row.id)
+    .eq("user_id", row.user_id);
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -315,6 +337,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .map((row) => parseClaimedGeneration(row))
         .filter((row): row is ClaimedGeneration => Boolean(row));
     } else {
+      if (claimResponse.error) {
+        await logApiRouteException({
+          req,
+          error: claimResponse.error,
+          routeLabel: "internal/generation-recovery/run",
+          metadata: {
+            stage: "claim_generation_recovery_batch_rpc",
+          },
+        });
+      }
       claimedRows = await claimFallback({
         batchSize: flags.reconcilerBatchSize,
         maxAttempts: flags.reconcilerMaxAttempts,
@@ -334,6 +366,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for (const row of claimedRows) {
       if (!isAllowedModel(row.model_id, flags.modelAllowlist)) {
         skipped += 1;
+        try {
+          await requeueAllowlistSkippedGeneration({
+            supabaseAdmin,
+            row,
+          });
+        } catch (error) {
+          errors += 1;
+          await logApiRouteException({
+            req,
+            error,
+            routeLabel: "internal/generation-recovery/run",
+            metadata: {
+              stage: "allowlist_skip_requeue",
+              generation_id: row.id,
+              model_id: row.model_id,
+            },
+          });
+        }
         continue;
       }
       try {
@@ -365,8 +415,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (result.state === "skipped") {
           skipped += 1;
         }
-      } catch {
+      } catch (error) {
         errors += 1;
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "internal/generation-recovery/run",
+          metadata: {
+            stage: "execute_generation_recovery",
+            generation_id: row.id,
+            request_id: row.request_id,
+          },
+        });
         const retryAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
         await supabaseAdmin
           .from("ai_generations")

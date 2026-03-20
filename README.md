@@ -80,7 +80,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.
 - **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls, per-user recent credit transaction audit (including billed-vs-raw pricing metadata), a live app-error incident feed, and an Announcements tab for publishing/clearing the one active dashboard bulletin.
 - **Admin User Health (`/admin/user-health`)**: Operator diagnostics page for user-level generation + credit-drainage health checks (lookup by user id or email, findings, and recommended next actions).
-- **Admin Fleet Health (`/admin/user-health-fleet`)**: Operator fleet triage page for active-user daily health snapshots, risk/severity/finding filters, and direct drill-down links into per-user health and generation trace workflows.
+- **Admin Fleet Health (`/admin/user-health-fleet`)**: Operator fleet triage page for active-user hourly health snapshots, risk/severity/finding filters, and direct drill-down links into per-user health and generation trace workflows.
 
 ## Security
 

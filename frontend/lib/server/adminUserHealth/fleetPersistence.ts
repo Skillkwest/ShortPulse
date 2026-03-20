@@ -56,6 +56,13 @@ const parseDrainageFromMetadata = (metadata: Record<string, unknown> | null) => 
   };
 };
 
+const emptyDrainageTrend = () => ({
+  previousRunId: null as string | null,
+  scannedDelta: null as number | null,
+  releasedDelta: null as number | null,
+  errorsDelta: null as number | null,
+});
+
 export const parseFleetRunRow = (value: unknown): FleetRunRow | null => {
   const row = asObject(value);
   if (!row || typeof row.id !== "string") return null;
@@ -85,6 +92,7 @@ export const parseFleetRunRow = (value: unknown): FleetRunRow | null => {
     errorSummary: typeof row.error_summary === "string" ? row.error_summary : null,
     metadata,
     drainage: parseDrainageFromMetadata(metadata),
+    drainageTrend: emptyDrainageTrend(),
   };
 };
 

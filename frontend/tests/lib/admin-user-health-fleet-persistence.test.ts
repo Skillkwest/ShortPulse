@@ -60,6 +60,12 @@ describe("admin user health fleet persistence", () => {
           released: 5,
           errors: 1,
         },
+        drainageTrend: {
+          previousRunId: null,
+          scannedDelta: null,
+          releasedDelta: null,
+          errorsDelta: null,
+        },
       })
     );
   });

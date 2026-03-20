@@ -195,10 +195,42 @@ export const readFleetReport = async (filters: FleetReadFilters): Promise<FleetR
     return emptyReport(filters);
   }
 
+  const degradedReasons: string[] = [];
+  let runWithTrend: FleetRunRow = run;
+
+  if (!filters.runId) {
+    const previousRunResult = await supabaseAdmin
+      .from("admin_user_health_scan_runs")
+      .select("*")
+      .lt("started_at", run.startedAt)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (previousRunResult.error) {
+      degradedReasons.push(
+        previousRunResult.error.message || "Failed to load previous fleet run for trend deltas."
+      );
+    } else {
+      const previousRun = parseFleetRunRow(previousRunResult.data);
+      if (previousRun) {
+        runWithTrend = {
+          ...run,
+          drainageTrend: {
+            previousRunId: previousRun.id,
+            scannedDelta: run.drainage.scanned - previousRun.drainage.scanned,
+            releasedDelta: run.drainage.released - previousRun.drainage.released,
+            errorsDelta: run.drainage.errors - previousRun.drainage.errors,
+          },
+        };
+      }
+    }
+  }
+
   const snapshotResult = await supabaseAdmin
     .from("admin_user_health_snapshots")
     .select("*")
-    .eq("run_id", run.id)
+    .eq("run_id", runWithTrend.id)
     .order("risk_score", { ascending: false })
     .order("generated_at", { ascending: false })
     .limit(5000);
@@ -210,7 +242,7 @@ export const readFleetReport = async (filters: FleetReadFilters): Promise<FleetR
   const findingResult = await supabaseAdmin
     .from("admin_user_health_snapshot_findings")
     .select("snapshot_id,code,severity,confidence,summary,details,recommended_actions")
-    .eq("run_id", run.id)
+    .eq("run_id", runWithTrend.id)
     .limit(25000);
 
   if (findingResult.error) {
@@ -241,7 +273,7 @@ export const readFleetReport = async (filters: FleetReadFilters): Promise<FleetR
     .map((row) =>
       parseSnapshotRecord({
         row,
-        run,
+        run: runWithTrend,
         findings: findingsBySnapshotId.get(String(row.id ?? "")) ?? [],
       })
     )
@@ -278,7 +310,6 @@ export const readFleetReport = async (filters: FleetReadFilters): Promise<FleetR
   const offset = (page - 1) * filters.perPage;
   const paged = filtered.slice(offset, offset + filters.perPage);
 
-  const degradedReasons: string[] = [];
   if (snapshots.length >= 5000) {
     degradedReasons.push(
       "Snapshot row cap reached for this run; narrow filters or reduce cohort size."
@@ -291,7 +322,7 @@ export const readFleetReport = async (filters: FleetReadFilters): Promise<FleetR
   }
 
   return {
-    run,
+    run: runWithTrend,
     summary,
     snapshots: paged,
     pagination: {

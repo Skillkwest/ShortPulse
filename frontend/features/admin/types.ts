@@ -322,6 +322,12 @@ export type AdminUserHealthFleetRun = {
     released: number;
     errors: number;
   };
+  drainageTrend: {
+    previousRunId: string | null;
+    scannedDelta: number | null;
+    releasedDelta: number | null;
+    errorsDelta: number | null;
+  };
 };
 
 export type AdminUserHealthFleetSnapshot = {

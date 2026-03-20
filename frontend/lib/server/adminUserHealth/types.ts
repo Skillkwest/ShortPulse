@@ -82,6 +82,13 @@ export type FleetRunDrainage = {
   errors: number;
 };
 
+export type FleetRunDrainageTrend = {
+  previousRunId: string | null;
+  scannedDelta: number | null;
+  releasedDelta: number | null;
+  errorsDelta: number | null;
+};
+
 export type FleetRunRow = {
   id: string;
   triggerSource: "scheduled" | "manual";
@@ -99,6 +106,7 @@ export type FleetRunRow = {
   errorSummary: string | null;
   metadata: Record<string, unknown> | null;
   drainage: FleetRunDrainage;
+  drainageTrend: FleetRunDrainageTrend;
 };
 
 export type FleetSummary = {

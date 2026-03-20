@@ -17,7 +17,7 @@ Reference for pages, auth expectations, and ownership.
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges; account-level AI Studio media autosave toggle. |
 | `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. Includes `Overview`, `Errors`, and `Announcements` tabs, where Announcements manages the single active dashboard bulletin shown to all signed-in users. |
 | `/admin/user-health` | Yes | Admin user health diagnostics page | Operator-only diagnostics route for user-level generation/queue/reservation/ledger health checks and next-step recommendations. |
-| `/admin/user-health-fleet` | Yes | Admin fleet health diagnostics page | Operator-only daily triage view for active users, including risk/severity filters and drill-down links to per-user health and generation trace pages. |
+| `/admin/user-health-fleet` | Yes | Admin fleet health diagnostics page | Operator-only hourly triage view for active users, including risk/severity filters and drill-down links to per-user health and generation trace pages. |
 | `/admin/generation-trace` | Yes | Admin generation trace page | Operator-only debugging route for stitched generation timelines. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |
 | `/creator-studio` | Yes | Legacy alias to AI Studio | Re-export of `/ai-studio`. |

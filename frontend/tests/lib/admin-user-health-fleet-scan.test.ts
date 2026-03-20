@@ -162,6 +162,83 @@ describe("runAdminUserHealthFleetScan", () => {
     );
   });
 
+  it("emits a report-only incident when drainage errors are present", async () => {
+    readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
+      ...baseFlags,
+      incidentsEnabled: true,
+      drainageEnabled: true,
+    });
+
+    const rpcMock = vi.fn(async (functionName: string) => {
+      if (functionName === "release_stale_generation_reservations") {
+        return {
+          data: [{ scanned_count: 8, released_count: 2, error_count: 3 }],
+          error: null,
+        };
+      }
+      if (functionName === "prune_admin_user_health_history") {
+        return { error: null };
+      }
+      return { data: null, error: null };
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const result = await runAdminUserHealthFleetScan({
+      triggerSource: "scheduled",
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.drainage).toEqual({
+      enabled: true,
+      scanned: 8,
+      released: 2,
+      errors: 3,
+    });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "ops.user_health_fleet",
+        scope: "generation",
+        severity: "medium",
+        route: "/api/internal/admin-user-health-fleet/run",
+        metadata: expect.objectContaining({
+          run_id: "run-1",
+          drainage_errors: 3,
+        }),
+      })
+    );
+  });
+
+  it("marks run partial when drainage incident escalation fails", async () => {
+    readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
+      ...baseFlags,
+      incidentsEnabled: true,
+      drainageEnabled: true,
+    });
+    writeAppErrorLogMock.mockRejectedValueOnce(new Error("incident sink unavailable"));
+
+    const rpcMock = vi.fn(async (functionName: string) => {
+      if (functionName === "release_stale_generation_reservations") {
+        return {
+          data: [{ scanned_count: 5, released_count: 1, error_count: 1 }],
+          error: null,
+        };
+      }
+      if (functionName === "prune_admin_user_health_history") {
+        return { error: null };
+      }
+      return { data: null, error: null };
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const result = await runAdminUserHealthFleetScan({
+      triggerSource: "manual",
+    });
+
+    expect(result.status).toBe("partial");
+    expect(result.partial).toBe(true);
+    expect(result.errors).toEqual(expect.arrayContaining(["Drainage incident escalation failed."]));
+  });
+
   it("marks run partial when drainage RPC fails but continues processing", async () => {
     readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
       ...baseFlags,

@@ -667,6 +667,33 @@ const maybeEscalateIncidents = async ({
   }
 };
 
+const maybeEscalateDrainageErrors = async ({
+  runId,
+  summary,
+}: {
+  runId: string;
+  summary: FleetDrainageSummary;
+}) => {
+  const flags = readAdminUserHealthFleetRuntimeFlags();
+  if (!flags.incidentsEnabled) return;
+  if (summary.errors <= 0) return;
+
+  await writeAppErrorLog({
+    source: "ops.user_health_fleet",
+    scope: "generation",
+    severity: "medium",
+    message: `Fleet drainage reported ${summary.errors} error(s).`,
+    route: "/api/internal/admin-user-health-fleet/run",
+    metadata: {
+      run_id: runId,
+      drainage_enabled: summary.enabled,
+      drainage_scanned: summary.scanned,
+      drainage_released: summary.released,
+      drainage_errors: summary.errors,
+    },
+  });
+};
+
 /**
  * Execute one fleet health scan and persist run/snapshot/finding outputs.
  */
@@ -790,6 +817,16 @@ export const runAdminUserHealthFleetScan = async ({
       runId,
       drafts: allDraftsForEscalation,
     });
+
+    try {
+      await maybeEscalateDrainageErrors({
+        runId,
+        summary: drainageSummary,
+      });
+    } catch {
+      partialData = true;
+      runErrors.push("Drainage incident escalation failed.");
+    }
 
     try {
       await getSupabaseAdmin().rpc("prune_admin_user_health_history", {

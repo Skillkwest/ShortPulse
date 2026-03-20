@@ -13,6 +13,8 @@ import { fetchWithAuth } from "../../lib/authenticatedFetch";
 import styles from "../../styles/admin.module.css";
 
 const formatNumber = (value: number): string => value.toLocaleString();
+const formatSignedNumber = (value: number): string =>
+  `${value > 0 ? "+" : ""}${value.toLocaleString()}`;
 
 const formatDateTime = (value: string | null): string => {
   if (!value) return "-";
@@ -187,7 +189,7 @@ export default function AdminUserHealthFleetPage() {
             <p className="eyebrow">Admin Dashboard</p>
             <h1 className={styles.adminTitle}>Fleet health diagnostics</h1>
             <p className="tiny subdued">
-              Daily triage for active users with drill-down to per-user health and traces.
+              Hourly triage for active users with drill-down to per-user health and traces.
             </p>
           </div>
           <div className={styles.adminUserPill}>
@@ -331,6 +333,13 @@ export default function AdminUserHealthFleetPage() {
                 </span>{" "}
                 scanned {formatNumber(report.run.drainage.scanned)} · errors{" "}
                 {formatNumber(report.run.drainage.errors)}
+                {report.run.drainageTrend.previousRunId ? (
+                  <>
+                    {" "}
+                    · Δ released {formatSignedNumber(report.run.drainageTrend.releasedDelta ?? 0)} ·
+                    Δ errors {formatSignedNumber(report.run.drainageTrend.errorsDelta ?? 0)}
+                  </>
+                ) : null}
               </p>
             </div>
           </section>

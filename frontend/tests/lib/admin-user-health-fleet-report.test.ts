@@ -194,4 +194,130 @@ describe("readFleetReport", () => {
       })
     );
   });
+
+  it("computes drainage trend deltas for latest-run reads", async () => {
+    const latestRunMaybeSingle = vi.fn(async () => ({
+      data: {
+        id: "run-latest",
+        trigger_source: "scheduled",
+        status: "completed",
+        lookback_days: 30,
+        active_window_days: 14,
+        retention_days: 90,
+        target_count: 2,
+        processed_count: 2,
+        failed_count: 0,
+        partial_data: false,
+        started_at: "2026-03-20T12:00:00.000Z",
+        finished_at: "2026-03-20T12:05:00.000Z",
+        duration_ms: 300000,
+        error_summary: null,
+        metadata: {
+          drainage_enabled: true,
+          drainage_scanned: 14,
+          drainage_released: 5,
+          drainage_errors: 2,
+        },
+      },
+      error: null,
+    }));
+    const previousRunMaybeSingle = vi.fn(async () => ({
+      data: {
+        id: "run-prev",
+        trigger_source: "scheduled",
+        status: "completed",
+        lookback_days: 30,
+        active_window_days: 14,
+        retention_days: 90,
+        target_count: 2,
+        processed_count: 2,
+        failed_count: 0,
+        partial_data: false,
+        started_at: "2026-03-20T11:00:00.000Z",
+        finished_at: "2026-03-20T11:05:00.000Z",
+        duration_ms: 300000,
+        error_summary: null,
+        metadata: {
+          drainage_enabled: true,
+          drainage_scanned: 10,
+          drainage_released: 4,
+          drainage_errors: 0,
+        },
+      },
+      error: null,
+    }));
+    const snapshotLimit = vi.fn(async () => ({ data: [], error: null }));
+    const findingLimit = vi.fn(async () => ({ data: [], error: null }));
+
+    let scanRunSelectCount = 0;
+    const fromMock = vi.fn((table: string) => {
+      if (table === "admin_user_health_scan_runs") {
+        return {
+          select: vi.fn(() => {
+            scanRunSelectCount += 1;
+            if (scanRunSelectCount === 1) {
+              return {
+                order: vi.fn(() => ({
+                  limit: vi.fn(() => ({ maybeSingle: latestRunMaybeSingle })),
+                })),
+              };
+            }
+            return {
+              lt: vi.fn(() => ({
+                order: vi.fn(() => ({
+                  limit: vi.fn(() => ({ maybeSingle: previousRunMaybeSingle })),
+                })),
+              })),
+            };
+          }),
+        };
+      }
+      if (table === "admin_user_health_snapshots") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                order: vi.fn(() => ({
+                  limit: snapshotLimit,
+                })),
+              })),
+            })),
+          })),
+        };
+      }
+      if (table === "admin_user_health_snapshot_findings") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              limit: findingLimit,
+            })),
+          })),
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+
+    const result = await readFleetReport({
+      page: 1,
+      perPage: 50,
+      severity: "all",
+      findingCode: "",
+      riskBand: "all",
+      search: "",
+    });
+
+    expect(result.run).toEqual(
+      expect.objectContaining({
+        id: "run-latest",
+        drainageTrend: {
+          previousRunId: "run-prev",
+          scannedDelta: 4,
+          releasedDelta: 1,
+          errorsDelta: 2,
+        },
+      })
+    );
+    expect(result.health).toEqual({ degraded: false, reason: null });
+  });
 });

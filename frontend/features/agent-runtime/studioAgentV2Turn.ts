@@ -17,6 +17,7 @@ import {
   isStudioAgentRefusalResponse,
   parseStudioAgentJson,
 } from "./studioAgentResponseNormalization";
+import { labelUntrustedImageObservation } from "./studioAgentUntrustedContent";
 
 type StageMarker = (stage: string, startedAt: number) => void;
 
@@ -98,14 +99,18 @@ export const executeStudioAgentV2Turn = async ({
   const userInput = messages[messages.length - 1]?.content ?? "";
   const imageSummaries = selectedReferences
     .filter((reference) => reference.kind === "image")
-    .map((reference) => ({
-      id: reference.id,
-      summary:
+    .map((reference) => {
+      const rawSummary =
         visionSummaryMap.get(reference.id) ??
         reference.caption ??
         reference.promptSnippet ??
-        undefined,
-    }))
+        undefined;
+      const labeledSummary = labelUntrustedImageObservation(rawSummary);
+      return {
+        id: reference.id,
+        summary: labeledSummary ?? undefined,
+      };
+    })
     .filter((entry) => typeof entry.summary === "string" && entry.summary.trim().length > 0);
 
   const thinkerPayload = {

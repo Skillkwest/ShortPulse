@@ -1,6 +1,9 @@
 import type { AgentContext } from "../../prefabs/agent";
-import { sanitizeGenerationPromptText } from "../agent-core/promptText";
 import { STUDIO_AGENT_MAX_MEDIA } from "./studioAgentRequestGuards";
+import {
+  labelUntrustedImageObservation,
+  sanitizeImageDerivedTextForPromptCompiler,
+} from "./studioAgentUntrustedContent";
 import {
   fetchStudioAgentChatCompletion,
   formatStudioAgentErrorMessage,
@@ -52,8 +55,8 @@ export const buildStudioAgentImageSummaryMap = async ({
       }
       const data = await response.json();
       const rawText = extractStudioAgentCompletionText(data?.choices?.[0]?.message?.content);
-      const cleaned = sanitizeGenerationPromptText(rawText) ?? "";
-      const summary = cleaned.trim();
+      const sanitized = sanitizeImageDerivedTextForPromptCompiler(rawText);
+      const summary = sanitized.text?.trim() ?? "";
       if (!summary.length) return null;
       return { id: item.id, summary };
     })
@@ -76,15 +79,16 @@ export const applyStudioAgentVisionSummariesToContext = (
     if (reference.kind !== "image") return reference;
     const summary = summaryByReferenceId.get(reference.id);
     if (!summary) return reference;
-    const mergedCaption = [summary, reference.caption ?? null]
+    const labeledSummary = labelUntrustedImageObservation(summary);
+    if (!labeledSummary) return reference;
+    const mergedCaption = [labeledSummary, reference.caption ?? null]
       .filter(
         (value, index, all): value is string => Boolean(value) && all.indexOf(value) === index
       )
       .join("\n\n");
     return {
       ...reference,
-      promptSnippet: summary,
-      caption: mergedCaption || summary,
+      caption: mergedCaption || labeledSummary,
     };
   });
 
@@ -92,9 +96,11 @@ export const applyStudioAgentVisionSummariesToContext = (
     if (item.kind !== "image") return item;
     const summary = summaryByReferenceId.get(item.id);
     if (!summary) return item;
+    const labeledSummary = labelUntrustedImageObservation(summary);
+    if (!labeledSummary) return item;
     return {
       ...item,
-      thumbnailAlt: summary,
+      thumbnailAlt: labeledSummary,
     };
   });
 

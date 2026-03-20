@@ -1,9 +1,9 @@
 # SOP: Admin User Health Fleet Operations
 
-Purpose: operate the daily fleet-level user health scan safely, triage findings efficiently, and escalate incidents without automated billing mutations.
+Purpose: operate the fleet-level user health scan safely, triage findings efficiently, and escalate incidents without automated billing mutations.
 
 ## Scope
-- Daily active-user fleet scan execution.
+- Active-user fleet scan execution (current daily cadence, hourly target tracked in reliability planning).
 - Fleet run/snapshot/finding diagnostics.
 - Operator triage workflow from fleet to per-user deep diagnostics.
 - Report-only incident escalation posture.
@@ -51,8 +51,10 @@ curl -X POST \
 ```
 
 Scheduler trigger:
-- Use `sql/configure_admin_user_health_fleet_scheduler_supabase.sql` (daily cadence).
+- Use `sql/configure_admin_user_health_fleet_scheduler_supabase.sql` (current daily cadence).
 - Do not use Vercel Cron for this workflow; scheduler ownership stays in Supabase Cron + Vault.
+- Hourly target-state rollout is gated by reliability phase `R2` and the cadence contract:
+  - `docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`
 
 ## Interpreting Run Results
 Primary fields:

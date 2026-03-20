@@ -42,6 +42,24 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-hardening-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Track P1 generation pipeline hardening slices.
 - `generation-pipeline-hardening-contact-map-2026-03-16.md`: owner/escalation contact map for Track P1, sourced from `docs/operator-map.md`.
 - `generation-pipeline-hardening-execution-plan-2026-03-16.md`: concrete Track P1 slice sequencing with command bundles, acceptance criteria, and evidence packet outputs.
+- `generation-reliability-hardening-master-plan-2026-03-20.md`: reliability hardening program contract focused on scheduler/control-plane health, bounded recovery behavior, and operations governance.
+- `generation-reliability-hardening-master-roadmap-2026-03-20.md`: canonical sequencing/dependency roadmap for reliability workstreams (`WR-1` through `WR-7`).
+- `generation-reliability-hardening-master-tracker-2026-03-20.md`: master tracker for reliability planning gates, workstream status, and row-level evidence readiness.
+- `generation-reliability-hardening-tracker-spec-2026-03-20.md`: required tracker schema and evidence contract for reliability phase trackers and execution slices.
+- `generation-reliability-hardening-phase-r0-execution-plan-2026-03-20.md`: Phase `R0` execution-ready planning for governance locks, SLO/SLI baseline, and escalation policy.
+- `generation-reliability-hardening-phase-r1-execution-plan-2026-03-20.md`: Phase `R1` execution-ready planning for `pg_cron`/`pg_net` control-plane observability contracts.
+- `generation-reliability-hardening-phase-r2-execution-plan-2026-03-20.md`: Phase `R2` scheduler policy hardening plan for fleet cadence, recovery non-regression, and route-parity safety.
+- `generation-reliability-hardening-phase-r3-execution-plan-2026-03-20.md`: Phase `R3` deterministic state-transition and idempotency-governance planning.
+- `generation-reliability-hardening-phase-r4-execution-plan-2026-03-20.md`: Phase `R4` retry/timeout/lease/quarantine policy planning.
+- `generation-reliability-hardening-phase-r5-execution-plan-2026-03-20.md`: Phase `R5` fairness, jitter, and load-management policy planning.
+- `generation-reliability-hardening-phase-r6-execution-plan-2026-03-20.md`: Phase `R6` game-day readiness, pass/fail closeout, and residual-risk signoff planning.
+- `generation-reliability-hardening-provider-contract-matrix-2026-03-20.md`: canonical provider contract matrix for callback, retry, signature, retention, and throttling semantics.
+- `generation-reliability-hardening-decision-log-2026-03-20.md`: durable decision ledger for reliability planning and implementation gate policy.
+- `generation-reliability-hardening-risk-register-2026-03-20.md`: risk register for planning and rollout hazards with mitigations and ownership.
+- `generation-reliability-hardening-evidence-packet-template.md`: reusable packet template for all reliability evidence artifacts.
+- `generation-reliability-hardening-implementation-entry-checklist-2026-03-20.md`: explicit go/no-go checklist before implementation starts.
+- `generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`: current-state vs target-state fleet scheduler cadence contract (daily baseline, hourly target) with promote/hold/rollback criteria.
+- `generation-reliability-hardening-readiness-state-2026-03-20.md`: canonical readiness-state decision register (`hold_with_blockers`, `planning_complete_pending_owner_go`, `ready_for_implementation`).
 - `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0` through `P9`) with locked constraints, contracts, and exit criteria.
 - `media-rendering-hardening-v2-master-roadmap-2026-03-16.md`: canonical sequencing/dependency roadmap for media rendering hardening workstreams and rollout rings.
 - `media-rendering-hardening-v2-execution-tracker-2026-03-16.md`: required tracker schema and seeded slice backlog for media rendering hardening execution.
@@ -92,6 +110,12 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`: execution tracker for Expert Edit phases, gates, and commit checkpoints.
 - `ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`: decision-locked master roadmap for canonical coordinate/interaction parity across Expert Edit inline + modal markup/inpaint workflows.
 - `ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`: master execution tracker with phase gates, risk controls, and evidence requirements for coordinate parity hardening.
+- `ai-studio-expert-edit-coordinate-parity-phase-0-baseline-capture-execution-plan-2026-03-20.md`: deterministic baseline-capture runbook for `CP-004` before behavior-changing implementation starts.
+- `ai-studio-expert-edit-coordinate-parity-phase-1-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 1 coordinate core unification (`CP-101`, `CP-102`, `CP-103`).
+- `ai-studio-expert-edit-coordinate-parity-phase-2-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 2 tool geometry parity (`CP-201`, `CP-202`, `CP-203`).
+- `ai-studio-expert-edit-coordinate-parity-phase-3-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 3 mask/export camera parity (`CP-301`, `CP-302`, `CP-303`).
+- `ai-studio-expert-edit-coordinate-parity-phase-4-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 4 regression harness and CI gates (`CP-401`, `CP-402`, `CP-403`, `CP-404`).
+- `ai-studio-expert-edit-coordinate-parity-phase-5-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 5 controlled rollout and closeout (`CP-501`, `CP-502`, `CP-503`).
 - `ai-studio-properties-panels-modularization-program.md`: completed modularization program for AI Studio properties-panel workflow architecture and beginner-mode hardening.
 - `ai-studio-properties-panels-modularization-tracker.md`: execution tracker for the properties-panels modularization program.
 - `ai-studio-create-character-mode-hardening-plan.md`: hardening plan for Create Character Mode model mapping and submit invariants.
@@ -107,10 +131,18 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-agent-modularization-tracker.md`: execution tracker for phase checklists, risks, blockers, rollout rings, and evidence links.
 - `ai-studio-agent-safety-control-plane-plan.md`: Wave F safety policy control-plane implementation plan (modality profiles, hard floors, admin operations, rollback/cooldown).
 - `ai-studio-agent-safety-control-plane-tracker.md`: Wave F execution tracker for safety control-plane phases, validation gates, and evidence.
-- `ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`: short three-phase roadmap to remediate March 2026 agent pipeline regressions (policy parity, prompt continuity, and rollout hardening).
-- `ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`: execution tracker for roadmap phases, row-level ownership, validation bundles, and evidence capture.
-- `ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`: decision-complete OpenAI-only Phase 1 implementation plan with additive outcome contract and validation gates.
-- `ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`: decision-complete OpenAI-only Phase 2 implementation plan for scoped precheck enforcement, continuity hardening, and runtime truth gating.
+- `ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`: master prompt-compiler hardening roadmap that locks architecture, safety, continuity, and rollout-governance decisions before phase planning.
+- `ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`: master workstream tracker for pre-phase decision gates, validation criteria, and evidence linkage.
+- `ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`: rebaselined Phase 1 OpenAI execution plan for deterministic outcome contracts and cross-route policy parity.
+- `ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`: canonical additive machine-readable route outcome contract (`decision`, `outcome_class`, `reason_code`, `retryable`) for Phase 1 OpenAI lanes.
+- `ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`: rebaselined Phase 2 OpenAI execution plan for scoped safety prechecks, continuity protection, and quality hardening.
+- `ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`: rebaselined Phase 3 OpenAI execution plan for precedence governance, canary thresholds, observability, and rollback guardrails.
+- `ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`: rebaselined Phase 4 OpenAI execution plan for controlled production activation, stabilization, and operational closeout.
+- `ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`: canonical numeric threshold contract for promote/hold/rollback decisions and ring windows.
+- `ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`: authority order and conflict-resolution rules across overlapping active agent programs.
+- `ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`: master-vs-phase gate semantics and phase closeout row contract.
+- `ai-studio-agent-pipeline-regression-environment-label-normalization-2026-03-20.md`: canonical environment label taxonomy and packet mapping rules.
+- `ai-studio-agent-pipeline-regression-supporting-docs-plan-2026-03-20.md`: supporting-doc inventory and sequencing for remediation execution artifacts and closeout packet governance.
 - `ai-studio-ux-prompt-adjacency-rollout-plan.md`: Wave G consolidated UX + prompt-adjacency rollout plan (scope, gates, rollback posture).
 - `ai-studio-ux-prompt-adjacency-rollout-tracker.md`: Wave G execution tracker for prompt-adjacent contract consolidation and UX rollout gates.
 - `ai-studio-webhook-canary-closeout-plan.md`: Wave H controlled webhook canary closeout plan (windowed thresholds, promote/hold/rollback decisioning).
@@ -145,7 +177,11 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/reference-grid-modularization/README.md`: canonical evidence index and phase evidence folder structure for the reference-grid foundation program.
 - `evidence/reference-grid-modularization/phase-report-template.md`: standardized phase closeout template for scope/tests/perf/regression/rollback evidence.
 - `evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`: standardized naming-canonicalization evidence template for every execution slice.
-- `evidence/ai-studio-expert-edit/README.md`: evidence index for Expert Edit rollout capability and validation artifacts.
+- `evidence/ai-studio-expert-edit/README.md`: evidence index for Expert Edit, including coordinate-parity baseline/canary/closeout artifacts.
+- `evidence/ai-studio-expert-edit/2026-03-20-cp004-baseline-matrix.md`: CP-004 baseline evidence packet capturing validated preflight results and remaining matrix coverage gaps before Phase 1 implementation.
+- `evidence/ai-studio-expert-edit/2026-03-20-cp004-gap-inventory.md`: repo-backed CP-004 gap inventory mapping existing automated coverage to unresolved baseline closure blockers.
+- `evidence/ai-studio-expert-edit/coordinate-parity-evidence-template.md`: reusable evidence packet template for `CP-004` through `CP-503`.
+- `evidence/ai-studio-expert-edit/coordinate-parity-rollout-decision-log-2026-03-20.md`: baseline/canary/production decision log for coordinate-parity rollout governance.
 - `evidence/style-adherence/README.md`: evidence index for model-family style adherence evaluations.
 - `evidence/style-adherence/style-adherence-run-template.md`: reusable run packet template for style adherence diagnostics and regression decisions.
 - `evidence/lane-a/README.md`: evidence packet schema and naming contract for Lane A gate-recovery/governance slices.
@@ -158,7 +194,16 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/media-rendering-hardening-v2/README.md`: evidence index and packet naming contract for media rendering hardening v2 slices.
 - `evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`: reusable evidence packet template for media rendering hardening v2 slices.
 - `evidence/agent-pipeline-remediation/README.md`: evidence index and packet minimums for the AI Studio agent pipeline regression remediation program.
+- `evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`: Phase 1 dependency signoff packet (`M-01`, `M-02`, `M-08`, `M-09`) with waiver and carry-forward records.
 - `evidence/agent-pipeline-remediation/phase-1/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 1 remediation validation.
+- `evidence/agent-pipeline-remediation/phase-2/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 2 prompt quality and continuity validation.
+- `evidence/agent-pipeline-remediation/phase-3/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 3 operational hardening and rollout guardrails.
+- `evidence/agent-pipeline-remediation/phase-4/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 4 production activation and closeout validation.
+- `evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md`: reusable checklist for launch readiness, ring plan, and preflight gate signoff.
+- `evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md`: reusable per-ring promote/hold/rollback decision record with threshold comparisons.
+- `evidence/agent-pipeline-remediation/phase-4/stabilization-window-report-template.md`: reusable stabilization report for post-rollout metric deltas and SLO outcomes.
+- `evidence/agent-pipeline-remediation/phase-4/operational-handoff-template.md`: reusable operations handoff packet for dashboards, alerts, ownership, and escalation.
+- `evidence/agent-pipeline-remediation/phase-4/phase-4-closeout-report-template.md`: reusable final closeout report tying exit criteria to evidence.
 - `evidence/README.md`: top-level planning evidence index, including lane-specific evidence namespaces.
 
 ## Maintenance

@@ -1,0 +1,24 @@
+# Phase 3 Evidence - OpenAI Operational Hardening + Rollout Guardrails
+
+Phase: 3  
+Scope: OpenAI-only (`studio-agent`, `generate-prompt`, `describe-image`)
+
+Reference docs:
+1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
+2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
+3. `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
+4. `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
+5. `docs/planning/ai-studio-agent-pipeline-regression-environment-label-normalization-2026-03-20.md`
+
+Required packet contents:
+1. Date, commit SHA, and runtime snapshots (`local`, `preview`, `production`) tied to canary window.
+2. Precedence proof test results and cache-key/invalidation contract validation artifacts.
+3. Canary packet with control-vs-canary deltas:
+   - schema failure rate delta
+   - fallback rate delta
+   - false-refusal rate delta
+   - repair-rate delta
+4. Rollback drill packet with steps, outcomes, and post-drill integrity checks.
+5. Validation command outputs (`lint`, `type-check`, `build`, `docs:check`, targeted tests).
+6. Phase 3 exit criteria pass/fail record.
+7. Master tracker row `PX-03` completion reference.

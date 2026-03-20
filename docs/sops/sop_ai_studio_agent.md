@@ -51,6 +51,8 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
   - `message`: on success, mirrors the final generation-ready prompt (`actions.applyPrompt`); on refusal, contains refusal text.
   - `actions` (optional): runtime emits `applyPrompt` for successful turns; refusal leaves actions empty. Legacy extra fields are tolerated for compatibility but are not produced by the canonical path.
   - `usage`: token accounting when available.
+  - additive machine fields (Phase 1 contract): `decision`, `outcome_class`, `reason_code`, `retryable`.
+    Canonical field definitions and mapping rules are locked in `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`.
   - `canonicalPrompt`: resolved canonical prompt for continuity.
   - `traceId`: request correlation ID (server-generated if client omitted).
 

@@ -1,139 +1,151 @@
-# AI Studio Agent Pipeline Regression Remediation Roadmap
+# AI Studio Agent Prompt-Compiler Hardening Master Roadmap
 
 Date: 2026-03-20  
 Authority: Working  
-Owner: AI Platform + Frontend  
-Status: Active (planning complete, implementation pending)
+Owner: AI Platform + Frontend + Platform Ops  
+Status: Active (master planning baseline complete, Phase 1/2/3/4 plans rebaselined, execution gated)
 
 ## Summary
-This roadmap defines a short, phased recovery plan for the AI Studio agent regression cluster discovered in March 2026. The target is to restore predictable behavior, remove safety/runtime drift, and lock in testable parity across OpenAI agent lanes.
+This document is the master roadmap for hardening the AI Studio multimodal agent into a deterministic prompt-compiler system.  
+It locks architecture decisions, operating constraints, and workstream sequencing before phase-level implementation planning.
 
 Program links:
-1. Tracker: `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-2. Phase 1 execution plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
-3. Phase 2 execution plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+1. Master tracker: `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
+2. Evidence index: `docs/planning/evidence/agent-pipeline-remediation/README.md`
+3. Master evidence folder: `docs/planning/evidence/agent-pipeline-remediation/master/`
+4. Threshold contract: `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
+5. Authority precedence addendum: `docs/planning/ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`
+6. Tracker gate clarification: `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`
+7. Environment label normalization: `docs/planning/ai-studio-agent-pipeline-regression-environment-label-normalization-2026-03-20.md`
+8. Supporting docs plan: `docs/planning/ai-studio-agent-pipeline-regression-supporting-docs-plan-2026-03-20.md`
 
-Primary regression themes:
-1. Infra fallback is being surfaced in user lanes and is easy to misread as safety refusal.
-2. Safety precheck and rewrite policies are inconsistent by route.
-3. OpenAI route outcomes are not machine-distinguishable enough for reliable fallback vs refusal diagnosis.
-4. Input precheck mutates context/canonical/reference memory fields in ways that can degrade prompt continuity.
-5. Local/preview/prod flag precedence is not explicit enough for repeatable diagnostics.
+Phase execution plans:
+1. Phase 1: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
+2. Phase 2: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+3. Phase 3: `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
+4. Phase 4: `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
+5. Phase execution remains gated by master workstream criteria and phase-specific entry gates.
 
-## Goals
-1. Restore deterministic, explainable safety/runtime behavior across OpenAI agent lanes.
-2. Preserve prompt quality and continuity while keeping safety controls enforceable.
-3. Make policy precedence and runtime outcomes observable and testable in CI.
-4. Ship with rollback-first operational controls.
+## Objective
+Build a reliable multimodal prompt-compiler pipeline where:
+1. Outputs are strict, versioned IR objects (not free-form chat artifacts).
+2. Safety, refusal, fallback, and error outcomes are machine-distinguishable.
+3. Canonical prompt state is continuity-safe across sessions, modes, and failures.
+4. Runtime policy/config precedence is explicit, testable, and rollback-safe.
 
 ## Non-Goals
 1. No broad AI Studio UI redesign.
-2. No provider migration.
-3. No schema redesign unless required by a specific implementation gate.
+2. No provider policy bypass strategy.
+3. No schema/database migration unless required by a locked workstream gate.
 
-## Delivery Model
-Use phase gates with strict entry and exit criteria. Each phase has its own context pack; do not front-load all research.
+## Decision Locks
+1. Compiler IR is the source of truth.
+   - Every successful turn must produce schema-valid IR with `schema_version`.
+   - Canonical state is committed only from validated IR.
+2. Structured output contracts are strict-by-default.
+   - Schema objects use explicit required/optional rules and `additionalProperties: false`.
+   - Invalid IR is repaired via bounded retry, then fails closed with deterministic reason codes.
+3. Orchestration is code-first with specialist lanes.
+   - Interpreter lane (intent, constraints, image facts).
+   - Renderer/compiler lane (canonical prompt assembly).
+   - Validator/repair lane (schema/policy/contract enforcement).
+4. Multimodal untrusted-content isolation is mandatory.
+   - OCR/caption/image-derived text is treated as hostile data.
+   - Untrusted content cannot become instructions or control-plane input.
+5. Outcome taxonomy is standardized.
+   - `decision`, `reason_code`, and `retryable` are required machine fields for refusal/fallback/error behavior.
+6. Runtime precedence is explicit and test-backed.
+   - Precedence order is locked and validated by deterministic tests.
+   - Cache keys include prompt/schema/control-plane version signals to prevent silent drift.
+7. Rollout control uses canary thresholds and rollback triggers.
+   - Schema failure delta, fallback delta, false-refusal delta, and repair-rate delta are release gates.
 
-## Phase Roadmap
+## Master Workstreams
 
-### Phase 1: Stability + Policy Parity
-Duration target: 1-2 implementation windows.
-
-Entry criteria:
-1. Baseline failures captured with at least 3 representative trace IDs.
-2. Flag freeze window declared for safety/runtime env knobs.
-3. Golden prompt suite recorded (15-20 prompts with expected route outcomes).
-
-Implementation scope:
-1. Apply OpenAI-only scope lock (`studio-agent`, `generate-prompt`, `describe-image`).
-2. Separate fallback and refusal machine outcomes clearly in route payloads/telemetry.
-3. Align server and client handling using additive machine-readable fields.
-4. Defer all `fal-submit` work outside this program.
-
-Validation gates:
-1. API route tests for all touched safety lanes.
-2. Cross-route parity test on shared prompt corpus.
-3. Telemetry verification for refusal vs fallback distinction.
-4. OpenAI Phase 1 plan checklist complete (`docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`).
-
-Exit criteria:
-1. No route-level policy drift in parity matrix.
-2. Baseline failing traces reproduce expected corrected path.
-3. Rollback switch path verified.
-
-### Phase 2: Prompt Quality + Continuity Hardening
-Duration target: 1 implementation window.
-
-Entry criteria:
-1. Phase 1 parity matrix green.
-2. Safety and infra error outcome codes stable.
-
-Implementation scope:
-1. Reduce input-precheck blast radius (default user-turn focus; guarded context-field checks).
-2. Validate canonical/active/last/reference memory preservation under normal prompt-edit loops.
-3. Align client/server safety assumptions to avoid split-brain local behavior.
-
-Validation gates:
-1. Quality regression suite over golden prompts (prompt fidelity + continuity).
-2. Session-switch and latest-agent-prompt continuity tests.
-3. No new false refusals in baseline corpus.
-4. OpenAI Phase 2 plan checklist complete (`docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`).
+### WS-1 IR Contract And Schema Governance
+Targets:
+1. Canonical IR schema definition and versioning policy.
+2. Strict validation/repair/fail-closed behavior contract.
+3. Schema migration playbook (backward compatibility, translators, canary gates).
 
 Exit criteria:
-1. Prompt continuity metrics meet baseline or better.
-2. No net increase in safety false positives on golden set.
+1. IR contract approved with examples.
+2. Schema compliance tests and migration tests defined.
+3. Rollback path for schema changes documented.
 
-### Phase 3: Operational Hardening + Rollout Guardrails
-Duration target: 1 implementation window plus canary observation.
-
-Entry criteria:
-1. Phases 1 and 2 fully green.
-2. Observability fields confirmed in staging.
-
-Implementation scope:
-1. Lock precedence contract (`env`, control plane, defaults) in docs + tests.
-2. Add canary/rollback thresholds for safety/refusal/fallback deltas.
-3. Add CI enforcement for cross-route policy parity and precedence tests.
-
-Validation gates:
-1. Staging canary observation window complete.
-2. Rollback drill packet complete.
-3. Docs index and SOP references updated.
+### WS-2 Orchestration And Canonical Continuity
+Targets:
+1. Manager-plus-specialist orchestration boundaries.
+2. Transactional canonical commit rules (no commit on fallback/error/invalid IR).
+3. Session/mode continuity invariants across edit loops and image-only turns.
 
 Exit criteria:
-1. Production canary passes thresholds.
-2. Rollback drill passes.
-3. Tracker closed with evidence links.
+1. Continuity invariants approved.
+2. State transition matrix and tests defined.
+3. Canonical pollution prevention rules locked.
 
-## Context Pack Strategy (Phase-by-Phase)
-Gather context per phase, not all at once.
+### WS-3 Safety And Policy Envelope
+Targets:
+1. OpenAI policy envelope matrix (policy layer + empirical runtime layer for current scope).
+2. Precheck scope contract for user/canonical/context/reference handling.
+3. Shared refusal/fallback reason taxonomy contract.
 
-### Phase 1 context pack
-1. OpenAI route behavior matrix (`studio-agent`, `generate-prompt`, `describe-image`).
-2. Current env flag map (`local`, `preview`, `prod`).
-3. Failing trace samples with status, code, and telemetry.
-4. Current tests that lock route behavior.
+Exit criteria:
+1. Envelope matrix approved for allowed and disallowed classes.
+2. Precheck scope and enforcement modes approved.
+3. Cross-route reason code contract approved.
 
-### Phase 2 context pack
-1. Golden prompt quality baseline.
-2. Memory continuity behavior snapshots (session/tool/mode transitions).
-3. Client/server safety divergence examples.
+### WS-4 Reliability, Latency, And Cost Lanes
+Targets:
+1. Interactive vs async lane design (priority vs batch/flex style workloads).
+2. Stage-splitting experiment plan (fast validator + strong compiler).
+3. Prompt/schema caching strategy with version-safe keys.
 
-### Phase 3 context pack
-1. Staging telemetry trend snapshots.
-2. CI pass/fail policy checks.
-3. Rollback drill evidence packet.
+Exit criteria:
+1. Experiment matrix and success thresholds defined.
+2. Runtime lane routing policy approved.
+3. Cache key and invalidation policy approved.
 
-## Risks and Mitigations
-1. Risk: correcting policy drift can change currently expected test outcomes.
-   - Mitigation: stage-by-stage parity snapshots and explicit contract updates.
-2. Risk: prompt quality drops while tightening safety.
-   - Mitigation: golden prompt suite with quality acceptance checks.
-3. Risk: environment precedence confusion during rollout.
-   - Mitigation: explicit precedence table plus automated precedence tests.
+### WS-5 Evaluation And Adversarial Defense
+Targets:
+1. Compiler-specific eval suite (schema, fidelity, continuity, refusals).
+2. Multimodal prompt-injection adversarial corpus design.
+3. Production-trace mining loop for continuous corpus expansion.
 
-## Definition of Done
-1. All three phases complete with evidence links in tracker.
-2. Cross-route safety parity tests are green in CI.
-3. Fallback/refusal outcomes are distinct and reliably diagnosable.
-4. Policy precedence is documented, tested, and operationally stable.
+Exit criteria:
+1. CI eval gates and thresholds approved.
+2. Adversarial classes and red-team workflow documented.
+3. Daily/weekly evaluation cadence approved.
+
+### WS-6 Rollout Governance And Observability
+Targets:
+1. Control-plane precedence proof tests.
+2. Canary monitoring and rollback SOP thresholds.
+3. Telemetry requirements for reason codes, policy decisions, and repair paths.
+
+Exit criteria:
+1. Precedence and canary gates approved.
+2. Rollback drill requirements approved.
+3. Operational dashboards/alerts contract approved.
+
+## Sequencing
+1. Master baseline lock:
+   - Finalize WS-1 through WS-3 contracts.
+2. System hardening design lock:
+   - Finalize WS-4 and WS-5 experiment/eval contracts.
+3. Rollout governance lock:
+   - Finalize WS-6 canary/rollback and observability contracts.
+4. Phase planning:
+   - Rebaseline phase execution plans against master decision locks.
+   - Start each phase when that phase's entry gates and referenced master rows are approved (or explicitly waived).
+   - For phases after Phase 1, require prior phase closeout row completion (or explicit waiver) before starting the next phase.
+5. Phase execution closeout:
+   - Complete phase closeout rows (`PX-01` through `PX-04`) with linked evidence.
+   - Do not treat a phase as complete without corresponding master-tracker closeout row completion.
+
+## Definition Of Done (Master Level)
+1. All master workstreams have approved contracts and measurable gates.
+2. Master tracker rows are fully linked to evidence artifacts.
+3. Phase planning can proceed without unresolved architecture/policy ambiguity.
+4. Phase execution can proceed when the active phase entry gates and referenced master rows are satisfied (or explicitly waived).
+5. Phase completion is recognized only when matching phase closeout rows are complete in the master tracker.

@@ -1,10 +1,16 @@
 # AI Studio Agent Rollout Operations SOP
 
-Purpose: define the operational runbook for Phase 5 progressive rollout of the AI Studio agent hardening/modularization program.
+Purpose: define the operational runbook for progressive rollout of AI Studio agent runtime changes, including the prompt-compiler remediation stream.
 
 ## Scope
 - In scope: staging soak, production canary rings (5/25/50/100), freeze decisions, rollback execution, and evidence capture.
 - Out of scope: net-new product features, non-agent route changes, and legacy-route decommission execution.
+
+Remediation-scope precedence:
+1. For the 2026-03-20 OpenAI prompt-compiler remediation stream, this SOP maps rollout evidence and closeout to:
+   - `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
+   - `docs/planning/evidence/agent-pipeline-remediation/phase-4/`
+2. Legacy modularization evidence paths remain valid only for the historical modularization rollout stream.
 
 ## Preconditions (must be true before Phase 5 starts)
 1. Phase 4 governance checks are in `enforce` mode and green.
@@ -71,25 +77,27 @@ For the prompt-only single-stage release, ring operators must apply flags in thi
 6. 5% promotion decision packet completed at soak exit.
 7. If dashboard/alert links are unavailable due tooling constraints, include a waiver artifact with explicit compensating controls and approval context.
 
-Store evidence under `docs/planning/evidence/agent/phase-5/`.
+For remediation rollout operations, store evidence under `docs/planning/evidence/agent-pipeline-remediation/phase-4/`.
 
 ### Optional Automation: Gate Snapshot Generator
 Use the snapshot generator to standardize ring evidence blocks and gate decisions from structured input.
 
-Template input:
-- `docs/planning/evidence/agent/phase-5/phase-5-rollout-snapshot-input.template.json`
+Template pack (remediation):
+- `docs/planning/evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md`
+- `docs/planning/evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md`
+- `docs/planning/evidence/agent-pipeline-remediation/phase-4/stabilization-window-report-template.md`
 
 Command examples:
 ```bash
 node scripts/generate_phase5_rollout_snapshot.js \
-  --input docs/planning/evidence/agent/phase-5/phase-5-rollout-snapshot-input.template.json
+  --input <legacy-phase5-snapshot-input.json>
 ```
 
 Append output to active report:
 ```bash
 node scripts/generate_phase5_rollout_snapshot.js \
   --input <ring-metrics.json> \
-  --append-to docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md
+  --append-to <legacy-phase5-rollout-report.md>
 ```
 
 CI/automation mode (fails on freeze decision):
@@ -101,10 +109,10 @@ node scripts/generate_phase5_rollout_snapshot.js \
 
 ## Post-Ring Close Checklist
 1. Record pass/fail decision and approver in rollout report.
-2. Update `docs/planning/ai-studio-agent-modularization-tracker.md` ring table.
+2. Update remediation tracker phase closeout status and evidence links in `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md` (`PX-04` for Phase 4 closeout).
 3. Confirm next ring start time and owner handoff.
 4. Re-validate alert routing/on-call coverage before promotion.
-5. For staging soak -> 5% transition, ensure:
-   - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md` is updated through C4.
-   - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md` is completed.
+5. For each ring promotion transition, ensure:
+   - `docs/planning/evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md` is instantiated and updated for the current window.
+   - `docs/planning/evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md` is instantiated and updated with promote/hold/rollback decision evidence.
 6. If DEP-03 waiver is active, ensure waiver evidence is linked in the rollout report and decision packet.

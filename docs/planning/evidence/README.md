@@ -18,9 +18,12 @@ Store stage evidence snapshots here with dated filenames.
 - `docs/planning/evidence/lane-e/`
 - `docs/planning/evidence/lane-f/`
 - `docs/planning/evidence/generation-pipeline-hardening/`
+- `docs/planning/evidence/generation-reliability-hardening/`
 - `docs/planning/evidence/media-rendering-hardening-v2/`
+- `docs/planning/evidence/agent-pipeline-remediation/`
 - `docs/planning/evidence/unified-buildout/`
 
 ## Notes
 - Keep packet names date-prefixed (`YYYY-MM-DD-...`).
 - Keep evidence scoped to active planning tracks; archive superseded tracks under `docs/archive/` when retired.
+- Reliability packet template: `docs/planning/generation-reliability-hardening-evidence-packet-template.md`.

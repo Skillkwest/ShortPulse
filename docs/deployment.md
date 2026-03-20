@@ -307,7 +307,9 @@ Notes:
 
 ## Admin fleet scheduler (Supabase Cron)
 
-Use Supabase Cron for the daily admin fleet-health scan route.
+Use Supabase Cron for the admin fleet-health scan route.
+Current state: daily cadence.  
+Planned target state (reliability program `R2`): hourly cadence after gated implementation approval.
 
 1. Set `SHORTPULSE_USER_HEALTH_FLEET_ENABLED=true` and configure:
    - `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
@@ -337,6 +339,10 @@ Use Supabase Cron for the daily admin fleet-health scan route.
 Notes:
 - Vercel Cron is not required for this route.
 - Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with generation-recovery operations.
+- Cadence contract authority:
+  - current: `0 4 * * *` (daily),
+  - target (planned, not yet active): `0 * * * *` (hourly),
+  - see `docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`.
 
 ### Methodical drain cycle (operations)
 

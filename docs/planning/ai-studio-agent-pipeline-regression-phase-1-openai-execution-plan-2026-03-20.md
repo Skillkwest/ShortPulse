@@ -1,63 +1,79 @@
-# AI Studio Agent Pipeline Regression - Phase 1 OpenAI Execution Plan
+# AI Studio Agent Prompt-Compiler Hardening - Phase 1 OpenAI Execution Plan
 
 Date: 2026-03-20  
 Authority: Working  
 Owner: AI Platform + Frontend  
-Status: Planned (decision complete, implementation pending)
+Status: Planned (rebaselined to master roadmap; implementation pending)
 
 ## Summary
-This is the decision-complete execution plan for Phase 1 of the agent pipeline remediation program.  
-Phase 1 scope is limited to OpenAI agent activity and related client handling.
+Phase 1 establishes deterministic outcome contracts and cross-route policy parity for OpenAI agent lanes.  
+The objective is to remove fallback/refusal ambiguity and ship a stable machine-readable behavior layer that Phase 2 can build on.
 
 In-scope endpoints:
 1. `/api/ai/studio-agent`
 2. `/api/ai/generate-prompt`
 3. `/api/ai/describe-image`
 
-Out-of-scope for this phase:
-1. All `fal-submit` routes and related generation payload policy wiring.
+Out-of-scope:
+1. `fal-submit` implementation changes.
+2. Full compiler IR rollout (reserved for later master-governed execution slices).
 
-Program references:
+Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
+3. `docs/planning/evidence/agent-pipeline-remediation/master/README.md`
+4. `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`
+5. `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`
 
-## Scope Lock
-1. Keep HTTP status behavior unchanged for existing OpenAI routes.
-2. Add machine-readable outcome metadata as additive response fields only.
-3. Avoid schema migrations in this phase.
+## Phase 1 Scope Lock
+1. Preserve existing HTTP status behavior and backward compatibility for current clients.
+2. Additive contract changes only for route payloads/telemetry.
+3. No schema/database migrations.
+4. OpenAI-only execution scope.
+
+## Execution Gate Dependencies
+Phase 1 implementation may begin when these master rows are approved:
+1. `M-01` (IR/object contract baseline sufficient for route outcome metadata).
+2. `M-02` (bounded fail-closed behavior contract).
+3. `M-08` (reason-code taxonomy contract).
+4. `M-09` (runtime precedence order and proof tests baseline).
 
 ## Implementation Decisions
-1. Introduce additive response fields for OpenAI agent outputs:
-   - `outcome_class`: `success_prompt | refusal_safety | fallback_infra | refusal_model`
-   - `reason_code`: `NONE | SAFETY_REFUSAL | INFRA_FALLBACK | MODEL_REFUSAL`
-2. Apply this contract consistently in all in-scope OpenAI endpoints.
-3. Use one shared server-side mapping helper for fallback/refusal/success classification.
-4. Update client agent handling to prefer machine-readable fields when present, while preserving legacy fallback parsing behavior for compatibility.
-5. Keep user-facing message copy unchanged in Phase 1 unless required to maintain existing route contract expectations.
+1. Outcome contract standardization across all in-scope routes:
+   - Additive fields: `decision`, `outcome_class`, `reason_code`, `retryable`.
+   - Required mapping for success/refusal/fallback/error categories.
+2. Shared mapping helper:
+   - One server-side classification/mapping utility drives all OpenAI lanes.
+   - Route-specific ad hoc mapping is removed from user-lane behavior decisions.
+3. Client behavior alignment:
+   - Client prioritizes machine fields over fragile message-string heuristics.
+   - Backward-compatible fallback parsing remains as a compatibility lane.
+4. Observability lock:
+   - Telemetry includes stable outcome and reason-code fields for parity checks.
+   - Baseline trace packet must show machine-distinguishable refusal vs fallback outcomes.
 
 ## Work Breakdown
-1. Baseline and prep:
-   - capture at least 3 representative failing trace packets for fallback/refusal ambiguity.
-   - freeze relevant runtime safety flag edits during implementation windows.
-   - assemble a 15-20 prompt OpenAI-only golden corpus.
-2. Server implementation:
-   - add shared outcome/reason mapping helper.
-   - wire additive fields into `studio-agent`, `generate-prompt`, and `describe-image` responses.
-3. Client alignment:
-   - update agent response handling to consume `outcome_class` and `reason_code`.
-   - preserve existing behavior when additive fields are missing.
-4. Documentation and evidence:
-   - keep roadmap/tracker and evidence links in sync with this phase plan.
-   - store validation packets in `docs/planning/evidence/agent-pipeline-remediation/phase-1/`.
+1. Baseline and freeze:
+   - Capture representative failing traces for fallback/refusal confusion.
+   - Freeze relevant safety/runtime flag changes during Phase 1 implementation window.
+2. Server contract implementation:
+   - Implement shared outcome/reason mapping helper.
+   - Apply contract to `studio-agent`, `generate-prompt`, and `describe-image`.
+3. Client handling update:
+   - Consume machine-readable outcome fields first.
+   - Preserve legacy fallback behavior where machine fields are absent.
+4. Docs and evidence:
+   - Record final outcome taxonomy contract and route mapping matrix.
+   - Store all packets in `docs/planning/evidence/agent-pipeline-remediation/phase-1/`.
 
 ## Validation
-1. API tests:
-   - assert `outcome_class`/`reason_code` combinations for success, safety refusal, infra fallback, and model refusal paths where applicable.
+1. API contract tests:
+   - Assert route payload fields for success, safety refusal, infra fallback, and hard-error paths.
 2. Client tests:
-   - verify machine-readable field precedence over legacy message heuristics.
-   - verify compatibility when additive fields are absent.
-3. Parity checks:
-   - run OpenAI route parity matrix on golden corpus and assert classification consistency.
+   - Assert machine-field precedence.
+   - Assert compatibility behavior when additive fields are missing.
+3. Cross-route parity suite:
+   - Golden corpus classification parity across all in-scope routes.
 4. Required command bundle:
    - `npm -C frontend run lint`
    - `npm -C frontend run type-check`
@@ -65,6 +81,7 @@ Program references:
    - `npm -C frontend run docs:check`
 
 ## Exit Criteria
-1. OpenAI route parity matrix is green for the in-scope corpus.
-2. Baseline failing traces now resolve through expected outcome classification paths.
-3. No contract regressions in existing OpenAI route response envelopes beyond additive fields.
+1. Cross-route outcome and reason-code parity is green for the in-scope corpus.
+2. Baseline failing traces now resolve through deterministic machine-classified paths.
+3. No non-additive contract regressions for existing route consumers.
+4. Master tracker row `PX-01` is complete with phase evidence links.

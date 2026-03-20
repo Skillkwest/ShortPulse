@@ -51,7 +51,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `errors = 0` and `queueDispatchErrors = 0` across the configured convergence window.
 
 ### Admin fleet health monitoring
-- Daily fleet scan trigger route: `/api/internal/admin-user-health-fleet/run`.
+- Fleet scan trigger route: `/api/internal/admin-user-health-fleet/run`.
+- Cadence state:
+  - current runtime baseline: daily,
+  - target-state (planned, gated): hourly after reliability `R2` implementation approval.
 - Primary fleet read surface: `/api/admin/user-health-fleet` and `/admin/user-health-fleet`.
 - Treat these response/run fields as health signals:
   - execution: `status`, `targeted`, `processed`, `failed`, `partial`, `durationMs`
@@ -60,7 +63,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Report-only escalation source:
   - `ops.user_health_fleet` events in `app_error_events`/`app_error_logs` (no auto-remediation or auto-refund mutations).
 - Baseline expectations:
-  - one completed (or intentionally partial) run per day,
+  - current baseline: one completed (or intentionally partial) run per day,
+  - target baseline after approved cadence cutover: at least one completed run per hour,
   - no sustained run-lock condition (`status='running'` without progress),
   - partial runs and degraded reads should include actionable reason text and operator follow-up.
 

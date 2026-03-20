@@ -1,71 +1,79 @@
-# AI Studio Agent Pipeline Regression - Phase 2 OpenAI Execution Plan
+# AI Studio Agent Prompt-Compiler Hardening - Phase 2 OpenAI Execution Plan
 
 Date: 2026-03-20  
 Authority: Working  
 Owner: Frontend + AI Platform  
-Status: Planned (decision complete, implementation pending)
+Status: Planned (rebaselined to master roadmap; implementation pending)
 
 ## Summary
-This is the decision-complete execution plan for Phase 2 of the agent pipeline remediation program.  
-Phase 2 scope is limited to OpenAI agent activity and related client/runtime continuity behavior.
+Phase 2 hardens prompt quality and canonical continuity while narrowing safety precheck blast radius.  
+It converts Phase 1 outcome clarity into continuity-safe runtime behavior for OpenAI lanes.
 
 In-scope endpoints:
 1. `/api/ai/studio-agent`
 2. `/api/ai/generate-prompt`
 3. `/api/ai/describe-image`
 
-Out-of-scope for this phase:
-1. All `fal-submit` routes and generation-submit precheck behavior changes.
+Out-of-scope:
+1. `fal-submit` implementation changes.
+2. Provider migration or endpoint-family expansion.
 
-Program references:
+Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
 3. `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
+4. `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`
 
-## Scope Lock
-1. Keep HTTP status behavior and route envelopes backward-compatible.
-2. No schema migrations in this phase.
-3. Preserve server authority for safety decisions.
-4. Restrict behavior changes to OpenAI lanes and shared precheck logic used by those lanes.
+## Phase 2 Scope Lock
+1. Keep HTTP status and route envelope compatibility.
+2. Preserve server-authoritative safety decision model.
+3. OpenAI-only scope.
+4. No schema/database migrations.
+
+## Execution Gate Dependencies
+Phase 2 implementation may begin when these gates are met:
+1. Phase 1 exit criteria are fully green.
+2. Master rows `M-04`, `M-05`, `M-06`, `M-09`, and `M-12` are approved or explicitly waived with risk signoff.
+3. Outcome/reason taxonomy from Phase 1 is stable in staging.
 
 ## Implementation Decisions
-1. Precheck enforcement contract for OpenAI lanes:
-   - Hard refusal applies to `latest user turn` and `canonicalPrompt` only.
-   - `context.activePrompt`, `context.lastAssistantMessage`, `references[].promptSnippet`, and `references[].caption` are non-blocking in Phase 2 (`rewrite_only` by default).
-2. Client/server alignment:
-   - Client pre-send precheck assumptions must mirror server scope defaults for OpenAI lanes.
-   - Rewrite recheck behavior must be explicitly aligned (no implicit default divergence).
-3. Continuity preservation:
-   - Prevent infra fallback assistant copy from contaminating canonical continuity paths.
-   - Preserve canonical/session continuity through prompt-edit loops, image-only sends, and session namespace changes.
-4. Runtime truth gating:
-   - Require environment truth packets for `local`, `preview`, and `production` before rollout and at closeout.
+1. Precheck enforcement scope contract:
+   - Hard refusal scope: latest user turn + canonical prompt.
+   - Context/reference memory fields are non-blocking by default (`rewrite_only` or `shadow` based on gate setting).
+2. Client/server parity:
+   - Client and server precheck scope defaults and rewrite-recheck semantics must match.
+   - Remove implicit default divergence between client and server safety lanes.
+3. Canonical continuity protection:
+   - Do not promote infra fallback assistant text into canonical continuity state.
+   - Canonical state commits occur only from validated prompt outputs.
+4. Runtime truth discipline:
+   - Collect and archive profile/flag/control-plane snapshots for local, preview, and production at pre- and post-phase checkpoints.
 
 ## Work Breakdown
-1. Scope contract and guardrails:
-   - Implement scoped precheck evaluation modes (`refusal` vs `rewrite_only`/`shadow`) for targeted fields.
-   - Add explicit defaults and guard knobs for scope behavior.
-2. OpenAI lane wiring:
-   - Apply the scoped contract consistently in `studio-agent`, `generate-prompt`, and `describe-image` paths.
-   - Keep existing refusal text and compatibility semantics intact.
-3. Continuity hardening:
-   - Add canonical continuity guards for infra fallback turns and next-turn edits.
-   - Verify session and prompt-origin transitions do not trigger continuity loss.
-4. Runtime contract capture:
-   - Record profile/flag/control-plane snapshots for local/preview/production.
-   - Attach snapshots to phase evidence packets with commit SHA.
+1. Scope contract implementation:
+   - Add scoped precheck behavior controls and route wiring for OpenAI lanes.
+   - Add field-level telemetry to distinguish refusal-enforced fields from rewrite/shadow-only fields.
+2. Continuity hardening:
+   - Add canonical commit guards for fallback/error turns.
+   - Harden session namespace and mode-switch continuity paths.
+3. Quality and continuity test expansion:
+   - Add targeted tests for canonical/context/reference precheck interactions.
+   - Add explicit tests for image-only sends and post-fallback edit continuity.
+4. Evidence and reporting:
+   - Produce golden quality delta report and false-refusal delta report.
+   - Archive runtime truth packets in `docs/planning/evidence/agent-pipeline-remediation/phase-2/`.
 
 ## Validation
-1. Precheck scope tests:
-   - Unsafe latest-user/canonical paths can refuse.
-   - Unsafe context/reference fields do not hard-refuse under Phase 2 defaults.
+1. Safety scope tests:
+   - Refusal on unsafe latest-user/canonical cases.
+   - Non-refusal for unsafe context/reference under default Phase 2 scope.
 2. Continuity tests:
-   - Session switch/reset boundaries.
-   - Image-only send behavior.
-   - Canonical continuity after infra fallback path.
-3. Quality checks:
-   - Golden prompt quality suite delta report against baseline.
-   - No net increase in false-positive safety refusals on baseline corpus.
+   - Session switch and namespace reset invariants.
+   - Image-only and mixed-turn continuity behavior.
+   - No canonical pollution from fallback lanes.
+3. Quality gates:
+   - Golden prompt quality suite delta is non-regressing.
+   - False-refusal rate does not increase relative to baseline.
 4. Required command bundle:
    - `npm -C frontend run lint`
    - `npm -C frontend run type-check`
@@ -73,7 +81,8 @@ Program references:
    - `npm -C frontend run docs:check`
 
 ## Exit Criteria
-1. Phase 2 quality and continuity gates are green for OpenAI scope.
-2. No net increase in false-positive refusals on the golden corpus.
-3. Local/preview/production runtime truth packet is captured and linked in evidence.
-4. Tracker rows `P2-01` through `P2-06` have evidence links and pass/fail outcomes recorded.
+1. Precheck scope contract is enforced and parity-tested across OpenAI routes.
+2. Prompt continuity metrics meet or exceed baseline.
+3. No net increase in false-positive refusals on the approved corpus.
+4. Runtime truth packets (`local`, `preview`, `production`) are captured and linked.
+5. Master tracker row `PX-02` is complete with phase evidence links.

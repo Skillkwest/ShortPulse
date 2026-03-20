@@ -1,9 +1,20 @@
 # AI Studio Expert Edit Evidence Index
 
 ## Purpose
-Central index for evidence artifacts supporting the Expert Edit properties panel rollout.
+Central index for evidence artifacts supporting Expert Edit, including the coordinate-parity hardening program.
 
 ## Artifacts
+### Coordinate Parity Program
+1. `coordinate-parity-evidence-template.md`
+   - Canonical packet template for `CP-004` through `CP-503`.
+2. `coordinate-parity-rollout-decision-log-2026-03-20.md`
+   - Promote/hold/rollback log for baseline, canary, production verification, and closeout.
+3. `2026-03-20-cp004-baseline-matrix.md`
+   - Initial CP-004 baseline packet with validated command outputs and explicit remaining matrix coverage gaps.
+4. `2026-03-20-cp004-gap-inventory.md`
+   - Repo-backed gap inventory showing current automated coverage and remaining CP-004 blockers (`zoom=4`, canonical pan tuples, `4:3` stage, DPR matrix).
+
+### Existing Expert Edit Artifacts
 1. `2026-03-04-model-capability-notes.md`
    - Fal edit model prompt-capability evidence used to implement `editPromptPolicy`.
    - Source policy: official Fal model API docs.
@@ -18,5 +29,6 @@ Central index for evidence artifacts supporting the Expert Edit properties panel
    - Captures hydration/remount behavior and strict validation command results.
 
 ## Maintenance
-1. Add a dated artifact for any future provider-capability changes that affect Expert Edit guardrails.
-2. Keep this index updated whenever a new evidence file is added.
+1. For coordinate parity, publish dated evidence packets per phase and link them here.
+2. Record baseline/canary/production decisions in the rollout decision log with linked evidence packets.
+3. Keep this index updated whenever a new evidence file is added.

@@ -7,15 +7,25 @@ Program docs:
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
 3. `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
 4. `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+5. `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
+6. `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
+7. `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
+8. `docs/planning/ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`
+9. `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`
+10. `docs/planning/ai-studio-agent-pipeline-regression-environment-label-normalization-2026-03-20.md`
+11. `docs/planning/ai-studio-agent-pipeline-regression-supporting-docs-plan-2026-03-20.md`
 
 Scope lock:
-1. Phase 1 and Phase 2 evidence are OpenAI-only (`studio-agent`, `generate-prompt`, `describe-image`).
-2. `fal-submit` implementation evidence is out of scope for Phases 1-2.
+1. Master planning evidence in `master/` remains authoritative for gate approvals.
+2. Any phase execution evidence remains OpenAI-only (`studio-agent`, `generate-prompt`, `describe-image`) unless scope is explicitly amended.
+3. `fal-submit` implementation evidence is out of scope for the current baseline.
 
 ## Expected Phase Folders
-1. `phase-1/` for Stability + Policy Parity evidence packets.
-2. `phase-2/` for Prompt Quality + Continuity Hardening evidence packets.
-3. `phase-3/` for Operational Hardening + Rollout Guardrails evidence packets.
+1. `master/` for workstream-level architecture, policy, and governance gate evidence.
+2. `phase-1/` for Stability + Policy Parity evidence packets.
+3. `phase-2/` for Prompt Quality + Continuity Hardening evidence packets.
+4. `phase-3/` for Operational Hardening + Rollout Guardrails evidence packets.
+5. `phase-4/` for Controlled Production Activation + Program Closeout evidence packets.
 
 ## Evidence Packet Minimums
 1. Date and commit SHA.
@@ -23,3 +33,4 @@ Scope lock:
 3. Validation commands and outcomes.
 4. Route/telemetry screenshots or trace excerpts for claimed fixes.
 5. Explicit pass/fail against phase exit criteria.
+6. If using `internal` ring labels, include mapping note per environment normalization doc.

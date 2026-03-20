@@ -1,4 +1,7 @@
--- Configure Supabase Cron for daily admin user-health fleet scans.
+-- Configure Supabase Cron for admin user-health fleet scans.
+-- Current default schedule in this script is daily (04:00 UTC).
+-- Hourly target cadence is tracked in planning contract:
+-- docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md
 -- This is an environment-level ops script (not a schema migration).
 --
 -- Secrets expected in Supabase Vault after setup:

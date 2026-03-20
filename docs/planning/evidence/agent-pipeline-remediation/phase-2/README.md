@@ -15,3 +15,4 @@ Required packet contents:
 4. Golden prompt quality suite delta report and false-positive refusal comparison against baseline.
 5. Validation command outputs (`lint`, `type-check`, `build`, `docs:check`, targeted tests).
 6. Phase 2 exit criteria pass/fail record.
+7. Master tracker row `PX-02` completion reference.

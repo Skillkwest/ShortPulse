@@ -15,6 +15,10 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
   - Lane C style-drop characterization capture:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:style-drop`
     - Uses the authenticated AI Studio runtime plus audit-only `window.__shortpulseAiStudioPerf` helpers to print one passing and one failing Reference Grid -> Styles packet summary.
+  - Expert Edit coordinate parity matrix capture (CP-004 baseline harness):
+    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:expert-edit-parity`
+    - Uses real pointer interactions in Expert Edit markup mode across DPR profiles (`1`, `2`, `3`) with a `4:3` viewport baseline.
+    - Safety: this audit refuses `@example.com` addresses and requires a dedicated real test account.
   - AI Studio production perf release check:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run perf:ai-studio:release-check`
 - Full local validation:

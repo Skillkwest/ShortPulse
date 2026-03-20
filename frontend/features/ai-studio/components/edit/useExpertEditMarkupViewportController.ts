@@ -209,7 +209,9 @@ export const useExpertEditMarkupViewportController = ({
       if (!session.active) {
         return false;
       }
-      releasePointerCaptureSafely(event.currentTarget, session.pointerId);
+      if (session.pointerId != null) {
+        releasePointerCaptureSafely(event.currentTarget, session.pointerId);
+      }
       clearMarkupPanGestureState();
       return true;
     },
@@ -221,6 +223,10 @@ export const useExpertEditMarkupViewportController = ({
       const session = markupPanPointerSessionRef.current;
       if (!session.active) {
         return false;
+      }
+      if (session.pointerId == null) {
+        clearMarkupPanGestureState();
+        return true;
       }
       const hasPointerCapture = elementHasPointerCapture(event.currentTarget, session.pointerId);
       if (hasPointerCapture) {

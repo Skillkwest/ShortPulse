@@ -22,7 +22,7 @@ Status: Active (master planning and Phase 1/2/3/4 planning complete; Phase 2 clo
 | WS-1 IR Contract And Schema Governance | Planned | AI Platform | Master roadmap approved | Schema/version/repair contract approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-1/` |
 | WS-2 Orchestration And Canonical Continuity | Planned | Frontend + AI Platform | WS-1 contract draft available | Canonical continuity invariants approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-2/` |
 | WS-3 Safety And Policy Envelope | In Progress | AI Platform + Platform | WS-1/WS-2 draft assumptions captured | OpenAI envelope and reason taxonomy approved (current scope) | `docs/planning/evidence/agent-pipeline-remediation/master/ws-3/` |
-| WS-4 Reliability, Latency, And Cost Lanes | In Progress | Platform | WS-1 through WS-3 contracts stable | Experiment matrix and lane policy approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-4/` |
+| WS-4 Reliability, Latency, And Cost Lanes | Completed | Platform | WS-1 through WS-3 contracts stable | Experiment matrix and lane policy approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-4/` |
 | WS-5 Evaluation And Adversarial Defense | Planned | Frontend + AI Platform | WS-1 through WS-4 assumptions documented | Eval gates and corpus workflow approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/` |
 | WS-6 Rollout Governance And Observability | Planned | Platform Ops + Platform | WS-1 through WS-5 gate drafts available | Canary/rollback/precedence controls approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-6/` |
 
@@ -39,7 +39,7 @@ Status: Active (master planning and Phase 1/2/3/4 planning complete; Phase 2 clo
 | M-08 | Lock refusal/fallback/error reason-code taxonomy and retryability contract | AI Platform | Completed | High | Canonical mapping contract + shared type source lock | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
 | M-09 | Define runtime precedence order and proof tests (env/control-plane/profile/request/killswitch) | Platform | Waived (Phase 1 entry) | High | Formal waiver + carry-forward requirements documented | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
 | M-10 | Define cache key and invalidation contract (prompt/schema/control-plane versioning) | Platform | Completed | Medium | Cache-key parity tests + drift simulation | `docs/planning/evidence/agent-pipeline-remediation/master/ws-4/2026-03-20-m10-cache-key-and-invalidation-contract.md` |
-| M-11 | Define latency/cost experiment matrix (fast-validator vs strong-compiler lanes) | Platform + Frontend | Planned | Medium | Experiment report with pass/fail thresholds | Pending |
+| M-11 | Define latency/cost experiment matrix (fast-validator vs strong-compiler lanes) | Platform + Frontend | Completed | Medium | Experiment report with pass/fail thresholds | `docs/planning/evidence/agent-pipeline-remediation/master/ws-4/2026-03-20-m11-latency-cost-experiment-matrix.md` |
 | M-12 | Define compiler-specific eval gates (schema/fidelity/continuity/false-refusal) | Frontend + AI Platform | Planned | High | CI gate definitions + baseline dataset report | Pending |
 | M-13 | Define production-trace adversarial mining loop and corpus promotion rules | AI Platform | Planned | Medium | Corpus lifecycle SOP + sample packet review | Pending |
 | M-14 | Define canary thresholds and rollback triggers for compiler-native metrics | Platform Ops | Planned | High | Threshold contract + canary policy doc + rollback drill checklist | Pending |
@@ -80,9 +80,9 @@ Phase implementation is allowed when:
      - Phase 1 exit criteria: satisfied.
      - Phase 2 exit criteria: satisfied (staging scope closeout).
      - Staging runtime truth packet: satisfied.
-     - Master rows `M-07` through `M-14`: not yet satisfied (`M-11`, `M-12`, `M-13`, `M-14` pending; `M-07`, `M-08`, `M-10` complete; `M-09` waived).
+     - Master rows `M-07` through `M-14`: not yet satisfied (`M-12`, `M-13`, `M-14` pending; `M-07`, `M-08`, `M-10`, `M-11` complete; `M-09` waived).
    - next gate actions:
-     - complete or explicitly waive pending `M-11`-`M-14` rows with linked evidence before Phase 3 implementation.
+     - complete or explicitly waive pending `M-12`-`M-14` rows with linked evidence before Phase 3 implementation.
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:

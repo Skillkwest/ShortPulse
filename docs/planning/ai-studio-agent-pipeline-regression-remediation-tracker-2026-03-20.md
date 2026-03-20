@@ -14,7 +14,7 @@ Phase 1 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-
 Phase 2 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 Phase 3 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 Phase 4 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
-Status: Active (master planning and Phase 1/2/3/4 planning complete; implementation is phase-gated; Phase 1 entry is ready)
+Status: Active (master planning and Phase 1/2/3/4 planning complete; Phase 2 implementation is in progress)
 
 ## Master Status Overview
 | Workstream | Status | Owner | Entry Gate | Exit Gate | Evidence |
@@ -49,7 +49,7 @@ Status: Active (master planning and Phase 1/2/3/4 planning complete; implementat
 | ID | Task | Owner | Status | Risk | Validation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | PX-01 | Phase 1 closeout packet linked and approved | AI Platform + Frontend | Planned | Medium | Phase 1 exit criteria pass + evidence links complete | Pending |
-| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | Planned | Medium | Phase 2 exit criteria pass + evidence links complete | Pending |
+| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | In Progress | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md` |
 | PX-03 | Phase 3 closeout packet linked and approved | Platform Ops + Platform + AI Platform | Planned | High | Phase 3 exit criteria pass + evidence links complete | Pending |
 | PX-04 | Phase 4 closeout packet linked and approved | Platform Ops + AI Platform + Frontend | Planned | High | Phase 4 exit criteria pass + evidence links complete | Pending |
 
@@ -65,6 +65,9 @@ Phase implementation is allowed when:
 1. Phase 1: Ready (2026-03-20)
    - dependencies reviewed in `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`.
    - `M-01` and `M-08` marked complete; `M-02` and `M-09` explicitly waived for Phase 1 entry with carry-forward requirements.
+2. Phase 2: In progress (2026-03-20)
+   - active evidence packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`.
+   - scope/enforcement parity and override coverage implemented; continuity and closeout gates remain pending.
 
 ## Program Completion Gate
 Program closeout/signoff requires:

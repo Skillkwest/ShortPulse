@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Frontend + AI Platform  
-Status: Planned (rebaselined to master roadmap; implementation pending)
+Status: In Progress (precheck scope, telemetry, and field-mode parity slices implemented)
 
 ## Summary
 Phase 2 hardens prompt quality and canonical continuity while narrowing safety precheck blast radius.  
@@ -15,8 +15,12 @@ In-scope endpoints:
 3. `/api/ai/describe-image`
 
 Out-of-scope:
-1. `fal-submit` implementation changes.
-2. Provider migration or endpoint-family expansion.
+1. Fal provider migration or endpoint-family expansion.
+2. Fal payload-contract redesign.
+
+Scope amendment (2026-03-20):
+1. Limited shared precheck parity updates touched Fal submit route wiring/tests to keep shared safety-lane behavior aligned across runtime entry points.
+2. No provider integration contract changes were introduced.
 
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
@@ -62,6 +66,16 @@ Phase 2 implementation may begin when these gates are met:
 4. Evidence and reporting:
    - Produce golden quality delta report and false-refusal delta report.
    - Archive runtime truth packets in `docs/planning/evidence/agent-pipeline-remediation/phase-2/`.
+
+## Progress Update (2026-03-20)
+Completed:
+1. Precheck enforcement scope contract implemented (`latest_user_turn` + `canonical_prompt` enforced; history/context/reference non-blocking by default).
+2. Field-level precheck telemetry emitted (`refusal_field`, `rewritten_fields`, `non_blocking_signal_count`).
+3. Runtime-configurable field-mode overrides added (shared + route-scoped server knobs and client mirror knobs).
+4. Route-level override coverage added for `studio-agent`, `generate-prompt`, and Fal submit precheck parity.
+
+Evidence:
+1. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`
 
 ## Validation
 1. Safety scope tests:

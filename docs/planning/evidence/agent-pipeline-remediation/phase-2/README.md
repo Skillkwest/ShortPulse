@@ -3,6 +3,10 @@
 Phase: 2  
 Scope: OpenAI-only (`studio-agent`, `generate-prompt`, `describe-image`)
 
+Amendment note (2026-03-20):
+1. Shared precheck parity updates include limited Fal submit precheck wiring/tests to avoid shared-lane drift.
+2. Fal provider migration and payload-contract redesign remain out of scope.
+
 Reference docs:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`

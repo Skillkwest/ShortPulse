@@ -20,6 +20,10 @@ Scope lock:
 2. Any phase execution evidence remains OpenAI-only (`studio-agent`, `generate-prompt`, `describe-image`) unless scope is explicitly amended.
 3. `fal-submit` implementation evidence is out of scope for the current baseline.
 
+Scope amendment record:
+1. 2026-03-20 Phase 2 amendment: limited shared precheck parity updates touched Fal submit precheck wiring/tests without provider migration or payload-contract changes.
+2. Amendment evidence packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`.
+
 ## Expected Phase Folders
 1. `master/` for workstream-level architecture, policy, and governance gate evidence.
 2. `phase-1/` for Stability + Policy Parity evidence packets.

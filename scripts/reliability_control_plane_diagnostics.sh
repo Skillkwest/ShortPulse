@@ -76,7 +76,10 @@ if [[ "$MODE" == "enforce" ]]; then
       -f "$ROOT_DIR/sql/check_control_plane_enforce_gate.sql" \
       2>&1 | tee "$ENFORCE_LOG" | tee -a "$COMBINED_LOG"
   )"
-  failing_count="$(printf '%s\n' "$enforce_output" | tail -n 1 | tr -d '[:space:]')"
+  failing_count="$(
+    printf '%s\n' "$enforce_output" \
+      | awk '/^[0-9]+$/ { value=$1 } END { if (value != "") print value }'
+  )"
 
   if [[ ! "$failing_count" =~ ^[0-9]+$ ]]; then
     echo "[reliability-diagnostics] Unable to parse enforce gate failure count."

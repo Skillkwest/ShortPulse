@@ -6411,6 +6411,154 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
+  it("keeps flatten and inpaint mask export camera framing aligned under zoom and pan", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    const exportSelectedLayerMaskBlobMock = vi.fn(async (params?: unknown) => {
+      void params;
+      return new Blob(["mask"], { type: "image/png" });
+    });
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks: vi.fn(),
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: exportSelectedLayerMaskBlobMock,
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 640;
+      naturalHeight = 640;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    try {
+      const { container } = render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceText="prompt text"
+          onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+        />
+      );
+      uploadPrimaryFile(container, "layer-1.png");
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(within(rail).getByRole("button", { name: /^move$/i }));
+      const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
+      fireEvent.change(within(moveSettingsPanel).getByRole("slider", { name: /zoom stage/i }), {
+        target: { value: "100" },
+      });
+
+      fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      mockElementRect(primaryDropzone, createSquareRect(200));
+      const primaryColumn = container.querySelector(".edit-expert-primary-column");
+      const inlineStageWrapper = primaryColumn?.querySelector(
+        ".edit-expert-column-wrapper--center"
+      ) as HTMLDivElement | null;
+      expect(inlineStageWrapper).not.toBeNull();
+      fireEvent.keyDown(window, { code: "Space" });
+      fireEvent.pointerDown(inlineStageWrapper as HTMLDivElement, {
+        pointerId: 944,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 100,
+        clientY: 100,
+      });
+      fireEvent.pointerMove(inlineStageWrapper as HTMLDivElement, {
+        pointerId: 944,
+        pointerType: "mouse",
+        clientX: 132,
+        clientY: 114,
+      });
+      fireEvent.pointerUp(inlineStageWrapper as HTMLDivElement, {
+        pointerId: 944,
+        pointerType: "mouse",
+        clientX: 132,
+        clientY: 114,
+      });
+      fireEvent.keyUp(window, { code: "Space" });
+
+      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+        await Promise.resolve();
+      });
+
+      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
+      expect(exportSelectedLayerMaskBlobMock).toHaveBeenCalledTimes(1);
+
+      const flattenCalls = (
+        composePrimaryStageLayersToBlobMock as unknown as {
+          mock: {
+            calls: unknown[][];
+          };
+        }
+      ).mock.calls;
+      const flattenOptions = (flattenCalls.at(-1)?.[1] ?? null) as {
+        camera?: {
+          scale?: number;
+          offsetX?: number;
+          offsetY?: number;
+          viewportWidth?: number;
+          viewportHeight?: number;
+        };
+      } | null;
+      const maskExportArgs = (exportSelectedLayerMaskBlobMock.mock.calls[0]?.[0] ?? null) as {
+        camera?: {
+          scale?: number;
+          offsetX?: number;
+          offsetY?: number;
+          viewportWidth?: number;
+          viewportHeight?: number;
+        };
+      } | null;
+      expect(flattenOptions?.camera?.scale ?? 0).toBeGreaterThan(1);
+      expect(Math.abs(flattenOptions?.camera?.offsetX ?? 0)).toBeGreaterThan(20);
+      expect(Math.abs(flattenOptions?.camera?.offsetY ?? 0)).toBeGreaterThan(8);
+      expect(maskExportArgs?.camera?.scale ?? 0).toBeCloseTo(flattenOptions?.camera?.scale ?? 0, 4);
+      expect(maskExportArgs?.camera?.offsetX ?? 0).toBeCloseTo(
+        flattenOptions?.camera?.offsetX ?? 0,
+        4
+      );
+      expect(maskExportArgs?.camera?.offsetY ?? 0).toBeCloseTo(
+        flattenOptions?.camera?.offsetY ?? 0,
+        4
+      );
+      expect(maskExportArgs?.camera?.viewportWidth).toBe(flattenOptions?.camera?.viewportWidth);
+      expect(maskExportArgs?.camera?.viewportHeight).toBe(flattenOptions?.camera?.viewportHeight);
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
+  });
+
   it("blocks generate when Inpaint is selected without an inpaint mask", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]

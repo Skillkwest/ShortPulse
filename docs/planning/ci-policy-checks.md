@@ -174,6 +174,10 @@ Mode policy:
   - Trigger: `workflow_dispatch`
   - Concurrency group: `media-storage-deploy-gate-${{ github.event.inputs.target_environment }}`
   - Cancellation posture: no auto-cancel; environment-targeted gate runs serialize
+- `Reliability Control-Plane Diagnostics`
+  - Trigger: `workflow_dispatch`
+  - Concurrency group: `reliability-control-plane-diagnostics-${{ github.event.inputs.target_environment }}`
+  - Cancellation posture: no auto-cancel; environment-targeted diagnostics runs serialize
 - Merge-queue readiness posture:
   - `merge_group` is not enabled today and is not implied by current required-check policy.
   - If merge queue is adopted later, any required-check workflow must add `merge_group` in the same PR that changes repository merge policy.
@@ -273,6 +277,21 @@ Mode policy:
   - explicit operation + migration selection
   - operation-specific confirmation token format (`apply-<id>` / `rollback-<id>`)
   - SQL file existence checks before execution
+
+## Reliability control-plane diagnostics workflow
+
+- Workflow: `.github/workflows/reliability-control-plane-diagnostics.yml`
+- Trigger: `workflow_dispatch`
+- Job ID: `reliability_control_plane_diagnostics`
+- Secret source: GitHub Environment secret `SUPABASE_DB_URL` (`staging`/`production`)
+- Command: `./scripts/reliability_control_plane_diagnostics.sh`
+- SQL bundle:
+  - `sql/check_control_plane_scheduler_health.sql`
+  - `sql/check_pg_net_failure_taxonomy.sql`
+  - `sql/check_runtime_sql_security_audit.sql`
+  - `sql/check_generation_settlement_integrity.sql`
+- Modes: `warn` and `enforce` via dispatch input
+- Evidence: upload diagnostics artifact and link run URL in reliability evidence packet.
 
 ## Branch protection mapping
 

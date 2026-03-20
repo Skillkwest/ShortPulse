@@ -54,7 +54,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `STRIPE_WEBHOOK_SECRET`
   - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (optional override; default `300`)
 - CI/CD deploy gate:
-  - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`)
+  - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`, `.github/workflows/reliability-control-plane-diagnostics.yml`)
   - `SHORTPULSE_VERCEL_API_TOKEN` (required by `scripts/verify_deployment_route_parity.mjs`; fallback supports `VERCEL_API_TOKEN`)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`

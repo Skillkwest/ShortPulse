@@ -142,6 +142,11 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 7. Do not use Docker-based local Supabase commands in agent workflows.
 - Avoid `supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, and direct `docker` commands.
 
+8. Hosted-runner fallback is required when `SUPABASE_DB_URL` is unavailable in local shell context.
+- Use `.github/workflows/reliability-control-plane-diagnostics.yml` for read-only reliability diagnostics against `staging`/`production`.
+- Runner script authority: `scripts/reliability_control_plane_diagnostics.sh`.
+- Keep mode at `warn` for first-time environment validation; use `enforce` only after baseline reliability evidence is established.
+
 ## Standard Runbooks
 
 ### A) New environment bootstrap (minimum secure media stack)

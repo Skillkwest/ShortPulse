@@ -85,6 +85,29 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
    - recovery backlog by `recovery_state/status`
    - stale candidates (`>= 2h`) with request id + recovery state filters.
 
+### 1A) Hosted diagnostics fallback (GitHub Actions)
+Use this path when local `SUPABASE_DB_URL` is unavailable.
+
+1. Dispatch workflow:
+   ```bash
+   gh workflow run reliability-control-plane-diagnostics.yml \
+     -f target_environment=staging \
+     -f mode=warn
+   ```
+2. Track run:
+   ```bash
+   gh run list --workflow reliability-control-plane-diagnostics.yml --limit 5
+   ```
+3. Download artifacts:
+   ```bash
+   gh run download <run-id> --name reliability-control-plane-diagnostics-<run-id> --dir /tmp/reliability-diagnostics
+   ```
+4. Attach:
+   - run URL
+   - combined log
+   - per-SQL logs
+   to the active reliability evidence packet.
+
 ### 2) Scheduler/recovery drain loop
 1. Trigger `/api/internal/generation-recovery/run` repeatedly on normal cadence (recommended 1m).
 2. Monitor response metrics per pass:

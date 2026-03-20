@@ -197,6 +197,33 @@ const hasUsablePromptPayload = (response: AgentResponse | null): response is Age
   return applyPrompt.length > 0 || message.length > 0;
 };
 
+const buildFormatterRepairMessages = ({
+  formatterOutput,
+  semanticStatus,
+  semanticPrompt,
+}: {
+  formatterOutput: string;
+  semanticStatus: string;
+  semanticPrompt: string;
+}) => {
+  const repairSystemPrompt = [
+    "You repair malformed formatter output into strict JSON for a prompt compiler.",
+    "Return only valid JSON with keys: message (string) and optional actions.applyPrompt (string).",
+    "Do not include markdown or explanation text.",
+  ].join(" ");
+  const repairPayload = JSON.stringify({
+    instruction:
+      "Repair FORMATTER_OUTPUT into valid JSON while preserving prompt intent. If semantic status is refuse, keep refusal intent and omit applyPrompt.",
+    semantic_status: semanticStatus,
+    semantic_prompt_text: semanticPrompt,
+    formatter_output: formatterOutput,
+  });
+  return [
+    { role: "system", content: repairSystemPrompt },
+    { role: "user", content: repairPayload },
+  ];
+};
+
 /**
  * Runs thinker -> formatter calls and returns normalized parsed output.
  */
@@ -381,6 +408,43 @@ export const runThinkerFormatterTurn = async ({
     parsed = null;
   }
   if (!hasUsablePromptPayload(parsed)) {
+    const repairStage = await runStage({
+      stage: "formatter",
+      messages: buildFormatterRepairMessages({
+        formatterOutput: formatterRaw,
+        semanticStatus: semanticStatus ?? formatterSemantic.status,
+        semanticPrompt: extractSemanticPromptForRepair(semantic),
+      }),
+      stageModel: formatterStageModel,
+    });
+    if (repairStage.ok) {
+      const repairParsed = await safeParseStageJson({
+        response: repairStage.response,
+        stage: "formatter",
+      });
+      if (repairParsed.ok) {
+        const repairData = repairParsed.data;
+        const repairedRaw = extractCompletionText(extractFirstChoiceMessageContent(repairData));
+        let repaired: AgentResponse | null = null;
+        try {
+          repaired = parseAgentJson(repairedRaw);
+        } catch {
+          repaired = null;
+        }
+        if (hasUsablePromptPayload(repaired)) {
+          return {
+            ok: true,
+            result: {
+              parsed: repaired,
+              nextCanonical: repaired.actions?.applyPrompt ?? repaired.message ?? null,
+              semanticStatus: semanticStatus ?? formatterSemantic.status,
+              repairUsed: true,
+              usage: extractUsageTokens(repairData),
+            },
+          };
+        }
+      }
+    }
     const repaired = buildFormatterFallback({
       semanticStatus: semanticStatus ?? formatterSemantic.status,
       semanticPrompt: extractSemanticPromptForRepair(semantic),

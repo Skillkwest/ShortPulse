@@ -83,6 +83,13 @@ describe("runThinkerFormatterTurn", () => {
         json: async () => ({
           choices: [{ message: { content: [{ text: "plain formatter text" }] } }],
         }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "still malformed formatter repair output" } }],
+        }),
       });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -117,6 +124,13 @@ describe("runThinkerFormatterTurn", () => {
         status: 200,
         json: async () => ({
           choices: [{ message: { content: [{ text: "plain formatter text" }] } }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "still malformed formatter repair output" } }],
         }),
       });
     vi.stubGlobal("fetch", fetchMock);
@@ -301,5 +315,54 @@ describe("runThinkerFormatterTurn", () => {
       status: 502,
       detail: "bad formatter payload",
     });
+  });
+
+  it("repairs malformed formatter output before semantic fallback", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: '{"status":"ready","prompt_text":"first prompt"}' } }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "plain formatter text" } }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  '{"message":"repaired formatter prompt","actions":{"applyPrompt":"repaired formatter prompt"}}',
+              },
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThinkerFormatterTurn({
+      apiKey: "test-key",
+      openAiUrl: "https://example.com/v1/chat/completions",
+      model: "gpt-5-nano",
+      thinkerMessages: [{ role: "system", content: "think" }],
+      buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
+      parseAgentJson: (raw) => JSON.parse(raw),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.parsed.actions?.applyPrompt).toBe("repaired formatter prompt");
+    expect(result.result.repairUsed).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

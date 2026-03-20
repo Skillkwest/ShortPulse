@@ -35,6 +35,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
   });
 
   it("strips recap/meta tails from generated prompt output", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -83,6 +84,27 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         },
       }
     `);
+    const telemetryCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[generate-prompt][telemetry]"
+    );
+    const telemetryPayload = telemetryCall
+      ? (JSON.parse(String(telemetryCall[1])) as Record<string, unknown>)
+      : null;
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        decision: "allow",
+        outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
+        retryable: false,
+        policy_version: 1,
+        policy_schema_version: 2,
+        prompt_template_version: expect.stringMatching(/^ptv_[a-f0-9]{16}$/),
+        runtime_scope_key: expect.stringMatching(
+          /^route:generate-prompt\|prompt:ptv_[a-f0-9]{16}\|schema:2\|policy:1$/
+        ),
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("treats summary-only outputs as invalid", async () => {
@@ -322,6 +344,21 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         runtime_scope_key: expect.stringMatching(
           /^route:generate-prompt\|prompt:ptv_[a-f0-9]{16}\|schema:2\|policy:1$/
         ),
+      })
+    );
+    const telemetryCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[generate-prompt][telemetry]"
+    );
+    const telemetryPayload = telemetryCall
+      ? (JSON.parse(String(telemetryCall[1])) as Record<string, unknown>)
+      : null;
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        decision: "refuse",
+        outcome_class: "refusal_safety",
+        reason_code: "SAFETY_INPUT_REFUSAL",
+        retryable: false,
+        provider_blocked: true,
       })
     );
     infoSpy.mockRestore();

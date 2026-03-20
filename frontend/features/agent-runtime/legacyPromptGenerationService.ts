@@ -14,6 +14,7 @@ import {
   buildPromptCompilerCacheScopeKey,
   resolvePromptTemplateVersion,
 } from "./promptCompilerCacheScopeKey";
+import { emitAgentRouteOutcomeTelemetry } from "./agentRouteTelemetry";
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
@@ -75,6 +76,46 @@ export const executeLegacyPromptGeneration = async ({
   const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
   const safetyDevAbsoluteZeroEnabled =
     process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
+  const safetyTelemetryProfileId =
+    safetyProfile.profileId === "prod_safe_v1" ||
+    safetyProfile.profileId === "staging_lenient" ||
+    safetyProfile.profileId === "dev_absolute_zero"
+      ? safetyProfile.profileId
+      : null;
+  let promptTemplateVersion: string | null = null;
+  let runtimeScopeKey: string | null = null;
+  const emitPromptRouteTelemetry = ({
+    statusCode,
+    machineOutcome,
+    category,
+    decisionAction,
+    decisionSource,
+    providerBlocked,
+  }: {
+    statusCode: number;
+    machineOutcome: AgentMachineOutcomeFields;
+    category?: string | null;
+    decisionAction?: string | null;
+    decisionSource?: string | null;
+    providerBlocked?: boolean | null;
+  }) => {
+    emitAgentRouteOutcomeTelemetry({
+      telemetryTag: "generate-prompt",
+      routeLabel,
+      statusCode,
+      machineOutcome,
+      policyVersion: safetyProfile.policyVersion,
+      policySchemaVersion: safetyPolicyDocument.schemaVersion,
+      promptTemplateVersion,
+      runtimeScopeKey,
+      profileId: safetyTelemetryProfileId,
+      modality: "text",
+      category,
+      decisionAction,
+      decisionSource,
+      providerBlocked,
+    });
+  };
   if (!apiKey) {
     await logGenerationFailure({
       req,
@@ -85,14 +126,19 @@ export const executeLegacyPromptGeneration = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "CONFIG_MISSING",
+    });
+    emitPromptRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 500,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "route_error",
-          reasonCode: "CONFIG_MISSING",
-        }),
+        ...machineOutcome,
         error: "OPENAI_API_KEY is not set",
       },
     };
@@ -108,14 +154,19 @@ export const executeLegacyPromptGeneration = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "CONFIG_MISSING",
+    });
+    emitPromptRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 500,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "route_error",
-          reasonCode: "CONFIG_MISSING",
-        }),
+        ...machineOutcome,
         error: "OPENAI_PROMPT_SYSTEM is not set",
       },
     };
@@ -131,24 +182,29 @@ export const executeLegacyPromptGeneration = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "REQUEST_INVALID",
+    });
+    emitPromptRouteTelemetry({
+      statusCode: 400,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 400,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "route_error",
-          reasonCode: "REQUEST_INVALID",
-        }),
+        ...machineOutcome,
         error: "Prompt is required",
       },
     };
   }
-  const promptTemplateVersion = resolvePromptTemplateVersion({
+  promptTemplateVersion = resolvePromptTemplateVersion({
     route: "generate-prompt",
     prompts: [systemPrompt],
   });
   const safetyPolicySchemaVersion = safetyPolicyDocument.schemaVersion;
-  const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
+  runtimeScopeKey = buildPromptCompilerCacheScopeKey({
     route: "generate-prompt",
     promptTemplateVersion,
     policySchemaVersion: safetyPolicySchemaVersion,
@@ -193,15 +249,24 @@ export const executeLegacyPromptGeneration = async ({
         non_blocking_signal_count: precheckResult.scopeTelemetry.nonBlockingSignalCount,
       })
     );
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "refusal_safety",
+      reasonCode: "SAFETY_INPUT_REFUSAL",
+    });
+    emitPromptRouteTelemetry({
+      statusCode: 200,
+      machineOutcome,
+      category: precheckResult.decision?.category ?? null,
+      decisionAction: precheckResult.decision?.action ?? "refuse",
+      decisionSource: precheckResult.decision?.source ?? null,
+      providerBlocked: true,
+    });
     return {
       ok: true,
       payload: {
         prompt: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
         usage: {},
-        ...buildAgentMachineOutcome({
-          outcomeClass: "refusal_safety",
-          reasonCode: "SAFETY_INPUT_REFUSAL",
-        }),
+        ...machineOutcome,
       },
     };
   }
@@ -255,14 +320,19 @@ export const executeLegacyPromptGeneration = async ({
         userEmail: user.email ?? null,
         metadata: { detail },
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "upstream_error",
+        reasonCode: "UPSTREAM_ERROR",
+      });
+      emitPromptRouteTelemetry({
+        statusCode: response.status,
+        machineOutcome,
+      });
       return {
         ok: false,
         status: response.status,
         payload: {
-          ...buildAgentMachineOutcome({
-            outcomeClass: "upstream_error",
-            reasonCode: "UPSTREAM_ERROR",
-          }),
+          ...machineOutcome,
           error: "Upstream error",
           detail,
         },
@@ -284,19 +354,36 @@ export const executeLegacyPromptGeneration = async ({
         userId: user.id,
         userEmail: user.email ?? null,
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "upstream_error",
+        reasonCode: "UPSTREAM_ERROR",
+      });
+      emitPromptRouteTelemetry({
+        statusCode: 502,
+        machineOutcome,
+      });
       return {
         ok: false,
         status: 502,
         payload: {
-          ...buildAgentMachineOutcome({
-            outcomeClass: "upstream_error",
-            reasonCode: "UPSTREAM_ERROR",
-          }),
+          ...machineOutcome,
           error: "No prompt returned",
         },
       };
     }
 
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "success_prompt",
+      reasonCode: "SUCCESS_PROMPT",
+    });
+    emitPromptRouteTelemetry({
+      statusCode: 200,
+      machineOutcome,
+      category: precheckResult.decision?.category ?? null,
+      decisionAction: precheckResult.decision?.action ?? null,
+      decisionSource: precheckResult.decision?.source ?? null,
+      providerBlocked: false,
+    });
     return {
       ok: true,
       payload: {
@@ -305,10 +392,7 @@ export const executeLegacyPromptGeneration = async ({
           inputTokens: typeof promptTokens === "number" ? promptTokens : undefined,
           outputTokens: typeof completionTokens === "number" ? completionTokens : undefined,
         },
-        ...buildAgentMachineOutcome({
-          outcomeClass: "success_prompt",
-          reasonCode: "SUCCESS_PROMPT",
-        }),
+        ...machineOutcome,
       },
     };
   } catch (error) {
@@ -323,14 +407,19 @@ export const executeLegacyPromptGeneration = async ({
       userEmail: user.email ?? null,
       metadata: { detail: String(error) },
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "upstream_error",
+      reasonCode: "UPSTREAM_ERROR",
+    });
+    emitPromptRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 500,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "upstream_error",
-          reasonCode: "UPSTREAM_ERROR",
-        }),
+        ...machineOutcome,
         error: "Prompt generation failed",
         detail: String(error),
       },

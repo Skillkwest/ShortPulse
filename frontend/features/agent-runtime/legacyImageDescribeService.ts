@@ -16,6 +16,7 @@ import {
   buildPromptCompilerCacheScopeKey,
   resolvePromptTemplateVersion,
 } from "./promptCompilerCacheScopeKey";
+import { emitAgentRouteOutcomeTelemetry } from "./agentRouteTelemetry";
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import {
   resolveImagePreflightFailMode,
@@ -210,6 +211,46 @@ export const executeLegacyImageDescribe = async ({
     safetyProfileId === "dev_absolute_zero"
       ? safetyProfileId
       : null;
+  let promptTemplateVersion: string | null = null;
+  let runtimeScopeKey: string | null = null;
+  const emitDescribeRouteTelemetry = ({
+    statusCode,
+    machineOutcome,
+    category,
+    decisionAction,
+    decisionSource,
+    providerBlocked,
+    hardFloorViolation,
+    rollbackTriggered,
+  }: {
+    statusCode: number;
+    machineOutcome: AgentMachineOutcomeFields;
+    category?: SafetyCategoryId | null;
+    decisionAction?: "allow" | "rewrite" | "refuse" | null;
+    decisionSource?: "profile" | "hard_floor" | "absolute_zero" | null;
+    providerBlocked?: boolean | null;
+    hardFloorViolation?: boolean | null;
+    rollbackTriggered?: boolean | null;
+  }) => {
+    emitAgentRouteOutcomeTelemetry({
+      telemetryTag: "describe-image",
+      routeLabel,
+      statusCode,
+      machineOutcome,
+      policyVersion: safetyPolicyVersion,
+      policySchemaVersion: safetyPolicySchemaVersion,
+      promptTemplateVersion,
+      runtimeScopeKey,
+      profileId: safetyTelemetryProfileId,
+      modality: "image",
+      category: category ?? null,
+      decisionAction: decisionAction ?? null,
+      decisionSource: decisionSource ?? null,
+      providerBlocked: providerBlocked ?? null,
+      hardFloorViolation: hardFloorViolation ?? null,
+      rollbackTriggered: rollbackTriggered ?? null,
+    });
+  };
 
   if (!apiKey) {
     await logGenerationFailure({
@@ -221,14 +262,19 @@ export const executeLegacyImageDescribe = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "CONFIG_MISSING",
+    });
+    emitDescribeRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 500,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "route_error",
-          reasonCode: "CONFIG_MISSING",
-        }),
+        ...machineOutcome,
         error: "OPENAI_API_KEY is not set",
       },
     };
@@ -244,23 +290,28 @@ export const executeLegacyImageDescribe = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "CONFIG_MISSING",
+    });
+    emitDescribeRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 500,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "route_error",
-          reasonCode: "CONFIG_MISSING",
-        }),
+        ...machineOutcome,
         error: `${IMAGE_DESCRIBER_ID} is not set`,
       },
     };
   }
-  const promptTemplateVersion = resolvePromptTemplateVersion({
+  promptTemplateVersion = resolvePromptTemplateVersion({
     route: "describe-image",
     prompts: [systemPrompt],
   });
-  const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
+  runtimeScopeKey = buildPromptCompilerCacheScopeKey({
     route: "describe-image",
     promptTemplateVersion,
     policySchemaVersion: safetyPolicySchemaVersion,
@@ -277,14 +328,19 @@ export const executeLegacyImageDescribe = async ({
       userId: user.id,
       userEmail: user.email ?? null,
     });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "REQUEST_INVALID",
+    });
+    emitDescribeRouteTelemetry({
+      statusCode: 400,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 400,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "route_error",
-          reasonCode: "REQUEST_INVALID",
-        }),
+        ...machineOutcome,
         error: "imageUrl is required",
       },
     };
@@ -306,14 +362,19 @@ export const executeLegacyImageDescribe = async ({
           detail: imageProbe.detail,
         },
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "route_error",
+        reasonCode: "REQUEST_INVALID",
+      });
+      emitDescribeRouteTelemetry({
+        statusCode: imageProbe.statusCode,
+        machineOutcome,
+      });
       return {
         ok: false,
         status: imageProbe.statusCode,
         payload: {
-          ...buildAgentMachineOutcome({
-            outcomeClass: "route_error",
-            reasonCode: "REQUEST_INVALID",
-          }),
+          ...machineOutcome,
           error: imageProbe.message,
           detail: imageProbe.detail,
         },
@@ -356,15 +417,35 @@ export const executeLegacyImageDescribe = async ({
         hardFloorViolation: false,
         rollbackTriggered: false,
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "refusal_safety",
+        reasonCode: "SAFETY_INPUT_REFUSAL",
+      });
+      emitDescribeRouteTelemetry({
+        statusCode: 200,
+        machineOutcome,
+        category:
+          preflightResult.matchedFamily === "sexual"
+            ? "sexual_explicit"
+            : preflightResult.matchedFamily === "violence"
+              ? "violence_explicit"
+              : preflightResult.matchedFamily === "self_harm"
+                ? "self_harm_explicit"
+                : preflightResult.matchedFamily === "hate"
+                  ? "hate_explicit"
+                  : null,
+        decisionAction: preflightResult.matchedAction,
+        decisionSource: "profile",
+        providerBlocked: true,
+        hardFloorViolation: false,
+        rollbackTriggered: false,
+      });
       return {
         ok: true,
         payload: {
           description: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
           usage: {},
-          ...buildAgentMachineOutcome({
-            outcomeClass: "refusal_safety",
-            reasonCode: "SAFETY_INPUT_REFUSAL",
-          }),
+          ...machineOutcome,
         },
       };
     }
@@ -428,15 +509,26 @@ export const executeLegacyImageDescribe = async ({
           hardFloorViolation: false,
           rollbackTriggered: false,
         });
+        const machineOutcome = buildAgentMachineOutcome({
+          outcomeClass: "refusal_model",
+          reasonCode: "PROVIDER_SAFETY_REFUSAL",
+        });
+        emitDescribeRouteTelemetry({
+          statusCode: 200,
+          machineOutcome,
+          category: null,
+          decisionAction: "refuse",
+          decisionSource: null,
+          providerBlocked: true,
+          hardFloorViolation: false,
+          rollbackTriggered: false,
+        });
         return {
           ok: true,
           payload: {
             description: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
             usage: {},
-            ...buildAgentMachineOutcome({
-              outcomeClass: "refusal_model",
-              reasonCode: "PROVIDER_SAFETY_REFUSAL",
-            }),
+            ...machineOutcome,
           },
         };
       }
@@ -472,29 +564,39 @@ export const executeLegacyImageDescribe = async ({
           runtimeScopeKey,
           profileId: safetyTelemetryProfileId,
         });
+        const machineOutcome = buildAgentMachineOutcome({
+          outcomeClass: "fallback_infra",
+          reasonCode: resolveInfraFallbackReasonCode({
+            status: describeAttempt.status,
+            detail,
+          }),
+        });
+        emitDescribeRouteTelemetry({
+          statusCode: 200,
+          machineOutcome,
+        });
         return {
           ok: true,
           payload: {
             description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
             usage: {},
-            ...buildAgentMachineOutcome({
-              outcomeClass: "fallback_infra",
-              reasonCode: resolveInfraFallbackReasonCode({
-                status: describeAttempt.status,
-                detail,
-              }),
-            }),
+            ...machineOutcome,
           },
         };
       }
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "upstream_error",
+        reasonCode: "UPSTREAM_ERROR",
+      });
+      emitDescribeRouteTelemetry({
+        statusCode: describeAttempt.status,
+        machineOutcome,
+      });
       return {
         ok: false,
         status: describeAttempt.status,
         payload: {
-          ...buildAgentMachineOutcome({
-            outcomeClass: "upstream_error",
-            reasonCode: "UPSTREAM_ERROR",
-          }),
+          ...machineOutcome,
           error: "Upstream error",
           ...(providerError.detailForClient ? { detail: providerError.detailForClient } : {}),
           ...(describeAttempt.status < 500 && modelUsed ? { model: modelUsed } : {}),
@@ -540,15 +642,20 @@ export const executeLegacyImageDescribe = async ({
         runtimeScopeKey,
         profileId: safetyTelemetryProfileId,
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "fallback_infra",
+        reasonCode: "INFRA_FALLBACK_TRANSIENT",
+      });
+      emitDescribeRouteTelemetry({
+        statusCode: 200,
+        machineOutcome,
+      });
       return {
         ok: true,
         payload: {
           description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
           usage: {},
-          ...buildAgentMachineOutcome({
-            outcomeClass: "fallback_infra",
-            reasonCode: "INFRA_FALLBACK_TRANSIENT",
-          }),
+          ...machineOutcome,
         },
       };
     }
@@ -629,6 +736,16 @@ export const executeLegacyImageDescribe = async ({
             outcomeClass: "success_prompt",
             reasonCode: "SUCCESS_PROMPT",
           });
+    emitDescribeRouteTelemetry({
+      statusCode: 200,
+      machineOutcome: outputMachineOutcome,
+      category: safetyPostProcessResult.decision?.category ?? null,
+      decisionAction: safetyPostProcessResult.decision?.action ?? null,
+      decisionSource: safetyPostProcessResult.decision?.source ?? null,
+      providerBlocked: false,
+      hardFloorViolation: safetyPostProcessResult.decision?.hardFloorViolation ?? false,
+      rollbackTriggered,
+    });
 
     return {
       ok: true,
@@ -673,26 +790,36 @@ export const executeLegacyImageDescribe = async ({
         runtimeScopeKey,
         profileId: safetyTelemetryProfileId,
       });
+      const machineOutcome = buildAgentMachineOutcome({
+        outcomeClass: "fallback_infra",
+        reasonCode: resolveInfraFallbackReasonCode({ detail }),
+      });
+      emitDescribeRouteTelemetry({
+        statusCode: 200,
+        machineOutcome,
+      });
       return {
         ok: true,
         payload: {
           description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
           usage: {},
-          ...buildAgentMachineOutcome({
-            outcomeClass: "fallback_infra",
-            reasonCode: resolveInfraFallbackReasonCode({ detail }),
-          }),
+          ...machineOutcome,
         },
       };
     }
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "upstream_error",
+      reasonCode: "UPSTREAM_ERROR",
+    });
+    emitDescribeRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
     return {
       ok: false,
       status: 500,
       payload: {
-        ...buildAgentMachineOutcome({
-          outcomeClass: "upstream_error",
-          reasonCode: "UPSTREAM_ERROR",
-        }),
+        ...machineOutcome,
         error: "Image description failed",
       },
     };

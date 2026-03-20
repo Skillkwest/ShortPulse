@@ -192,6 +192,7 @@ describe("POST /api/ai/describe-image", () => {
 
   it("returns safe fallback description when transient upstream failures persist", async () => {
     const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -230,6 +231,23 @@ describe("POST /api/ai/describe-image", () => {
         statusCode: 503,
       })
     );
+    const telemetryCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[describe-image][telemetry]"
+    );
+    const telemetryPayload = telemetryCall
+      ? (JSON.parse(String(telemetryCall[1])) as Record<string, unknown>)
+      : null;
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        decision: "allow",
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        retryable: true,
+        policy_version: 1,
+        policy_schema_version: 2,
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("maps describe-image upstream safety failures to refusal success payload", async () => {
@@ -336,6 +354,21 @@ describe("POST /api/ai/describe-image", () => {
           /^route:describe-image\|prompt:ptv_[a-f0-9]{16}\|schema:2\|policy:1$/
         ),
         profile_id: "prod_safe_v1",
+      })
+    );
+    const telemetryCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[describe-image][telemetry]"
+    );
+    const telemetryPayload = telemetryCall
+      ? (JSON.parse(String(telemetryCall[1])) as Record<string, unknown>)
+      : null;
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        decision: "refuse",
+        outcome_class: "refusal_safety",
+        reason_code: "SAFETY_INPUT_REFUSAL",
+        retryable: false,
+        provider_blocked: true,
       })
     );
     infoSpy.mockRestore();

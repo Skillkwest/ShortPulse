@@ -75,6 +75,14 @@ Phase implementation is allowed when:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`
    - scope/enforcement parity, local+staging runtime truth, and comparative quality/refusal gates are complete.
    - production runtime-truth capture is deferred by owner directive for this phase and remains a follow-up item.
+3. Phase 3: Not Ready (entry audit 2026-03-20)
+   - dependency check:
+     - Phase 1 exit criteria: satisfied.
+     - Phase 2 exit criteria: satisfied (staging scope closeout).
+     - Staging runtime truth packet: satisfied.
+     - Master rows `M-07` through `M-14`: not yet satisfied (`M-07`, `M-10`, `M-11`, `M-12`, `M-13`, `M-14` pending; `M-08` complete; `M-09` waived).
+   - next gate actions:
+     - complete or explicitly waive pending `M-07` and `M-10`-`M-14` rows with linked evidence before Phase 3 implementation.
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:
@@ -106,3 +114,4 @@ Program closeout/signoff requires:
 2. Keep row status changes coupled with evidence links and commit SHA references.
 3. Avoid parallel policy/config experiments without explicit row-level signoff.
 4. Amendment record (2026-03-20): phase execution uses phase-specific entry gates plus referenced `M-*` rows; full program closeout still requires `M-01` through `M-15` plus `PX-01` through `PX-04`.
+5. Simulation usage policy (2026-03-20): run safety simulation matrix as a staging smoke gate at major checkpoints or policy/runtime-plumbing changes only; deterministic tests + golden fixtures remain primary regression gates.

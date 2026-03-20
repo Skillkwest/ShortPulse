@@ -55,6 +55,10 @@ Phase 3 implementation may begin when these gates are met:
 5. Observability contract:
    - Ensure outcome/reason/decision telemetry is complete for all in-scope routes.
    - Publish operations packet linking traces, thresholds, and runbook actions.
+6. Simulation gate policy:
+   - Treat safety simulation runs as staging smoke gates, not primary quality gates.
+   - Run matrix checks once per major checkpoint (or when policy/runtime plumbing changes).
+   - Keep deterministic tests and golden fixtures as the authoritative regression signal.
 
 ## Work Breakdown
 1. Precedence and cache governance:

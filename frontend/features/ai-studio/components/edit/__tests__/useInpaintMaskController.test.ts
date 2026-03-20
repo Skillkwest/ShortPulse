@@ -4,6 +4,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  applyLassoSelection,
+  INPAINT_LASSO_FILL_RULE,
   resolvePointerSampleEvents,
   shouldEndPointerSessionOnLeave,
   shouldRenderLassoPreview,
@@ -505,31 +507,26 @@ describe("useInpaintMaskController helpers", () => {
     ).toBe(points);
   });
 
-  it("keeps brush paint radius visually stable by compensating for stage zoom", () => {
+  it("keeps brush paint radius stable in mask space across viewport zoom changes", () => {
     const radiusAt100 = resolveInpaintBrushPaintRadius({
       strokeSize: 60,
-      sceneScale: 1,
     });
     const radiusAt200 = resolveInpaintBrushPaintRadius({
       strokeSize: 60,
-      sceneScale: 2,
     });
     const radiusAt50 = resolveInpaintBrushPaintRadius({
       strokeSize: 60,
-      sceneScale: 0.5,
     });
-    expect(radiusAt200).toBeCloseTo(radiusAt100 / 2, 4);
-    expect(radiusAt50).toBeCloseTo(radiusAt100 * 2, 4);
+    expect(radiusAt200).toBeCloseTo(radiusAt100, 4);
+    expect(radiusAt50).toBeCloseTo(radiusAt100, 4);
   });
 
   it("rescales brush paint radius for differing surface and mask sizes", () => {
     const baseRadius = resolveInpaintBrushPaintRadius({
       strokeSize: 60,
-      sceneScale: 1,
     });
     const scaledRadius = resolveInpaintBrushPaintRadius({
       strokeSize: 60,
-      sceneScale: 1,
       surfaceToMaskScale: resolveMaskSpaceScaleFromSurface({
         surfaceWidth: 800,
         surfaceHeight: 800,
@@ -538,6 +535,31 @@ describe("useInpaintMaskController helpers", () => {
       }),
     });
     expect(scaledRadius).toBeCloseTo(baseRadius * 0.5, 4);
+  });
+
+  it("fills committed lasso paths with explicit evenodd semantics", () => {
+    const fill = vi.fn();
+    const mockContext = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill,
+      globalCompositeOperation: "source-over",
+      fillStyle: "rgba(255,255,255,1)",
+    } as unknown as CanvasRenderingContext2D;
+    applyLassoSelection({
+      ctx: mockContext,
+      points: [
+        { x: 10, y: 10 },
+        { x: 40, y: 20 },
+        { x: 20, y: 40 },
+      ],
+      selectionMode: "select",
+    });
+    expect(fill).toHaveBeenCalledWith(INPAINT_LASSO_FILL_RULE);
   });
 
   it("keeps active pointer sessions alive on leave while capture is held", () => {

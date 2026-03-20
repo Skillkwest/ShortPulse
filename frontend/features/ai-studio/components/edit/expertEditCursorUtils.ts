@@ -11,11 +11,13 @@ const CURSOR_PADDING = 6;
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
-export const buildInpaintBrushReticleCursor = (strokeSize: number) => {
-  const diameter = Math.min(
+export const buildInpaintBrushReticleCursor = (strokeSize: number, sceneScale = 1) => {
+  const baseDiameter = Math.min(
     INPAINT_CURSOR_DIAMETER_MAX,
     Math.max(INPAINT_CURSOR_DIAMETER_MIN, resolveInpaintBrushDiameter(strokeSize))
   );
+  const safeScale = Number.isFinite(sceneScale) && sceneScale > 0 ? sceneScale : 1;
+  const diameter = Math.max(1, baseDiameter * safeScale);
   const canvasSize = diameter + CURSOR_PADDING * 2;
   const center = canvasSize / 2;
   const radius = diameter / 2;

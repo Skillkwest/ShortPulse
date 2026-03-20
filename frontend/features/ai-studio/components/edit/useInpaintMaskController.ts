@@ -93,6 +93,7 @@ type UseInpaintMaskControllerResult = {
 };
 
 const MASK_ANALYSIS_THROTTLE_MS = 90;
+export const INPAINT_LASSO_FILL_RULE: CanvasFillRule = "evenodd";
 
 export const areInpaintMaskSnapshotsEqual = (
   left: InpaintMaskSnapshot,
@@ -175,7 +176,7 @@ const drawBrushSegment = ({
   ctx.restore();
 };
 
-const applyLassoSelection = ({
+export const applyLassoSelection = ({
   ctx,
   points,
   selectionMode,
@@ -195,7 +196,7 @@ const applyLassoSelection = ({
     ctx.lineTo(point.x, point.y);
   }
   ctx.closePath();
-  ctx.fill();
+  ctx.fill(INPAINT_LASSO_FILL_RULE);
   ctx.restore();
 };
 
@@ -665,7 +666,6 @@ export const useInpaintMaskController = ({
         });
         const radius = resolveInpaintBrushPaintRadius({
           strokeSize,
-          sceneScale,
           surfaceToMaskScale,
         });
         drawBrushSegment({
@@ -754,7 +754,6 @@ export const useInpaintMaskController = ({
       });
       const radius = resolveInpaintBrushPaintRadius({
         strokeSize,
-        sceneScale,
         surfaceToMaskScale,
       });
       events.forEach((sampleEvent) => {

@@ -1413,6 +1413,7 @@ export function ExpertEditPanelView({
     };
   }, [selectedLayer]);
   const morePresetsSurfaceId = React.useId();
+  const shouldApplyMarkupViewport = true;
   const primaryDropzoneCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
       if (activeTransformDragMode === "rotate") {
@@ -1427,7 +1428,10 @@ export function ExpertEditPanelView({
       return "grab";
     }
     if (shouldShowInpaintBrushReticle) {
-      return buildInpaintBrushReticleCursor(inpaintStrokeSize);
+      return buildInpaintBrushReticleCursor(
+        inpaintStrokeSize,
+        shouldApplyMarkupViewport ? sceneZoomScale : 1
+      );
     }
     if (shouldShowInpaintLassoCursor) {
       return buildInpaintLassoCursor();
@@ -1443,9 +1447,11 @@ export function ExpertEditPanelView({
     isMoveToolSelected,
     resolvedMarkupStrokeSize,
     selectedLayerImageUrl,
+    shouldApplyMarkupViewport,
     shouldShowInpaintBrushReticle,
     shouldShowInpaintLassoCursor,
     shouldShowMarkupBrushReticle,
+    sceneZoomScale,
   ]);
   const primaryDropzoneAspectRatio = React.useMemo(() => {
     const parsedAspectRatio = parseAspectRatioToken(aspect);
@@ -1462,7 +1468,6 @@ export function ExpertEditPanelView({
     () => parseAspectRatioToken(aspect) ?? 1,
     [aspect]
   );
-  const shouldApplyMarkupViewport = true;
   const primaryStageWidthScale = React.useMemo(
     () => Math.max(primaryDropzoneAspectRatioValue, 0.0001),
     [primaryDropzoneAspectRatioValue]
@@ -2407,7 +2412,12 @@ export function ExpertEditPanelView({
   const handleInpaintStagePointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (shouldShowInpaintBrushReticle) {
-        lockGlobalCursor(buildInpaintBrushReticleCursor(inpaintStrokeSize));
+        lockGlobalCursor(
+          buildInpaintBrushReticleCursor(
+            inpaintStrokeSize,
+            shouldApplyMarkupViewport ? sceneZoomScale : 1
+          )
+        );
       }
       beginInpaintGestureHistory();
       handleInpaintPointerDown(event);
@@ -2417,6 +2427,8 @@ export function ExpertEditPanelView({
       handleInpaintPointerDown,
       inpaintStrokeSize,
       lockGlobalCursor,
+      sceneZoomScale,
+      shouldApplyMarkupViewport,
       shouldShowInpaintBrushReticle,
     ]
   );

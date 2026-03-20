@@ -224,18 +224,15 @@ export const resolveMaskSpaceScaleFromSurface = ({
 
 export const resolveInpaintBrushPaintRadius = ({
   strokeSize,
-  sceneScale,
   surfaceToMaskScale = 1,
 }: {
   strokeSize: number;
-  sceneScale: number;
   surfaceToMaskScale?: number;
 }) => {
   const diameter = resolveInpaintBrushDiameter(strokeSize);
-  const safeScale = Number.isFinite(sceneScale) && sceneScale > 0 ? sceneScale : 1;
   const safeSurfaceToMaskScale =
     Number.isFinite(surfaceToMaskScale) && surfaceToMaskScale > 0 ? surfaceToMaskScale : 1;
-  return (diameter / safeScale / 2) * safeSurfaceToMaskScale;
+  return (diameter / 2) * safeSurfaceToMaskScale;
 };
 
 export const resolveMaskInteractionPoint = ({

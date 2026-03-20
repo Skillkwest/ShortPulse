@@ -1500,7 +1500,7 @@
 }
 
 .edit-expert-primary-dropzone.is-transform-overlay-active {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .edit-expert-primary-dropzone:hover {

@@ -23,6 +23,8 @@ Central index for evidence artifacts supporting Expert Edit, including the coord
    - Phase 4 CP-402 progress packet covering inline/modal pointer lifecycle parity assertions for cancel/leave terminal paths.
 9. `2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md`
    - Phase 4 CP-403/CP-404 closeout packet for deterministic parity gate scripts and CI enforce-mode wiring (consolidates CP-401/CP-402 closure).
+10. `2026-03-20-cp501-canary-entry-and-rollback-contract.md`
+   - Phase 5 CP-501 entry packet defining canary gate criteria, stop/go thresholds, and rollback contract.
 
 ### Existing Expert Edit Artifacts
 1. `2026-03-04-model-capability-notes.md`

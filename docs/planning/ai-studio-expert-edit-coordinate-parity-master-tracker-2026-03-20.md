@@ -17,7 +17,7 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `P2` | Tool geometry parity | `PENDING` | Markup/inpaint placement parity under zoom/pan matrix |
 | `P3` | Mask and export camera parity | `DONE` | Submit export alignment parity contract locked with `CP-302` waiver acceptance |
 | `P4` | Regression harness and CI gates | `DONE` | Required tests and thresholds enforced in CI |
-| `P5` | Controlled rollout and closeout | `PENDING` | Canary evidence accepted, rollback posture verified |
+| `P5` | Controlled rollout and closeout | `IN_PROGRESS` | Canary evidence accepted, rollback posture verified |
 
 ## Workstream Tracker
 | ID | Phase | Workstream | Task | Owner | Status | Dependencies | Risk | Entry Criteria | Exit Criteria | Evidence | Notes |
@@ -47,7 +47,7 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `CP-402` | `P4` | Integration tests | Add inline/modal interaction parity tests | AI Studio FE + QA | `DONE` | `CP-401` | High | Unit tests green | Tool matrix integration tests green | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | Inline/modal pointer lifecycle parity assertions consolidated into deterministic parity gate command |
 | `CP-403` | `P4` | Visual parity | Add screenshot or pixel-diff drift guard suite | QA | `DONE` | `CP-402` | Medium | Integration tests green | Drift signatures locked in CI | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | Deterministic drift signatures covered by parity gate suite; browser audit path remains optional |
 | `CP-404` | `P4` | CI gate | Wire parity thresholds into required checks | AI Studio FE + DevEx | `DONE` | `CP-403` | Medium | Test suites stable | CI blocks threshold regressions | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp403-cp404-parity-gate-and-ci-enforcement.md` | Dedicated `expert_edit_coordinate_parity` CI job added with `warn|enforce` mode (default `enforce`) |
-| `CP-501` | `P5` | Rollout | Enable guarded canary rollout | AI Studio FE + Ops | `PENDING` | `CP-401`,`CP-402`,`CP-403`,`CP-404` | Medium | CI gates green | Canary metrics within thresholds | `TBD` | Maintain rollback flag posture |
+| `CP-501` | `P5` | Rollout | Enable guarded canary rollout | AI Studio FE + Ops | `IN_PROGRESS` | `CP-401`,`CP-402`,`CP-403`,`CP-404` | Medium | CI gates green | Canary metrics within thresholds | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp501-canary-entry-and-rollback-contract.md` | Canary entry gates and rollback contract locked; matrix evidence collection in progress |
 | `CP-502` | `P5` | Verification | Collect production parity evidence bundle | QA + Ops | `PENDING` | `CP-501` | Medium | Canary pass | Production evidence accepted | `TBD` | Required for closeout signoff |
 | `CP-503` | `P5` | Closeout | Final closeout packet and de-risk cleanup | AI Studio FE | `PENDING` | `CP-502` | Low | Production evidence accepted | Program marked complete | `TBD` | Remove temporary guardrails |
 
@@ -56,9 +56,9 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 2. Residual risk accepted by waiver: CP-302 browser-backed matrix and formal closeout evidence were explicitly skipped by user decision.
 
 ## Immediate Next Actions
-1. Begin Phase 5 rollout entry work (`CP-501`) using the new `expert_edit_coordinate_parity` CI gate as the baseline required check.
-2. Keep CP-004 and CP-302 waivers visible in evidence/release notes until P5 canary/production evidence supersedes residual risk.
-3. Prepare canary verification packet scaffolding for `CP-502`/`CP-503`.
+1. Execute and capture CP-501 canary matrix evidence against locked thresholds (`zoom/pan/mode/surface`).
+2. Keep CP-004 and CP-302 waivers visible in evidence/release notes until CP-502 production evidence supersedes residual risk.
+3. Prepare CP-502 production verification packet scaffold with the same metric contract as CP-501.
 
 ## Reference Docs
 1. `docs/planning/ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`

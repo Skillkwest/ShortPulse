@@ -87,15 +87,11 @@ Deliverables:
 
 ## Validation and Commands
 Minimum required commands:
-1. `npm -C frontend run docs:check`
-2. `npm -C frontend run test -- features/ai-studio/components/edit/__tests__/stageSceneGeometry.test.ts`
-3. `npm -C frontend run test -- features/ai-studio/components/edit/__tests__/markupStrokeController.test.ts`
-4. `npm -C frontend run test -- features/ai-studio/components/edit/__tests__/useInpaintMaskController.test.ts`
-5. `npm -C frontend run test -- features/ai-studio/logic/__tests__/expertEditStageFlatten.test.ts`
-6. `npm -C frontend run test -- features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`
-7. `npm -C frontend run type-check`
-8. `npm -C frontend run lint`
-9. `npm -C frontend run build`
+1. `npm -C frontend run test:expert-edit:coordinate-parity:gate`
+2. `npm -C frontend run docs:check`
+3. `npm -C frontend run type-check`
+4. `npm -C frontend run lint`
+5. `npm -C frontend run build`
 
 ## Exit Criteria
 1. `CP-501`, `CP-502`, and `CP-503` are all marked `DONE`.

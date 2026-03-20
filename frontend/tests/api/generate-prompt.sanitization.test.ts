@@ -28,6 +28,8 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     process.env.OPENAI_PROMPT_SYSTEM = "You are a prompt refiner.";
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
+    delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
+    delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATE_PROMPT;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -305,6 +307,42 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       retryable: false,
       usage: {},
     });
+  });
+
+  it("honors route-scoped field-mode override and bypasses explicit latest-turn refusal", async () => {
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATE_PROMPT =
+      '{"latest_user_turn":"off"}';
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "A dramatic portrait with neon rim lighting.",
+            },
+          },
+        ],
+        usage: { prompt_tokens: 12, completion_tokens: 8 },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "graphic sexual intercourse with explicit anatomy" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "allow",
+        outcome_class: "success_prompt",
+        prompt: "A dramatic portrait with neon rim lighting.",
+      })
+    );
   });
 
   it("allows rewrite-lane prompts that stay suggestive after deterministic rewrite", async () => {

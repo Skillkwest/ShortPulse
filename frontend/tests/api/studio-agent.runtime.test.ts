@@ -117,6 +117,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
+    delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
+    delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT;
 
     requireApiUserMock.mockImplementation(async () => {
       apiUserCounter += 1;
@@ -216,6 +218,47 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         safety_outcome: "refusal",
         provider_call_skipped: true,
         decision_action: "refuse",
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
+  it("honors scoped field-mode override to enforce history turns", async () => {
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT =
+      '{"history_user_turn":"enforce"}';
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-precheck-history-enforced",
+        messages: [
+          { role: "user", content: "graphic sexual intercourse with explicit anatomy" },
+          { role: "assistant", content: "acknowledged" },
+          { role: "user", content: "generate a landscape at dusk" },
+        ],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "refuse",
+        outcome_class: "refusal_safety",
+        reason_code: "SAFETY_INPUT_REFUSAL",
+      })
+    );
+    const precheckTelemetry = extractInputPrecheckTelemetryPayloads(infoSpy)[0];
+    expect(precheckTelemetry).toEqual(
+      expect.objectContaining({
+        safety_stage: "input_precheck",
+        safety_outcome: "refusal",
+        provider_call_skipped: true,
+        refusal_field: "history_user_turn",
       })
     );
     infoSpy.mockRestore();

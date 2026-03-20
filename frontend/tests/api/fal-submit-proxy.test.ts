@@ -34,6 +34,9 @@ describe("createFalSubmitHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-fal-key";
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED = "true";
+    delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
+    delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
@@ -145,6 +148,40 @@ describe("createFalSubmitHandler", () => {
       })
     );
     expect(charge.refund).not.toHaveBeenCalled();
+  });
+
+  it("honors generation-submit field-mode override and bypasses explicit latest-turn refusal", async () => {
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT =
+      '{"latest_user_turn":"off"}';
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ request_id: "req-explicit-allowed" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-pro",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana-pro" }],
+      routeLabel: "Fal Nano Banana Pro",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "graphic sexual intercourse with explicit anatomy" },
+      headers: {},
+      url: "/api/fal/nano-banana-pro-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: "req-explicit-allowed" })
+    );
   });
 
   it("keeps primary failure response when primary is non-404 and fallback also fails", async () => {

@@ -19,6 +19,10 @@ Out-of-scope:
 2. Provider migration or multi-provider routing expansion.
 3. New schema/database migrations outside approved master waivers.
 
+Scope amendment (2026-03-20):
+1. Active owner directive remains staging-only; production ring execution is deferred until directive changes.
+2. Phase 4 entry work may continue as documentation/readiness preparation only while the staging-only directive is active.
+
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`

@@ -20,6 +20,9 @@ Required packet contents:
 7. Phase 4 exit criteria pass/fail record.
 8. Master tracker row `PX-04` completion reference.
 
+Current packets:
+1. `2026-03-20-phase-4-entry-gate-status-staging-directive.md` (entry-gate readiness and blocker packet under the active staging-only directive).
+
 Template pack:
 1. `rollout-checklist-template.md`
 2. `ring-decision-log-template.md`

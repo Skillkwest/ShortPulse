@@ -22,3 +22,6 @@ Required packet contents:
 5. Validation command outputs (`lint`, `type-check`, `build`, `docs:check`, targeted tests).
 6. Phase 3 exit criteria pass/fail record.
 7. Master tracker row `PX-03` completion reference.
+
+Current packets:
+1. `2026-03-20-phase-3-runtime-scope-telemetry-parity-generate-describe.md` (runtime-scope telemetry parity slice for `generate-prompt` and `describe-image`).

@@ -299,6 +299,7 @@ describe("POST /api/ai/describe-image", () => {
 
   it("blocks describe-image before OpenAI vision when local preflight flags explicit URL signals", async () => {
     const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -320,6 +321,24 @@ describe("POST /api/ai/describe-image", () => {
         description: "I cannot describe this.",
       })
     );
+    const safetyCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[describe-image][safety]"
+    );
+    const safetyPayload = safetyCall
+      ? (JSON.parse(String(safetyCall[1])) as Record<string, unknown>)
+      : null;
+    expect(safetyPayload).toEqual(
+      expect.objectContaining({
+        policy_version: 1,
+        policy_schema_version: 2,
+        prompt_template_version: expect.stringMatching(/^ptv_[a-f0-9]{16}$/),
+        runtime_scope_key: expect.stringMatching(
+          /^route:describe-image\|prompt:ptv_[a-f0-9]{16}\|schema:2\|policy:1$/
+        ),
+        profile_id: "prod_safe_v1",
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("fails open in non-production when image preflight classifier is unavailable", async () => {

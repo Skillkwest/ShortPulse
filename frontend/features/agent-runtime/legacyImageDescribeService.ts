@@ -12,6 +12,10 @@ import {
 } from "../../lib/server/api/imageDescribeOpenAi";
 import { probeImageUrlForDescribe } from "../../lib/server/api/imageDescribeUrlGuard";
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
+import {
+  buildPromptCompilerCacheScopeKey,
+  resolvePromptTemplateVersion,
+} from "./promptCompilerCacheScopeKey";
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import {
   resolveImagePreflightFailMode,
@@ -43,6 +47,9 @@ const emitDescribeSafetyTelemetry = ({
   debugReason,
   debugEnabled,
   policyVersion,
+  policySchemaVersion,
+  promptTemplateVersion,
+  runtimeScopeKey,
   profileId,
   category,
   decisionAction,
@@ -57,6 +64,9 @@ const emitDescribeSafetyTelemetry = ({
   debugReason?: string;
   debugEnabled: boolean;
   policyVersion: number | null;
+  policySchemaVersion: number | null;
+  promptTemplateVersion: string;
+  runtimeScopeKey: string;
   profileId: "prod_safe_v1" | "staging_lenient" | "dev_absolute_zero" | null;
   category: SafetyCategoryId | null;
   decisionAction: "allow" | "rewrite" | "refuse" | null;
@@ -74,6 +84,9 @@ const emitDescribeSafetyTelemetry = ({
       safety_source: "describe_output",
       safety_fallback: fallbackUsed,
       policy_version: policyVersion,
+      policy_schema_version: policySchemaVersion,
+      prompt_template_version: promptTemplateVersion,
+      runtime_scope_key: runtimeScopeKey,
       profile_id: profileId,
       modality: "image",
       category,
@@ -91,10 +104,20 @@ const emitDescribeFallbackTelemetry = ({
   routeLabel,
   failureClass,
   detail,
+  policyVersion,
+  policySchemaVersion,
+  promptTemplateVersion,
+  runtimeScopeKey,
+  profileId,
 }: {
   routeLabel: string;
   failureClass: string;
   detail: string;
+  policyVersion: number | null;
+  policySchemaVersion: number | null;
+  promptTemplateVersion: string;
+  runtimeScopeKey: string;
+  profileId: "prod_safe_v1" | "staging_lenient" | "dev_absolute_zero" | null;
 }) => {
   console.info(
     "[describe-image][fallback]",
@@ -102,6 +125,11 @@ const emitDescribeFallbackTelemetry = ({
       route: routeLabel,
       failure_class: failureClass,
       detail,
+      policy_version: policyVersion,
+      policy_schema_version: policySchemaVersion,
+      prompt_template_version: promptTemplateVersion,
+      runtime_scope_key: runtimeScopeKey,
+      profile_id: profileId,
     })
   );
 };
@@ -175,6 +203,7 @@ export const executeLegacyImageDescribe = async ({
   );
   const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
   const safetyPolicyVersion = safetyProfile.policyVersion;
+  const safetyPolicySchemaVersion = safetyPolicyDocument.schemaVersion;
   const safetyTelemetryProfileId =
     safetyProfileId === "prod_safe_v1" ||
     safetyProfileId === "staging_lenient" ||
@@ -227,6 +256,16 @@ export const executeLegacyImageDescribe = async ({
       },
     };
   }
+  const promptTemplateVersion = resolvePromptTemplateVersion({
+    route: "describe-image",
+    prompts: [systemPrompt],
+  });
+  const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
+    route: "describe-image",
+    promptTemplateVersion,
+    policySchemaVersion: safetyPolicySchemaVersion,
+    controlPlanePolicyVersion: safetyPolicyVersion,
+  });
 
   if (typeof imageUrl !== "string" || !imageUrl.trim()) {
     await logGenerationFailure({
@@ -297,6 +336,9 @@ export const executeLegacyImageDescribe = async ({
           : `image_preflight_block_${preflightResult.matchedFamily ?? "unknown"}`,
         debugEnabled: safetyDebugEnabled,
         policyVersion: safetyPolicyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion,
+        promptTemplateVersion,
+        runtimeScopeKey,
         profileId: safetyTelemetryProfileId,
         category:
           preflightResult.matchedFamily === "sexual"
@@ -375,6 +417,9 @@ export const executeLegacyImageDescribe = async ({
           debugReason: "upstream_safety_refusal",
           debugEnabled: safetyDebugEnabled,
           policyVersion: safetyPolicyVersion,
+          policySchemaVersion: safetyPolicySchemaVersion,
+          promptTemplateVersion,
+          runtimeScopeKey,
           profileId: safetyTelemetryProfileId,
           category: null,
           decisionAction: "refuse",
@@ -421,6 +466,11 @@ export const executeLegacyImageDescribe = async ({
           routeLabel,
           failureClass: providerError.failureClass,
           detail,
+          policyVersion: safetyPolicyVersion,
+          policySchemaVersion: safetyPolicySchemaVersion,
+          promptTemplateVersion,
+          runtimeScopeKey,
+          profileId: safetyTelemetryProfileId,
         });
         return {
           ok: true,
@@ -484,6 +534,11 @@ export const executeLegacyImageDescribe = async ({
         routeLabel,
         failureClass: providerError.failureClass,
         detail: "No description returned",
+        policyVersion: safetyPolicyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion,
+        promptTemplateVersion,
+        runtimeScopeKey,
+        profileId: safetyTelemetryProfileId,
       });
       return {
         ok: true,
@@ -546,6 +601,9 @@ export const executeLegacyImageDescribe = async ({
       debugReason: safetyPostProcessResult.debugReason,
       debugEnabled: safetyDebugEnabled,
       policyVersion: safetyPolicyVersion,
+      policySchemaVersion: safetyPolicySchemaVersion,
+      promptTemplateVersion,
+      runtimeScopeKey,
       profileId: safetyTelemetryProfileId,
       category: safetyPostProcessResult.decision?.category ?? null,
       decisionAction: safetyPostProcessResult.decision?.action ?? null,
@@ -609,6 +667,11 @@ export const executeLegacyImageDescribe = async ({
         routeLabel,
         failureClass: providerError.failureClass,
         detail,
+        policyVersion: safetyPolicyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion,
+        promptTemplateVersion,
+        runtimeScopeKey,
+        profileId: safetyTelemetryProfileId,
       });
       return {
         ok: true,

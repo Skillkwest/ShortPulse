@@ -10,6 +10,10 @@ import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
   runStudioAgentSafetyInputPrecheck,
 } from "./studioAgentSafetyInputPrecheck";
+import {
+  buildPromptCompilerCacheScopeKey,
+  resolvePromptTemplateVersion,
+} from "./promptCompilerCacheScopeKey";
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
@@ -139,6 +143,17 @@ export const executeLegacyPromptGeneration = async ({
       },
     };
   }
+  const promptTemplateVersion = resolvePromptTemplateVersion({
+    route: "generate-prompt",
+    prompts: [systemPrompt],
+  });
+  const safetyPolicySchemaVersion = safetyPolicyDocument.schemaVersion;
+  const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
+    route: "generate-prompt",
+    promptTemplateVersion,
+    policySchemaVersion: safetyPolicySchemaVersion,
+    controlPlanePolicyVersion: safetyProfile.policyVersion,
+  });
   let providerPrompt = prompt;
   const precheckResult = runStudioAgentSafetyInputPrecheck({
     enabled: inputPrecheckEnabled,
@@ -166,6 +181,9 @@ export const executeLegacyPromptGeneration = async ({
         provider_call_skipped: true,
         profile_id: safetyProfile.profileId,
         policy_version: safetyProfile.policyVersion,
+        policy_schema_version: safetyPolicySchemaVersion,
+        prompt_template_version: promptTemplateVersion,
+        runtime_scope_key: runtimeScopeKey,
         modality: precheckResult.decision?.modality ?? "text",
         category: precheckResult.decision?.category ?? null,
         decision_action: precheckResult.decision?.action ?? "refuse",
@@ -199,6 +217,9 @@ export const executeLegacyPromptGeneration = async ({
         rewritten_field_count: precheckResult.rewrittenFieldCount,
         profile_id: safetyProfile.profileId,
         policy_version: safetyProfile.policyVersion,
+        policy_schema_version: safetyPolicySchemaVersion,
+        prompt_template_version: promptTemplateVersion,
+        runtime_scope_key: runtimeScopeKey,
         modality: precheckResult.decision?.modality ?? "text",
         category: precheckResult.decision?.category ?? null,
         decision_action: precheckResult.decision?.action ?? "rewrite",

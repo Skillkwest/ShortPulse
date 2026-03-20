@@ -289,6 +289,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
   });
 
   it("short-circuits explicit prompts before OpenAI call and returns refusal text payload", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     const req = {
       method: "POST",
       body: { prompt: "graphic sexual intercourse with explicit anatomy" },
@@ -307,6 +308,23 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       retryable: false,
       usage: {},
     });
+    const precheckCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[generate-prompt][safety-input-precheck]"
+    );
+    const precheckPayload = precheckCall
+      ? (JSON.parse(String(precheckCall[1])) as Record<string, unknown>)
+      : null;
+    expect(precheckPayload).toEqual(
+      expect.objectContaining({
+        policy_version: 1,
+        policy_schema_version: 2,
+        prompt_template_version: expect.stringMatching(/^ptv_[a-f0-9]{16}$/),
+        runtime_scope_key: expect.stringMatching(
+          /^route:generate-prompt\|prompt:ptv_[a-f0-9]{16}\|schema:2\|policy:1$/
+        ),
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("honors route-scoped field-mode override and bypasses explicit latest-turn refusal", async () => {
@@ -385,6 +403,11 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         category: "violence_suggestive",
         decision_action: "rewrite",
         decision_source: "profile",
+        policy_schema_version: 2,
+        prompt_template_version: expect.stringMatching(/^ptv_[a-f0-9]{16}$/),
+        runtime_scope_key: expect.stringMatching(
+          /^route:generate-prompt\|prompt:ptv_[a-f0-9]{16}\|schema:2\|policy:1$/
+        ),
       })
     );
     expect(res.json).toHaveBeenCalledWith(

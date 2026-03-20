@@ -20,6 +20,30 @@ import {
 
 export type StudioAgentSafetyInputPrecheckOutcome = "pass" | "rewritten" | "refusal";
 
+export type StudioAgentSafetyInputPrecheckField =
+  | "latest_user_turn"
+  | "history_user_turn"
+  | "active_prompt"
+  | "last_assistant_message"
+  | "reference_prompt_snippet"
+  | "reference_caption"
+  | "canonical_prompt";
+
+export type StudioAgentSafetyInputPrecheckFieldMode = "enforce" | "rewrite_only" | "shadow" | "off";
+
+const DEFAULT_SAFETY_INPUT_PRECHECK_FIELD_MODES: Record<
+  StudioAgentSafetyInputPrecheckField,
+  StudioAgentSafetyInputPrecheckFieldMode
+> = {
+  latest_user_turn: "enforce",
+  history_user_turn: "rewrite_only",
+  active_prompt: "rewrite_only",
+  last_assistant_message: "rewrite_only",
+  reference_prompt_snippet: "rewrite_only",
+  reference_caption: "rewrite_only",
+  canonical_prompt: "enforce",
+};
+
 export type StudioAgentSafetyInputPrecheckResult<TContext extends AgentContext = AgentContext> = {
   outcome: StudioAgentSafetyInputPrecheckOutcome;
   messages: AgentMessage[];
@@ -28,12 +52,24 @@ export type StudioAgentSafetyInputPrecheckResult<TContext extends AgentContext =
   rewrittenFieldCount: number;
   providerCallSkipped: boolean;
   decision?: StudioAgentSafetyDecisionMeta;
+  scopeTelemetry: {
+    refusalField: StudioAgentSafetyInputPrecheckField | null;
+    rewrittenFields: StudioAgentSafetyInputPrecheckField[];
+    nonBlockingSignalCount: number;
+    fieldModes: Record<
+      StudioAgentSafetyInputPrecheckField,
+      StudioAgentSafetyInputPrecheckFieldMode
+    >;
+  };
 };
 
 type MutablePrecheckState = {
   rewrittenFieldCount: number;
   outcome: StudioAgentSafetyInputPrecheckOutcome;
   dominantDecision?: StudioAgentSafetyDecisionMeta;
+  refusalField: StudioAgentSafetyInputPrecheckField | null;
+  rewrittenFieldNames: Set<StudioAgentSafetyInputPrecheckField>;
+  nonBlockingSignalCount: number;
 };
 
 const ACTION_PRIORITY: Record<StudioAgentSafetyDecisionMeta["action"], number> = {
@@ -64,8 +100,23 @@ const cloneContext = <TContext extends AgentContext>(context: TContext): TContex
       : context.references,
   }) as TContext;
 
+const buildScopeTelemetry = ({
+  state,
+  fieldModes,
+}: {
+  state: MutablePrecheckState;
+  fieldModes: Record<StudioAgentSafetyInputPrecheckField, StudioAgentSafetyInputPrecheckFieldMode>;
+}) => ({
+  refusalField: state.refusalField,
+  rewrittenFields: Array.from(state.rewrittenFieldNames),
+  nonBlockingSignalCount: state.nonBlockingSignalCount,
+  fieldModes,
+});
+
 const evaluateInputField = ({
   value,
+  field,
+  mode,
   modality,
   profileId,
   environment,
@@ -75,6 +126,8 @@ const evaluateInputField = ({
   state,
 }: {
   value: string;
+  field: StudioAgentSafetyInputPrecheckField;
+  mode: StudioAgentSafetyInputPrecheckFieldMode;
   modality: SafetyModality;
   profileId?: string | null;
   environment: SafetyEnvironment;
@@ -83,6 +136,10 @@ const evaluateInputField = ({
   rewriteRecheckMode: SafetyRewriteRecheckMode;
   state: MutablePrecheckState;
 }): { ok: true; value: string } | { ok: false } => {
+  if (mode === "off") {
+    return { ok: true, value };
+  }
+
   const initial = evaluateStudioAgentSafetyText({
     text: value,
     modality,
@@ -91,13 +148,21 @@ const evaluateInputField = ({
     devAbsoluteZeroEnabled,
     policyDocument,
   });
-  state.dominantDecision = mergeDominantDecision(state.dominantDecision, initial.decision);
+  const isEnforcedLane = mode === "enforce";
+  if (isEnforcedLane) {
+    state.dominantDecision = mergeDominantDecision(state.dominantDecision, initial.decision);
+  }
   if (initial.decision.action === "allow") {
     return { ok: true, value };
   }
-  if (initial.decision.action === "refuse") {
+  if (isEnforcedLane && initial.decision.action === "refuse") {
     state.outcome = "refusal";
+    state.refusalField = field;
     return { ok: false };
+  }
+  if (mode === "shadow") {
+    state.nonBlockingSignalCount += 1;
+    return { ok: true, value };
   }
 
   const rewritten = rewriteStudioAgentSafetyTextDeterministic(initial.normalizedText);
@@ -109,11 +174,14 @@ const evaluateInputField = ({
     devAbsoluteZeroEnabled,
     policyDocument,
   });
-  state.dominantDecision = mergeDominantDecision(
-    state.dominantDecision,
-    rewrittenEvaluation.decision
-  );
+  if (isEnforcedLane) {
+    state.dominantDecision = mergeDominantDecision(
+      state.dominantDecision,
+      rewrittenEvaluation.decision
+    );
+  }
   if (
+    isEnforcedLane &&
     shouldBlockAfterRewrite({
       mode: rewriteRecheckMode,
       action: rewrittenEvaluation.decision.action,
@@ -121,11 +189,14 @@ const evaluateInputField = ({
     })
   ) {
     state.outcome = "refusal";
+    state.refusalField = field;
     return { ok: false };
   }
+  state.nonBlockingSignalCount += 1;
   if (rewritten !== value) {
     state.rewrittenFieldCount += 1;
     state.outcome = "rewritten";
+    state.rewrittenFieldNames.add(field);
   }
   return { ok: true, value: rewritten };
 };
@@ -141,6 +212,7 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
   devAbsoluteZeroEnabled = false,
   policyDocument,
   rewriteRecheckMode = DEFAULT_SAFETY_REWRITE_RECHECK_MODE,
+  fieldModes,
 }: {
   enabled: boolean;
   messages: AgentMessage[];
@@ -152,8 +224,27 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
   devAbsoluteZeroEnabled?: boolean;
   policyDocument?: SafetyPolicyDocumentV2 | null;
   rewriteRecheckMode?: SafetyRewriteRecheckMode;
+  fieldModes?: Partial<
+    Record<StudioAgentSafetyInputPrecheckField, StudioAgentSafetyInputPrecheckFieldMode>
+  >;
 }): StudioAgentSafetyInputPrecheckResult<TContext> => {
+  const resolvedFieldModes: Record<
+    StudioAgentSafetyInputPrecheckField,
+    StudioAgentSafetyInputPrecheckFieldMode
+  > = {
+    ...DEFAULT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+    ...(fieldModes ?? {}),
+  };
+
   if (!enabled) {
+    const disabledState: MutablePrecheckState = {
+      rewrittenFieldCount: 0,
+      outcome: "pass",
+      dominantDecision: undefined,
+      refusalField: null,
+      rewrittenFieldNames: new Set<StudioAgentSafetyInputPrecheckField>(),
+      nonBlockingSignalCount: 0,
+    };
     return {
       outcome: "pass",
       messages,
@@ -161,6 +252,10 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
       canonicalPrompt,
       rewrittenFieldCount: 0,
       providerCallSkipped: false,
+      scopeTelemetry: buildScopeTelemetry({
+        state: disabledState,
+        fieldModes: resolvedFieldModes,
+      }),
     };
   }
 
@@ -171,12 +266,25 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
     rewrittenFieldCount: 0,
     outcome: "pass",
     dominantDecision: undefined,
+    refusalField: null,
+    rewrittenFieldNames: new Set<StudioAgentSafetyInputPrecheckField>(),
+    nonBlockingSignalCount: 0,
   };
 
-  for (const message of nextMessages) {
-    if (message.role !== "user") continue;
+  let latestUserMessageIndex = -1;
+  for (let index = 0; index < nextMessages.length; index += 1) {
+    if (nextMessages[index]?.role === "user") latestUserMessageIndex = index;
+  }
+
+  for (let index = 0; index < nextMessages.length; index += 1) {
+    const message = nextMessages[index];
+    if (!message || message.role !== "user") continue;
+    const field: StudioAgentSafetyInputPrecheckField =
+      index === latestUserMessageIndex ? "latest_user_turn" : "history_user_turn";
     const checked = evaluateInputField({
       value: message.content,
+      field,
+      mode: resolvedFieldModes[field],
       modality,
       profileId,
       environment,
@@ -194,6 +302,10 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
         rewrittenFieldCount: state.rewrittenFieldCount,
         providerCallSkipped: true,
         decision: state.dominantDecision,
+        scopeTelemetry: buildScopeTelemetry({
+          state,
+          fieldModes: resolvedFieldModes,
+        }),
       };
     }
     message.content = checked.value;
@@ -202,6 +314,8 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
   if (typeof nextContext.activePrompt === "string" && nextContext.activePrompt.trim().length) {
     const checked = evaluateInputField({
       value: nextContext.activePrompt,
+      field: "active_prompt",
+      mode: resolvedFieldModes.active_prompt,
       modality,
       profileId,
       environment,
@@ -219,6 +333,10 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
         rewrittenFieldCount: state.rewrittenFieldCount,
         providerCallSkipped: true,
         decision: state.dominantDecision,
+        scopeTelemetry: buildScopeTelemetry({
+          state,
+          fieldModes: resolvedFieldModes,
+        }),
       };
     }
     nextContext.activePrompt = checked.value;
@@ -230,6 +348,8 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
   ) {
     const checked = evaluateInputField({
       value: nextContext.lastAssistantMessage,
+      field: "last_assistant_message",
+      mode: resolvedFieldModes.last_assistant_message,
       modality,
       profileId,
       environment,
@@ -247,6 +367,10 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
         rewrittenFieldCount: state.rewrittenFieldCount,
         providerCallSkipped: true,
         decision: state.dominantDecision,
+        scopeTelemetry: buildScopeTelemetry({
+          state,
+          fieldModes: resolvedFieldModes,
+        }),
       };
     }
     nextContext.lastAssistantMessage = checked.value;
@@ -257,6 +381,8 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
       if (typeof reference.promptSnippet === "string" && reference.promptSnippet.trim().length) {
         const checked = evaluateInputField({
           value: reference.promptSnippet,
+          field: "reference_prompt_snippet",
+          mode: resolvedFieldModes.reference_prompt_snippet,
           modality,
           profileId,
           environment,
@@ -274,6 +400,10 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
             rewrittenFieldCount: state.rewrittenFieldCount,
             providerCallSkipped: true,
             decision: state.dominantDecision,
+            scopeTelemetry: buildScopeTelemetry({
+              state,
+              fieldModes: resolvedFieldModes,
+            }),
           };
         }
         reference.promptSnippet = checked.value;
@@ -281,6 +411,8 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
       if (typeof reference.caption === "string" && reference.caption.trim().length) {
         const checked = evaluateInputField({
           value: reference.caption,
+          field: "reference_caption",
+          mode: resolvedFieldModes.reference_caption,
           modality,
           profileId,
           environment,
@@ -298,6 +430,10 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
             rewrittenFieldCount: state.rewrittenFieldCount,
             providerCallSkipped: true,
             decision: state.dominantDecision,
+            scopeTelemetry: buildScopeTelemetry({
+              state,
+              fieldModes: resolvedFieldModes,
+            }),
           };
         }
         reference.caption = checked.value;
@@ -308,6 +444,8 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
   if (typeof nextCanonicalPrompt === "string" && nextCanonicalPrompt.trim().length) {
     const checked = evaluateInputField({
       value: nextCanonicalPrompt,
+      field: "canonical_prompt",
+      mode: resolvedFieldModes.canonical_prompt,
       modality,
       profileId,
       environment,
@@ -325,6 +463,10 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
         rewrittenFieldCount: state.rewrittenFieldCount,
         providerCallSkipped: true,
         decision: state.dominantDecision,
+        scopeTelemetry: buildScopeTelemetry({
+          state,
+          fieldModes: resolvedFieldModes,
+        }),
       };
     }
     nextCanonicalPrompt = checked.value;
@@ -338,5 +480,9 @@ export const runStudioAgentSafetyInputPrecheck = <TContext extends AgentContext>
     rewrittenFieldCount: state.rewrittenFieldCount,
     providerCallSkipped: false,
     decision: state.dominantDecision,
+    scopeTelemetry: buildScopeTelemetry({
+      state,
+      fieldModes: resolvedFieldModes,
+    }),
   };
 };

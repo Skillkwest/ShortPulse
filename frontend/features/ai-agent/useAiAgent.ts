@@ -190,6 +190,7 @@ export const useAiAgent = ({
           profileId: resolveClientSafetyProfileId(),
           environment: resolveSafetyEnvironment(process.env.NODE_ENV),
           devAbsoluteZeroEnabled: isClientDevAbsoluteZeroEnabled(),
+          rewriteRecheckMode: "allow_or_rewrite",
         });
         if (inputPrecheckResult.outcome === "refusal") {
           const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {

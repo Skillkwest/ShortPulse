@@ -227,6 +227,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       decisionAction: precheckResult.decision?.action ?? null,
       decisionSource: precheckResult.decision?.source ?? null,
       hardFloorViolation: precheckResult.decision?.hardFloorViolation ?? false,
+      refusalField: precheckResult.scopeTelemetry.refusalField,
+      rewrittenFields: precheckResult.scopeTelemetry.rewrittenFields,
+      nonBlockingSignalCount: precheckResult.scopeTelemetry.nonBlockingSignalCount,
     });
   }
   if (precheckResult.outcome === "refusal") {

@@ -163,6 +163,9 @@ export const executeLegacyPromptGeneration = async ({
         category: precheckResult.decision?.category ?? null,
         decision_action: precheckResult.decision?.action ?? "refuse",
         decision_source: precheckResult.decision?.source ?? null,
+        refusal_field: precheckResult.scopeTelemetry.refusalField,
+        rewritten_fields: precheckResult.scopeTelemetry.rewrittenFields,
+        non_blocking_signal_count: precheckResult.scopeTelemetry.nonBlockingSignalCount,
       })
     );
     return {
@@ -193,6 +196,9 @@ export const executeLegacyPromptGeneration = async ({
         category: precheckResult.decision?.category ?? null,
         decision_action: precheckResult.decision?.action ?? "rewrite",
         decision_source: precheckResult.decision?.source ?? null,
+        refusal_field: precheckResult.scopeTelemetry.refusalField,
+        rewritten_fields: precheckResult.scopeTelemetry.rewrittenFields,
+        non_blocking_signal_count: precheckResult.scopeTelemetry.nonBlockingSignalCount,
       })
     );
   }

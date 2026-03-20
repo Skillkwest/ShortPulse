@@ -19,6 +19,8 @@ describe("studioAgentSafetyInputPrecheck", () => {
     expect(result.providerCallSkipped).toBe(false);
     expect(result.rewrittenFieldCount).toBe(0);
     expect(result.messages[0]?.content).toBe("Generate a portrait in studio light.");
+    expect(result.scopeTelemetry.refusalField).toBeNull();
+    expect(result.scopeTelemetry.nonBlockingSignalCount).toBe(0);
   });
 
   it("rewrites suggestive input and keeps provider call enabled", () => {
@@ -67,6 +69,44 @@ describe("studioAgentSafetyInputPrecheck", () => {
     expect(result.outcome).toBe("refusal");
     expect(result.providerCallSkipped).toBe(true);
     expect(result.decision?.action).toBe("refuse");
+    expect(result.scopeTelemetry.refusalField).toBe("latest_user_turn");
+  });
+
+  it("does not block on explicit history turns and rewrites them in non-blocking mode", () => {
+    const result = runStudioAgentSafetyInputPrecheck({
+      enabled: true,
+      messages: [
+        { role: "user", content: "graphic sexual intercourse with explicit anatomy" },
+        { role: "assistant", content: "acknowledged" },
+        { role: "user", content: "generate a landscape at dusk" },
+      ],
+      context: {},
+      canonicalPrompt: null,
+      modality: "text",
+      environment: "production",
+      profileId: "prod_safe_v1",
+    });
+
+    expect(result.outcome === "pass" || result.outcome === "rewritten").toBe(true);
+    expect(result.providerCallSkipped).toBe(false);
+    expect(result.scopeTelemetry.refusalField).toBeNull();
+    expect(result.scopeTelemetry.nonBlockingSignalCount).toBeGreaterThan(0);
+  });
+
+  it("refuses when canonical prompt is explicit even if latest turn is safe", () => {
+    const result = runStudioAgentSafetyInputPrecheck({
+      enabled: true,
+      messages: [{ role: "user", content: "generate a landscape at dusk" }],
+      context: {},
+      canonicalPrompt: "graphic sexual intercourse with explicit anatomy",
+      modality: "text",
+      environment: "production",
+      profileId: "prod_safe_v1",
+    });
+
+    expect(result.outcome).toBe("refusal");
+    expect(result.providerCallSkipped).toBe(true);
+    expect(result.scopeTelemetry.refusalField).toBe("canonical_prompt");
   });
 
   it("bypasses processing when feature is disabled", () => {

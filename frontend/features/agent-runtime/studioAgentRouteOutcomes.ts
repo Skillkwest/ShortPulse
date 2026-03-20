@@ -1,5 +1,6 @@
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
 import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import type { StudioAgentSafetyInputPrecheckField } from "./studioAgentSafetyInputPrecheck";
 import type {
   SafetyCategoryId,
   SafetyModality,
@@ -113,6 +114,9 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
   decisionAction,
   decisionSource,
   hardFloorViolation,
+  refusalField,
+  rewrittenFields,
+  nonBlockingSignalCount,
 }: {
   flow: string;
   outcome: "pass" | "rewritten" | "refusal";
@@ -125,6 +129,9 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
   decisionAction: SafetyPolicyAction | null;
   decisionSource: StudioAgentSafetyDecisionSource | null;
   hardFloorViolation: boolean;
+  refusalField?: StudioAgentSafetyInputPrecheckField | null;
+  rewrittenFields?: StudioAgentSafetyInputPrecheckField[];
+  nonBlockingSignalCount?: number;
 }) => {
   console.info(
     "[studio-agent][safety-input-precheck]",
@@ -141,6 +148,10 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
       decision_action: decisionAction,
       decision_source: decisionSource,
       hard_floor_violation: hardFloorViolation,
+      refusal_field: refusalField ?? null,
+      rewritten_fields: Array.isArray(rewrittenFields) ? rewrittenFields : [],
+      non_blocking_signal_count:
+        typeof nonBlockingSignalCount === "number" ? nonBlockingSignalCount : 0,
     })
   );
 };

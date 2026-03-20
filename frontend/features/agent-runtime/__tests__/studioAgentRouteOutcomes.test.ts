@@ -3,6 +3,7 @@ import {
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
+  emitStudioAgentInputPrecheckTelemetry,
   emitStudioAgentTurnTelemetry,
   isStudioAgentSafetyRefusalUpstreamError,
   resolvePolicyVersionFromProfileId,
@@ -53,6 +54,41 @@ describe("studioAgentRouteOutcomes", () => {
     expect(resolvePolicyVersionFromProfileId("staging_lenient")).toBeNull();
     expect(resolvePolicyVersionFromProfileId("")).toBeNull();
     expect(resolvePolicyVersionFromProfileId(null)).toBeNull();
+  });
+
+  it("emits input precheck telemetry with scope metadata", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    emitStudioAgentInputPrecheckTelemetry({
+      flow: "TEXT_ONLY",
+      outcome: "rewritten",
+      rewrittenFieldCount: 2,
+      providerCallSkipped: false,
+      policyVersion: 1,
+      profileId: "prod_safe_v1",
+      modality: "text",
+      category: "sexual_suggestive",
+      decisionAction: "rewrite",
+      decisionSource: "profile",
+      hardFloorViolation: false,
+      refusalField: null,
+      rewrittenFields: ["history_user_turn", "reference_caption"],
+      nonBlockingSignalCount: 3,
+    });
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(infoSpy.mock.calls[0]?.[1] ?? "{}")) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        rewritten_field_count: 2,
+        provider_call_skipped: false,
+        refusal_field: null,
+        rewritten_fields: ["history_user_turn", "reference_caption"],
+        non_blocking_signal_count: 3,
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("builds upstream error payloads with optional stage", () => {

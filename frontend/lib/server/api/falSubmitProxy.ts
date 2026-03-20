@@ -201,6 +201,9 @@ export const createFalSubmitHandler = ({
           profile_id: safetyProfile.profileId,
           category: promptPrecheck.decision?.category ?? null,
           decision_action: promptPrecheck.decision?.action ?? "refuse",
+          refusal_field: promptPrecheck.scopeTelemetry.refusalField,
+          rewritten_fields: promptPrecheck.scopeTelemetry.rewrittenFields,
+          non_blocking_signal_count: promptPrecheck.scopeTelemetry.nonBlockingSignalCount,
         },
       });
       return res.status(422).json({
@@ -280,6 +283,9 @@ export const createFalSubmitHandler = ({
           profile_id: safetyProfile.profileId,
           category: promptPrecheck.decision?.category ?? null,
           decision_action: promptPrecheck.decision?.action ?? null,
+          refusal_field: promptPrecheck.scopeTelemetry.refusalField,
+          rewritten_fields: promptPrecheck.scopeTelemetry.rewrittenFields,
+          non_blocking_signal_count: promptPrecheck.scopeTelemetry.nonBlockingSignalCount,
           generation_safety_level: safetyEnforcement.enforcedLevel,
         })
       );

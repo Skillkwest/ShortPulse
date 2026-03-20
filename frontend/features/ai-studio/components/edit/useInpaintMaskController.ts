@@ -4,17 +4,15 @@
  */
 import React from "react";
 import {
+  resolveContainSizeForStage,
   resolveStageFlattenCameraTransform,
   type StageFlattenCameraTransformInput,
 } from "../../logic/expertEditStageFlatten";
-import { mapPixelRectBetweenSpacesViaScene } from "./stageSceneGeometry";
+import { resolveSceneMappedDrawRect } from "./stageSceneGeometry";
 import {
-  resolveImageRectForContain,
   resolveInpaintBrushPaintRadius,
-  resolveMaskExportSourceWindow,
   resolveMaskInteractionPoint,
   resolveMaskSpaceScaleFromSurface,
-  type InpaintImageRect,
   type InpaintPoint,
 } from "./inpaintMaskGeometry";
 import {
@@ -141,6 +139,28 @@ const createMaskCanvas = (width: number, height: number) => {
   canvas.width = Math.max(1, Math.round(width));
   canvas.height = Math.max(1, Math.round(height));
   return canvas;
+};
+
+const remapMaskCanvasToSize = ({
+  source,
+  target,
+}: {
+  source: HTMLCanvasElement;
+  target: HTMLCanvasElement;
+}) => {
+  if (source.width <= 0 || source.height <= 0 || target.width <= 0 || target.height <= 0) {
+    return;
+  }
+  const targetCtx = target.getContext("2d");
+  if (!targetCtx) return;
+  targetCtx.clearRect(0, 0, target.width, target.height);
+  const drawRect = resolveSceneMappedDrawRect({
+    sourceWidth: source.width,
+    sourceHeight: source.height,
+    targetWidth: target.width,
+    targetHeight: target.height,
+  });
+  targetCtx.drawImage(source, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
 };
 
 const drawBrushSegment = ({
@@ -280,35 +300,36 @@ export const useInpaintMaskController = ({
     [shouldApplyViewportTransform, viewportOffsetXRatio, viewportOffsetYRatio]
   );
 
-  const imageRect = React.useMemo(() => {
-    if (!dropzoneSize.width || !dropzoneSize.height) return null;
-    if (!selectedImageNaturalSize) {
-      return {
-        x: 0,
-        y: 0,
-        width: dropzoneSize.width,
-        height: dropzoneSize.height,
-      } satisfies InpaintImageRect;
-    }
-    return resolveImageRectForContain(
-      dropzoneSize.width,
-      dropzoneSize.height,
-      selectedImageNaturalSize.width,
-      selectedImageNaturalSize.height
-    );
-  }, [dropzoneSize.height, dropzoneSize.width, selectedImageNaturalSize]);
-
   const ensureMaskCanvasForLayer = React.useCallback(
     (layerId: string) => {
+      const isSelectedLayer = selectedLayerId === layerId;
+      const targetWidth =
+        isSelectedLayer && selectedImageNaturalSize
+          ? Math.max(1, Math.round(selectedImageNaturalSize.width))
+          : Math.max(1, Math.round(dropzoneSize.width));
+      const targetHeight =
+        isSelectedLayer && selectedImageNaturalSize
+          ? Math.max(1, Math.round(selectedImageNaturalSize.height))
+          : Math.max(1, Math.round(dropzoneSize.height));
       const existing = maskCanvasesRef.current.get(layerId);
       if (existing) {
-        return existing;
+        if (existing.width === targetWidth && existing.height === targetHeight) {
+          return existing;
+        }
+        const resized = createMaskCanvas(targetWidth, targetHeight);
+        remapMaskCanvasToSize({
+          source: existing,
+          target: resized,
+        });
+        maskCanvasesRef.current.set(layerId, resized);
+        maskMetaRef.current.delete(layerId);
+        return resized;
       }
-      const canvas = createMaskCanvas(dropzoneSize.width, dropzoneSize.height);
+      const canvas = createMaskCanvas(targetWidth, targetHeight);
       maskCanvasesRef.current.set(layerId, canvas);
       return canvas;
     },
-    [dropzoneSize.height, dropzoneSize.width]
+    [dropzoneSize.height, dropzoneSize.width, selectedImageNaturalSize, selectedLayerId]
   );
 
   const renderOverlay = React.useCallback(
@@ -421,6 +442,12 @@ export const useInpaintMaskController = ({
     [analyzeLayerMask]
   );
 
+  React.useEffect(() => {
+    if (!selectedLayerId) return;
+    ensureMaskCanvasForLayer(selectedLayerId);
+    queueLayerAnalysis(selectedLayerId, true);
+  }, [ensureMaskCanvasForLayer, queueLayerAnalysis, selectedImageNaturalSize, selectedLayerId]);
+
   const captureMaskSnapshot = React.useCallback((): InpaintMaskSnapshot => {
     const layers: InpaintMaskLayerSnapshot[] = [];
     maskCanvasesRef.current.forEach((canvas, layerId) => {
@@ -453,12 +480,12 @@ export const useInpaintMaskController = ({
   const restoreMaskSnapshot = React.useCallback(
     (snapshot: InpaintMaskSnapshot) => {
       const activeLayerIds = new Set(layerSources.map((source) => source.id));
-      const fallbackWidth = Math.max(1, Math.round(dropzoneSize.width));
-      const fallbackHeight = Math.max(1, Math.round(dropzoneSize.height));
       const nextCanvases = new Map<string, HTMLCanvasElement>();
 
       layerSources.forEach((source) => {
-        nextCanvases.set(source.id, createMaskCanvas(fallbackWidth, fallbackHeight));
+        const sourceCanvas = ensureMaskCanvasForLayer(source.id);
+        const seedCanvas = createMaskCanvas(sourceCanvas.width, sourceCanvas.height);
+        nextCanvases.set(source.id, seedCanvas);
       });
 
       snapshot.layers.forEach((layerSnapshot) => {
@@ -496,8 +523,7 @@ export const useInpaintMaskController = ({
     },
     [
       animateOverlay,
-      dropzoneSize.height,
-      dropzoneSize.width,
+      ensureMaskCanvasForLayer,
       layerSources,
       queueLayerAnalysis,
       renderOverlayNow,
@@ -506,24 +532,17 @@ export const useInpaintMaskController = ({
   );
 
   const clearAllMasks = React.useCallback(() => {
-    const fallbackWidth = Math.max(1, Math.round(dropzoneSize.width));
-    const fallbackHeight = Math.max(1, Math.round(dropzoneSize.height));
     const nextCanvases = new Map<string, HTMLCanvasElement>();
     layerSources.forEach((source) => {
-      nextCanvases.set(source.id, createMaskCanvas(fallbackWidth, fallbackHeight));
+      const sourceCanvas = ensureMaskCanvasForLayer(source.id);
+      nextCanvases.set(source.id, createMaskCanvas(sourceCanvas.width, sourceCanvas.height));
     });
     maskCanvasesRef.current = nextCanvases;
     maskMetaRef.current.clear();
     setHasSelectedLayerMask(false);
     stopOverlayAnimation();
     renderOverlayNow();
-  }, [
-    dropzoneSize.height,
-    dropzoneSize.width,
-    layerSources,
-    renderOverlayNow,
-    stopOverlayAnimation,
-  ]);
+  }, [ensureMaskCanvasForLayer, layerSources, renderOverlayNow, stopOverlayAnimation]);
 
   const clearLayerMask = React.useCallback(
     (layerId: string) => {
@@ -999,8 +1018,7 @@ export const useInpaintMaskController = ({
       if (!selectedLayerId) return null;
       const maskMeta = maskMetaRef.current.get(selectedLayerId);
       if (!maskMeta?.hasContent) return null;
-      const maskCanvas = maskCanvasesRef.current.get(selectedLayerId);
-      if (!maskCanvas) return null;
+      const maskCanvas = ensureMaskCanvasForLayer(selectedLayerId);
       const width = Math.max(1, Math.round(targetWidth));
       const height = Math.max(1, Math.round(targetHeight));
       const exportCanvas = document.createElement("canvas");
@@ -1008,45 +1026,17 @@ export const useInpaintMaskController = ({
       exportCanvas.height = height;
       const exportCtx = exportCanvas.getContext("2d");
       if (!exportCtx) return null;
-
-      // Inpaint drawing is intentionally dropzone-wide, but only the visible image area
-      // is exported for provider submit so the mask aligns with flattened image pixels.
-      const maskSpaceImageRect = mapPixelRectBetweenSpacesViaScene({
-        rect: imageRect,
-        fromWidth: dropzoneSize.width,
-        fromHeight: dropzoneSize.height,
-        toWidth: maskCanvas.width,
-        toHeight: maskCanvas.height,
-      });
-      const exportSourceWindow = resolveMaskExportSourceWindow({
-        imageRect: maskSpaceImageRect,
-        maskWidth: maskCanvas.width,
-        maskHeight: maskCanvas.height,
-      });
-      if (!exportSourceWindow) return null;
-
-      const stageMaskCanvas = document.createElement("canvas");
-      stageMaskCanvas.width = width;
-      stageMaskCanvas.height = height;
-      const stageMaskCtx = stageMaskCanvas.getContext("2d");
-      if (!stageMaskCtx) return null;
-      stageMaskCtx.clearRect(0, 0, width, height);
-      stageMaskCtx.drawImage(
-        maskCanvas,
-        exportSourceWindow.sx,
-        exportSourceWindow.sy,
-        exportSourceWindow.sw,
-        exportSourceWindow.sh,
-        0,
-        0,
-        width,
-        height
-      );
       const cameraTransform = resolveStageFlattenCameraTransform({
         camera,
         outputWidth: width,
         outputHeight: height,
       });
+      const containSize = resolveContainSizeForStage(
+        maskCanvas.width,
+        maskCanvas.height,
+        width,
+        height
+      );
 
       exportCtx.fillStyle = "black";
       exportCtx.fillRect(0, 0, width, height);
@@ -1058,7 +1048,13 @@ export const useInpaintMaskController = ({
       if (cameraTransform.scale !== 1) {
         exportCtx.scale(cameraTransform.scale, cameraTransform.scale);
       }
-      exportCtx.drawImage(stageMaskCanvas, -width / 2, -height / 2, width, height);
+      exportCtx.drawImage(
+        maskCanvas,
+        -containSize.drawWidth / 2,
+        -containSize.drawHeight / 2,
+        containSize.drawWidth,
+        containSize.drawHeight
+      );
       exportCtx.restore();
 
       const blob = await new Promise<Blob | null>((resolve) => {
@@ -1066,7 +1062,7 @@ export const useInpaintMaskController = ({
       });
       return blob;
     },
-    [dropzoneSize.height, dropzoneSize.width, imageRect, selectedLayerId]
+    [ensureMaskCanvasForLayer, selectedLayerId]
   );
 
   return {

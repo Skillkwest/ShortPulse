@@ -69,6 +69,7 @@ type MockCanvasContext = {
 const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
 const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;
 let canvasContextStore = new WeakMap<HTMLCanvasElement, MockCanvasContext>();
+let createdCanvasContexts: MockCanvasContext[] = [];
 
 const createMockImageData = (width: number, height: number, data?: Uint8ClampedArray): ImageData =>
   ({
@@ -100,21 +101,21 @@ const createMockCanvasContext = (canvas: HTMLCanvasElement): MockCanvasContext =
   clearRect: () => {
     getCanvasBuffer(canvas).fill(0);
   },
-  drawImage: () => undefined,
-  fillRect: () => undefined,
-  save: () => undefined,
-  restore: () => undefined,
-  translate: () => undefined,
-  scale: () => undefined,
-  setTransform: () => undefined,
-  beginPath: () => undefined,
-  moveTo: () => undefined,
-  lineTo: () => undefined,
-  stroke: () => undefined,
-  fill: () => undefined,
-  closePath: () => undefined,
-  arc: () => undefined,
-  setLineDash: () => undefined,
+  drawImage: vi.fn(() => undefined),
+  fillRect: vi.fn(() => undefined),
+  save: vi.fn(() => undefined),
+  restore: vi.fn(() => undefined),
+  translate: vi.fn(() => undefined),
+  scale: vi.fn(() => undefined),
+  setTransform: vi.fn(() => undefined),
+  beginPath: vi.fn(() => undefined),
+  moveTo: vi.fn(() => undefined),
+  lineTo: vi.fn(() => undefined),
+  stroke: vi.fn(() => undefined),
+  fill: vi.fn(() => undefined),
+  closePath: vi.fn(() => undefined),
+  arc: vi.fn(() => undefined),
+  setLineDash: vi.fn(() => undefined),
   lineDashOffset: 0,
   globalCompositeOperation: "source-over",
   strokeStyle: "",
@@ -129,6 +130,7 @@ const getOrCreateCanvasContext = (canvas: HTMLCanvasElement): MockCanvasContext 
   if (existing) return existing;
   const created = createMockCanvasContext(canvas);
   canvasContextStore.set(canvas, created);
+  createdCanvasContexts.push(created);
   return created;
 };
 
@@ -154,6 +156,7 @@ beforeEach(() => {
 
 afterEach(() => {
   canvasContextStore = new WeakMap<HTMLCanvasElement, MockCanvasContext>();
+  createdCanvasContexts = [];
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
     value: originalCanvasGetContext,
@@ -682,5 +685,57 @@ describe("useInpaintMaskController hook", () => {
       expect(result.current.hasSelectedLayerMask).toBe(false);
     });
     expect(result.current.captureMaskSnapshot().layers).toEqual([]);
+  });
+
+  it("exports selected-layer masks using contain-fit geometry before camera transform", async () => {
+    const dropzoneRef = createDropzoneRef();
+    const { result } = renderHook(() =>
+      useInpaintMaskController({
+        dropzoneRef,
+        selectedLayerId: "layer-a",
+        selectedLayerImageUrl: null,
+        layerSources: [{ id: "layer-a", imageUrl: null }],
+        enabled: true,
+        sceneScale: 1,
+        shouldApplyViewportTransform: false,
+        viewportOffsetXRatio: 0,
+        viewportOffsetYRatio: 0,
+        paintMode: "brush",
+        selectionMode: "select",
+        strokeSize: 24,
+      })
+    );
+
+    await act(async () => {
+      result.current.restoreMaskSnapshot({
+        layers: [
+          {
+            layerId: "layer-a",
+            width: 4,
+            height: 2,
+            alpha: new Uint8ClampedArray([255, 255, 255, 255, 255, 255, 255, 255]),
+          },
+        ],
+      });
+    });
+
+    const exportedMask = await act(async () =>
+      result.current.exportSelectedLayerMaskBlob({
+        targetWidth: 16,
+        targetHeight: 16,
+      })
+    );
+    expect(exportedMask).toBeInstanceOf(Blob);
+
+    const exportContainDrawCallFound = createdCanvasContexts.some((ctx) => {
+      const drawImageMock = (ctx.drawImage as unknown as { mock?: { calls?: unknown[][] } }).mock;
+      return Boolean(
+        drawImageMock?.calls?.some(
+          (call) =>
+            call.length === 5 && call[1] === -8 && call[2] === -4 && call[3] === 16 && call[4] === 8
+        )
+      );
+    });
+    expect(exportContainDrawCallFound).toBe(true);
   });
 });

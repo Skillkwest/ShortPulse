@@ -904,7 +904,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
-  it("falls back to user input when upstream returns only meta-summary text", async () => {
+  it("fails closed to assistant fallback when upstream returns only meta-summary text", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -940,10 +940,12 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "ancient mayan temple in jungle",
-        actions: expect.objectContaining({
-          applyPrompt: "ancient mayan temple in jungle",
-        }),
+        message: "I can't process that request right now. Please try again.",
+        actions: undefined,
+        decision: "allow",
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        retryable: true,
       })
     );
   });

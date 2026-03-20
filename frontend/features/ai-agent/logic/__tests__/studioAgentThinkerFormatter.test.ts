@@ -59,6 +59,7 @@ describe("runThinkerFormatterTurn", () => {
     if (!result.ok) return;
     expect(result.result.semanticStatus).toBe("ready");
     expect(result.result.parsed.actions?.applyPrompt).toBe("A cinematic portrait");
+    expect(result.result.repairUsed).toBe(false);
     expect(result.result.usage).toEqual({ inputTokens: 11, outputTokens: 22 });
   });
 
@@ -98,6 +99,7 @@ describe("runThinkerFormatterTurn", () => {
     if (!result.ok) return;
     expect(result.result.parsed.actions?.applyPrompt).toBe("semantic fallback prompt");
     expect(result.result.parsed.message).toBe("semantic fallback prompt");
+    expect(result.result.repairUsed).toBe(true);
   });
 
   it("fails closed when formatter parse fails and semantic repair prompt is unavailable", async () => {
@@ -190,6 +192,7 @@ describe("runThinkerFormatterTurn", () => {
     expect(secondBody.model).toBe("gpt-formatter");
     expect(thirdBody.model).toBe("gpt-formatter");
     expect(result.result.parsed.actions?.applyPrompt).toBe("final prompt");
+    expect(result.result.repairUsed).toBe(false);
   });
 
   it("falls back to thinker output when formatter stage keeps failing", async () => {
@@ -233,6 +236,7 @@ describe("runThinkerFormatterTurn", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.result.parsed.actions?.applyPrompt).toBe("cinematic close-up portrait");
+    expect(result.result.repairUsed).toBe(true);
     expect(result.result.usage).toEqual({ inputTokens: 10, outputTokens: 14 });
   });
 

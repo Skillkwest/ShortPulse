@@ -32,6 +32,8 @@ describe("studioAgentRouteOutcomes", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         outcome_class: "success_prompt",
+        repair_used: false,
+        repair_count: 0,
         policy_version: null,
         policy_schema_version: null,
         prompt_template_version: null,

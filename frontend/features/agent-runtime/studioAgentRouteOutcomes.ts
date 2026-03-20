@@ -1,5 +1,6 @@
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
 import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import type { AgentReasonCode } from "../../prefabs/agent/outcomeContract";
 import type { StudioAgentSafetyInputPrecheckField } from "./studioAgentSafetyInputPrecheck";
 import type {
   SafetyCategoryId,
@@ -46,6 +47,9 @@ export const emitStudioAgentTurnTelemetry = ({
   outcomeClass,
   retryUsed,
   retryCount,
+  repairUsed,
+  repairCount,
+  reasonCode,
   totalLatencyMs,
   stageLatencyMs,
   fallbackReason,
@@ -63,6 +67,9 @@ export const emitStudioAgentTurnTelemetry = ({
   outcomeClass: StudioAgentTelemetryOutcomeClass;
   retryUsed: boolean;
   retryCount?: number;
+  repairUsed?: boolean;
+  repairCount?: number;
+  reasonCode?: AgentReasonCode;
   totalLatencyMs: number;
   stageLatencyMs: Record<string, number>;
   fallbackReason?: string;
@@ -73,6 +80,10 @@ export const emitStudioAgentTurnTelemetry = ({
   safetyDebugEnabled?: boolean;
   safetyTelemetry?: StudioAgentSafetyTelemetryFields;
 }) => {
+  const machineOutcome = buildAgentMachineOutcome({
+    outcomeClass,
+    ...(reasonCode ? { reasonCode } : {}),
+  });
   console.info(
     "[studio-agent][telemetry]",
     JSON.stringify({
@@ -80,9 +91,14 @@ export const emitStudioAgentTurnTelemetry = ({
       path,
       status,
       model,
-      outcome_class: outcomeClass,
+      decision: machineOutcome.decision,
+      outcome_class: machineOutcome.outcome_class,
+      reason_code: machineOutcome.reason_code,
+      retryable: machineOutcome.retryable,
       retry_used: retryUsed,
       ...(typeof retryCount === "number" ? { retry_count: retryCount } : {}),
+      repair_used: Boolean(repairUsed),
+      repair_count: typeof repairCount === "number" ? repairCount : repairUsed ? 1 : 0,
       latency_ms_total: totalLatencyMs,
       latency_ms_stage: stageLatencyMs,
       ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),

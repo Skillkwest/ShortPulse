@@ -235,6 +235,33 @@ export const executeStudioAgentCoordinator = async ({
     return "pass";
   };
 
+  const resolveFallbackReasonLabel = ({
+    stage,
+    status,
+    detail,
+  }: {
+    stage?: string;
+    status?: number;
+    detail?: string;
+  }): string => {
+    const normalizedStage = typeof stage === "string" ? stage.trim().toLowerCase() : "";
+    if (normalizedStage.length) {
+      return `stage_${normalizedStage.replace(/[^a-z0-9_]+/g, "_")}`;
+    }
+    if (status === 429) return "rate_limit";
+    if (status === 408 || status === 504) return "timeout";
+    const normalizedDetail = typeof detail === "string" ? detail.trim().toLowerCase() : "";
+    if (normalizedDetail.includes("responses unavailable")) return "responses_unavailable";
+    if (normalizedDetail.includes("parse/repair failed")) return "parse_repair_failed";
+    if (normalizedDetail.includes("parse") && normalizedDetail.includes("json")) {
+      return "json_parse_failure";
+    }
+    if (normalizedDetail.includes("timeout") || normalizedDetail.includes("timed out")) {
+      return "timeout";
+    }
+    return "runtime_failure";
+  };
+
   const buildInfraFallbackResponse = ({
     path,
     model,
@@ -264,6 +291,7 @@ export const executeStudioAgentCoordinator = async ({
       outcomeClass: "fallback_infra",
       retryUsed,
       retryCount,
+      reasonCode,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       fallbackReason,
@@ -326,6 +354,7 @@ export const executeStudioAgentCoordinator = async ({
         outcomeClass: "refusal_safety",
         retryUsed,
         retryCount,
+        reasonCode: "PROVIDER_SAFETY_REFUSAL",
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
         safetyTelemetry: {
@@ -356,7 +385,11 @@ export const executeStudioAgentCoordinator = async ({
           model,
           retryUsed,
           retryCount,
-          fallbackReason: stage ?? (detail.slice(0, 120) || "runtime_failure"),
+          fallbackReason: resolveFallbackReasonLabel({
+            stage,
+            status,
+            detail,
+          }),
           failureStatus: status,
           failureDetail: detail,
         }),
@@ -371,6 +404,7 @@ export const executeStudioAgentCoordinator = async ({
       outcomeClass: "upstream_error",
       retryUsed,
       retryCount,
+      reasonCode: "UPSTREAM_ERROR",
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyTelemetry: {
@@ -438,6 +472,8 @@ export const executeStudioAgentCoordinator = async ({
     model,
     retryUsed,
     retryCount,
+    repairUsed,
+    repairCount,
     path,
     writeFailureStage,
   }: {
@@ -448,6 +484,8 @@ export const executeStudioAgentCoordinator = async ({
     model: string;
     retryUsed: boolean;
     retryCount: number;
+    repairUsed: boolean;
+    repairCount: number;
     path: string;
     writeFailureStage:
       | "canonical_write_v2"
@@ -635,6 +673,9 @@ export const executeStudioAgentCoordinator = async ({
       outcomeClass: finalOutcomeClass,
       retryUsed,
       retryCount,
+      repairUsed,
+      repairCount,
+      reasonCode: finalReasonCode,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyOutcome: safetyOutcome === "pass" ? undefined : safetyOutcome,
@@ -760,6 +801,8 @@ export const executeStudioAgentCoordinator = async ({
       model: openAiThinkerModel,
       retryUsed: v2Turn.result.retryUsed || retryCount > 0,
       retryCount: retryCount + (v2Turn.result.retryUsed ? 1 : 0),
+      repairUsed: Boolean(v2Turn.result.repairUsed),
+      repairCount: v2Turn.result.repairCount ?? 0,
       path,
       writeFailureStage: "canonical_write_v2",
     });
@@ -774,6 +817,7 @@ export const executeStudioAgentCoordinator = async ({
         ok: true;
         turn: StudioAgentFastPathSuccessTurn;
         retryCount: number;
+        repairCount: number;
       }
     | {
         ok: false;
@@ -841,6 +885,7 @@ export const executeStudioAgentCoordinator = async ({
       ok: true,
       turn: turn as StudioAgentFastPathSuccessTurn,
       retryCount,
+      repairCount: turn.result.repairUsed ? 1 : 0,
     };
   };
 
@@ -873,6 +918,8 @@ export const executeStudioAgentCoordinator = async ({
         model: openAiModel,
         retryUsed: singleStageResult.retryCount > 0,
         retryCount: singleStageResult.retryCount,
+        repairUsed: singleStageResult.repairCount > 0,
+        repairCount: singleStageResult.repairCount,
         path: runtimePath,
         writeFailureStage: "canonical_write_single_stage",
       });
@@ -901,6 +948,8 @@ export const executeStudioAgentCoordinator = async ({
       model: openAiModel,
       retryUsed: fastPathResult.retryCount > 0,
       retryCount: fastPathResult.retryCount,
+      repairUsed: fastPathResult.repairCount > 0,
+      repairCount: fastPathResult.repairCount,
       path: runtimePath,
       writeFailureStage: "canonical_write_fast_path",
     });
@@ -937,6 +986,7 @@ export const executeStudioAgentCoordinator = async ({
       outcomeClass: "route_error",
       retryUsed: false,
       retryCount: 0,
+      reasonCode: "ROUTE_ERROR",
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyTelemetry: {

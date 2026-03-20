@@ -36,6 +36,8 @@ type StudioAgentV2TurnSuccess = {
     usage: AgentResponse["usage"];
     semanticStatus: string | null;
     retryUsed: boolean;
+    repairUsed: boolean;
+    repairCount: number;
   };
 };
 
@@ -170,6 +172,7 @@ export const executeStudioAgentV2Turn = async ({
   const explicitEditRequest = isExplicitEditRequest(userInput);
   const bypassDriftGuard = explicitEditRequest;
   let retryUsed = false;
+  let repairCount = firstPass.result.repairUsed ? 1 : 0;
 
   if (
     shouldRetryExplicitNoOp({
@@ -203,6 +206,7 @@ export const executeStudioAgentV2Turn = async ({
       nextCanonical = retryPass.result.nextCanonical ?? nextCanonical;
       usage = retryPass.result.usage;
       semanticStatus = retryPass.result.semanticStatus;
+      repairCount += retryPass.result.repairUsed ? 1 : 0;
     }
   }
 
@@ -228,6 +232,8 @@ export const executeStudioAgentV2Turn = async ({
       usage,
       semanticStatus,
       retryUsed,
+      repairUsed: repairCount > 0,
+      repairCount,
     },
   };
 };

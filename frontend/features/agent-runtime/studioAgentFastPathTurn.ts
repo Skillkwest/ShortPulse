@@ -26,6 +26,7 @@ type StudioAgentFastPathSuccess = {
     parsed: AgentResponse;
     refusal: boolean;
     resolvedCanonical: string | null;
+    repairUsed: boolean;
     usage: {
       inputTokens?: number;
       outputTokens?: number;
@@ -84,6 +85,30 @@ const extractUsageTokens = (
     inputTokens,
     outputTokens,
   };
+};
+
+const hasUsableFastPathPayload = (response: AgentResponse | null): response is AgentResponse => {
+  if (!response) return false;
+  const applyPrompt = response.actions?.applyPrompt?.trim() ?? "";
+  const message = response.message?.trim() ?? "";
+  return applyPrompt.length > 0 || message.length > 0;
+};
+
+const buildFastPathRepairMessages = ({ contentText }: { contentText: string }) => {
+  const repairSystemPrompt = [
+    "You repair malformed assistant output into strict JSON for a prompt compiler.",
+    "Return only valid JSON with keys: message (string) and optional actions.applyPrompt (string).",
+    "Do not include markdown or explanation text.",
+  ].join(" ");
+  const repairUserPrompt = JSON.stringify({
+    instruction:
+      "Repair SOURCE_OUTPUT into valid JSON while preserving original prompt meaning. If content is unsafe/refusal, keep refusal intent in message and omit applyPrompt.",
+    source_output: contentText,
+  });
+  return [
+    { role: "system", content: repairSystemPrompt },
+    { role: "user", content: repairUserPrompt },
+  ];
 };
 
 export const executeStudioAgentFastPathTurn = async ({
@@ -148,7 +173,7 @@ export const executeStudioAgentFastPathTurn = async ({
   }
   const contentText = extractStudioAgentCompletionText(extractFirstChoiceMessageContent(data));
   const semanticParsed = parseStudioAgentSemanticOutput(contentText);
-  const parsedWithStatus = semanticParsed
+  let parsedWithStatus = semanticParsed
     ? (() => {
         const semanticResponse = buildStudioAgentSemanticResponse({
           semantic: semanticParsed,
@@ -159,10 +184,78 @@ export const executeStudioAgentFastPathTurn = async ({
         };
       })()
     : parseStudioAgentJsonWithStatus(contentText);
-  let parsed = parsedWithStatus?.response ?? {
-    message: sanitizeGenerationPromptText(contentText || "No response") ?? "No response",
-    actions: undefined,
-  };
+  let repairUsed = false;
+  if (!hasUsableFastPathPayload(parsedWithStatus?.response ?? null)) {
+    const repairStartedAt = Date.now();
+    let repairResponse: Response;
+    try {
+      repairResponse = await fetchStudioAgentChatCompletion({
+        apiKey,
+        openAiUrl,
+        model,
+        messages: buildFastPathRepairMessages({ contentText }),
+        timeoutMs,
+      });
+    } catch (error) {
+      markStage("fast_path_repair_turn", repairStartedAt);
+      return {
+        ok: false,
+        status: resolveFastPathFailureStatus(error),
+        detail: formatStudioAgentErrorMessage(error),
+      };
+    }
+    markStage("fast_path_repair_turn", repairStartedAt);
+    if (!repairResponse.ok) {
+      return {
+        ok: false,
+        status: repairResponse.status,
+        detail: await safeReadFastPathErrorDetail(repairResponse),
+      };
+    }
+    let repairData: Record<string, unknown>;
+    try {
+      repairData = (await repairResponse.json()) as Record<string, unknown>;
+    } catch (error) {
+      return {
+        ok: false,
+        status: 502,
+        detail: formatStudioAgentErrorMessage(error),
+      };
+    }
+    const repairedText = extractStudioAgentCompletionText(
+      extractFirstChoiceMessageContent(repairData)
+    );
+    const repairedSemantic = parseStudioAgentSemanticOutput(repairedText);
+    parsedWithStatus = repairedSemantic
+      ? (() => {
+          const semanticResponse = buildStudioAgentSemanticResponse({
+            semantic: repairedSemantic,
+          });
+          return {
+            response: semanticResponse.parsed,
+            status: semanticResponse.status,
+          };
+        })()
+      : parseStudioAgentJsonWithStatus(repairedText);
+    repairUsed = hasUsableFastPathPayload(parsedWithStatus?.response ?? null);
+    if (!repairUsed) {
+      return {
+        ok: false,
+        status: 502,
+        detail: "Fast-path output parse/repair failed",
+      };
+    }
+  }
+
+  if (!hasUsableFastPathPayload(parsedWithStatus?.response ?? null)) {
+    return {
+      ok: false,
+      status: 502,
+      detail: "Fast-path output parse/repair failed",
+    };
+  }
+
+  let parsed = parsedWithStatus.response;
 
   const nextCanonical = sanitizeGenerationPromptText(
     parsed?.actions?.applyPrompt ?? parsed?.message ?? effectiveCanonical ?? null
@@ -186,6 +279,7 @@ export const executeStudioAgentFastPathTurn = async ({
       parsed,
       refusal,
       resolvedCanonical,
+      repairUsed,
       usage: extractUsageTokens(data),
     },
   };

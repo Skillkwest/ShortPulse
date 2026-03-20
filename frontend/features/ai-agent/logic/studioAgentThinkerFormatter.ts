@@ -10,6 +10,7 @@ export type ThinkerFormatterResult = {
   parsed: AgentResponse;
   nextCanonical: string | null;
   semanticStatus: string | null;
+  repairUsed: boolean;
   usage: {
     inputTokens?: number;
     outputTokens?: number;
@@ -355,6 +356,7 @@ export const runThinkerFormatterTurn = async ({
           parsed: fallback,
           nextCanonical,
           semanticStatus: semanticStatus ?? formatterSemantic.status,
+          repairUsed: true,
           usage: extractUsageTokens(thinkerData),
         },
       };
@@ -391,6 +393,7 @@ export const runThinkerFormatterTurn = async ({
           parsed: repaired,
           nextCanonical,
           semanticStatus: semanticStatus ?? formatterSemantic.status,
+          repairUsed: true,
           usage: extractUsageTokens(formatterData),
         },
       };
@@ -411,6 +414,7 @@ export const runThinkerFormatterTurn = async ({
       parsed: safeParsed,
       nextCanonical,
       semanticStatus,
+      repairUsed: false,
       usage: extractUsageTokens(formatterData),
     },
   };

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeStudioAgentFastPathTurn } from "../studioAgentFastPathTurn";
 
 const fetchStudioAgentChatCompletionMock = vi.fn();
@@ -13,6 +13,10 @@ vi.mock("../studioAgentOpenAiGateway", async () => {
 });
 
 describe("executeStudioAgentFastPathTurn", () => {
+  beforeEach(() => {
+    fetchStudioAgentChatCompletionMock.mockReset();
+  });
+
   it("returns upstream failure with status and detail", async () => {
     fetchStudioAgentChatCompletionMock.mockResolvedValue({
       ok: false,
@@ -154,9 +158,93 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result.result.refusal).toBe(false);
     expect(result.result.parsed.actions?.applyPrompt).toBe("enhanced prompt");
     expect(result.result.resolvedCanonical).toBe("enhanced prompt");
+    expect(result.result.repairUsed).toBe(false);
     expect(result.result.usage).toEqual({
       inputTokens: 22,
       outputTokens: 14,
     });
+  });
+
+  it("repairs malformed fast-path output with one bounded repair turn", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "plain malformed output" } }],
+          usage: { prompt_tokens: 5, completion_tokens: 7 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "repaired prompt",
+                  actions: { applyPrompt: "repaired prompt" },
+                }),
+              },
+            },
+          ],
+        }),
+      });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(result.result.parsed.actions?.applyPrompt).toBe("repaired prompt");
+    expect(result.result.repairUsed).toBe(true);
+    expect(markStage).toHaveBeenCalledWith("fast_path_repair_turn", expect.any(Number));
+  });
+
+  it("fails closed when fast-path output remains unparseable after bounded repair", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "plain malformed output" } }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "still malformed output" } }],
+        }),
+      });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 502,
+      detail: "Fast-path output parse/repair failed",
+    });
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(markStage).toHaveBeenCalledWith("fast_path_repair_turn", expect.any(Number));
   });
 });

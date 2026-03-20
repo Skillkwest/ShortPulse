@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStudioAgentSemanticResponse,
   ensureStudioAgentApplyPromptContract,
+  parseStudioAgentJsonWithStatus,
   parseStudioAgentSemanticOutput,
 } from "../studioAgentResponseNormalization";
 
@@ -33,6 +34,43 @@ describe("studioAgentResponseNormalization", () => {
       parsed: {
         message: "I cannot describe this.",
         actions: undefined,
+      },
+    });
+  });
+
+  it("parses fenced semantic payloads when extra text is present", () => {
+    const semantic = parseStudioAgentSemanticOutput(
+      [
+        "Analyzer notes:",
+        "```json",
+        '{"status":"ready","prompt_text":"moody noir portrait, rim light"}',
+        "```",
+        'Ignore debug object: {"debug":true}',
+      ].join("\n")
+    );
+
+    expect(semantic).toEqual({
+      status: "ready",
+      promptText: "moody noir portrait, rim light",
+    });
+  });
+
+  it("skips non-contract JSON blocks and parses the first valid contract payload", () => {
+    const parsed = parseStudioAgentJsonWithStatus(
+      [
+        "Debug:",
+        '{"trace":"abc-123"}',
+        "Final payload:",
+        '{"message":"cinematic portrait","actions":{"apply_prompt":"cinematic portrait"}}',
+      ].join("\n")
+    );
+
+    expect(parsed).toEqual({
+      status: null,
+      response: {
+        message: "cinematic portrait",
+        actions: { applyPrompt: "cinematic portrait" },
+        usage: undefined,
       },
     });
   });

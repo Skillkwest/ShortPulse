@@ -44,12 +44,78 @@ export const extractStudioAgentCompletionText = (rawContent: unknown): string =>
     .trim();
 };
 
-export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | null => {
+const pushUniqueCandidate = (candidates: string[], value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed.length || candidates.includes(trimmed)) return;
+  candidates.push(trimmed);
+};
+
+const extractBalancedJsonObjectCandidates = (input: string): string[] => {
+  const candidates: string[] = [];
+  let depth = 0;
+  let startIndex = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (inString) {
+      if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      if (depth === 0) startIndex = index;
+      depth += 1;
+      continue;
+    }
+    if (char === "}" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && startIndex >= 0) {
+        pushUniqueCandidate(candidates, input.slice(startIndex, index + 1));
+        startIndex = -1;
+      }
+    }
+  }
+
+  return candidates;
+};
+
+const collectJsonCandidates = (raw: unknown): string[] => {
   const candidates: string[] = [];
   const trimmed = extractStudioAgentCompletionText(raw).trim();
-  if (trimmed) candidates.push(trimmed);
-  const braceMatch = trimmed.match(/{[\s\S]*}/);
-  if (braceMatch) candidates.push(braceMatch[0]);
+  if (!trimmed.length) return candidates;
+
+  pushUniqueCandidate(candidates, trimmed);
+
+  const fencedPattern = /```(?:json)?\s*([\s\S]*?)```/gi;
+  for (const match of trimmed.matchAll(fencedPattern)) {
+    const fencedContent = match[1];
+    if (typeof fencedContent === "string") {
+      pushUniqueCandidate(candidates, fencedContent);
+    }
+  }
+
+  for (const candidate of extractBalancedJsonObjectCandidates(trimmed)) {
+    pushUniqueCandidate(candidates, candidate);
+  }
+
+  return candidates;
+};
+
+export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | null => {
+  const candidates = collectJsonCandidates(raw);
 
   for (const candidate of candidates) {
     try {
@@ -61,6 +127,9 @@ export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | 
           ? (sanitizeGenerationPromptText(parsedRecord.message) ?? "")
           : "";
       const actions = normalizeAgentActions(parsedRecord.actions);
+      if (!message.length && !actions?.applyPrompt) {
+        continue;
+      }
       const usageRecord =
         parsedRecord.usage && typeof parsedRecord.usage === "object"
           ? (parsedRecord.usage as Record<string, unknown>)
@@ -97,11 +166,7 @@ export const parseStudioAgentJson = (raw: unknown): AgentResponse | null =>
   parseStudioAgentJsonWithStatus(raw)?.response ?? null;
 
 export const parseStudioAgentSemanticOutput = (raw: unknown): ParsedAgentSemanticOutput | null => {
-  const candidates: string[] = [];
-  const trimmed = extractStudioAgentCompletionText(raw).trim();
-  if (trimmed) candidates.push(trimmed);
-  const braceMatch = trimmed.match(/{[\s\S]*}/);
-  if (braceMatch) candidates.push(braceMatch[0]);
+  const candidates = collectJsonCandidates(raw);
 
   for (const candidate of candidates) {
     try {

@@ -165,6 +165,45 @@ describe("executeStudioAgentFastPathTurn", () => {
     });
   });
 
+  it("accepts mixed-output responses when a later JSON block carries the contract payload", async () => {
+    fetchStudioAgentChatCompletionMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: [
+                "Debug:",
+                '{"trace":"abc-123"}',
+                "Final payload:",
+                '{"message":"golden hour portrait","actions":{"apply_prompt":"golden hour portrait"}}',
+              ].join("\n"),
+            },
+          },
+        ],
+      }),
+    });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(1);
+    expect(result.result.parsed.actions?.applyPrompt).toBe("golden hour portrait");
+    expect(result.result.repairUsed).toBe(false);
+  });
+
   it("repairs malformed fast-path output with one bounded repair turn", async () => {
     fetchStudioAgentChatCompletionMock
       .mockResolvedValueOnce({

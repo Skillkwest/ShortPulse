@@ -35,6 +35,7 @@ import {
 } from "./studioAgentRouteOutcomes";
 import type { SafetyCategoryId } from "./safetyPolicy/types";
 import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "./agentMachineOutcome";
+import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
 const IMAGE_DESCRIBER_ID: AgentPromptId = "OPENAI_PROMPT_IMAGE_DESCRIBE";
@@ -105,6 +106,7 @@ const emitDescribeFallbackTelemetry = ({
   routeLabel,
   failureClass,
   detail,
+  fallbackReason,
   policyVersion,
   policySchemaVersion,
   promptTemplateVersion,
@@ -114,6 +116,7 @@ const emitDescribeFallbackTelemetry = ({
   routeLabel: string;
   failureClass: string;
   detail: string;
+  fallbackReason: string;
   policyVersion: number | null;
   policySchemaVersion: number | null;
   promptTemplateVersion: string;
@@ -126,6 +129,7 @@ const emitDescribeFallbackTelemetry = ({
       route: routeLabel,
       failure_class: failureClass,
       detail,
+      fallback_reason: fallbackReason,
       policy_version: policyVersion,
       policy_schema_version: policySchemaVersion,
       prompt_template_version: promptTemplateVersion,
@@ -139,6 +143,7 @@ type LegacyImageDescribeSuccess = {
   ok: true;
   payload: AgentMachineOutcomeFields & {
     description: string;
+    fallback_reason?: string;
     usage: {
       inputTokens?: number;
       outputTokens?: number;
@@ -554,10 +559,15 @@ export const executeLegacyImageDescribe = async ({
         },
       });
       if (providerError.failureResolution === "assistant_fallback") {
+        const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+          status: describeAttempt.status,
+          detail,
+        });
         emitDescribeFallbackTelemetry({
           routeLabel,
           failureClass: providerError.failureClass,
           detail,
+          fallbackReason,
           policyVersion: safetyPolicyVersion,
           policySchemaVersion: safetyPolicySchemaVersion,
           promptTemplateVersion,
@@ -579,6 +589,7 @@ export const executeLegacyImageDescribe = async ({
           ok: true,
           payload: {
             description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+            fallback_reason: fallbackReason,
             usage: {},
             ...machineOutcome,
           },
@@ -636,6 +647,10 @@ export const executeLegacyImageDescribe = async ({
         routeLabel,
         failureClass: providerError.failureClass,
         detail: "No description returned",
+        fallbackReason: resolveStudioAgentFallbackReasonLabel({
+          status: 502,
+          detail: "No description returned",
+        }),
         policyVersion: safetyPolicyVersion,
         policySchemaVersion: safetyPolicySchemaVersion,
         promptTemplateVersion,
@@ -644,7 +659,10 @@ export const executeLegacyImageDescribe = async ({
       });
       const machineOutcome = buildAgentMachineOutcome({
         outcomeClass: "fallback_infra",
-        reasonCode: "INFRA_FALLBACK_TRANSIENT",
+        reasonCode: resolveInfraFallbackReasonCode({
+          status: 502,
+          detail: "No description returned",
+        }),
       });
       emitDescribeRouteTelemetry({
         statusCode: 200,
@@ -654,6 +672,10 @@ export const executeLegacyImageDescribe = async ({
         ok: true,
         payload: {
           description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+          fallback_reason: resolveStudioAgentFallbackReasonLabel({
+            status: 502,
+            detail: "No description returned",
+          }),
           usage: {},
           ...machineOutcome,
         },
@@ -780,10 +802,14 @@ export const executeLegacyImageDescribe = async ({
       },
     });
     if (providerError.failureResolution === "assistant_fallback") {
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        detail,
+      });
       emitDescribeFallbackTelemetry({
         routeLabel,
         failureClass: providerError.failureClass,
         detail,
+        fallbackReason,
         policyVersion: safetyPolicyVersion,
         policySchemaVersion: safetyPolicySchemaVersion,
         promptTemplateVersion,
@@ -802,6 +828,7 @@ export const executeLegacyImageDescribe = async ({
         ok: true,
         payload: {
           description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+          fallback_reason: fallbackReason,
           usage: {},
           ...machineOutcome,
         },

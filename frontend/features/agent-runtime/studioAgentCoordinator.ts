@@ -42,6 +42,7 @@ import {
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "./studioAgentRouteOutcomes";
 import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "./agentMachineOutcome";
+import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 import { executeStudioAgentV2Turn } from "./studioAgentV2Turn";
 
@@ -235,33 +236,6 @@ export const executeStudioAgentCoordinator = async ({
     return "pass";
   };
 
-  const resolveFallbackReasonLabel = ({
-    stage,
-    status,
-    detail,
-  }: {
-    stage?: string;
-    status?: number;
-    detail?: string;
-  }): string => {
-    const normalizedStage = typeof stage === "string" ? stage.trim().toLowerCase() : "";
-    if (normalizedStage.length) {
-      return `stage_${normalizedStage.replace(/[^a-z0-9_]+/g, "_")}`;
-    }
-    if (status === 429) return "rate_limit";
-    if (status === 408 || status === 504) return "timeout";
-    const normalizedDetail = typeof detail === "string" ? detail.trim().toLowerCase() : "";
-    if (normalizedDetail.includes("responses unavailable")) return "responses_unavailable";
-    if (normalizedDetail.includes("parse/repair failed")) return "parse_repair_failed";
-    if (normalizedDetail.includes("parse") && normalizedDetail.includes("json")) {
-      return "json_parse_failure";
-    }
-    if (normalizedDetail.includes("timeout") || normalizedDetail.includes("timed out")) {
-      return "timeout";
-    }
-    return "runtime_failure";
-  };
-
   const buildInfraFallbackResponse = ({
     path,
     model,
@@ -386,7 +360,7 @@ export const executeStudioAgentCoordinator = async ({
           model,
           retryUsed,
           retryCount,
-          fallbackReason: resolveFallbackReasonLabel({
+          fallbackReason: resolveStudioAgentFallbackReasonLabel({
             stage,
             status,
             detail,

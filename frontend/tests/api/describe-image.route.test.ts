@@ -223,6 +223,7 @@ describe("POST /api/ai/describe-image", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         description: "I can't process that request right now. Please try again.",
+        fallback_reason: "upstream_unavailable",
       })
     );
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
@@ -245,6 +246,17 @@ describe("POST /api/ai/describe-image", () => {
         retryable: true,
         policy_version: 1,
         policy_schema_version: 2,
+      })
+    );
+    const fallbackCall = infoSpy.mock.calls.find(
+      (call: unknown[]) => call[0] === "[describe-image][fallback]"
+    );
+    const fallbackPayload = fallbackCall
+      ? (JSON.parse(String(fallbackCall[1])) as Record<string, unknown>)
+      : null;
+    expect(fallbackPayload).toEqual(
+      expect.objectContaining({
+        fallback_reason: "upstream_unavailable",
       })
     );
     infoSpy.mockRestore();

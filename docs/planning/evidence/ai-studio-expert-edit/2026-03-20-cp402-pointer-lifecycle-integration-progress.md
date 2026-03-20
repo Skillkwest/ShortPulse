@@ -36,9 +36,8 @@
 ## Status Decision
 1. `CP-402`: `IN_PROGRESS` with pointer-lifecycle integration coverage expanded for inline/modal parity.
 2. Final `CP-402 DONE` remains gated behind:
-   - CP-302 browser-backed parity matrix closure, and
    - Phase 4 consolidated evidence with CP-403/CP-404.
 
 ## Outstanding Work
-1. Add browser-backed coverage tie-in for pointer lifecycle slices under DPR/aspect variants when CP-302 credential gate is cleared.
+1. Add browser-backed coverage tie-in for pointer lifecycle slices under DPR/aspect variants when available.
 2. Fold this packet into consolidated Phase 4 closeout evidence once CP-403/CP-404 land.

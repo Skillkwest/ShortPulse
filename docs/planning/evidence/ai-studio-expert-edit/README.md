@@ -16,7 +16,7 @@ Central index for evidence artifacts supporting Expert Edit, including the coord
 5. `2026-03-20-cp303-zoom-clamp-parity.md`
    - Phase 3 CP-303 packet proving one shared zoom clamp authority across viewport and flatten camera contracts; rerun complete and marked `PASS`.
 6. `2026-03-20-cp301-cp302-mask-export-contract-progress.md`
-   - Phase 3 CP-301/CP-302 status packet for canonical selected-layer mask resolution and flatten-consistent mask export mapping, including explicit `CP-301 PASS` and `CP-302 HOLD` decision states.
+   - Phase 3 CP-301/CP-302 status packet for canonical selected-layer mask resolution and flatten-consistent mask export mapping, including explicit `CP-301 PASS` and `CP-302 WAIVER_ACCEPTED` decision states.
 7. `2026-03-20-cp401-transform-threshold-harness-progress.md`
    - Phase 4 CP-401 progress packet covering canonical zoom/pan transform-harness matrix assertions in unit suites.
 8. `2026-03-20-cp402-pointer-lifecycle-integration-progress.md`

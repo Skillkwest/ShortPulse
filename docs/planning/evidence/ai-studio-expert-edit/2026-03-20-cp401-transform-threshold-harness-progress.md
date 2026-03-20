@@ -36,9 +36,8 @@
 ## Status Decision
 1. `CP-401`: `IN_PROGRESS` with core transform-harness matrix coverage now landed in unit suites.
 2. Final `CP-401 DONE` decision remains gated behind:
-   - formal CP-302 browser-backed matrix closure, and
    - Phase 4 row alignment (`CP-402`, `CP-403`, `CP-404`) per tracker exit criteria.
 
 ## Outstanding Work
-1. Fold these unit harness updates into consolidated Phase 4 evidence once CP-302 gate is cleared.
+1. Fold these unit harness updates into consolidated Phase 4 evidence.
 2. Add CI-gated parity command wiring (`CP-404`) and visual drift harness evidence (`CP-403`).

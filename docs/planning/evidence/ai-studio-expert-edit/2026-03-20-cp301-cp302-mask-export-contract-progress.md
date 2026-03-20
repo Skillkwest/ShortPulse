@@ -47,8 +47,9 @@
 
 ## Status Decision
 1. `CP-301`: `PASS` and ready for `DONE` in tracker.
-2. `CP-302`: `PASS` for local automated validations; `HOLD` for final browser-backed matrix closure (`zoom/pan/aspect/DPR`) because this workspace still lacks credentialed Playwright parity capture.
+2. `CP-302`: `WAIVER_ACCEPTED` by explicit user direction to skip browser-backed matrix closure and additional formal evidence.
+3. `CP-302` retains local automated validation pass status from this packet.
 
 ## Outstanding Work
-1. Run credentialed browser-backed parity matrix for `CP-302` (`zoom={0.5,1,2,4}`, canonical pan tuples, stage aspect variants, DPR `1/2/3`) and publish a closeout packet.
-2. Once matrix evidence lands, flip `CP-302` to `DONE` and open `P4` (`CP-401` through `CP-404`).
+1. No further CP-302 evidence expansion is required under the waiver decision.
+2. Proceed with Phase 4 execution (`CP-401` through `CP-404`) and keep waiver visibility in rollout notes.

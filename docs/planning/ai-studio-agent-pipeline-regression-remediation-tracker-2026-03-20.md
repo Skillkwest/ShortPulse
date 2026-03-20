@@ -49,7 +49,7 @@ Status: Active (master planning and Phase 1/2/3/4 planning complete; Phase 2 imp
 | ID | Task | Owner | Status | Risk | Validation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | PX-01 | Phase 1 closeout packet linked and approved | AI Platform + Frontend | Planned | Medium | Phase 1 exit criteria pass + evidence links complete | Pending |
-| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | In Progress | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md` |
+| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | In Progress | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-2/README.md` |
 | PX-03 | Phase 3 closeout packet linked and approved | Platform Ops + Platform + AI Platform | Planned | High | Phase 3 exit criteria pass + evidence links complete | Pending |
 | PX-04 | Phase 4 closeout packet linked and approved | Platform Ops + AI Platform + Frontend | Planned | High | Phase 4 exit criteria pass + evidence links complete | Pending |
 
@@ -66,8 +66,11 @@ Phase implementation is allowed when:
    - dependencies reviewed in `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`.
    - `M-01` and `M-08` marked complete; `M-02` and `M-09` explicitly waived for Phase 1 entry with carry-forward requirements.
 2. Phase 2: In progress (2026-03-20)
-   - active evidence packet: `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`.
-   - scope/enforcement parity and override coverage implemented; continuity and closeout gates remain pending.
+   - active evidence packets:
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`
+   - scope/enforcement parity and local continuity/quality baselines are captured; preview/production runtime-truth capture, approved golden delta reporting, and closeout signoff remain pending.
 
 ## Program Completion Gate
 Program closeout/signoff requires:

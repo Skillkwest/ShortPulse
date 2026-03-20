@@ -45,7 +45,10 @@ Results:
 5. `PX-02` closeout complete: Pending.
 
 ## Remaining Work
-1. Canonical continuity commit guards and fallback pollution prevention evidence packet.
-2. Prompt quality and false-refusal delta packet against approved corpus.
-3. Runtime truth packet capture for local, preview, and production.
-4. Phase 2 closeout packet and `PX-02` completion update.
+1. Preview/production runtime truth packet capture.
+2. Approved golden dataset + false-refusal comparative report beyond local test corpus.
+3. Phase 2 closeout packet and `PX-02` completion update.
+
+Linked follow-up packets:
+1. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`
+2. `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`

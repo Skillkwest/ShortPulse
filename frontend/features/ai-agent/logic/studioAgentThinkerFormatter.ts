@@ -58,6 +58,17 @@ const normalizeStatus = (value: unknown): string => {
 const normalizePromptText = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
+const extractSemanticPromptForRepair = (semantic: unknown): string => {
+  const record =
+    semantic && typeof semantic === "object" ? (semantic as Record<string, unknown>) : {};
+  return (
+    normalizePromptText(record.prompt_text) ||
+    normalizePromptText(record.promptText) ||
+    normalizePromptText(record.prompt) ||
+    normalizePromptText(record.message)
+  );
+};
+
 const extractFirstChoiceMessageContent = (data: Record<string, unknown>): unknown => {
   const choices = data.choices;
   if (!Array.isArray(choices)) return null;
@@ -176,6 +187,13 @@ const buildFormatterFallback = ({
       applyPrompt: prompt,
     },
   };
+};
+
+const hasUsablePromptPayload = (response: AgentResponse | null): response is AgentResponse => {
+  if (!response) return false;
+  const applyPrompt = response.actions?.applyPrompt?.trim() ?? "";
+  const message = response.message?.trim() ?? "";
+  return applyPrompt.length > 0 || message.length > 0;
 };
 
 /**
@@ -360,10 +378,31 @@ export const runThinkerFormatterTurn = async ({
   } catch {
     parsed = null;
   }
-  const safeParsed = parsed ?? {
-    message: formatterRaw || "No response",
-    actions: undefined,
-  };
+  if (!hasUsablePromptPayload(parsed)) {
+    const repaired = buildFormatterFallback({
+      semanticStatus: semanticStatus ?? formatterSemantic.status,
+      semanticPrompt: extractSemanticPromptForRepair(semantic),
+    });
+    if (repaired) {
+      const nextCanonical = repaired.actions?.applyPrompt ?? repaired.message ?? null;
+      return {
+        ok: true,
+        result: {
+          parsed: repaired,
+          nextCanonical,
+          semanticStatus: semanticStatus ?? formatterSemantic.status,
+          usage: extractUsageTokens(formatterData),
+        },
+      };
+    }
+    return {
+      ok: false,
+      stage: "formatter",
+      status: 502,
+      detail: "Formatter output parse/repair failed",
+    };
+  }
+  const safeParsed = parsed;
   const nextCanonical = safeParsed.actions?.applyPrompt ?? safeParsed.message ?? null;
 
   return {

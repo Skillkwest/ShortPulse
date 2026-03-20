@@ -62,7 +62,45 @@ describe("runThinkerFormatterTurn", () => {
     expect(result.result.usage).toEqual({ inputTokens: 11, outputTokens: 22 });
   });
 
-  it("falls back to raw formatter text when parser returns null", async () => {
+  it("repairs formatter parse failures from semantic prompt_text when available", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: { content: '{"status":"ready","prompt_text":"semantic fallback prompt"}' },
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: [{ text: "plain formatter text" }] } }],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThinkerFormatterTurn({
+      apiKey: "test-key",
+      openAiUrl: "https://example.com/v1/chat/completions",
+      model: "gpt-5-nano",
+      thinkerMessages: [{ role: "system", content: "think" }],
+      buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
+      parseAgentJson: () => null,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.parsed.actions?.applyPrompt).toBe("semantic fallback prompt");
+    expect(result.result.parsed.message).toBe("semantic fallback prompt");
+  });
+
+  it("fails closed when formatter parse fails and semantic repair prompt is unavailable", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -90,9 +128,12 @@ describe("runThinkerFormatterTurn", () => {
       parseAgentJson: () => null,
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.result.parsed.message).toBe("plain formatter text");
+    expect(result).toEqual({
+      ok: false,
+      stage: "formatter",
+      status: 502,
+      detail: "Formatter output parse/repair failed",
+    });
   });
 
   it("retries transient formatter failures and uses stage-specific models", async () => {

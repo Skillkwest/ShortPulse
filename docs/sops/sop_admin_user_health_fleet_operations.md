@@ -73,6 +73,7 @@ Primary fields:
 - `criticalUsers`, `warningUsers`
 - `totalCostWithoutSuccessCents`
 - `drainage`: `{ enabled, scanned, released, errors }`
+- `drainageTrend`: latest-run delta object (present for latest-run reads): `{ previousRunId, scannedDelta, releasedDelta, errorsDelta }`
 - `errors[]` (partial/failure reason summary)
 
 Operational rules:

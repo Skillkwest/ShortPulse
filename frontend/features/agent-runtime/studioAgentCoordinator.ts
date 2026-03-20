@@ -3,7 +3,10 @@ import type { AgentContext, AgentMessage, AgentResponse } from "../../prefabs/ag
 import type { StudioAgentOrchestration } from "../ai-agent/logic/studioAgentOrchestration";
 import type { ThinkerSelectedReference } from "../ai-agent/logic/studioAgentReferenceSelection";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
-import { writeStudioAgentCanonicalPrompt } from "./studioAgentCanonicalPersistence";
+import {
+  shouldCommitStudioAgentCanonicalPrompt,
+  writeStudioAgentCanonicalPrompt,
+} from "./studioAgentCanonicalPersistence";
 import { formatStudioAgentErrorMessage } from "./studioAgentOpenAiGateway";
 import { executeStudioAgentFastPathTurn } from "./studioAgentFastPathTurn";
 import {
@@ -595,7 +598,23 @@ export const executeStudioAgentCoordinator = async ({
       }
     }
 
-    if (!finalRefusal) {
+    const finalOutcomeClass = finalRefusal
+      ? safetyForcedRefusal
+        ? "refusal_safety"
+        : "refusal_model"
+      : "success_prompt";
+    const finalReasonCode = finalRefusal
+      ? safetyForcedRefusal
+        ? "SAFETY_OUTPUT_REFUSAL"
+        : "PROVIDER_SAFETY_REFUSAL"
+      : "SUCCESS_PROMPT";
+
+    if (
+      shouldCommitStudioAgentCanonicalPrompt({
+        canonicalPrompt: finalResolvedCanonical,
+        outcomeClass: finalOutcomeClass,
+      })
+    ) {
       await writeStudioAgentCanonicalPrompt({
         req,
         userId,
@@ -613,11 +632,7 @@ export const executeStudioAgentCoordinator = async ({
       path,
       status: finalRefusal ? "refuse" : "success",
       model,
-      outcomeClass: finalRefusal
-        ? safetyForcedRefusal
-          ? "refusal_safety"
-          : "refusal_model"
-        : "success_prompt",
+      outcomeClass: finalOutcomeClass,
       retryUsed,
       retryCount,
       totalLatencyMs: Date.now() - requestStartedAt,
@@ -642,17 +657,6 @@ export const executeStudioAgentCoordinator = async ({
         rollbackTriggered: safetyRollbackTriggered,
       },
     });
-    const finalOutcomeClass = finalRefusal
-      ? safetyForcedRefusal
-        ? "refusal_safety"
-        : "refusal_model"
-      : "success_prompt";
-    const finalReasonCode = finalRefusal
-      ? safetyForcedRefusal
-        ? "SAFETY_OUTPUT_REFUSAL"
-        : "PROVIDER_SAFETY_REFUSAL"
-      : "SUCCESS_PROMPT";
-
     return {
       status: 200,
       payload: {

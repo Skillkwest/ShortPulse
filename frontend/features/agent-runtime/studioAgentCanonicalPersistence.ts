@@ -7,6 +7,26 @@ import {
 
 type StageMarker = (stage: string, startedAt: number) => void;
 type ErrorMessageFormatter = (error: unknown) => string;
+type CanonicalWriteOutcomeClass =
+  | "success_prompt"
+  | "refusal_model"
+  | "refusal_safety"
+  | "fallback_infra"
+  | "upstream_error"
+  | "route_error";
+
+/**
+ * Canonical prompt writes are only valid for successful prompt outcomes.
+ */
+export const shouldCommitStudioAgentCanonicalPrompt = ({
+  canonicalPrompt,
+  outcomeClass,
+}: {
+  canonicalPrompt: string | null;
+  outcomeClass: CanonicalWriteOutcomeClass;
+}): boolean => {
+  return Boolean(canonicalPrompt && outcomeClass === "success_prompt");
+};
 
 export const readStudioAgentCanonicalPrompt = async ({
   req,

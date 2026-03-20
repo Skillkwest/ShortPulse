@@ -171,6 +171,45 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
   );
 };
 
+export const emitStudioAgentUntrustedImageTextTelemetry = ({
+  flow,
+  signalCount,
+  affectedImageCount,
+  removedInstructionLikeLineCount,
+  policyVersion,
+  policySchemaVersion,
+  promptTemplateVersion,
+  runtimeScopeKey,
+  profileId,
+}: {
+  flow: string;
+  signalCount: number;
+  affectedImageCount: number;
+  removedInstructionLikeLineCount: number;
+  policyVersion: number | null;
+  policySchemaVersion?: number | null;
+  promptTemplateVersion?: string | null;
+  runtimeScopeKey?: string | null;
+  profileId: SafetyProfileId | null;
+}) => {
+  if (signalCount <= 0) return;
+  console.info(
+    "[studio-agent][untrusted-image-text]",
+    JSON.stringify({
+      flow,
+      safety_stage: "vision_untrusted_quarantine",
+      signal_count: signalCount,
+      affected_image_count: affectedImageCount,
+      removed_instruction_like_line_count: removedInstructionLikeLineCount,
+      policy_version: policyVersion,
+      policy_schema_version: policySchemaVersion ?? null,
+      prompt_template_version: promptTemplateVersion ?? null,
+      runtime_scope_key: runtimeScopeKey ?? null,
+      profile_id: profileId,
+    })
+  );
+};
+
 export const resolvePolicyVersionFromProfileId = (
   profileId: string | null | undefined
 ): number | null => {

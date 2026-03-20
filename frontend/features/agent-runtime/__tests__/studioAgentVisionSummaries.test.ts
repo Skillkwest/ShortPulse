@@ -18,6 +18,7 @@ vi.mock("../studioAgentOpenAiGateway", async () => {
 describe("studioAgentVisionSummaries", () => {
   it("builds image summaries for successful image describe calls only", async () => {
     fetchStudioAgentChatCompletionMock.mockReset();
+    const onUntrustedImageTextSignal = vi.fn();
     fetchStudioAgentChatCompletionMock
       .mockResolvedValueOnce({
         ok: true,
@@ -51,6 +52,7 @@ describe("studioAgentVisionSummaries", () => {
       apiKey: "key-1",
       visionModel: "gpt-vision",
       timeoutMs: 20000,
+      onUntrustedImageTextSignal,
     });
 
     expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
@@ -58,6 +60,10 @@ describe("studioAgentVisionSummaries", () => {
     expect(summaryMap.get("image-1")).toBe(
       "A sharp product photo of a red sneaker on white background."
     );
+    expect(onUntrustedImageTextSignal).toHaveBeenCalledWith({
+      imageId: "image-1",
+      removedInstructionLikeLineCount: 1,
+    });
   });
 
   it("applies summaries to captions and media alt text without promoting prompt snippets", () => {

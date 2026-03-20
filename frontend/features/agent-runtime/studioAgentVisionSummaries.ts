@@ -10,6 +10,11 @@ import {
 } from "./studioAgentOpenAiGateway";
 import { extractStudioAgentCompletionText } from "./studioAgentResponseNormalization";
 
+export type StudioAgentUntrustedImageTextSignal = {
+  imageId: string;
+  removedInstructionLikeLineCount: number;
+};
+
 export const buildStudioAgentImageSummaryMap = async ({
   openAiUrl,
   context,
@@ -17,6 +22,7 @@ export const buildStudioAgentImageSummaryMap = async ({
   apiKey,
   visionModel,
   timeoutMs,
+  onUntrustedImageTextSignal,
 }: {
   openAiUrl: string;
   context: AgentContext;
@@ -24,6 +30,7 @@ export const buildStudioAgentImageSummaryMap = async ({
   apiKey: string;
   visionModel: string;
   timeoutMs: number;
+  onUntrustedImageTextSignal?: (signal: StudioAgentUntrustedImageTextSignal) => void;
 }): Promise<Map<string, string>> => {
   const mediaItems = (context.media ?? [])
     .filter((item) => item.kind === "image")
@@ -56,6 +63,12 @@ export const buildStudioAgentImageSummaryMap = async ({
       const data = await response.json();
       const rawText = extractStudioAgentCompletionText(data?.choices?.[0]?.message?.content);
       const sanitized = sanitizeImageDerivedTextForPromptCompiler(rawText);
+      if (sanitized.hadInstructionLikeText) {
+        onUntrustedImageTextSignal?.({
+          imageId: item.id,
+          removedInstructionLikeLineCount: sanitized.removedInstructionLikeLineCount,
+        });
+      }
       const summary = sanitized.text?.trim() ?? "";
       if (!summary.length) return null;
       return { id: item.id, summary };

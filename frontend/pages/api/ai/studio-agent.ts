@@ -27,6 +27,7 @@ import {
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentSafetyRefusalPayload,
   emitStudioAgentInputPrecheckTelemetry,
+  emitStudioAgentUntrustedImageTextTelemetry,
 } from "../../../features/agent-runtime/studioAgentRouteOutcomes";
 import {
   isStudioAgentFeatureEnabled,
@@ -279,6 +280,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   let visionSummaryMap = new Map<string, string>();
+  let untrustedImageTextSignalCount = 0;
+  let untrustedImageTextAffectedImageCount = 0;
+  let untrustedImageTextRemovedLineCount = 0;
   if (
     serverVisionEnabled &&
     imageDescribePrompt &&
@@ -294,8 +298,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         apiKey,
         visionModel: openAiVisionModel,
         timeoutMs: visionTimeoutMs,
+        onUntrustedImageTextSignal: (signal) => {
+          untrustedImageTextSignalCount += 1;
+          untrustedImageTextAffectedImageCount += 1;
+          untrustedImageTextRemovedLineCount += signal.removedInstructionLikeLineCount;
+        },
       });
       context = applyStudioAgentVisionSummariesToContext(context, visionSummaryMap);
+      emitStudioAgentUntrustedImageTextTelemetry({
+        flow: orchestrationBeforeVision.flow,
+        signalCount: untrustedImageTextSignalCount,
+        affectedImageCount: untrustedImageTextAffectedImageCount,
+        removedInstructionLikeLineCount: untrustedImageTextRemovedLineCount,
+        policyVersion: safetyProfile.policyVersion,
+        policySchemaVersion: safetyPolicySchemaVersion,
+        promptTemplateVersion,
+        runtimeScopeKey,
+        profileId: safetyTelemetryProfileId,
+      });
     } catch (error) {
       console.warn(
         "[studio-agent] server vision summary failed",

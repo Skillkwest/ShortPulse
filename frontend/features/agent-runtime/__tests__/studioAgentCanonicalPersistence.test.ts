@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   readStudioAgentCanonicalPrompt,
+  shouldCommitStudioAgentCanonicalPrompt,
   writeStudioAgentCanonicalPrompt,
 } from "../studioAgentCanonicalPersistence";
 
@@ -96,5 +97,32 @@ describe("studioAgentCanonicalPersistence", () => {
       canonicalPrompt: "enhanced canonical prompt",
     });
     expect(markStage).toHaveBeenCalledTimes(1);
+  });
+
+  it("commits canonical prompt only for success outcomes", () => {
+    expect(
+      shouldCommitStudioAgentCanonicalPrompt({
+        canonicalPrompt: "safe canonical",
+        outcomeClass: "success_prompt",
+      })
+    ).toBe(true);
+    expect(
+      shouldCommitStudioAgentCanonicalPrompt({
+        canonicalPrompt: "safe canonical",
+        outcomeClass: "fallback_infra",
+      })
+    ).toBe(false);
+    expect(
+      shouldCommitStudioAgentCanonicalPrompt({
+        canonicalPrompt: "safe canonical",
+        outcomeClass: "refusal_safety",
+      })
+    ).toBe(false);
+    expect(
+      shouldCommitStudioAgentCanonicalPrompt({
+        canonicalPrompt: null,
+        outcomeClass: "success_prompt",
+      })
+    ).toBe(false);
   });
 });

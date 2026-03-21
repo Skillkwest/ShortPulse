@@ -29,7 +29,7 @@ Supporting docs:
 ## Program Snapshot
 | Workstream | Status | Owner | Current Focus | Blockers | Next Checkpoint |
 | --- | --- | --- | --- | --- | --- |
-| WG-1 Recovery correctness | Planned | AI Studio Eng | Close P0 entry blockers and begin `P0-S1` immediately after readiness promotion | `RGR-B01`, `RGR-B02` open | P0 implementation entry review |
+| WG-1 Recovery correctness | Planned | AI Studio Eng | Close remaining P0 entry blocker (`RGR-B02`) and begin `P0-S1` immediately after readiness promotion | `RGR-B02` open | P0 implementation entry review |
 | WG-2 Data authority parity | Not Started | AI Studio Eng | Execute P1 data-authority parity slices after P0 exit | Depends on P0 closeout (`RGR-M02`..`RGR-M04`) | P1 implementation entry review |
 | WG-3 Media hydration convergence | Not Started | AI Studio Eng | Execute P2 hydration convergence slices after P1 exit | Depends on P1 closeout (`RGR-M05`/`RGR-M06`) | P2 implementation entry review |
 | WG-4 Recovery semantics alignment | Not Started | AI Studio Eng | Execute P3 recovery semantics slices after P2 exit | Depends on WG-1 evidence and P2 closeout (`RGR-M07`/`RGR-M08`) | P3 implementation entry review |
@@ -66,7 +66,7 @@ Behavior-changing implementation is gated until:
 | --- | --- | --- | --- | --- | --- |
 | `RGR-G01` | P0 plan + governance package authored and indexed | Completed | AI Studio Engineering | `npm -C frontend run docs:check` | Planning package published and linked |
 | `RGR-G02` | `RGR-M01` completed with evidence | Completed | AI Studio Engineering | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md` | Defect inventory lock complete |
-| `RGR-G03` | P0 entry baseline packet committed | Blocked | AI Studio Engineering | planned | Blocker `RGR-B01` |
+| `RGR-G03` | P0 entry baseline packet committed | Completed | AI Studio Engineering | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md` | Baseline packet committed and linked |
 | `RGR-G04` | High-severity blocker waiver metadata closed | Blocked | AI Studio Engineering | `docs/known-issues.md` | Blocker `RGR-B02` |
 | `RGR-G05` | Readiness promoted to `implementation_ready` | Blocked | AI Studio Engineering | `docs/planning/ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md` | Depends on `RGR-G03` and `RGR-G04` |
 
@@ -92,3 +92,4 @@ After `implementation_ready` promotion:
 8. Published and linked P3 execution plan; kept WG-4 implementation gated on P2 phase exit.
 9. Published and linked P4 execution plan; kept WG-5 implementation gated on P3 phase exit.
 10. Clarified implementation-entry gates to remove `RGR-M02`..`RGR-M04` deadlock and added explicit gate-status tracking.
+11. Committed P0 entry baseline packet evidence and closed `RGR-G03`; remaining implementation-entry blocker is `RGR-B02`.

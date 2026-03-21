@@ -19,7 +19,7 @@ Track current readiness posture for moving from planning into phased implementat
 ## Active Blockers
 | Blocker ID | Description | Owner | Unblock Criterion | Target Date (UTC) | Evidence Link | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| `RGR-B01` | P0 entry baseline packet is not committed yet | AI Studio Engineering | Commit entry baseline packet with required command outcomes and risk/rollback fields | 2026-03-22 | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md` (planned) | Open |
+| `RGR-B01` | P0 entry baseline packet is not committed yet | AI Studio Engineering | Commit entry baseline packet with required command outcomes and risk/rollback fields | 2026-03-22 | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md` | Closed |
 | `RGR-B02` | Known high-severity deferred issue waiver metadata is incomplete for program gates | AI Studio Engineering | Record gate classification, owner, waiver decision/risk, expiry-or-n/a, and next review date in `docs/known-issues.md` | 2026-03-22 | `docs/known-issues.md` | Open |
 
 ## Promotion Criteria

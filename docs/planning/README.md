@@ -222,6 +222,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/agent-pipeline-remediation/phase-4/phase-4-closeout-report-template.md`: reusable final closeout report tying exit criteria to evidence.
 - `evidence/ai-studio-reference-grid-reliability/README.md`: evidence namespace index and packet requirements for Reference Grid reliability slices.
 - `evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`: seed evidence packet for `RGR-M01` defect inventory lock.
+- `evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md`: implementation-entry baseline packet that closes blocker `RGR-B01` / gate `RGR-G03`.
 - `evidence/README.md`: top-level planning evidence index, including lane-specific evidence namespaces.
 
 ## Maintenance

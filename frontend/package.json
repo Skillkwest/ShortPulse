@@ -15,6 +15,8 @@
     "phase11:gate-eval": "cd .. && node scripts/phase11_evaluate_gate_summary.mjs",
     "phase11:window-guard": "cd .. && node scripts/phase11_checkpoint_window_guard.mjs",
     "phase13:waveh:capture": "cd .. && node scripts/phase13_wave_h_capture_packet.mjs",
+    "audit:staging:openai-lanes": "cd .. && node scripts/audit_staging_openai_lane_bundle.mjs",
+    "audit:staging:openai-lanes:strict": "cd .. && node scripts/audit_staging_openai_lane_bundle.mjs --max-fallback-rate 0.05 --max-upstream-error-rate 0.05 --max-non-200-rate 0.05 --max-missing-machine-outcome-rate 0 --require-contract-version 1 --require-success-prompt",
     "cleanup:test-auth-users": "cd .. && node scripts/cleanup_test_auth_users.mjs",
     "cleanup:test-auth-users:dry": "cd .. && node scripts/cleanup_test_auth_users.mjs --dry-run",
     "phase12:execution-gate": "cd .. && node scripts/phase12_execution_gate.mjs",

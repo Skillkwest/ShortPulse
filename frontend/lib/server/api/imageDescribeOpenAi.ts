@@ -9,6 +9,10 @@ const OPENAI_UPSTREAM_MAX_ATTEMPTS = 2;
 const OPENAI_UPSTREAM_RETRY_DELAY_MS = 450;
 const MAX_UPSTREAM_DETAIL_LENGTH = 3000;
 const TRANSIENT_OPENAI_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const NON_RETRYABLE_OPENAI_DETAIL_PATTERNS: RegExp[] = [
+  /\bparse\/repair\s+failed\b/i,
+  /\bcontract\s+violation\b/i,
+];
 
 export type OpenAiDescribeAttemptResult =
   | {
@@ -117,6 +121,9 @@ const requestOpenAiImageDescribe = async ({
 
 const isTransientOpenAiFailure = (attempt: OpenAiDescribeAttemptResult): boolean => {
   if (attempt.ok) return false;
+  if (NON_RETRYABLE_OPENAI_DETAIL_PATTERNS.some((pattern) => pattern.test(attempt.detail))) {
+    return false;
+  }
   if (TRANSIENT_OPENAI_STATUS_CODES.has(attempt.status)) return true;
   const detail = attempt.detail.toLowerCase();
   return (

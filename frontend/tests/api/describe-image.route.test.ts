@@ -262,6 +262,50 @@ describe("POST /api/ai/describe-image", () => {
     infoSpy.mockRestore();
   });
 
+  it("does not retry deterministic parse/repair contract failures", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: async () => "Fast-path output parse/repair failed",
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/contract-failure.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "I can't process that request right now. Please try again.",
+        fallback_reason: "parse_repair_failed",
+        decision: "allow",
+        outcome_class: "fallback_infra",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.image_describe.upstream_unavailable",
+        statusCode: 500,
+        metadata: expect.objectContaining({
+          detail: "Fast-path output parse/repair failed",
+          attempted_models: ["gpt-5-nano"],
+        }),
+      })
+    );
+  });
+
   it("maps describe-image upstream safety failures to refusal success payload", async () => {
     const fetchMock = fetch as ReturnType<typeof vi.fn>;
     fetchMock

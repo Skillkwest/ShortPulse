@@ -82,6 +82,7 @@ Usage:
     [--max-upstream-error-rate 0.02] \\
     [--max-non-200-rate 0.02] \\
     [--max-missing-machine-outcome-rate 0] \\
+    [--require-contract-version 1] \\
     [--require-success-prompt] \\
     [--auto-user false] \\
     [--bearer-token <jwt>] \\
@@ -338,6 +339,10 @@ const requestOne = async ({
       path: routePath,
       prompt,
       status: response?.status ?? 0,
+      contractVersion:
+        response?.headers?.get("agent-contract-version") ??
+        response?.headers?.get("x-agent-contract-version") ??
+        null,
       decision: explicitDecision,
       outcomeClass: inferOutcomeClass({
         status: response?.status ?? 0,
@@ -423,6 +428,10 @@ const main = async () => {
   const maxUpstreamErrorRate = parseRateArg(args["max-upstream-error-rate"]);
   const maxNon200Rate = parseRateArg(args["max-non-200-rate"]);
   const maxMissingMachineOutcomeRate = parseRateArg(args["max-missing-machine-outcome-rate"]);
+  const requireContractVersion =
+    typeof args["require-contract-version"] === "string"
+      ? args["require-contract-version"].trim()
+      : null;
   const requireSuccessPrompt = args["require-success-prompt"] === "true";
   const outputPath =
     args.output ??
@@ -449,7 +458,7 @@ const main = async () => {
   console.log(`[${SCRIPT_NAME}] auth_mode=${bearerToken ? "bearer_token" : autoUser ? "auto_user" : "email_password"}`);
   console.log(`[${SCRIPT_NAME}] vercel_bypass=${vercelBypassToken ? "enabled" : "disabled"}`);
   console.log(
-    `[${SCRIPT_NAME}] thresholds fallback<=${maxFallbackRate ?? "off"} upstream_error<=${maxUpstreamErrorRate ?? "off"} non_200<=${maxNon200Rate ?? "off"} missing_machine_outcome<=${maxMissingMachineOutcomeRate ?? "off"} require_success_prompt=${requireSuccessPrompt}`
+    `[${SCRIPT_NAME}] thresholds fallback<=${maxFallbackRate ?? "off"} upstream_error<=${maxUpstreamErrorRate ?? "off"} non_200<=${maxNon200Rate ?? "off"} missing_machine_outcome<=${maxMissingMachineOutcomeRate ?? "off"} require_contract_version=${requireContractVersion || "off"} require_success_prompt=${requireSuccessPrompt}`
   );
   console.log(`[${SCRIPT_NAME}] output=${outputPath}`);
 
@@ -490,6 +499,7 @@ const main = async () => {
   const outcomeBuckets = bucketBy(records, (record) => classifyOutcome(record));
   const outcomeClassBuckets = bucketBy(records, (record) => record.outcomeClass ?? "none");
   const fallbackReasonBuckets = bucketBy(records, (record) => record.fallbackReason ?? "none");
+  const contractVersionBuckets = bucketBy(records, (record) => record.contractVersion ?? "none");
   const routePathFallbackBuckets = bucketBy(
     records,
     (record) => `${record.route}|${record.path}|${record.fallbackReason ?? "none"}`
@@ -505,6 +515,9 @@ const main = async () => {
   const missingMachineOutcomeCount = records.filter(
     (record) => !record.machine_outcome_present
   ).length;
+  const contractVersionMismatchCount = requireContractVersion
+    ? records.filter((record) => (record.contractVersion ?? "") !== requireContractVersion).length
+    : 0;
   const avgLatencyMs = total
     ? Math.round(records.reduce((sum, record) => sum + record.latency_ms, 0) / total)
     : 0;
@@ -532,10 +545,13 @@ const main = async () => {
     network_error_count: networkErrorCount,
     missing_machine_outcome_count: missingMachineOutcomeCount,
     missing_machine_outcome_rate: total ? missingMachineOutcomeCount / total : 0,
+    contract_version_mismatch_count: contractVersionMismatchCount,
+    contract_version_mismatch_rate: total ? contractVersionMismatchCount / total : 0,
     buckets: {
       outcome: mapToSortedObject(outcomeBuckets),
       outcome_class: mapToSortedObject(outcomeClassBuckets),
       fallback_reason: mapToSortedObject(fallbackReasonBuckets),
+      contract_version: mapToSortedObject(contractVersionBuckets),
       route_path_fallback_reason: mapToSortedObject(routePathFallbackBuckets),
     },
   };
@@ -571,6 +587,15 @@ const main = async () => {
       threshold: maxMissingMachineOutcomeRate,
       actual: summary.missing_machine_outcome_rate,
       pass: summary.missing_machine_outcome_rate <= maxMissingMachineOutcomeRate,
+    });
+  }
+  if (requireContractVersion) {
+    checks.push({
+      name: "contract_version_mismatch_rate",
+      threshold: 0,
+      actual: summary.contract_version_mismatch_rate,
+      pass: summary.contract_version_mismatch_rate === 0,
+      expected: requireContractVersion,
     });
   }
   if (requireSuccessPrompt) {

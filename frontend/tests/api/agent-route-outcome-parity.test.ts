@@ -140,4 +140,69 @@ describe("OpenAI route outcome parity", () => {
       })
     );
   });
+
+  it("generate-prompt marks deterministic output-contract failures as non-retryable", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Summary: transformed the prompt with richer composition.",
+            },
+          },
+        ],
+      }),
+    });
+
+    const req = { method: "POST", body: { prompt: "forest temple" } };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_OUTPUT_CONTRACT",
+        retryable: false,
+        fallback_reason: "stage_prompt_missing",
+      })
+    );
+  });
+
+  it("extract-style marks deterministic output-contract failures as non-retryable", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "I cannot describe this." } }],
+          usage: { prompt_tokens: 5, completion_tokens: 2 },
+        }),
+      });
+
+    const req = { method: "POST", body: { imageUrl: "https://example.com/public.png" } };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_OUTPUT_CONTRACT",
+        retryable: false,
+        fallback_reason: "stage_style_prompt_missing",
+      })
+    );
+  });
 });

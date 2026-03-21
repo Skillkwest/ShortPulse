@@ -22,12 +22,12 @@ describe("agentPromptsConfig", () => {
       expect(promptPolicy).toContain(
         "style+subject -> action/pose -> environment -> lighting -> composition/camera -> texture/color"
       );
-      expect(promptPolicy).toContain('default to "photorealistic."');
       expect(promptPolicy).toContain("40-150 words");
       expect(promptPolicy).toContain('"Colors:"');
       expect(promptPolicy).toContain('"Textures visible:"');
       expect(promptPolicy).toContain('"Summary:"');
       expect(promptPolicy).toContain('"The prompt now includes..."');
+      expect(promptPolicy).toContain("editing process");
     });
   });
 

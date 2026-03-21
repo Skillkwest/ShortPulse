@@ -39,6 +39,17 @@ const parseIntArg = (value, fallback, min = 1) => {
   return Math.max(min, Math.trunc(parsed));
 };
 
+const parseRateArg = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  const raw = String(value).trim();
+  if (!raw.length) return null;
+  const normalized = raw.endsWith("%") ? Number(raw.slice(0, -1)) / 100 : Number(raw);
+  if (!Number.isFinite(normalized) || normalized < 0) {
+    throw new Error(`Invalid rate value: ${value}`);
+  }
+  return normalized > 1 ? normalized / 100 : normalized;
+};
+
 const parseArgs = () => {
   const args = process.argv.slice(2);
   const parsed = {};
@@ -68,6 +79,10 @@ Usage:
     [--concurrency 4] \\
     [--request-timeout-ms 20000] \\
     [--retry-count 0] \\
+    [--max-fallback-rate 0.05] \\
+    [--max-upstream-error-rate 0.02] \\
+    [--max-non-200-rate 0.02] \\
+    [--require-success-prompt] \\
     [--bearer-token <jwt>] \\
     [--email <user-email> --password <user-password>] \\
     [--supabase-url <url> --supabase-anon-key <anon-key>] \\
@@ -81,6 +96,7 @@ Notes:
   - Production domains are blocked by default.
   - If --bearer-token is not provided, this script signs in via Supabase email/password.
   - Env loading defaults: .env.agent.local, frontend/.env.local (non-overriding).
+  - Rates can be provided as decimals (0.05) or percentages (5%).
 `);
 };
 
@@ -311,6 +327,10 @@ const main = async () => {
   const routePath = "/api/ai/studio-agent";
   const prompts = resolvePrompts({ prompt: args.prompt });
   const runId = `fallback-audit-${Date.now()}`;
+  const maxFallbackRate = parseRateArg(args["max-fallback-rate"]);
+  const maxUpstreamErrorRate = parseRateArg(args["max-upstream-error-rate"]);
+  const maxNon200Rate = parseRateArg(args["max-non-200-rate"]);
+  const requireSuccessPrompt = args["require-success-prompt"] === "true";
   const outputPath =
     args.output ??
     path.join("/tmp", `${SCRIPT_NAME}-${runId}-${nowIsoSafe()}.json`);
@@ -329,6 +349,9 @@ const main = async () => {
     `[${SCRIPT_NAME}] samples=${samples} concurrency=${concurrency} timeout_ms=${timeoutMs} retry_count=${retryCount}`
   );
   console.log(`[${SCRIPT_NAME}] prompts=${prompts.length} route=${routePath}`);
+  console.log(
+    `[${SCRIPT_NAME}] thresholds fallback<=${maxFallbackRate ?? "off"} upstream_error<=${maxUpstreamErrorRate ?? "off"} non_200<=${maxNon200Rate ?? "off"} require_success_prompt=${requireSuccessPrompt}`
+  );
   console.log(`[${SCRIPT_NAME}] output=${outputPath}`);
 
   if (args["dry-run"] === "true") {
@@ -411,6 +434,50 @@ const main = async () => {
     },
   };
 
+  const checks = [];
+  if (maxFallbackRate !== null) {
+    checks.push({
+      name: "fallback_rate",
+      threshold: maxFallbackRate,
+      actual: summary.fallback_rate,
+      pass: summary.fallback_rate <= maxFallbackRate,
+    });
+  }
+  if (maxUpstreamErrorRate !== null) {
+    checks.push({
+      name: "upstream_error_rate",
+      threshold: maxUpstreamErrorRate,
+      actual: summary.upstream_error_rate,
+      pass: summary.upstream_error_rate <= maxUpstreamErrorRate,
+    });
+  }
+  if (maxNon200Rate !== null) {
+    checks.push({
+      name: "non_200_rate",
+      threshold: maxNon200Rate,
+      actual: summary.non_200_rate,
+      pass: summary.non_200_rate <= maxNon200Rate,
+    });
+  }
+  if (requireSuccessPrompt) {
+    const nonSuccessPromptCount = records.filter(
+      (record) => record.outcomeClass !== "success_prompt"
+    ).length;
+    checks.push({
+      name: "require_success_prompt",
+      threshold: 0,
+      actual: nonSuccessPromptCount,
+      pass: nonSuccessPromptCount === 0,
+    });
+  }
+
+  const gate = {
+    enabled: checks.length > 0,
+    pass: checks.every((check) => check.pass),
+    checks,
+  };
+  summary.gate = gate;
+
   const artifact = { summary, records };
   fs.writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
 
@@ -424,7 +491,19 @@ const main = async () => {
   console.log(
     `[${SCRIPT_NAME}] non_200_rate=${(summary.non_200_rate * 100).toFixed(2)}% (${non200Count}/${total})`
   );
+  if (gate.enabled) {
+    for (const check of gate.checks) {
+      console.log(
+        `[${SCRIPT_NAME}] gate ${check.name}: actual=${check.actual} threshold=${check.threshold} pass=${check.pass}`
+      );
+    }
+    console.log(`[${SCRIPT_NAME}] gate_result=${gate.pass ? "PASS" : "FAIL"}`);
+  }
   console.log(`[${SCRIPT_NAME}] artifact=${outputPath}`);
+
+  if (gate.enabled && !gate.pass) {
+    process.exitCode = 1;
+  }
 };
 
 main().catch((error) => {

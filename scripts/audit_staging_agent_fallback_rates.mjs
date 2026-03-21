@@ -157,7 +157,7 @@ const resolveRoutePath = (route) => {
   throw new Error(`Unsupported route: ${route}`);
 };
 
-const resolveRouteContractHeaderSupport = (route) => route === "studio-agent";
+const resolveRouteContractHeaderSupport = (route) => SUPPORTED_ROUTES.includes(route);
 
 const buildRoutePayload = ({ route, traceId, runId, requestIndex, prompt, describeImageUrl }) => {
   if (route === "studio-agent") {
@@ -522,7 +522,7 @@ const main = async () => {
       : null;
   if (requireContractVersion && !routeSupportsContractVersionHeader) {
     throw new Error(
-      `--require-contract-version is only supported for studio-agent route; received route=${route}.`
+      `--require-contract-version is not supported for route=${route}.`
     );
   }
   const requireSuccessPrompt = args["require-success-prompt"] === "true";

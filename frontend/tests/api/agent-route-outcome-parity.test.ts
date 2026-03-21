@@ -61,6 +61,7 @@ describe("OpenAI route outcome parity", () => {
 
     await generatePromptHandler(req as never, res as never);
 
+    expect(res.setHeader).toHaveBeenCalledWith("Agent-Contract-Version", "1");
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -90,6 +91,7 @@ describe("OpenAI route outcome parity", () => {
 
     await describeImageHandler(req as never, res as never);
 
+    expect(res.setHeader).toHaveBeenCalledWith("Agent-Contract-Version", "1");
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -126,6 +128,7 @@ describe("OpenAI route outcome parity", () => {
 
     await extractStyleHandler(req as never, res as never);
 
+    expect(res.setHeader).toHaveBeenCalledWith("Agent-Contract-Version", "1");
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

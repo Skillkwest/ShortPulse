@@ -7,6 +7,7 @@ import type {
 } from "../../prefabs/agent/outcomeContract";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
 import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import { setAgentContractVersionHeader } from "./agentContractHeaders";
 import {
   STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS,
   STUDIO_AGENT_RATE_LIMIT_WINDOW_MS,
@@ -17,8 +18,6 @@ import {
   resolveStudioAgentMaxRequestBytes,
   sanitizeStudioAgentContext,
 } from "./studioAgentRequestGuards";
-
-export const AGENT_CONTRACT_VERSION = "1";
 
 export type StudioAgentErrorCode =
   | "METHOD_NOT_ALLOWED"
@@ -72,7 +71,7 @@ export const resolveStudioAgentTraceId = (req: NextApiRequest): string => {
 };
 
 export const setStudioAgentContractHeaders = (res: NextApiResponse, traceId: string): void => {
-  res.setHeader("Agent-Contract-Version", AGENT_CONTRACT_VERSION);
+  setAgentContractVersionHeader(res);
   res.setHeader("x-agent-trace-id", traceId);
 };
 

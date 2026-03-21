@@ -3,6 +3,7 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Promoted AI Studio Reference Grid reliability state to `implementation_ready` after closing `RGR-B02` via time-bounded waiver metadata for `KI-AI-RG-STYLES-001`; recorded `P0-S1` kickoff evidence and moved `RGR-M02`..`RGR-M04` to `In Progress`.
 - Added AI Studio Reference Grid reliability P0 entry baseline evidence packet (`2026-03-21-p0-entry-baseline-packet.md`) and closed blocker/gate tracking for `RGR-B01` / `RGR-G03`; implementation entry remains blocked on `RGR-B02`.
 - Removed an AI Studio reliability implementation-entry deadlock by reclassifying `RGR-M02`..`RGR-M04` as P0 exit gates (not entry prerequisites), added explicit blocker/gate status tracking (`RGR-B01`/`RGR-B02`, `RGR-G01`..`RGR-G05`), and tightened kickoff SLA + adaptive gate requirements across readiness/tracker/checklist/full-recovery governance docs.
 - Backfilled documentation index parity for AI Studio Reference Grid reliability governance artifacts:

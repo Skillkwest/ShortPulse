@@ -30,3 +30,4 @@ Use dated packet names:
 ## Seed packets
 1. `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`
 2. `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md`
+3. `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`

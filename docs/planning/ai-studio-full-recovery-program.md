@@ -1,6 +1,6 @@
 # AI Studio Full Recovery Program
 
-Status: Planning locked; implementation entry gated (`P0` pending gate closure)  
+Status: Implementation ready (`P0-S1` kickoff active)  
 Owner: AI Studio Engineering  
 Last updated: 2026-03-21
 
@@ -19,8 +19,8 @@ Master planning governance and tracking for the current Reference Grid reliabili
 8. `docs/planning/ai-studio-reference-grid-reliability-phase-p3-execution-plan-2026-03-21.md`
 9. `docs/planning/ai-studio-reference-grid-reliability-phase-p4-execution-plan-2026-03-21.md`
 
-The `P0` through `P4` planning set is now published; implementation remains gated by tracker/evidence entry criteria.
-Implementation start contract: once readiness is promoted to `implementation_ready`, begin implementation immediately with `P0-S1` under the 4-hour kickoff SLA.
+The `P0` through `P4` planning set is now published and entry gates are closed.
+Implementation start contract is active: readiness is promoted to `implementation_ready` and `P0-S1` kickoff is in progress under the 4-hour kickoff SLA.
 
 ## Gate Authority
 For AI Studio Reference Grid reliability implementation entry/exit decisions, canonical authority order is:

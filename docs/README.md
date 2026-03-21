@@ -306,6 +306,7 @@ Start here for all repository documentation.
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/README.md`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md`
+- `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`
 - `docs/planning/evidence/reference-grid-modularization/README.md`
 - `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
 - `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`

@@ -302,6 +302,35 @@ const requestOne = async ({
       }
     }
 
+    const nestedMachineOutcome =
+      parsed && typeof parsed.machine_outcome === "object" && parsed.machine_outcome
+        ? parsed.machine_outcome
+        : null;
+    const explicitDecision =
+      typeof parsed?.decision === "string"
+        ? parsed.decision
+        : typeof nestedMachineOutcome?.decision === "string"
+          ? nestedMachineOutcome.decision
+          : null;
+    const explicitOutcomeClass =
+      typeof parsed?.outcome_class === "string"
+        ? parsed.outcome_class
+        : typeof nestedMachineOutcome?.outcome_class === "string"
+          ? nestedMachineOutcome.outcome_class
+          : null;
+    const explicitReasonCode =
+      typeof parsed?.reason_code === "string"
+        ? parsed.reason_code
+        : typeof nestedMachineOutcome?.reason_code === "string"
+          ? nestedMachineOutcome.reason_code
+          : null;
+    const explicitRetryable =
+      typeof parsed?.retryable === "boolean"
+        ? parsed.retryable
+        : typeof nestedMachineOutcome?.retryable === "boolean"
+          ? nestedMachineOutcome.retryable
+          : null;
+
     const record = {
       request_index: requestIndex,
       attempt,
@@ -309,16 +338,15 @@ const requestOne = async ({
       path: routePath,
       prompt,
       status: response?.status ?? 0,
-      decision: typeof parsed?.decision === "string" ? parsed.decision : null,
+      decision: explicitDecision,
       outcomeClass: inferOutcomeClass({
         status: response?.status ?? 0,
         parsed,
-        explicitOutcomeClass:
-          typeof parsed?.outcome_class === "string" ? parsed.outcome_class : null,
+        explicitOutcomeClass,
       }),
-      reasonCode: typeof parsed?.reason_code === "string" ? parsed.reason_code : null,
-      retryable: typeof parsed?.retryable === "boolean" ? parsed.retryable : null,
-      machine_outcome_present: typeof parsed?.outcome_class === "string",
+      reasonCode: explicitReasonCode,
+      retryable: explicitRetryable,
+      machine_outcome_present: explicitOutcomeClass !== null,
       fallbackReason:
         typeof parsed?.fallback_reason === "string"
           ? parsed.fallback_reason

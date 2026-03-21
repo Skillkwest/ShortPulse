@@ -6,6 +6,29 @@ import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContr
 
 type AgentRouteTelemetryTag = "generate-prompt" | "describe-image" | "extract-style";
 
+const resolveOutputContractTelemetryViolation = ({
+  reasonCode,
+  retryable,
+  fallbackReason,
+}: {
+  reasonCode?: AgentMachineOutcomeFields["reason_code"];
+  retryable?: AgentMachineOutcomeFields["retryable"];
+  fallbackReason?: string | null;
+}): string | null => {
+  const isOutputContractReason =
+    reasonCode === "INFRA_FALLBACK_OUTPUT_CONTRACT" || reasonCode === "UPSTREAM_OUTPUT_CONTRACT";
+  if (isOutputContractReason && retryable !== false) {
+    return "output_contract_reason_retryable_mismatch";
+  }
+  if (fallbackReason === "parse_repair_failed" && !isOutputContractReason) {
+    return "parse_repair_reason_code_mismatch";
+  }
+  if (fallbackReason === "parse_repair_failed" && retryable !== false) {
+    return "parse_repair_retryable_mismatch";
+  }
+  return null;
+};
+
 /**
  * Emits a normalized telemetry event for a route machine outcome payload.
  */
@@ -46,6 +69,11 @@ export const emitAgentRouteOutcomeTelemetry = ({
   rollbackTriggered?: boolean | null;
   fallbackReason?: string | null;
 }) => {
+  const contractViolation = resolveOutputContractTelemetryViolation({
+    reasonCode: machineOutcome.reason_code,
+    retryable: machineOutcome.retryable,
+    fallbackReason,
+  });
   console.info(
     `[${telemetryTag}][telemetry]`,
     JSON.stringify({
@@ -68,6 +96,7 @@ export const emitAgentRouteOutcomeTelemetry = ({
       hard_floor_violation: hardFloorViolation ?? null,
       rollback_triggered: rollbackTriggered ?? null,
       fallback_reason: fallbackReason ?? null,
+      contract_violation: contractViolation,
     })
   );
 };

@@ -94,16 +94,40 @@ const hasUsableFastPathPayload = (response: AgentResponse | null): response is A
   return applyPrompt.length > 0 || message.length > 0;
 };
 
-const buildFastPathRepairMessages = ({ contentText }: { contentText: string }) => {
+const resolveLatestUserInput = (messages: AgentMessage[]): string | null => {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role !== "user") continue;
+    const trimmed = message.content?.trim();
+    if (trimmed?.length) return trimmed;
+  }
+  return null;
+};
+
+const buildFastPathRepairMessagesWithContext = ({
+  contentText,
+  latestUserInput,
+  canonicalPrompt,
+  activePrompt,
+}: {
+  contentText: string;
+  latestUserInput: string | null;
+  canonicalPrompt: string | null;
+  activePrompt: string | null;
+}) => {
   const repairSystemPrompt = [
     "You repair malformed assistant output into strict JSON for a prompt compiler.",
     "Return only valid JSON with keys: message (string) and optional actions.applyPrompt (string).",
     "Do not include markdown or explanation text.",
+    "If SOURCE_OUTPUT is recap/meta text, reconstruct the intended prompt using latest_user_input/canonical_prompt/active_prompt while preserving intent.",
   ].join(" ");
   const repairUserPrompt = JSON.stringify({
     instruction:
-      "Repair SOURCE_OUTPUT into valid JSON while preserving original prompt meaning. If content is unsafe/refusal, keep refusal intent in message and omit applyPrompt.",
+      "Repair SOURCE_OUTPUT into valid JSON while preserving original prompt meaning. If SOURCE_OUTPUT is recap-like, produce a direct generation-ready prompt from available context. If content is unsafe/refusal, keep refusal intent in message and omit applyPrompt.",
     source_output: contentText,
+    latest_user_input: latestUserInput,
+    canonical_prompt: canonicalPrompt,
+    active_prompt: activePrompt,
   });
   return [
     { role: "system", content: repairSystemPrompt },
@@ -186,6 +210,7 @@ export const executeStudioAgentFastPathTurn = async ({
     : parseStudioAgentJsonWithStatus(contentText);
   let repairUsed = false;
   if (!hasUsableFastPathPayload(parsedWithStatus?.response ?? null)) {
+    const latestUserInput = resolveLatestUserInput(messages);
     const repairStartedAt = Date.now();
     let repairResponse: Response;
     try {
@@ -193,7 +218,15 @@ export const executeStudioAgentFastPathTurn = async ({
         apiKey,
         openAiUrl,
         model,
-        messages: buildFastPathRepairMessages({ contentText }),
+        messages: buildFastPathRepairMessagesWithContext({
+          contentText,
+          latestUserInput,
+          canonicalPrompt: effectiveCanonical,
+          activePrompt:
+            typeof context.activePrompt === "string" && context.activePrompt.trim().length
+              ? context.activePrompt.trim()
+              : null,
+        }),
         timeoutMs,
       });
     } catch (error) {

@@ -993,6 +993,74 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
+  it("recovers meta-summary fast-path output when bounded repair returns valid prompt JSON", async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "Summary: transformed the prompt with richer descriptive detail.",
+                  actions: {
+                    apply_prompt:
+                      "The prompt now includes additional details and stronger composition cues.",
+                  },
+                }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 9 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message:
+                    "an ancient Mayan temple in dense jungle with sunlit stone carvings and humid morning haze",
+                  actions: {
+                    applyPrompt:
+                      "an ancient Mayan temple in dense jungle with sunlit stone carvings and humid morning haze",
+                  },
+                }),
+              },
+            },
+          ],
+        }),
+      });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "ancient mayan temple in jungle" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "an ancient Mayan temple in dense jungle with sunlit stone carvings and humid morning haze",
+        actions: expect.objectContaining({
+          applyPrompt:
+            "an ancient Mayan temple in dense jungle with sunlit stone carvings and humid morning haze",
+        }),
+        outcome_class: "success_prompt",
+      })
+    );
+  });
+
   it("uses responses endpoint for TEXT_ONLY fast path when responses mode is enabled", async () => {
     process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
     process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "true";

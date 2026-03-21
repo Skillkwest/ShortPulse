@@ -288,6 +288,14 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    const repairCallArgs = fetchStudioAgentChatCompletionMock.mock.calls[1]?.[0] as
+      | { messages?: Array<{ role?: string; content?: string }> }
+      | undefined;
+    const repairUserContent = repairCallArgs?.messages?.find(
+      (message) => message.role === "user"
+    )?.content;
+    expect(repairUserContent).toContain('"latest_user_input":"hello"');
+    expect(repairUserContent).toContain('"canonical_prompt":"base canonical"');
     expect(result.result.parsed.actions?.applyPrompt).toBe("repaired prompt");
     expect(result.result.repairUsed).toBe(true);
     expect(markStage).toHaveBeenCalledWith("fast_path_repair_turn", expect.any(Number));

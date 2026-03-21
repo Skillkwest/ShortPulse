@@ -238,4 +238,25 @@ describe("studioAgentRouteOutcomes", () => {
       traceId: "trace-fallback",
     });
   });
+
+  it("marks output-contract infra fallback payloads as non-retryable", () => {
+    expect(
+      buildStudioAgentInfraFallbackPayload({
+        traceId: "trace-contract-fallback",
+        canonicalPrompt: "existing canonical",
+        reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+        fallbackReason: "parse_repair_failed",
+      })
+    ).toEqual({
+      decision: "allow",
+      outcome_class: "fallback_infra",
+      reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+      retryable: false,
+      message: "I can't process that request right now. Please try again.",
+      actions: undefined,
+      fallback_reason: "parse_repair_failed",
+      canonicalPrompt: "existing canonical",
+      traceId: "trace-contract-fallback",
+    });
+  });
 });

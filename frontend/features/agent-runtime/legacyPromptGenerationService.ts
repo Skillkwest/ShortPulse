@@ -18,7 +18,7 @@ import { emitAgentRouteOutcomeTelemetry } from "./agentRouteTelemetry";
 import { resolveSafetyEnvironment } from "./safetyPolicy/decisionEngine";
 import { resolveSafetyPolicyDocument } from "./safetyPolicy/policyDocument";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
-import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import { buildAgentMachineOutcome, resolveUpstreamReasonCode } from "./agentMachineOutcome";
 import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
@@ -331,7 +331,7 @@ export const executeLegacyPromptGeneration = async ({
       });
       const machineOutcome = buildAgentMachineOutcome({
         outcomeClass: "upstream_error",
-        reasonCode: "UPSTREAM_ERROR",
+        reasonCode: resolveUpstreamReasonCode({ detail }),
       });
       emitPromptRouteTelemetry({
         statusCode: response.status,
@@ -367,7 +367,7 @@ export const executeLegacyPromptGeneration = async ({
       });
       const machineOutcome = buildAgentMachineOutcome({
         outcomeClass: "upstream_error",
-        reasonCode: "UPSTREAM_OUTPUT_CONTRACT",
+        reasonCode: resolveUpstreamReasonCode({ stage: "prompt_missing" }),
       });
       const fallbackReason = resolveStudioAgentFallbackReasonLabel({
         stage: "prompt_missing",
@@ -427,7 +427,7 @@ export const executeLegacyPromptGeneration = async ({
     });
     const machineOutcome = buildAgentMachineOutcome({
       outcomeClass: "upstream_error",
-      reasonCode: "UPSTREAM_ERROR",
+      reasonCode: resolveUpstreamReasonCode({ detail }),
     });
     const fallbackReason = resolveStudioAgentFallbackReasonLabel({
       detail,

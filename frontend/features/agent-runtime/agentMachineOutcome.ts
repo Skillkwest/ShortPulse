@@ -23,6 +23,7 @@ const OUTPUT_CONTRACT_PATTERNS: RegExp[] = [
   /\bparse\/repair\s+failed\b/i,
   /\bcontract\s+violation\b/i,
 ];
+const OUTPUT_CONTRACT_STAGE_HINTS = new Set(["prompt_missing", "style_prompt_missing"]);
 
 const ROUTE_ERROR_REASON_RETRYABLE: Record<
   Extract<AgentReasonCode, "ROUTE_ERROR" | "REQUEST_INVALID" | "AUTH_REQUIRED" | "CONFIG_MISSING">,
@@ -158,4 +159,28 @@ export const resolveInfraFallbackReasonCode = ({
     return "INFRA_FALLBACK_TIMEOUT";
   }
   return "INFRA_FALLBACK_TRANSIENT";
+};
+
+/**
+ * Resolves upstream error reason code for hard error lanes.
+ * Use stage hints for deterministic contract failures that are not represented by raw provider detail.
+ */
+export const resolveUpstreamReasonCode = ({
+  detail,
+  stage,
+}: {
+  detail?: string | null;
+  stage?: string | null;
+}): Extract<AgentReasonCode, "UPSTREAM_ERROR" | "UPSTREAM_OUTPUT_CONTRACT"> => {
+  const normalizedDetail = String(detail ?? "").trim();
+  const normalizedStage = String(stage ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalizedStage.length && OUTPUT_CONTRACT_STAGE_HINTS.has(normalizedStage)) {
+    return "UPSTREAM_OUTPUT_CONTRACT";
+  }
+  if (OUTPUT_CONTRACT_PATTERNS.some((pattern) => pattern.test(normalizedDetail))) {
+    return "UPSTREAM_OUTPUT_CONTRACT";
+  }
+  return "UPSTREAM_ERROR";
 };

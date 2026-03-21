@@ -23,7 +23,7 @@ import {
 import { probeImageUrlForDescribe } from "../../lib/server/api/imageDescribeUrlGuard";
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
-import { buildAgentMachineOutcome } from "./agentMachineOutcome";
+import { buildAgentMachineOutcome, resolveUpstreamReasonCode } from "./agentMachineOutcome";
 import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
@@ -513,7 +513,7 @@ export const executeLegacyStyleExtraction = async ({
       });
       const machineOutcome = buildAgentMachineOutcome({
         outcomeClass: "upstream_error",
-        reasonCode: "UPSTREAM_ERROR",
+        reasonCode: resolveUpstreamReasonCode({ detail }),
       });
       emitStyleRouteTelemetry({
         statusCode: extractionAttempt.status,
@@ -574,7 +574,7 @@ export const executeLegacyStyleExtraction = async ({
       });
       const machineOutcome = buildAgentMachineOutcome({
         outcomeClass: "upstream_error",
-        reasonCode: "UPSTREAM_OUTPUT_CONTRACT",
+        reasonCode: resolveUpstreamReasonCode({ stage: "style_prompt_missing" }),
       });
       const fallbackReason = resolveStudioAgentFallbackReasonLabel({
         stage: "style_prompt_missing",
@@ -658,7 +658,7 @@ export const executeLegacyStyleExtraction = async ({
     });
     const machineOutcome = buildAgentMachineOutcome({
       outcomeClass: "upstream_error",
-      reasonCode: "UPSTREAM_ERROR",
+      reasonCode: resolveUpstreamReasonCode({ detail }),
     });
     const fallbackReason = resolveStudioAgentFallbackReasonLabel({
       detail,

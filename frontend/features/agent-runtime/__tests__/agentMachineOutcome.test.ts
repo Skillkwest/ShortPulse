@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "../agentMachineOutcome";
+import {
+  buildAgentMachineOutcome,
+  resolveInfraFallbackReasonCode,
+  resolveUpstreamReasonCode,
+} from "../agentMachineOutcome";
 
 describe("agentMachineOutcome", () => {
   it("builds success prompt contract fields", () => {
@@ -69,6 +73,14 @@ describe("agentMachineOutcome", () => {
       reason_code: "UPSTREAM_OUTPUT_CONTRACT",
       retryable: false,
     });
+  });
+
+  it("resolves upstream reason codes from stage hints and detail", () => {
+    expect(resolveUpstreamReasonCode({ stage: "prompt_missing" })).toBe("UPSTREAM_OUTPUT_CONTRACT");
+    expect(resolveUpstreamReasonCode({ detail: "Formatter output parse/repair failed" })).toBe(
+      "UPSTREAM_OUTPUT_CONTRACT"
+    );
+    expect(resolveUpstreamReasonCode({ detail: "rate limited" })).toBe("UPSTREAM_ERROR");
   });
 
   it("falls back to outcome defaults when reason code is invalid for class", () => {

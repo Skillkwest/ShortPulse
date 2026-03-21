@@ -1,22 +1,26 @@
 #!/usr/bin/env node
 
 /**
- * Staging-only fallback-rate audit for /api/ai/studio-agent.
- * Sends safe prompt turns, aggregates machine outcomes, and reports fallback_reason rates.
+ * Staging-only OpenAI-lane audit for AI Studio agent routes.
+ * Sends safe synthetic turns, aggregates machine outcomes, and reports fallback_reason rates.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
 const require = createRequire(import.meta.url);
 const { createClient } = require("../frontend/node_modules/@supabase/supabase-js");
 
 const SCRIPT_NAME = "audit_staging_agent_fallback_rates";
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const DEFAULT_ROUTE = "studio-agent";
+const SUPPORTED_ROUTES = /** @type {const} */ ([
+  "studio-agent",
+  "generate-prompt",
+  "describe-image",
+]);
 
 const DEFAULT_PROMPTS = [
   "cinematic portrait, soft window light, shallow depth of field",
@@ -74,6 +78,7 @@ ${SCRIPT_NAME}
 Usage:
   node scripts/${SCRIPT_NAME}.mjs \\
     --base-url <staging-url> \\
+    [--route studio-agent|generate-prompt|describe-image] \\
     [--samples 60] \\
     [--concurrency 4] \\
     [--request-timeout-ms 20000] \\
@@ -89,6 +94,7 @@ Usage:
     [--email <user-email> --password <user-password>] \\
     [--supabase-url <url> --supabase-anon-key <anon-key>] \\
     [--prompt "<single prompt override>"] \\
+    [--describe-image-url <public-image-url>] \\
     [--output <json-path>] \\
     [--vercel-bypass-token <token>] \\
     [--allow-local] \\
@@ -98,6 +104,8 @@ Notes:
   - Production domains are blocked by default.
   - If --bearer-token is not provided, this script signs in via Supabase.
   - Auto temp-user auth is enabled by default (disable with --auto-user false).
+  - Route defaults to studio-agent.
+  - describe-image route requires --describe-image-url or STAGING_AUDIT_DESCRIBE_IMAGE_URL.
   - Env loading defaults: .env.agent.local, frontend/.env.local (non-overriding).
   - Rates can be provided as decimals (0.05) or percentages (5%).
 `);
@@ -134,17 +142,79 @@ const resolvePrompts = ({ prompt }) => {
   return DEFAULT_PROMPTS;
 };
 
-const inferOutcomeClass = ({ status, parsed, explicitOutcomeClass }) => {
+const resolveRoute = (rawRoute) => {
+  const normalized = String(rawRoute ?? DEFAULT_ROUTE).trim().toLowerCase();
+  if (SUPPORTED_ROUTES.includes(normalized)) return normalized;
+  throw new Error(
+    `Invalid --route value: ${rawRoute}. Expected one of: ${SUPPORTED_ROUTES.join(", ")}`
+  );
+};
+
+const resolveRoutePath = (route) => {
+  if (route === "studio-agent") return "/api/ai/studio-agent";
+  if (route === "generate-prompt") return "/api/ai/generate-prompt";
+  if (route === "describe-image") return "/api/ai/describe-image";
+  throw new Error(`Unsupported route: ${route}`);
+};
+
+const resolveRouteContractHeaderSupport = (route) => route === "studio-agent";
+
+const buildRoutePayload = ({ route, traceId, runId, requestIndex, prompt, describeImageUrl }) => {
+  if (route === "studio-agent") {
+    return {
+      traceId,
+      clientSessionKey: `${runId}-session`,
+      messages: [{ role: "user", content: prompt }],
+      context: {},
+    };
+  }
+  if (route === "generate-prompt") {
+    return { prompt };
+  }
+  if (route === "describe-image") {
+    return { imageUrl: describeImageUrl };
+  }
+  throw new Error(`Unsupported route: ${route}`);
+};
+
+const resolveMessagePreview = (parsed) => {
+  const previewCandidates = [
+    typeof parsed?.message === "string" ? parsed.message : "",
+    typeof parsed?.prompt === "string" ? parsed.prompt : "",
+    typeof parsed?.description === "string" ? parsed.description : "",
+    typeof parsed?.error === "string" ? parsed.error : "",
+    typeof parsed?.detail === "string" ? parsed.detail : "",
+    typeof parsed?.canonicalPrompt === "string" ? parsed.canonicalPrompt : "",
+    typeof parsed?.actions?.applyPrompt === "string" ? parsed.actions.applyPrompt : "",
+  ];
+  const first = previewCandidates.find((value) => value.trim().length > 0) ?? "";
+  return first.length > 0 ? first.slice(0, 120) : null;
+};
+
+const inferOutcomeClass = ({ route, status, parsed, explicitOutcomeClass }) => {
   if (typeof explicitOutcomeClass === "string" && explicitOutcomeClass.trim().length > 0) {
     return explicitOutcomeClass.trim();
   }
   if (status !== 200) return null;
-  const message = typeof parsed?.message === "string" ? parsed.message.trim() : "";
-  const canonicalPrompt =
-    typeof parsed?.canonicalPrompt === "string" ? parsed.canonicalPrompt.trim() : "";
-  const applyPrompt =
-    typeof parsed?.actions?.applyPrompt === "string" ? parsed.actions.applyPrompt.trim() : "";
-  if (message || canonicalPrompt || applyPrompt) return "success_prompt";
+  if (route === "studio-agent") {
+    const message = typeof parsed?.message === "string" ? parsed.message.trim() : "";
+    const canonicalPrompt =
+      typeof parsed?.canonicalPrompt === "string" ? parsed.canonicalPrompt.trim() : "";
+    const applyPrompt =
+      typeof parsed?.actions?.applyPrompt === "string" ? parsed.actions.applyPrompt.trim() : "";
+    if (message || canonicalPrompt || applyPrompt) return "success_prompt";
+    return null;
+  }
+  if (route === "generate-prompt") {
+    const nextPrompt = typeof parsed?.prompt === "string" ? parsed.prompt.trim() : "";
+    if (nextPrompt) return "success_prompt";
+    return null;
+  }
+  if (route === "describe-image") {
+    const description = typeof parsed?.description === "string" ? parsed.description.trim() : "";
+    if (description) return "success_prompt";
+    return null;
+  }
   return null;
 };
 
@@ -243,6 +313,7 @@ const classifyOutcome = (record) => {
 };
 
 const requestOne = async ({
+  route,
   baseUrl,
   routePath,
   bearerToken,
@@ -250,6 +321,7 @@ const requestOne = async ({
   timeoutMs,
   requestIndex,
   prompts,
+  describeImageUrl,
   runId,
   retryCount,
 }) => {
@@ -258,12 +330,14 @@ const requestOne = async ({
     ? `${baseUrl}${routePath}?x-vercel-protection-bypass=${encodeURIComponent(vercelBypassToken)}`
     : `${baseUrl}${routePath}`;
   const traceId = `${runId}-req-${requestIndex}`;
-  const payload = {
+  const payload = buildRoutePayload({
+    route,
     traceId,
-    clientSessionKey: `${runId}-session`,
-    messages: [{ role: "user", content: prompt }],
-    context: {},
-  };
+    runId,
+    requestIndex,
+    prompt,
+    describeImageUrl,
+  });
 
   let attempt = 0;
   let lastRecord = null;
@@ -335,9 +409,10 @@ const requestOne = async ({
     const record = {
       request_index: requestIndex,
       attempt,
-      route: "studio-agent",
+      route,
       path: routePath,
       prompt,
+      ...(route === "describe-image" ? { image_url: describeImageUrl } : {}),
       status: response?.status ?? 0,
       contractVersion:
         response?.headers?.get("agent-contract-version") ??
@@ -345,6 +420,7 @@ const requestOne = async ({
         null,
       decision: explicitDecision,
       outcomeClass: inferOutcomeClass({
+        route,
         status: response?.status ?? 0,
         parsed,
         explicitOutcomeClass,
@@ -360,7 +436,7 @@ const requestOne = async ({
             : null,
       latency_ms: latencyMs,
       network_error: networkError,
-      message_preview: typeof parsed?.message === "string" ? parsed.message.slice(0, 120) : null,
+      message_preview: resolveMessagePreview(parsed),
       raw_preview: parsed ? null : rawBody.slice(0, 120),
       timestamp: new Date().toISOString(),
     };
@@ -420,8 +496,20 @@ const main = async () => {
   const concurrency = parseIntArg(args.concurrency, DEFAULT_CONCURRENCY);
   const timeoutMs = parseIntArg(args["request-timeout-ms"], DEFAULT_TIMEOUT_MS, 1000);
   const retryCount = parseIntArg(args["retry-count"], DEFAULT_RETRIES, 0);
-  const routePath = "/api/ai/studio-agent";
+  const route = resolveRoute(args.route);
+  const routePath = resolveRoutePath(route);
+  const routeSupportsContractVersionHeader = resolveRouteContractHeaderSupport(route);
   const prompts = resolvePrompts({ prompt: args.prompt });
+  const describeImageUrlRaw =
+    args["describe-image-url"] ??
+    process.env.STAGING_AUDIT_DESCRIBE_IMAGE_URL ??
+    process.env.STAGING_AUDIT_IMAGE_URL;
+  const describeImageUrl = String(describeImageUrlRaw ?? "").trim();
+  if (route === "describe-image" && !describeImageUrl) {
+    throw new Error(
+      "Missing describe-image input URL. Provide --describe-image-url or STAGING_AUDIT_DESCRIBE_IMAGE_URL."
+    );
+  }
   const runId = `fallback-audit-${Date.now()}`;
   const autoUser = args["auto-user"] !== "false";
   const maxFallbackRate = parseRateArg(args["max-fallback-rate"]);
@@ -432,6 +520,11 @@ const main = async () => {
     typeof args["require-contract-version"] === "string"
       ? args["require-contract-version"].trim()
       : null;
+  if (requireContractVersion && !routeSupportsContractVersionHeader) {
+    throw new Error(
+      `--require-contract-version is only supported for studio-agent route; received route=${route}.`
+    );
+  }
   const requireSuccessPrompt = args["require-success-prompt"] === "true";
   const outputPath =
     args.output ??
@@ -454,7 +547,10 @@ const main = async () => {
   console.log(
     `[${SCRIPT_NAME}] samples=${samples} concurrency=${concurrency} timeout_ms=${timeoutMs} retry_count=${retryCount}`
   );
-  console.log(`[${SCRIPT_NAME}] prompts=${prompts.length} route=${routePath}`);
+  console.log(`[${SCRIPT_NAME}] prompts=${prompts.length} route=${routePath} route_key=${route}`);
+  if (route === "describe-image") {
+    console.log(`[${SCRIPT_NAME}] describe_image_url=${describeImageUrl}`);
+  }
   console.log(`[${SCRIPT_NAME}] auth_mode=${bearerToken ? "bearer_token" : autoUser ? "auto_user" : "email_password"}`);
   console.log(`[${SCRIPT_NAME}] vercel_bypass=${vercelBypassToken ? "enabled" : "disabled"}`);
   console.log(
@@ -484,12 +580,14 @@ const main = async () => {
     worker: async (requestIndex) =>
       await requestOne({
         baseUrl,
+        route,
         routePath,
         bearerToken: token,
         vercelBypassToken,
         timeoutMs,
         requestIndex,
         prompts,
+        describeImageUrl,
         runId,
         retryCount,
       }),
@@ -525,7 +623,7 @@ const main = async () => {
   const summary = {
     run_id: runId,
     base_url: baseUrl,
-    route: "studio-agent",
+    route,
     path: routePath,
     started_at: new Date(startedAt).toISOString(),
     finished_at: new Date().toISOString(),
@@ -534,7 +632,8 @@ const main = async () => {
     concurrency,
     request_timeout_ms: timeoutMs,
     retry_count: retryCount,
-    prompts,
+    prompts: route === "describe-image" ? [] : prompts,
+    describe_image_url: route === "describe-image" ? describeImageUrl : null,
     avg_latency_ms: avgLatencyMs,
     fallback_count: fallbackCount,
     fallback_rate: total ? fallbackCount / total : 0,

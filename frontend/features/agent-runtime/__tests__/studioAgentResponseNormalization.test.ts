@@ -17,6 +17,13 @@ describe("studioAgentResponseNormalization", () => {
     });
   });
 
+  it("keeps semantic parser strict when output is unstructured text", () => {
+    const parsed = parseStudioAgentSemanticOutput(
+      "Here is your revised prompt: a cinematic portrait with soft rim light and subtle film grain"
+    );
+    expect(parsed).toBeNull();
+  });
+
   it("normalizes refusal semantic output to canonical refusal message", () => {
     const semantic = parseStudioAgentSemanticOutput(
       '{"status":"refuse","prompt_text":"cannot comply"}'
@@ -36,6 +43,13 @@ describe("studioAgentResponseNormalization", () => {
         actions: undefined,
       },
     });
+  });
+
+  it("keeps unstructured refusal text out of semantic parser path", () => {
+    const parsed = parseStudioAgentSemanticOutput(
+      "I cannot help with that request due to safety policy."
+    );
+    expect(parsed).toBeNull();
   });
 
   it("parses fenced semantic payloads when extra text is present", () => {
@@ -71,6 +85,20 @@ describe("studioAgentResponseNormalization", () => {
         message: "cinematic portrait",
         actions: { applyPrompt: "cinematic portrait" },
         usage: undefined,
+      },
+    });
+  });
+
+  it("falls back to unstructured text when no JSON payload exists", () => {
+    const parsed = parseStudioAgentJsonWithStatus(
+      "Final prompt: dramatic portrait in moody neon lighting, low-angle composition"
+    );
+
+    expect(parsed).toEqual({
+      status: "ready",
+      response: {
+        message: "dramatic portrait in moody neon lighting, low-angle composition",
+        actions: { applyPrompt: "dramatic portrait in moody neon lighting, low-angle composition" },
       },
     });
   });

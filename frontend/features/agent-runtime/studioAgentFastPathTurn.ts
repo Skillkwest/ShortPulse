@@ -255,6 +255,14 @@ export const executeStudioAgentFastPathTurn = async ({
     };
   }
 
+  if (!parsedWithStatus) {
+    return {
+      ok: false,
+      status: 502,
+      detail: "Fast-path output parse/repair failed",
+    };
+  }
+
   let parsed = parsedWithStatus.response;
 
   const nextCanonical = sanitizeGenerationPromptText(

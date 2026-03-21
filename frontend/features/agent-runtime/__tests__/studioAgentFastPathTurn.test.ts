@@ -204,12 +204,55 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result.result.repairUsed).toBe(false);
   });
 
+  it("accepts unstructured plain-text output without triggering repair", async () => {
+    fetchStudioAgentChatCompletionMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                "Here is your revised prompt: cinematic portrait, soft key light, shallow depth of field",
+            },
+          },
+        ],
+      }),
+    });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(1);
+    expect(result.result.parsed.actions?.applyPrompt).toBe(
+      "cinematic portrait, soft key light, shallow depth of field"
+    );
+    expect(result.result.repairUsed).toBe(false);
+  });
+
   it("repairs malformed fast-path output with one bounded repair turn", async () => {
     fetchStudioAgentChatCompletionMock
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: "plain malformed output" } }],
+          choices: [
+            {
+              message: {
+                content: "Summary: transformed the prompt with richer descriptive detail.",
+              },
+            },
+          ],
           usage: { prompt_tokens: 5, completion_tokens: 7 },
         }),
       })
@@ -255,13 +298,25 @@ describe("executeStudioAgentFastPathTurn", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: "plain malformed output" } }],
+          choices: [
+            {
+              message: {
+                content: "Summary: transformed the prompt with richer descriptive detail.",
+              },
+            },
+          ],
         }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: "still malformed output" } }],
+          choices: [
+            {
+              message: {
+                content: "Summary: transformed the prompt with richer descriptive detail.",
+              },
+            },
+          ],
         }),
       });
     const markStage = vi.fn();

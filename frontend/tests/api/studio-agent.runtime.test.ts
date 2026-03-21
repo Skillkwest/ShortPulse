@@ -774,6 +774,48 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
+  it("accepts unstructured fast-path prompt text without falling back", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                "Here is your revised prompt: a cinematic portrait with soft rim light and subtle film grain",
+            },
+          },
+        ],
+        usage: { prompt_tokens: 12, completion_tokens: 8 },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "a woman" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "a cinematic portrait with soft rim light and subtle film grain",
+        actions: expect.objectContaining({
+          applyPrompt: "a cinematic portrait with soft rim light and subtle film grain",
+        }),
+        outcome_class: "success_prompt",
+      })
+    );
+  });
+
   it("keeps prompt-only action envelope when fast path returns semantic ready JSON", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

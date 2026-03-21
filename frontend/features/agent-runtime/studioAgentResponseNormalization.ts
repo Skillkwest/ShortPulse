@@ -12,6 +12,34 @@ type ParsedAgentSemanticOutput = {
   promptText: string;
 };
 
+const UNSTRUCTURED_PROMPT_PREFIX_PATTERNS: RegExp[] = [
+  /^\s*(?:here(?:'s| is)|below is)\s+(?:your\s+)?(?:revised|updated|final|enhanced)?\s*prompt\s*[:-]\s*/i,
+  /^\s*(?:revised|updated|final|enhanced)\s+prompt\s*[:-]\s*/i,
+  /^\s*prompt\s*[:-]\s*/i,
+];
+
+const UNSTRUCTURED_REFUSAL_PATTERNS: RegExp[] = [
+  /^\s*i\s*(?:cannot|can't|can not|am unable to|won't|will not)\b/i,
+  /\b(?:cannot|can't|unable to|won't|will not)\s+(?:comply|assist|help|process|provide|rewrite|describe|generate|create)\b/i,
+  /\bsafety\s+policy\b/i,
+  /\bcontent\s+policy\b/i,
+];
+
+const stripUnstructuredPromptPreamble = (value: string): string => {
+  let next = value;
+  UNSTRUCTURED_PROMPT_PREFIX_PATTERNS.forEach((pattern) => {
+    next = next.replace(pattern, "");
+  });
+  return next.trim();
+};
+
+const isLikelyUnstructuredRefusal = (value: string): boolean => {
+  const normalized = value.trim();
+  if (!normalized.length) return false;
+  if (normalized === STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE) return true;
+  return UNSTRUCTURED_REFUSAL_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
 const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
   if (!value || typeof value !== "object") return undefined;
   const record = value as Record<string, unknown>;
@@ -114,6 +142,33 @@ const collectJsonCandidates = (raw: unknown): string[] => {
   return candidates;
 };
 
+const parseStudioAgentUnstructuredText = (raw: unknown): ParsedAgentJson | null => {
+  const rawText = extractStudioAgentCompletionText(raw).trim();
+  if (!rawText.length) return null;
+
+  const strippedText = stripUnstructuredPromptPreamble(rawText);
+  const promptText = sanitizeGenerationPromptText(strippedText);
+  if (!promptText?.trim().length) return null;
+
+  if (isLikelyUnstructuredRefusal(rawText) || isLikelyUnstructuredRefusal(promptText)) {
+    return {
+      status: "refuse",
+      response: {
+        message: promptText,
+        actions: undefined,
+      },
+    };
+  }
+
+  return {
+    status: "ready",
+    response: {
+      message: promptText,
+      actions: { applyPrompt: promptText },
+    },
+  };
+};
+
 export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | null => {
   const candidates = collectJsonCandidates(raw);
 
@@ -159,7 +214,7 @@ export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | 
       continue;
     }
   }
-  return null;
+  return parseStudioAgentUnstructuredText(raw);
 };
 
 export const parseStudioAgentJson = (raw: unknown): AgentResponse | null =>
@@ -196,7 +251,15 @@ export const parseStudioAgentSemanticOutput = (raw: unknown): ParsedAgentSemanti
       continue;
     }
   }
-  return null;
+  if (candidates.length > 0) {
+    return null;
+  }
+  const unstructured = parseStudioAgentUnstructuredText(raw);
+  if (!unstructured) return null;
+  return {
+    status: unstructured.status === "refuse" ? "refuse" : "ready",
+    promptText: unstructured.response.message,
+  };
 };
 
 export const isStudioAgentRefusalResponse = ({

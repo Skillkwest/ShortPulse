@@ -287,7 +287,11 @@ export const buildStudioAgentInfraFallbackPayload = ({
 }: {
   traceId: string;
   canonicalPrompt: string | null;
-  reasonCode?: "INFRA_FALLBACK_TRANSIENT" | "INFRA_FALLBACK_TIMEOUT" | "INFRA_FALLBACK_RATE_LIMIT";
+  reasonCode?:
+    | "INFRA_FALLBACK_TRANSIENT"
+    | "INFRA_FALLBACK_TIMEOUT"
+    | "INFRA_FALLBACK_RATE_LIMIT"
+    | "INFRA_FALLBACK_OUTPUT_CONTRACT";
   fallbackReason?: string;
 }) => ({
   ...buildAgentMachineOutcome({

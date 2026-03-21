@@ -987,8 +987,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         actions: undefined,
         decision: "allow",
         outcome_class: "fallback_infra",
-        reason_code: "INFRA_FALLBACK_TRANSIENT",
-        retryable: true,
+        reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+        retryable: false,
         fallback_reason: "parse_repair_failed",
       })
     );

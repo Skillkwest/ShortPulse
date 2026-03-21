@@ -292,6 +292,8 @@ describe("POST /api/ai/describe-image", () => {
         fallback_reason: "parse_repair_failed",
         decision: "allow",
         outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+        retryable: false,
       })
     );
     expect(logGenerationFailureMock).toHaveBeenCalledWith(

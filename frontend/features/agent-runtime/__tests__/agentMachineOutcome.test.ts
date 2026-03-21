@@ -32,9 +32,29 @@ describe("agentMachineOutcome", () => {
     expect(resolveInfraFallbackReasonCode({ status: 504, detail: "gateway timeout" })).toBe(
       "INFRA_FALLBACK_TIMEOUT"
     );
+    expect(
+      resolveInfraFallbackReasonCode({
+        status: 500,
+        detail: "Fast-path output parse/repair failed",
+      })
+    ).toBe("INFRA_FALLBACK_OUTPUT_CONTRACT");
     expect(resolveInfraFallbackReasonCode({ detail: "socket hang up" })).toBe(
       "INFRA_FALLBACK_TRANSIENT"
     );
+  });
+
+  it("marks output-contract fallback reason codes as non-retryable", () => {
+    expect(
+      buildAgentMachineOutcome({
+        outcomeClass: "fallback_infra",
+        reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+      })
+    ).toEqual({
+      decision: "allow",
+      outcome_class: "fallback_infra",
+      reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+      retryable: false,
+    });
   });
 
   it("falls back to outcome defaults when reason code is invalid for class", () => {

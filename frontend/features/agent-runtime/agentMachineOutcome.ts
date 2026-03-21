@@ -19,6 +19,10 @@ const TIMEOUT_PATTERNS: RegExp[] = [
   /\bdeadline\b/i,
   /\babort(?:error)?\b/i,
 ];
+const OUTPUT_CONTRACT_PATTERNS: RegExp[] = [
+  /\bparse\/repair\s+failed\b/i,
+  /\bcontract\s+violation\b/i,
+];
 
 const ROUTE_ERROR_REASON_RETRYABLE: Record<
   Extract<AgentReasonCode, "ROUTE_ERROR" | "REQUEST_INVALID" | "AUTH_REQUIRED" | "CONFIG_MISSING">,
@@ -50,7 +54,8 @@ const validateReasonCodeForOutcomeClass = ({
     return (
       reasonCode === "INFRA_FALLBACK_TRANSIENT" ||
       reasonCode === "INFRA_FALLBACK_TIMEOUT" ||
-      reasonCode === "INFRA_FALLBACK_RATE_LIMIT"
+      reasonCode === "INFRA_FALLBACK_RATE_LIMIT" ||
+      reasonCode === "INFRA_FALLBACK_OUTPUT_CONTRACT"
     );
   }
   if (outcomeClass === "upstream_error") return reasonCode === "UPSTREAM_ERROR";
@@ -91,7 +96,9 @@ const resolveRetryable = ({
       reasonCode as keyof typeof ROUTE_ERROR_REASON_RETRYABLE
     ] as boolean;
   }
-  if (outcomeClass === "fallback_infra") return true;
+  if (outcomeClass === "fallback_infra") {
+    return reasonCode !== "INFRA_FALLBACK_OUTPUT_CONTRACT";
+  }
   if (outcomeClass === "upstream_error") return true;
   return false;
 };
@@ -129,9 +136,15 @@ export const resolveInfraFallbackReasonCode = ({
   detail?: string | null;
 }): Extract<
   AgentReasonCode,
-  "INFRA_FALLBACK_TRANSIENT" | "INFRA_FALLBACK_TIMEOUT" | "INFRA_FALLBACK_RATE_LIMIT"
+  | "INFRA_FALLBACK_TRANSIENT"
+  | "INFRA_FALLBACK_TIMEOUT"
+  | "INFRA_FALLBACK_RATE_LIMIT"
+  | "INFRA_FALLBACK_OUTPUT_CONTRACT"
 > => {
   const normalizedDetail = String(detail ?? "").trim();
+  if (OUTPUT_CONTRACT_PATTERNS.some((pattern) => pattern.test(normalizedDetail))) {
+    return "INFRA_FALLBACK_OUTPUT_CONTRACT";
+  }
   if (status === 429 || RATE_LIMIT_PATTERNS.some((pattern) => pattern.test(normalizedDetail))) {
     return "INFRA_FALLBACK_RATE_LIMIT";
   }

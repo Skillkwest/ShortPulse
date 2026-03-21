@@ -884,7 +884,8 @@ export const executeStudioAgentCoordinator = async ({
           legacyV2FallbackEnabled &&
           canUseV2Path &&
           (singleStageResult.failureClass === "infra_transient" ||
-            singleStageResult.failureClass === "infra_runtime")
+            singleStageResult.failureClass === "infra_runtime" ||
+            singleStageResult.failureClass === "output_contract")
         ) {
           runtimePath = "legacy_v2_fallback";
           const fallbackResult = await executeV2Path(runtimePath);

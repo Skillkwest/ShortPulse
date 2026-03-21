@@ -979,6 +979,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
 
     await studioAgentHandler(req as never, res as never);
 
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

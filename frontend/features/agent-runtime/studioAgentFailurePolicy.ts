@@ -10,6 +10,7 @@ export type StudioAgentFailureClass =
   | "safety_refusal"
   | "infra_transient"
   | "infra_runtime"
+  | "output_contract"
   | "auth_config"
   | "invalid_request";
 
@@ -48,6 +49,11 @@ const TRANSIENT_DETAIL_PATTERNS: RegExp[] = [
   /\bfetch\s+failed\b/i,
 ];
 
+const OUTPUT_CONTRACT_DETAIL_PATTERNS: RegExp[] = [
+  /\bparse\/repair\s+failed\b/i,
+  /\bcontract\s+violation\b/i,
+];
+
 /**
  * Classifies a provider/runtime failure into a stable category used by user-lane policy.
  */
@@ -62,6 +68,10 @@ export const classifyStudioAgentFailure = ({
 }): StudioAgentFailureClass => {
   if (safetyRefusal) return "safety_refusal";
   const normalizedDetail = String(detail ?? "").trim();
+
+  if (OUTPUT_CONTRACT_DETAIL_PATTERNS.some((pattern) => pattern.test(normalizedDetail))) {
+    return "output_contract";
+  }
 
   if (typeof status === "number") {
     if (AUTH_STATUS_CODES.has(status)) return "auth_config";
@@ -87,7 +97,11 @@ export const resolveStudioAgentFailureResolution = ({
   failureClass: StudioAgentFailureClass;
 }): StudioAgentFailureResolution => {
   if (failureClass === "safety_refusal") return "canonical_refusal";
-  if (failureClass === "infra_transient" || failureClass === "infra_runtime") {
+  if (
+    failureClass === "infra_transient" ||
+    failureClass === "infra_runtime" ||
+    failureClass === "output_contract"
+  ) {
     return "assistant_fallback";
   }
   return "hard_error";

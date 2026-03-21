@@ -29,6 +29,22 @@ describe("studioAgentFailurePolicy", () => {
     expect(resolveStudioAgentFailureResolution({ failureClass })).toBe("assistant_fallback");
   });
 
+  it("classifies parse/repair failures as non-retryable output contract failures", () => {
+    const failureClass = classifyStudioAgentFailure({
+      status: 502,
+      detail: "Fast-path output parse/repair failed",
+    });
+    expect(failureClass).toBe("output_contract");
+    expect(resolveStudioAgentFailureResolution({ failureClass })).toBe("assistant_fallback");
+    expect(
+      shouldRetryStudioAgentFailure({
+        failureClass,
+        attempt: 1,
+        maxAttempts: 2,
+      })
+    ).toBe(false);
+  });
+
   it("classifies auth/config failures as hard errors", () => {
     const failureClass = classifyStudioAgentFailure({
       status: 401,

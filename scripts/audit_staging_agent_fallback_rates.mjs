@@ -29,7 +29,6 @@ const DEFAULT_SAMPLES = 60;
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 20000;
 const DEFAULT_RETRIES = 0;
-const DEFAULT_BASE_URL = process.env.SHORTPULSE_STAGING_BASE_URL ?? "";
 
 const nowIsoSafe = () => new Date().toISOString().replace(/[:.]/g, "-");
 
@@ -82,7 +81,9 @@ Usage:
     [--max-fallback-rate 0.05] \\
     [--max-upstream-error-rate 0.02] \\
     [--max-non-200-rate 0.02] \\
+    [--max-missing-machine-outcome-rate 0] \\
     [--require-success-prompt] \\
+    [--auto-user false] \\
     [--bearer-token <jwt>] \\
     [--email <user-email> --password <user-password>] \\
     [--supabase-url <url> --supabase-anon-key <anon-key>] \\
@@ -94,7 +95,8 @@ Usage:
 
 Notes:
   - Production domains are blocked by default.
-  - If --bearer-token is not provided, this script signs in via Supabase email/password.
+  - If --bearer-token is not provided, this script signs in via Supabase.
+  - Auto temp-user auth is enabled by default (disable with --auto-user false).
   - Env loading defaults: .env.agent.local, frontend/.env.local (non-overriding).
   - Rates can be provided as decimals (0.05) or percentages (5%).
 `);
@@ -131,12 +133,28 @@ const resolvePrompts = ({ prompt }) => {
   return DEFAULT_PROMPTS;
 };
 
+const inferOutcomeClass = ({ status, parsed, explicitOutcomeClass }) => {
+  if (typeof explicitOutcomeClass === "string" && explicitOutcomeClass.trim().length > 0) {
+    return explicitOutcomeClass.trim();
+  }
+  if (status !== 200) return null;
+  const message = typeof parsed?.message === "string" ? parsed.message.trim() : "";
+  const canonicalPrompt =
+    typeof parsed?.canonicalPrompt === "string" ? parsed.canonicalPrompt.trim() : "";
+  const applyPrompt =
+    typeof parsed?.actions?.applyPrompt === "string" ? parsed.actions.applyPrompt.trim() : "";
+  if (message || canonicalPrompt || applyPrompt) return "success_prompt";
+  return null;
+};
+
 const resolveToken = async ({
   bearerToken,
   email,
   password,
   supabaseUrl,
   supabaseAnonKey,
+  autoUser,
+  runId,
 }) => {
   if (typeof bearerToken === "string" && bearerToken.trim().length > 0) {
     return bearerToken.trim();
@@ -144,11 +162,6 @@ const resolveToken = async ({
 
   const normalizedEmail = String(email ?? "").trim();
   const normalizedPassword = String(password ?? "").trim();
-  if (!normalizedEmail || !normalizedPassword) {
-    throw new Error(
-      "Missing auth credentials. Provide --bearer-token or (--email and --password)."
-    );
-  }
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
       "Missing Supabase credentials. Provide --supabase-url and --supabase-anon-key (or env vars)."
@@ -158,14 +171,49 @@ const resolveToken = async ({
   const client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await client.auth.signInWithPassword({
-    email: normalizedEmail,
-    password: normalizedPassword,
-  });
-  if (error || !data?.session?.access_token) {
-    throw new Error(`Supabase sign-in failed: ${error?.message ?? "missing session"}`);
+
+  if (normalizedEmail && normalizedPassword) {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: normalizedPassword,
+    });
+    if (error || !data?.session?.access_token) {
+      throw new Error(`Supabase sign-in failed: ${error?.message ?? "missing session"}`);
+    }
+    return data.session.access_token;
   }
-  return data.session.access_token;
+
+  if (!autoUser) {
+    throw new Error(
+      "Missing auth credentials. Provide --bearer-token or (--email and --password), or enable --auto-user."
+    );
+  }
+
+  const tempEmail = `agent.audit.${runId}.${Date.now()}@shortpulse.test`;
+  const tempPassword = `Sp!${Math.random().toString(36).slice(2)}${Date.now()}`;
+
+  const signUp = await client.auth.signUp({
+    email: tempEmail,
+    password: tempPassword,
+  });
+  if (signUp.data?.session?.access_token) {
+    return signUp.data.session.access_token;
+  }
+
+  let lastError = signUp.error?.message ?? "auth_session_missing";
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const signIn = await client.auth.signInWithPassword({
+      email: tempEmail,
+      password: tempPassword,
+    });
+    if (!signIn.error && signIn.data?.session?.access_token) {
+      return signIn.data.session.access_token;
+    }
+    lastError = signIn.error?.message ?? lastError;
+    await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+  }
+
+  throw new Error(`Temp-user auth failed: ${lastError}`);
 };
 
 const bucketBy = (items, keyBuilder) => {
@@ -262,10 +310,21 @@ const requestOne = async ({
       prompt,
       status: response?.status ?? 0,
       decision: typeof parsed?.decision === "string" ? parsed.decision : null,
-      outcomeClass: typeof parsed?.outcome_class === "string" ? parsed.outcome_class : null,
+      outcomeClass: inferOutcomeClass({
+        status: response?.status ?? 0,
+        parsed,
+        explicitOutcomeClass:
+          typeof parsed?.outcome_class === "string" ? parsed.outcome_class : null,
+      }),
       reasonCode: typeof parsed?.reason_code === "string" ? parsed.reason_code : null,
       retryable: typeof parsed?.retryable === "boolean" ? parsed.retryable : null,
-      fallbackReason: typeof parsed?.fallback_reason === "string" ? parsed.fallback_reason : null,
+      machine_outcome_present: typeof parsed?.outcome_class === "string",
+      fallbackReason:
+        typeof parsed?.fallback_reason === "string"
+          ? parsed.fallback_reason
+          : typeof parsed?.fallbackReason === "string"
+            ? parsed.fallbackReason
+            : null,
       latency_ms: latencyMs,
       network_error: networkError,
       message_preview: typeof parsed?.message === "string" ? parsed.message.slice(0, 120) : null,
@@ -316,7 +375,11 @@ const main = async () => {
     return;
   }
 
-  const { normalized: baseUrl, url } = resolveBaseUrl(args["base-url"] ?? DEFAULT_BASE_URL);
+  const defaultBaseUrl =
+    process.env.SHORTPULSE_STAGING_BASE_URL?.trim() ??
+    process.env.APP_BASE_URL?.trim() ??
+    "";
+  const { normalized: baseUrl, url } = resolveBaseUrl(args["base-url"] ?? defaultBaseUrl);
   const allowLocal = args["allow-local"] === "true";
   assertStagingGuard({ url, allowLocal });
 
@@ -327,9 +390,11 @@ const main = async () => {
   const routePath = "/api/ai/studio-agent";
   const prompts = resolvePrompts({ prompt: args.prompt });
   const runId = `fallback-audit-${Date.now()}`;
+  const autoUser = args["auto-user"] !== "false";
   const maxFallbackRate = parseRateArg(args["max-fallback-rate"]);
   const maxUpstreamErrorRate = parseRateArg(args["max-upstream-error-rate"]);
   const maxNon200Rate = parseRateArg(args["max-non-200-rate"]);
+  const maxMissingMachineOutcomeRate = parseRateArg(args["max-missing-machine-outcome-rate"]);
   const requireSuccessPrompt = args["require-success-prompt"] === "true";
   const outputPath =
     args.output ??
@@ -342,15 +407,21 @@ const main = async () => {
   const password = args.password ?? process.env.STAGING_AUDIT_PASSWORD ?? "";
   const bearerToken = args["bearer-token"] ?? process.env.STAGING_AUDIT_BEARER_TOKEN ?? "";
   const vercelBypassToken =
-    args["vercel-bypass-token"] ?? process.env.SHORTPULSE_VERCEL_PROTECTION_BYPASS ?? "";
+    args["vercel-bypass-token"] ??
+    process.env.SHORTPULSE_VERCEL_PROTECTION_BYPASS ??
+    process.env.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN ??
+    process.env.VERCEL_AUTOMATION_BYPASS_TOKEN ??
+    "";
 
   console.log(`[${SCRIPT_NAME}] base_url=${baseUrl}`);
   console.log(
     `[${SCRIPT_NAME}] samples=${samples} concurrency=${concurrency} timeout_ms=${timeoutMs} retry_count=${retryCount}`
   );
   console.log(`[${SCRIPT_NAME}] prompts=${prompts.length} route=${routePath}`);
+  console.log(`[${SCRIPT_NAME}] auth_mode=${bearerToken ? "bearer_token" : autoUser ? "auto_user" : "email_password"}`);
+  console.log(`[${SCRIPT_NAME}] vercel_bypass=${vercelBypassToken ? "enabled" : "disabled"}`);
   console.log(
-    `[${SCRIPT_NAME}] thresholds fallback<=${maxFallbackRate ?? "off"} upstream_error<=${maxUpstreamErrorRate ?? "off"} non_200<=${maxNon200Rate ?? "off"} require_success_prompt=${requireSuccessPrompt}`
+    `[${SCRIPT_NAME}] thresholds fallback<=${maxFallbackRate ?? "off"} upstream_error<=${maxUpstreamErrorRate ?? "off"} non_200<=${maxNon200Rate ?? "off"} missing_machine_outcome<=${maxMissingMachineOutcomeRate ?? "off"} require_success_prompt=${requireSuccessPrompt}`
   );
   console.log(`[${SCRIPT_NAME}] output=${outputPath}`);
 
@@ -365,6 +436,8 @@ const main = async () => {
     password,
     supabaseUrl,
     supabaseAnonKey,
+    autoUser,
+    runId,
   });
 
   const startedAt = Date.now();
@@ -401,6 +474,9 @@ const main = async () => {
   ).length;
   const non200Count = records.filter((record) => record.status !== 200).length;
   const networkErrorCount = records.filter((record) => Boolean(record.network_error)).length;
+  const missingMachineOutcomeCount = records.filter(
+    (record) => !record.machine_outcome_present
+  ).length;
   const avgLatencyMs = total
     ? Math.round(records.reduce((sum, record) => sum + record.latency_ms, 0) / total)
     : 0;
@@ -426,6 +502,8 @@ const main = async () => {
     non_200_count: non200Count,
     non_200_rate: total ? non200Count / total : 0,
     network_error_count: networkErrorCount,
+    missing_machine_outcome_count: missingMachineOutcomeCount,
+    missing_machine_outcome_rate: total ? missingMachineOutcomeCount / total : 0,
     buckets: {
       outcome: mapToSortedObject(outcomeBuckets),
       outcome_class: mapToSortedObject(outcomeClassBuckets),
@@ -457,6 +535,14 @@ const main = async () => {
       threshold: maxNon200Rate,
       actual: summary.non_200_rate,
       pass: summary.non_200_rate <= maxNon200Rate,
+    });
+  }
+  if (maxMissingMachineOutcomeRate !== null) {
+    checks.push({
+      name: "missing_machine_outcome_rate",
+      threshold: maxMissingMachineOutcomeRate,
+      actual: summary.missing_machine_outcome_rate,
+      pass: summary.missing_machine_outcome_rate <= maxMissingMachineOutcomeRate,
     });
   }
   if (requireSuccessPrompt) {

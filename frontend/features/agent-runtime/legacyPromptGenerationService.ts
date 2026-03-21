@@ -367,7 +367,7 @@ export const executeLegacyPromptGeneration = async ({
       });
       const machineOutcome = buildAgentMachineOutcome({
         outcomeClass: "upstream_error",
-        reasonCode: "UPSTREAM_ERROR",
+        reasonCode: "UPSTREAM_OUTPUT_CONTRACT",
       });
       const fallbackReason = resolveStudioAgentFallbackReasonLabel({
         stage: "prompt_missing",

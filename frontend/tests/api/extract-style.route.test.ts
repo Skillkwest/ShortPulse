@@ -190,8 +190,8 @@ describe("POST /api/ai/extract-style", () => {
       expect.objectContaining({
         decision: "error",
         outcome_class: "upstream_error",
-        reason_code: "UPSTREAM_ERROR",
-        retryable: true,
+        reason_code: "UPSTREAM_OUTPUT_CONTRACT",
+        retryable: false,
         error: "No style prompt returned",
         fallback_reason: "stage_style_prompt_missing",
       })

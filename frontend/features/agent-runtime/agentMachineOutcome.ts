@@ -58,7 +58,9 @@ const validateReasonCodeForOutcomeClass = ({
       reasonCode === "INFRA_FALLBACK_OUTPUT_CONTRACT"
     );
   }
-  if (outcomeClass === "upstream_error") return reasonCode === "UPSTREAM_ERROR";
+  if (outcomeClass === "upstream_error") {
+    return reasonCode === "UPSTREAM_ERROR" || reasonCode === "UPSTREAM_OUTPUT_CONTRACT";
+  }
   return (
     reasonCode === "ROUTE_ERROR" ||
     reasonCode === "REQUEST_INVALID" ||
@@ -99,7 +101,7 @@ const resolveRetryable = ({
   if (outcomeClass === "fallback_infra") {
     return reasonCode !== "INFRA_FALLBACK_OUTPUT_CONTRACT";
   }
-  if (outcomeClass === "upstream_error") return true;
+  if (outcomeClass === "upstream_error") return reasonCode !== "UPSTREAM_OUTPUT_CONTRACT";
   return false;
 };
 

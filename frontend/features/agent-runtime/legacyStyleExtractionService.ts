@@ -574,7 +574,7 @@ export const executeLegacyStyleExtraction = async ({
       });
       const machineOutcome = buildAgentMachineOutcome({
         outcomeClass: "upstream_error",
-        reasonCode: "UPSTREAM_ERROR",
+        reasonCode: "UPSTREAM_OUTPUT_CONTRACT",
       });
       const fallbackReason = resolveStudioAgentFallbackReasonLabel({
         stage: "style_prompt_missing",

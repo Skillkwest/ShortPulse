@@ -57,6 +57,20 @@ describe("agentMachineOutcome", () => {
     });
   });
 
+  it("marks upstream output-contract reason codes as non-retryable", () => {
+    expect(
+      buildAgentMachineOutcome({
+        outcomeClass: "upstream_error",
+        reasonCode: "UPSTREAM_OUTPUT_CONTRACT",
+      })
+    ).toEqual({
+      decision: "error",
+      outcome_class: "upstream_error",
+      reason_code: "UPSTREAM_OUTPUT_CONTRACT",
+      retryable: false,
+    });
+  });
+
   it("falls back to outcome defaults when reason code is invalid for class", () => {
     expect(
       buildAgentMachineOutcome({

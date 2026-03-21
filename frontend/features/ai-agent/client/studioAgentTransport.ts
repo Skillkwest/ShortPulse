@@ -73,6 +73,7 @@ const parseErrorPayload = (value: unknown): StudioAgentTransportErrorPayload | n
       record.reason_code === "INFRA_FALLBACK_TIMEOUT" ||
       record.reason_code === "INFRA_FALLBACK_RATE_LIMIT" ||
       record.reason_code === "INFRA_FALLBACK_OUTPUT_CONTRACT" ||
+      record.reason_code === "UPSTREAM_OUTPUT_CONTRACT" ||
       record.reason_code === "UPSTREAM_ERROR" ||
       record.reason_code === "ROUTE_ERROR" ||
       record.reason_code === "REQUEST_INVALID" ||

@@ -135,8 +135,8 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         error: "No prompt returned",
         decision: "error",
         outcome_class: "upstream_error",
-        reason_code: "UPSTREAM_ERROR",
-        retryable: true,
+        reason_code: "UPSTREAM_OUTPUT_CONTRACT",
+        retryable: false,
         fallback_reason: "stage_prompt_missing",
       })
     );

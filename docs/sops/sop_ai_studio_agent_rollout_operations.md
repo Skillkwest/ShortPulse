@@ -82,6 +82,7 @@ Checklist:
    - `npm -C frontend run test -- tests/api/studio-agent.runtime.test.ts`
    - `npm -C frontend run test -- tests/api/generate-prompt.sanitization.test.ts`
    - `npm -C frontend run test -- tests/api/describe-image.route.test.ts`
+   - `npm -C frontend run audit:staging:openai-lanes:strict:lineage -- --samples 10 --concurrency 1 --request-timeout-ms 60000`
    - `npm -C frontend run audit:staging:openai-lanes:strict -- --samples 10 --concurrency 1 --request-timeout-ms 60000`
    - `npm -C frontend run docs:check`
 5. Record rollback drill outcome with:

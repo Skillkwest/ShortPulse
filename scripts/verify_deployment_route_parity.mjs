@@ -6,6 +6,8 @@
  */
 
 import { execFile } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
@@ -33,6 +35,11 @@ Options:
 ${DEFAULT_REQUIRED_ROUTES.map((route) => `                          - ${route}`).join("\n")}
   --token <token>         Vercel API token.
                           Fallback env: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
+  --max-deployment-age-hours <hours>
+                          Optional deployment-age gate (fail if older than this value).
+  --min-created-at <instant>
+                          Optional deployment-created-at gate (ISO timestamp or epoch seconds/ms).
+  --output <json-path>    Optional machine-readable summary output path.
   --env-file <path>       Optional env file path (repeatable). Parsed by shared loader.
   --help                  Show this message.
 `);
@@ -81,6 +88,9 @@ const parseArgs = (argv) => {
       process.env.VERCEL_API_TOKEN?.trim() ??
       "",
     requiredRoutes: [],
+    maxDeploymentAgeHours: null,
+    minCreatedAt: "",
+    output: "",
     help: false,
   };
 
@@ -102,6 +112,21 @@ const parseArgs = (argv) => {
     }
     if (arg === "--token") {
       parsed.token = readArgValue(argv, index, "--token").trim();
+      index += 1;
+      continue;
+    }
+    if (arg === "--max-deployment-age-hours") {
+      parsed.maxDeploymentAgeHours = readArgValue(argv, index, "--max-deployment-age-hours").trim();
+      index += 1;
+      continue;
+    }
+    if (arg === "--min-created-at") {
+      parsed.minCreatedAt = readArgValue(argv, index, "--min-created-at").trim();
+      index += 1;
+      continue;
+    }
+    if (arg === "--output") {
+      parsed.output = readArgValue(argv, index, "--output").trim();
       index += 1;
       continue;
     }
@@ -135,6 +160,15 @@ const ensureRequiredInputs = ({ baseUrl, token, requiredRoutes }) => {
   if (missing.length > 0) {
     throw new Error(`Missing required inputs:\n- ${missing.join("\n- ")}`);
   }
+};
+
+const parsePositiveNumber = (value, label) => {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    throw new Error(`Invalid ${label}: ${value}`);
+  }
+  return numeric;
 };
 
 const parseInspectJson = (stdout) => {
@@ -177,6 +211,18 @@ const asIsoTimestamp = (value) => {
     return new Date(fromString).toISOString();
   }
   return String(value);
+};
+
+const asEpochMs = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 10_000_000_000 ? value : value * 1_000;
+  }
+  const parsed = Date.parse(String(value));
+  if (!Number.isNaN(parsed)) {
+    return parsed;
+  }
+  return null;
 };
 
 const toDeploymentUrl = (value) => {
@@ -255,6 +301,14 @@ const run = async () => {
   const requiredRoutes = args.requiredRoutes
     .map((route) => normalizePathLike(route))
     .filter(Boolean);
+  const maxDeploymentAgeHours = parsePositiveNumber(
+    args.maxDeploymentAgeHours,
+    "--max-deployment-age-hours"
+  );
+  const minCreatedAtMs = args.minCreatedAt ? asEpochMs(args.minCreatedAt) : null;
+  if (args.minCreatedAt && minCreatedAtMs === null) {
+    throw new Error(`Invalid --min-created-at: ${args.minCreatedAt}`);
+  }
 
   const inspectArgs = ["inspect", args.baseUrl, "--format=json", "--token", args.token];
   let stdout = "";
@@ -271,9 +325,9 @@ const run = async () => {
 
   const inspectResult = parseInspectJson(stdout);
   const resolvedDeploymentUrl = extractResolvedDeploymentUrl(inspectResult, args.baseUrl);
-  const createdAt = asIsoTimestamp(
-    inspectResult?.createdAt ?? inspectResult?.meta?.createdAt ?? inspectResult?.created
-  );
+  const createdAtRaw = inspectResult?.createdAt ?? inspectResult?.meta?.createdAt ?? inspectResult?.created;
+  const createdAt = asIsoTimestamp(createdAtRaw);
+  const createdAtMs = asEpochMs(createdAtRaw);
 
   const buildPaths = collectBuildOutputPaths(inspectResult);
   const missingRoutes = requiredRoutes.filter((requiredRoute) => {
@@ -290,9 +344,59 @@ const run = async () => {
   console.log(`[route-parity] created at: ${createdAt}`);
   console.log(`[route-parity] loaded env files: ${LOADED_ENV_FILES.length}`);
   console.log(`[route-parity] route entries inspected: ${buildPaths.size}`);
+  if (maxDeploymentAgeHours !== null) {
+    console.log(`[route-parity] max deployment age hours: ${maxDeploymentAgeHours}`);
+  }
+  if (minCreatedAtMs !== null) {
+    console.log(`[route-parity] minimum created at: ${new Date(minCreatedAtMs).toISOString()}`);
+  }
   console.log("[route-parity] required routes:");
   for (const route of requiredRoutes) {
     console.log(`  - ${route}`);
+  }
+
+  const nowMs = Date.now();
+  const lineageFailures = [];
+  let deploymentAgeHours = null;
+  if (createdAtMs === null) {
+    if (maxDeploymentAgeHours !== null || minCreatedAtMs !== null) {
+      lineageFailures.push("created_at_unavailable");
+    }
+  } else {
+    deploymentAgeHours = (nowMs - createdAtMs) / (60 * 60 * 1000);
+    if (maxDeploymentAgeHours !== null && deploymentAgeHours > maxDeploymentAgeHours) {
+      lineageFailures.push(
+        `deployment_age_exceeds_limit(actual=${deploymentAgeHours.toFixed(2)}h limit=${maxDeploymentAgeHours}h)`
+      );
+    }
+    if (minCreatedAtMs !== null && createdAtMs < minCreatedAtMs) {
+      lineageFailures.push(
+        `deployment_created_before_minimum(actual=${new Date(createdAtMs).toISOString()} minimum=${new Date(minCreatedAtMs).toISOString()})`
+      );
+    }
+  }
+
+  const summary = {
+    target: args.baseUrl,
+    resolved_deployment: resolvedDeploymentUrl || null,
+    created_at: createdAt,
+    created_at_epoch_ms: createdAtMs,
+    deployment_age_hours: deploymentAgeHours,
+    loaded_env_files: LOADED_ENV_FILES,
+    route_entries_inspected: buildPaths.size,
+    required_routes: requiredRoutes,
+    missing_routes: missingRoutes,
+    max_deployment_age_hours: maxDeploymentAgeHours,
+    min_created_at_epoch_ms: minCreatedAtMs,
+    lineage_failures: lineageFailures,
+    pass: missingRoutes.length === 0 && lineageFailures.length === 0,
+    checked_at: new Date().toISOString(),
+  };
+
+  if (args.output) {
+    const outputPath = path.resolve(process.cwd(), args.output);
+    fs.writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+    console.log(`[route-parity] artifact=${outputPath}`);
   }
 
   if (missingRoutes.length > 0) {
@@ -303,6 +407,16 @@ const run = async () => {
     if (stderr?.trim()) {
       console.error(`[route-parity] vercel stderr: ${stderr.trim()}`);
     }
+  }
+
+  if (lineageFailures.length > 0) {
+    console.error("[route-parity] FAIL: lineage gates:");
+    for (const failure of lineageFailures) {
+      console.error(`  - ${failure}`);
+    }
+  }
+
+  if (!summary.pass) {
     process.exit(1);
   }
 

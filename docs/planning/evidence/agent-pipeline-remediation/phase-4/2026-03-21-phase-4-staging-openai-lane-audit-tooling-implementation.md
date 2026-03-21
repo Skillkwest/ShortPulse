@@ -15,10 +15,12 @@ In scope routes:
 
 Implemented tooling:
 1. `scripts/audit_staging_agent_fallback_rates.mjs` (multi-route support + strict gates)
-2. `scripts/audit_staging_openai_lane_bundle.mjs` (aggregate orchestrator)
-3. Frontend commands:
+2. `scripts/audit_staging_openai_lane_bundle.mjs` (aggregate orchestrator + optional lineage precheck gate)
+3. `scripts/verify_deployment_route_parity.mjs` (extended with deployment-age/freshness gates + JSON artifact output)
+4. Frontend commands:
    - `npm -C frontend run audit:staging:openai-lanes`
    - `npm -C frontend run audit:staging:openai-lanes:strict`
+   - `npm -C frontend run audit:staging:openai-lanes:strict:lineage`
 
 ## Contract Governance Updates
 1. Unified `Agent-Contract-Version: 1` emission across OpenAI remediation routes via shared runtime helper.
@@ -34,10 +36,12 @@ Executed validation checks:
 3. `node --check scripts/audit_staging_openai_lane_bundle.mjs`
 4. `npm -C frontend run audit:staging:openai-lanes -- --dry-run --samples 1 --concurrency 1 --request-timeout-ms 60000`
 5. `npm -C frontend run audit:staging:openai-lanes:strict -- --dry-run --samples 1 --concurrency 1 --request-timeout-ms 60000`
+6. `npm -C frontend run audit:staging:openai-lanes:strict:lineage -- --dry-run --samples 1 --concurrency 1 --request-timeout-ms 60000`
 
 Live strict staging runs:
 1. Executed and expectedly failed on machine-outcome and/or contract mismatch gates due current staging deployment lineage drift.
-2. Failure behavior is deterministic and now reported in aggregate lane artifact output.
+2. Lineage-precheck strict runs now fail fast before route audits when deployment age exceeds gate limits.
+3. Failure behavior is deterministic and now reported in aggregate lane artifact output.
 
 ## Staging Lineage Check
 Latest staging alias inspection snapshot:

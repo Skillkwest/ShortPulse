@@ -33,8 +33,10 @@ Implementation progress addendum (2026-03-21):
 3. Added frontend runnable commands:
    - `npm -C frontend run audit:staging:openai-lanes`
    - `npm -C frontend run audit:staging:openai-lanes:strict`
-4. Unified `Agent-Contract-Version: 1` header emission across OpenAI remediation routes to support strict cross-route contract gating.
-5. Current staging blocker remains deployment lineage drift (staging alias not yet on latest remediation commit set).
+   - `npm -C frontend run audit:staging:openai-lanes:strict:lineage`
+4. Added bundle-level lineage precheck gate (route parity + deployment-age/freshness checks) to fail fast on stale staging alias lineage.
+5. Unified `Agent-Contract-Version: 1` header emission across OpenAI remediation routes to support strict cross-route contract gating.
+6. Current staging blocker remains deployment lineage drift (staging alias not yet on latest remediation commit set).
 
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
@@ -101,6 +103,7 @@ Phase 4 implementation may begin when these gates are met:
    - `npm -C frontend run type-check`
    - `npm -C frontend run build`
    - `npm -C frontend run docs:check`
+   - `npm -C frontend run audit:staging:openai-lanes:strict:lineage -- --samples 10 --concurrency 1 --request-timeout-ms 60000`
    - `npm -C frontend run audit:staging:openai-lanes:strict -- --samples 10 --concurrency 1 --request-timeout-ms 60000`
 
 ## Exit Criteria

@@ -106,6 +106,10 @@ Phase implementation is allowed when:
        - `f40b81a2` (lane bundle orchestrator),
        - `3fc83282` (contract-version header parity),
        - `5c7c2664` (frontend lane-audit commands).
+     - Added fail-fast staging lineage precheck support:
+       - bundle flag `--lineage-precheck` with deployment-age/freshness thresholds,
+       - strict command `npm -C frontend run audit:staging:openai-lanes:strict:lineage`,
+       - extended `verify_deployment_route_parity.mjs` output + lineage gates for deterministic stale-alias detection.
      - active blocker:
        - staging alias currently resolves to an older preview deployment lineage (created `2026-03-15T16:52:51.341Z`), so strict machine-outcome gates remain red until alias/deployment is refreshed.
    - active entry-status packet:

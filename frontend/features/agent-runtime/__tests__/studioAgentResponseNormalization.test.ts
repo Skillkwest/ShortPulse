@@ -103,6 +103,14 @@ describe("studioAgentResponseNormalization", () => {
     });
   });
 
+  it("does not coerce JSON-shaped non-contract payloads into unstructured fallback", () => {
+    const parsed = parseStudioAgentJsonWithStatus(
+      '{"message":"Summary: transformed the prompt","actions":{"apply_prompt":"The prompt now includes stronger detail."}}'
+    );
+
+    expect(parsed).toBeNull();
+  });
+
   it("emits applyPrompt-only actions for ready contract", () => {
     const normalized = ensureStudioAgentApplyPromptContract({
       parsed: {

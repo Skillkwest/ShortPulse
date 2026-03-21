@@ -142,6 +142,15 @@ const collectJsonCandidates = (raw: unknown): string[] => {
   return candidates;
 };
 
+const hasStructuredJsonCandidates = (raw: unknown): boolean => {
+  const trimmed = extractStudioAgentCompletionText(raw).trim();
+  if (!trimmed.length) return false;
+  if (extractBalancedJsonObjectCandidates(trimmed).length > 0) {
+    return true;
+  }
+  return /```(?:json)?\s*[\s\S]*?```/i.test(trimmed);
+};
+
 const parseStudioAgentUnstructuredText = (raw: unknown): ParsedAgentJson | null => {
   const rawText = extractStudioAgentCompletionText(raw).trim();
   if (!rawText.length) return null;
@@ -213,6 +222,9 @@ export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | 
     } catch {
       continue;
     }
+  }
+  if (hasStructuredJsonCandidates(raw)) {
+    return null;
   }
   return parseStudioAgentUnstructuredText(raw);
 };

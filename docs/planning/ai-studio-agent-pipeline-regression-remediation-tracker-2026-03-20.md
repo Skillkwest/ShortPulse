@@ -14,7 +14,7 @@ Phase 1 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-
 Phase 2 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 Phase 3 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 Phase 4 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
-Status: Active (master planning complete; Phase 2 and Phase 3 closeout complete with staging scope; Phase 4 planning pending)
+Status: Active (master planning complete; Phase 2 and Phase 3 closeout complete with staging scope; Phase 4 staging readiness tooling in progress)
 
 ## Master Status Overview
 | Workstream | Status | Owner | Entry Gate | Exit Gate | Evidence |
@@ -95,14 +95,23 @@ Phase implementation is allowed when:
      - Canary window-duration sufficiency is owner-waived for current staging cycle; waiver linked and approved for this scope.
      - Staging rollback drill packet is complete and linked.
      - `PX-03` updated to `Completed (Staging Scope)`.
-4. Phase 4: Not Started (2026-03-20)
+4. Phase 4: In Progress (2026-03-21, staging readiness tooling)
    - entry gate status:
      - `PX-03`: satisfied.
      - `M-15`: waived for staging-only directive (master waiver packet linked).
      - owner directive: staging-only; production rollout execution deferred.
+   - implementation progress:
+     - OpenAI-lane strict staging audit tooling implemented and committed:
+       - `cc64228d` (multi-route lane audit support),
+       - `f40b81a2` (lane bundle orchestrator),
+       - `3fc83282` (contract-version header parity),
+       - `5c7c2664` (frontend lane-audit commands).
+     - active blocker:
+       - staging alias currently resolves to an older preview deployment lineage (created `2026-03-15T16:52:51.341Z`), so strict machine-outcome gates remain red until alias/deployment is refreshed.
    - active entry-status packet:
      - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-entry-gate-status-staging-directive.md`
      - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-rollout-readiness-checklist-staging-directive.md`
+     - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-21-phase-4-staging-openai-lane-audit-tooling-implementation.md`
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:

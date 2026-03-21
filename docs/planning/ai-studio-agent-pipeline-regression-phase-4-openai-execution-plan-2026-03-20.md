@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Platform Ops + AI Platform + Frontend  
-Status: Planned (rebaselined to master roadmap; implementation pending)
+Status: In Progress (staging readiness tooling implementation in progress; production rollout still deferred by staging-only directive)
 
 ## Summary
 Phase 4 executes controlled production activation and operational closeout for the OpenAI prompt-compiler lanes.  
@@ -22,6 +22,19 @@ Out-of-scope:
 Scope amendment (2026-03-20):
 1. Active owner directive remains staging-only; production ring execution is deferred until directive changes.
 2. Phase 4 entry work may continue as documentation/readiness preparation only while the staging-only directive is active.
+
+Implementation progress addendum (2026-03-21):
+1. Added strict multi-route staging lane audit coverage for:
+   - `/api/ai/studio-agent`
+   - `/api/ai/generate-prompt`
+   - `/api/ai/describe-image`
+2. Added bundled lane orchestrator:
+   - `scripts/audit_staging_openai_lane_bundle.mjs`
+3. Added frontend runnable commands:
+   - `npm -C frontend run audit:staging:openai-lanes`
+   - `npm -C frontend run audit:staging:openai-lanes:strict`
+4. Unified `Agent-Contract-Version: 1` header emission across OpenAI remediation routes to support strict cross-route contract gating.
+5. Current staging blocker remains deployment lineage drift (staging alias not yet on latest remediation commit set).
 
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
@@ -88,6 +101,7 @@ Phase 4 implementation may begin when these gates are met:
    - `npm -C frontend run type-check`
    - `npm -C frontend run build`
    - `npm -C frontend run docs:check`
+   - `npm -C frontend run audit:staging:openai-lanes:strict -- --samples 10 --concurrency 1 --request-timeout-ms 60000`
 
 ## Exit Criteria
 1. Production rollout completes with ring-gate evidence and no unresolved critical regressions.

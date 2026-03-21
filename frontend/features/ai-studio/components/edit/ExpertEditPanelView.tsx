@@ -1474,7 +1474,7 @@ export function ExpertEditPanelView({
   );
   const primaryStageStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      width: `max(0px, min(100%, calc(var(--edit-expert-primary-size) * ${primaryStageWidthScale})))`,
+      width: `max(0px, min(100%, calc(var(--edit-expert-primary-size) * ${primaryStageWidthScale} * 1.06)))`,
       height: "var(--edit-expert-primary-size)",
     }),
     [primaryStageWidthScale]
@@ -2340,6 +2340,11 @@ export function ExpertEditPanelView({
     resetAllMoveToolTransforms,
     resetMarkupViewport,
   ]);
+
+  const clearGenerationModeSelectionArtifacts = React.useCallback(() => {
+    clearAllInpaintMasksWithHistory();
+    clearMarkupStrokesWithHistory();
+  }, [clearAllInpaintMasksWithHistory, clearMarkupStrokesWithHistory]);
 
   const hasAnyMoveTransformChanges = React.useMemo(
     () =>
@@ -4537,27 +4542,37 @@ export function ExpertEditPanelView({
         <div className="edit-expert-primary-column">
           {isGenerationModeToggleEnabled ? (
             <div className="edit-expert-primary-column-header">
-              <div
-                className="edit-expert-generation-mode-tabs"
-                role="tablist"
-                aria-label="Generation mode"
-                style={generationModeTabsStyle}
-              >
-                <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
-                {editGenerationModeOptions.map((modeOption) => (
-                  <button
-                    key={modeOption.id}
-                    type="button"
-                    className={`edit-expert-generation-mode-tab ${
-                      effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
-                    }`}
-                    role="tab"
-                    aria-selected={effectiveEditSubmitIntent === modeOption.id}
-                    onClick={() => handleGenerationModeChange(modeOption.id)}
-                  >
-                    {modeOption.label}
-                  </button>
-                ))}
+              <div className="edit-expert-generation-mode-header-controls">
+                <div
+                  className="edit-expert-generation-mode-tabs"
+                  role="tablist"
+                  aria-label="Generation mode"
+                  style={generationModeTabsStyle}
+                >
+                  <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
+                  {editGenerationModeOptions.map((modeOption) => (
+                    <button
+                      key={modeOption.id}
+                      type="button"
+                      className={`edit-expert-generation-mode-tab ${
+                        effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
+                      }`}
+                      role="tab"
+                      aria-selected={effectiveEditSubmitIntent === modeOption.id}
+                      onClick={() => handleGenerationModeChange(modeOption.id)}
+                    >
+                      {modeOption.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="edit-expert-inpaint-action-btn edit-expert-generation-mode-clear-btn"
+                  aria-label="Clear all in-paint selections and markup strokes"
+                  onClick={clearGenerationModeSelectionArtifacts}
+                >
+                  <TrashSimple size={19} weight="regular" />
+                </button>
               </div>
             </div>
           ) : null}

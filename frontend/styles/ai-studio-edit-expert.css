@@ -22,6 +22,12 @@
   --edit-expert-primary-size: clamp(520px, 45vw, 660px);
 }
 
+.edit-expert-panel:not(.is-generation-mode-tall-stage) {
+  --edit-expert-secondary-width: clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px);
+  --edit-expert-secondary-shell-padding: 6px;
+  --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 20px);
+}
+
 .ai-properties .edit-expert-panel {
   gap: var(--edit-expert-panel-gap);
 }
@@ -119,6 +125,11 @@
 .edit-expert-post-stage-wrapper {
   gap: 12px;
   background: transparent;
+}
+
+.edit-expert-panel:not(.is-generation-mode-tall-stage)
+  .edit-expert-column-wrapper.edit-expert-post-stage-wrapper {
+  gap: 8px;
 }
 
 .edit-expert-preset-toolbar {
@@ -1474,11 +1485,27 @@
   padding-bottom: 2px;
 }
 
+.edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-primary-column {
+  gap: 6px;
+}
+
+.edit-expert-panel:not(.is-generation-mode-tall-stage)
+  .edit-expert-primary-column
+  > .edit-expert-column-wrapper--center {
+  gap: 6px;
+}
+
 .edit-expert-primary-column-header {
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.edit-expert-generation-mode-header-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .edit-expert-primary-dropzone {
@@ -1734,6 +1761,10 @@
   z-index: 4;
 }
 
+.edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-secondary-row {
+  gap: 5px;
+}
+
 .edit-expert-secondary-control {
   position: relative;
   align-self: center;
@@ -1746,6 +1777,12 @@
   padding: 8px 0;
   margin-inline: 12px;
   will-change: transform, opacity;
+}
+
+.edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-secondary-control {
+  gap: 6px;
+  padding: 4px 0;
+  margin-inline: 10px;
 }
 
 .edit-expert-secondary-title {
@@ -1954,6 +1991,10 @@
   justify-content: center;
   gap: 6px;
   z-index: 4;
+}
+
+.edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-inpaint-row {
+  margin-bottom: 0;
 }
 
 .edit-expert-inpaint-row.is-collapsed {
@@ -5288,6 +5329,30 @@
   outline: 1px solid rgba(201, 205, 214, 0.62);
   outline-offset: -2px;
   border-color: rgba(201, 205, 214, 0.62);
+}
+
+.edit-expert-generation-mode-clear-btn {
+  width: var(--edit-expert-markup-control-height, 32px);
+  min-width: var(--edit-expert-markup-control-height, 32px);
+  height: var(--edit-expert-markup-control-height, 32px);
+  min-height: var(--edit-expert-markup-control-height, 32px);
+  padding: 0;
+  border-radius: var(--edit-expert-markup-control-radius, 8px);
+  border-color: rgba(96, 101, 111, 0.58);
+  background: rgba(38, 42, 49, 0.76);
+  color: rgba(205, 212, 224, 0.72);
+}
+
+.edit-expert-generation-mode-clear-btn:hover,
+.edit-expert-generation-mode-clear-btn:focus-visible {
+  border-color: rgba(238, 112, 133, 0.86);
+  background: rgba(93, 26, 44, 0.86);
+  color: rgba(255, 214, 223, 0.98);
+}
+
+.edit-expert-generation-mode-clear-btn svg {
+  width: 19px;
+  height: 19px;
 }
 
 @media (max-width: 1200px) {

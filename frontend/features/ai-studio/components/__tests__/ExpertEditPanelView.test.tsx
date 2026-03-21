@@ -1539,6 +1539,52 @@ describe("ExpertEditPanelView", () => {
     expect(markupTab).toHaveAttribute("aria-selected", "true");
   });
 
+  it("clears all inpaint masks and markup strokes from the generation mode header clear button", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    const clearAllMasks = vi.fn();
+    const clearSelectedLayerMask = vi.fn();
+    const invertSelectedLayerMask = vi.fn();
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn((): InpaintMaskSnapshot => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks,
+        clearSelectedLayerMask,
+        invertSelectedLayerMask,
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    try {
+      render(
+        <ExpertEditPanelView {...baseProps} sessionState={createSessionStateWithMarkupStroke()} />
+      );
+      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      expect(
+        primaryDropzone.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
+      ).toHaveLength(1);
+
+      fireEvent.click(
+        screen.getByRole("button", { name: /clear all in-paint selections and markup strokes/i })
+      );
+
+      expect(clearAllMasks).toHaveBeenCalledTimes(1);
+      expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
+      expect(clearSelectedLayerMask).not.toHaveBeenCalled();
+      expect(invertSelectedLayerMask).not.toHaveBeenCalled();
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
+  });
+
   it("hides the reference-images and styles row in Inpaint and Markup generation modes", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);

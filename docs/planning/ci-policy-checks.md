@@ -3,6 +3,7 @@
 Date: 2026-03-17
 Authority: Working
 Owner: Engineering
+Canonical trunk-governance contract: `docs/planning/trunk-safety-contract.md`
 
 ## Current CI jobs
 

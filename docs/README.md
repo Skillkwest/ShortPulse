@@ -10,6 +10,7 @@ Start here for all repository documentation.
 - Active planning docs live in `docs/planning/`.
 - Standalone operational system docs live in `mini-ecosystem/` at repo root.
 - Durable architecture decisions live in `docs/adr/`.
+- Agent workflow helpers live in `docs/agents/`.
 - Design rationale lives in `docs/design/`.
 - Historical/deprecated docs live in `docs/archive/`.
 - Early non-authoritative ideas live in `docs/brainstorming/`.
@@ -20,6 +21,7 @@ Start here for all repository documentation.
 - `docs/conventions.md`
 - `docs/agent-playbook.md`
 - `docs/AGENTS.md`
+- `docs/agents/change-impact-auditor.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`
 - `docs/frontend-architecture.md`
@@ -132,7 +134,9 @@ Start here for all repository documentation.
 - `docs/planning/feasibility-report.md`
 - `docs/planning/implementation-tracker.md`
 - `docs/planning/ci-policy-checks.md`
+- `docs/planning/trunk-safety-contract.md`
 - `docs/planning/final-validation-summary.md`
+- `docs/planning/policies/README.md`
 - `docs/planning/backlog.md`
 - `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
@@ -179,6 +183,8 @@ Start here for all repository documentation.
 - `docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`
 - `docs/planning/generation-reliability-hardening-readiness-state-2026-03-20.md`
 - `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
+- `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
+- `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 - `docs/planning/media-rendering-hardening-v2-master-plan-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-execution-tracker-2026-03-16.md`
@@ -220,6 +226,20 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
 - `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
 - `docs/planning/ai-studio-full-recovery-program.md`
+- `docs/planning/ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-tracker-spec-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-phase-p1-execution-plan-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-phase-p2-execution-plan-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-phase-p3-execution-plan-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-phase-p4-execution-plan-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-decision-log-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-risk-register-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`
+- `docs/planning/ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`
 - `docs/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
 - `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
 - `docs/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md` (temporary active working note)
@@ -283,6 +303,8 @@ Start here for all repository documentation.
 - `docs/planning/media-optimization-schema-and-migration-spec.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
 - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
+- `docs/planning/evidence/ai-studio-reference-grid-reliability/README.md`
+- `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`
 - `docs/planning/evidence/reference-grid-modularization/README.md`
 - `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
 - `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
@@ -364,6 +386,8 @@ Start here for all repository documentation.
 - `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
 - `docs/adr/0044-media-rendering-surface-delivery-policy-and-adr-reconciliation.md`
 - `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
+- `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
+- `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 
 ## Archive
 - `docs/archive/README.md`

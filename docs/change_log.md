@@ -3,6 +3,27 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Removed an AI Studio reliability implementation-entry deadlock by reclassifying `RGR-M02`..`RGR-M04` as P0 exit gates (not entry prerequisites), added explicit blocker/gate status tracking (`RGR-B01`/`RGR-B02`, `RGR-G01`..`RGR-G05`), and tightened kickoff SLA + adaptive gate requirements across readiness/tracker/checklist/full-recovery governance docs.
+- Backfilled documentation index parity for AI Studio Reference Grid reliability governance artifacts:
+  - added ADR `0046` and `0047` references to `docs/README.md`,
+  - added `RGR-M01` seed evidence packet links to `docs/README.md` and `docs/planning/README.md`,
+  - expanded `docs/documentation_overview.md` taxonomy/update-trigger coverage for planning evidence namespaces and readiness-governance updates.
+- Defined the AI Studio Reference Grid reliability `implementation_ready` readiness state contract (with immediate implementation-start trigger) and aligned readiness/tracker/entry-checklist/full-recovery docs to that policy.
+- Indexed additional governance docs in primary indexes:
+  - `docs/agents/change-impact-auditor.md` in `docs/README.md`,
+  - `docs/planning/policies/README.md` in both `docs/README.md` and `docs/planning/README.md`,
+  - updated `docs/documentation_overview.md` taxonomy/improvement notes for `docs/agents/` and planning policy artifacts.
+- Published `P4` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p4-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
+- Published `P3` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p3-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
+- Published `P2` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p2-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
+- Published `P1` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p1-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
+- Published `P0` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
+- Added first reliability evidence packet for tracker row `RGR-M01` (`docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`) and wired tracker/evidence index references.
+- Added a new AI Studio Reference Grid reliability planning-governance doc suite:
+  - master plan/roadmap/tracker/tracker-spec,
+  - decision log, risk register, readiness-state record, implementation-entry checklist, and evidence packet template,
+  - new evidence namespace (`docs/planning/evidence/ai-studio-reference-grid-reliability/`) and two proposed ADRs (`0046`, `0047`) for output-visibility authority and recovery-threshold policy.
+- Refreshed planning/documentation indexes to include the new reliability governance artifacts and linked them from `docs/planning/ai-studio-full-recovery-program.md`.
 - Normalized changelog governance for Lane E:
   - added an explicit `Unreleased` section as the active entry point,
   - split pre-normalization notes behind a legacy marker so chronology/future-date checks can enforce the active timeline without rewriting imported history,

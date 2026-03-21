@@ -8,7 +8,10 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `docs/sops/`: operational runbooks and workflows.
 - `docs/product/`: product/domain source-of-truth documents.
 - `docs/planning/`: active plans, backlogs, and stabilization tracks.
+  - `docs/planning/policies/`: machine-checkable policy artifacts for planning/governance enforcement.
+  - `docs/planning/evidence/`: evidence namespaces and packet records for phase gates, promote/hold/rollback decisions, and closeout signoff.
 - `docs/adr/`: durable architecture decisions.
+- `docs/agents/`: agent workflow helpers and execution guard aids.
 - `docs/design/`: design rationale used by implementation.
 - `docs/archive/`: historical or superseded docs (non-authoritative).
 - `docs/brainstorming/`: early ideas and exploratory notes (non-authoritative).
@@ -51,6 +54,8 @@ A docs cleanup is complete when all are true:
 - Supabase schema/storage/policy changes: update `docs/supabase_full_schema.sql`, `docs/data-dictionary.md`, `docs/security-checklist.md`, and migration docs.
 - Model/pricing/provider changes: update `docs/product/ai-studio-pricing.md`, relevant `docs/api/` references, and relevant `docs/sops/` tables.
 - Architecture changes: add or update ADRs in `docs/adr/`.
+- Planning readiness-governance changes (state model, gate semantics, immediate-start SLA): update `docs/planning/README.md`, `docs/documentation_overview.md`, and `docs/change_log.md`.
+- Behavior-changing planning programs: require and index a readiness-state doc plus implementation-entry checklist before implementation starts.
 
 ## Current coverage status
 Covered after this cleanup:
@@ -60,4 +65,4 @@ Covered after this cleanup:
 
 Remaining improvement opportunities:
 - Add explicit owner/review cadence metadata for high-churn docs.
-- Add contract validation between documented route inventories and `frontend/pages/api/*` to catch drift automatically.
+- Extend docs-index drift checks to cover `docs/agents/` and `docs/planning/policies/` inventories explicitly.

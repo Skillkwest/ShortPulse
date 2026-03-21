@@ -1,11 +1,34 @@
 # AI Studio Full Recovery Program
 
-Status: In progress (Phase 1 active)  
+Status: Planning locked; implementation entry gated (`P0` pending gate closure)  
 Owner: AI Studio Engineering  
-Last updated: 2026-02-19
+Last updated: 2026-03-21
 
 ## Objective
 Stabilize AI Studio end-to-end so all core create/edit/video/character workflows are reliable, then harden model payload contracts, then finalize visual/UX consistency.
+
+## Governance Artifacts (2026-03-21 Refresh)
+Master planning governance and tracking for the current Reference Grid reliability incident class are now anchored in:
+1. `docs/planning/ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`
+2. `docs/planning/ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`
+3. `docs/planning/ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`
+4. `docs/planning/ai-studio-reference-grid-reliability-tracker-spec-2026-03-21.md`
+5. `docs/planning/ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`
+6. `docs/planning/ai-studio-reference-grid-reliability-phase-p1-execution-plan-2026-03-21.md`
+7. `docs/planning/ai-studio-reference-grid-reliability-phase-p2-execution-plan-2026-03-21.md`
+8. `docs/planning/ai-studio-reference-grid-reliability-phase-p3-execution-plan-2026-03-21.md`
+9. `docs/planning/ai-studio-reference-grid-reliability-phase-p4-execution-plan-2026-03-21.md`
+
+The `P0` through `P4` planning set is now published; implementation remains gated by tracker/evidence entry criteria.
+Implementation start contract: once readiness is promoted to `implementation_ready`, begin implementation immediately with `P0-S1` under the 4-hour kickoff SLA.
+
+## Gate Authority
+For AI Studio Reference Grid reliability implementation entry/exit decisions, canonical authority order is:
+1. `docs/planning/ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`
+2. `docs/planning/ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`
+3. `docs/planning/ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`
+
+This document is umbrella context and does not override gate status in the three authority docs above.
 
 ## Working Agreements
 - Root-cause fixes before visual polish.
@@ -89,6 +112,7 @@ Automated + bounded live smoke
 ### Automated baseline
 - [x] `npm run type-check`
 - [x] Targeted vitest suites for updated hooks/components
+- [ ] `npm -C frontend run test:adaptive-v2-gate` for reference-grid/adaptive seam changes (or waiver with owner/risk/expiry)
 
 ### Bounded live smoke matrix
 - [ ] Create: inline and large generate

@@ -1,8 +1,16 @@
 # Known Issues
 
 ## P0: AI Studio Reference Grid -> Styles drop reliability remains broken (deferred)
+- **Issue ID:** `KI-AI-RG-STYLES-001`
 - **Severity:** P0 major workflow blocker
 - **Status:** Deferred as of March 13, 2026 pending a new end-to-end investigation pass
+- **Program gate classification:** Blocking for AI Studio Reference Grid reliability implementation-entry gates until waiver metadata is explicitly approved
+- **Owner:** AI Studio Engineering
+- **Waiver decision:** Not approved (blocking)
+- **Waiver risk note:** Deferred styles-drop instability keeps cross-surface reliability signoff incomplete until explicit waiver or remediation evidence is recorded.
+- **Waiver expiry date (UTC):** n/a (waiver not approved)
+- **Next review date (UTC):** 2026-03-22
+- **Linked tracker reference:** `RGR-B02`
 - **Primary surface:** `AI Studio -> Shortcuts -> Styles` panel
 - **Symptom:** Dragging an image from Reference Grid into Styles still intermittently fails with:
   - `This image source blocks browser access. Download the image and drop the file directly.`

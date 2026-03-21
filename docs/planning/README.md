@@ -14,7 +14,9 @@ Purpose: active planning artifacts and current execution backlogs.
 - `migration-number-reservation-map.md`: centralized migration-number reservation and collision-prevention map for concurrent plan streams.
 - `implementation-tracker.md`: stage-by-stage status, ownership, and compliance evidence tracking.
 - `ci-policy-checks.md`: CI job inventory, governance checks, and branch-protection mapping.
+- `trunk-safety-contract.md`: canonical source-of-truth contract for high-concurrency AI trunk governance (required check model, worktree policy, provenance, exceptions, and rollback rules).
 - `final-validation-summary.md`: closeout validation matrix and signoff checklist.
+- `policies/README.md`: planning policy artifacts and machine-checkable governance policy surfaces.
 - `backlog.md`: active and upcoming work.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
@@ -101,6 +103,20 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-generation-runtime-v2-locked-execution.md`: authoritative locked execution plan for server-authoritative runtime v2.
 - `ai-studio-generation-runtime-audit-2026-02-20.md`: repo audit findings and implementation deltas for runtime v2.
 - `ai-studio-full-recovery-program.md`: phased AI Studio stabilization and recovery program covering core stability, payload hardening, and UX consistency gates.
+- `ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`: canonical program contract for resolving reference-grid missing/delayed card reliability gaps.
+- `ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`: canonical sequencing/dependency roadmap for Reference Grid reliability workstreams (`WG-1` through `WG-5`).
+- `ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`: live tracker for workstream status, master rows, and evidence gate progression.
+- `ai-studio-reference-grid-reliability-tracker-spec-2026-03-21.md`: required tracker schema and evidence contract for `P0` through `P4` slices.
+- `ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`: Phase `P0` execution plan for recovery/dispatch correctness, slice sequencing, validation bundle, and exit gates.
+- `ai-studio-reference-grid-reliability-phase-p1-execution-plan-2026-03-21.md`: Phase `P1` execution plan for output-authority and selector-store parity in decoupled mode.
+- `ai-studio-reference-grid-reliability-phase-p2-execution-plan-2026-03-21.md`: Phase `P2` execution plan for hydration timeout/fallback convergence and loading-state telemetry split.
+- `ai-studio-reference-grid-reliability-phase-p3-execution-plan-2026-03-21.md`: Phase `P3` execution plan for queue-status precedence, status-proxy recovery timing semantics, and overdue-running reconciliation policy.
+- `ai-studio-reference-grid-reliability-phase-p4-execution-plan-2026-03-21.md`: Phase `P4` execution plan for final reliability matrix hardening, canary rollout governance, and residual-risk closeout.
+- `ai-studio-reference-grid-reliability-decision-log-2026-03-21.md`: durable decision ledger for execution policy and sequencing locks.
+- `ai-studio-reference-grid-reliability-risk-register-2026-03-21.md`: risk register with severity, mitigations, and escalation triggers.
+- `ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`: go/no-go checklist required before behavior-changing phase execution.
+- `ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`: canonical readiness-state register (`hold_with_blockers`, `planning_ready_pending_implementation_gates`, `implementation_ready`) with promotion/reversion criteria and immediate implementation-start SLA.
+- `ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`: standardized packet template for reliability slice evidence.
 - `ai-studio-generation-queue-hardening-2026-03-04.md`: low-drift implementation plan for generation-start recovery and queue hardening.
 - `ai-studio-generation-queue-hardening-tracker-2026-03-04.md`: execution tracker for queue hardening status, tests, and exit criteria.
 - `tmp_generation_drain_audit_working_notes_2026-02-27.md`: temporary active working notes for generation drain/recovery audit decisions pending archival or promotion.
@@ -204,6 +220,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/agent-pipeline-remediation/phase-4/stabilization-window-report-template.md`: reusable stabilization report for post-rollout metric deltas and SLO outcomes.
 - `evidence/agent-pipeline-remediation/phase-4/operational-handoff-template.md`: reusable operations handoff packet for dashboards, alerts, ownership, and escalation.
 - `evidence/agent-pipeline-remediation/phase-4/phase-4-closeout-report-template.md`: reusable final closeout report tying exit criteria to evidence.
+- `evidence/ai-studio-reference-grid-reliability/README.md`: evidence namespace index and packet requirements for Reference Grid reliability slices.
+- `evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`: seed evidence packet for `RGR-M01` defect inventory lock.
 - `evidence/README.md`: top-level planning evidence index, including lane-specific evidence namespaces.
 
 ## Maintenance

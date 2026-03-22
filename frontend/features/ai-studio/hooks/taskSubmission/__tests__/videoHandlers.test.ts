@@ -4,14 +4,19 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import {
   submitFalKlingV3ImageToVideo,
+  submitKieKlingImageToVideo,
   submitKieVeoImageToVideo,
 } from "../../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../../lib/model-runtime/providerModelIds";
 
 vi.mock("../../../../../lib/falClient", () => ({
   submitFalKlingV3ImageToVideo: vi.fn(),
+  submitKieKlingImageToVideo: vi.fn(),
   submitKieVeoImageToVideo: vi.fn(),
   submitFalKlingV3Text: vi.fn(),
   submitFalSeedance: vi.fn(),
@@ -64,36 +69,36 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(submitFalKlingV3ImageToVideo).mockResolvedValue({ request_id: "req-123" });
+    vi.mocked(submitKieKlingImageToVideo).mockResolvedValue({ request_id: "req-123" });
     vi.mocked(getSignedMediaUrl).mockResolvedValue(
       "https://example.com/signed/motion-refreshed.mp4"
     );
   });
 
   it("builds and submits a motion payload with normalized prompt/duration/aspect", async () => {
-    const args = makeArgs();
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+    });
 
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith({
-      prompt: "A dancer twirls @Element1",
-      start_image_url: "https://example.com/character.png",
-      duration: 6,
-      aspect_ratio: "16:9",
-      negative_prompt: "blur",
-      cfg_scale: 0.5,
-      generate_audio: true,
-      elements: [
-        {
-          video_url: "https://example.com/motion.mp4",
-          frontal_image_url: "https://example.com/character.png",
-        },
-      ],
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      image_url: "https://example.com/character.png",
+      image_urls: ["https://example.com/character.png"],
+      input_urls: ["https://example.com/character.png"],
+      video_url: "https://example.com/motion.mp4",
+      video_urls: ["https://example.com/motion.mp4"],
+      resolution: "1080p",
+      mode: "1080p",
+      character_orientation: "image",
+      background_source: "input_video",
     });
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
       "req-123",
-      "fal-kling-3",
+      "kie-kling",
       {
         previewUrl: "https://example.com/character.png",
       },
@@ -103,14 +108,35 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     );
   });
 
+  it("passes selected 720p resolution for motion payloads", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      requestedResolution: "720p",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resolution: "720p",
+        mode: "720p",
+      })
+    );
+  });
+
   it("uploads blob motion video before submitting and updates timestamps", async () => {
     const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
       cleanedPrompt: "Already tagged @Element1",
       motionReferenceVideoUrl: "blob:video-123",
     });
 
     const blob = new Blob(["video"], { type: "video/mp4" });
     vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
       blob: async () => blob,
     } as Response);
     vi.mocked(fetchWithAuth).mockResolvedValue({
@@ -132,15 +158,48 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     );
     expect(args.updateOutputById).toHaveBeenCalled();
     expect(args.updateOutputById).toHaveBeenCalledWith("out-1", expect.any(Function));
-    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith(
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "Already tagged @Element1",
-        elements: [
-          {
-            video_url: "https://cdn.example.com/motion.mp4",
-            frontal_image_url: "https://example.com/character.png",
-          },
-        ],
+        resolution: "1080p",
+        mode: "1080p",
+        video_urls: ["https://cdn.example.com/motion.mp4"],
+      })
+    );
+  });
+
+  it("uploads localhost motion video urls before submitting to Kie", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      motionReferenceVideoUrl: "http://localhost:3000/local-motion.mp4",
+    });
+
+    const blob = new Blob(["video"], { type: "video/mp4" });
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      blob: async () => blob,
+    } as Response);
+    vi.mocked(fetchWithAuth).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        url: "https://cdn.example.com/motion-uploaded.mp4",
+        path: "user-1/videos/motion-uploaded.mp4",
+        size: blob.size,
+      }),
+    } as Response);
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith("http://localhost:3000/local-motion.mp4");
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/upload-video",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video_urls: ["https://cdn.example.com/motion-uploaded.mp4"],
       })
     );
   });
@@ -157,7 +216,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       "out-1",
       "Video upload failed: network failure"
     );
-    expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
   });
 
   it("refreshes expiring Supabase signed motion videos before submit", async () => {
@@ -173,7 +232,11 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     const signedUrl =
       "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion.mp4" +
       `?token=${token}`;
-    const args = makeArgs({ motionReferenceVideoUrl: signedUrl });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      motionReferenceVideoUrl: signedUrl,
+    });
 
     const handled = await handleVideoModelSubmission(args);
 
@@ -183,14 +246,11 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       storagePath: "user-1/videos/motion.mp4",
       forceRefresh: true,
     });
-    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith(
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        elements: [
-          {
-            video_url: "https://example.com/signed/motion-refreshed.mp4",
-            frontal_image_url: "https://example.com/character.png",
-          },
-        ],
+        resolution: "1080p",
+        mode: "1080p",
+        video_urls: ["https://example.com/signed/motion-refreshed.mp4"],
       })
     );
   });
@@ -209,7 +269,11 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion.mp4" +
       `?token=${token}`;
     vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(null);
-    const args = makeArgs({ motionReferenceVideoUrl: signedUrl });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      motionReferenceVideoUrl: signedUrl,
+    });
 
     const handled = await handleVideoModelSubmission(args);
 
@@ -218,7 +282,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       "out-1",
       expect.stringContaining("Motion reference preparation failed")
     );
-    expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
   });
 });
 
@@ -272,6 +336,42 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
   });
 });
 
+describe("handleVideoModelSubmission (Kie Kling standard)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitKieKlingImageToVideo).mockResolvedValue({ request_id: "kie-kling-std-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("passes selected resolution through the Kie Kling standard payload", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      requestedResolution: "720p",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resolution: "720p",
+      })
+    );
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "kie-kling-std-1",
+      "kie-kling",
+      undefined,
+      { request_id: "kie-kling-std-1" }
+    );
+  });
+});
+
 describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -322,6 +422,7 @@ describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () =>
     });
     expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
+        resolution: "1080p",
         elements: [{ video_url: "https://example.com/signed/element-video-refreshed.mp4" }],
       })
     );

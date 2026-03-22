@@ -17,8 +17,12 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - supports optional `{requestId}` template token for query-style endpoints (for example `.../recordInfo?taskId={requestId}`)
   - falls back to legacy `/{requestId}/status` probing when template is not used
 - Submit shape normalizes to:
-  - root: `model="kling-3.0/video"`, optional `callBackUrl`
-  - payload body under `input`
+  - Standard image-to-video:
+    - root: `model="kling-3.0/video"`, optional `callBackUrl`
+    - payload body under `input`
+  - Motion Control:
+    - root: `model="kling-3.0/motion-control"`, optional `callBackUrl`
+    - payload body under `input` with `input_urls` (one character image URL), `video_urls` (one motion reference video URL), and resolution mode (`mode=720p|1080p`)
 - Allowed aspects: `16:9`, `9:16`, `1:1`
 - Allowed resolutions: `720p`, `1080p`
 - Allowed durations: `5`, `10` (seconds)
@@ -31,6 +35,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `multi_shots` (requires `sound=true` when enabled)
   - `cfg_scale`
   - callback URL aliases (`callBackUrl` / `callbackUrl` / `callback_url`)
+  - Motion Control aliases: `input_urls`, `video_urls`, `character_orientation`, `background_source`, and resolution mode (`mode=720p|1080p`)
 
 ## Pricing (ShortPulse runtime)
 - Evidence source: user-provided Kie pricing dashboard capture dated `2026-03-14`.

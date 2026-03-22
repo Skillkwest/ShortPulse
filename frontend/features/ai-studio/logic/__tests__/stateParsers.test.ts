@@ -3,7 +3,7 @@
  * Focuses on provider payload shape drift for result URL arrays.
  */
 import { describe, expect, it } from "vitest";
-import { extractResultUrls } from "../stateParsers";
+import { extractFalMediaUrls, extractResultUrls } from "../stateParsers";
 
 describe("extractResultUrls", () => {
   it("extracts URL objects from nested data.response.resultUrls", () => {
@@ -36,5 +36,34 @@ describe("extractResultUrls", () => {
     });
 
     expect(result).toEqual(["https://cdn.shortpulse.test/encoded-result.mp4"]);
+  });
+});
+
+describe("extractFalMediaUrls", () => {
+  it("returns image URLs by default when image and video payloads both exist", () => {
+    const result = extractFalMediaUrls({
+      status: "completed",
+      data: {
+        images: [{ url: "https://cdn.shortpulse.test/poster.png" }],
+        videos: [{ url: "https://cdn.shortpulse.test/output.mp4" }],
+      },
+    });
+
+    expect(result).toEqual(["https://cdn.shortpulse.test/poster.png"]);
+  });
+
+  it("prefers video URLs when requested for video-mode outputs", () => {
+    const result = extractFalMediaUrls(
+      {
+        status: "completed",
+        data: {
+          images: [{ url: "https://cdn.shortpulse.test/poster.png" }],
+          videos: [{ url: "https://cdn.shortpulse.test/output.mp4" }],
+        },
+      },
+      { preferVideo: true }
+    );
+
+    expect(result).toEqual(["https://cdn.shortpulse.test/output.mp4"]);
   });
 });

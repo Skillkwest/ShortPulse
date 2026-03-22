@@ -48,6 +48,19 @@ export const resolveVeoDuration = (requestedDurationSeconds: number): "4s" | "6s
   requestedDurationSeconds <= 4 ? "4s" : requestedDurationSeconds <= 6 ? "6s" : "8s";
 
 /**
+ * Normalizes Kling 3.0 resolution choices.
+ */
+export const resolveKlingResolution = (
+  requestedResolution?: string,
+  fallback: "720p" | "1080p" = "1080p"
+): "720p" | "1080p" => {
+  const normalized = requestedResolution?.toLowerCase() ?? "";
+  if (normalized.includes("720")) return "720p";
+  if (normalized.includes("1080")) return "1080p";
+  return fallback;
+};
+
+/**
  * Normalizes VEO resolution selection to accepted enum values.
  */
 export const resolveVeoResolution = (

@@ -184,12 +184,18 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   }
 };
 
-const extractMediaByProvider = (provider: Provider, status: PollStatus) => {
+const extractMediaByProvider = (
+  provider: Provider,
+  status: PollStatus,
+  options?: { outputMode?: StudioOutput["mode"] | null }
+) => {
   if (provider === "kie-veo" || provider === "kie-kling") {
     const providerUrls = extractResultUrls(status?.resultJson ?? status, status);
     if (providerUrls.length) return providerUrls;
   }
-  return extractFalMediaUrls(status);
+  return extractFalMediaUrls(status, {
+    preferVideo: options?.outputMode === "video",
+  });
 };
 
 export function useAiStudioTasks({
@@ -344,7 +350,10 @@ export function useAiStudioTasks({
 
           try {
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
-            const recoveredUrls = extractMediaByProvider(provider, status).filter(Boolean);
+            const outputMode = findOutputById?.(outputId)?.mode ?? null;
+            const recoveredUrls = extractMediaByProvider(provider, status, {
+              outputMode,
+            }).filter(Boolean);
 
             if (recoveredUrls.length > 0) {
               addBreadcrumb({
@@ -436,7 +445,7 @@ export function useAiStudioTasks({
 
       queueNext();
     },
-    [clearPollTimer, clearRecoveryTimer, onGenerationSuccess, queueOutputUpdate]
+    [clearPollTimer, clearRecoveryTimer, findOutputById, onGenerationSuccess, queueOutputUpdate]
   );
 
   const handleOutputLookupHardStop = useCallback(
@@ -675,7 +684,10 @@ export function useAiStudioTasks({
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
             const { state, hasExplicitState } = resolveProviderStatusState(status);
 
-            const allUrls = extractMediaByProvider(provider, status);
+            const outputMode = findOutputById?.(outputId)?.mode ?? null;
+            const allUrls = extractMediaByProvider(provider, status, {
+              outputMode,
+            });
             const hasMedia = allUrls.length > 0;
             const { shouldForceImageMediaSuccess, shouldTreatAsSuccess } = classifyProviderSuccess({
               provider,
@@ -900,10 +912,16 @@ export function useAiStudioTasks({
                     : "Generation failed";
 
               const failureMessage = condenseError(detailMessage ?? failureDetail);
+              const safeFailureMessage = looksLikeFailureMessage(failureMessage)
+                ? failureMessage
+                : "Generation failed";
+              const safeFailureDetail = looksLikeFailureMessage(failureDetail)
+                ? failureDetail
+                : safeFailureMessage;
 
-              const shortMessage = createShortErrorMessage(failureMessage);
+              const shortMessage = createShortErrorMessage(safeFailureMessage);
 
-              notifyGenerationFailure(outputId, failureMessage, failureDetail, {
+              notifyGenerationFailure(outputId, safeFailureMessage, safeFailureDetail, {
                 reasonCode: "provider_error",
                 providerState: state,
                 pollAttempt: attempt,
@@ -917,7 +935,7 @@ export function useAiStudioTasks({
                 status: item.status === "ready" ? item.status : "ready",
                 taskState: item.taskState === "fail" ? item.taskState : "fail",
                 errorMessage:
-                  item.errorMessage === failureMessage ? item.errorMessage : failureMessage,
+                  item.errorMessage === safeFailureMessage ? item.errorMessage : safeFailureMessage,
                 errorMessageShort:
                   item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
               }));
@@ -927,7 +945,7 @@ export function useAiStudioTasks({
                   outputId,
                   taskId,
                   provider,
-                  message: failureDetail,
+                  message: safeFailureDetail,
                   reasonCode: "provider_error",
                 });
               }

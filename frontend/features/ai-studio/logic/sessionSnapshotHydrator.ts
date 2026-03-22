@@ -52,6 +52,14 @@ const asNullableString = (value: unknown): string | null => {
   return value;
 };
 
+const sanitizeHydratedMediaUrl = (value: string | null): string | null => {
+  if (!value) return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (normalized.startsWith("blob:") || normalized.startsWith("data:")) return null;
+  return normalized;
+};
+
 const asStringArray = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
@@ -99,7 +107,11 @@ const asKlingShotType = (value: unknown): "customize" | "intelligent" => {
 
 const asExtraImageUrls = (value: unknown): [string | null, string | null, string | null] => {
   if (!Array.isArray(value)) return [null, null, null];
-  return [asNullableString(value[0]), asNullableString(value[1]), asNullableString(value[2])];
+  return [
+    sanitizeHydratedMediaUrl(asNullableString(value[0])),
+    sanitizeHydratedMediaUrl(asNullableString(value[1])),
+    sanitizeHydratedMediaUrl(asNullableString(value[2])),
+  ];
 };
 
 const asKlingVoiceIds = (value: unknown): [string, string] => {
@@ -132,11 +144,18 @@ const asKlingElements = (
     .map((item, index) => {
       if (!item || typeof item !== "object") return null;
       const row = item as Record<string, unknown>;
+      const frontalImageUrl = sanitizeHydratedMediaUrl(asNullableString(row.frontalImageUrl)) ?? "";
+      const referenceImageUrls = asString(row.referenceImageUrls, "")
+        .split(/[,\n]+/)
+        .map((url) => sanitizeHydratedMediaUrl(url))
+        .filter((url): url is string => Boolean(url))
+        .join(", ");
+      const videoUrl = sanitizeHydratedMediaUrl(asNullableString(row.videoUrl)) ?? "";
       return {
         id: asString(row.id, `kling-element-${index}`),
-        frontalImageUrl: asString(row.frontalImageUrl, ""),
-        referenceImageUrls: asString(row.referenceImageUrls, ""),
-        videoUrl: asString(row.videoUrl, ""),
+        frontalImageUrl,
+        referenceImageUrls,
+        videoUrl,
       };
     })
     .filter(
@@ -318,7 +337,7 @@ export const buildAiStudioSessionHydrationPayload = (
       prompt: asString(workspace.prompt, ""),
       model: asNullableString(workspace.model),
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
-      referenceImageUrl: asNullableString(workspace.referenceImageUrl),
+      referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),
       extraImageUrls: asExtraImageUrls(workspace.extraImageUrls),
       editReferenceText: asString(workspace.editReferenceText, ""),
       videoReferenceText: asString(workspace.videoReferenceText, ""),
@@ -338,7 +357,9 @@ export const buildAiStudioSessionHydrationPayload = (
       klingVoiceIds: asKlingVoiceIds(workspace.klingVoiceIds),
       klingMultiPrompts: asKlingMultiPrompts(workspace.klingMultiPrompts),
       klingElements: asKlingElements(workspace.klingElements),
-      motionReferenceVideoUrl: asNullableString(workspace.motionReferenceVideoUrl),
+      motionReferenceVideoUrl: sanitizeHydratedMediaUrl(
+        asNullableString(workspace.motionReferenceVideoUrl)
+      ),
     },
     outputs: {
       active: activeOutputs,

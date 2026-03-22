@@ -244,6 +244,18 @@ describe("modelSelectionPolicy", () => {
     ]);
   });
 
+  it("locks motion mode to Kie Kling", () => {
+    const values = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "motion",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(values).toEqual([KIE_KLING_30_MODEL_ID]);
+  });
+
   it("keeps edit startup fallback model precedence unchanged", () => {
     const model = resolveEditWorkflowStartupModel({
       savedModelId: "non-existent-edit-model",

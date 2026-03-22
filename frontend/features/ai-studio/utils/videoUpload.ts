@@ -18,6 +18,41 @@ export type VideoUploadError = {
 
 const SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS = 5 * 60;
 
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+
+const isPrivateIpv4Address = (hostname: string): boolean => {
+  const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const octets = match.slice(1).map((segment) => Number.parseInt(segment, 10));
+  if (octets.some((octet) => !Number.isFinite(octet) || octet < 0 || octet > 255)) return false;
+  const [first, second] = octets;
+  if (first === 10) return true;
+  if (first === 127) return true;
+  if (first === 192 && second === 168) return true;
+  if (first === 172 && second >= 16 && second <= 31) return true;
+  return false;
+};
+
+const shouldUploadForProviderAccess = (url: string): boolean => {
+  if (url.startsWith("blob:") || /^data:video\//i.test(url)) return true;
+  const base =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "http://localhost";
+  let parsed: URL;
+  try {
+    parsed = new URL(url, base);
+  } catch {
+    return true;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return true;
+  const hostname = parsed.hostname.trim().toLowerCase();
+  if (!hostname) return true;
+  if (LOCAL_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost")) return true;
+  if (isPrivateIpv4Address(hostname)) return true;
+  return false;
+};
+
 const decodeBase64Url = (value: string): string => {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
@@ -109,8 +144,13 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
 export const uploadVideoAssetToStorage = async (
   localVideoUrl: string
 ): Promise<VideoUploadResult> => {
+  const normalizedLocalVideoUrl = localVideoUrl.replace(/#video=1$/i, "");
+  const isLocalMemoryUrl = shouldUploadForProviderAccess(normalizedLocalVideoUrl);
   try {
-    const response = await fetch(localVideoUrl);
+    const response = await fetch(normalizedLocalVideoUrl);
+    if (!response.ok) {
+      throw new Error(`Unable to read local video input (${response.status}).`);
+    }
     const blob = await response.blob();
 
     const timestamp = Date.now();
@@ -138,6 +178,15 @@ export const uploadVideoAssetToStorage = async (
     return result;
   } catch (error) {
     console.error("Video upload error:", error);
+    if (
+      isLocalMemoryUrl &&
+      error instanceof TypeError &&
+      error.message.toLowerCase().includes("failed to fetch")
+    ) {
+      throw new Error(
+        "Local motion reference video is no longer available. Re-add the motion video and try again."
+      );
+    }
     throw new Error(
       error instanceof Error ? error.message : "Failed to upload video. Please try again."
     );
@@ -156,7 +205,10 @@ export const uploadVideoToStorage = async (localVideoUrl: string): Promise<strin
  * Checks if a URL is a blob URL that needs uploading
  */
 export const needsVideoUpload = (url: string | null): boolean => {
-  return Boolean(url && (url.startsWith("blob:") || /^data:video\//i.test(url)));
+  if (!url) return false;
+  const normalized = url.trim();
+  if (!normalized) return false;
+  return shouldUploadForProviderAccess(normalized.replace(/#video=1$/i, ""));
 };
 
 /**

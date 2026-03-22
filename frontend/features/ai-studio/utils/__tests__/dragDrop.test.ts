@@ -737,4 +737,32 @@ describe("dragDrop payload extraction", () => {
 
     expect(resolved).toBe("https://example.com/full.png");
   });
+
+  it("prefers durable storage video URLs over blob preview URLs", () => {
+    const resolved = resolveReferenceTransferUrl(
+      {
+        previewUrl: "blob:http://localhost:3000/transient-preview-video",
+        fullStoragePath: "https://example.com/final-video.mp4",
+        previewStoragePath: "https://example.com/preview-video.mp4",
+        resultUrls: [],
+      },
+      "video"
+    );
+
+    expect(resolved).toBe("https://example.com/final-video.mp4");
+  });
+
+  it("ignores non-renderable storage keys and falls back to renderable video URLs", () => {
+    const resolved = resolveReferenceTransferUrl(
+      {
+        previewUrl: "https://example.com/signed-preview-video.mp4",
+        fullStoragePath: "82004e53-a9bd-48c8-85ff-20dbeb658d21/generations/videos/final.mp4",
+        previewStoragePath: "82004e53-a9bd-48c8-85ff-20dbeb658d21/generations/videos/preview.mp4",
+        resultUrls: [],
+      },
+      "video"
+    );
+
+    expect(resolved).toBe("https://example.com/signed-preview-video.mp4");
+  });
 });

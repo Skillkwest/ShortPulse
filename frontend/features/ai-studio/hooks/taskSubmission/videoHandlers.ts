@@ -40,6 +40,7 @@ import {
   resolveVeoResolution,
   resolveVeoTextAspect,
   resolveKlingShotType,
+  resolveKlingResolution,
   buildKlingVoiceIds,
 } from "./videoPayloads";
 import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
@@ -140,31 +141,10 @@ export const handleVideoModelSubmission = async ({
     return true;
   }
 
-  if (finalModel === KIE_KLING_30_MODEL_ID) {
-    if (!preparedImageInputs.length) {
-      notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
-      return true;
-    }
-    const aspectRatio = ["16:9", "9:16", "1:1"].includes(aspect) ? aspect : "16:9";
-    const duration = requestedDurationSeconds <= 5 ? 5 : 10;
-    const response = await submitKieKlingImageToVideo({
-      prompt: cleanedPrompt,
-      image_url: preparedImageInputs[0],
-      image_urls: [preparedImageInputs[0]],
-      aspect_ratio: aspectRatio,
-      duration,
-      cfg_scale: klingCfgScale,
-      generate_audio: requestedAudio,
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "kie-kling",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
+  const isLegacyFalKlingMotionModel =
+    finalModel === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "motion";
 
-  if (finalModel === "fal-ai/kling-video/v3/pro/image-to-video") {
+  if (finalModel === KIE_KLING_30_MODEL_ID || isLegacyFalKlingMotionModel) {
     if (videoReferenceMode === "motion") {
       if (!videoReferenceImageUrl) {
         notifyGenerationFailure(id, "Motion Control requires a character image");
@@ -213,33 +193,23 @@ export const handleVideoModelSubmission = async ({
         return true;
       }
 
-      const motionElementsPayload = [
-        {
-          video_url: motionVideoUrlFinal,
-          frontal_image_url: characterImageUrl,
-        },
-      ];
-
-      let finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
-      if (!finalPrompt.includes("@Element")) {
-        finalPrompt = `${finalPrompt} @Element1`;
-      }
-
-      const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-      const response = await submitFalKlingV3ImageToVideo({
+      const motionResolution = resolveKlingResolution(requestedResolution);
+      const finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
+      const response = await submitKieKlingImageToVideo({
         prompt: finalPrompt,
-        start_image_url: characterImageUrl,
-        duration: klingDuration,
-        aspect_ratio: resolveKlingAspectRatio(aspect),
-        negative_prompt: klingNegativePrompt,
-        cfg_scale: klingCfgScale,
-        generate_audio: requestedAudio,
-        elements: motionElementsPayload,
+        image_url: characterImageUrl,
+        image_urls: [characterImageUrl],
+        input_urls: [characterImageUrl],
+        video_url: motionVideoUrlFinal,
+        video_urls: [motionVideoUrlFinal],
+        resolution: motionResolution,
+        mode: motionResolution,
+        character_orientation: "image",
+        background_source: "input_video",
       });
-
       handoffSubmitResponse({
         response,
-        pollingProvider: "fal-kling-3",
+        pollingProvider: "kie-kling",
         patch: {
           previewUrl: characterImageUrl,
         },
@@ -248,6 +218,31 @@ export const handleVideoModelSubmission = async ({
       return true;
     }
 
+    if (!preparedImageInputs.length) {
+      notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
+      return true;
+    }
+    const aspectRatio = ["16:9", "9:16", "1:1"].includes(aspect) ? aspect : "16:9";
+    const duration = requestedDurationSeconds <= 5 ? 5 : 10;
+    const response = await submitKieKlingImageToVideo({
+      prompt: cleanedPrompt,
+      image_url: preparedImageInputs[0],
+      image_urls: [preparedImageInputs[0]],
+      aspect_ratio: aspectRatio,
+      duration,
+      resolution: resolveKlingResolution(requestedResolution),
+      cfg_scale: klingCfgScale,
+      generate_audio: requestedAudio,
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "kie-kling",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
+  if (finalModel === "fal-ai/kling-video/v3/pro/image-to-video") {
     const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
     const endImageUrl =
       (videoReferenceMode === "keyframes" || videoReferenceMode === "kling3") &&
@@ -285,6 +280,7 @@ export const handleVideoModelSubmission = async ({
       end_image_url: endImageUrl,
       duration: klingDuration,
       aspect_ratio: resolveKlingAspectRatio(aspect),
+      resolution: resolveKlingResolution(requestedResolution),
       negative_prompt: klingNegativePrompt,
       cfg_scale: klingCfgScale,
       generate_audio: requestedAudio,

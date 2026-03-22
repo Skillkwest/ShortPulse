@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MutableRefObject } from "react";
+import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import { useAiStudioStateEffects } from "../useAiStudioStateEffects";
 
 const createArgs = (
@@ -107,6 +108,24 @@ describe("useAiStudioStateEffects", () => {
     await waitFor(() => {
       expect(setModel).not.toHaveBeenCalled();
       expect(setVideoReferenceMode).not.toHaveBeenCalled();
+    });
+  });
+
+  it("locks motion mode to Kie Kling model", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: "fal-ai/veo3.1/image-to-video",
+          videoReferenceMode: "motion",
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith(KIE_KLING_30_MODEL_ID);
     });
   });
 

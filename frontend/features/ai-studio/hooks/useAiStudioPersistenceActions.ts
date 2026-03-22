@@ -36,6 +36,18 @@ const normalizeOptionalUrl = (value: string | null | undefined): string | null =
   return normalized.length ? normalized : null;
 };
 
+const resolvePersistableOutputUrls = (output: StudioOutput): string[] => {
+  const baseUrls = output.resultUrls?.length
+    ? output.resultUrls
+    : output.previewUrl
+      ? [output.previewUrl]
+      : [];
+  if (!baseUrls.length) return [];
+  if (output.mode !== "video") return baseUrls;
+  const videoUrls = baseUrls.filter((value) => isVideoUrl(value));
+  return videoUrls.length ? videoUrls : baseUrls;
+};
+
 /**
  * Merges delivery metadata from persistence into an output row.
  * Prefers fresh delivery URLs over stale preview URLs when provided.
@@ -304,11 +316,7 @@ export const useAiStudioPersistenceActions = ({
           return;
         }
 
-        const urls = output.resultUrls?.length
-          ? output.resultUrls
-          : output.previewUrl
-            ? [output.previewUrl]
-            : [];
+        const urls = resolvePersistableOutputUrls(output);
         if (!urls.length) {
           markOutputSaveFailed(outputId, "No media available to save.");
           setUiError("No media available to save.");

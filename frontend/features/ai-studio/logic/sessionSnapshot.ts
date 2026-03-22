@@ -193,6 +193,39 @@ const sanitizeMediaUrl = (value: string | null | undefined): string | undefined 
   return normalized;
 };
 
+const sanitizeWorkspaceMediaUrl = (value: string | null | undefined): string | null =>
+  sanitizeMediaUrl(value) ?? null;
+
+const sanitizeWorkspaceExtraImageUrls = (
+  values: [string | null, string | null, string | null]
+): [string | null, string | null, string | null] => [
+  sanitizeWorkspaceMediaUrl(values[0]),
+  sanitizeWorkspaceMediaUrl(values[1]),
+  sanitizeWorkspaceMediaUrl(values[2]),
+];
+
+const sanitizeWorkspaceKlingElements = (
+  elements: {
+    id: string;
+    frontalImageUrl: string;
+    referenceImageUrls: string;
+    videoUrl: string;
+  }[]
+) =>
+  elements.map((element) => {
+    const sanitizedReferenceImageUrls = element.referenceImageUrls
+      .split(/[,\n]+/)
+      .map((value) => sanitizeMediaUrl(value))
+      .filter((value): value is string => Boolean(value))
+      .join(", ");
+    return {
+      ...element,
+      frontalImageUrl: sanitizeMediaUrl(element.frontalImageUrl) ?? "",
+      referenceImageUrls: sanitizedReferenceImageUrls,
+      videoUrl: sanitizeMediaUrl(element.videoUrl) ?? "",
+    };
+  });
+
 const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
   const previewUrl = sanitizeMediaUrl(output.previewUrl);
   const resultUrls = (output.resultUrls ?? [])
@@ -274,8 +307,8 @@ export const buildAiStudioSessionSnapshot = (
       prompt: input.prompt,
       model: input.model,
       aspect: input.aspect,
-      referenceImageUrl: input.referenceImageUrl,
-      extraImageUrls: input.extraImageUrls,
+      referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
+      extraImageUrls: sanitizeWorkspaceExtraImageUrls(input.extraImageUrls),
       editReferenceText: input.editReferenceText,
       videoReferenceText: input.videoReferenceText,
       videoReferenceMode: input.videoReferenceMode,
@@ -290,8 +323,8 @@ export const buildAiStudioSessionSnapshot = (
       klingShotType: input.klingShotType,
       klingVoiceIds: input.klingVoiceIds,
       klingMultiPrompts: input.klingMultiPrompts,
-      klingElements: input.klingElements,
-      motionReferenceVideoUrl: input.motionReferenceVideoUrl,
+      klingElements: sanitizeWorkspaceKlingElements(input.klingElements),
+      motionReferenceVideoUrl: sanitizeWorkspaceMediaUrl(input.motionReferenceVideoUrl),
     },
     outputs: {
       active: input.outputs.map(sanitizeOutput),

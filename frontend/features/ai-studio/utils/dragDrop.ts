@@ -487,19 +487,33 @@ export const resolveReferenceTransferUrl = (
   kind: "image" | "video" | "any" = "any"
 ): string | null => {
   const candidates = [
-    output.previewUrl,
     output.fullStoragePath,
     output.previewStoragePath,
     ...(output.resultUrls ?? []),
+    output.previewUrl,
   ];
+  const localCandidates: string[] = [];
 
   for (const candidate of candidates) {
     const normalized = normalizeReferenceTransferUrlCandidate(candidate);
     if (!normalized) continue;
+    if (isBlobUrl(normalized) || normalized.startsWith("data:")) {
+      localCandidates.push(normalized);
+      continue;
+    }
+    if (!isRenderableAdaptiveUrl(normalized)) continue;
     if (kind === "image" && isLikelyImageTransferUrl(normalized)) return normalized;
     if (kind === "video" && looksLikeVideoUrl(normalized)) return normalized;
     if (kind === "any" && (isLikelyImageTransferUrl(normalized) || looksLikeVideoUrl(normalized))) {
       return normalized;
+    }
+  }
+
+  for (const candidate of localCandidates) {
+    if (kind === "image" && isLikelyImageTransferUrl(candidate)) return candidate;
+    if (kind === "video" && looksLikeVideoUrl(candidate)) return candidate;
+    if (kind === "any" && (isLikelyImageTransferUrl(candidate) || looksLikeVideoUrl(candidate))) {
+      return candidate;
     }
   }
 

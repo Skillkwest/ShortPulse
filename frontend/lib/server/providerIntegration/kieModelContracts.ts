@@ -74,6 +74,47 @@ const readImageUrlList = (payload: Record<string, unknown>): string[] => {
   return Array.from(new Set(urls));
 };
 
+const readStringUrlList = ({
+  payload,
+  directFields,
+  listFields,
+}: {
+  payload: Record<string, unknown>;
+  directFields: string[];
+  listFields: string[];
+}): string[] => {
+  const urls: string[] = [];
+  for (const field of directFields) {
+    const normalized = asNonEmptyString(payload[field]);
+    if (normalized) urls.push(normalized);
+  }
+  for (const field of listFields) {
+    const candidateList = payload[field];
+    if (!Array.isArray(candidateList)) continue;
+    for (const candidate of candidateList) {
+      const normalized = asNonEmptyString(candidate);
+      if (normalized) urls.push(normalized);
+    }
+  }
+  return Array.from(new Set(urls));
+};
+
+const readKlingMotionInputUrlFieldList = (payload: Record<string, unknown>): string[] => {
+  return readStringUrlList({
+    payload,
+    directFields: ["input_url", "inputUrl"],
+    listFields: ["input_urls", "inputUrls"],
+  });
+};
+
+const readKlingMotionVideoUrlList = (payload: Record<string, unknown>): string[] => {
+  return readStringUrlList({
+    payload,
+    directFields: ["video_url", "videoUrl"],
+    listFields: ["video_urls", "videoUrls"],
+  });
+};
+
 const normalizeOptionalStringField = ({
   payload,
   fields,
@@ -414,6 +455,82 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
   if (!prompt) {
     throw new Error("Kie Kling 3.0 submit requires a prompt.");
   }
+  const modelAlias =
+    asNonEmptyString(payload.model) ?? asNonEmptyString(source.model) ?? "kling-3.0/video";
+  const inputUrlsFromMotionFields = readKlingMotionInputUrlFieldList(source);
+  const inputUrls = inputUrlsFromMotionFields.length
+    ? inputUrlsFromMotionFields
+    : readImageUrlList(source);
+  const videoUrls = readKlingMotionVideoUrlList(source);
+  const motionControlRequested =
+    modelAlias.toLowerCase().includes("motion-control") ||
+    videoUrls.length > 0 ||
+    inputUrlsFromMotionFields.length > 0 ||
+    asNonEmptyString(source.character_orientation) !== null ||
+    asNonEmptyString(source.characterOrientation) !== null ||
+    asNonEmptyString(source.background_source) !== null ||
+    asNonEmptyString(source.backgroundSource) !== null;
+
+  if (motionControlRequested) {
+    if (!contract.allowedResolutions?.length) {
+      throw new Error("Kie Kling 3.0 model catalog contract is missing allowed resolutions.");
+    }
+    if (!inputUrls.length) {
+      throw new Error("Kie Kling 3.0 motion-control submit requires one input URL.");
+    }
+    if (!videoUrls.length) {
+      throw new Error("Kie Kling 3.0 motion-control submit requires one motion video URL.");
+    }
+    if (inputUrls.length !== 1) {
+      throw new Error("Kie Kling 3.0 motion-control submit accepts exactly one input URL.");
+    }
+    if (videoUrls.length !== 1) {
+      throw new Error("Kie Kling 3.0 motion-control submit accepts exactly one motion video URL.");
+    }
+    const requestedResolution = normalizeOptionalResolution({
+      payload: source,
+      allowedValues: contract.allowedResolutions,
+      modelLabel: "Kie Kling 3.0 motion-control",
+    });
+    const modeAlias = asNonEmptyString(source.mode);
+    const modeResolution = modeAlias ?? requestedResolution ?? contract.defaultResolution;
+    if (!contract.allowedResolutions.includes(modeResolution)) {
+      throw new Error(
+        `Kie Kling 3.0 motion-control submit uses unsupported mode: ${modeResolution}. Allowed: ${contract.allowedResolutions.join(", ")}`
+      );
+    }
+    const characterOrientation =
+      asNonEmptyString(source.character_orientation) ??
+      asNonEmptyString(source.characterOrientation) ??
+      "image";
+    const backgroundSource =
+      asNonEmptyString(source.background_source) ??
+      asNonEmptyString(source.backgroundSource) ??
+      "input_video";
+    const callbackValue = normalizeOptionalStringField({
+      payload,
+      fields: ["callBackUrl", "callbackUrl", "callback_url"],
+    });
+    const callbackUrl = callbackValue ? asHttpUrlString(callbackValue) : null;
+    if (callbackValue && !callbackUrl) {
+      throw new Error(
+        "Kie Kling 3.0 motion-control submit field callBackUrl must be a valid http(s) URL."
+      );
+    }
+    return {
+      model: "kling-3.0/motion-control",
+      ...(callbackUrl ? { callBackUrl: callbackUrl } : {}),
+      input: {
+        prompt,
+        input_urls: [inputUrls[0]],
+        video_urls: [videoUrls[0]],
+        mode: modeResolution,
+        character_orientation: characterOrientation,
+        background_source: backgroundSource,
+      },
+    };
+  }
+
   const imageUrls = readImageUrlList(source);
   if (!imageUrls.length) {
     throw new Error("Kie Kling 3.0 submit requires at least one image URL.");

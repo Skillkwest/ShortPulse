@@ -287,6 +287,60 @@ describe("useAiStudioTasks", () => {
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
   });
 
+  it("does not surface non-failure status text on terminal failures", async () => {
+    fetchFalStatusMock.mockImplementationOnce(async () =>
+      asFalStatusResponse({
+        status: "failed",
+        statusMessage: "Success",
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-failed-success-text", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation failed",
+      "Generation failed",
+      expect.objectContaining({
+        reasonCode: "provider_error",
+        providerState: "failed",
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        provider: "fal",
+        message: "Generation failed",
+        reasonCode: "provider_error",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.errorMessage).toBe("Generation failed");
+    expect(output.errorMessageShort).toBe("Generation failed");
+  });
+
   it("forces success for image providers when media is present even if state is non-terminal", async () => {
     fetchFalSeedreamStatusMock.mockResolvedValueOnce({
       status: "in_progress",
@@ -328,6 +382,59 @@ describe("useAiStudioTasks", () => {
     );
     expect(output.taskState).toBe("success");
     expect(output.previewUrl).toBe("https://cdn.test/final-seedream.png");
+  });
+
+  it("prefers video URLs for video-mode outputs when provider payload includes images and videos", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce({
+      status: "completed",
+      data: {
+        images: [{ url: "https://cdn.test/video-poster.png" }],
+        videos: [{ url: "https://cdn.test/video-output.mp4" }],
+      },
+    });
+
+    let output: StudioOutput = {
+      ...makeOutput(),
+      mode: "video",
+      modelId: "fal-ai/veo3.1/image-to-video",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const findOutputById = vi.fn((id: string) => (id === output.id ? output : null));
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("video-task-1", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledWith("video-task-1");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "video-task-1",
+        provider: "fal",
+        resultUrls: ["https://cdn.test/video-output.mp4"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/video-output.mp4");
   });
 
   it("polls Bria background-remove tasks via the Bria status endpoint", async () => {

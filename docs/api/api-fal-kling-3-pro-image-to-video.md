@@ -28,6 +28,7 @@ Use this guide to submit and poll Kling 3.0 Pro image-to-video jobs via the Fal 
 - `end_image_url` (string, optional): URL of the end frame. Used when ShortPulse is in **kling3 mode**. Kling 3.0 treats the end frame as optional.
 - `duration` (number): Duration in seconds. Allowed enum values: 3–15.
 - `aspect_ratio` (enum): `16:9`, `9:16`, or `1:1`.
+- `resolution` (enum): `720p` or `1080p`.
 - `generate_audio` (boolean): Whether to generate native audio for the video. Default in Fal is `true`.
 - `negative_prompt` (string): Defaults to `"blur, distort, and low quality"`.
 - `cfg_scale` (number): Guidance strength; default `0.5`.
@@ -55,6 +56,7 @@ Example response:
 
 - `duration`: 10 seconds (aligned with the AI Studio video defaults).
 - `aspect_ratio`: `16:9` (unless the user selects another allowed aspect).
+- `resolution`: `1080p`.
 - `generate_audio`: `true` (audio toggle in the UI controls this).
 - `negative_prompt`: `"blur, distort, and low quality"`.
 - `cfg_scale`: `0.5`.
@@ -81,6 +83,7 @@ Example: a 5s clip with audio on and voice control costs `$0.98` -> `rawCredits 
   "start_image_url": "https://storage.googleapis.com/falserverless/example_inputs/kling-v3/pro-i2v/start_image.png",
   "duration": 10,
   "aspect_ratio": "16:9",
+  "resolution": "1080p",
   "generate_audio": true,
   "negative_prompt": "blur, distort, and low quality",
   "cfg_scale": 0.5

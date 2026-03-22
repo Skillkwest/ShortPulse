@@ -66,6 +66,19 @@ export const kieKlingCreateTaskRequestFixture = {
   },
 } as const;
 
+export const kieKlingMotionControlRequestFixture = {
+  model: "kling-3.0/motion-control",
+  callBackUrl: "https://example.com/callback/kling-motion",
+  input: {
+    prompt: "The cartoon character is dancing.",
+    input_urls: ["https://example.com/character.png"],
+    video_urls: ["https://example.com/motion.mp4"],
+    mode: "720p",
+    character_orientation: "image",
+    background_source: "input_video",
+  },
+} as const;
+
 export const kieKlingCallbackSuccessFixture = {
   code: 200,
   data: {

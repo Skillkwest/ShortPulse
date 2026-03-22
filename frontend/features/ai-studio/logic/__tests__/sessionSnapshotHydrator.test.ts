@@ -199,6 +199,37 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.extraImageUrls).toEqual(["a", null, null]);
   });
 
+  it("strips local blob/data workspace references during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          referenceImageUrl: "blob:http://localhost/workspace-ref",
+          extraImageUrls: ["data:image/png;base64,abc", "https://example.com/extra.png", null],
+          motionReferenceVideoUrl: "blob:http://localhost/motion-video",
+          klingElements: [
+            {
+              id: "k1",
+              frontalImageUrl: "data:image/png;base64,abc",
+              referenceImageUrls: "blob:http://localhost/ref-1, https://example.com/ref-2.png",
+              videoUrl: "blob:http://localhost/video-1",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.workspace.referenceImageUrl).toBeNull();
+    expect(payload.workspace.extraImageUrls).toEqual([null, "https://example.com/extra.png", null]);
+    expect(payload.workspace.motionReferenceVideoUrl).toBeNull();
+    expect(payload.workspace.klingElements[0]).toEqual({
+      id: "k1",
+      frontalImageUrl: "",
+      referenceImageUrls: "https://example.com/ref-2.png",
+      videoUrl: "",
+    });
+  });
+
   it("dedupes outputs and nulls invalid activeOutputId", () => {
     const snapshot = createSnapshot({
       outputs: {

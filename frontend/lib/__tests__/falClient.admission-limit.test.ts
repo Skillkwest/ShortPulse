@@ -99,4 +99,20 @@ describe("falClient generation admission error handling", () => {
       pollAfterMs: 1200,
     });
   });
+
+  it("surfaces provider msg fields for non-admission submit failures", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          code: 422,
+          msg: "Input video URL is not publicly reachable.",
+        },
+        422
+      )
+    );
+
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+      "Input video URL is not publicly reachable."
+    );
+  });
 });

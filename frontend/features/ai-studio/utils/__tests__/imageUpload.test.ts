@@ -116,9 +116,12 @@ describe("imageUpload", () => {
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
   });
 
-  it("only uploads blob and data image urls", async () => {
+  it("uploads local/provider-inaccessible image urls and passes through public urls", async () => {
     expect(needsImageUpload("blob:reference")).toBe(true);
     expect(needsImageUpload("data:image/png;base64,abc")).toBe(true);
+    expect(needsImageUpload("/media/local-reference.png")).toBe(true);
+    expect(needsImageUpload("http://localhost:3000/local-reference.png")).toBe(true);
+    expect(needsImageUpload("http://127.0.0.1:3000/local-reference.png")).toBe(true);
     expect(needsImageUpload("https://example.com/image.png")).toBe(false);
     expect(needsImageUpload(null)).toBe(false);
 

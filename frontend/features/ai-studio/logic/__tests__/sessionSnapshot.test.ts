@@ -124,6 +124,67 @@ describe("sessionSnapshot", () => {
     ]);
   });
 
+  it("strips local blob/data workspace references from persisted session workspace", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "video",
+      selectedTool: "video",
+      prompt: "motion test",
+      model: "kie-ai/kling-3.0",
+      aspect: "16:9",
+      referenceImageUrl: "blob:http://localhost/character-ref",
+      extraImageUrls: ["data:image/png;base64,abc", "https://cdn.shortpulse.dev/extra.png", null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "motion",
+      videoDurationSeconds: 10,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: true,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [
+        {
+          id: "element-1",
+          frontalImageUrl: "data:image/png;base64,abc",
+          referenceImageUrls: "blob:http://localhost/1, https://cdn.shortpulse.dev/ref-1.png",
+          videoUrl: "blob:http://localhost/motion-element",
+        },
+      ],
+      motionReferenceVideoUrl: "blob:http://localhost/motion-video",
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    expect(snapshot.workspace.referenceImageUrl).toBeNull();
+    expect(snapshot.workspace.extraImageUrls).toEqual([
+      null,
+      "https://cdn.shortpulse.dev/extra.png",
+      null,
+    ]);
+    expect(snapshot.workspace.motionReferenceVideoUrl).toBeNull();
+    expect(snapshot.workspace.klingElements[0]).toEqual({
+      id: "element-1",
+      frontalImageUrl: "",
+      referenceImageUrls: "https://cdn.shortpulse.dev/ref-1.png",
+      videoUrl: "",
+    });
+  });
+
   it("persists queue lifecycle metadata for restore-safe polling semantics", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

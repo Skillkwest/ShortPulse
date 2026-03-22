@@ -7,7 +7,10 @@ import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
 import * as falClient from "../../../../lib/falClient";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import {
   handleDefaultModelSubmission,
   handleImageModelSubmission,
@@ -371,7 +374,7 @@ describe("useAiStudioTaskSubmission", () => {
       useAiStudioTaskSubmission({
         aspect: "16:9",
         mode: "video",
-        model: "fal-ai/kling-video/v3/pro/image-to-video",
+        model: KIE_KLING_30_MODEL_ID,
         prompt: "",
         selectedTool: "video",
         imageResolution: "model_default",
@@ -409,7 +412,7 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/kling-video/v3/pro/image-to-video");
+    expect(outputs[0]?.modelId).toBe(KIE_KLING_30_MODEL_ID);
     expect(outputs[0]?.taskState).toBe("fail");
     expect(outputs[0]?.errorMessageShort).toBe("Image URL required.");
     expect(setSaved).toHaveBeenCalledWith(false);

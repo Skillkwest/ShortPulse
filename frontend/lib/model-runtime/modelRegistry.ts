@@ -475,7 +475,15 @@ const registry: Record<string, ModelConfig> = {
     ]),
     pricingStrategy: "kling-3-per-second",
     defaultDurationSeconds: contractDefaultDuration("fal-ai/kling-video/v3/pro/image-to-video", 10),
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/kling-video/v3/pro/image-to-video",
+      "1080p"
+    ),
     defaultAudio: true,
+    allowedResolutions: contractAllowedResolutions("fal-ai/kling-video/v3/pro/image-to-video", [
+      "720p",
+      "1080p",
+    ]),
     allowedDurations: contractAllowedDurations(
       "fal-ai/kling-video/v3/pro/image-to-video",
       [5, 6, 7, 8, 9, 10]

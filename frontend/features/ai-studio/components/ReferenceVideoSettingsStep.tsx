@@ -235,15 +235,17 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
           <div className="step-card-header">
             {beginnerMode && <span className="step-badge">{motionAudioBadge}</span>}
             <div className="step-header-copy">
-              <p className="step-title">Audio Settings</p>
+              <p className="step-title">Motion Settings</p>
               <span className="step-subtitle tiny helper-text">
-                Control audio generation for your motion video
+                {shouldShowResolutionControl
+                  ? "Set motion output resolution and audio."
+                  : "Control audio generation for your motion video."}
               </span>
             </div>
             {!beginnerMode ? (
               <div className="step-header-actions">
                 <ReferenceStepHeaderActionButton
-                  label="Toggle audio settings"
+                  label="Toggle motion settings"
                   isCollapsed={collapsedMotionAudio}
                   onClick={onToggleMotionAudio}
                 />
@@ -252,6 +254,22 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
           </div>
           {!collapsedMotionAudio ? (
             <div className="create-controls motion-audio-controls">
+              {shouldShowResolutionControl ? (
+                <div className="control-row compact fixed-select">
+                  <label className="input-label">Resolution</label>
+                  <select
+                    className="model-select"
+                    value={videoResolutionValue}
+                    onChange={(event) => onVideoResolutionChange?.(event.target.value)}
+                  >
+                    {resolutionOptions.map((option) => (
+                      <option value={option.value} key={`motion-resolution-${option.value}`}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
               <div className="video-settings-toggle-row">
                 <div className="video-settings-toggle-copy">
                   <span className="input-label">Generate audio</span>

@@ -11,6 +11,7 @@ import {
 import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "../kieModelIds";
 import {
   kieKlingCreateTaskRequestFixture,
+  kieKlingMotionControlRequestFixture,
   kieVeoGenerateRequestFixture,
 } from "./fixtures/kieContractFixtures";
 
@@ -229,6 +230,26 @@ describe("kieModelContracts", () => {
         }),
       })
     );
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: kieKlingMotionControlRequestFixture,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        model: "kling-3.0/motion-control",
+        callBackUrl: "https://example.com/callback/kling-motion",
+        input: expect.objectContaining({
+          prompt: "The cartoon character is dancing.",
+          input_urls: ["https://example.com/character.png"],
+          video_urls: ["https://example.com/motion.mp4"],
+          mode: "720p",
+          character_orientation: "image",
+          background_source: "input_video",
+        }),
+      })
+    );
   });
 
   it("enforces Kling optional field contracts", () => {
@@ -295,5 +316,51 @@ describe("kieModelContracts", () => {
         } as unknown as Record<string, unknown>,
       })
     ).toThrow('Kie Kling 3.0 submit field "generate_audio" must be boolean');
+  });
+
+  it("validates Kling motion-control required inputs", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: {
+          prompt: "motion clip",
+          image_url: "https://example.com/character.png",
+          video_url: "https://example.com/motion.mp4",
+          mode: "1080p",
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        model: "kling-3.0/motion-control",
+        input: expect.objectContaining({
+          input_urls: ["https://example.com/character.png"],
+          video_urls: ["https://example.com/motion.mp4"],
+          mode: "1080p",
+        }),
+      })
+    );
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: {
+          prompt: "motion clip",
+          image_url: "https://example.com/character.png",
+          video_url: "https://example.com/motion.mp4",
+          mode: "540p",
+        },
+      })
+    ).toThrow("Kie Kling 3.0 motion-control submit uses unsupported mode");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: {
+          prompt: "motion clip",
+          image_url: "https://example.com/character.png",
+          model: "kling-3.0/motion-control",
+        },
+      })
+    ).toThrow("Kie Kling 3.0 motion-control submit requires one motion video URL.");
   });
 });

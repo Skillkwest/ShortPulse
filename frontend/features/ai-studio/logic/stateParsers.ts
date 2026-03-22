@@ -442,10 +442,23 @@ const extractVideoUrlsFrom = (candidate: unknown): string[] => {
   return videoUrl ? [videoUrl] : [];
 };
 
-export const extractFalMediaUrls = (status: unknown): string[] => {
+export const extractFalMediaUrls = (
+  status: unknown,
+  options?: { preferVideo?: boolean }
+): string[] => {
+  const candidates = collectFalCandidates(status);
+  const preferVideo = options?.preferVideo === true;
+
+  if (preferVideo) {
+    for (const candidate of candidates) {
+      const videoUrls = extractVideoUrlsFrom(candidate);
+      if (videoUrls.length) return videoUrls;
+    }
+  }
+
   const imageUrls = extractFalUrls(status);
   if (imageUrls.length) return imageUrls;
-  const candidates = collectFalCandidates(status);
+
   for (const candidate of candidates) {
     const videoUrls = extractVideoUrlsFrom(candidate);
     if (videoUrls.length) return videoUrls;

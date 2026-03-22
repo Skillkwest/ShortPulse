@@ -5,7 +5,10 @@
 import type { ModelOption } from "../constants";
 import { modelOptions } from "../constants";
 import type { StudioMode, ToolId } from "../types";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 import {
   CREATE_DEFAULT_MODEL_ID,
   CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
@@ -77,9 +80,7 @@ export const resolveAiStudioAllowedModelOptions = ({
       );
     }
     if (videoReferenceMode === "motion") {
-      return selectableOptions.filter(
-        (option) => option.value === "fal-ai/kling-video/v3/pro/image-to-video"
-      );
+      return selectableOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
     }
     if (selectedTool === "kling" || videoReferenceMode === "kling3") {
       return selectableOptions.filter(

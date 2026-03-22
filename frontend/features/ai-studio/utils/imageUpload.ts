@@ -50,13 +50,49 @@ const localImageUrlCache = new Map<string, ImageUploadCacheEntry>();
 
 const isBlobUrl = (url: string): boolean => url.startsWith("blob:");
 const isDataImageUrl = (url: string): boolean => /^data:image\//i.test(url);
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+
+const isPrivateIpv4Address = (hostname: string): boolean => {
+  const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const octets = match.slice(1).map((segment) => Number.parseInt(segment, 10));
+  if (octets.some((octet) => !Number.isFinite(octet) || octet < 0 || octet > 255)) return false;
+  const [first, second] = octets;
+  if (first === 10) return true;
+  if (first === 127) return true;
+  if (first === 192 && second === 168) return true;
+  if (first === 172 && second >= 16 && second <= 31) return true;
+  return false;
+};
+
+const shouldUploadForProviderAccess = (url: string): boolean => {
+  if (isBlobUrl(url) || isDataImageUrl(url)) return true;
+  const base =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "http://localhost";
+  let parsed: URL;
+  try {
+    parsed = new URL(url, base);
+  } catch {
+    return true;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return true;
+  const hostname = parsed.hostname.trim().toLowerCase();
+  if (!hostname) return true;
+  if (LOCAL_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost")) return true;
+  if (isPrivateIpv4Address(hostname)) return true;
+  return false;
+};
 
 /**
  * Returns true when the image URL is local and must be uploaded for provider access.
  */
 export const needsImageUpload = (url: string | null): boolean => {
   if (!url) return false;
-  return isBlobUrl(url) || isDataImageUrl(url);
+  const normalized = url.trim();
+  if (!normalized) return false;
+  return shouldUploadForProviderAccess(normalized);
 };
 
 const emitStage = (

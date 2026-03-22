@@ -39,7 +39,7 @@ const baseArgs = {
 };
 
 describe("useReferencePropertiesDerivedState", () => {
-  it("hides resolution options for models without declared resolution support", () => {
+  it("returns declared resolution options for Kling image-to-video", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({
         ...baseArgs,
@@ -47,10 +47,24 @@ describe("useReferencePropertiesDerivedState", () => {
       })
     );
 
+    expect(result.current.resolutionOptions.map((option) => option.value)).toEqual([
+      "720p",
+      "1080p",
+    ]);
+  });
+
+  it("hides resolution options for models without declared resolution support", () => {
+    const { result } = renderHook(() =>
+      useReferencePropertiesDerivedState({
+        ...baseArgs,
+        modelId: "fal-ai/kling-video/v3/pro/text-to-video",
+      })
+    );
+
     expect(result.current.resolutionOptions).toEqual([]);
   });
 
-  it("returns declared resolution options for models that provide them", () => {
+  it("returns declared resolution options for other models that provide them", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({
         ...baseArgs,

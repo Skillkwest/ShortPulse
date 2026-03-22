@@ -47,6 +47,34 @@ type UseReferencePropertiesInteractionsParams = {
   onKlingElementsChange?: (value: KlingElement[]) => void;
 };
 
+const VIDEO_BLOB_MARKER = "#video=1";
+
+const isLocalMemoryVideoUrl = (value: string | null | undefined): value is string => {
+  if (!value) return false;
+  return value.startsWith("blob:") || /^data:video\//i.test(value);
+};
+
+const stripVideoBlobMarker = (value: string): string => value.replace(/#video=1$/i, "");
+
+const ensureVideoBlobMarker = (value: string): string => {
+  if (!value.startsWith("blob:")) return value;
+  const base = stripVideoBlobMarker(value);
+  return `${base}${VIDEO_BLOB_MARKER}`;
+};
+
+const cloneMotionBlobVideoUrl = async (value: string): Promise<string | null> => {
+  if (!value.startsWith("blob:")) return null;
+  try {
+    const source = stripVideoBlobMarker(value);
+    const response = await fetch(source);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return `${URL.createObjectURL(blob)}${VIDEO_BLOB_MARKER}`;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Returns UI interaction state and handlers for reference properties editing.
  */
@@ -241,7 +269,7 @@ export const useReferencePropertiesInteractions = ({
     return false;
   };
 
-  const handleMotionVideoDrop = (event: DragEvent<HTMLDivElement>) => {
+  const handleMotionVideoDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
     setMotionVideoDragActive(false);
@@ -249,11 +277,20 @@ export const useReferencePropertiesInteractions = ({
     const payload = extractVideoDragDropPayload(event.dataTransfer);
     let nextVideoUrl = payload.videoUrl;
 
-    if (!nextVideoUrl && payload.referenceId && resolvePreviewUrlById) {
+    if (
+      (!nextVideoUrl || isLocalMemoryVideoUrl(nextVideoUrl)) &&
+      payload.referenceId &&
+      resolvePreviewUrlById
+    ) {
       const resolvedUrl = resolvePreviewUrlById(payload.referenceId);
       if (resolvedUrl && looksLikeVideoUrl(resolvedUrl)) {
         nextVideoUrl = resolvedUrl;
       }
+    }
+
+    if (nextVideoUrl && nextVideoUrl.startsWith("blob:")) {
+      const stabilized = await cloneMotionBlobVideoUrl(nextVideoUrl);
+      nextVideoUrl = stabilized ?? ensureVideoBlobMarker(nextVideoUrl);
     }
 
     if (nextVideoUrl) {

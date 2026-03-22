@@ -7,7 +7,10 @@ import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 import {
   isCreateWorkflow,
   isEditWorkflow,
@@ -253,11 +256,11 @@ export const useAiStudioStateEffects = ({
     }
 
     if (videoReferenceMode === "motion") {
-      if (model !== "fal-ai/kling-video/v3/pro/image-to-video") {
+      if (model !== KIE_KLING_30_MODEL_ID) {
         lastNonMotionVideoModelRef.current = model;
-        setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
+        setModelIfChanged(KIE_KLING_30_MODEL_ID);
       } else if (!model) {
-        setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
+        setModelIfChanged(KIE_KLING_30_MODEL_ID);
       }
       return;
     }

@@ -108,6 +108,7 @@ export type FalKlingV3ImageToVideoSubmitRequest = {
   end_image_url?: string;
   duration?: number;
   aspect_ratio?: "16:9" | "9:16" | "1:1";
+  resolution?: "720p" | "1080p";
   negative_prompt?: string;
   cfg_scale?: number;
   generate_audio?: boolean;
@@ -304,6 +305,26 @@ const readApiErrorMessage = (payload: unknown): string => {
   const data = payload as Record<string, unknown>;
   if (typeof data.message === "string" && data.message.length > 0) return data.message;
   if (typeof data.error === "string" && data.error.length > 0) return data.error;
+  if (typeof data.msg === "string" && data.msg.length > 0) return data.msg;
+  const nestedData = data.data;
+  if (nestedData && typeof nestedData === "object" && !Array.isArray(nestedData)) {
+    const nested = nestedData as Record<string, unknown>;
+    if (typeof nested.message === "string" && nested.message.trim().length > 0) {
+      return nested.message.trim();
+    }
+    if (typeof nested.error === "string" && nested.error.trim().length > 0) {
+      return nested.error.trim();
+    }
+    if (typeof nested.msg === "string" && nested.msg.trim().length > 0) {
+      return nested.msg.trim();
+    }
+    if (typeof nested.failMsg === "string" && nested.failMsg.trim().length > 0) {
+      return nested.failMsg.trim();
+    }
+    if (typeof nested.failCode === "string" && nested.failCode.trim().length > 0) {
+      return nested.failCode.trim();
+    }
+  }
   if (typeof data.detail === "string" && data.detail.length > 0) return data.detail;
   if (Array.isArray(data.detail)) {
     const first = data.detail[0];

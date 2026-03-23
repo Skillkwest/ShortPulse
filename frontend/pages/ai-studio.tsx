@@ -17,12 +17,11 @@ import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
-  shouldDisableAgentOutputGenerate,
   shouldDisableGenerateWhileCharacterLoading,
 } from "../features/ai-studio/logic/createGenerationGuards";
-import { normalizeAgentOutputGenerateRequest } from "../features/ai-studio/logic/promptAdjacency";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
+import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import {
@@ -39,7 +38,6 @@ import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
 import { useAiStudioInternalDropResolvers } from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
-import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
 import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAiStudioPageOutputAdapters";
@@ -47,8 +45,7 @@ import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudi
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
-import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
-import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
+import type { StudioOutput, ToolId } from "../features/ai-studio/types";
 import {
   PERF_FLAG_AUDIT_RUNTIME,
   PERF_FLAG_OUTPUT_SELECTOR_STORE,
@@ -628,83 +625,28 @@ export default function AiStudioPage() {
     regenerateOutput,
     activeOutputId,
   });
-  const { assistantBubbleMedia, registerOutputLink } = useAgentOutputBubbleLinking({ outputs });
-  const handleGenerateFromAgentOutputPrompt = useCallback(
-    (input: AgentOutputGenerateInput) => {
-      const request = normalizeAgentOutputGenerateRequest(input);
-      if (!request) return;
-      const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
-      const isEditWorkflow = selectedTool === "edit" || selectedTool === "image";
-      const workflowTool: ToolId = isVideoWorkflow ? "video" : isEditWorkflow ? "edit" : "create";
-      const workflowMode: StudioMode = isVideoWorkflow ? "video" : "image";
-
-      if (workflowTool === "video") {
-        setVideoReferenceText(request.prompt);
-      } else if (workflowTool === "edit") {
-        setEditReferenceText(request.prompt);
-      } else {
-        setSharedPrompt(request.prompt);
-        if (selectedTool !== "create" && selectedTool !== "text") {
-          setSelectedToolWithEditIntentReset("create");
-        }
-        setMode("image");
-      }
-
-      setPromptOrigin("agent");
-      void handleGenerate(request.prompt, {
-        modeOverride: workflowMode,
-        toolOverride: workflowTool,
-        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-      })
-        .then((result) => {
-          if (!result.accepted || !result.optimisticOutputId) return;
-          registerOutputLink({
-            messageId: request.messageId,
-            optimisticOutputId: result.optimisticOutputId,
-          });
-        })
-        .catch(() => {
-          // The generation controller surfaces user-facing errors.
-        });
-    },
-    [
-      currentCostCredits,
-      handleGenerate,
-      promptReferenceGenerateCostCredits,
-      registerOutputLink,
+  const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt, disableAgentOutputGenerate } =
+    useAiStudioAgentOutputGenerationBridge({
+      outputs,
+      mode,
       selectedTool,
+      isGenerateDisabled: effectiveIsGenerateDisabled,
+      isGenerateClickLocked,
+      hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
+      model,
+      characterModeEnabled: isCreateCharacterModeEnabled,
+      selectedCharacterId: createSelectedCharacterId,
+      currentCostCredits,
+      promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
+      setVideoReferenceText,
       setEditReferenceText,
+      setSharedPrompt,
+      setSelectedToolWithEditIntentReset,
       setMode,
       setPromptOrigin,
-      setSelectedToolWithEditIntentReset,
-      setSharedPrompt,
-      setVideoReferenceText,
-    ]
-  );
+      handleGenerate,
+    });
   const handleAssistantBubbleMessageEdit = handleAssistantMessageEdit;
-  const disableAgentOutputGenerate = useMemo(
-    () =>
-      shouldDisableAgentOutputGenerate({
-        mode,
-        selectedTool,
-        isGenerateDisabled: effectiveIsGenerateDisabled,
-        isGenerateClickLocked,
-        hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
-        modelId: model,
-        characterModeEnabled: isCreateCharacterModeEnabled,
-        selectedCharacterId: createSelectedCharacterId,
-      }),
-    [
-      hasSufficientCreditsForPromptReferenceGenerate,
-      isCreateCharacterModeEnabled,
-      isGenerateClickLocked,
-      effectiveIsGenerateDisabled,
-      mode,
-      model,
-      createSelectedCharacterId,
-      selectedTool,
-    ]
-  );
   const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
     findOutputById,
     saveReferenceToLibrary,

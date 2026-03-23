@@ -68,6 +68,16 @@ describe("POST /api/media/sign-batch", () => {
     });
   });
 
+  it("rejects non-POST methods", async () => {
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
+  });
+
   it("rejects traversal-style segments while allowing valid requests", async () => {
     const createSignedUrlMock = vi.fn(async () => ({
       data: { signedUrl: "https://example.test/signed" },
@@ -199,5 +209,52 @@ describe("POST /api/media/sign-batch", () => {
 
     expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("rejects paths outside the authenticated user scope", async () => {
+    const createSignedUrlMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: ["user-2/private/images/not-allowed.png"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: "Forbidden" });
+  });
+
+  it("logs invalid JSON body parse failures and returns 500", async () => {
+    const req = {
+      method: "POST",
+      body: "{invalid json",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to sign media paths",
+      details: expect.stringContaining("JSON"),
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "media-sign-batch",
+      })
+    );
   });
 });

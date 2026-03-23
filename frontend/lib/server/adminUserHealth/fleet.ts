@@ -12,17 +12,19 @@ import {
 } from "./fleetPersistence";
 import { readFleetReport, type FleetReadFilters, type FleetReadReport } from "./fleetReport";
 import { evaluateFleetUserHealth } from "./policy";
+import {
+  chunk,
+  isSchemaCompatibilityError,
+  normalizeQueryError,
+  parseTimestamp,
+  toNumber,
+} from "./fleetQueryUtils";
 import { readAdminUserHealthFleetRuntimeFlags } from "./runtime";
 import type { FleetSnapshotDraft, FleetTargetUser, FleetUserMetricInput } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
-
-type QueryError = {
-  message?: string;
-  code?: string;
-};
 
 type BalanceRow = {
   user_id: string;
@@ -100,48 +102,6 @@ export type FleetScanRunResult = {
   drainage: FleetDrainageSummary;
   durationMs: number;
   errors: string[];
-};
-
-const normalizeQueryError = (error: unknown): QueryError | null => {
-  if (!error || typeof error !== "object") return null;
-  const record = error as Record<string, unknown>;
-  return {
-    message: typeof record.message === "string" ? record.message : undefined,
-    code: typeof record.code === "string" ? record.code : undefined,
-  };
-};
-
-const isSchemaCompatibilityError = (error: QueryError | null): boolean => {
-  if (!error) return false;
-  const code = String(error.code ?? "").toUpperCase();
-  if (code === "42703" || code === "PGRST204" || code === "42P01") return true;
-  const message = String(error.message ?? "").toLowerCase();
-  return (
-    message.includes("does not exist") ||
-    message.includes("could not find the") ||
-    message.includes("schema cache") ||
-    message.includes("failed to parse select parameter")
-  );
-};
-
-const parseTimestamp = (value: string | null | undefined): number | null => {
-  if (!value) return null;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const toNumber = (value: unknown): number => {
-  const parsed = Number(value ?? 0);
-  if (!Number.isFinite(parsed)) return 0;
-  return parsed;
-};
-
-const chunk = <T>(rows: T[], size: number): T[][] => {
-  const out: T[][] = [];
-  for (let index = 0; index < rows.length; index += size) {
-    out.push(rows.slice(index, index + size));
-  }
-  return out;
 };
 
 const parseDrainageMetrics = (

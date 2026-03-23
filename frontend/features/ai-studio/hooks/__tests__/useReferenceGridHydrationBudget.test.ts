@@ -14,6 +14,14 @@ type MockMediaQueryList = {
   emitChange: (matches: boolean) => void;
 };
 
+type MockNavigatorConnection = {
+  saveData: boolean;
+  effectiveType: string;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+  emitChange: () => void;
+};
+
 const createMockMediaQueryList = (query: string, initialMatches = false): MockMediaQueryList => {
   const listeners = new Set<(event: MediaQueryListEvent) => void>();
   return {
@@ -41,7 +49,9 @@ const createMockMediaQueryList = (query: string, initialMatches = false): MockMe
   };
 };
 
-const createConnection = (overrides: Partial<NonNullable<Navigator["connection"]>> = {}) => {
+const createConnection = (
+  overrides: Partial<MockNavigatorConnection> = {}
+): MockNavigatorConnection => {
   const listeners = new Set<EventListenerOrEventListenerObject>();
   return {
     saveData: false,

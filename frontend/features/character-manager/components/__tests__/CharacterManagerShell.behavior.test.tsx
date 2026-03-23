@@ -3,7 +3,7 @@
  * Verifies Character Sheet drag/drop behavior and dynamic QuickSwap deck intake.
  */
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../ai-studio/utils/dragDrop";
@@ -636,6 +636,16 @@ vi.mock("../../hooks/useCharacterQuickSwapTipPreference", () => ({
 }));
 
 describe("CharacterManagerShell behavior", () => {
+  const renderShell = async (
+    props?: React.ComponentProps<typeof CharacterManagerShell>
+  ): Promise<void> => {
+    await act(async () => {
+      render(<CharacterManagerShell {...props} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
   beforeEach(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = TEST_SUPABASE_URL;
     characterManagerMockState.characters = [];
@@ -785,8 +795,8 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("defaults to one visible preset tab and shows add-tab control", () => {
-    render(<CharacterManagerShell />);
+  it("defaults to one visible preset tab and shows add-tab control", async () => {
+    await renderShell();
 
     expect(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
@@ -795,8 +805,8 @@ describe("CharacterManagerShell behavior", () => {
     ).toBeInTheDocument();
   });
 
-  it("supports renaming preset tabs with Enter", () => {
-    render(<CharacterManagerShell />);
+  it("supports renaming preset tabs with Enter", async () => {
+    await renderShell();
 
     const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
     fireEvent.doubleClick(tabOne);
@@ -1745,11 +1755,11 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("shows a loading spinner in Manage Characters while the character list is loading", () => {
+  it("shows a loading spinner in Manage Characters while the character list is loading", async () => {
     characterManagerMockState.loading = true;
     characterManagerMockState.characters = [];
 
-    render(<CharacterManagerShell initialWorkflowTab="manage" />);
+    await renderShell({ initialWorkflowTab: "manage" });
 
     expect(screen.getByText("Loading characters...")).toBeInTheDocument();
     expect(screen.getByText("Pulling your character library into view.")).toBeInTheDocument();
@@ -1757,11 +1767,11 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.queryByRole("list", { name: /Character list/i })).not.toBeInTheDocument();
   });
 
-  it("shows create-panel loading skeletons while the character profile is loading", () => {
+  it("shows create-panel loading skeletons while the character profile is loading", async () => {
     characterManagerMockState.loading = true;
     characterManagerMockState.characters = [];
 
-    render(<CharacterManagerShell initialWorkflowTab="create" />);
+    await renderShell({ initialWorkflowTab: "create" });
 
     expect(screen.getByText("Loading character profile...")).toBeInTheDocument();
     expect(
@@ -1772,7 +1782,7 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
   });
 
-  it("shows create-panel loading skeletons while switching characters", () => {
+  it("shows create-panel loading skeletons while switching characters", async () => {
     characterManagerMockState.isSwitchingCharacter = true;
     characterManagerMockState.characters = [
       {
@@ -1783,14 +1793,14 @@ describe("CharacterManagerShell behavior", () => {
       },
     ];
 
-    render(<CharacterManagerShell initialWorkflowTab="create" />);
+    await renderShell({ initialWorkflowTab: "create" });
 
     expect(screen.getByText("Loading character profile...")).toBeInTheDocument();
     expect(document.querySelectorAll(".character-create-loading-thumbnail")).toHaveLength(6);
     expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
   });
 
-  it("shows create-panel loading skeletons while quickswap is hydrating on initial entry", () => {
+  it("shows create-panel loading skeletons while quickswap is hydrating on initial entry", async () => {
     characterManagerMockState.loading = false;
     characterManagerMockState.characters = [
       {
@@ -1802,14 +1812,14 @@ describe("CharacterManagerShell behavior", () => {
     ];
     quickSwapDeckMockState.loading = true;
 
-    render(<CharacterManagerShell initialWorkflowTab="create" />);
+    await renderShell({ initialWorkflowTab: "create" });
 
     expect(screen.getByText("Loading character profile...")).toBeInTheDocument();
     expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
   });
 
-  it("hides beginner toggle controls when `showBeginnerModeToggle` is false", () => {
-    render(<CharacterManagerShell showBeginnerModeToggle={false} />);
+  it("hides beginner toggle controls when `showBeginnerModeToggle` is false", async () => {
+    await renderShell({ showBeginnerModeToggle: false });
 
     expect(
       screen.queryByRole("button", {

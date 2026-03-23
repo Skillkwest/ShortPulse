@@ -383,6 +383,15 @@ const isSameOriginUrl = (value: string): boolean => {
   }
 };
 
+const isSameOriginNextImageOptimizerUrl = (value: string): boolean => {
+  if (!isSameOriginUrl(value)) return false;
+  try {
+    return new URL(value, window.location.href).pathname === "/_next/image";
+  } catch {
+    return false;
+  }
+};
+
 const fetchDroppedImageResponse = async (sourceUrl: string): Promise<Response> => {
   const sameOrigin = isSameOriginUrl(sourceUrl);
   const initialResponse = sameOrigin
@@ -479,6 +488,9 @@ const readDroppedImageDataUrlWithRefreshFallback = async (sourceUrl: string): Pr
   try {
     return await readImageDataUrlFromUrl(normalizedSourceUrl);
   } catch (directError) {
+    if (isSameOriginNextImageOptimizerUrl(normalizedSourceUrl)) {
+      throw directError;
+    }
     const refreshedUrl = await prepareImageUrlForSubmission(normalizedSourceUrl).catch(() => null);
     if (!refreshedUrl || refreshedUrl.trim() === normalizedSourceUrl) {
       throw directError;

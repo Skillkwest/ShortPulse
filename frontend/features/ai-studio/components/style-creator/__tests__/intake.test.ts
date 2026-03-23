@@ -3,6 +3,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
+import * as imageUploadModule from "../../../utils/imageUpload";
 import {
   canAcceptStyleLibraryImageDropHint,
   clampStylePromptCharacters,
@@ -381,6 +382,66 @@ describe("style-creator intake preprocessing", () => {
       expect(fetchMock).toHaveBeenCalledWith(nextImageUrl, { credentials: "include" });
     } finally {
       vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not retry same-origin next-image URLs through submission refresh when image decode fails", async () => {
+    class FailingImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 0;
+      naturalHeight = 0;
+      width = 0;
+      height = 0;
+      set src(_value: string) {
+        this.onerror?.();
+      }
+    }
+
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: FailingImage,
+    });
+
+    const prepareSpy = vi
+      .spyOn(imageUploadModule, "prepareImageUrlForSubmission")
+      .mockResolvedValue("https://cdn.example.com/rewrapped.png");
+
+    const sourceUrl = "https://blocked.example.com/private-image.png";
+    const nextImageUrl = `${window.location.origin}/_next/image?url=${encodeURIComponent(sourceUrl)}&w=640&q=75`;
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-123";
+        if (type === "text/reference-url") return nextImageUrl;
+        if (type === "text/plain") return "portrait prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => "image/png" },
+      blob: async () => new Blob(["mock-image-bytes"], { type: "image/png" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await expect(resolveDroppedStylePreview(transfer)).rejects.toThrow();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(nextImageUrl, { credentials: "include" });
+      expect(prepareSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      prepareSpy.mockRestore();
     }
   });
 

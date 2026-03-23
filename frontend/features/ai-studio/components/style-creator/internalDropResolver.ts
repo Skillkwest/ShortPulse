@@ -318,8 +318,10 @@ export const resolveStyleInternalDropCandidates = async ({
     pushImageCandidate(candidates, signedUrl);
   }
 
-  const indexedResultUrl = resolvedOutput.resultUrls?.[imageIndex] ?? null;
-  const outputPreviewCandidate = resolveReferenceTransferUrl(resolvedOutput, "image");
+  const indexedResultUrl = asTrimmedString(resolvedOutput.resultUrls?.[imageIndex]);
+  const outputPreviewCandidate =
+    asTrimmedString(resolvedOutput.previewUrl) ??
+    resolveReferenceTransferUrl(resolvedOutput, "image");
   pushImageCandidate(candidates, indexedResultUrl);
   pushImageCandidate(candidates, outputPreviewCandidate);
   fallbackCandidates.forEach((candidate) => pushImageCandidate(candidates, candidate));

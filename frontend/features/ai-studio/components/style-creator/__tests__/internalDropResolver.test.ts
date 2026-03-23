@@ -204,6 +204,7 @@ describe("resolveStyleInternalDropCandidates", () => {
     });
 
     expect(resolved?.imageUrlCandidates[0]).toBe("https://cdn.example.com/signed/lookup.png");
+    expect(resolved?.imageUrlCandidates).toContain("https://provider.example.com/stale.png");
     expect(resolved?.resolutionReason).toBe("saved_media_lookup");
   });
 

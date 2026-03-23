@@ -240,8 +240,6 @@ export const useReferenceGridVideoLifecycleController = ({
         const currentOutputId = videoOutputIdByKeyRef.current.get(nodeKey);
         if (currentOutputId && autoplayEnabledIdSet.has(currentOutputId)) return;
         node.pause();
-        node.removeAttribute("src");
-        node.load();
         if (currentOutputId) {
           autoplayingIdsRef.current.delete(currentOutputId);
         }

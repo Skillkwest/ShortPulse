@@ -42,8 +42,7 @@ function StudioPreviewComponent({
 }: StudioPreviewProps) {
   const previewMedia = activeOutput?.previewUrl || referenceImageUrl;
   const isVideoPreview = Boolean(
-    previewMedia &&
-    (activeOutput?.mode === "video" || (activeOutput?.mode !== "image" && isVideoUrl(previewMedia)))
+    previewMedia && activeOutput?.mode !== "image" && isVideoUrl(previewMedia)
   );
   const taskState = activeOutput?.taskState;
   const errorMessage = activeOutput?.errorMessageShort ?? activeOutput?.errorMessage;

@@ -51,7 +51,6 @@ export const isOutputVideoPreview = (
   url: string | null | undefined
 ): boolean => {
   if (!url) return false;
-  if (output?.mode === "video") return true;
   if (output?.mode === "image") return false;
   return isVideoUrl(url);
 };

@@ -62,6 +62,29 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
     getData: (type: string) => data[type] ?? "",
   }) as unknown as DataTransfer;
 
+const makeLibraryMediaTransfer = (overrides: Record<string, string> = {}): DataTransfer =>
+  makeTransfer({
+    "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+    "text/shortpulse-media-library-kind": "libraryMedia",
+    "text/shortpulse-media-library-id": "media-drop-1",
+    "text/shortpulse-media-library-file-type": "image",
+    "text/reference-url": "https://cdn.example.com/library-drop-1.png",
+    "text/shortpulse-media-library-filename": "library-drop-1.png",
+    "text/prompt": "Library media prompt",
+    ...overrides,
+  });
+
+const makeLibraryPromptTransfer = (overrides: Record<string, string> = {}): DataTransfer =>
+  makeTransfer({
+    "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+    "text/shortpulse-media-library-kind": "libraryPrompt",
+    "text/shortpulse-media-library-id": "prompt-drop-1",
+    "text/shortpulse-media-library-title": "Library prompt title",
+    "text/prompt": "Library prompt text",
+    "text/plain": "Library prompt text",
+    ...overrides,
+  });
+
 const installRafQueue = () => {
   let nextFrameId = 1;
   const callbacks = new Map<number, FrameRequestCallback>();
@@ -357,7 +380,7 @@ describe("ReferenceGrid curated split", () => {
     expect(container.querySelector(".reference-spinner")).toBeNull();
   });
 
-  it("clears loading for non-selected video cards when autoplay source stays detached", async () => {
+  it("keeps video sources attached for non-selected video cards and clears after load", async () => {
     const { flushAllFrames } = installRafQueue();
     const importedOutput: StudioOutput = {
       id: "imported-no-autoplay-video-1",
@@ -381,12 +404,11 @@ describe("ReferenceGrid curated split", () => {
 
     const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
     expect(videoNode).toBeTruthy();
-    expect(videoNode?.getAttribute("src")).toBeNull();
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/imported-no-autoplay.mp4");
     expect(container.querySelector(".reference-spinner")).toBeTruthy();
 
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+    act(() => {
+      fireEvent.loadedData(videoNode as HTMLVideoElement);
     });
     act(() => {
       flushAllFrames();
@@ -979,6 +1001,88 @@ describe("ReferenceGrid curated split", () => {
     expect(curatedQueries.getByLabelText("Remove from curated")).toBeInTheDocument();
   });
 
+  it("adds media-library media drops directly into quick slots", () => {
+    const onAddLibraryMediaReferenceToQuickSlot = vi.fn(async () => "library-out-1");
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onSelectOutput,
+          onAddLibraryMediaReferenceToQuickSlot,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeLibraryMediaTransfer(),
+    });
+
+    expect(onAddLibraryMediaReferenceToQuickSlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-drop-1",
+        url: "https://cdn.example.com/library-drop-1.png",
+        fileType: "image",
+        filename: "library-drop-1.png",
+        promptText: "Library media prompt",
+      }),
+      {
+        targetId: null,
+        placement: "end",
+      }
+    );
+  });
+
+  it("routes media-library prompt drops onto quick-slot cards using positional placement", () => {
+    const onAddLibraryPromptReferenceToQuickSlot = vi.fn(() => "prompt-out-1");
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          curatedReferenceIds: ["out-1"],
+          onSelectOutput,
+          onAddLibraryPromptReferenceToQuickSlot,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const targetCard = curatedSection.querySelector(".reference-card") as HTMLElement;
+    expect(targetCard).toBeTruthy();
+    Object.defineProperty(targetCard, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 100,
+        height: 100,
+        right: 100,
+        bottom: 100,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.drop(targetCard, {
+      clientY: 90,
+      dataTransfer: makeLibraryPromptTransfer(),
+    });
+
+    expect(onAddLibraryPromptReferenceToQuickSlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "prompt-drop-1",
+        promptText: "Library prompt text",
+        title: "Library prompt title",
+      }),
+      {
+        targetId: "out-1",
+        placement: "after",
+      }
+    );
+    expect(onSelectOutput).toHaveBeenCalledWith("prompt-out-1");
+  });
+
   it("rejects non-internal drops in curated section", () => {
     const onAddCuratedReference = vi.fn();
     const onReorderCuratedReference = vi.fn();
@@ -1421,6 +1525,37 @@ describe("ReferenceGrid curated split", () => {
 
     expect(container.querySelector(".reference-card-video")).toBeNull();
     expect(container.querySelector(".reference-card-image")).not.toBeNull();
+  });
+
+  it("renders poster-image cards for video outputs when the resolved preview is an image", () => {
+    const uploadedVideoWithPosterPreview: StudioOutput = {
+      id: "upload-video-poster-1",
+      prompt: "Uploaded video with poster preview",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/uploaded-video-poster.jpg",
+      resultUrls: ["https://example.com/uploaded-video-full.mp4"],
+      mediaSource: "library",
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [uploadedVideoWithPosterPreview],
+          activeOutputId: uploadedVideoWithPosterPreview.id,
+        })}
+      />
+    );
+
+    const imageNode = container.querySelector(".reference-card-image") as HTMLImageElement | null;
+    expect(container.querySelector(".reference-card-video")).toBeNull();
+    expect(imageNode).not.toBeNull();
+    expect(imageNode?.getAttribute("data-src")).toBe(
+      "https://example.com/uploaded-video-poster.jpg"
+    );
   });
 
   it("hides save action when uploaded video is already saved", () => {

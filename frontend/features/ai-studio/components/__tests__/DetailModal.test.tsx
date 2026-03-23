@@ -292,6 +292,28 @@ describe("DetailModal", () => {
     expect(container.querySelector("img.art-hero-image")).not.toBeNull();
   });
 
+  it("keeps poster-image previews as images for video outputs when no playable preview URL is selected", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "video",
+          previewUrl: "https://cdn.test/video-poster.jpg",
+          resultUrls: [],
+          previewStoragePath: null,
+          fullStoragePath: null,
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(container.querySelector("video.art-hero-image")).toBeNull();
+    expect(container.querySelector("img.art-hero-image")).not.toBeNull();
+  });
+
   it("falls back to an alternative result URL when the first image does not match the output aspect", async () => {
     const { container } = render(
       <DetailModal

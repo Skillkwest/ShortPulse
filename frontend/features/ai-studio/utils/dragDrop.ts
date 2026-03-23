@@ -747,7 +747,7 @@ export const prepareReferenceDrag = (
   const promptText = dedupeText(output.prompt ?? output.previewText);
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
   const previewDataset = readReferenceDragPreviewDataset(dragNode);
-  const previewUrl = resolveReferenceTransferUrl(output, "any");
+  const previewUrl = resolveReferenceTransferUrl(output, output.mode === "video" ? "video" : "any");
   const imagePreviewUrl = resolveReferenceTransferUrl(output, "image");
   const datasetImageUrl = normalizeReferenceTransferUrlCandidate(previewDataset.imageSrc);
   const datasetPreviewUrl = normalizeReferenceTransferUrlCandidate(previewDataset.previewUrl);

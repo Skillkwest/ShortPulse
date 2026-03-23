@@ -130,7 +130,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldShowReferenceActionRow = Boolean(
     shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview))
   );
-  const shouldAttachVideoSource = Boolean(cardPreviewUrl && (canAutoplayVideo || isSelected));
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
   const dragImageSrc =
     dragPreviewKind === "image" ? (imageSrc ?? cardPreviewUrl ?? undefined) : undefined;
@@ -140,12 +139,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     ) : (
       <FloppyDisk size={16} weight="bold" aria-hidden />
     );
-
-  React.useEffect(() => {
-    if (!isVideoPreview || !cardPreviewUrl) return;
-    if (shouldAttachVideoSource) return;
-    markLoaded(item.id, { notifyAutoSave: false });
-  }, [cardPreviewUrl, isVideoPreview, item.id, markLoaded, shouldAttachVideoSource]);
 
   return (
     <div
@@ -185,12 +178,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         <video
           className="reference-card-video"
           ref={(node) => registerVideoNode(videoNodeKey, item.id, node)}
-          src={shouldAttachVideoSource ? cardPreviewUrl : undefined}
+          src={cardPreviewUrl}
           autoPlay={canAutoplayVideo}
           muted
           loop
           playsInline
-          preload={shouldAttachVideoSource ? "metadata" : "none"}
+          preload="metadata"
           onLoadedData={() => markLoaded(item.id)}
           onError={() => markLoaded(item.id, { notifyAutoSave: false })}
           onPlay={() => onAutoplayStarted(item.id)}

@@ -186,6 +186,31 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/reference-height", "900");
   });
 
+  it("writes playable video reference URLs while preserving poster previews for video drags", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-video-poster",
+      prompt: "Camera move",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-video-poster.jpg",
+      fullStoragePath: "https://example.com/ref-video-full.mp4",
+      previewStoragePath: "https://example.com/ref-video-poster.jpg",
+      resultUrls: ["https://example.com/ref-video-full.mp4"],
+    });
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://example.com/ref-video-full.mp4"
+    );
+    expect(setData).toHaveBeenCalledWith("text/uri-list", "https://example.com/ref-video-full.mp4");
+    expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/ref-video-poster.jpg");
+  });
+
   it("writes rendered-image transfer metadata for image drags", () => {
     const { event, dragNode, setData } = makeDragEvent();
     dragNode.dataset.dragPreviewKind = "image";

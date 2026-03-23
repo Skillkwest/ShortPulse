@@ -148,8 +148,7 @@ export function DetailModal({
   const displayPreviewUrl =
     previewCandidates.length > 0 ? (previewCandidates[activePreviewCandidateIndex] ?? null) : null;
   const isVideoOutput = Boolean(
-    output?.mode === "video" ||
-    (output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl))
+    output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl)
   );
   const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput;
   const mediaType = displayPreviewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";

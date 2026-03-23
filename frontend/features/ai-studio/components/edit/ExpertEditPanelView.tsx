@@ -753,7 +753,6 @@ export function ExpertEditPanelView({
       : "is-active-inpaint";
   const activeCollapsedRailTool =
     inpaintRailTools.find((tool) => tool.id === selectedRailTool) ?? inpaintRailTools[0];
-  const sceneZoomScale = markupViewport.scale;
   const handlePromptTextChange = React.useCallback(
     (value: string) => {
       setShowPromptTokenInlineError(false);
@@ -1207,7 +1206,7 @@ export function ExpertEditPanelView({
     selectedLayerImageUrl,
     layerSources: inpaintLayerSources,
     enabled: isInpaintToolSelected,
-    sceneScale: sceneZoomScale,
+    sceneScale: markupViewport.scale,
     shouldApplyViewportTransform: hasPrimaryCompositePreview,
     viewportOffsetXRatio: markupViewport.offsetXRatio,
     viewportOffsetYRatio: markupViewport.offsetYRatio,
@@ -1248,8 +1247,7 @@ export function ExpertEditPanelView({
     };
   }, [selectedLayer]);
   const morePresetsSurfaceId = React.useId();
-  const shouldApplyMarkupViewport = true;
-  const activeStageRenderScale = shouldApplyMarkupViewport ? markupViewport.scale : sceneZoomScale;
+  const activeStageRenderScale = markupViewport.scale;
   const primaryDropzoneCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
       if (activeTransformDragMode === "rotate") {
@@ -1316,35 +1314,34 @@ export function ExpertEditPanelView({
     [primaryStageWidthScale]
   );
   const markupViewportCursor = React.useMemo(() => {
-    if (!shouldApplyMarkupViewport) return undefined;
     if (isMarkupPanDragging) return "grabbing";
     if (isMarkupPanSpacePressed) return "grab";
     return undefined;
-  }, [isMarkupPanDragging, isMarkupPanSpacePressed, shouldApplyMarkupViewport]);
+  }, [isMarkupPanDragging, isMarkupPanSpacePressed]);
 
   const inlineMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
-    const viewportScale = shouldApplyMarkupViewport ? markupViewport.scale : sceneZoomScale;
-    const viewportOffset = shouldApplyMarkupViewport
-      ? resolveMarkupViewportOffsetPixels(markupViewport, inlineStageViewportSize)
-      : { offsetX: 0, offsetY: 0 };
+    const viewportOffset = resolveMarkupViewportOffsetPixels(
+      markupViewport,
+      inlineStageViewportSize
+    );
     return {
-      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(viewportScale * 10000) / 10000})`,
+      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(markupViewport.scale * 10000) / 10000})`,
       transformOrigin: "center center",
     };
-  }, [inlineStageViewportSize, markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
+  }, [inlineStageViewportSize, markupViewport]);
 
   const inlineDropzoneViewportSize = resolveElementViewportSize(primaryDropzoneRef.current);
 
   const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
-    const viewportScale = shouldApplyMarkupViewport ? markupViewport.scale : sceneZoomScale;
-    const viewportOffset = shouldApplyMarkupViewport
-      ? resolveMarkupViewportOffsetPixels(markupViewport, markupModalViewportSize)
-      : { offsetX: 0, offsetY: 0 };
+    const viewportOffset = resolveMarkupViewportOffsetPixels(
+      markupViewport,
+      markupModalViewportSize
+    );
     return {
-      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(viewportScale * 10000) / 10000})`,
+      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(markupViewport.scale * 10000) / 10000})`,
       transformOrigin: "center center",
     };
-  }, [markupModalViewportSize, markupViewport, sceneZoomScale, shouldApplyMarkupViewport]);
+  }, [markupModalViewportSize, markupViewport]);
 
   const primaryDropzoneStyle = React.useMemo(() => {
     const style: React.CSSProperties = {
@@ -1422,11 +1419,9 @@ export function ExpertEditPanelView({
         ? modalStageRect
         : inlineStageRect;
     const activeViewportSize = resolveStageViewportSize(activeStageRect);
-    const viewportOffset = shouldApplyMarkupViewport
-      ? resolveMarkupViewportOffsetPixels(markupViewport, activeViewportSize)
-      : { offsetX: 0, offsetY: 0 };
+    const viewportOffset = resolveMarkupViewportOffsetPixels(markupViewport, activeViewportSize);
     const camera: StageFlattenCameraTransformInput = {
-      scale: sceneZoomScale,
+      scale: markupViewport.scale,
       offsetX: viewportOffset.offsetX,
       offsetY: viewportOffset.offsetY,
       viewportWidth: activeViewportSize.width,
@@ -1441,8 +1436,6 @@ export function ExpertEditPanelView({
     markupViewport,
     primaryDropzoneAspectRatioValue,
     resolveInlineStageRect,
-    sceneZoomScale,
-    shouldApplyMarkupViewport,
   ]);
   const renderMarkupStrokeOverlay = React.useCallback(
     (
@@ -2167,7 +2160,7 @@ export function ExpertEditPanelView({
     handleNativeMarkupViewportWheel,
   } = useExpertEditMarkupViewportController({
     markupViewport,
-    shouldApplyMarkupViewport,
+    shouldApplyMarkupViewport: true,
     isMarkupPanSpacePressed,
     markupPanPointerSessionRef,
     setMoveStageZoomSliderValue,
@@ -2274,7 +2267,7 @@ export function ExpertEditPanelView({
     renderScale: activeStageRenderScale,
     markupColor,
     markupViewport,
-    shouldApplyMarkupViewport,
+    shouldApplyMarkupViewport: true,
     resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
     markupStrokeIdCounterRef,
     markupDrawPointerSessionRef,
@@ -2288,10 +2281,10 @@ export function ExpertEditPanelView({
 
   const handleMarkupStageMiddleClickSuppress = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 1 || !shouldApplyMarkupViewport) return;
+      if (event.button !== 1) return;
       event.preventDefault();
     },
-    [shouldApplyMarkupViewport]
+    []
   );
 
   const {
@@ -2303,8 +2296,8 @@ export function ExpertEditPanelView({
   } = useExpertEditTransformController({
     layers,
     selectedLayer,
-    sceneZoomScale,
-    shouldApplyViewportTransform: shouldApplyMarkupViewport,
+    sceneZoomScale: markupViewport.scale,
+    shouldApplyViewportTransform: true,
     viewportOffsetXRatio: markupViewport.offsetXRatio,
     viewportOffsetYRatio: markupViewport.offsetYRatio,
     resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,

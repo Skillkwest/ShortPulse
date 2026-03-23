@@ -367,7 +367,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
       repairGenerationRequestIdsFromReservationsMock.mock.invocationCallOrder[0] ??
       Number.MAX_SAFE_INTEGER;
     const claimCallIndex = supabase.rpc.mock.calls.findIndex(
-      ([functionName]: [string]) => functionName === "claim_generation_recovery_batch"
+      (call) => (call[0] as string | undefined) === "claim_generation_recovery_batch"
     );
     expect(claimCallIndex).toBeGreaterThan(-1);
     const claimOrder = supabase.rpc.mock.invocationCallOrder[claimCallIndex] ?? 0;

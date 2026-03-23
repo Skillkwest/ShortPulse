@@ -480,6 +480,56 @@ describe("POST /api/media/list", () => {
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-profile", "expanded");
   });
 
+  it("applies preview-profile transforms to initial seeded image signing when dual flags are enabled", async () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+
+    const { createSignedUrlMock } = createSupabaseAdminMock([
+      {
+        id: "media-1",
+        user_id: "user-1",
+        filename: "cat-shot.png",
+        storage_path: "user-1/upload/cat-shot.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-route",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlMock).toHaveBeenCalledWith("user-1/upload/cat-shot.png", 3600, {
+      transform: {
+        width: 640,
+        quality: 60,
+        resize: "contain",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("excludes character-scoped storage paths when containment flag is enabled", async () => {
     createSupabaseAdminMock([
       {
@@ -716,7 +766,11 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(row.thumb_variant_path as string, 3600);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      row.thumb_variant_path as string,
+      3600,
+      undefined
+    );
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         signedById: {

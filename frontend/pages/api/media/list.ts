@@ -9,7 +9,9 @@ import {
   resolveMediaListSelectColumns,
   type MediaListProfile,
 } from "../../../lib/mediaListProfile";
+import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
+import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -256,6 +258,7 @@ const resolveInitialSignedById = async ({
       ? ((tab ? INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL[tab] : undefined) ??
         INITIAL_SIGN_BUDGET_BY_SURFACE[surface])
       : INITIAL_SIGN_BUDGET_BY_SURFACE[surface];
+  const previewProfile = resolvePreviewProfileForSurface(surface);
   const seedRows = rows.slice(0, signBudget);
   if (!seedRows.length) return {};
 
@@ -277,9 +280,14 @@ const resolveInitialSignedById = async ({
       if (!candidates.length) return;
       let resolvedUrl: string | null = null;
       for (const candidate of candidates) {
+        const transform = resolvePolicySignedImageTransform(previewProfile, candidate);
         const { data, error } = await supabaseAdmin.storage
           .from(MEDIA_BUCKET)
-          .createSignedUrl(candidate, DEFAULT_SIGNED_URL_TTL_SECONDS);
+          .createSignedUrl(
+            candidate,
+            DEFAULT_SIGNED_URL_TTL_SECONDS,
+            transform ? { transform } : undefined
+          );
         if (error || !data?.signedUrl) continue;
         resolvedUrl = data.signedUrl;
         break;

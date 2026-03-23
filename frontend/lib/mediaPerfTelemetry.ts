@@ -71,6 +71,10 @@ export type MediaPerfSignStat = {
   total_signed: number;
   total_failed: number;
   failed_ratio: number;
+  total_primary_durable: number;
+  total_primary_original: number;
+  total_resolved_durable: number;
+  total_resolved_original: number;
 };
 
 const MAX_MEDIA_PERF_EVENTS = 500;
@@ -323,6 +327,10 @@ export const getMediaPerfSignStats = (): MediaPerfSignStat[] => {
     totalBatchSize: number;
     totalSigned: number;
     totalFailed: number;
+    totalPrimaryDurable: number;
+    totalPrimaryOriginal: number;
+    totalResolvedDurable: number;
+    totalResolvedOriginal: number;
   };
   const buckets = new Map<string, SignAccumulator>();
 
@@ -337,16 +345,28 @@ export const getMediaPerfSignStats = (): MediaPerfSignStat[] => {
       totalBatchSize: 0,
       totalSigned: 0,
       totalFailed: 0,
+      totalPrimaryDurable: 0,
+      totalPrimaryOriginal: 0,
+      totalResolvedDurable: 0,
+      totalResolvedOriginal: 0,
     };
 
     const durationMs = toFiniteNumber(event.data.duration_ms);
     const batchSize = toFiniteNumber(event.data.batch_size) ?? 0;
     const signedCount = toFiniteNumber(event.data.signed_count) ?? 0;
     const failedCount = toFiniteNumber(event.data.failed_count) ?? 0;
+    const primaryDurableCount = toFiniteNumber(event.data.primary_durable_count) ?? 0;
+    const primaryOriginalCount = toFiniteNumber(event.data.primary_original_count) ?? 0;
+    const resolvedDurableCount = toFiniteNumber(event.data.resolved_durable_count) ?? 0;
+    const resolvedOriginalCount = toFiniteNumber(event.data.resolved_original_count) ?? 0;
     if (durationMs != null) bucket.durations.push(durationMs);
     bucket.totalBatchSize += batchSize;
     bucket.totalSigned += signedCount;
     bucket.totalFailed += failedCount;
+    bucket.totalPrimaryDurable += primaryDurableCount;
+    bucket.totalPrimaryOriginal += primaryOriginalCount;
+    bucket.totalResolvedDurable += resolvedDurableCount;
+    bucket.totalResolvedOriginal += resolvedOriginalCount;
     buckets.set(key, bucket);
   }
 
@@ -370,6 +390,10 @@ export const getMediaPerfSignStats = (): MediaPerfSignStat[] => {
         total_signed: Math.round(bucket.totalSigned),
         total_failed: Math.round(bucket.totalFailed),
         failed_ratio: Number(failedRatio.toFixed(4)),
+        total_primary_durable: Math.round(bucket.totalPrimaryDurable),
+        total_primary_original: Math.round(bucket.totalPrimaryOriginal),
+        total_resolved_durable: Math.round(bucket.totalResolvedDurable),
+        total_resolved_original: Math.round(bucket.totalResolvedOriginal),
       };
     })
     .sort((a, b) => b.p95_duration_ms - a.p95_duration_ms);

@@ -17,6 +17,7 @@ on:
         options:
           - configure_bypass_secret
           - configure_generation_recovery_scheduler
+          - configure_media_derivative_scheduler
           - configure_admin_user_health_fleet_scheduler
       confirm_token:
         description: "Type apply-control-plane-ops to confirm"
@@ -76,6 +77,11 @@ jobs:
               ;;
             configure_generation_recovery_scheduler)
               SQL_FILE="sql/configure_generation_recovery_scheduler_supabase.sql"
+              echo "Applying $SQL_FILE"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+              ;;
+            configure_media_derivative_scheduler)
+              SQL_FILE="sql/configure_media_derivative_scheduler_supabase.sql"
               echo "Applying $SQL_FILE"
               psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;

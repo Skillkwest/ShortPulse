@@ -90,6 +90,10 @@ export const useReferenceGridCardRenderController = ({
   onSaveToLibrary,
   onDownload,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
+  const curatedVisibleIdSet = React.useMemo(
+    () => new Set(curatedVisibleCardItems.map((card) => card.item.id)),
+    [curatedVisibleCardItems]
+  );
   const renderReferenceCard = useCallback(
     (
       card: ReferenceGridVisibleCard,
@@ -101,8 +105,11 @@ export const useReferenceGridCardRenderController = ({
       const isFailing = isReferenceOutputFailing(card.item);
       const isGenerationLoading = generationLoadingCardIdSet.has(card.item.id);
       const isHydrationLoading = hydrationLoadingCardIdSet.has(card.item.id);
+      const shouldPreferCuratedSurface =
+        !options.isCuratedSurface && curatedVisibleIdSet.has(card.item.id);
       const shouldWarmVideoPreview =
         card.isVideoPreview &&
+        !shouldPreferCuratedSurface &&
         (activeOutputId === card.item.id || autoplayEnabledIdSet.has(card.item.id));
       const suppressDormantVideoLoading =
         card.isVideoPreview && !shouldWarmVideoPreview && !isGenerationLoading;
@@ -117,7 +124,10 @@ export const useReferenceGridCardRenderController = ({
             ? "hydrating"
             : "none";
       const canAutoplayVideo =
-        card.isVideoPreview && autoplayEnabledIdSet.has(card.item.id) && perfDegradeLevel < 2;
+        card.isVideoPreview &&
+        !shouldPreferCuratedSurface &&
+        autoplayEnabledIdSet.has(card.item.id) &&
+        perfDegradeLevel < 2;
       const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
       const isLinkedPromptReference = isPromptOnly && linkedPromptReferenceIdSet.has(card.item.id);
       const canRetryStatus =
@@ -190,6 +200,7 @@ export const useReferenceGridCardRenderController = ({
     [
       activeOutputId,
       autoplayEnabledIdSet,
+      curatedVisibleIdSet,
       linkedPromptReferenceIdSet,
       markLoaded,
       generationLoadingCardIdSet,

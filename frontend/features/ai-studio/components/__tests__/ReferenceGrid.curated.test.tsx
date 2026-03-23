@@ -436,6 +436,47 @@ describe("ReferenceGrid curated split", () => {
     expect(dormantCard?.querySelector(".reference-spinner")).toBeNull();
   });
 
+  it("warms duplicated quick-slot video cards before all-refs copies", () => {
+    const duplicatedVideo: StudioOutput = {
+      id: "duplicated-video-1",
+      prompt: "Duplicated video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Library",
+      mediaSource: "library",
+      previewUrl: "https://example.com/duplicated-video.mp4",
+    };
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [duplicatedVideo],
+          activeOutputId: duplicatedVideo.id,
+          curatedReferenceIds: [duplicatedVideo.id],
+        })}
+      />
+    );
+
+    const curatedSection = container.querySelector(
+      ".reference-curated-section"
+    ) as HTMLElement | null;
+    const allRefsSection = container.querySelector(
+      ".reference-all-refs-section"
+    ) as HTMLElement | null;
+    expect(curatedSection).toBeTruthy();
+    expect(allRefsSection).toBeTruthy();
+
+    const curatedVideo = curatedSection?.querySelector(
+      ".reference-card-video"
+    ) as HTMLVideoElement | null;
+    const allRefsVideo = allRefsSection?.querySelector(
+      ".reference-card-video"
+    ) as HTMLVideoElement | null;
+    expect(curatedVideo?.getAttribute("preload")).toBe("metadata");
+    expect(allRefsVideo?.getAttribute("preload")).toBe("none");
+  });
+
   it("keeps overflow loading spinners animated", () => {
     const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
       const label = 8 - index;

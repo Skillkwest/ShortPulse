@@ -11,9 +11,7 @@ import {
   CircleHalf,
   Eraser,
   GearSix,
-  MagicWand,
   PaintBrush,
-  PaintBrushBroad,
   PencilSimple,
   Plus,
   Sliders,
@@ -22,11 +20,8 @@ import {
   UploadSimple,
   X,
 } from "phosphor-react";
-import type { Icon as PhosphorIcon } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
-import type { AspectOption } from "../../types";
 import { modelLogos } from "../../constants";
-import type { ModelModalContext } from "../ModelModal";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
@@ -49,7 +44,6 @@ import {
   isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
   isMarkupModelLockEnabled,
-  type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
 import {
   resolveEditSubmitIntentFromRailSelection,
@@ -59,10 +53,7 @@ import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
-import {
-  type CreateCharacterOption,
-  useCreateCharacterModeController,
-} from "../create/useCreateCharacterModeController";
+import { useCreateCharacterModeController } from "../create/useCreateCharacterModeController";
 import {
   areInpaintMaskSnapshotsEqual,
   type InpaintMaskSnapshot,
@@ -86,6 +77,49 @@ import { useExpertEditTransformController } from "./useExpertEditTransformContro
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { StylesControl } from "../StylesControl";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
+import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
+import {
+  COMPOSITE_REGENERATE_COHESION_PROMPT,
+  FLATTEN_IMAGE_ACTION_ID,
+  INPAINT_COLLAPSE_ANIMATION_MS,
+  INPAINT_STROKE_SIZE_DEFAULT,
+  LAYER_LIMIT_REACHED_TOAST,
+  MAX_LAYERS,
+  LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
+  MARKUP_COLOR_DEFAULT,
+  MARKUP_COLOR_SWATCHES,
+  MARKUP_STROKE_SIZE_DEFAULT,
+  MARKUP_STROKE_SIZE_MAX,
+  PRESET_PANEL_LIMIT_TOAST,
+  REMOVE_BACKGROUND_ACTION_ID,
+  REMOVE_BACKGROUND_PENDING_TIMEOUT_MS,
+  STATUS_TOAST_FADE_MS,
+  STATUS_TOAST_VISIBLE_MS,
+  TRANSIENT_OBJECT_URL_REVOKE_MS,
+  TRANSFORM_HISTORY_LIMIT,
+  clampNumber,
+  editGenerationModeOptions,
+  editLayerUtilityActions,
+  editPresetUtilityActions,
+  inpaintRailTools,
+  isSpaceActivationKey,
+  resolveElementViewportSize,
+  resolveImageDimensionsFromUrl,
+  resolveLayerFrameTransformStyle,
+  resolveLayerOverlayTransformStyle,
+  resolveValidStageRect,
+  secondaries,
+  selectedLayerTransformHandleCorners,
+  type ExpertEditPanelViewProps,
+  type InpaintHistoryState,
+  type InpaintMode,
+  type InpaintSelectionTab,
+  type MarkupHistoryState,
+  type MarkupMode,
+  type RailTool,
+} from "./expertEditPanelViewContract";
+export type { ExpertEditPanelViewProps } from "./expertEditPanelViewContract";
+export { COMPOSITE_REGENERATE_COHESION_PROMPT } from "./expertEditPanelViewContract";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
@@ -193,7 +227,6 @@ import {
   unlockDocumentCursor,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
-import type { ExpertEditStyleTile } from "./expertEditStyles";
 import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
   areExpertEditSessionStatesEqual,
@@ -203,239 +236,8 @@ import {
   cloneInpaintMaskSnapshot,
   cloneMarkupHistoryState,
   cloneMarkupStrokesSnapshot,
-  type ExpertEditInpaintHistoryState,
   type ExpertEditSessionState,
-  type ExpertEditMarkupHistoryState,
 } from "./expertEditSessionState";
-
-export type ExpertEditPanelViewProps = {
-  expertEditEligible: boolean;
-  aspect: string;
-  modelId: string | null;
-  modelLabel: string;
-  referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
-  referenceText: string | null;
-  imageResolution?: string;
-  aspectOptions: AspectOption[];
-  isModelModalOpen: boolean;
-  modelModalAnchor: string | null;
-  onAspectChange: (value: string) => void;
-  onModelPickerOpen: (
-    anchorId: string,
-    target: HTMLElement,
-    context?: ModelModalContext | null
-  ) => void;
-  onPrimaryImageChange: (url: string | null) => void;
-  onExtraImageChange: (index: number, url: string | null) => void;
-  onPromptTextChange: (value: string) => void;
-  onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
-  onRegenerate: () => void;
-  onRegenerateWithReferenceInputs?: (
-    referenceInputs: string[],
-    options?: {
-      inpaintOverride?: InpaintSubmissionOverride | null;
-      modelIdOverride?: string | null;
-      costOverrideCredits?: number | null;
-      hideOutputFromReferenceGrid?: boolean;
-      displayPromptOverride?: string | null;
-      submissionPromptOverride?: string | null;
-      referenceInputsMode?: "merge" | "replace";
-    }
-  ) => void | Promise<void>;
-  onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
-  resolvePreviewUrlById?: (id: string | null) => string | null;
-  costCredits?: number | null;
-  isGenerateDisabled?: boolean;
-  isGenerateBusy?: boolean;
-  isPrimaryStageGenerating?: boolean;
-  referenceImageWarning?: string | null;
-  onImageResolutionChange?: (value: string) => void;
-  characterOptions?: CreateCharacterOption[];
-  selectedCharacterId?: string;
-  onSelectedCharacterIdChange?: (value: string) => void;
-  isCharacterOptionsLoading?: boolean;
-  characterModeEnabled?: boolean;
-  onCharacterModeEnabledChange?: (value: boolean) => void;
-  refreshCharacterOptions?: () => Promise<
-    Array<{ id: string; name: string; profileImageUrl: string | null }>
-  >;
-  resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
-  selectedPresetIds?: readonly ExpertEditPresetId[];
-  onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
-  customPresetOverrides?: ExpertEditCustomPresetOverrides;
-  onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
-  isStylesPanelOpen?: boolean;
-  onStylesPanelToggle?: () => void;
-  selectedStyleId?: string | null;
-  stylesCatalog?: readonly ExpertEditStyleTile[];
-  sessionState?: ExpertEditSessionState | null;
-  onSessionStateChange?: (state: ExpertEditSessionState) => void;
-};
-
-const secondaries = [0, 1, 2] as const;
-export const COMPOSITE_REGENERATE_COHESION_PROMPT = [
-  "Integrate all visible layers into one cohesive scene with consistent spatial logic.",
-  "Match lighting direction, intensity, and color temperature across all elements.",
-  "Add believable contact shadows, ambient occlusion, reflected light, and clean edge integration (no cutout outlines or haloing).",
-  "Align perspective, scale, depth, lens/scene continuity, and texture treatment so every element feels captured in the same environment.",
-  "If subjects interact with surfaces or objects, make overlaps, occlusion, and grounding physically plausible.",
-  "Harmonize global color and contrast while preserving the original subject identity, facial features, pose, and key design details.",
-  "Keep the existing creative style intact; only improve cohesion and integration.",
-].join(" ");
-const editPresetUtilityActions = [
-  {
-    id: "composite-regenerate",
-    label: "Composite & Regenerate",
-    icon: ArrowClockwise,
-    iconWeight: "regular" as const,
-    buttonClassName:
-      "edit-expert-preset-action-btn--compose-image edit-expert-preset-action-btn--hidden",
-    creditCost: null,
-    hideIcon: false,
-    requiresPrimaryImage: false,
-  },
-] as const;
-const editLayerUtilityActions = [
-  {
-    id: "flatten-image",
-    label: "Flatten Layers",
-    icon: StackSimple,
-    buttonClassName: "edit-expert-preset-action-btn--compose-image",
-    creditCost: null,
-  },
-  {
-    id: "remove-background",
-    label: "Remove Background",
-    icon: MagicWand,
-    buttonClassName:
-      "edit-expert-preset-action-btn--compose-image edit-expert-preset-action-btn--remove-bg",
-    creditCost: 1,
-  },
-] as const;
-type RailTool = "move" | "inpaint" | "video";
-const editGenerationModeOptions: ReadonlyArray<{
-  id: EditSubmitIntent;
-  label: string;
-}> = [
-  { id: "standard", label: "Standard" },
-  { id: "inpaint", label: "Inpaint" },
-  { id: "markup", label: "Markup" },
-];
-const inpaintRailTools: ReadonlyArray<{
-  id: RailTool;
-  label: string;
-  selectedClassName: string;
-  icon: PhosphorIcon;
-}> = [
-  {
-    id: "move",
-    label: "Move",
-    selectedClassName: "is-selected-move",
-    icon: ArrowsOutCardinal,
-  },
-  {
-    id: "inpaint",
-    label: "Inpaint",
-    selectedClassName: "is-selected-inpaint",
-    icon: PaintBrushBroad,
-  },
-  {
-    id: "video",
-    label: "Markup",
-    selectedClassName: "is-selected-video",
-    icon: PencilSimple,
-  },
-];
-type InpaintMode = "lasso" | "brush" | "auto";
-type InpaintSelectionTab = "select" | "unselect";
-type MarkupMode = "pen" | "eraser";
-const MAX_LAYERS = 8;
-const LAYER_LIMIT_REACHED_TOAST = `Layer limit reached (${MAX_LAYERS}).`;
-const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
-const INPAINT_COLLAPSE_ANIMATION_MS = 140;
-const STATUS_TOAST_VISIBLE_MS = 1_000;
-const STATUS_TOAST_FADE_MS = 220;
-const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
-const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
-const selectedLayerTransformHandleCorners = ["nw", "ne", "se", "sw"] as const;
-
-const resolveLayerFrameTransformStyle = (layer: ExpertEditLayer) =>
-  `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${
-    Math.round(layer.transform.translateYRatio * 1000) / 10
-  }%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`;
-
-const resolveLayerOverlayTransformStyle = (layer: ExpertEditLayer) =>
-  `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${
-    Math.round(layer.transform.translateYRatio * 1000) / 10
-  }%) rotate(${layer.transform.rotationDeg}deg)`;
-
-const resolveImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> =>
-  new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      reject(new Error("Image dimension resolution requires a browser environment."));
-      return;
-    }
-    const image = new window.Image();
-    image.onload = () =>
-      resolve({
-        width: Math.max(1, image.naturalWidth || 1),
-        height: Math.max(1, image.naturalHeight || 1),
-      });
-    image.onerror = () => reject(new Error("Unable to resolve image dimensions."));
-    image.src = url;
-  });
-const REMOVE_BACKGROUND_ACTION_ID = "remove-background";
-const FLATTEN_IMAGE_ACTION_ID = "flatten-image";
-const TRANSFORM_HISTORY_LIMIT = 80;
-const MARKUP_COLOR_DEFAULT = "#f43f5e";
-const MARKUP_COLOR_SWATCHES = [
-  "#ff4fa3",
-  "#f43f5e",
-  "#fb923c",
-  "#facc15",
-  "#4ade80",
-  "#22d3ee",
-  "#60a5fa",
-  "#a78bfa",
-] as const;
-const LOCKED_EDIT_TOOL_MODEL_LOGO_SRC = "/tiny-logo.png";
-const INPAINT_STROKE_SIZE_DEFAULT = 26;
-const MARKUP_STROKE_SIZE_DEFAULT = 4;
-const MARKUP_STROKE_SIZE_MAX = 30;
-
-const clampNumber = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
-
-const isSpaceActivationKey = (event: KeyboardEvent) =>
-  event.code === "Space" || event.key === " " || event.key === "Spacebar";
-
-const resolveValidStageRect = (rect: DOMRect | null): DOMRect | null => {
-  if (!rect) return null;
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  return rect;
-};
-
-const resolveElementViewportSize = (
-  element: HTMLDivElement | null | undefined
-): StageViewportSize => {
-  if (element) {
-    const width = element.clientWidth;
-    const height = element.clientHeight;
-    if (width > 0 && height > 0) {
-      return {
-        width,
-        height,
-      };
-    }
-  }
-  return resolveStageViewportSize(resolveValidStageRect(element?.getBoundingClientRect() ?? null));
-};
-
-type MarkupHistoryState = ExpertEditMarkupHistoryState;
-
-type InpaintHistoryState = ExpertEditInpaintHistoryState;
-
 export function ExpertEditPanelView({
   aspect,
   modelId,
@@ -546,7 +348,6 @@ export function ExpertEditPanelView({
   const inpaintSessionRestorePendingRef = React.useRef(
     initialSessionState.inpaintHistory.present.layers.length > 0
   );
-
   const createLayer = React.useCallback(
     ({
       indexOneBased,
@@ -573,7 +374,6 @@ export function ExpertEditPanelView({
     }),
     []
   );
-
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const isGenerationModeToggleEnabled = isEditGenerationModeToggleEnabled();
   const [selectedGenerationMode, setSelectedGenerationMode] =
@@ -1035,7 +835,6 @@ export function ExpertEditPanelView({
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]
   );
-
   const showStatusToast = React.useCallback(
     (message: string, tone: "info" | "warning" = "info") => {
       clearWindowTimeoutRef(toastVisibleTimerRef);
@@ -1161,7 +960,6 @@ export function ExpertEditPanelView({
     removeBackgroundPendingSourceUrlRef.current = null;
     setRemoveBackgroundPendingLayerId(null);
   }, []);
-
   const beginRemoveBackgroundPending = React.useCallback(
     (layerId: string | null, sourceImageUrl: string | null) => {
       clearRemoveBackgroundPending();
@@ -1174,7 +972,6 @@ export function ExpertEditPanelView({
     },
     [clearRemoveBackgroundPending]
   );
-
   const addPresetToPanel = React.useCallback(
     (presetId: ExpertEditPresetId | null | undefined) => {
       if (!presetId) return;
@@ -1189,7 +986,6 @@ export function ExpertEditPanelView({
     },
     [showStatusToast, updateSelectedPresetIds]
   );
-
   const removePresetFromPanel = React.useCallback(
     (presetId: ExpertEditPresetId | null | undefined) => {
       if (!presetId) return;
@@ -4220,55 +4016,6 @@ export function ExpertEditPanelView({
     );
   };
 
-  const renderSelectedModeRailPanel = () => {
-    const selectedModePanel =
-      selectedRailTool === "inpaint"
-        ? {
-            panelClassName: "inpaint",
-            title: "In-paint",
-            railLabel: "Left rail in-paint panel",
-            body: (
-              <div className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint edit-expert-mode-rail-panel-body edit-expert-mode-rail-panel-body--inpaint">
-                {renderMarkupModalInpaintPanel("rail")}
-              </div>
-            ),
-          }
-        : selectedRailTool === "video"
-          ? {
-              panelClassName: "markup",
-              title: "Markup",
-              railLabel: "Left rail markup panel",
-              body: (
-                <div className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--markup edit-expert-mode-rail-panel-body edit-expert-mode-rail-panel-body--markup">
-                  {renderMarkupControlsContent("modal")}
-                </div>
-              ),
-            }
-          : {
-              panelClassName: "move",
-              title: "Move",
-              railLabel: "Left rail move panel",
-              body: (
-                <div className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--move edit-expert-mode-rail-panel-body edit-expert-mode-rail-panel-body--move">
-                  {renderMoveControlsContent("modal")}
-                </div>
-              ),
-            };
-
-    return (
-      <section
-        className={`edit-expert-mode-rail-panel edit-expert-mode-rail-panel--${selectedModePanel.panelClassName}`}
-        role="group"
-        aria-label={selectedModePanel.railLabel}
-      >
-        <div className="edit-expert-mode-rail-panel-header">
-          <p className="edit-expert-mode-rail-panel-title">{selectedModePanel.title}</p>
-        </div>
-        {selectedModePanel.body}
-      </section>
-    );
-  };
-
   const renderLayersToolbar = (scope: "main" | "modal") => {
     const isModalScope = scope === "modal";
     const shouldShowUtilityActions = true;
@@ -4455,9 +4202,14 @@ export function ExpertEditPanelView({
       <div className="edit-expert-main-stage">
         <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--left">
-            {isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel
-              ? renderSelectedModeRailPanel()
-              : null}
+            {isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel ? (
+              <ExpertEditModeRailPanel
+                selectedRailTool={selectedRailTool}
+                renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
+                renderMarkupControlsContent={renderMarkupControlsContent}
+                renderMoveControlsContent={renderMoveControlsContent}
+              />
+            ) : null}
             <div className="edit-expert-preset-toolbar-title-card">
               <p className="edit-expert-preset-toolbar-title">Prompt Presets</p>
               <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">

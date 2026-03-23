@@ -878,6 +878,6 @@ export function ReferenceGrid({
  */
 export const ReferenceCanvas = ReferenceGrid;
 export type {
-  ReferenceCanvasProps,
   ReferenceGridProps,
+  ReferenceGridProps as ReferenceCanvasProps,
 } from "../reference-grid/referenceGridTypes";

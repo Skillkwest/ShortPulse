@@ -48,8 +48,3 @@ export type ReferenceGridProps = {
     onSelectStyle?: (styleId: string | null) => void;
   };
 };
-
-/**
- * @deprecated Use `ReferenceGridProps`.
- */
-export type ReferenceCanvasProps = ReferenceGridProps;

@@ -104,9 +104,11 @@
   "knip": {
     "ignoreFiles": [
       "features/ai-studio/components/canvas/__tests__/canvasTestHarness.tsx",
+      "features/agent-runtime/canaryThresholdDecision.ts",
       "lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts",
       "scripts/ai-studio-perf-release-check.mjs",
       "tests/e2e/ai-studio-perf.audit.js",
+      "tests/e2e/expert-edit-coordinate-parity.audit.js",
       "tests/e2e/ai-studio-style-drop.audit.js",
       "tests/e2e/character-pipeline.audit.js",
       "vitest.setup.ts"

@@ -1,0 +1,195 @@
+/**
+ * Dashboard page tests for profile-menu and logout behavior.
+ */
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import DashboardPage from "../../pages/dashboard";
+
+const useRouterMock = vi.hoisted(() => vi.fn());
+const useCreditsMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const routerReplaceMock = vi.hoisted(() => vi.fn());
+const signOutMock = vi.hoisted(() => vi.fn());
+
+vi.mock("next/head", () => ({
+  default: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...rest
+  }: {
+    children: ReactNode;
+    href: string;
+  } & Record<string, unknown>) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
+vi.mock("next/image", () => ({
+  default: ({ alt = "", ...rest }: { alt?: string } & Record<string, unknown>) => (
+    <div aria-label={alt} data-next-image={String(rest.src ?? "")} />
+  ),
+}));
+
+vi.mock("next/router", () => ({
+  useRouter: (...args: unknown[]) => useRouterMock(...args),
+}));
+
+vi.mock("../../features/ai-studio/hooks/useCredits", () => ({
+  useCredits: (...args: unknown[]) => useCreditsMock(...args),
+}));
+
+vi.mock("../../lib/supabaseClient", () => ({
+  ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+}));
+
+vi.mock("../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+const appUser = {
+  id: "user-1",
+  email: "user@example.com",
+  user_metadata: {
+    display_name: "Kirk",
+    plan: "business",
+  },
+};
+
+const buildSupabaseClient = () => ({
+  auth: {
+    getUser: vi.fn(async () => ({ data: { user: appUser } })),
+    onAuthStateChange: vi.fn(() => ({
+      data: {
+        subscription: {
+          unsubscribe: vi.fn(),
+        },
+      },
+    })),
+    signOut: signOutMock,
+  },
+  from: vi.fn((table: string) => {
+    if (table === "billing_profiles") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(async () => ({ data: { plan_id: "business" }, error: null })),
+          })),
+        })),
+      };
+    }
+    if (table === "billing_plans") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(async () => ({
+            data: [],
+            error: null,
+          })),
+        })),
+      };
+    }
+    if (table === "media_files") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(async () => ({
+            data: [{ file_size: 1024 }],
+            error: null,
+          })),
+        })),
+      };
+    }
+    throw new Error(`Unexpected table ${table}`);
+  }),
+});
+
+describe("Dashboard actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    routerReplaceMock.mockReset();
+    signOutMock.mockReset();
+    signOutMock.mockResolvedValue({ error: null });
+
+    useRouterMock.mockReturnValue({ replace: routerReplaceMock });
+    useCreditsMock.mockReturnValue({
+      balanceCents: 86,
+      balanceLoading: false,
+    });
+    ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ announcement: null }),
+    });
+  });
+
+  afterEach(() => {
+    document.body.classList.remove("dashboard-body");
+    document.documentElement.classList.remove("dashboard-body");
+  });
+
+  it("adds and removes dashboard body classes", async () => {
+    const { unmount } = render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Profile menu" })).toBeInTheDocument();
+    });
+
+    expect(document.body.classList.contains("dashboard-body")).toBe(true);
+    expect(document.documentElement.classList.contains("dashboard-body")).toBe(true);
+
+    unmount();
+
+    expect(document.body.classList.contains("dashboard-body")).toBe(false);
+    expect(document.documentElement.classList.contains("dashboard-body")).toBe(false);
+  });
+
+  it("opens the profile menu with account and billing links", async () => {
+    render(<DashboardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
+
+    expect(screen.getByRole("link", { name: "Account & profile settings" })).toHaveAttribute(
+      "href",
+      "/profile?section=account"
+    );
+    expect(screen.getByRole("link", { name: "Billing & subscription" })).toHaveAttribute(
+      "href",
+      "/profile?section=billing"
+    );
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+  });
+
+  it("opens and closes the logout confirmation modal", async () => {
+    render(<DashboardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+
+    expect(screen.getByRole("dialog", { name: "Are you sure?" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "No" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Are you sure?" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("signs out and redirects home after logout confirmation", async () => {
+    render(<DashboardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, log out" }));
+
+    await waitFor(() => {
+      expect(signOutMock).toHaveBeenCalledTimes(1);
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    });
+  });
+});

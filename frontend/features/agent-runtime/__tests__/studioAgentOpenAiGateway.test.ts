@@ -28,6 +28,16 @@ describe("studioAgentOpenAiGateway", () => {
     });
   });
 
+  it("keeps agent defaults on OPENAI_MODEL even when direct prompt overrides are present", () => {
+    const config = resolveStudioAgentOpenAiConfig({
+      OPENAI_DIRECT_PROMPT_MODEL: "gpt-5.4",
+    } as unknown as NodeJS.ProcessEnv);
+
+    expect(config.openAiModel).toBe("gpt-5-nano");
+    expect(config.openAiThinkerModel).toBe("gpt-5-nano");
+    expect(config.openAiFormatterModel).toBe("gpt-5-nano");
+  });
+
   it("clamps timeout/retry config and applies thinker/formatter fallback chain", () => {
     const lowTimeout = resolveStudioAgentOpenAiConfig({
       STUDIO_AGENT_TIMEOUT_MS: "200",

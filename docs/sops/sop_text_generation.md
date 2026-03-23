@@ -7,7 +7,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Audit (strengths, gaps, decisions)
 - Strengths: Single canonical prompt source in `frontend/lib/agentPromptsConfig.ts`; strict loader contract (`AgentPromptId`) that the TS compiler can validate; UI state (`useAiStudioState`) auto-wires responses into textareas and Reference Grid without copy/paste; token usage captured for cost visibility.
 - Gaps: Imported images do not yet flow through image-describer drag/drop (logged below as a limitation); UI error surfacing must be explicit (toast/modal/banners) rather than silent HTTP errors.
-- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); default text refinement and vision describe to `gpt-5-nano`; keep SOP + TS config as the only config artifacts to minimize files.
+- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); default direct text refinement to `gpt-5.4` while vision describe stays on `gpt-5-nano`; keep SOP + TS config as the only config artifacts to minimize files.
 - Actioned cleanup: Archived redundant prompt docs in `docs/archive/ai-studio-prompts.md` so the TS config remains the only source. Update any links/bookmarks to point to `frontend/lib/agentPromptsConfig.ts`.
 - UX change: Added a prominent error banner in AI Studio to surface prompt/describe failures with a dismiss control.
 - Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video charging is enforced server-side at submit time, while prompt-refine/describe flows currently report usage but are not yet debited.
@@ -43,17 +43,20 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Environment prerequisites
 
 1. `OPENAI_API_KEY` must be set at runtime for both endpoints.
-2. `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, and `OPENAI_VISION_FALLBACK_MODEL` default to `gpt-5-nano`.
-3. Trusted-host env: `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated); non-allowlisted external hosts are fail-closed by default.
-4. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
+2. `/api/ai/generate-prompt` uses `OPENAI_DIRECT_PROMPT_MODEL` when set and otherwise defaults to `gpt-5.4`.
+3. `OPENAI_MODEL` remains the studio-agent default model chain (`gpt-5-nano` when unset); this keeps the direct prompt lane separate from agent defaults.
+4. `OPENAI_VISION_MODEL` and `OPENAI_VISION_FALLBACK_MODEL` default to `gpt-5-nano`.
+5. Trusted-host env: `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated); non-allowlisted external hosts are fail-closed by default.
+6. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
 
 ## Text prompt refinement workflow
 
 1. UI sends POST `/api/ai/generate-prompt` with `{ prompt: string }`.
+   - Create `mode=text` with Chat Mode OFF also uses this route directly, bypassing `/api/ai/studio-agent`.
 2. Handler guards against non-POST methods and missing/empty prompt bodies.
 3. System prompt loads via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")`. If the config entry is empty, the handler still allows env overrides before returning a 500 error.
 4. Request body:
-   - Model: `process.env.OPENAI_MODEL ?? "gpt-5-nano"`
+   - Model: `process.env.OPENAI_DIRECT_PROMPT_MODEL ?? "gpt-5.4"`
    - Messages: system prompt + user prompt
    - `temperature: 0.6`, `max_tokens: 2000`
 5. Upstream response is parsed for `choices[0]?.message?.content`; absence triggers a 502 error.

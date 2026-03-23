@@ -178,7 +178,7 @@ describe("useAiStudioPanelProps", () => {
     );
   });
 
-  it("uses output-generate cost for create text when chat mode is off", () => {
+  it("uses direct prompt cost for create text when chat mode is off", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
@@ -190,7 +190,8 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.costCredits).toBe(25);
+    expect(result.current.propertiesCreate.costCredits).toBe(2);
+    expect(result.current.propertiesCreate.outputGenerateCostCredits).toBe(2);
   });
 
   it("forwards expert edit flatten callbacks into expert edit panel props", () => {

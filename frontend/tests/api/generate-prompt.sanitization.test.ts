@@ -26,12 +26,38 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     vi.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_PROMPT_SYSTEM = "You are a prompt refiner.";
+    delete process.env.OPENAI_DIRECT_PROMPT_MODEL;
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATE_PROMPT;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("uses the dedicated direct prompt model default when no override is configured", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "A crisp studio portrait." } }],
+        usage: { prompt_tokens: 10, completion_tokens: 7 },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "studio portrait" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const payload = requestInit?.body ? (JSON.parse(requestInit.body) as { model?: string }) : null;
+
+    expect(payload?.model).toBe("gpt-5.4");
   });
 
   it("strips recap/meta tails from generated prompt output", async () => {

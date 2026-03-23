@@ -148,6 +148,8 @@ sequenceDiagram
 - Returns normalized response envelope (`message`, optional `actions`, `canonicalPrompt`, `traceId`).
 3. Legacy helper routes still used by Create UX fallbacks:
 - `/api/ai/generate-prompt` -> `agentRuntimeService.generatePrompt` (`legacyPromptGenerationService`).
+  - Create `mode=text` with Chat Mode OFF bypasses `/api/ai/studio-agent` and posts the raw composer/shared prompt directly here.
+  - This direct lane defaults to `OPENAI_DIRECT_PROMPT_MODEL` or `gpt-5.4` when unset; it is intentionally separate from the studio-agent `OPENAI_MODEL` default chain.
 - `/api/ai/describe-image` -> `agentRuntimeService.describeImage` (`legacyImageDescribeService`).
 - `/api/ai/extract-style` -> `agentRuntimeService.extractStyle` (`legacyStyleExtractionService`) for Styles Library new-style image intake (returns `stylePrompt` + normalized `styleTitle`).
   - Operational ownership and metadata/telemetry contracts for style-create flows are defined in `docs/sops/sop_ai_studio_style_creator.md`.
@@ -173,7 +175,7 @@ When changing Create panel behavior or generation wiring, update all relevant la
 - Manual smoke in `/ai-studio`:
   1. Create expert panel: model/aspect/resolution/character controls render and update.
   2. Chat mode ON/OFF behavior matches expected submit path.
-  3. In Create `mode=text` with chat OFF, Generate button cost matches image-run cost and debit path.
+  3. In Create `mode=text` with chat OFF, Generate and inline raw-mode actions hit `/api/ai/generate-prompt`, update the shared prompt, and show the direct prompt-route cost instead of image-run cost.
   4. Model modal ordering is context-correct for Create.
   5. Generate submission reaches queued/dispatched states and polling converges.
   6. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.

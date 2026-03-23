@@ -172,10 +172,9 @@ export const useAiStudioCreatePanelProps = ({
   beginnerMode,
   expertCreateUiEligible,
 }: UseAiStudioCreatePanelPropsParams): AiStudioCreatePanelContract => {
-  const createGenerateCostCredits =
-    mode === "text" && !chatModeEnabled
-      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
-      : currentCostCredits;
+  const createGenerateCostCredits = currentCostCredits;
+  const chatOffDirectPromptCostCredits =
+    mode === "text" && !chatModeEnabled ? currentCostCredits : promptReferenceGenerateCostCredits;
 
   return useMemo(
     () => ({
@@ -222,7 +221,7 @@ export const useAiStudioCreatePanelProps = ({
       onToggleReferenceIndicator: toggleReferenceIndicator,
       isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
       costCredits: createGenerateCostCredits,
-      outputGenerateCostCredits: promptReferenceGenerateCostCredits,
+      outputGenerateCostCredits: chatOffDirectPromptCostCredits,
       hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked,
       guardrailReason: generationGuardrail,
@@ -263,6 +262,7 @@ export const useAiStudioCreatePanelProps = ({
       beginnerMode,
       characterOptions,
       createGenerateCostCredits,
+      chatOffDirectPromptCostCredits,
       currentModelLabel,
       describeInFlightCount,
       expertCreateUiEligible,
@@ -303,7 +303,6 @@ export const useAiStudioCreatePanelProps = ({
       modelModalAnchor,
       prompt,
       promptRef,
-      promptReferenceGenerateCostCredits,
       savePromptReference,
       selectedCharacterId,
       setChatModeEnabled,

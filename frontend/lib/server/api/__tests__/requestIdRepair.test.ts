@@ -1,0 +1,186 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { repairGenerationRequestIdFromReservation } from "../generationQueue/requestIdRepair";
+
+const getSupabaseAdminMock = vi.fn();
+
+vi.mock("../supabaseAdmin", () => ({
+  getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+const createGenerationSelectBuilder = ({
+  data,
+  error = null,
+}: {
+  data: Record<string, unknown> | null;
+  error?: { message: string } | null;
+}) => {
+  const builder = {
+    eq: vi.fn(),
+    contains: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+    maybeSingle: vi.fn(async () => ({ data, error })),
+  };
+  builder.eq.mockReturnValue(builder);
+  builder.contains.mockReturnValue(builder);
+  builder.order.mockReturnValue(builder);
+  builder.limit.mockReturnValue(builder);
+  return builder;
+};
+
+const createReservationSelectBuilder = ({
+  data,
+  error = null,
+}: {
+  data: Record<string, unknown> | null;
+  error?: { message: string } | null;
+}) => {
+  const builder = {
+    eq: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+    maybeSingle: vi.fn(async () => ({ data, error })),
+  };
+  builder.eq.mockReturnValue(builder);
+  builder.order.mockReturnValue(builder);
+  builder.limit.mockReturnValue(builder);
+  return builder;
+};
+
+const createUpdateBuilder = ({
+  data,
+  error = null,
+}: {
+  data: Array<Record<string, unknown>>;
+  error?: { message: string } | null;
+}) => {
+  const builder = {
+    eq: vi.fn(),
+    is: vi.fn(),
+    select: vi.fn(async () => ({ data, error })),
+  };
+  builder.eq.mockReturnValue(builder);
+  builder.is.mockReturnValue(builder);
+  return builder;
+};
+
+describe("repairGenerationRequestIdFromReservation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("backfills request_id from the reservation for an eligible generation", async () => {
+    const generationSelectBuilder = createGenerationSelectBuilder({
+      data: {
+        id: "gen-1",
+        user_id: "user-1",
+        request_id: null,
+        provider: "fal-ai",
+        status: "running",
+        recovery_state: "queued",
+        recovery_attempts: 1,
+        metadata: {
+          source_ref: "source-1",
+          existing: "value",
+        },
+      },
+    });
+    const reservationSelectBuilder = createReservationSelectBuilder({
+      data: {
+        provider_request_id: "req-1",
+      },
+    });
+    const updateBuilder = createUpdateBuilder({
+      data: [{ id: "gen-1", request_id: "req-1" }],
+    });
+    const update = vi.fn(() => updateBuilder);
+    const from = vi
+      .fn()
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => generationSelectBuilder),
+      }))
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => reservationSelectBuilder),
+      }))
+      .mockImplementationOnce(() => ({
+        update,
+      }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    await expect(
+      repairGenerationRequestIdFromReservation({
+        userId: "user-1",
+        generationId: "gen-1",
+        sourceRef: null,
+      })
+    ).resolves.toEqual({
+      repaired: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+      sourceRef: "source-1",
+      reason: "repaired",
+      errorMessage: null,
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-1",
+        status: "running",
+        recovery_state: "queued",
+        next_recovery_at: expect.any(String),
+        metadata: expect.objectContaining({
+          source_ref: "source-1",
+          provider_request_id: "req-1",
+          request_id_repair_source: "reservation_backfill",
+          existing: "value",
+        }),
+      })
+    );
+    expect(updateBuilder.is).toHaveBeenCalledWith("request_id", null);
+  });
+
+  it("surfaces reservation lookup errors as db errors", async () => {
+    const generationSelectBuilder = createGenerationSelectBuilder({
+      data: {
+        id: "gen-1",
+        user_id: "user-1",
+        request_id: null,
+        provider: "kie",
+        status: "submitted",
+        recovery_state: "recovering",
+        recovery_attempts: 2,
+        metadata: {
+          source_ref: "source-1",
+        },
+      },
+    });
+    const reservationSelectBuilder = createReservationSelectBuilder({
+      data: null,
+      error: { message: "reservation unavailable" },
+    });
+    const from = vi
+      .fn()
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => generationSelectBuilder),
+      }))
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => reservationSelectBuilder),
+      }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    await expect(
+      repairGenerationRequestIdFromReservation({
+        userId: "user-1",
+        generationId: "gen-1",
+        sourceRef: null,
+      })
+    ).resolves.toEqual({
+      repaired: false,
+      generationId: "gen-1",
+      requestId: null,
+      sourceRef: "source-1",
+      reason: "db_error",
+      errorMessage: "reservation unavailable",
+    });
+  });
+});

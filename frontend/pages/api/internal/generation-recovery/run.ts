@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../../lib/server/api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../../../../lib/server/api/generationQueue/dispatch";
+import { repairGenerationRequestIdsFromReservations } from "../../../../lib/server/api/generationQueue/requestIdRepair";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { executeGenerationRecovery } from "../../../../lib/server/falIntegration/recoveryExecution";
 
@@ -323,6 +324,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
       }
+    }
+
+    try {
+      await repairGenerationRequestIdsFromReservations({
+        limit: flags.reconcilerBatchSize,
+      });
+    } catch (error) {
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "internal/generation-recovery/run",
+        metadata: {
+          stage: "request_id_repair_batch",
+        },
+      });
     }
 
     const claimResponse = await supabaseAdmin.rpc("claim_generation_recovery_batch", {

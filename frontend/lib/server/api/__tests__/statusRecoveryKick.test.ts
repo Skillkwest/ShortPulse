@@ -3,6 +3,7 @@ import { claimDueQueueStatusRecovery } from "../generationQueue/statusRecoveryKi
 
 const readFalRuntimeFlagsMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const repairGenerationRequestIdFromReservationMock = vi.fn();
 
 vi.mock("../falRuntimeFlags", () => ({
   readFalRuntimeFlags: (...args: unknown[]) => readFalRuntimeFlagsMock(...args),
@@ -10,6 +11,11 @@ vi.mock("../falRuntimeFlags", () => ({
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../generationQueue/requestIdRepair", () => ({
+  repairGenerationRequestIdFromReservation: (...args: unknown[]) =>
+    repairGenerationRequestIdFromReservationMock(...args),
 }));
 
 const createDefaultFlags = () => ({
@@ -85,6 +91,14 @@ describe("claimDueQueueStatusRecovery", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     readFalRuntimeFlagsMock.mockReturnValue(createDefaultFlags());
+    repairGenerationRequestIdFromReservationMock.mockResolvedValue({
+      repaired: false,
+      generationId: null,
+      requestId: null,
+      sourceRef: null,
+      reason: "missing_provider_request_id",
+      errorMessage: null,
+    });
   });
 
   it("returns disabled when reconciler is off", async () => {
@@ -206,5 +220,71 @@ describe("claimDueQueueStatusRecovery", () => {
         reason: "provider_not_supported",
       })
     );
+  });
+
+  it("repairs a missing request id from the reservation and retries the claim once", async () => {
+    const initialSelectBuilder = createSelectBuilder({
+      id: "gen-1",
+      request_id: null,
+      provider: "fal",
+      status: "running",
+      recovery_state: "queued",
+      recovery_attempts: 1,
+      next_recovery_at: new Date(Date.now() - 1_000).toISOString(),
+      created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+    const repairedSelectBuilder = createSelectBuilder({
+      id: "gen-1",
+      request_id: "req-1",
+      provider: "fal",
+      status: "running",
+      recovery_state: "queued",
+      recovery_attempts: 1,
+      next_recovery_at: new Date(Date.now() - 1_000).toISOString(),
+      created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+    const updateBuilder = createUpdateBuilder([{ id: "gen-1", request_id: "req-1" }]);
+    const from = vi
+      .fn()
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => initialSelectBuilder),
+      }))
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => repairedSelectBuilder),
+      }))
+      .mockImplementationOnce(() => ({
+        update: vi.fn(() => updateBuilder),
+      }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+    repairGenerationRequestIdFromReservationMock.mockResolvedValueOnce({
+      repaired: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+      sourceRef: "source-1",
+      reason: "repaired",
+      errorMessage: null,
+    });
+
+    await expect(
+      claimDueQueueStatusRecovery({
+        userId: "user-1",
+        generationId: "gen-1",
+        sourceRef: "source-1",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        claimed: true,
+        generationId: "gen-1",
+        requestId: "req-1",
+        reason: "claimed",
+      })
+    );
+
+    expect(repairGenerationRequestIdFromReservationMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      generationId: "gen-1",
+      sourceRef: "source-1",
+    });
+    expect(updateBuilder.select).toHaveBeenCalledWith("id, request_id");
   });
 });

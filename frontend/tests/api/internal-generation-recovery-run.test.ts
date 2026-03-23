@@ -4,6 +4,7 @@ import handler from "../../pages/api/internal/generation-recovery/run";
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const dispatchGenerationSubmitQueueBatchMock = vi.fn();
+const repairGenerationRequestIdsFromReservationsMock = vi.fn();
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -16,6 +17,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 vi.mock("../../lib/server/api/generationQueue/dispatch", () => ({
   dispatchGenerationSubmitQueueBatch: (...args: unknown[]) =>
     dispatchGenerationSubmitQueueBatchMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationQueue/requestIdRepair", () => ({
+  repairGenerationRequestIdsFromReservations: (...args: unknown[]) =>
+    repairGenerationRequestIdsFromReservationsMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -71,6 +77,12 @@ describe("POST /api/internal/generation-recovery/run", () => {
     process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "*";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     dispatchGenerationSubmitQueueBatchMock.mockReset();
+    repairGenerationRequestIdsFromReservationsMock.mockReset();
+    repairGenerationRequestIdsFromReservationsMock.mockResolvedValue({
+      scanned: 0,
+      repaired: 0,
+      errors: 0,
+    });
   });
 
   it("requires the cron secret", async () => {
@@ -171,6 +183,9 @@ describe("POST /api/internal/generation-recovery/run", () => {
         p_min_age_seconds: 0,
       })
     );
+    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
+      limit: 10,
+    });
     expect(supabase.updateEq2).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
@@ -279,6 +294,84 @@ describe("POST /api/internal/generation-recovery/run", () => {
         }),
       })
     );
+  });
+
+  it("logs and continues when request-id repair throws", async () => {
+    repairGenerationRequestIdsFromReservationsMock.mockRejectedValueOnce(
+      new Error("repair unavailable")
+    );
+
+    const supabase = createSupabaseMock();
+    supabase.rpc = vi.fn(async (functionName: string) => {
+      if (functionName === "release_stale_generation_reservations") {
+        return {
+          data: [{ scanned_count: 0, released_count: 0, error_count: 0 }],
+          error: null,
+        };
+      }
+      if (functionName === "claim_generation_recovery_batch") {
+        return { data: [], error: null };
+      }
+      return { data: [], error: null };
+    });
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
+      limit: 10,
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "internal/generation-recovery/run",
+        metadata: expect.objectContaining({
+          stage: "request_id_repair_batch",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("runs request-id repair before claiming the recovery batch", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
+      limit: 10,
+    });
+    const repairOrder =
+      repairGenerationRequestIdsFromReservationsMock.mock.invocationCallOrder[0] ??
+      Number.MAX_SAFE_INTEGER;
+    const claimCallIndex = supabase.rpc.mock.calls.findIndex(
+      ([functionName]: [string]) => functionName === "claim_generation_recovery_batch"
+    );
+    expect(claimCallIndex).toBeGreaterThan(-1);
+    const claimOrder = supabase.rpc.mock.invocationCallOrder[claimCallIndex] ?? 0;
+    expect(repairOrder).toBeLessThan(claimOrder);
   });
 
   it("uses compare-and-set fallback claims when RPC claim fails", async () => {

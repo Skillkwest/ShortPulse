@@ -6,6 +6,7 @@
 
 import { readFalRuntimeFlags } from "../falRuntimeFlags";
 import { getSupabaseAdmin } from "../supabaseAdmin";
+import { repairGenerationRequestIdFromReservation } from "./requestIdRepair";
 
 type JsonObject = Record<string, unknown>;
 
@@ -137,17 +138,16 @@ const readRecoveryCandidate = async ({
   return parseCandidate(data);
 };
 
-/**
- * Attempts a compare-and-set claim for one due recovery row scoped to the requesting user.
- */
-export const claimDueQueueStatusRecovery = async ({
+const claimDueQueueStatusRecoveryInternal = async ({
   userId,
   generationId,
   sourceRef,
+  allowRepair,
 }: {
   userId: string;
   generationId: string | null;
   sourceRef: string | null;
+  allowRepair: boolean;
 }): Promise<QueueStatusRecoveryClaimResult> => {
   if (!generationId && !sourceRef) {
     return {
@@ -188,16 +188,6 @@ export const claimDueQueueStatusRecovery = async ({
       generationId: candidate.id,
       requestId: candidate.requestId,
       reason: "provider_not_supported",
-      errorMessage: null,
-    };
-  }
-
-  if (!candidate.requestId) {
-    return {
-      claimed: false,
-      generationId: candidate.id,
-      requestId: null,
-      reason: "missing_request_id",
       errorMessage: null,
     };
   }
@@ -256,6 +246,41 @@ export const claimDueQueueStatusRecovery = async ({
     };
   }
 
+  if (!candidate.requestId) {
+    if (allowRepair) {
+      const repairResult = await repairGenerationRequestIdFromReservation({
+        userId,
+        generationId: candidate.id,
+        sourceRef,
+      });
+      if (repairResult.repaired) {
+        return claimDueQueueStatusRecoveryInternal({
+          userId,
+          generationId: candidate.id,
+          sourceRef,
+          allowRepair: false,
+        });
+      }
+      if (repairResult.reason === "db_error") {
+        return {
+          claimed: false,
+          generationId: candidate.id,
+          requestId: null,
+          reason: "db_error",
+          errorMessage: repairResult.errorMessage,
+        };
+      }
+    }
+
+    return {
+      claimed: false,
+      generationId: candidate.id,
+      requestId: null,
+      reason: "missing_request_id",
+      errorMessage: null,
+    };
+  }
+
   const nowIso = new Date(nowMs).toISOString();
   const oldestAllowedIso = new Date(oldestAllowedMs).toISOString();
   const leaseUntilIso = new Date(nowMs + flags.reconcilerLeaseSeconds * 1000).toISOString();
@@ -308,3 +333,19 @@ export const claimDueQueueStatusRecovery = async ({
     errorMessage: null,
   };
 };
+
+export const claimDueQueueStatusRecovery = async ({
+  userId,
+  generationId,
+  sourceRef,
+}: {
+  userId: string;
+  generationId: string | null;
+  sourceRef: string | null;
+}): Promise<QueueStatusRecoveryClaimResult> =>
+  claimDueQueueStatusRecoveryInternal({
+    userId,
+    generationId,
+    sourceRef,
+    allowRepair: true,
+  });

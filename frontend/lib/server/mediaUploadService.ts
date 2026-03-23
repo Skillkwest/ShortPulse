@@ -309,6 +309,32 @@ const isAllowedMimeType = (
   return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
 };
 
+const isGenericDeclaredMimeType = (mimeType: string): boolean => {
+  return mimeType === "application/octet-stream" || mimeType === "binary/octet-stream";
+};
+
+const isCompatibleDeclaredMimeType = ({
+  destinationTab,
+  declaredMimeType,
+  detectedMimeType,
+}: {
+  destinationTab: MediaUploadDestinationTab;
+  declaredMimeType: string;
+  detectedMimeType: string;
+}): boolean => {
+  if (areCompatibleMimeTypes(declaredMimeType, detectedMimeType)) return true;
+  if (
+    destinationExpectsVideo(destinationTab) &&
+    declaredMimeType.startsWith("video/") &&
+    detectedMimeType.startsWith("video/")
+  ) {
+    // Browser/file-input MIME metadata can vary between MP4 container aliases.
+    const mp4AliasFamily = new Set(["video/mp4", "video/quicktime", "video/x-m4v"]);
+    if (mp4AliasFamily.has(declaredMimeType) && mp4AliasFamily.has(detectedMimeType)) return true;
+  }
+  return false;
+};
+
 const resolveUploadFolder = (destinationTab: MediaUploadDestinationTab): string => {
   if (destinationTab === "private") return "private/images";
   if (destinationTab === "uploaded_videos") return "videos";
@@ -334,20 +360,31 @@ const validateUpload = ({
     throw new MediaUploadServiceError(
       400,
       "Invalid file type",
-      `File content is not a supported ${expected} format.`
+      `File content is not a supported ${expected} format (detected: ${detectedMimeType ?? "unknown"}).`
     );
   }
 
-  if (
-    declaredMimeType &&
-    (!isAllowedMimeType(destinationTab, declaredMimeType) ||
-      !areCompatibleMimeTypes(declaredMimeType, detectedMimeType))
-  ) {
-    throw new MediaUploadServiceError(
-      400,
-      "Invalid file type",
-      "Content type does not match file content."
-    );
+  if (declaredMimeType && !isGenericDeclaredMimeType(declaredMimeType)) {
+    if (!isAllowedMimeType(destinationTab, declaredMimeType)) {
+      throw new MediaUploadServiceError(
+        400,
+        "Invalid file type",
+        `Content type does not match file content (declared: ${declaredMimeType}, detected: ${detectedMimeType}).`
+      );
+    }
+    if (
+      !isCompatibleDeclaredMimeType({
+        destinationTab,
+        declaredMimeType,
+        detectedMimeType,
+      })
+    ) {
+      throw new MediaUploadServiceError(
+        400,
+        "Invalid file type",
+        `Content type does not match file content (declared: ${declaredMimeType}, detected: ${detectedMimeType}).`
+      );
+    }
   }
 
   if (fileSize > destinationMaxBytes(destinationTab)) {

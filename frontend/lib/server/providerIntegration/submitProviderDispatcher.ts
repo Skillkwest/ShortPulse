@@ -6,7 +6,12 @@
 import type { SubmitPayload, SubmitTarget } from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 import { readCanonicalProviderRequestId } from "./canonicalProviderPayload";
+import { KIE_KLING_30_MODEL_ID } from "./kieModelIds";
 import { normalizeKieSubmitPayloadForModel } from "./kieModelContracts";
+import {
+  buildKieSubmitMediaDiagnostics,
+  validateKieKlingSubmitMediaInputs,
+} from "./kieSubmitMediaGuards";
 import { normalizeKieSubmitTransportResult } from "./kieSubmitTransportContracts";
 import {
   assertKieRuntimeEnabledForModel,
@@ -22,16 +27,45 @@ export type ProviderSubmitResult = {
   targetUrl: string;
   targetIndex: number;
   providerRequestId: string | null;
+  providerDiagnostics: Record<string, unknown> | null;
 };
 
-const toProviderSubmitResult = (result: {
-  response: Response;
-  data: Record<string, unknown>;
-  targetUrl: string;
-  targetIndex: number;
-}): ProviderSubmitResult => ({
+export class ProviderSubmitValidationError extends Error {
+  code: string;
+  detail: unknown;
+  statusCode: number;
+
+  constructor({
+    message,
+    code,
+    detail,
+    statusCode = 400,
+  }: {
+    message: string;
+    code: string;
+    detail?: unknown;
+    statusCode?: number;
+  }) {
+    super(message);
+    this.name = "ProviderSubmitValidationError";
+    this.code = code;
+    this.detail = detail ?? null;
+    this.statusCode = statusCode;
+  }
+}
+
+const toProviderSubmitResult = (
+  result: {
+    response: Response;
+    data: Record<string, unknown>;
+    targetUrl: string;
+    targetIndex: number;
+  },
+  providerDiagnostics: Record<string, unknown> | null = null
+): ProviderSubmitResult => ({
   ...result,
   providerRequestId: readCanonicalProviderRequestId(result.data, { allowGenericId: true }),
+  providerDiagnostics,
 });
 
 const retryableSubmitStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
@@ -234,6 +268,21 @@ export const dispatchProviderSubmit = async ({
     const kieFlags = readKieRuntimeFlags();
     assertKieRuntimeEnabledForModel({ modelId, flags: kieFlags });
     const normalizedPayload = normalizeKieSubmitPayloadForModel({ modelId, payload });
+    let providerDiagnostics: Record<string, unknown> | null = null;
+    if (modelId === KIE_KLING_30_MODEL_ID) {
+      const mediaValidation = await validateKieKlingSubmitMediaInputs({
+        payload: normalizedPayload,
+        signal,
+      });
+      if (!mediaValidation.ok) {
+        throw new ProviderSubmitValidationError({
+          message: mediaValidation.error,
+          code: mediaValidation.code,
+          detail: mediaValidation.detail,
+        });
+      }
+      providerDiagnostics = mediaValidation.diagnostics as Record<string, unknown>;
+    }
     const configuredTargets = targets.length
       ? targets
       : resolveKieSubmitTargetsForModel(modelId, kieFlags);
@@ -251,8 +300,17 @@ export const dispatchProviderSubmit = async ({
       requestStartTimeoutSeconds,
       maxAttemptsPerTarget,
     });
-    return toProviderSubmitResult(result);
+    return toProviderSubmitResult(result, providerDiagnostics);
   }
 
   throw new Error(`Unsupported provider for submit dispatch: ${provider}`);
+};
+
+/**
+ * Creates redacted Kie media diagnostics for submit-failure telemetry.
+ */
+export const collectKieSubmitMediaDiagnostics = (
+  payload: SubmitPayload
+): Record<string, unknown> => {
+  return buildKieSubmitMediaDiagnostics(payload as Record<string, unknown>);
 };

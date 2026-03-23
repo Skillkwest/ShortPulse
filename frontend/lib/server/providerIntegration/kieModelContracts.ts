@@ -236,6 +236,26 @@ const normalizeOptionalBooleanField = ({
   return payload[field] as boolean;
 };
 
+const normalizeOptionalBooleanFields = ({
+  payload,
+  fields,
+  modelLabel,
+}: {
+  payload: Record<string, unknown>;
+  fields: string[];
+  modelLabel: string;
+}): boolean | null => {
+  for (const field of fields) {
+    if (payload[field] === undefined) continue;
+    return normalizeOptionalBooleanField({
+      payload,
+      field,
+      modelLabel,
+    });
+  }
+  return null;
+};
+
 const normalizeOptionalNumberField = ({
   payload,
   field,
@@ -255,6 +275,7 @@ const normalizeOptionalNumberField = ({
 
 type KieCatalogContract = {
   defaultAspect: string;
+  defaultResolution: string | null;
   allowedAspects: string[];
   allowedDurations: number[];
   allowedResolutions: string[] | null;
@@ -279,6 +300,7 @@ const readRequiredKieCatalogContract = ({
   }
   return {
     defaultAspect: entry.defaultAspect,
+    defaultResolution: entry.defaultResolution ?? null,
     allowedAspects: entry.allowedAspects,
     allowedDurations: entry.allowedDurations,
     allowedResolutions: entry.allowedResolutions ?? null,
@@ -409,14 +431,14 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
     payload,
     fields: ["watermark"],
   });
-  const enableTranslation = normalizeOptionalBooleanField({
+  const enableTranslation = normalizeOptionalBooleanFields({
     payload,
-    field: "enableTranslation",
+    fields: ["enable_translation", "enableTranslation"],
     modelLabel: "Kie VEO 3.1 Fast I2V",
   });
-  const enableFallback = normalizeOptionalBooleanField({
+  const enableFallback = normalizeOptionalBooleanFields({
     payload,
-    field: "enableFallback",
+    fields: ["enable_fallback", "enableFallback"],
     modelLabel: "Kie VEO 3.1 Fast I2V",
   });
   const seeds = normalizeOptionalSeed({
@@ -493,7 +515,8 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
       modelLabel: "Kie Kling 3.0 motion-control",
     });
     const modeAlias = asNonEmptyString(source.mode);
-    const modeResolution = modeAlias ?? requestedResolution ?? contract.defaultResolution;
+    const modeResolution =
+      modeAlias ?? requestedResolution ?? contract.defaultResolution ?? "1080p";
     if (!contract.allowedResolutions.includes(modeResolution)) {
       throw new Error(
         `Kie Kling 3.0 motion-control submit uses unsupported mode: ${modeResolution}. Allowed: ${contract.allowedResolutions.join(", ")}`

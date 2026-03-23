@@ -23,7 +23,11 @@ import {
 } from "./generationQueue/metadata";
 import { readActiveProviderCapacitySnapshot } from "./generationQueue/activeProviderCapacity";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
-import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
+import {
+  collectKieSubmitMediaDiagnostics,
+  dispatchProviderSubmit,
+  ProviderSubmitValidationError,
+} from "../providerIntegration/submitProviderDispatcher";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
@@ -34,6 +38,11 @@ import {
 import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
 import { enforceServerGenerationSafetyPayload } from "../../../features/agent-runtime/safetyPolicy/generationSafetyPolicy";
 import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
+import {
+  isVideoGenerationModelId,
+  normalizeVideoSubmitIngressPayload,
+  wrapQueueSubmitPayloadEnvelope,
+} from "./videoSubmitContracts";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -169,6 +178,7 @@ export const createFalSubmitHandler = ({
     const rawPayload =
       typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
     let payload = rawPayload;
+    const runtimeFlags = readFalRuntimeFlags();
     const generationPrecheckEnabled =
       process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED === "true";
     const safetyProfile = await resolveRuntimeSafetyProfile({
@@ -225,6 +235,47 @@ export const createFalSubmitHandler = ({
         payload,
         rewrittenPrompt,
       });
+    }
+    if (runtimeFlags.videoSubmitCanonicalMode !== "off") {
+      const normalizedVideoContract = normalizeVideoSubmitIngressPayload({ modelId, payload });
+      if (!normalizedVideoContract.ok) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.video_contract_violation",
+          message: normalizedVideoContract.error,
+          statusCode: runtimeFlags.videoSubmitCanonicalMode === "on" ? 400 : 200,
+          metadata: {
+            model_id: modelId,
+            code: normalizedVideoContract.code,
+            detail: normalizedVideoContract.detail ?? null,
+            enforce_mode: runtimeFlags.videoSubmitCanonicalMode,
+          },
+        });
+        if (runtimeFlags.videoSubmitCanonicalMode === "on") {
+          return res.status(400).json({
+            error: normalizedVideoContract.error,
+            code: normalizedVideoContract.code,
+            detail: normalizedVideoContract.detail ?? null,
+          });
+        }
+      } else {
+        payload = normalizedVideoContract.payload;
+        if (normalizedVideoContract.aliasUsage.length) {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "telemetry.api.fal_submit.video_alias_normalized",
+            message: "Normalized video submit alias fields to canonical names.",
+            statusCode: 200,
+            metadata: {
+              model_id: modelId,
+              alias_usage: normalizedVideoContract.aliasUsage,
+              enforce_mode: runtimeFlags.videoSubmitCanonicalMode,
+            },
+          });
+        }
+      }
     }
     const contractValidation = evaluateSharedPayloadContract(payload);
     if (!contractValidation.valid) {
@@ -307,7 +358,6 @@ export const createFalSubmitHandler = ({
       skipBilling,
     });
     if (!charge) return;
-    const runtimeFlags = readFalRuntimeFlags();
     if (runtimeFlags.admission.mode === "enforce" && charge.billingMode !== "reservation") {
       const retryAfterSeconds = runtimeFlags.admission.retryAfterSeconds;
       await charge.refund("Auto-refund: admission unavailable without reservation mode.", {
@@ -426,6 +476,13 @@ export const createFalSubmitHandler = ({
           );
         }
 
+        const queuedSubmitPayload =
+          runtimeFlags.videoQueueCompatNormalizationEnabled && isVideoGenerationModelId(modelId)
+            ? (wrapQueueSubmitPayloadEnvelope({
+                modelId,
+                payload: payload as JsonValue,
+              }) as JsonValue)
+            : (payload as JsonValue);
         const enqueueResult = await enqueueGenerationSubmit({
           userId: charge.userId,
           sourceRef: charge.sourceRef,
@@ -437,12 +494,16 @@ export const createFalSubmitHandler = ({
           durationSeconds: readGenerationDurationSeconds(payload),
           resolution: resolveGenerationResolutionFromPayload(payload),
           submitRoute: req.url ?? routeLabel,
-          submitPayload: payload as JsonValue,
+          submitPayload: queuedSubmitPayload,
           timeoutMs,
           metadata: {
             source_ref: charge.sourceRef,
             route: req.url ?? null,
             route_label: routeLabel,
+            queue_payload_contract:
+              runtimeFlags.videoQueueCompatNormalizationEnabled && isVideoGenerationModelId(modelId)
+                ? "video_submit_payload_v2"
+                : "legacy_raw",
             queue_reason: admissionDecision.reason,
             queue_snapshot: {
               global_active: admissionDecision.snapshot.globalActive,
@@ -587,6 +648,16 @@ export const createFalSubmitHandler = ({
       let persistedGenerationId: string | null = null;
 
       if (!upstream.ok) {
+        const upstreamErrorMessage =
+          (typeof data.error === "string" && data.error) ||
+          (typeof data.message === "string" && data.message) ||
+          (typeof data.msg === "string" && data.msg) ||
+          `${routeLabel} submit rejected`;
+        const kieMediaDiagnostics =
+          providerKey === "kie"
+            ? (upstreamResult.providerDiagnostics ??
+              collectKieSubmitMediaDiagnostics(payload as Record<string, unknown>))
+            : null;
         await charge.refund("Auto-refund: Fal submit rejected.", {
           upstream_status: upstream.status,
           upstream_error: data,
@@ -596,10 +667,7 @@ export const createFalSubmitHandler = ({
           req,
           routeLabel,
           source: "api.fal_submit.upstream_error",
-          message:
-            (typeof data.error === "string" && data.error) ||
-            (typeof data.message === "string" && data.message) ||
-            `${routeLabel} submit rejected`,
+          message: upstreamErrorMessage,
           statusCode: upstream.status,
           userId: charge.userId,
           metadata: {
@@ -607,6 +675,7 @@ export const createFalSubmitHandler = ({
             upstream_payload: data,
             upstream_target_url: upstreamResult.targetUrl,
             upstream_target_index: upstreamResult.targetIndex,
+            ...(kieMediaDiagnostics ? { media_diagnostics: kieMediaDiagnostics } : {}),
           },
         });
       } else {
@@ -680,6 +749,30 @@ export const createFalSubmitHandler = ({
       };
       return res.status(upstream.status).json(responsePayload);
     } catch (error) {
+      if (error instanceof ProviderSubmitValidationError) {
+        await charge.refund("Auto-refund: provider submit preflight validation failed.", {
+          code: error.code,
+          detail: error.detail,
+        });
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.validation_failed",
+          message: error.message,
+          statusCode: error.statusCode,
+          userId: charge.userId,
+          metadata: {
+            model_id: modelId,
+            code: error.code,
+            detail: error.detail,
+          },
+        });
+        return res.status(error.statusCode).json({
+          error: error.message,
+          code: error.code,
+          detail: error.detail ?? null,
+        });
+      }
       await charge.refund("Auto-refund: Fal submit transport failure.", {
         error: String(error),
       });

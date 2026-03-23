@@ -45,6 +45,17 @@ import {
 } from "./videoPayloads";
 import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
 
+const isCharacterScopedMediaUrl = (value: string): boolean => {
+  const normalized = (() => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  })().toLowerCase();
+  return normalized.includes("/characters/") || normalized.includes("%2fcharacters%2f");
+};
+
 const handoffSubmitResponse = ({
   response,
   pollingProvider,
@@ -104,6 +115,22 @@ export const handleVideoModelSubmission = async ({
   klingMultiPrompts,
   klingElements,
 }: VideoSubmissionArgs): Promise<boolean> => {
+  const candidateMediaUrls = [
+    ...preparedImageInputs,
+    videoReferenceImageUrl ?? "",
+    motionReferenceVideoUrl ?? "",
+    ...klingElements.map((element) => element.videoUrl.trim()),
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (candidateMediaUrls.some((value) => isCharacterScopedMediaUrl(value))) {
+    notifyGenerationFailure(
+      id,
+      "Character media references are blocked for video models. Use non-character media assets."
+    );
+    return true;
+  }
+
   if (finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID) {
     if (!preparedImageInputs.length) {
       notifyGenerationFailure(id, "Kie Veo 3.1 Fast I2V requires at least one reference image.");
@@ -127,7 +154,7 @@ export const handleVideoModelSubmission = async ({
       prompt: cleanedPrompt,
       image_url: preparedImageInputs[0],
       image_urls: keyframeImageUrls,
-      generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
       aspect_ratio: aspectRatio,
       duration,
       resolution,

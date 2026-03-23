@@ -128,6 +128,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       message: null,
     });
     readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
       queueEnabled: true,
       queueLeaseSeconds: 30,
       queueMaxAttempts: 5,

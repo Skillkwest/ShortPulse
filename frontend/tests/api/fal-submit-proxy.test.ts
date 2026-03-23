@@ -508,6 +508,273 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
+  it("blocks character-scoped media URLs for video payloads before billing", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/veo3.1/image-to-video",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/veo3.1/image-to-video" }],
+      routeLabel: "Fal Veo image-to-video",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "animate frame",
+        image_urls: [
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/ref.png?token=abc",
+        ],
+      },
+      headers: {},
+      url: "/api/fal/veo-image-to-video-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "VIDEO_CHARACTER_MEDIA_BLOCKED",
+      })
+    );
+  });
+
+  it("logs video contract violations in shadow mode and still submits upstream", async () => {
+    process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE = "shadow";
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ request_id: "req-video-shadow" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/veo3.1/image-to-video",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/veo3.1/image-to-video" }],
+      routeLabel: "Fal Veo image-to-video",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "animate frame",
+        image_urls: [
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/ref.png?token=abc",
+        ],
+      },
+      headers: {},
+      url: "/api/fal/veo-image-to-video-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(chargeGenerationRequestMock).toHaveBeenCalledTimes(1);
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.video_contract_violation",
+        statusCode: 200,
+        metadata: expect.objectContaining({
+          code: "VIDEO_CHARACTER_MEDIA_BLOCKED",
+          enforce_mode: "shadow",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: "req-video-shadow" })
+    );
+  });
+
+  it("bypasses alias normalization when video canonical mode is off", async () => {
+    process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE = "off";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      submitTargets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "animate frame",
+        imageUrl: "https://cdn.shortpulse.test/first.png",
+      },
+      headers: {},
+      url: "/api/fal/kie-veo-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Missing required media input for kie-ai/veo-3.1-fast-i2v submission.",
+      code: "GENERATION_PAYLOAD_CONTRACT_VIOLATION",
+      detail: {
+        any_of_fields: ["image_url"],
+        any_of_array_fields: ["image_urls"],
+      },
+    });
+  });
+
+  it("enforces alias collision rejection in canonical on mode", async () => {
+    process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE = "on";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      submitTargets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "animate frame",
+        image_url: "https://cdn.shortpulse.test/canonical.png",
+        imageUrl: "https://cdn.shortpulse.test/alias.png",
+      },
+      headers: {},
+      url: "/api/fal/kie-veo-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Conflicting alias and canonical fields provided: imageUrl and image_url.",
+      code: "VIDEO_ALIAS_COLLISION",
+      detail: {
+        alias: "imageUrl",
+        canonical: "image_url",
+      },
+    });
+  });
+
+  it("returns deterministic 400 for Kie Kling media preflight validation failures", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    process.env.KIE_API_KEY = "test-kie-key";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/kling-3.0",
+      provider: "kie",
+      submitTargets: [{ submitUrl: "https://api.kie.ai/api/v1/jobs/createTask" }],
+      routeLabel: "Kie Kling 3.0",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "animate frame",
+        image_url: "https://cdn.shortpulse.test/invalid.txt",
+        duration: 5,
+        aspect_ratio: "9:16",
+      },
+      headers: {},
+      url: "/api/fal/kie-kling-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "KIE_MEDIA_INPUT_INVALID",
+      })
+    );
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-refund: provider submit preflight validation failed.",
+      expect.objectContaining({
+        code: "KIE_MEDIA_INPUT_INVALID",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.validation_failed",
+        metadata: expect.objectContaining({
+          code: "KIE_MEDIA_INPUT_INVALID",
+        }),
+      })
+    );
+  });
+
+  it("logs Kie preflight media diagnostics on upstream submit errors", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    process.env.KIE_API_KEY = "test-kie-key";
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: 422, msg: "file format not support", data: null }), {
+        status: 422,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/kling-3.0",
+      provider: "kie",
+      submitTargets: [{ submitUrl: "https://api.kie.ai/api/v1/jobs/createTask" }],
+      routeLabel: "Kie Kling 3.0",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "animate frame",
+        image_url: "https://cdn.shortpulse.test/render.png",
+        duration: 5,
+        aspect_ratio: "9:16",
+      },
+      headers: {},
+      url: "/api/fal/kie-kling-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 422,
+        msg: "file format not support",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.upstream_error",
+        metadata: expect.objectContaining({
+          media_diagnostics: expect.objectContaining({
+            model: "kling-3.0/video",
+            motion_control: false,
+          }),
+        }),
+      })
+    );
+  });
+
   it("returns 429 and releases reservation when admission is enforced", async () => {
     evaluateUserGenerationAdmissionMock.mockResolvedValueOnce({
       mode: "enforce",

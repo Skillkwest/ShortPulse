@@ -1585,7 +1585,7 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("hides the reference-images and styles row in Inpaint and Markup generation modes", () => {
+  it("shows the reference-images and styles row in Standard/Inpaint and hides it in Markup", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
@@ -1599,9 +1599,9 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
 
     fireEvent.click(inpaintTab);
-    expect(screen.queryByText("Reference Images")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Secondary edit image 1")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
+    expect(screen.getByText("Reference Images")).toBeInTheDocument();
+    expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
 
     fireEvent.click(markupTab);
     expect(screen.queryByText("Reference Images")).not.toBeInTheDocument();
@@ -1614,7 +1614,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
   });
 
-  it("uses a taller canvas layout in Inpaint and Markup generation modes", () => {
+  it("keeps the default canvas layout height across generation modes", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
@@ -1627,10 +1627,10 @@ describe("ExpertEditPanelView", () => {
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
 
     fireEvent.click(inpaintTab);
-    expect(panel).toHaveClass("is-generation-mode-tall-stage");
+    expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
 
     fireEvent.click(markupTab);
-    expect(panel).toHaveClass("is-generation-mode-tall-stage");
+    expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
 
     fireEvent.click(standardTab);
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");

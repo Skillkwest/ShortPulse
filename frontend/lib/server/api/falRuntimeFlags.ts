@@ -15,6 +15,8 @@ export type FalWebhookVerifyMode = "dual" | "fal_only" | "hmac_only";
 
 export type FalRuntimeFlags = {
   integrationMode: FalIntegrationMode;
+  videoSubmitCanonicalMode: "off" | "shadow" | "on";
+  videoQueueCompatNormalizationEnabled: boolean;
   modelAllowlist: Set<string>;
   statusTransientFailuresEnabled: boolean;
   reconcilerEnabled: boolean;
@@ -78,6 +80,14 @@ const parseMode = (value: string | undefined): FalIntegrationMode => {
   return "legacy";
 };
 
+const parseVideoSubmitCanonicalMode = (value: string | undefined): "off" | "shadow" | "on" => {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "off" || normalized === "shadow" || normalized === "on") {
+    return normalized;
+  }
+  return "on";
+};
+
 const parseWebhookVerifyMode = (value: string | undefined): FalWebhookVerifyMode => {
   const normalized = value?.trim().toLowerCase();
   if (normalized === "dual" || normalized === "fal_only" || normalized === "hmac_only") {
@@ -118,6 +128,13 @@ const matchAllowlistEntry = (modelId: string, entry: string): boolean => {
 
 export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   integrationMode: parseMode(process.env.SHORTPULSE_FAL_INTEGRATION_MODE),
+  videoSubmitCanonicalMode: parseVideoSubmitCanonicalMode(
+    process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE
+  ),
+  videoQueueCompatNormalizationEnabled: parseBoolean(
+    process.env.SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED,
+    true
+  ),
   modelAllowlist: parseAllowlist(process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST),
   statusTransientFailuresEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED,

@@ -36,6 +36,8 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS;
+    delete process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE;
+    delete process.env.SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED;
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -70,6 +72,8 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.noMediaExhaustMinAgeSeconds).toBe(7200);
     expect(flags.runningExhaustMinAgeSeconds).toBe(7200);
     expect(flags.runningHardTimeoutSeconds).toBe(0);
+    expect(flags.videoSubmitCanonicalMode).toBe("on");
+    expect(flags.videoQueueCompatNormalizationEnabled).toBe(true);
   });
 
   it("parses admission env overrides with per-tier fallback", () => {
@@ -100,6 +104,8 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS = "10800";
     process.env.SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS = "14400";
     process.env.SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS = "900";
+    process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE = "shadow";
+    process.env.SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED = "false";
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -137,6 +143,8 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.noMediaExhaustMinAgeSeconds).toBe(10800);
     expect(flags.runningExhaustMinAgeSeconds).toBe(14400);
     expect(flags.runningHardTimeoutSeconds).toBe(900);
+    expect(flags.videoSubmitCanonicalMode).toBe("shadow");
+    expect(flags.videoQueueCompatNormalizationEnabled).toBe(false);
   });
 
   it("enables reservation cleanup by default when reconciler is enabled", () => {

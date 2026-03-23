@@ -168,7 +168,15 @@ export const uploadVideoAssetToStorage = async (
 
     if (!uploadResponse.ok) {
       const errorData = await uploadResponse.json().catch(() => ({}));
-      throw new Error(errorData.error || "Video upload failed");
+      const errorMessage =
+        typeof errorData?.error === "string" && errorData.error.trim().length
+          ? errorData.error.trim()
+          : "Video upload failed";
+      const errorDetails =
+        typeof errorData?.details === "string" && errorData.details.trim().length
+          ? errorData.details.trim()
+          : null;
+      throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
     }
 
     const result: VideoUploadResult = await uploadResponse.json();

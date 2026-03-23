@@ -3,7 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dispatchProviderSubmit } from "../submitProviderDispatcher";
+import { dispatchProviderSubmit, ProviderSubmitValidationError } from "../submitProviderDispatcher";
 
 const submitWithFallbackTargetsMock = vi.fn();
 const ORIGINAL_ENV = { ...process.env };
@@ -118,6 +118,39 @@ describe("submitProviderDispatcher", () => {
     );
   });
 
+  it("attaches Kling media diagnostics to Kie submit results", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ request_id: "kie-kling-req-1" }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await dispatchProviderSubmit({
+      provider: "kie",
+      modelId: "kie-ai/kling-3.0",
+      targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+      payload: {
+        prompt: "animate frame",
+        image_url: "https://cdn.example.com/renders/shot-1.png",
+        aspect_ratio: "16:9",
+        duration: 5,
+      },
+      apiKey: "key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.providerRequestId).toBe("kie-kling-req-1");
+    expect(result.providerDiagnostics).toEqual(
+      expect.objectContaining({
+        model: "kling-3.0/video",
+        motion_control: false,
+      })
+    );
+  });
+
   it("falls back to model-catalog kie submit target when env submit urls are unset", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
@@ -164,6 +197,30 @@ describe("submitProviderDispatcher", () => {
         signal: new AbortController().signal,
       })
     ).rejects.toThrow("Unsupported Kie model contract: kie-ai/unknown");
+  });
+
+  it("rejects Kling submit media before provider dispatch when extension is unsupported", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      dispatchProviderSubmit({
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+        targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+        payload: {
+          prompt: "hello",
+          image_url: "https://cdn.example.com/bad.txt",
+          duration: 5,
+          aspect_ratio: "16:9",
+        },
+        apiKey: "key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toBeInstanceOf(ProviderSubmitValidationError);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("treats HTTP 200 with non-success Kie body code as upstream failure", async () => {

@@ -78,7 +78,8 @@ describe("POST /api/upload-video", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid file type",
-      details: "Content type does not match file content.",
+      details:
+        "Content type does not match file content (declared: video/mp4, detected: video/webm).",
     });
     expect(writeAppErrorLogMock).not.toHaveBeenCalled();
   });
@@ -130,6 +131,44 @@ describe("POST /api/upload-video", () => {
           file_size: 32,
         }),
       })
+    );
+  });
+
+  it("accepts generic octet-stream declared mime when file signature is a supported video", async () => {
+    mockFile = {
+      filepath: "/tmp/mock-video",
+      mimetype: "application/octet-stream",
+      size: 32,
+      originalFilename: "clip.mp4",
+    };
+    vi.spyOn(fs, "readFileSync").mockReturnValue(
+      Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x18]), Buffer.from("ftypiso6", "ascii")])
+    );
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/motion-video",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = { method: "POST", headers: { "content-type": "multipart/form-data; boundary=x" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "video/mp4" })
     );
   });
 });

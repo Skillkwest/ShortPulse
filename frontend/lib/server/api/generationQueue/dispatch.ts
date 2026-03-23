@@ -34,6 +34,10 @@ import {
   decideQueueTransitionCompensation,
 } from "./transitionGuard";
 import { readActiveProviderCapacitySnapshot } from "./activeProviderCapacity";
+import {
+  isVideoGenerationModelId,
+  normalizeVideoQueueDispatchPayload,
+} from "../videoSubmitContracts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -579,10 +583,98 @@ const processClaimedQueueItem = async ({
       generationSourceRef,
     });
 
+    let queueDispatchPayload = item.submitPayload;
+    if (isVideoGenerationModelId(item.modelId)) {
+      const normalizedQueuePayload = normalizeVideoQueueDispatchPayload({
+        modelId: item.modelId,
+        payload: item.submitPayload,
+      });
+      if (!normalizedQueuePayload.ok) {
+        const exhaustResult = await markQueueItemExhausted({
+          queueId: item.queueId,
+          attempts: attemptNumber,
+          lastError: normalizedQueuePayload.error,
+          lastErrorCode: normalizedQueuePayload.code,
+        });
+        assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
+        await releaseGenerationReservationBySourceRef({
+          userId: item.userId,
+          sourceRef: item.sourceRef,
+          reason: "Auto-release: queued video payload contract normalization failed.",
+          metadata: {
+            queue_id: item.queueId,
+            queue_attempts: attemptNumber,
+            error_code: normalizedQueuePayload.code,
+            detail: normalizedQueuePayload.detail ?? null,
+          },
+        });
+        await setGenerationFailed({
+          generationId: item.generationId,
+          userId: item.userId,
+          message: "Generation failed queue payload normalization before provider submit.",
+        });
+        metrics.exhausted += 1;
+        return metrics;
+      }
+
+      if (
+        normalizedQueuePayload.queueCompatibilityApplied &&
+        !runtimeFlags.videoQueueCompatNormalizationEnabled
+      ) {
+        const exhaustResult = await markQueueItemExhausted({
+          queueId: item.queueId,
+          attempts: attemptNumber,
+          lastError: "Legacy queue payload compatibility is disabled.",
+          lastErrorCode: "VIDEO_QUEUE_COMPAT_DISABLED",
+        });
+        assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
+        await releaseGenerationReservationBySourceRef({
+          userId: item.userId,
+          sourceRef: item.sourceRef,
+          reason: "Auto-release: queued video payload compatibility disabled.",
+          metadata: {
+            queue_id: item.queueId,
+            queue_attempts: attemptNumber,
+            error_code: "VIDEO_QUEUE_COMPAT_DISABLED",
+          },
+        });
+        await setGenerationFailed({
+          generationId: item.generationId,
+          userId: item.userId,
+          message: "Generation failed because legacy queue payload compatibility is disabled.",
+        });
+        metrics.exhausted += 1;
+        return metrics;
+      }
+
+      queueDispatchPayload = normalizedQueuePayload.payload;
+      if (
+        normalizedQueuePayload.queueCompatibilityApplied ||
+        normalizedQueuePayload.aliasUsage.length
+      ) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.queue.dispatch.video_payload_normalized",
+          statusCode: 200,
+          message: "Normalized queued video payload before dispatch.",
+          userId: item.userId,
+          metadata: {
+            queue_id: item.queueId,
+            generation_id: item.generationId,
+            model_id: item.modelId,
+            compatibility_applied: normalizedQueuePayload.queueCompatibilityApplied,
+            alias_usage: normalizedQueuePayload.aliasUsage,
+            envelope_version: normalizedQueuePayload.envelopeVersion,
+          },
+        });
+      }
+    }
+
     const contractValidation = evaluateFalPayloadContractForModel(item.modelId, {
       projectAllowedTopLevelFields: true,
       enforceAllowedTopLevelFields: true,
-    })(item.submitPayload);
+    })(queueDispatchPayload);
     if (!contractValidation.valid) {
       const exhaustResult = await markQueueItemExhausted({
         queueId: item.queueId,

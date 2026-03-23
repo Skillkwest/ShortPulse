@@ -925,8 +925,7 @@ export function ExpertEditPanelView({
   );
   const isInpaintSubmitMode = effectiveEditSubmitIntent === "inpaint";
   const isMarkupSubmitMode = effectiveEditSubmitIntent === "markup";
-  const shouldUseTallCanvasLayout = isInpaintSubmitMode || isMarkupSubmitMode;
-  const shouldShowSecondaryReferenceAndStylesRow = !isInpaintSubmitMode && !isMarkupSubmitMode;
+  const shouldShowSecondaryReferenceAndStylesRow = !isMarkupSubmitMode;
   const shouldHideSelectedModeRailPanel =
     isGenerationModeToggleEnabled && effectiveEditSubmitIntent === "standard";
   const isInpaintLikeToolSelected = isInpaintToolSelected || isVideoToolSelected;
@@ -4446,7 +4445,7 @@ export function ExpertEditPanelView({
     <div
       className={`tool-properties edit-expert-panel ${
         isMarkupExpandSelected ? "is-markup-modal-open" : ""
-      } ${shouldUseTallCanvasLayout ? "is-generation-mode-tall-stage" : ""}`.trim()}
+      }`.trim()}
       role="group"
       aria-label="Expert edit composer"
       onDragEnterCapture={handleMarkupModalRootDragCapture}

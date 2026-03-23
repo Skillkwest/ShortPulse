@@ -23,9 +23,17 @@ export type KieSubmitRequest = {
   prompt: string;
   image_url?: string;
   image_urls?: string[];
+  input_url?: string;
+  input_urls?: string[];
+  video_url?: string;
+  video_urls?: string[];
   aspect_ratio?: string;
+  generation_type?: string;
   duration?: string | number;
+  duration_seconds?: number;
   resolution?: string;
+  callback_url?: string;
+  seed?: number;
   generate_audio?: boolean;
   cfg_scale?: number;
   negative_prompt?: string;
@@ -77,8 +85,16 @@ export type FalStatusResponse = {
   error?: string;
   data?: {
     images?: { url: string; content_type?: string; width?: number; height?: number }[];
+    videos?: { url: string; content_type?: string }[];
+    video?: { url?: string; content_type?: string };
+    video_url?: string;
+    videoUrl?: string;
     prompt?: string;
   };
+  videos?: { url: string; content_type?: string }[];
+  video?: { url?: string; content_type?: string };
+  video_url?: string;
+  videoUrl?: string;
 };
 
 export type FalKlingTextSubmitRequest = {

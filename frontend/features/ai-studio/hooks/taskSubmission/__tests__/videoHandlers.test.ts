@@ -312,7 +312,7 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
       expect.objectContaining({
         image_url: "https://example.com/first.png",
         image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
-        generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+        generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
       })
     );
   });
@@ -331,6 +331,27 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
       "Kie Veo 3.1 Fast I2V keyframes mode requires both first and last frame images."
+    );
+    expect(submitKieVeoImageToVideo).not.toHaveBeenCalled();
+  });
+
+  it("blocks character-scoped media URLs before submit", async () => {
+    const args = makeArgs({
+      finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+      videoReferenceMode: "keyframes",
+      preparedImageInputs: [
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/first.png?token=abc",
+        "https://example.com/last.png",
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Character media references are blocked for video models. Use non-character media assets."
     );
     expect(submitKieVeoImageToVideo).not.toHaveBeenCalled();
   });

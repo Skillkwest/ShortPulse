@@ -26,6 +26,16 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
 - Allowed aspects: `16:9`, `9:16`, `1:1`
 - Allowed resolutions: `720p`, `1080p`
 - Allowed durations: `5`, `10` (seconds)
+- Kie media preflight guard (before provider submit):
+  - media URLs must be valid `http(s)` URLs
+  - image/video file extensions are fail-closed allowlisted
+    - images: `jpg|jpeg|png|webp|gif|heic|heif|avif`
+    - videos (motion control): `mp4|webm|mov|m4v`
+  - signed media URLs with embedded JWT `token` are rejected when TTL is too short (`<=120s`)
+  - remote media probe rejects non-success fetch status before provider dispatch (`HTTP 2xx` required)
+  - remote media probe rejects content-type mismatches (`image/*` for images, `video/*` for videos; `application/octet-stream` remains compatibility-accepted)
+  - deterministic route error on violation: `code=KIE_MEDIA_INPUT_INVALID`
+  - runtime probe override (optional): `SHORTPULSE_KIE_MEDIA_PROBE_ENABLED=true|false` (`unset` defaults to enabled outside test runtime)
 - Required fields:
   - `prompt`
   - at least one image URL (`image_url`/`image_urls` aliases accepted, normalized to `input.image_urls`)
@@ -34,8 +44,8 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `sound` (or alias `generate_audio`)
   - `multi_shots` (requires `sound=true` when enabled)
   - `cfg_scale`
-  - callback URL aliases (`callBackUrl` / `callbackUrl` / `callback_url`)
-  - Motion Control aliases: `input_urls`, `video_urls`, `character_orientation`, `background_source`, and resolution mode (`mode=720p|1080p`)
+  - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
+  - Motion Control canonical fields: `input_urls`, `video_urls`, `character_orientation`, `background_source`, and resolution mode (`mode=720p|1080p`)
 
 ## Pricing (ShortPulse runtime)
 - Evidence source: user-provided Kie pricing dashboard capture dated `2026-03-14`.
@@ -53,6 +63,8 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
 1. Kie integration remains disabled by default.
 2. Kie paths fail closed unless model is explicitly allowlisted.
 3. Public `/api/fal/*` routes remain unchanged.
+4. Character-scoped media isolation is fail-closed for video submit payloads (`/characters/` paths and character metadata fields are rejected before provider dispatch).
+5. Kie submit upstream errors include redacted media diagnostics in telemetry metadata (`media_diagnostics`) for faster `422 file format` triage without logging raw signed URLs.
 
 ## Follow-up Required Before Enabling
 1. Refresh primary-source capture immediately before production enablement.

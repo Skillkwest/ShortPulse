@@ -22,6 +22,21 @@ const readIsoBaseMediaMajorBrand = (buffer: Buffer): string | null => {
   return readAscii(buffer, 8, 4);
 };
 
+const readIsoBaseMediaBrands = (buffer: Buffer): string[] => {
+  const majorBrand = readIsoBaseMediaMajorBrand(buffer);
+  if (!majorBrand) return [];
+  const brands: string[] = [majorBrand];
+  const declaredBoxSize = buffer.readUInt32BE(0);
+  const maxBytesFromHeader = Number.isFinite(declaredBoxSize) ? declaredBoxSize : buffer.length;
+  const upperBound = Math.min(buffer.length, Math.max(16, maxBytesFromHeader), 128);
+  for (let offset = 16; offset + 4 <= upperBound; offset += 4) {
+    const brand = readAscii(buffer, offset, 4);
+    if (!brand.trim().length) continue;
+    brands.push(brand);
+  }
+  return Array.from(new Set(brands));
+};
+
 export const detectImageMimeType = (buffer: Buffer): string | null => {
   if (hasBytes(buffer, [0xff, 0xd8, 0xff])) return "image/jpeg";
   if (hasBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png";
@@ -54,14 +69,36 @@ export const detectVideoMimeType = (buffer: Buffer): string | null => {
     if (probe.includes("webm")) return "video/webm";
   }
 
-  const majorBrand = readIsoBaseMediaMajorBrand(buffer);
-  if (!majorBrand) return null;
+  const brands = readIsoBaseMediaBrands(buffer);
+  if (!brands.length) return null;
+  const majorBrand = brands[0];
+  const normalizedBrands = brands.map((brand) => brand.trim().toLowerCase());
 
   if (majorBrand === "qt  ") return "video/quicktime";
   if (majorBrand.trim().toUpperCase() === "M4V") return "video/x-m4v";
 
-  const mp4LikeBrands = new Set(["isom", "iso2", "mp41", "mp42", "avc1", "hvc1", "dash"]);
-  if (mp4LikeBrands.has(majorBrand)) return "video/mp4";
+  const mp4LikeBrands = new Set([
+    "isom",
+    "iso2",
+    "iso3",
+    "iso4",
+    "iso5",
+    "iso6",
+    "iso8",
+    "iso9",
+    "mp41",
+    "mp42",
+    "avc1",
+    "hvc1",
+    "hev1",
+    "dash",
+    "mmp4",
+    "msnv",
+    "3gp4",
+    "3gp5",
+    "f4v",
+  ]);
+  if (normalizedBrands.some((brand) => mp4LikeBrands.has(brand))) return "video/mp4";
 
   return null;
 };

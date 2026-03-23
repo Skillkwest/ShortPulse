@@ -155,6 +155,7 @@ describe("generationQueue/dispatch transition integrity", () => {
     process.env.FAL_KEY = "test-fal-key";
     getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({}));
     readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
       queueEnabled: true,
       queueLeaseSeconds: 30,
       queueMaxAttempts: 5,
@@ -193,6 +194,56 @@ describe("generationQueue/dispatch transition integrity", () => {
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(mutationSuccess("retry"));
+  });
+
+  it("exhausts legacy raw video payloads when queue compatibility normalization is disabled", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: false,
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      admission: {
+        globalMax: 8,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+      {
+        ...queueItem,
+        modelId: "fal-ai/veo3.1/image-to-video",
+        submitPayload: {
+          prompt: "queued clip",
+          imageUrl: "https://cdn.shortpulse.test/ref.png",
+        },
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        exhausted: 1,
+      })
+    );
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "VIDEO_QUEUE_COMPAT_DISABLED",
+      })
+    );
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 
   it("exhausts without releasing reservation when generation running update fails post-submit", async () => {
@@ -601,6 +652,7 @@ describe("generationQueue/dispatch transition integrity", () => {
 
   it("emits lease-timeout warning telemetry when lease budget is near submit timeout", async () => {
     readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
       queueEnabled: true,
       queueLeaseSeconds: 18,
       queueMaxAttempts: 5,

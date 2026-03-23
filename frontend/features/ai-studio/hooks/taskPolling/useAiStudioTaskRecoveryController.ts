@@ -10,12 +10,6 @@ import {
 } from "./backgroundRecoveryPolicy";
 import type { PollStatus } from "./providerStatusPolicy";
 
-type GenerationFailureReason =
-  | "no_media_after_terminal_success"
-  | "poll_timeout"
-  | "provider_error"
-  | "status_poll_error";
-
 type OutputLookupHardStopPayload = {
   outputId: string;
   taskId: string;

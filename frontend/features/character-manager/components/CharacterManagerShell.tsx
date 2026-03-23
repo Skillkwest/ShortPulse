@@ -21,7 +21,6 @@ import {
 } from "../../../lib/adaptive-media";
 import { normalizePlanId } from "../../billing/catalog";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import {
@@ -53,12 +52,7 @@ import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
 import { extractInternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
-import type {
-  CharacterQuickSwapItem,
-  CharacterProfileImageTransform,
-  CharacterSheetDropZoneKey,
-  CharacterSheetPresetAssignments,
-} from "../types";
+import type { CharacterProfileImageTransform, CharacterSheetDropZoneKey } from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
 type CharacterManagerShellSurface = "page" | "panel";

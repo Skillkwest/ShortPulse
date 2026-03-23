@@ -8,7 +8,6 @@ import {
 import { extractInternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { CHARACTER_SHEET_DROP_ZONES } from "../constants";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
-import type { ResolveCharacterDropReference } from "./useCharacterManagerDroppedReferenceController";
 import type {
   CharacterQuickSwapItem,
   CharacterSheetDropZoneKey,

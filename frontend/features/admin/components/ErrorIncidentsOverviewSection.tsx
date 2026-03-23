@@ -1,7 +1,6 @@
 import { WarningCircle } from "phosphor-react";
 import type {
   AdminErrorEventIncidentFilter,
-  AdminErrorEventSignalFilter,
   AdminErrorEventsHealth,
   AdminErrorLogRow,
   AdminErrorSummary,

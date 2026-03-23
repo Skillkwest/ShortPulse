@@ -32,7 +32,6 @@ import {
   CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY,
   CHARACTER_PROFILE_IMAGE_ZOOM_KEY,
   CHARACTER_REFERENCE_SOURCE,
-  CHARACTER_SHEET_PRESETS_KEY,
   CHARACTER_SHEET_ASSIGNMENTS_KEY,
   LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY,
   cleanupOrphanedMedia,
@@ -52,7 +51,6 @@ import {
   getCharacterProfileImageTransform,
   loadSlotFilesForCharacterSheet,
   normalizeCharacterSheetAssignments,
-  serializeCharacterSheetPresetState,
   resolveCharacterSheet,
   resolveSupabaseContext,
 } from "./characterManagerPersistenceCore";

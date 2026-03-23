@@ -26,7 +26,6 @@ import {
   MEDIA_DATA_TABS,
   buildCursorFromRows,
   createMediaTabBooleanState,
-  createMediaTabRequestState,
   getMediaDataTabForRow,
   mergePageRows,
   normalizeMediaSearchTerm,

@@ -71,4 +71,47 @@ describe("useReferenceGridHydrationQueueController", () => {
     const candidateIdSet = pruneHydrationQueueToCandidateIds.mock.calls[0]?.[0] as Set<string>;
     expect(candidateIdSet.has("out-1")).toBe(true);
   });
+
+  it("prefers quick-slot image hydration candidates over duplicated all-refs cards", () => {
+    const enqueueImageHydration = vi.fn();
+    const pruneHydrationQueueToCandidateIds = vi.fn();
+    const output = imageOutput("out-1");
+    const allRefsCard = visibleImageCard(output);
+    const quickSlotCard = {
+      ...visibleImageCard(output),
+      cardPreviewUrl: "https://cdn.example.com/quick-slot-preview.jpg",
+      isPriorityHydration: true,
+      targetLongEdgePx: 384,
+      previewQualityBand: "balanced" as const,
+    };
+
+    renderHook(() =>
+      useReferenceGridHydrationQueueController({
+        decodeBudgetEnabled: true,
+        suspendHydrationQueue: false,
+        activeOutputId: null,
+        outputs: [output],
+        visibleCardItems: [allRefsCard],
+        curatedVisibleCardItems: [quickSlotCard],
+        nearViewportOutputs: [],
+        nearViewportCuratedOutputs: [],
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: true,
+        enqueueImageHydration,
+        pruneHydrationQueueToCandidateIds,
+      })
+    );
+
+    expect(enqueueImageHydration).toHaveBeenCalledTimes(1);
+    expect(enqueueImageHydration).toHaveBeenCalledWith("out-1", quickSlotCard.cardPreviewUrl, {
+      priority: "high",
+      targetLongEdgePx: 384,
+      previewQualityBand: "balanced",
+      fallbackUrl: "https://cdn.example.com/full.jpg",
+    });
+  });
 });

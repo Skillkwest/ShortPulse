@@ -98,7 +98,7 @@ export const useReferenceGridHydrationQueueController = ({
       }
     }
 
-    visibleCardItems.forEach((card) => {
+    curatedVisibleCardItems.forEach((card) => {
       if (!card.isImagePreview || !card.cardPreviewUrl) return;
       candidateIdSet.add(card.item.id);
       enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
@@ -115,7 +115,7 @@ export const useReferenceGridHydrationQueueController = ({
       });
     });
 
-    curatedVisibleCardItems.forEach((card) => {
+    visibleCardItems.forEach((card) => {
       if (!card.isImagePreview || !card.cardPreviewUrl) return;
       if (candidateIdSet.has(card.item.id)) return;
       candidateIdSet.add(card.item.id);

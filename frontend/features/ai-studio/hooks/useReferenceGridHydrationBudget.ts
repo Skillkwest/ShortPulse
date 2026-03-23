@@ -53,11 +53,9 @@ export const useReferenceGridHydrationBudget = ({
     recompute();
     mediaQuery.addEventListener?.("change", recompute);
     connection?.addEventListener?.("change", recompute);
-    window.addEventListener("resize", recompute);
     return () => {
       mediaQuery.removeEventListener?.("change", recompute);
       connection?.removeEventListener?.("change", recompute);
-      window.removeEventListener("resize", recompute);
     };
   }, []);
 

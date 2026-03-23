@@ -39,10 +39,10 @@ import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
 import { useAiStudioInternalDropResolvers } from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
-import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
+import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAiStudioPageOutputAdapters";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
@@ -261,57 +261,19 @@ export default function AiStudioPage() {
     mediaAutosaveEnabled,
     saveReferenceToLibrary,
   });
-  const selectorInFlightOutputIds = useOutputSelector((snapshot) => snapshot.indexes.inFlightIds);
-  const fallbackInFlightOutputIds = useMemo(
-    () =>
-      new Set(
-        outputs
-          .filter((output) => output.taskState === "pending" || output.taskState === "running")
-          .map((output) => output.id)
-      ),
-    [outputs]
-  );
-  const inFlightOutputIds = FLAG_OUTPUT_SELECTOR_STORE
-    ? selectorInFlightOutputIds
-    : fallbackInFlightOutputIds;
-  const resolveStorePanelOutputPreviewUrl = useCallback(
-    (id: string | null | undefined) => getOutputById(id ?? "")?.previewUrl ?? null,
-    [getOutputById]
-  );
-  const resolveReferenceInputsForTool = useCallback(
-    (tool: ToolId | null) => {
-      if (tool === "edit" || tool === "image") {
-        return {
-          referenceImageUrl,
-          extraImageUrls,
-        };
-      }
-      return {
-        referenceImageUrl: null,
-        extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
-      };
-    },
-    [extraImageUrls, referenceImageUrl]
-  );
-  const resolveLegacyPanelOutputPreviewUrl = useCallback(
-    (id: string | null | undefined) => {
-      if (!id) return null;
-      return outputs.find((item) => item.id === id)?.previewUrl ?? null;
-    },
-    [outputs]
-  );
-  const resolvePanelOutputPreviewUrl = FLAG_OUTPUT_SELECTOR_STORE
-    ? resolveStorePanelOutputPreviewUrl
-    : resolveLegacyPanelOutputPreviewUrl;
-  const fallbackFindOutputById = useCallback(
-    (id: string) => {
-      if (!id) return null;
-      return outputs.find((item) => item.id === id) ?? null;
-    },
-    [outputs]
-  );
-  const findOutputById =
-    FLAG_OUTPUT_SELECTOR_STORE && FLAG_SELECTOR_CALLBACKS ? getOutputById : fallbackFindOutputById;
+  const {
+    inFlightOutputIds,
+    resolvePanelOutputPreviewUrl,
+    resolveReferenceInputsForTool,
+    findOutputById,
+  } = useAiStudioPageOutputAdapters({
+    outputs,
+    getOutputById,
+    referenceImageUrl,
+    extraImageUrls,
+    outputSelectorStoreEnabled: FLAG_OUTPUT_SELECTOR_STORE,
+    selectorCallbacksEnabled: FLAG_SELECTOR_CALLBACKS,
+  });
   const optimisticInFlightDebitCredits = useMemo(
     () =>
       optimisticDebitEntries.reduce((sum, entry) => {

@@ -216,4 +216,42 @@ describe("ErrorIncidentsPanel event pagination", () => {
     expect(props.onBulkUpdateListedErrorStatus).toHaveBeenNthCalledWith(1, "resolved");
     expect(props.onBulkUpdateListedErrorStatus).toHaveBeenNthCalledWith(2, "ignored");
   });
+
+  it("opens and closes the event detail modal from the stream table", () => {
+    const props = buildBaseProps();
+    props.errorEvents = [
+      {
+        id: "evt-view-1",
+        incidentId: null,
+        incidentStatus: null,
+        fingerprint: "fp-view-1",
+        source: "api.route",
+        scope: "app",
+        severity: "medium",
+        message: "Viewable event",
+        stack: "stack trace",
+        route: "/api/route",
+        endpoint: "/api/route",
+        requestId: "req-1",
+        httpStatus: 500,
+        userId: "user-1",
+        userEmail: "user@example.com",
+        metadata: { attempt: 1 },
+        occurredAt: "2026-02-20T10:00:00.000Z",
+        createdAt: "2026-02-20T10:00:00.000Z",
+      },
+    ];
+
+    render(<ErrorIncidentsPanel {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Event Detail")).toBeInTheDocument();
+    expect(screen.getByText("stack trace")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });

@@ -1,9 +1,18 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { useReferenceGridVideoLifecycleController } from "../useReferenceGridVideoLifecycleController";
 
 class MockIntersectionObserver {
+  private callback: IntersectionObserverCallback;
+
+  static callbacks = new Set<IntersectionObserverCallback>();
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+    MockIntersectionObserver.callbacks.add(callback);
+  }
+
   observe() {
     return undefined;
   }
@@ -13,7 +22,18 @@ class MockIntersectionObserver {
   }
 
   disconnect() {
+    MockIntersectionObserver.callbacks.delete(this.callback);
     return undefined;
+  }
+
+  static trigger(entries: IntersectionObserverEntry[]) {
+    for (const callback of MockIntersectionObserver.callbacks) {
+      callback(entries, {} as IntersectionObserver);
+    }
+  }
+
+  static reset() {
+    MockIntersectionObserver.callbacks.clear();
   }
 }
 
@@ -27,9 +47,39 @@ const createVideoOutput = (id: string): StudioOutput =>
     resultUrls: ["https://cdn.example.com/video.mp4"],
   }) as unknown as StudioOutput;
 
+const createIntersectionEntry = ({
+  target,
+  isIntersecting,
+  intersectionRatio,
+}: {
+  target: Element;
+  isIntersecting: boolean;
+  intersectionRatio: number;
+}): IntersectionObserverEntry =>
+  ({
+    target,
+    isIntersecting,
+    intersectionRatio,
+  }) as unknown as IntersectionObserverEntry;
+
 describe("useReferenceGridVideoLifecycleController", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    MockIntersectionObserver.reset();
+  });
+
   it("detaches stale video nodes when their outputs disappear", async () => {
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+    let nextRafId = 0;
+    const rafCallbacks = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextRafId += 1;
+      rafCallbacks.set(nextRafId, callback);
+      return nextRafId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      rafCallbacks.delete(id);
+    });
 
     const autoplayingIdsRef = { current: new Set<string>() };
     const videoVisibleKeySetRef = { current: new Set<string>(["video-key"]) };
@@ -102,7 +152,107 @@ describe("useReferenceGridVideoLifecycleController", () => {
       expect(videoVisibleKeySetRef.current.has("video-key")).toBe(false);
     });
 
-    expect(recomputeAutoplayBudget).toHaveBeenCalled();
+    act(() => {
+      const callback = rafCallbacks.values().next().value;
+      if (callback) callback(16);
+    });
+
+    expect(recomputeAutoplayBudget).toHaveBeenCalledTimes(1);
+  });
+
+  it("coalesces autoplay budget recomputes to once per frame during visibility churn", () => {
+    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+    let nextRafId = 0;
+    const rafCallbacks = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextRafId += 1;
+      rafCallbacks.set(nextRafId, callback);
+      return nextRafId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      rafCallbacks.delete(id);
+    });
+
+    const autoplayingIdsRef = { current: new Set<string>() };
+    const videoVisibleKeySetRef = { current: new Set<string>() };
+    const videoOutputIdByKeyRef = {
+      current: new Map<string, string>([
+        ["video-key-1", "video-1"],
+        ["video-key-2", "video-2"],
+      ]),
+    };
+    const videoNodeByKeyRef = { current: new Map<string, HTMLVideoElement>() };
+    const videoDetachTimeoutByKeyRef = { current: new Map<string, number>() };
+    const videoIntersectionObserverBySurfaceRef = {
+      current: new Map<"all-refs" | "curated", IntersectionObserver>(),
+    };
+    const recomputeAutoplayBudget = vi.fn();
+    const scrollContainerRef = {
+      current: document.createElement("div"),
+    } as React.MutableRefObject<HTMLDivElement | null>;
+    const curatedScrollContainerRef = {
+      current: null,
+    } as React.MutableRefObject<HTMLDivElement | null>;
+
+    renderHook(() =>
+      useReferenceGridVideoLifecycleController({
+        activeOutputId: null,
+        outputs: [createVideoOutput("video-1"), createVideoOutput("video-2")],
+        shouldVirtualize: false,
+        renderedOutputIdSet: new Set(),
+        autoplayEnabledIds: [],
+        autoplayEnabledIdSet: new Set(),
+        isCuratedSplitEnabled: false,
+        scrollContainerRef,
+        curatedScrollContainerRef,
+        autoplayingIdsRef,
+        videoVisibleKeySetRef,
+        videoOutputIdByKeyRef,
+        videoNodeByKeyRef,
+        videoDetachTimeoutByKeyRef,
+        videoIntersectionObserverBySurfaceRef,
+        autoplayDetachDelayMs: 100,
+        autoplayVisibilityThreshold: 0.6,
+        recomputeAutoplayBudget,
+      })
+    );
+
+    const firstNode = document.createElement("video");
+    firstNode.dataset.outputKey = "video-key-1";
+    const secondNode = document.createElement("video");
+    secondNode.dataset.outputKey = "video-key-2";
+
+    act(() => {
+      MockIntersectionObserver.trigger([
+        createIntersectionEntry({
+          target: firstNode,
+          isIntersecting: true,
+          intersectionRatio: 1,
+        }),
+        createIntersectionEntry({
+          target: secondNode,
+          isIntersecting: true,
+          intersectionRatio: 1,
+        }),
+      ]);
+      MockIntersectionObserver.trigger([
+        createIntersectionEntry({
+          target: firstNode,
+          isIntersecting: false,
+          intersectionRatio: 0,
+        }),
+      ]);
+    });
+
+    expect(recomputeAutoplayBudget).not.toHaveBeenCalled();
+    expect(rafCallbacks.size).toBe(1);
+
+    act(() => {
+      const callback = rafCallbacks.values().next().value;
+      if (callback) callback(16);
+    });
+
+    expect(recomputeAutoplayBudget).toHaveBeenCalledTimes(1);
   });
 
   it("detaches tracked video nodes on hook cleanup", () => {

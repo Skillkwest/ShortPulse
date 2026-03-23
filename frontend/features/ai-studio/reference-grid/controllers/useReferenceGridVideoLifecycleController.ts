@@ -2,7 +2,7 @@
  * Video lifecycle controller for Reference Grid cards.
  * Encapsulates node registration, visibility observers, autoplay detachment, and cleanup.
  */
-import { useCallback, useEffect, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import type { StudioOutput } from "../../types";
 
 type UseReferenceGridVideoLifecycleControllerArgs = {
@@ -60,12 +60,25 @@ export const useReferenceGridVideoLifecycleController = ({
       nodeKey.startsWith("curated:") ? "curated" : "all-refs",
     []
   );
+  const recomputeAutoplayBudgetRafIdRef = useRef<number | null>(null);
 
   const detachVideoNodeMedia = useCallback((node: HTMLVideoElement) => {
     node.pause();
     node.removeAttribute("src");
     node.load();
   }, []);
+
+  const scheduleAutoplayBudgetRecompute = useCallback(() => {
+    if (typeof window === "undefined") {
+      recomputeAutoplayBudget();
+      return;
+    }
+    if (recomputeAutoplayBudgetRafIdRef.current != null) return;
+    recomputeAutoplayBudgetRafIdRef.current = window.requestAnimationFrame(() => {
+      recomputeAutoplayBudgetRafIdRef.current = null;
+      recomputeAutoplayBudget();
+    });
+  }, [recomputeAutoplayBudget]);
 
   const registerVideoNode = useCallback(
     (nodeKey: string, outputId: string, node: HTMLVideoElement | null) => {
@@ -85,7 +98,7 @@ export const useReferenceGridVideoLifecycleController = ({
         videoNodeByKeyRef.current.delete(nodeKey);
         videoOutputIdByKeyRef.current.delete(nodeKey);
         if (videoVisibleKeySetRef.current.delete(nodeKey)) {
-          recomputeAutoplayBudget();
+          scheduleAutoplayBudgetRecompute();
         }
         return;
       }
@@ -98,8 +111,8 @@ export const useReferenceGridVideoLifecycleController = ({
       videoIntersectionObserverBySurfaceRef.current.get(surface)?.observe(node);
     },
     [
-      recomputeAutoplayBudget,
       resolveVideoSurfaceFromNodeKey,
+      scheduleAutoplayBudgetRecompute,
       videoDetachTimeoutByKeyRef,
       videoIntersectionObserverBySurfaceRef,
       videoNodeByKeyRef,
@@ -137,12 +150,12 @@ export const useReferenceGridVideoLifecycleController = ({
       videoDetachTimeoutByKeyRef.current.delete(nodeKey);
     });
     if (removedAny) {
-      recomputeAutoplayBudget();
+      scheduleAutoplayBudgetRecompute();
     }
   }, [
     outputs,
     detachVideoNodeMedia,
-    recomputeAutoplayBudget,
+    scheduleAutoplayBudgetRecompute,
     videoDetachTimeoutByKeyRef,
     videoIntersectionObserverBySurfaceRef,
     videoNodeByKeyRef,
@@ -176,7 +189,7 @@ export const useReferenceGridVideoLifecycleController = ({
             }
           });
           if (changed) {
-            recomputeAutoplayBudget();
+            scheduleAutoplayBudgetRecompute();
           }
         },
         {
@@ -202,8 +215,8 @@ export const useReferenceGridVideoLifecycleController = ({
     autoplayVisibilityThreshold,
     curatedScrollContainerRef,
     isCuratedSplitEnabled,
-    recomputeAutoplayBudget,
     resolveVideoSurfaceFromNodeKey,
+    scheduleAutoplayBudgetRecompute,
     scrollContainerRef,
     videoIntersectionObserverBySurfaceRef,
     videoNodeByKeyRef,
@@ -270,6 +283,10 @@ export const useReferenceGridVideoLifecycleController = ({
     const detachTimeoutById = videoDetachTimeoutByKeyRef.current;
     const videoNodeByKey = videoNodeByKeyRef.current;
     return () => {
+      if (recomputeAutoplayBudgetRafIdRef.current != null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(recomputeAutoplayBudgetRafIdRef.current);
+        recomputeAutoplayBudgetRafIdRef.current = null;
+      }
       detachTimeoutById.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });

@@ -314,6 +314,7 @@ export const useAiStudioCreatePanelProps = ({
       model,
       modelModalAnchor,
       prompt,
+      promptReferenceGenerateCostCredits,
       promptRef,
       savePromptReference,
       selectedCharacterId,

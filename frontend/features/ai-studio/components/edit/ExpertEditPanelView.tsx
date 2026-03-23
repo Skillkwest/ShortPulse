@@ -17,7 +17,6 @@ import {
   Sliders,
   StackSimple,
   TrashSimple,
-  UploadSimple,
   X,
 } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
@@ -4587,6 +4586,8 @@ export function ExpertEditPanelView({
             <div
               ref={primaryDropzoneRef}
               className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
+                !hasPrimaryCompositePreview ? "is-empty" : ""
+              } ${
                 isMorePresetsSurfaceOpen ? "is-presets-open" : ""
               } ${primaryDragActive ? "is-dragging" : ""} ${
                 shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""
@@ -4618,14 +4619,7 @@ export function ExpertEditPanelView({
                   stageElement: primaryDropzoneRef.current,
                 })
               ) : (
-                <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle}>
-                  <div className="edit-expert-markup-viewport-empty-state">
-                    <div className="reference-drop-content image-drop-content">
-                      <UploadSimple size={28} weight="regular" />
-                      <p className="reference-drop-title">Click to upload an image</p>
-                    </div>
-                  </div>
-                </div>
+                <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle} />
               )}
             </div>
           </div>

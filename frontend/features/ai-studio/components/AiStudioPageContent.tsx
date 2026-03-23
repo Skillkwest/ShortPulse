@@ -82,10 +82,7 @@ import {
   readMediaLibraryDragPayload,
   getMediaLibraryDragTypes,
 } from "../logic/mediaLibraryDragPayload";
-import {
-  getNormalizedTransferTypes,
-  type InternalReferenceDragPayload,
-} from "../utils/dragDrop";
+import { getNormalizedTransferTypes, type InternalReferenceDragPayload } from "../utils/dragDrop";
 import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 
 type FailureCard = Pick<
@@ -245,7 +242,9 @@ const resolveRightColumnDropMode = (
   const types = getNormalizedTransferTypes(transfer);
   const fileCount = transfer.files?.length ?? 0;
   const hasFileType = types.includes("files");
-  const hasLibraryDragType = MEDIA_LIBRARY_DRAG_TYPES_LOWERCASE.some((type) => types.includes(type));
+  const hasLibraryDragType = MEDIA_LIBRARY_DRAG_TYPES_LOWERCASE.some((type) =>
+    types.includes(type)
+  );
   const hasMediaUrlHints =
     types.includes("text/reference-url") ||
     types.includes("text/uri-list") ||

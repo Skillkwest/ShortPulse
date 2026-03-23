@@ -13,10 +13,7 @@ import type {
   LibraryPromptReferencePayload,
 } from "../referenceGridTypes";
 import type { StudioOutput } from "../../types";
-import {
-  getNormalizedTransferTypes,
-  type ReferenceDragSourceSurface,
-} from "../../utils/dragDrop";
+import { getNormalizedTransferTypes, type ReferenceDragSourceSurface } from "../../utils/dragDrop";
 
 type UseReferenceGridCuratedDndControllerArgs = {
   isCuratedSplitEnabled: boolean;

@@ -375,6 +375,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         traceId,
       });
     } catch (error) {
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "ai/studio-agent",
+        metadata: {
+          user_id: user.id,
+          conversation_id: normalizedConversationId,
+          stage: "direct_openai_bypass",
+        },
+      });
       return res.status(200).json(
         buildStudioAgentInfraFallbackPayload({
           traceId,

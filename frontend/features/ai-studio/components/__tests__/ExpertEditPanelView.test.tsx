@@ -3244,7 +3244,8 @@ describe("ExpertEditPanelView", () => {
     expect(afterPan).not.toBeNull();
     expect(Math.abs(afterPan?.offsetX ?? 0)).toBeGreaterThan(40);
     expect(Math.abs(afterPan?.offsetY ?? 0)).toBeGreaterThan(40);
-    expect(screen.getByText("Click to upload an image")).toBeInTheDocument();
+    expect(primaryDropzone).toHaveClass("is-empty");
+    expect(screen.queryByText("Click to upload an image")).not.toBeInTheDocument();
   });
 
   it("pans the markup modal viewport with middle-mouse drag without holding space", async () => {

@@ -4,6 +4,16 @@
  */
 import React from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  buildAdminErrorEventsParams,
+  buildAdminErrorsParams,
+  DEFAULT_ERROR_EVENTS_HEALTH,
+  DEFAULT_ERROR_EVENTS_SUMMARY,
+  ERROR_EVENTS_PER_PAGE,
+  ERRORS_PER_PAGE,
+  normalizeAdminErrorEventsResponse,
+  normalizeAdminErrorsResponse,
+} from "./adminErrorsEventsApi";
 import type {
   AdminErrorEventIncidentFilter,
   AdminErrorEventRow,
@@ -15,39 +25,8 @@ import type {
   AdminErrorSummary,
   AdminPagination,
 } from "../types";
-
-const ERRORS_PER_PAGE = 50;
-const ERROR_EVENTS_PER_PAGE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 const ERROR_REFRESH_INTERVAL_MS = 30000;
-const DEFAULT_ERROR_EVENTS_SUMMARY: AdminErrorEventSummary = {
-  last15mCount: 0,
-  high15mCount: 0,
-  generation15mCount: 0,
-  providerRunningTimeout15mCount: 0,
-  lastHourCount: 0,
-  last24hCount: 0,
-  app24hCount: 0,
-  generation24hCount: 0,
-  high24hCount: 0,
-  characterModeReferenceRefreshEmptyLastHourCount: 0,
-  characterModeReferenceRefreshEmptyLast24hCount: 0,
-  characterModeBundleUnavailableFallbackLastHourCount: 0,
-  characterModeBundleUnavailableFallbackLast24hCount: 0,
-  total15mThreshold: 40,
-  high15mThreshold: 8,
-  generation15mThreshold: 20,
-  providerRunningTimeout15mThreshold: 2,
-  total15mBreached: false,
-  high15mBreached: false,
-  generation15mBreached: false,
-  providerRunningTimeout15mBreached: false,
-};
-const DEFAULT_ERROR_EVENTS_HEALTH: AdminErrorEventsHealth = {
-  eventsTableAvailable: true,
-  degraded: false,
-  reason: null,
-};
 
 type ErrorLoadOverrides = {
   page?: number;
@@ -203,14 +182,14 @@ export const useAdminErrorsEventsController = ({
         const activeSource = overrides?.source ?? errorSourceFilter;
         const activeSearch = overrides?.search ?? debouncedErrorSearch;
 
-        const params = new URLSearchParams();
-        params.set("page", String(activePage));
-        params.set("limit", String(ERRORS_PER_PAGE));
-        params.set("status", activeStatus);
-        if (activeScope !== "all") params.set("scope", activeScope);
-        if (activeSeverity !== "all") params.set("severity", activeSeverity);
-        if (activeSource !== "all") params.set("source", activeSource);
-        if (activeSearch.trim()) params.set("search", activeSearch.trim());
+        const params = buildAdminErrorsParams({
+          page: activePage,
+          status: activeStatus,
+          scope: activeScope,
+          severity: activeSeverity,
+          source: activeSource,
+          search: activeSearch,
+        });
 
         const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, {
           method: "GET",
@@ -224,59 +203,13 @@ export const useAdminErrorsEventsController = ({
           summary?: AdminErrorSummary;
           pagination?: Partial<AdminPagination>;
         };
-        const resolvedPage = Number(data.pagination?.page ?? activePage);
+        const normalized = normalizeAdminErrorsResponse(data, activePage);
 
-        const rows = (data.errors ?? []).map((item) => {
-          const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-          return {
-            id: String(value.id ?? ""),
-            fingerprint: String(value.fingerprint ?? ""),
-            source: String(value.source ?? "unknown"),
-            scope: value.scope === "generation" ? "generation" : "app",
-            severity:
-              value.severity === "high" || value.severity === "low" ? value.severity : "medium",
-            status:
-              value.status === "resolved" || value.status === "ignored" ? value.status : "open",
-            message: String(value.message ?? "Unknown error"),
-            stack: typeof value.stack === "string" ? value.stack : null,
-            route: typeof value.route === "string" ? value.route : null,
-            endpoint: typeof value.endpoint === "string" ? value.endpoint : null,
-            requestId: typeof value.request_id === "string" ? value.request_id : null,
-            httpStatus: Number.isFinite(Number(value.http_status))
-              ? Number(value.http_status)
-              : null,
-            userId: typeof value.user_id === "string" ? value.user_id : null,
-            userEmail: typeof value.user_email === "string" ? value.user_email : null,
-            metadata:
-              value.metadata && typeof value.metadata === "object"
-                ? (value.metadata as Record<string, unknown>)
-                : null,
-            firstSeenAt: typeof value.first_seen_at === "string" ? value.first_seen_at : null,
-            lastSeenAt: typeof value.last_seen_at === "string" ? value.last_seen_at : null,
-            occurrencesCount: Number.isFinite(Number(value.occurrences_count))
-              ? Number(value.occurrences_count)
-              : 1,
-          };
-        }) as AdminErrorLogRow[];
-
-        setErrors(rows);
-        setErrorSummary({
-          openCount: Number(data.summary?.openCount ?? 0),
-          highSeverityOpenCount: Number(data.summary?.highSeverityOpenCount ?? 0),
-          last24hCount: Number(data.summary?.last24hCount ?? 0),
-          appOpenCount: Number(data.summary?.appOpenCount ?? 0),
-          generationOpenCount: Number(data.summary?.generationOpenCount ?? 0),
-        });
-        setErrorsPagination({
-          page: resolvedPage,
-          perPage: Number(data.pagination?.perPage ?? ERRORS_PER_PAGE),
-          totalCount: Number(data.pagination?.totalCount ?? 0),
-          totalPages: Number(data.pagination?.totalPages ?? 1),
-          hasNextPage: Boolean(data.pagination?.hasNextPage),
-          hasPrevPage: Boolean(data.pagination?.hasPrevPage),
-        });
-        if (resolvedPage !== errorsPage) {
-          setErrorsPage(resolvedPage);
+        setErrors(normalized.rows);
+        setErrorSummary(normalized.summary);
+        setErrorsPagination(normalized.pagination);
+        if (normalized.pagination.page !== errorsPage) {
+          setErrorsPage(normalized.pagination.page);
         }
       } catch (error) {
         setErrorsError(error instanceof Error ? error.message : "Failed to load error incidents.");
@@ -308,16 +241,16 @@ export const useAdminErrorsEventsController = ({
         const activeIncident = overrides?.incident ?? errorEventIncidentFilter;
         const activeSearch = overrides?.search ?? debouncedErrorSearch;
 
-        const params = new URLSearchParams();
-        params.set("page", String(activePage));
-        params.set("limit", String(ERROR_EVENTS_PER_PAGE));
-        if (activeScope !== "all") params.set("scope", activeScope);
-        if (activeSeverity !== "all") params.set("severity", activeSeverity);
-        if (activeSource !== "all") params.set("source", activeSource);
-        if (activeSynthetic !== "all") params.set("synthetic", activeSynthetic);
-        if (activeSignal !== "all") params.set("signal", activeSignal);
-        if (activeIncident !== "all") params.set("incident", activeIncident);
-        if (activeSearch.trim()) params.set("search", activeSearch.trim());
+        const params = buildAdminErrorEventsParams({
+          page: activePage,
+          scope: activeScope,
+          severity: activeSeverity,
+          source: activeSource,
+          synthetic: activeSynthetic,
+          signal: activeSignal,
+          incident: activeIncident,
+          search: activeSearch,
+        });
 
         const response = await fetchWithAuth(`/api/admin/error-events?${params.toString()}`, {
           method: "GET",
@@ -326,100 +259,20 @@ export const useAdminErrorsEventsController = ({
           const details = await response.json().catch(() => ({}));
           throw new Error(details?.error || "Failed to load error events.");
         }
-
         const data = (await response.json()) as {
           events?: unknown[];
           summary?: AdminErrorEventSummary;
           health?: Partial<AdminErrorEventsHealth>;
           pagination?: Partial<AdminPagination>;
         };
-        const resolvedPage = Number(data.pagination?.page ?? activePage);
-        const rows = (data.events ?? []).map((item) => {
-          const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-          return {
-            id: String(value.id ?? ""),
-            incidentId: typeof value.incident_id === "string" ? value.incident_id : null,
-            incidentStatus:
-              value.incident_status === "resolved" || value.incident_status === "ignored"
-                ? value.incident_status
-                : value.incident_status === "open"
-                  ? "open"
-                  : null,
-            fingerprint: String(value.fingerprint ?? ""),
-            source: String(value.source ?? "unknown"),
-            scope: value.scope === "generation" ? "generation" : "app",
-            severity:
-              value.severity === "high" || value.severity === "low" ? value.severity : "medium",
-            message: String(value.message ?? "Unknown error event"),
-            stack: typeof value.stack === "string" ? value.stack : null,
-            route: typeof value.route === "string" ? value.route : null,
-            endpoint: typeof value.endpoint === "string" ? value.endpoint : null,
-            requestId: typeof value.request_id === "string" ? value.request_id : null,
-            httpStatus: Number.isFinite(Number(value.http_status))
-              ? Number(value.http_status)
-              : null,
-            userId: typeof value.user_id === "string" ? value.user_id : null,
-            userEmail: typeof value.user_email === "string" ? value.user_email : null,
-            metadata:
-              value.metadata && typeof value.metadata === "object"
-                ? (value.metadata as Record<string, unknown>)
-                : null,
-            occurredAt: typeof value.occurred_at === "string" ? value.occurred_at : null,
-            createdAt: typeof value.created_at === "string" ? value.created_at : null,
-          };
-        }) as AdminErrorEventRow[];
+        const normalized = normalizeAdminErrorEventsResponse(data, activePage);
 
-        setErrorEvents(rows);
-        setErrorEventsSummary({
-          last15mCount: Number(data.summary?.last15mCount ?? 0),
-          high15mCount: Number(data.summary?.high15mCount ?? 0),
-          generation15mCount: Number(data.summary?.generation15mCount ?? 0),
-          providerRunningTimeout15mCount: Number(data.summary?.providerRunningTimeout15mCount ?? 0),
-          lastHourCount: Number(data.summary?.lastHourCount ?? 0),
-          last24hCount: Number(data.summary?.last24hCount ?? 0),
-          app24hCount: Number(data.summary?.app24hCount ?? 0),
-          generation24hCount: Number(data.summary?.generation24hCount ?? 0),
-          high24hCount: Number(data.summary?.high24hCount ?? 0),
-          characterModeReferenceRefreshEmptyLastHourCount: Number(
-            data.summary?.characterModeReferenceRefreshEmptyLastHourCount ?? 0
-          ),
-          characterModeReferenceRefreshEmptyLast24hCount: Number(
-            data.summary?.characterModeReferenceRefreshEmptyLast24hCount ?? 0
-          ),
-          characterModeBundleUnavailableFallbackLastHourCount: Number(
-            data.summary?.characterModeBundleUnavailableFallbackLastHourCount ?? 0
-          ),
-          characterModeBundleUnavailableFallbackLast24hCount: Number(
-            data.summary?.characterModeBundleUnavailableFallbackLast24hCount ?? 0
-          ),
-          total15mThreshold: Number(data.summary?.total15mThreshold ?? 40),
-          high15mThreshold: Number(data.summary?.high15mThreshold ?? 8),
-          generation15mThreshold: Number(data.summary?.generation15mThreshold ?? 20),
-          providerRunningTimeout15mThreshold: Number(
-            data.summary?.providerRunningTimeout15mThreshold ?? 2
-          ),
-          total15mBreached: Boolean(data.summary?.total15mBreached),
-          high15mBreached: Boolean(data.summary?.high15mBreached),
-          generation15mBreached: Boolean(data.summary?.generation15mBreached),
-          providerRunningTimeout15mBreached: Boolean(
-            data.summary?.providerRunningTimeout15mBreached
-          ),
-        });
-        setErrorEventsHealth({
-          eventsTableAvailable: Boolean(data.health?.eventsTableAvailable ?? true),
-          degraded: Boolean(data.health?.degraded ?? false),
-          reason: typeof data.health?.reason === "string" ? data.health.reason : null,
-        });
-        setErrorEventsPagination({
-          page: resolvedPage,
-          perPage: Number(data.pagination?.perPage ?? ERROR_EVENTS_PER_PAGE),
-          totalCount: Number(data.pagination?.totalCount ?? 0),
-          totalPages: Number(data.pagination?.totalPages ?? 1),
-          hasNextPage: Boolean(data.pagination?.hasNextPage),
-          hasPrevPage: Boolean(data.pagination?.hasPrevPage),
-        });
-        if (resolvedPage !== errorEventsPage) {
-          setErrorEventsPage(resolvedPage);
+        setErrorEvents(normalized.rows);
+        setErrorEventsSummary(normalized.summary);
+        setErrorEventsHealth(normalized.health);
+        setErrorEventsPagination(normalized.pagination);
+        if (normalized.pagination.page !== errorEventsPage) {
+          setErrorEventsPage(normalized.pagination.page);
         }
       } catch (error) {
         setErrorEventsError(

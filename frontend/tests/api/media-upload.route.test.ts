@@ -7,6 +7,7 @@ const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
+let mockParseError: Error | null = null;
 let mockFile = {
   filepath: "/tmp/mock-media-upload",
   mimetype: "image/png",
@@ -19,6 +20,10 @@ const formidableFactoryMock = vi.fn(() => ({
     _req: unknown,
     callback: (err: unknown, fields: unknown, files: Record<string, unknown>) => void
   ) => {
+    if (mockParseError) {
+      callback(mockParseError, {}, {});
+      return;
+    }
     callback(null, mockFields, { file: mockFile });
   },
 }));
@@ -110,6 +115,7 @@ describe("POST /api/media/upload", () => {
     vi.unstubAllEnvs();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     mockFields = { destinationTab: "private" };
+    mockParseError = null;
     mockFile = {
       filepath: "/tmp/mock-media-upload",
       mimetype: "image/png",
@@ -203,5 +209,31 @@ describe("POST /api/media/upload", () => {
       error: "Media upload API is disabled",
       details: "Enable SHORTPULSE_MEDIA_UPLOAD_API_ENABLED to use this route.",
     });
+  });
+
+  it("logs unexpected multipart parser failures and returns 500", async () => {
+    mockParseError = new Error("Multipart parser exploded");
+
+    const req = {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upload failed",
+      details: "Multipart parser exploded",
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "media-upload",
+        error: expect.objectContaining({ message: "Multipart parser exploded" }),
+      })
+    );
   });
 });

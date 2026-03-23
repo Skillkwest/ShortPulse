@@ -142,4 +142,19 @@ describe("POST /api/upload-image", () => {
     });
     expect(writeAppErrorLogMock).not.toHaveBeenCalled();
   });
+
+  it("returns shared validation errors for missing raw content type", async () => {
+    const req = { method: "POST", headers: {}, destroy: vi.fn() };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upload failed",
+      details: "Missing content type",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+  });
 });

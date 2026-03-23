@@ -6,6 +6,7 @@ import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractInternalReferenceDragPayload,
+  getNormalizedTransferTypes,
   type InternalReferenceDragPayload,
 } from "../../utils/dragDrop";
 import {
@@ -112,8 +113,8 @@ export const useCanvasViewportDropHandlers = ({
     (transfer: DataTransfer | null | undefined): boolean => {
       if (!transfer) return false;
       if (canAcceptCanvasDropTransfer(transfer)) return true;
-      const transferTypes = Array.from(transfer.types || []);
-      const hasFilesType = transferTypes.includes("Files");
+      const transferTypes = getNormalizedTransferTypes(transfer);
+      const hasFilesType = transferTypes.includes("files");
       const hasDroppedFiles = (transfer.files?.length ?? 0) > 0;
       if (hasDroppedFiles || hasFilesType) {
         return Boolean(resolveCanvasDropFiles);

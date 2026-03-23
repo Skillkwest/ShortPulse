@@ -13,7 +13,10 @@ import type {
   LibraryPromptReferencePayload,
 } from "../referenceGridTypes";
 import type { StudioOutput } from "../../types";
-import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
+import {
+  getNormalizedTransferTypes,
+  type ReferenceDragSourceSurface,
+} from "../../utils/dragDrop";
 
 type UseReferenceGridCuratedDndControllerArgs = {
   isCuratedSplitEnabled: boolean;
@@ -53,14 +56,14 @@ type UseReferenceGridCuratedDndControllerResult = {
 };
 
 const hasInternalReferenceDrag = (transfer: DataTransfer): boolean => {
-  const types = Array.from(transfer.types || []).map((value) => value.toLowerCase());
+  const types = getNormalizedTransferTypes(transfer);
   if (types.includes("text/reference-id")) return true;
   if (types.length > 0) return false;
   return Boolean(transfer.getData("text/reference-id"));
 };
 
 const resolveReferenceDragSourceSurface = (transfer: DataTransfer): ReferenceDragSourceSurface => {
-  const types = Array.from(transfer.types || []).map((value) => value.toLowerCase());
+  const types = getNormalizedTransferTypes(transfer);
   if (types.length > 0 && !types.includes("text/reference-source-surface")) {
     return "all-refs";
   }

@@ -8,6 +8,7 @@ import {
   extractInternalReferenceDragPayload,
   extractDragDropPayload,
   extractVideoDragDropPayload,
+  getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
   isVideoDragTransfer,
@@ -131,6 +132,18 @@ describe("dragDrop payload extraction", () => {
     });
 
     expect(hasInternalReferenceDragTypeHints(transfer)).toBe(true);
+  });
+
+  it("caches normalized transfer types per transfer object", () => {
+    const transfer = {
+      types: [" Text/Plain ", "FILES", "text/reference-id"],
+    } as unknown as DataTransfer;
+
+    const firstPass = getNormalizedTransferTypes(transfer);
+    const secondPass = getNormalizedTransferTypes(transfer);
+
+    expect(firstPass).toEqual(["text/plain", "files", "text/reference-id"]);
+    expect(secondPass).toBe(firstPass);
   });
 
   it("writes source-surface metadata for internal reference drags", () => {

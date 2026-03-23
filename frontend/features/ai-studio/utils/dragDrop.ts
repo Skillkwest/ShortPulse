@@ -26,6 +26,7 @@ const findVideoFile = (files?: FileList) => {
 };
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
+const normalizedTransferTypesCache = new WeakMap<object, string[]>();
 const DRAG_GHOST_SCALE = 0.68;
 const DRAG_GHOST_MIN_SIZE_PX = 108;
 const DRAG_GHOST_MAX_SIZE_PX = 244;
@@ -119,16 +120,27 @@ const normalizeReferenceTransferId = (value: string | null | undefined): string 
   return candidate.length ? candidate : null;
 };
 
-const normalizeTransferTypes = (transfer: DataTransfer): string[] =>
-  Array.from(transfer.types || [])
+export const getNormalizedTransferTypes = (
+  transfer: Pick<DataTransfer, "types"> | null | undefined
+): string[] => {
+  if (!transfer) return [];
+  const cacheKey = transfer as object;
+  const cachedTypes = normalizedTransferTypesCache.get(cacheKey);
+  if (cachedTypes) {
+    return cachedTypes;
+  }
+  const normalizedTypes = Array.from(transfer.types || [])
     .map((type) => type.trim().toLowerCase())
     .filter(Boolean);
+  normalizedTransferTypesCache.set(cacheKey, normalizedTypes);
+  return normalizedTypes;
+};
 
 export const hasInternalReferenceDragTypeHints = (
   transfer: DataTransfer | null | undefined
 ): boolean => {
   if (!transfer) return false;
-  return normalizeTransferTypes(transfer).some((type) =>
+  return getNormalizedTransferTypes(transfer).some((type) =>
     INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS.has(type)
   );
 };

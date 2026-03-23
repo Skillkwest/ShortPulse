@@ -3,7 +3,7 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
+import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
@@ -59,6 +59,7 @@ import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibrar
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
 import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
+import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
@@ -1048,132 +1049,31 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
-          <div className="media-library-panel-controls">
-            <div className="search-input media-library-panel-search">
-              <MagnifyingGlass size={15} weight="bold" aria-hidden />
-              <input
-                type="text"
-                value={search}
-                placeholder="Search media and prompts"
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="media-library-panel-folders">
-            <div className="media-library-panel-folders-head">
-              <span className="tiny subdued">
-                <Folders size={14} weight="bold" aria-hidden /> Folders
-              </span>
-            </div>
-            <div
-              className="media-library-panel-folder-strip"
-              role="list"
-              aria-label="Media folders"
-            >
-              {orderedFolders.map((folder) => {
-                const isRoot = folder.id === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-                const isActive = activeFolderId === folder.id;
-                const isEditing = editingFolderId === folder.id;
-                return (
-                  <div
-                    key={folder.id}
-                    className={`media-library-panel-folder-strip-item ${
-                      foldersDropController.hoveredFolderId === folder.id ? "is-drop-hover" : ""
-                    }`}
-                    role="listitem"
-                    onContextMenu={(event) => openFolderContextMenu(event, folder, isRoot)}
-                    onDragOver={(event) =>
-                      foldersDropController.handleFolderDragOver(folder.id, event)
-                    }
-                    onDragLeave={() => foldersDropController.handleFolderDragLeave(folder.id)}
-                    onDrop={(event) => {
-                      void foldersDropController.handleFolderDrop(folder.id, event);
-                    }}
-                  >
-                    {isEditing ? (
-                      <>
-                        <button
-                          type="button"
-                          className="media-library-panel-folder-chip is-active is-editing"
-                          onClick={() => setActiveFolderId(folder.id)}
-                          aria-label={`${folder.name} folder`}
-                        >
-                          <FolderSimple
-                            size={32}
-                            weight={isRoot ? "fill" : "regular"}
-                            aria-hidden
-                          />
-                        </button>
-                        <div className="media-library-panel-folder-chip-edit">
-                          <input
-                            className="media-library-panel-folder-chip-input"
-                            type="text"
-                            value={editingFolderName}
-                            maxLength={64}
-                            autoFocus
-                            onChange={(event) => setEditingFolderName(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                void commitFolderRename();
-                              }
-                              if (event.key === "Escape") {
-                                event.preventDefault();
-                                cancelFolderRename();
-                              }
-                            }}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className={`media-library-panel-folder-chip ${isActive ? "is-active" : ""}`}
-                          onClick={() => setActiveFolderId(folder.id)}
-                          aria-label={`${folder.name} folder`}
-                        >
-                          <FolderSimple
-                            size={32}
-                            weight={isRoot ? "fill" : "regular"}
-                            aria-hidden
-                          />
-                        </button>
-                        <button
-                          type="button"
-                          className="media-library-panel-folder-chip-name tiny"
-                          onClick={() => setActiveFolderId(folder.id)}
-                          onDoubleClick={() => {
-                            if (isRoot) return;
-                            startFolderRename(folder.id, folder.name);
-                          }}
-                          aria-label={`${folder.name} name`}
-                        >
-                          {folder.name}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-              <div className="media-library-panel-folder-strip-item" role="listitem">
-                <button
-                  type="button"
-                  className="media-library-panel-folder-chip is-create"
-                  aria-label="Create new folder"
-                  onClick={() => {
-                    void createFolder();
-                  }}
-                  disabled={creatingFolder}
-                >
-                  <Plus size={30} weight="bold" aria-hidden />
-                </button>
-                <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
-              </div>
-            </div>
-          </div>
-          {folderError ? <p className="tiny subdued">{folderError}</p> : null}
+          <MediaLibraryPanelFoldersSection
+            search={search}
+            onSearchChange={setSearch}
+            orderedFolders={orderedFolders}
+            activeFolderId={activeFolderId}
+            setActiveFolderId={setActiveFolderId}
+            editingFolderId={editingFolderId}
+            editingFolderName={editingFolderName}
+            setEditingFolderName={setEditingFolderName}
+            startFolderRename={startFolderRename}
+            cancelFolderRename={cancelFolderRename}
+            commitFolderRename={commitFolderRename}
+            createFolder={createFolder}
+            creatingFolder={creatingFolder}
+            folderError={folderError}
+            hoveredFolderId={foldersDropController.hoveredFolderId}
+            onFolderDragOver={foldersDropController.handleFolderDragOver}
+            onFolderDragLeave={foldersDropController.handleFolderDragLeave}
+            onFolderDrop={foldersDropController.handleFolderDrop}
+            folderContextMenu={folderContextMenu}
+            folderContextMenuRef={folderContextMenuRef}
+            openFolderContextMenu={openFolderContextMenu}
+            onContextRename={handleContextRename}
+            onContextDelete={handleContextDelete}
+          />
         </div>
 
         <div
@@ -1382,39 +1282,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           </footer>
         </div>
       </div>
-      {folderContextMenu ? (
-        <AiStudioModalLayer>
-          <div
-            ref={folderContextMenuRef}
-            className="media-library-panel-folder-context-menu"
-            role="menu"
-            aria-label={`${folderContextMenu.folderName} folder actions`}
-            style={{
-              top: `${folderContextMenu.y}px`,
-              left: `${folderContextMenu.x}px`,
-            }}
-          >
-            <button
-              type="button"
-              className="media-library-panel-folder-context-menu-item"
-              role="menuitem"
-              onClick={handleContextRename}
-            >
-              Rename folder
-            </button>
-            <button
-              type="button"
-              className="media-library-panel-folder-context-menu-item is-destructive"
-              role="menuitem"
-              onClick={() => {
-                void handleContextDelete();
-              }}
-            >
-              Delete folder
-            </button>
-          </div>
-        </AiStudioModalLayer>
-      ) : null}
       <MediaLibraryPanelPreviewModal
         file={previewModalFile}
         previewUrl={previewModalUrl}

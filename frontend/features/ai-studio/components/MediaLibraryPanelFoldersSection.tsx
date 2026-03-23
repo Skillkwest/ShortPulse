@@ -1,0 +1,222 @@
+import React from "react";
+import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
+import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
+import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
+
+type FolderRow = {
+  id: string;
+  name: string;
+};
+
+type FolderContextMenuState = {
+  folderId: string;
+  folderName: string;
+  x: number;
+  y: number;
+};
+
+type MediaLibraryPanelFoldersSectionProps = {
+  search: string;
+  onSearchChange: (value: string) => void;
+  orderedFolders: FolderRow[];
+  activeFolderId: string;
+  setActiveFolderId: (folderId: string) => void;
+  editingFolderId: string | null;
+  editingFolderName: string;
+  setEditingFolderName: (value: string) => void;
+  startFolderRename: (folderId: string, folderName: string) => void;
+  cancelFolderRename: () => void;
+  commitFolderRename: () => Promise<void>;
+  createFolder: () => Promise<void>;
+  creatingFolder: boolean;
+  folderError: string | null;
+  hoveredFolderId: string | null;
+  onFolderDragOver: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
+  onFolderDragLeave: (folderId: string) => void;
+  onFolderDrop: (folderId: string, event: React.DragEvent<HTMLDivElement>) => Promise<void>;
+  folderContextMenu: FolderContextMenuState | null;
+  folderContextMenuRef: React.Ref<HTMLDivElement>;
+  openFolderContextMenu: (
+    event: React.MouseEvent<HTMLElement>,
+    folder: FolderRow,
+    isRoot: boolean
+  ) => void;
+  onContextRename: () => void;
+  onContextDelete: () => Promise<void>;
+};
+
+export function MediaLibraryPanelFoldersSection({
+  search,
+  onSearchChange,
+  orderedFolders,
+  activeFolderId,
+  setActiveFolderId,
+  editingFolderId,
+  editingFolderName,
+  setEditingFolderName,
+  startFolderRename,
+  cancelFolderRename,
+  commitFolderRename,
+  createFolder,
+  creatingFolder,
+  folderError,
+  hoveredFolderId,
+  onFolderDragOver,
+  onFolderDragLeave,
+  onFolderDrop,
+  folderContextMenu,
+  folderContextMenuRef,
+  openFolderContextMenu,
+  onContextRename,
+  onContextDelete,
+}: MediaLibraryPanelFoldersSectionProps) {
+  return (
+    <>
+      <div className="media-library-panel-controls">
+        <div className="search-input media-library-panel-search">
+          <MagnifyingGlass size={15} weight="bold" aria-hidden />
+          <input
+            type="text"
+            value={search}
+            placeholder="Search media and prompts"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="media-library-panel-folders">
+        <div className="media-library-panel-folders-head">
+          <span className="tiny subdued">
+            <Folders size={14} weight="bold" aria-hidden /> Folders
+          </span>
+        </div>
+        <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">
+          {orderedFolders.map((folder) => {
+            const isRoot = folder.id === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+            const isActive = activeFolderId === folder.id;
+            const isEditing = editingFolderId === folder.id;
+            return (
+              <div
+                key={folder.id}
+                className={`media-library-panel-folder-strip-item ${
+                  hoveredFolderId === folder.id ? "is-drop-hover" : ""
+                }`}
+                role="listitem"
+                onContextMenu={(event) => openFolderContextMenu(event, folder, isRoot)}
+                onDragOver={(event) => onFolderDragOver(folder.id, event)}
+                onDragLeave={() => onFolderDragLeave(folder.id)}
+                onDrop={(event) => {
+                  void onFolderDrop(folder.id, event);
+                }}
+              >
+                {isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      className="media-library-panel-folder-chip is-active is-editing"
+                      onClick={() => setActiveFolderId(folder.id)}
+                      aria-label={`${folder.name} folder`}
+                    >
+                      <FolderSimple size={32} weight={isRoot ? "fill" : "regular"} aria-hidden />
+                    </button>
+                    <div className="media-library-panel-folder-chip-edit">
+                      <input
+                        className="media-library-panel-folder-chip-input"
+                        type="text"
+                        value={editingFolderName}
+                        maxLength={64}
+                        autoFocus
+                        onChange={(event) => setEditingFolderName(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void commitFolderRename();
+                          }
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelFolderRename();
+                          }
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={`media-library-panel-folder-chip ${isActive ? "is-active" : ""}`}
+                      onClick={() => setActiveFolderId(folder.id)}
+                      aria-label={`${folder.name} folder`}
+                    >
+                      <FolderSimple size={32} weight={isRoot ? "fill" : "regular"} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className="media-library-panel-folder-chip-name tiny"
+                      onClick={() => setActiveFolderId(folder.id)}
+                      onDoubleClick={() => {
+                        if (isRoot) return;
+                        startFolderRename(folder.id, folder.name);
+                      }}
+                      aria-label={`${folder.name} name`}
+                    >
+                      {folder.name}
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+          <div className="media-library-panel-folder-strip-item" role="listitem">
+            <button
+              type="button"
+              className="media-library-panel-folder-chip is-create"
+              aria-label="Create new folder"
+              onClick={() => {
+                void createFolder();
+              }}
+              disabled={creatingFolder}
+            >
+              <Plus size={30} weight="bold" aria-hidden />
+            </button>
+            <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
+          </div>
+        </div>
+      </div>
+      {folderError ? <p className="tiny subdued">{folderError}</p> : null}
+      {folderContextMenu ? (
+        <AiStudioModalLayer>
+          <div
+            ref={folderContextMenuRef}
+            className="media-library-panel-folder-context-menu"
+            role="menu"
+            aria-label={`${folderContextMenu.folderName} folder actions`}
+            style={{
+              top: `${folderContextMenu.y}px`,
+              left: `${folderContextMenu.x}px`,
+            }}
+          >
+            <button
+              type="button"
+              className="media-library-panel-folder-context-menu-item"
+              role="menuitem"
+              onClick={onContextRename}
+            >
+              Rename folder
+            </button>
+            <button
+              type="button"
+              className="media-library-panel-folder-context-menu-item is-destructive"
+              role="menuitem"
+              onClick={() => {
+                void onContextDelete();
+              }}
+            >
+              Delete folder
+            </button>
+          </div>
+        </AiStudioModalLayer>
+      ) : null}
+    </>
+  );
+}

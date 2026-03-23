@@ -25,7 +25,6 @@ import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
-import { resolveCanvasDropImageSourceUrl } from "../features/ai-studio/components/canvas/canvasDropResolvers";
 import {
   useAiStudioCharacterModeController,
   type CharacterModeInjectionBundle,
@@ -38,21 +37,17 @@ import { useAiStudioPageDerivations } from "../features/ai-studio/hooks/useAiStu
 import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPanelProps";
 import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAiStudioReferenceGridProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
+import { useAiStudioInternalDropResolvers } from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOrchestration/useAgentOutputBubbleLinking";
-import { resolveMediaLibraryInternalDropResolver } from "../features/ai-studio/logic/mediaLibraryInternalDropResolver";
-import { resolveStyleInternalDropCandidates } from "../features/ai-studio/components/style-creator/internalDropResolver";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
-import { useAiStudioSessionPersistenceController } from "../features/ai-studio/hooks/useAiStudioSessionPersistenceController";
+import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
 import type { AgentOutputGenerateInput } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
-import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
-import type { ResolveCharacterDropReference } from "../features/character-manager/hooks/useCharacterManagerDroppedReferenceController";
-import type { ResolveCanvasDropReference } from "../features/ai-studio/components/canvas/canvasTypes";
 import {
   PERF_FLAG_AUDIT_RUNTIME,
   PERF_FLAG_OUTPUT_SELECTOR_STORE,
@@ -67,8 +62,6 @@ const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
-const MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS = 3500;
-const MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS = 120;
 
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
@@ -228,79 +221,6 @@ export default function AiStudioPage() {
   useEffect(() => {
     setExpertEditSessionState(null);
   }, [sessionId, setExpertEditSessionState]);
-  const resolveSavedMediaIdFromOutput = useCallback(
-    (output: StudioOutput | null, imageIndex: number) => {
-      if (!output?.savedMediaIds?.length) return null;
-      const safeIndex = Math.max(0, Math.floor(imageIndex));
-      const candidate = output.savedMediaIds[safeIndex] ?? output.savedMediaIds[0];
-      const normalized = candidate?.trim() ?? "";
-      return normalized.length ? normalized : null;
-    },
-    []
-  );
-  const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
-    async (payload: InternalReferenceDragPayload) => {
-      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
-      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
-      const payloadMediaId = payload.mediaId?.trim() || null;
-      const output = outputId ? getOutputById(outputId) : null;
-      const existingMediaId = resolveSavedMediaIdFromOutput(output, imageIndex);
-      const resolvedMediaId = payloadMediaId ?? existingMediaId;
-      if (resolvedMediaId) {
-        return {
-          mediaId: resolvedMediaId,
-          previewUrl: output?.previewUrl ?? payload.referenceUrl ?? null,
-          outputId: outputId || null,
-          imageIndex,
-          sourceSurface: payload.sourceSurface ?? null,
-        };
-      }
-      return {
-        mediaId: "",
-        previewUrl: output?.previewUrl ?? payload.referenceUrl ?? null,
-        outputId: outputId || null,
-        imageIndex,
-        sourceSurface: payload.sourceSurface ?? null,
-      };
-    },
-    [getOutputById, resolveSavedMediaIdFromOutput]
-  );
-  const resolveCanvasDropReference = useCallback<ResolveCanvasDropReference>(
-    (payload: InternalReferenceDragPayload) => {
-      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
-      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
-      const output = outputId ? getOutputById(outputId) : null;
-      if (!output) return null;
-      if (output.mode === "text") {
-        const text = (output.prompt || output.previewText || "").trim();
-        if (!text) return null;
-        return {
-          kind: "text",
-          outputId: outputId || null,
-          text,
-          sourceSurface: payload.sourceSurface ?? null,
-        };
-      }
-      if (output.mode !== "image") return null;
-      const sourceUrl = resolveCanvasDropImageSourceUrl({
-        output,
-        imageIndex,
-        payloadReferenceUrl: payload.referenceUrl,
-      });
-      if (!sourceUrl) return null;
-      return {
-        kind: "image",
-        outputId: outputId || null,
-        mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
-        src: sourceUrl,
-        alt: (output.prompt || output.previewText || "Canvas reference").trim(),
-        width: payload.width,
-        height: payload.height,
-        sourceSurface: payload.sourceSurface ?? null,
-      };
-    },
-    [getOutputById, resolveSavedMediaIdFromOutput]
-  );
   const { editSubmitIntent, setEditSubmitIntent, resetEditSubmitIntent } =
     useAiStudioEditSubmitIntent({
       selectedTool,
@@ -314,32 +234,16 @@ export default function AiStudioPage() {
     },
     [resetEditSubmitIntent, selectedTool, setSelectedTool]
   );
-  const resolveMediaLibraryInternalDropItem = useCallback(
-    async (payload: InternalReferenceDragPayload) =>
-      await resolveMediaLibraryInternalDropResolver({
-        payload,
-        getOutputById,
-        getOutputSnapshot,
-        resolveSavedMediaIdFromOutput,
-        saveReferenceToLibrary,
-        persistTimeoutMs: MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS,
-        pollIntervalMs: MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS,
-      }),
-    [getOutputById, getOutputSnapshot, resolveSavedMediaIdFromOutput, saveReferenceToLibrary]
-  );
-  const resolveStyleLibraryInternalDrop = useCallback(
-    async (payload: InternalReferenceDragPayload) =>
-      await resolveStyleInternalDropCandidates({
-        payload,
-        getOutputById,
-        getOutputSnapshot,
-        resolveSavedMediaIdFromOutput,
-        saveReferenceToLibrary,
-        persistTimeoutMs: MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS,
-        pollIntervalMs: MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS,
-      }),
-    [getOutputById, getOutputSnapshot, resolveSavedMediaIdFromOutput, saveReferenceToLibrary]
-  );
+  const {
+    resolveCharacterDropReference,
+    resolveCanvasDropReference,
+    resolveMediaLibraryInternalDropItem,
+    resolveStyleLibraryInternalDrop,
+  } = useAiStudioInternalDropResolvers({
+    getOutputById,
+    getOutputSnapshot,
+    saveReferenceToLibrary,
+  });
   const {
     mainCanvasProps,
     railCanvasProps,
@@ -581,50 +485,19 @@ export default function AiStudioPage() {
     trackAgentUiEvent: trackUiEvent,
   });
 
-  const buildSessionSnapshotForSessionId = useCallback(
-    (activeSessionId: string) =>
-      buildSessionSnapshot({
-        sessionId: activeSessionId,
-        agentMessages,
-        agentInput,
-        latestAgentPrompt,
-        promptOrigin,
-        chatModeEnabled,
-        canvasState: canvasSessionState,
-      }),
-    [
-      agentInput,
-      agentMessages,
-      buildSessionSnapshot,
-      canvasSessionState,
-      chatModeEnabled,
-      latestAgentPrompt,
-      promptOrigin,
-    ]
-  );
-
-  const hydrateFromSessionCanvasSnapshot = useCallback(
-    (canvasPayload: ReturnType<typeof hydrateFromSessionSnapshot>["canvas"]) => {
-      if (!canvasPayload) return;
-      hydrateSessionState(canvasPayload);
-    },
-    [hydrateSessionState]
-  );
-
-  const handleSessionPersistenceWarning = useCallback(
-    (message: string) => {
-      setUiNotice(message);
-    },
-    [setUiNotice]
-  );
-
-  useAiStudioSessionPersistenceController({
+  useAiStudioPageSessionPersistence({
     sessionId,
-    buildSessionSnapshot: buildSessionSnapshotForSessionId,
+    buildSessionSnapshot,
+    agentMessages,
+    agentInput,
+    latestAgentPrompt,
+    promptOrigin,
+    chatModeEnabled,
+    canvasSessionState,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
-    hydrateFromSessionCanvasSnapshot,
-    onPersistenceWarning: handleSessionPersistenceWarning,
+    hydrateSessionState,
+    setUiNotice,
   });
 
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();

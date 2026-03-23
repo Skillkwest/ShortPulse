@@ -2,7 +2,7 @@
  * Canvas test harness utilities.
  * Provides shared render scaffolding and transfer helpers for canvas suites.
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CanvasPropertiesPanel } from "../CanvasPropertiesPanel";
 import {
   useAiStudioCanvasWorkspaceState,
@@ -13,6 +13,7 @@ import type {
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "../canvasTypes";
+import type { CanvasWorkspaceSessionState } from "../canvasWorkspaceContracts";
 
 export const createTransfer = (entries: Record<string, string>) =>
   ({
@@ -53,6 +54,10 @@ export type CanvasHarnessProps = {
   isItemDraggable?: boolean;
   onItemDragStart?: (id: string, event: React.DragEvent<HTMLElement>) => void;
   onItemDragEnd?: (id: string, event: React.DragEvent<HTMLElement>) => void;
+};
+
+type SeededCanvasHarnessProps = CanvasHarnessProps & {
+  initialSessionState: CanvasWorkspaceSessionState;
 };
 
 export function CanvasHarness({
@@ -106,6 +111,45 @@ export function DualCanvasHarness({
     <div>
       <CanvasPropertiesPanel {...mainCanvasProps} />
       <CanvasPropertiesPanel {...railCanvasProps} />
+    </div>
+  );
+}
+
+export function SeededCanvasHarness({
+  initialSessionState,
+  onPinTextReference,
+  resolveCanvasDropReference,
+  prepareResolvedInternalCanvasDrop,
+  resolveCanvasDropFiles,
+  isItemDraggable = false,
+  onItemDragStart,
+  onItemDragEnd,
+}: SeededCanvasHarnessProps) {
+  const [visible, setVisible] = useState(true);
+  const { mainCanvasProps, hydrateSessionState } = useAiStudioDualCanvasWorkspaceState({
+    resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
+    resolveCanvasDropFiles,
+    onPinTextReference,
+  });
+
+  useEffect(() => {
+    hydrateSessionState(initialSessionState);
+  }, [hydrateSessionState, initialSessionState]);
+
+  return (
+    <div>
+      <button type="button" onClick={() => setVisible((current) => !current)}>
+        Toggle
+      </button>
+      {visible ? (
+        <CanvasPropertiesPanel
+          {...mainCanvasProps}
+          isItemDraggable={isItemDraggable}
+          onItemDragStart={onItemDragStart}
+          onItemDragEnd={onItemDragEnd}
+        />
+      ) : null}
     </div>
   );
 }

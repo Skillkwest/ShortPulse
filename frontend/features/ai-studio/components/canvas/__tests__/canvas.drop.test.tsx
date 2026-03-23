@@ -1,8 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { clearBreadcrumbs, getBreadcrumbsSnapshot } from "../../../../../lib/clientBreadcrumbs";
+import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../../logic/sessionSnapshotCanvas";
 import type { ResolveCanvasDropReference } from "../canvasTypes";
-import { CanvasHarness, createTransfer, mockViewportRect } from "./canvasTestHarness";
+import {
+  CanvasHarness,
+  createTransfer,
+  mockViewportRect,
+  SeededCanvasHarness,
+} from "./canvasTestHarness";
 
 describe("Canvas drop behavior", () => {
   it("activates drop state during dragover for internal custom-type payloads", () => {
@@ -491,22 +497,35 @@ describe("Canvas drop behavior", () => {
   });
 
   it("enforces a hard cap of 300 canvas items", async () => {
-    render(<CanvasHarness />);
+    render(
+      <SeededCanvasHarness
+        initialSessionState={{
+          items: Array.from({ length: AI_STUDIO_CANVAS_ITEM_HARD_CAP }, (_, index) => ({
+            id: `seeded-text-${index + 1}`,
+            kind: "text" as const,
+            x: index,
+            y: index,
+            z: index + 1,
+            selected: index === AI_STUDIO_CANVAS_ITEM_HARD_CAP - 1,
+            outputId: null,
+            sourceSurface: null,
+            text: `Seeded note ${index + 1}`,
+            width: 260,
+          })),
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+          mainCamera: { x: 0, y: 0, zoom: 1 },
+          railCamera: { x: 0, y: 0, zoom: 1 },
+        }}
+      />
+    );
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
 
-    for (let index = 0; index < 300; index += 1) {
-      fireEvent.drop(viewport, {
-        dataTransfer: createTransfer({
-          "text/plain": `Note ${index + 1}`,
-        }),
-        clientX: 220,
-        clientY: 140,
-      });
-    }
-
     await waitFor(() => {
-      expect(screen.getAllByTestId(/canvas-item-/)).toHaveLength(300);
+      expect(screen.getAllByTestId(/canvas-item-/)).toHaveLength(AI_STUDIO_CANVAS_ITEM_HARD_CAP);
     });
 
     fireEvent.drop(viewport, {
@@ -518,7 +537,7 @@ describe("Canvas drop behavior", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getAllByTestId(/canvas-item-/)).toHaveLength(300);
+      expect(screen.getAllByTestId(/canvas-item-/)).toHaveLength(AI_STUDIO_CANVAS_ITEM_HARD_CAP);
     });
     expect(screen.queryByText("Overflow note")).not.toBeInTheDocument();
   });

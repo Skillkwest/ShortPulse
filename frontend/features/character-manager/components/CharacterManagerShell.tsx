@@ -2,7 +2,6 @@
  * Character Manager page shell.
  * Provides Character Profile + Manage Characters workflows for route and embedded surfaces.
  */
-import type { User } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import React, {
@@ -20,7 +19,7 @@ import {
   isAdaptiveSurfaceEnabled,
   logAdaptiveDetailFullQualityUsed,
 } from "../../../lib/adaptive-media";
-import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
+import { normalizePlanId } from "../../billing/catalog";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
@@ -36,6 +35,7 @@ import {
   type ResolveCharacterDropReference,
 } from "../hooks/useCharacterManagerDroppedReferenceController";
 import { useCharacterManagerCharacterSheetInteractions } from "../hooks/useCharacterManagerCharacterSheetInteractions";
+import { useCharacterManagerAccountState } from "../hooks/useCharacterManagerAccountState";
 import { useCharacterManagerShellActionHandlers } from "../hooks/useCharacterManagerShellActionHandlers";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
@@ -182,10 +182,6 @@ export function CharacterManagerShell({
     useState<CharacterProfileImageTransform | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
-    null
-  );
   const characterNameInputRef = useRef<HTMLInputElement | null>(null);
   const profileFileInputRef = useRef<HTMLInputElement | null>(null);
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -254,6 +250,10 @@ export function CharacterManagerShell({
     quickSwapActiveItems,
     isDeletingCharacter,
     isSavingCharacterSheetPreset,
+  });
+  const { user, resolvedPlan } = useCharacterManagerAccountState({
+    isEmbeddedSurface,
+    defaultPlanTier: DEFAULT_PLAN_TIER,
   });
   const profileInitials = useMemo(() => {
     const words = characterName.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -452,97 +452,6 @@ export function CharacterManagerShell({
       active = false;
     };
   }, [referencePreviewEntry, setReferencePreviewSignedUrl]);
-
-  useEffect(() => {
-    if (isEmbeddedSurface) return;
-    let active = true;
-    let unsubscribe: (() => void) | null = null;
-
-    const bootstrapUser = async () => {
-      try {
-        const supabase = ensureSupabaseClient();
-        const { data } = await supabase.auth.getUser();
-        if (!active) return;
-        setUser(data.user ?? null);
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-          if (!active) return;
-          if (event === "USER_UPDATED" || event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
-            setUser(session?.user ?? null);
-          }
-          if (event === "SIGNED_OUT") {
-            setUser(null);
-          }
-        });
-        unsubscribe = () => authListener?.subscription?.unsubscribe();
-      } catch {
-        if (active) {
-          setUser(null);
-        }
-      }
-    };
-
-    void bootstrapUser();
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, [isEmbeddedSurface]);
-
-  useEffect(() => {
-    if (isEmbeddedSurface) return;
-    let active = true;
-
-    const loadPlan = async () => {
-      if (!user) {
-        if (!active) return;
-        setResolvedPlan(null);
-        return;
-      }
-
-      try {
-        const supabase = ensureSupabaseClient();
-        const [billingProfileResponse, billingPlansResponse] = await Promise.all([
-          supabase.from("billing_profiles").select("plan_id").eq("user_id", user.id).maybeSingle(),
-          supabase
-            .from("billing_plans")
-            .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
-            .eq("is_active", true),
-        ]);
-
-        const billingPlanId =
-          !billingProfileResponse.error && billingProfileResponse.data
-            ? ((billingProfileResponse.data as { plan_id: string | null }).plan_id ?? null)
-            : null;
-        const effectivePlanId =
-          billingPlanId ?? (user.user_metadata?.plan as string | undefined) ?? DEFAULT_PLAN_TIER;
-        const normalizedPlanId = normalizePlanId(effectivePlanId);
-        const plans =
-          !billingPlansResponse.error && Array.isArray(billingPlansResponse.data)
-            ? (billingPlansResponse.data as BillingPlanRecord[])
-            : [];
-        const planView = buildPlanView({
-          planId: normalizedPlanId,
-          plans,
-        });
-        const planFallback = PLAN_MAP[normalizedPlanId] ?? PLAN_MAP.business;
-        const nextPlanLabel = plans.length > 0 ? planView.displayName : planFallback.label;
-
-        if (!active) return;
-        setResolvedPlan({
-          label: nextPlanLabel,
-          className: planView.className,
-        });
-      } catch {
-        if (!active) return;
-        setResolvedPlan(null);
-      }
-    };
-
-    void loadPlan();
-    return () => {
-      active = false;
-    };
-  }, [isEmbeddedSurface, user]);
 
   useEffect(
     () => () => {

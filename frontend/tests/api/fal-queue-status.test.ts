@@ -37,8 +37,6 @@ describe("GET /api/fal/queue-status", () => {
     });
     readFalRuntimeFlagsMock.mockReturnValue({
       queueEnabled: true,
-      queueStatusDispatchKickEnabled: true,
-      queueStatusRecoveryKickEnabled: true,
       reconcilerMaxAttempts: 5,
     });
     readGenerationQueueStatusMock.mockResolvedValue({
@@ -73,7 +71,7 @@ describe("GET /api/fal/queue-status", () => {
     );
   });
 
-  it("keeps queue-status read-only even when kick flags are enabled", async () => {
+  it("keeps queue-status read-only", async () => {
     const req = {
       method: "GET",
       query: { sourceRef: "src-1" },

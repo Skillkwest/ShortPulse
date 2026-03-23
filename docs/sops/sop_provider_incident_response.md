@@ -70,8 +70,7 @@ Mitigation guidance:
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
 4. When queue mode is enabled:
-   - Rely on reconciler dispatch metrics and queue depth trends; optionally validate one-shot kick behavior via `POST /api/fal/queue-status-kick`.
-   - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` and `SHORTPULSE_FAL_QUEUE_STATUS_RECOVERY_KICK_ENABLED` control explicit kick-lane side effects.
+   - Rely on reconciler dispatch metrics and queue depth trends.
    - Confirm exhausted queue rows resolve as `failed` in `/api/fal/queue-status` (not persistent `queued`) and inspect queue `last_error` if present.
 5. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
    - reservation RPC health (`reserve_generation_credits` / `admit_and_reserve_generation_credits`),

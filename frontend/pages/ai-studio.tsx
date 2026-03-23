@@ -43,6 +43,7 @@ import { useAgentOutputBubbleLinking } from "../features/ai-studio/hooks/agentOr
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
 import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAiStudioPageOutputAdapters";
+import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
@@ -465,25 +466,16 @@ export default function AiStudioPage() {
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
-  const beginnerModeUiNotice = beginnerModeError
-    ? `Beginner mode preference sync failed: ${beginnerModeError}`
-    : beginnerModeSyncState === "saving"
-      ? "Saving beginner mode preference..."
-      : null;
-  const mediaAutosaveUiNotice = mediaAutosaveError
-    ? `Media autosave preference sync failed: ${mediaAutosaveError}`
-    : mediaAutosaveSyncState === "saving"
-      ? "Saving media autosave preference..."
-      : null;
-  const effectiveUiNotice = uiNotice ?? beginnerModeUiNotice ?? mediaAutosaveUiNotice;
-  const handleBeginnerModeChange = useCallback(
-    (value: boolean) => {
-      if (!showBeginnerModeToggle) return;
-      if (beginnerModeLoading || beginnerModeSyncState === "saving") return;
-      setBeginnerMode(value);
-    },
-    [beginnerModeLoading, beginnerModeSyncState, setBeginnerMode, showBeginnerModeToggle]
-  );
+  const { effectiveUiNotice, handleBeginnerModeChange } = useAiStudioPageUiNotices({
+    uiNotice,
+    beginnerModeError,
+    beginnerModeLoading,
+    beginnerModeSyncState,
+    showBeginnerModeToggle,
+    setBeginnerMode,
+    mediaAutosaveError,
+    mediaAutosaveSyncState,
+  });
 
   const { visibleFailures, dismissFailure, focusFailure } =
     useAiStudioOptimisticDebitReconciliation({

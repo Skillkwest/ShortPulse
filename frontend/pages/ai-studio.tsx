@@ -42,6 +42,7 @@ import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStu
 import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
 import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAiStudioPageOutputAdapters";
 import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
+import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
@@ -272,40 +273,18 @@ export default function AiStudioPage() {
     outputSelectorStoreEnabled: FLAG_OUTPUT_SELECTOR_STORE,
     selectorCallbacksEnabled: FLAG_SELECTOR_CALLBACKS,
   });
-  const optimisticInFlightDebitCredits = useMemo(
-    () =>
-      optimisticDebitEntries.reduce((sum, entry) => {
-        if (entry.outputId == null) return sum + entry.credits;
-        if (inFlightOutputIds.has(entry.outputId)) return sum + entry.credits;
-        return sum;
-      }, 0),
-    [optimisticDebitEntries, inFlightOutputIds]
-  );
-  const reservedCredits = useMemo(
-    () => Math.max(0, Math.floor(balanceReservedCents ?? 0)),
-    [balanceReservedCents]
-  );
-  const optimisticUncoveredDebitCredits = useMemo(
-    () => Math.max(0, optimisticInFlightDebitCredits - reservedCredits),
-    [optimisticInFlightDebitCredits, reservedCredits]
-  );
-  const pendingHoldCredits = useMemo(() => {
-    return reservedCredits + optimisticUncoveredDebitCredits;
-  }, [reservedCredits, optimisticUncoveredDebitCredits]);
-  const referenceGridPreconnectOrigin = useMemo(() => {
-    if (!FLAG_REFERENCE_GRID_PRECONNECT_HINTS) return null;
-    const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    if (!rawSupabaseUrl) return null;
-    try {
-      return new URL(rawSupabaseUrl).origin;
-    } catch {
-      return null;
-    }
-  }, []);
-  const effectiveBalanceCredits = useMemo(() => {
-    if (balanceCredits == null) return null;
-    return Math.max(0, balanceCredits - optimisticUncoveredDebitCredits);
-  }, [balanceCredits, optimisticUncoveredDebitCredits]);
+  const {
+    optimisticUncoveredDebitCredits,
+    pendingHoldCredits,
+    effectiveBalanceCredits,
+    referenceGridPreconnectOrigin,
+  } = useAiStudioPageCreditDerivations({
+    optimisticDebitEntries,
+    inFlightOutputIds,
+    balanceReservedCents,
+    balanceCredits,
+    referenceGridPreconnectHintsEnabled: FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
+  });
 
   useAiStudioPerfAuditRuntime({
     enabled: FLAG_PERF_AUDIT_RUNTIME,

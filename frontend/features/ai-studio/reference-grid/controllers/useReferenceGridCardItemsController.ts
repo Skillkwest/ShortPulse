@@ -19,6 +19,7 @@ import {
 
 export type ReferenceGridVisibleCardItem = {
   item: StudioOutput;
+  surface: "all-refs" | "curated";
   cardPreviewUrl: string | null;
   previewQualityBand: ReferenceGridPreviewQualityBand;
   targetLongEdgePx: number;
@@ -36,6 +37,7 @@ type UseReferenceGridCardItemsControllerArgs = {
   decodeBudgetEnabled: boolean;
   visibleOutputs: StudioOutput[];
   visibleCuratedOutputs: StudioOutput[];
+  visibleQuickSlotIdSet: Set<string>;
   hydrationPriorityCount: number;
   curatedHydrationPriorityCount: number;
   virtualRowHeight: number;
@@ -68,6 +70,7 @@ export const useReferenceGridCardItemsController = ({
   decodeBudgetEnabled,
   visibleOutputs,
   visibleCuratedOutputs,
+  visibleQuickSlotIdSet,
   hydrationPriorityCount,
   curatedHydrationPriorityCount,
   virtualRowHeight,
@@ -75,25 +78,24 @@ export const useReferenceGridCardItemsController = ({
   quickSlotAdaptiveSurfaceEnabled,
   hydratedById,
 }: UseReferenceGridCardItemsControllerArgs): UseReferenceGridCardItemsControllerResult => {
-  const curatedVisibleIdSet = useMemo(
-    () => new Set(visibleCuratedOutputs.map((item) => item.id)),
-    [visibleCuratedOutputs]
-  );
-
   const buildVisibleCardItems = useCallback(
     (
       rows: StudioOutput[],
       priorityCount: number,
-      options: { surface: "reference-grid" | "quick-slot"; cardLongEdgePx: number }
+      options: {
+        mediaSurface: "reference-grid" | "quick-slot";
+        visualSurface: "all-refs" | "curated";
+        cardLongEdgePx: number;
+      }
     ) =>
       rows.map((item, visibleIndex) => {
         const shouldPreferCuratedSurface =
-          options.surface === "reference-grid" && curatedVisibleIdSet.has(item.id);
+          options.visualSurface === "all-refs" && visibleQuickSlotIdSet.has(item.id);
         const resolvedCardUrls = resolveReferenceCardUrls(item, {
           strictPreviewLadder,
           adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
           pressureLevel: previewQualityPressureLevel,
-          surface: options.surface,
+          surface: options.mediaSurface,
           cardLongEdgePx: options.cardLongEdgePx,
           devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
         });
@@ -140,6 +142,7 @@ export const useReferenceGridCardItemsController = ({
             : (cardPreviewUrl ?? undefined);
         return {
           item,
+          surface: options.visualSurface,
           cardPreviewUrl,
           previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",
           targetLongEdgePx: resolvedCardUrls.targetLongEdgePx ?? 960,
@@ -152,18 +155,19 @@ export const useReferenceGridCardItemsController = ({
     [
       activeOutputId,
       adaptivePreviewRoutingEnabled,
-      curatedVisibleIdSet,
       decodeBudgetEnabled,
       hydratedById,
       previewQualityPressureLevel,
       strictPreviewLadder,
+      visibleQuickSlotIdSet,
     ]
   );
 
   const visibleCardItems = useMemo(
     () =>
       buildVisibleCardItems(visibleOutputs, hydrationPriorityCount, {
-        surface: "reference-grid",
+        mediaSurface: "reference-grid",
+        visualSurface: "all-refs",
         cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
       }),
     [buildVisibleCardItems, hydrationPriorityCount, virtualRowHeight, visibleOutputs]
@@ -172,7 +176,8 @@ export const useReferenceGridCardItemsController = ({
   const curatedVisibleCardItems = useMemo(
     () =>
       buildVisibleCardItems(visibleCuratedOutputs, curatedHydrationPriorityCount, {
-        surface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
+        mediaSurface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
+        visualSurface: "curated",
         cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualRowHeight - 3))),
       }),
     [

@@ -55,6 +55,7 @@ import { useReferenceGridViewportProjectionController } from "../reference-grid/
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
 import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
 import { useReferenceGridHeaderMeasurements } from "../reference-grid/controllers/useReferenceGridHeaderMeasurements";
+import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 import {
   areOutputListsEqual,
@@ -567,6 +568,12 @@ export function ReferenceGrid({
     Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount) *
     baseHydrationPriorityRows;
   const quickSlotAdaptiveSurfaceEnabled = isAdaptiveSurfaceEnabled("quick-slot");
+  const { visibleQuickSlotIdSet, hydrationQuickSlotPreferredIdSet } =
+    useReferenceGridSurfaceOwnershipController({
+      visibleCuratedOutputs,
+      nearViewportCuratedOutputs,
+      quickSlotAdaptiveSurfaceEnabled,
+    });
   const {
     visibleCardItems,
     curatedVisibleCardItems,
@@ -580,6 +587,7 @@ export function ReferenceGrid({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     visibleOutputs,
     visibleCuratedOutputs,
+    visibleQuickSlotIdSet,
     hydrationPriorityCount,
     curatedHydrationPriorityCount,
     virtualRowHeight: virtualMetrics.rowHeight,
@@ -603,6 +611,7 @@ export function ReferenceGrid({
     loadingIdsLength,
   } = useReferenceGridLoadingVisualController({
     allVisibleCardItems,
+    visibleQuickSlotIdSet,
     loadedMap,
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
   });
@@ -614,6 +623,7 @@ export function ReferenceGrid({
     outputs,
     visibleCardItems,
     curatedVisibleCardItems,
+    hydrationQuickSlotPreferredIdSet,
     nearViewportOutputs,
     nearViewportCuratedOutputs,
     previewQualityPressureLevel,
@@ -762,6 +772,7 @@ export function ReferenceGrid({
     perfDegradeLevel: perfWatchdog.degradeLevel,
     visibleCardItems,
     curatedVisibleCardItems,
+    visibleQuickSlotIdSet,
     onSelectOutput,
     onOpenDetails,
     onCardDragStart: handleCardDragStart,

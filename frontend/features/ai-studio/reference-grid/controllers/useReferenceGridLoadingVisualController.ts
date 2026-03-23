@@ -8,6 +8,7 @@ import { classifyReferenceGridCardVisualState } from "../logic/referenceGridCard
 
 type LoadingVisualCard = {
   item: StudioOutput;
+  surface: "all-refs" | "curated";
   cardPreviewUrl: string | null;
   isImagePreview: boolean;
   isPriorityHydration: boolean;
@@ -16,6 +17,7 @@ type LoadingVisualCard = {
 
 type UseReferenceGridLoadingVisualControllerArgs = {
   allVisibleCardItems: LoadingVisualCard[];
+  visibleQuickSlotIdSet: Set<string>;
   loadedMap: Record<string, boolean>;
   decodeBudgetEnabled: boolean;
 };
@@ -34,6 +36,7 @@ type UseReferenceGridLoadingVisualControllerResult = {
  */
 export const useReferenceGridLoadingVisualController = ({
   allVisibleCardItems,
+  visibleQuickSlotIdSet,
   loadedMap,
   decodeBudgetEnabled,
 }: UseReferenceGridLoadingVisualControllerArgs): UseReferenceGridLoadingVisualControllerResult => {
@@ -41,10 +44,8 @@ export const useReferenceGridLoadingVisualController = ({
     const nextLoadingIds: string[] = [];
     const nextGenerationLoadingIds: string[] = [];
     const nextHydrationLoadingIds: string[] = [];
-    const seenOutputIds = new Set<string>();
     allVisibleCardItems.forEach((card) => {
-      if (seenOutputIds.has(card.item.id)) return;
-      seenOutputIds.add(card.item.id);
+      if (card.surface === "all-refs" && visibleQuickSlotIdSet.has(card.item.id)) return;
       const visualState = classifyReferenceGridCardVisualState({
         item: card.item,
         cardPreviewUrl: card.cardPreviewUrl,
@@ -69,7 +70,7 @@ export const useReferenceGridLoadingVisualController = ({
       generationLoadingIds: nextGenerationLoadingIds,
       hydrationLoadingIds: nextHydrationLoadingIds,
     };
-  }, [allVisibleCardItems, decodeBudgetEnabled, loadedMap]);
+  }, [allVisibleCardItems, decodeBudgetEnabled, loadedMap, visibleQuickSlotIdSet]);
 
   const loadingCardIdSet = React.useMemo(() => new Set(loadingState.loadingIds), [loadingState]);
   const generationLoadingCardIdSet = React.useMemo(

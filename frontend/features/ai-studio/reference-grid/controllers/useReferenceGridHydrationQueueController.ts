@@ -21,6 +21,7 @@ type UseReferenceGridHydrationQueueControllerArgs = {
   outputs: StudioOutput[];
   visibleCardItems: ReferenceGridVisibleCardItem[];
   curatedVisibleCardItems: ReferenceGridVisibleCardItem[];
+  hydrationQuickSlotPreferredIdSet: Set<string>;
   nearViewportOutputs: StudioOutput[];
   nearViewportCuratedOutputs: StudioOutput[];
   previewQualityPressureLevel: 0 | 1 | 2;
@@ -52,6 +53,7 @@ export const useReferenceGridHydrationQueueController = ({
   outputs,
   visibleCardItems,
   curatedVisibleCardItems,
+  hydrationQuickSlotPreferredIdSet,
   nearViewportOutputs,
   nearViewportCuratedOutputs,
   previewQualityPressureLevel,
@@ -74,16 +76,14 @@ export const useReferenceGridHydrationQueueController = ({
       200,
       Math.round(Math.max(1, curatedVirtualRowHeight - 3))
     );
-    const quickSlotPreferredIdSet = new Set<string>([
-      ...curatedVisibleCardItems.map((card) => card.item.id),
-      ...nearViewportCuratedOutputs.map((item) => item.id),
-    ]);
     const resolvePreferredSurface = (id: string): "reference-grid" | "quick-slot" =>
-      quickSlotPreferredIdSet.has(id) && quickSlotAdaptiveSurfaceEnabled
+      hydrationQuickSlotPreferredIdSet.has(id) && quickSlotAdaptiveSurfaceEnabled
         ? "quick-slot"
         : "reference-grid";
     const resolvePreferredCardLongEdge = (id: string): number =>
-      quickSlotPreferredIdSet.has(id) ? quickSlotCardLongEdgePx : referenceGridCardLongEdgePx;
+      hydrationQuickSlotPreferredIdSet.has(id)
+        ? quickSlotCardLongEdgePx
+        : referenceGridCardLongEdgePx;
     const candidateIdSet = new Set<string>();
     if (activeOutputId) {
       const activeOutput = outputs.find((item) => item.id === activeOutputId);
@@ -216,6 +216,7 @@ export const useReferenceGridHydrationQueueController = ({
     curatedVisibleCardItems,
     decodeBudgetEnabled,
     enqueueImageHydration,
+    hydrationQuickSlotPreferredIdSet,
     nearViewportCuratedOutputs,
     nearViewportOutputs,
     outputs,

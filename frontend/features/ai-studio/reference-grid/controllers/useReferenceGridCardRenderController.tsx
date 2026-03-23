@@ -27,6 +27,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   perfDegradeLevel: 0 | 1 | 2;
   visibleCardItems: ReferenceGridVisibleCard[];
   curatedVisibleCardItems: ReferenceGridVisibleCard[];
+  visibleQuickSlotIdSet: Set<string>;
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   onCardDragStart: (
@@ -70,6 +71,7 @@ export const useReferenceGridCardRenderController = ({
   perfDegradeLevel,
   visibleCardItems,
   curatedVisibleCardItems,
+  visibleQuickSlotIdSet,
   onSelectOutput,
   onOpenDetails,
   onCardDragStart,
@@ -90,10 +92,6 @@ export const useReferenceGridCardRenderController = ({
   onSaveToLibrary,
   onDownload,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
-  const curatedVisibleIdSet = React.useMemo(
-    () => new Set(curatedVisibleCardItems.map((card) => card.item.id)),
-    [curatedVisibleCardItems]
-  );
   const renderReferenceCard = useCallback(
     (
       card: ReferenceGridVisibleCard,
@@ -106,7 +104,7 @@ export const useReferenceGridCardRenderController = ({
       const isGenerationLoading = generationLoadingCardIdSet.has(card.item.id);
       const isHydrationLoading = hydrationLoadingCardIdSet.has(card.item.id);
       const shouldPreferCuratedSurface =
-        !options.isCuratedSurface && curatedVisibleIdSet.has(card.item.id);
+        !options.isCuratedSurface && visibleQuickSlotIdSet.has(card.item.id);
       const suppressDuplicateAllRefsLoading = shouldPreferCuratedSurface && !isGenerationLoading;
       const shouldWarmVideoPreview =
         card.isVideoPreview &&
@@ -204,7 +202,6 @@ export const useReferenceGridCardRenderController = ({
     [
       activeOutputId,
       autoplayEnabledIdSet,
-      curatedVisibleIdSet,
       linkedPromptReferenceIdSet,
       markLoaded,
       generationLoadingCardIdSet,
@@ -229,6 +226,7 @@ export const useReferenceGridCardRenderController = ({
       loadingCardIdSet,
       perfDegradeLevel,
       registerVideoNode,
+      visibleQuickSlotIdSet,
     ]
   );
 

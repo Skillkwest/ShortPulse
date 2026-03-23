@@ -217,6 +217,60 @@ describe("ErrorIncidentsPanel event pagination", () => {
     expect(props.onBulkUpdateListedErrorStatus).toHaveBeenNthCalledWith(2, "ignored");
   });
 
+  it("routes incident row status actions through the provided callback", () => {
+    const props = buildBaseProps();
+    props.errors = [
+      {
+        id: "incident-open-row",
+        fingerprint: "fp-open",
+        source: "api.route",
+        scope: "app",
+        severity: "medium",
+        status: "open",
+        message: "Open incident",
+        stack: null,
+        route: "/api/route",
+        endpoint: "/api/route",
+        requestId: null,
+        httpStatus: 500,
+        userId: "user-1",
+        userEmail: "user@example.com",
+        metadata: null,
+        firstSeenAt: "2026-02-20T10:00:00.000Z",
+        lastSeenAt: "2026-02-20T10:00:00.000Z",
+        occurrencesCount: 1,
+      },
+      {
+        id: "incident-resolved-row",
+        fingerprint: "fp-resolved",
+        source: "api.route",
+        scope: "app",
+        severity: "low",
+        status: "resolved",
+        message: "Resolved incident",
+        stack: null,
+        route: "/api/route",
+        endpoint: "/api/route",
+        requestId: null,
+        httpStatus: 500,
+        userId: "user-2",
+        userEmail: "resolved@example.com",
+        metadata: null,
+        firstSeenAt: "2026-02-20T10:00:00.000Z",
+        lastSeenAt: "2026-02-20T10:00:00.000Z",
+        occurrencesCount: 1,
+      },
+    ];
+
+    render(<ErrorIncidentsPanel {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Resolve$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Reopen$/i }));
+
+    expect(props.onUpdateErrorStatus).toHaveBeenNthCalledWith(1, "incident-open-row", "resolved");
+    expect(props.onUpdateErrorStatus).toHaveBeenNthCalledWith(2, "incident-resolved-row", "open");
+  });
+
   it("opens and closes the event detail modal from the stream table", () => {
     const props = buildBaseProps();
     props.errorEvents = [

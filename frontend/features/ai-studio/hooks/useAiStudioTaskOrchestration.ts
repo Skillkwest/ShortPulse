@@ -120,6 +120,7 @@ export const useAiStudioTaskOrchestration = ({
   const { updateOutputById, notifyGenerationFailure, setUiNotice, setOutputs } =
     taskSubmissionConfig;
   const outputsRef = useRef<StudioOutput[]>(outputs);
+  const queueResumeCandidatesRef = useRef<StudioOutput[]>([]);
   const stuckSpinnerRetryStateRef = useRef<Record<string, StuckSpinnerRetryState>>({});
   const queueResumeInFlightRef = useRef<Record<string, boolean>>({});
   const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
@@ -127,6 +128,7 @@ export const useAiStudioTaskOrchestration = ({
 
   useEffect(() => {
     outputsRef.current = outputs;
+    queueResumeCandidatesRef.current = outputs.filter((output) => isQueueResumeEligible(output));
   }, [outputs]);
 
   const handlePollingOutputLookupHardStop = useCallback(
@@ -234,7 +236,7 @@ export const useAiStudioTaskOrchestration = ({
     if (!isDocumentVisible()) return;
     const now = Date.now();
     const activeQueuedIds = new Set<string>();
-    const outputsSnapshot = outputsRef.current;
+    const outputsSnapshot = queueResumeCandidatesRef.current;
 
     let inFlightCount = Object.values(queueResumeInFlightRef.current).filter(Boolean).length;
     outputsSnapshot.forEach((output) => {

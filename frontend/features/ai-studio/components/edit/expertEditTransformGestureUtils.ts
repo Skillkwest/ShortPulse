@@ -3,9 +3,10 @@
  */
 import {
   clampLayerScale,
-  clampLayerTranslateRatio,
   computeDistance,
   normalizeLayerRotationDeg,
+  resolveContainedLayerRect,
+  resolveContainedLayerTransform,
   resolveTransformGeometry,
   type LayerTransform,
 } from "./expertEditLayerTransformUtils";
@@ -31,6 +32,7 @@ export const createTransformPointerSession = ({
   dropzoneHeight,
   selectedLayerId,
   selectedLayerTransform,
+  imageAspectRatio,
   dragMode,
 }: {
   pointerId: number;
@@ -40,12 +42,20 @@ export const createTransformPointerSession = ({
   dropzoneHeight: number;
   selectedLayerId: string;
   selectedLayerTransform: LayerTransform;
+  imageAspectRatio: number;
   dragMode: TransformPointerSession["dragMode"];
 }): TransformPointerSession => {
+  const containedRect = resolveContainedLayerRect({
+    imageAspectRatio,
+    viewportWidth: dropzoneWidth,
+    viewportHeight: dropzoneHeight,
+  });
   const geometry = resolveTransformGeometry({
     transform: selectedLayerTransform,
-    width: dropzoneWidth,
-    height: dropzoneHeight,
+    dropzoneWidth,
+    dropzoneHeight,
+    baseWidth: containedRect.width,
+    baseHeight: containedRect.height,
   });
   const distanceToCenter = Math.max(
     1,
@@ -76,41 +86,63 @@ export const resolveTransformSessionUpdate = ({
   session,
   pointerX,
   pointerY,
+  imageAspectRatio,
 }: {
   session: TransformPointerSession;
   pointerX: number;
   pointerY: number;
+  imageAspectRatio: number;
 }): Partial<LayerTransform> | null => {
   if (session.dragMode === "move") {
     const deltaX = pointerX - session.startCanvasX;
     const deltaY = pointerY - session.startCanvasY;
-    return {
-      translateXRatio: clampLayerTranslateRatio(
-        session.baseTranslateXRatio + deltaX / session.dropzoneWidth
-      ),
-      translateYRatio: clampLayerTranslateRatio(
-        session.baseTranslateYRatio + deltaY / session.dropzoneHeight
-      ),
-    };
+    return resolveContainedLayerTransform({
+      transform: {
+        translateXRatio: session.baseTranslateXRatio + deltaX / session.dropzoneWidth,
+        translateYRatio: session.baseTranslateYRatio + deltaY / session.dropzoneHeight,
+        scale: session.baseScale,
+        rotationDeg: session.baseRotationDeg,
+      },
+      imageAspectRatio,
+      dropzoneWidth: session.dropzoneWidth,
+      dropzoneHeight: session.dropzoneHeight,
+    });
   }
   if (session.dragMode === "resize") {
     const nextDistanceToCenter = Math.max(
       1,
       computeDistance(pointerX, pointerY, session.centerX, session.centerY)
     );
-    return {
-      scale: clampLayerScale(
-        session.baseScale * (nextDistanceToCenter / session.baseDistanceToCenter)
-      ),
-    };
+    return resolveContainedLayerTransform({
+      transform: {
+        translateXRatio: session.baseTranslateXRatio,
+        translateYRatio: session.baseTranslateYRatio,
+        scale: clampLayerScale(
+          session.baseScale * (nextDistanceToCenter / session.baseDistanceToCenter)
+        ),
+        rotationDeg: session.baseRotationDeg,
+      },
+      imageAspectRatio,
+      dropzoneWidth: session.dropzoneWidth,
+      dropzoneHeight: session.dropzoneHeight,
+    });
   }
   if (session.dragMode === "rotate") {
     const nextPointerAngle = Math.atan2(pointerY - session.centerY, pointerX - session.centerX);
-    return {
-      rotationDeg: normalizeLayerRotationDeg(
-        session.baseRotationDeg + ((nextPointerAngle - session.basePointerAngleRad) * 180) / Math.PI
-      ),
-    };
+    return resolveContainedLayerTransform({
+      transform: {
+        translateXRatio: session.baseTranslateXRatio,
+        translateYRatio: session.baseTranslateYRatio,
+        scale: session.baseScale,
+        rotationDeg: normalizeLayerRotationDeg(
+          session.baseRotationDeg +
+            ((nextPointerAngle - session.basePointerAngleRad) * 180) / Math.PI
+        ),
+      },
+      imageAspectRatio,
+      dropzoneWidth: session.dropzoneWidth,
+      dropzoneHeight: session.dropzoneHeight,
+    });
   }
   return null;
 };

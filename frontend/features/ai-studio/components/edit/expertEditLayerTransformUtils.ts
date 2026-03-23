@@ -33,6 +33,17 @@ export type TransformGeometry = {
   rotateHandleY: number;
 };
 
+export type ContainedLayerRect = {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+  widthPercent: number;
+  heightPercent: number;
+  leftPercent: number;
+  topPercent: number;
+};
+
 const LAYER_OPACITY_MIN = 0;
 const LAYER_OPACITY_MAX = 1;
 const LAYER_TRANSLATE_RATIO_MIN = -1;
@@ -40,6 +51,7 @@ const LAYER_TRANSLATE_RATIO_MAX = 1;
 const LAYER_SCALE_MIN = 0.2;
 const LAYER_SCALE_MAX = 2;
 const TRANSFORM_ROTATE_HANDLE_INSET_PX = 16;
+const LAYER_SCALE_EPSILON = 0.0001;
 
 export const defaultLayerTransform = (): LayerTransform => ({
   translateXRatio: 0,
@@ -63,6 +75,159 @@ export const clampLayerTranslateRatio = (value: number) =>
 
 export const clampLayerScale = (value: number) =>
   Math.min(LAYER_SCALE_MAX, Math.max(LAYER_SCALE_MIN, value));
+
+const resolveSafeImageAspectRatio = (value: number) =>
+  Number.isFinite(value) && value > 0 ? value : 1;
+
+const resolveSafeViewportDimension = (value: number) =>
+  Math.max(1, Number.isFinite(value) ? value : 1);
+
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+export const resolveContainedLayerRect = ({
+  imageAspectRatio,
+  viewportWidth,
+  viewportHeight,
+}: {
+  imageAspectRatio: number;
+  viewportWidth: number;
+  viewportHeight: number;
+}): ContainedLayerRect => {
+  const safeAspectRatio = resolveSafeImageAspectRatio(imageAspectRatio);
+  const safeViewportWidth = resolveSafeViewportDimension(viewportWidth);
+  const safeViewportHeight = resolveSafeViewportDimension(viewportHeight);
+  const viewportAspectRatio = safeViewportWidth / safeViewportHeight;
+  let width = safeViewportWidth;
+  let height = safeViewportHeight;
+  if (safeAspectRatio > viewportAspectRatio) {
+    height = safeViewportWidth / safeAspectRatio;
+  } else {
+    width = safeViewportHeight * safeAspectRatio;
+  }
+  const left = (safeViewportWidth - width) / 2;
+  const top = (safeViewportHeight - height) / 2;
+  return {
+    width,
+    height,
+    left,
+    top,
+    widthPercent: (width / safeViewportWidth) * 100,
+    heightPercent: (height / safeViewportHeight) * 100,
+    leftPercent: (left / safeViewportWidth) * 100,
+    topPercent: (top / safeViewportHeight) * 100,
+  };
+};
+
+const resolveLayerBoundingExtents = ({
+  baseWidth,
+  baseHeight,
+  scale,
+  rotationDeg,
+}: {
+  baseWidth: number;
+  baseHeight: number;
+  scale: number;
+  rotationDeg: number;
+}) => {
+  const safeBaseWidth = Math.max(LAYER_SCALE_EPSILON, Math.abs(baseWidth));
+  const safeBaseHeight = Math.max(LAYER_SCALE_EPSILON, Math.abs(baseHeight));
+  const safeScale = Math.max(LAYER_SCALE_EPSILON, Number.isFinite(scale) ? scale : 1);
+  const rotation = toRadians(rotationDeg);
+  const cosine = Math.abs(Math.cos(rotation));
+  const sine = Math.abs(Math.sin(rotation));
+  const halfWidth = (safeScale * (safeBaseWidth * cosine + safeBaseHeight * sine)) / 2;
+  const halfHeight = (safeScale * (safeBaseWidth * sine + safeBaseHeight * cosine)) / 2;
+  return {
+    halfWidth,
+    halfHeight,
+  };
+};
+
+export const resolveMaxContainedLayerScale = ({
+  imageAspectRatio,
+  dropzoneWidth,
+  dropzoneHeight,
+  rotationDeg,
+}: {
+  imageAspectRatio: number;
+  dropzoneWidth: number;
+  dropzoneHeight: number;
+  rotationDeg: number;
+}) => {
+  const safeDropzoneWidth = resolveSafeViewportDimension(dropzoneWidth);
+  const safeDropzoneHeight = resolveSafeViewportDimension(dropzoneHeight);
+  const containedRect = resolveContainedLayerRect({
+    imageAspectRatio,
+    viewportWidth: safeDropzoneWidth,
+    viewportHeight: safeDropzoneHeight,
+  });
+  const rotation = toRadians(rotationDeg);
+  const cosine = Math.abs(Math.cos(rotation));
+  const sine = Math.abs(Math.sin(rotation));
+  const widthDenominator = containedRect.width * cosine + containedRect.height * sine;
+  const heightDenominator = containedRect.width * sine + containedRect.height * cosine;
+  const widthBound =
+    widthDenominator > LAYER_SCALE_EPSILON ? safeDropzoneWidth / widthDenominator : LAYER_SCALE_MAX;
+  const heightBound =
+    heightDenominator > LAYER_SCALE_EPSILON
+      ? safeDropzoneHeight / heightDenominator
+      : LAYER_SCALE_MAX;
+  return Math.max(LAYER_SCALE_EPSILON, Math.min(LAYER_SCALE_MAX, widthBound, heightBound));
+};
+
+export const resolveContainedLayerTransform = ({
+  transform,
+  imageAspectRatio,
+  dropzoneWidth,
+  dropzoneHeight,
+}: {
+  transform: LayerTransform;
+  imageAspectRatio: number;
+  dropzoneWidth: number;
+  dropzoneHeight: number;
+}): LayerTransform => {
+  const safeDropzoneWidth = resolveSafeViewportDimension(dropzoneWidth);
+  const safeDropzoneHeight = resolveSafeViewportDimension(dropzoneHeight);
+  const rotationDeg = normalizeLayerRotationDeg(transform.rotationDeg);
+  const maxContainedScale = resolveMaxContainedLayerScale({
+    imageAspectRatio,
+    dropzoneWidth: safeDropzoneWidth,
+    dropzoneHeight: safeDropzoneHeight,
+    rotationDeg,
+  });
+  const scale = Math.max(
+    LAYER_SCALE_EPSILON,
+    Math.min(clampLayerScale(transform.scale), maxContainedScale)
+  );
+  const containedRect = resolveContainedLayerRect({
+    imageAspectRatio,
+    viewportWidth: safeDropzoneWidth,
+    viewportHeight: safeDropzoneHeight,
+  });
+  const extents = resolveLayerBoundingExtents({
+    baseWidth: containedRect.width,
+    baseHeight: containedRect.height,
+    scale,
+    rotationDeg,
+  });
+  const maxCenterOffsetX = Math.max(0, safeDropzoneWidth / 2 - extents.halfWidth);
+  const maxCenterOffsetY = Math.max(0, safeDropzoneHeight / 2 - extents.halfHeight);
+  return {
+    translateXRatio: clampNumber(
+      Number.isFinite(transform.translateXRatio) ? transform.translateXRatio : 0,
+      -maxCenterOffsetX / safeDropzoneWidth,
+      maxCenterOffsetX / safeDropzoneWidth
+    ),
+    translateYRatio: clampNumber(
+      Number.isFinite(transform.translateYRatio) ? transform.translateYRatio : 0,
+      -maxCenterOffsetY / safeDropzoneHeight,
+      maxCenterOffsetY / safeDropzoneHeight
+    ),
+    scale,
+    rotationDeg,
+  };
+};
 
 export const normalizeLayerRotationDeg = (value: number) => {
   if (!Number.isFinite(value)) return 0;
@@ -145,17 +310,23 @@ const rotatePoint = (x: number, y: number, rotationDeg: number) => {
 
 export const resolveTransformGeometry = ({
   transform,
-  width,
-  height,
+  dropzoneWidth,
+  dropzoneHeight,
+  baseWidth,
+  baseHeight,
 }: {
   transform: LayerTransform;
-  width: number;
-  height: number;
+  dropzoneWidth: number;
+  dropzoneHeight: number;
+  baseWidth: number;
+  baseHeight: number;
 }): TransformGeometry => {
-  const centerX = width / 2 + transform.translateXRatio * width;
-  const centerY = height / 2 + transform.translateYRatio * height;
-  const halfWidth = (width / 2) * transform.scale;
-  const halfHeight = (height / 2) * transform.scale;
+  const safeDropzoneWidth = resolveSafeViewportDimension(dropzoneWidth);
+  const safeDropzoneHeight = resolveSafeViewportDimension(dropzoneHeight);
+  const centerX = safeDropzoneWidth / 2 + transform.translateXRatio * safeDropzoneWidth;
+  const centerY = safeDropzoneHeight / 2 + transform.translateYRatio * safeDropzoneHeight;
+  const halfWidth = (Math.max(LAYER_SCALE_EPSILON, baseWidth) / 2) * transform.scale;
+  const halfHeight = (Math.max(LAYER_SCALE_EPSILON, baseHeight) / 2) * transform.scale;
   const cornerVector = rotatePoint(halfWidth, -halfHeight, transform.rotationDeg);
   const rotateHandleDistance = Math.max(
     halfHeight - TRANSFORM_ROTATE_HANDLE_INSET_PX,

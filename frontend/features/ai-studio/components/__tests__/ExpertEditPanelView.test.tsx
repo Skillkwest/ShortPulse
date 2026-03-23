@@ -224,6 +224,60 @@ const mockElementRect = (element: Element, rect: DOMRect) => {
   });
 };
 
+const dragStagePointer = ({
+  currentTarget,
+  downTarget,
+  pointerId,
+  startX,
+  startY,
+  endX,
+  endY,
+  button = 0,
+  shiftKey = false,
+  altKey = false,
+  pointerType = "mouse",
+}: {
+  currentTarget: HTMLElement;
+  downTarget?: HTMLElement | Element | null;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  button?: number;
+  shiftKey?: boolean;
+  altKey?: boolean;
+  pointerType?: string;
+}) => {
+  fireEvent.pointerDown((downTarget ?? currentTarget) as Element, {
+    pointerId,
+    pointerType,
+    button,
+    shiftKey,
+    altKey,
+    clientX: startX,
+    clientY: startY,
+  });
+  fireEvent.pointerMove(currentTarget, {
+    pointerId,
+    pointerType,
+    button,
+    shiftKey,
+    altKey,
+    clientX: endX,
+    clientY: endY,
+  });
+  fireEvent.pointerUp(currentTarget, {
+    pointerId,
+    pointerType,
+    button,
+    shiftKey,
+    altKey,
+    clientX: endX,
+    clientY: endY,
+  });
+};
+
 const parsePolylinePoints = (polyline: SVGPolylineElement) =>
   (polyline.getAttribute("points") ?? "")
     .split(/\s+/)
@@ -3604,24 +3658,22 @@ describe("ExpertEditPanelView", () => {
         value: () => rect,
       });
 
-      fireEvent.pointerDown(primaryDropzone, {
-        pointerId: 901,
-        pointerType: "mouse",
-        button: 0,
-        clientX: 30,
-        clientY: 30,
+      dragStagePointer({
+        currentTarget: primaryDropzone,
+        pointerId: 900,
+        startX: 196,
+        startY: 4,
+        endX: 110,
+        endY: 90,
+        shiftKey: true,
       });
-      fireEvent.pointerMove(primaryDropzone, {
+      dragStagePointer({
+        currentTarget: primaryDropzone,
         pointerId: 901,
-        pointerType: "mouse",
-        clientX: 100,
-        clientY: 95,
-      });
-      fireEvent.pointerUp(primaryDropzone, {
-        pointerId: 901,
-        pointerType: "mouse",
-        clientX: 100,
-        clientY: 95,
+        startX: 30,
+        startY: 30,
+        endX: 100,
+        endY: 95,
       });
 
       const movedFrameBeforeReset = document.querySelector(
@@ -3716,24 +3768,22 @@ describe("ExpertEditPanelView", () => {
     expect(readFrameTranslate(frame).x).toBeCloseTo(0, 4);
     expect(readFrameTranslate(frame).y).toBeCloseTo(0, 4);
 
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 41,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 20,
-      clientY: 20,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 40,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 41,
-      pointerType: "mouse",
-      clientX: 60,
-      clientY: 70,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 41,
-      pointerType: "mouse",
-      clientX: 60,
-      clientY: 70,
+      startX: 20,
+      startY: 20,
+      endX: 60,
+      endY: 70,
     });
 
     const { x: translateX, y: translateY } = readFrameTranslate(frame);
@@ -3848,27 +3898,29 @@ describe("ExpertEditPanelView", () => {
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
     const initialScale = readFrameScale(frame);
 
-    fireEvent.pointerDown(screen.getByTestId("edit-expert-transform-handle-inline-ne"), {
-      pointerId: 63,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 196,
-      clientY: 4,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 62,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    const shrunkScale = readFrameScale(frame);
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      downTarget: screen.getByTestId("edit-expert-transform-handle-inline-ne"),
       pointerId: 63,
-      pointerType: "mouse",
-      clientX: 236,
-      clientY: -24,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 63,
-      pointerType: "mouse",
-      clientX: 236,
-      clientY: -24,
+      startX: 196,
+      startY: 4,
+      endX: 236,
+      endY: -24,
     });
 
-    expect(readFrameScale(frame)).toBeGreaterThan(initialScale);
+    expect(shrunkScale).toBeLessThan(initialScale);
+    expect(readFrameScale(frame)).toBeGreaterThan(shrunkScale);
+    expect(readFrameScale(frame)).toBeLessThanOrEqual(initialScale);
   });
 
   it("keeps transform overlay chrome fixed-size while selection dimensions scale", async () => {
@@ -3910,24 +3962,24 @@ describe("ExpertEditPanelView", () => {
     expect(initialOverlayBoxWidthPercent).toBeGreaterThan(0);
     expect(overlay.style.transform).not.toContain("scale(");
 
-    fireEvent.pointerDown(screen.getByTestId("edit-expert-transform-handle-inline-ne"), {
-      pointerId: 263,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 196,
-      clientY: 4,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 262,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    const shrunkOverlayBoxWidthPercent = Number.parseFloat(overlayBox?.style.width ?? "0");
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      downTarget: screen.getByTestId("edit-expert-transform-handle-inline-ne"),
       pointerId: 263,
-      pointerType: "mouse",
-      clientX: 236,
-      clientY: -24,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 263,
-      pointerType: "mouse",
-      clientX: 236,
-      clientY: -24,
+      startX: 196,
+      startY: 4,
+      endX: 236,
+      endY: -24,
     });
 
     const resizedOverlay = screen.getByTestId("edit-expert-transform-overlay-inline");
@@ -3936,7 +3988,7 @@ describe("ExpertEditPanelView", () => {
     ) as HTMLDivElement | null;
     expect(resizedOverlay.style.transform).not.toContain("scale(");
     expect(Number.parseFloat(resizedOverlayBox?.style.width ?? "0")).toBeGreaterThan(
-      initialOverlayBoxWidthPercent
+      shrunkOverlayBoxWidthPercent
     );
   });
 
@@ -3978,24 +4030,22 @@ describe("ExpertEditPanelView", () => {
     expect(redoButton).toBeDisabled();
     expect(recenterButton).toBeDisabled();
 
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 141,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 30,
-      clientY: 30,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 140,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 141,
-      pointerType: "mouse",
-      clientX: 80,
-      clientY: 95,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 141,
-      pointerType: "mouse",
-      clientX: 80,
-      clientY: 95,
+      startX: 30,
+      startY: 30,
+      endX: 80,
+      endY: 95,
     });
 
     const movedTranslate = readFrameTranslate(frame);
@@ -4010,7 +4060,7 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(undoneTranslate.x)).toBeLessThan(0.01);
     expect(Math.abs(undoneTranslate.y)).toBeLessThan(0.01);
     expect(redoButton).not.toBeDisabled();
-    expect(recenterButton).toBeDisabled();
+    expect(recenterButton).not.toBeDisabled();
 
     fireEvent.click(redoButton);
     const redoneTranslate = readFrameTranslate(frame);
@@ -4065,25 +4115,23 @@ describe("ExpertEditPanelView", () => {
     const uploadedScaleBefore = readFrameScale(uploadedFrameBefore as HTMLDivElement);
     const foundationScaleBefore = readFrameScale(foundationFrameBefore as HTMLDivElement);
 
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 71,
-      pointerType: "mouse",
-      button: 0,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 70,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
       shiftKey: true,
-      clientX: 160,
-      clientY: 40,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 71,
-      pointerType: "mouse",
-      clientX: 220,
-      clientY: -10,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 71,
-      pointerType: "mouse",
-      clientX: 220,
-      clientY: -10,
+      startX: 160,
+      startY: 40,
+      endX: 220,
+      endY: -10,
+      shiftKey: true,
     });
 
     const framesAfter = Array.from(
@@ -4100,7 +4148,7 @@ describe("ExpertEditPanelView", () => {
     const uploadedScaleAfter = readFrameScale(uploadedFrameAfter as HTMLDivElement);
     const foundationScaleAfter = readFrameScale(foundationFrameAfter as HTMLDivElement);
 
-    expect(uploadedScaleAfter).toBeGreaterThan(uploadedScaleBefore);
+    expect(uploadedScaleAfter).toBeLessThan(uploadedScaleBefore);
     expect(foundationScaleAfter).toBe(foundationScaleBefore);
   });
 
@@ -4138,29 +4186,28 @@ describe("ExpertEditPanelView", () => {
     const initialScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
     expect(initialScale).toBeGreaterThan(0);
 
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 51,
-      pointerType: "mouse",
-      button: 0,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 50,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
       shiftKey: true,
-      clientX: 196,
-      clientY: 4,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 51,
-      pointerType: "mouse",
-      clientX: 236,
-      clientY: -24,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 51,
-      pointerType: "mouse",
-      clientX: 236,
-      clientY: -24,
+      startX: 110,
+      startY: 90,
+      endX: 236,
+      endY: -24,
+      shiftKey: true,
     });
 
     const resizedScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
-    expect(resizedScale).toBeGreaterThan(1);
+    expect(resizedScale).toBeLessThanOrEqual(1);
+    expect(resizedScale).toBeGreaterThan(initialScale * 0.5);
   });
 
   it("allows resizing smaller than the previous minimum floor with shift adjust drag", async () => {
@@ -4316,24 +4363,22 @@ describe("ExpertEditPanelView", () => {
     const recenterButton = screen.getByRole("button", { name: /center move action/i });
     expect(recenterButton).toBeDisabled();
 
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 61,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 60,
-      clientY: 40,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 60,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 61,
-      pointerType: "mouse",
-      clientX: 156,
-      clientY: 128,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 61,
-      pointerType: "mouse",
-      clientX: 156,
-      clientY: 128,
+      startX: 60,
+      startY: 40,
+      endX: 156,
+      endY: 128,
     });
 
     const movedTranslate = readFrameTranslate(frame);
@@ -4380,24 +4425,22 @@ describe("ExpertEditPanelView", () => {
 
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
 
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 261,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 50,
-      clientY: 44,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 260,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 261,
-      pointerType: "mouse",
-      clientX: 142,
-      clientY: 139,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 261,
-      pointerType: "mouse",
-      clientX: 142,
-      clientY: 139,
+      startX: 50,
+      startY: 44,
+      endX: 142,
+      endY: 139,
     });
 
     const movedTranslate = readFrameTranslate(frame);
@@ -4950,52 +4993,39 @@ describe("ExpertEditPanelView", () => {
     ) as HTMLDivElement;
     expect(modalFrame).toBeTruthy();
 
-    fireEvent.pointerDown(modalStage, {
-      pointerId: 41,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 120,
-      clientY: 120,
+    dragStagePointer({
+      currentTarget: modalStage,
+      pointerId: 40,
+      startX: 236,
+      startY: 4,
+      endX: 140,
+      endY: 100,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(modalStage, {
+    dragStagePointer({
+      currentTarget: modalStage,
       pointerId: 41,
-      pointerType: "mouse",
-      clientX: 160,
-      clientY: 148,
-    });
-    fireEvent.pointerUp(modalStage, {
-      pointerId: 41,
-      pointerType: "mouse",
-      clientX: 160,
-      clientY: 148,
+      startX: 120,
+      startY: 120,
+      endX: 160,
+      endY: 148,
     });
     const translated = readFrameTranslate(modalFrame);
     expect(Math.abs(translated.x)).toBeGreaterThan(10);
     expect(Math.abs(translated.y)).toBeGreaterThan(10);
 
-    fireEvent.pointerDown(modalStage, {
+    const movedScale = readFrameScale(modalFrame);
+    dragStagePointer({
+      currentTarget: modalStage,
       pointerId: 42,
-      pointerType: "mouse",
-      button: 0,
+      startX: 170,
+      startY: 120,
+      endX: 220,
+      endY: 120,
       shiftKey: true,
-      clientX: 170,
-      clientY: 120,
     });
-    fireEvent.pointerMove(modalStage, {
-      pointerId: 42,
-      pointerType: "mouse",
-      shiftKey: true,
-      clientX: 220,
-      clientY: 120,
-    });
-    fireEvent.pointerUp(modalStage, {
-      pointerId: 42,
-      pointerType: "mouse",
-      shiftKey: true,
-      clientX: 220,
-      clientY: 120,
-    });
-    expect(readFrameScale(modalFrame)).toBeGreaterThan(1);
+    expect(readFrameScale(modalFrame)).toBeGreaterThan(movedScale);
+    expect(readFrameScale(modalFrame)).toBeLessThanOrEqual(1);
 
     fireEvent.pointerDown(modalStage, {
       pointerId: 43,
@@ -5824,24 +5854,22 @@ describe("ExpertEditPanelView", () => {
       value: () => rect,
     });
 
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 313,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 32,
-      clientY: 36,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 312,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 313,
-      pointerType: "mouse",
-      clientX: 92,
-      clientY: 98,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 313,
-      pointerType: "mouse",
-      clientX: 92,
-      clientY: 98,
+      startX: 32,
+      startY: 36,
+      endX: 92,
+      endY: 98,
     });
 
     await act(async () => {
@@ -5866,8 +5894,8 @@ describe("ExpertEditPanelView", () => {
     }>;
     const movedLayer = flattenArgs.find((layer) => layer.imageUrl?.includes("layer-2.png"));
     expect(movedLayer).toBeDefined();
-    expect(Math.abs(movedLayer?.transform?.translateXRatio ?? 0)).toBeGreaterThan(0.1);
-    expect(Math.abs(movedLayer?.transform?.translateYRatio ?? 0)).toBeGreaterThan(0.1);
+    expect(Math.abs(movedLayer?.transform?.translateXRatio ?? 0)).toBeGreaterThan(0.01);
+    expect(Math.abs(movedLayer?.transform?.translateYRatio ?? 0)).toBeGreaterThan(0.01);
   });
 
   it("auto-flattens on generate and forwards flattened refs with primary first", async () => {
@@ -6418,24 +6446,22 @@ describe("ExpertEditPanelView", () => {
     });
 
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 241,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 24,
-      clientY: 24,
+    dragStagePointer({
+      currentTarget: primaryDropzone,
+      pointerId: 240,
+      startX: 196,
+      startY: 4,
+      endX: 110,
+      endY: 90,
+      shiftKey: true,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    dragStagePointer({
+      currentTarget: primaryDropzone,
       pointerId: 241,
-      pointerType: "mouse",
-      clientX: 66,
-      clientY: 76,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 241,
-      pointerType: "mouse",
-      clientX: 66,
-      clientY: 76,
+      startX: 24,
+      startY: 24,
+      endX: 66,
+      endY: 76,
     });
     const movedTranslate = readFrameTranslate(frame);
     expect(movedTranslate.x).toBeGreaterThan(10);

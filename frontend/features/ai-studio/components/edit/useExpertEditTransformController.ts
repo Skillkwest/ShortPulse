@@ -25,6 +25,7 @@ import { resolveCanvasSpacePoint } from "./expertEditPanelUtilities";
 type UseExpertEditTransformControllerParams = {
   layers: ExpertEditLayer[];
   selectedLayer: ExpertEditLayer | null;
+  selectedLayerImageAspectRatio?: number;
   sceneZoomScale: number;
   shouldApplyViewportTransform: boolean;
   viewportOffsetXRatio: number;
@@ -76,6 +77,7 @@ const resolveDragModeFromPointerTarget = (
 export const useExpertEditTransformController = ({
   layers,
   selectedLayer,
+  selectedLayerImageAspectRatio = 1,
   sceneZoomScale,
   shouldApplyViewportTransform,
   viewportOffsetXRatio,
@@ -164,6 +166,7 @@ export const useExpertEditTransformController = ({
         dropzoneHeight: height,
         selectedLayerId: selectedLayer.id,
         selectedLayerTransform: selectedLayer.transform,
+        imageAspectRatio: selectedLayerImageAspectRatio,
         dragMode,
       });
       setActiveTransformDragMode(dragMode);
@@ -173,6 +176,7 @@ export const useExpertEditTransformController = ({
       layers,
       sceneZoomScale,
       selectedLayer,
+      selectedLayerImageAspectRatio,
       setActiveTransformDragMode,
       setIsTransformPointerDragging,
       showStatusToast,
@@ -208,6 +212,7 @@ export const useExpertEditTransformController = ({
         session,
         pointerX: pointer.x,
         pointerY: pointer.y,
+        imageAspectRatio: selectedLayerImageAspectRatio,
       });
       if (!transformUpdate) return;
       setLayers((previousLayers) =>
@@ -230,6 +235,7 @@ export const useExpertEditTransformController = ({
       shouldApplyViewportTransform,
       transformPointerSessionRef,
       resolveViewportOffsetPixels,
+      selectedLayerImageAspectRatio,
       viewportOffsetXRatio,
       viewportOffsetYRatio,
     ]

@@ -168,10 +168,10 @@ describe("expertEditStageFlatten", () => {
       {
         drawWidth: 1000,
         drawHeight: 500,
-        translateX: 100,
-        translateY: -200,
+        translateX: 0,
+        translateY: -0,
         opacity: 1,
-        scale: 2,
+        scale: 0.9428090415820635,
         rotationDeg: 45,
       },
       {

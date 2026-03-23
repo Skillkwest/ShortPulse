@@ -30,6 +30,7 @@ import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibrar
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
+import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -43,7 +44,6 @@ import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
 } from "../reference-grid/referenceGridTypes";
-import type { ReferenceGridProps } from "./ReferenceGrid";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isCreateWorkflow } from "../logic/workflowIdentity";
@@ -490,11 +490,11 @@ export type AiStudioPageContentProps = {
   >;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   isTemplateView: boolean;
-  referenceGridProps: ReferenceGridProps;
+  referenceGridProps: AiStudioReferenceGridContract;
   /**
    * @deprecated Use `referenceGridProps`.
    */
-  referenceCanvasProps?: ReferenceGridProps;
+  referenceCanvasProps?: AiStudioReferenceGridContract;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
   detailModalOutput: StudioOutput | null;
   onDetailClose: () => void;

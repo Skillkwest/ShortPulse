@@ -829,7 +829,6 @@ export default function AiStudioPage() {
     reorderCuratedReference,
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
-    selectedTool,
   });
   const referenceGridPageProps = useMemo(
     () => ({

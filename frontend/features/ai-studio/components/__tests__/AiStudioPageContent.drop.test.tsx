@@ -239,7 +239,6 @@ const createProps = (
     activeOutputId: null,
     onSelectOutput: vi.fn(),
     onOpenDetails: vi.fn(),
-    selectedTool: null,
     onPasteTextReference: vi.fn(),
     onPasteMediaReference: vi.fn(),
   },

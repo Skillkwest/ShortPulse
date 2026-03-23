@@ -193,6 +193,7 @@ export function ReferenceGrid({
   const isStylesPanelOpen = Boolean(stylesPanel?.isOpen) && panelVisibilityResolved.styles;
   const showReferenceGridSection = panelVisibilityResolved.referenceGrid;
   const showQuickSlotSection = isCuratedSplitEnabled && panelVisibilityResolved.quickSlot;
+  const isWideLayout = selectedTool == null;
   const showRailCanvasSection =
     Boolean(railCanvasProps) && selectedTool !== "canvas" && panelVisibilityResolved.canvas;
   const isCuratedSplitActive = showQuickSlotSection;
@@ -484,7 +485,7 @@ export function ReferenceGrid({
   );
   useReferenceGridVirtualMetricsController({
     isCuratedSplitEnabled: isCuratedSplitActive,
-    selectedTool,
+    isWideLayout,
     outputsLength: outputs.length,
     curatedOutputsLength: curatedOutputs.length,
     scrollContainerRef,
@@ -861,7 +862,7 @@ export function ReferenceGrid({
         handleCuratedSectionDragLeave={handleCuratedSectionDragLeave}
         handleCuratedScroll={handleCuratedScroll}
         handleAllRefsScroll={handleAllRefsScroll}
-        selectedTool={selectedTool}
+        isWideLayout={isWideLayout}
         curatedGridStyle={curatedGridStyle}
         gridStyle={gridStyle}
         curatedOutputsLength={curatedOutputs.length}

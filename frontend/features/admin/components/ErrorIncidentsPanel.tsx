@@ -2,7 +2,6 @@
  * Admin error incidents panel.
  * Renders summary cards, filters, and grouped incident rows for operator triage.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WarningCircle } from "phosphor-react";
 import type {
   AdminErrorEventIncidentFilter,
@@ -15,16 +14,14 @@ import type {
   AdminPagination,
   AdminErrorStatus,
 } from "../types";
-import { copyToClipboard } from "../logic/copyToClipboard";
 import {
   eventIncidentFilterLabel,
-  eventMatchesIncidentFilter,
   eventSignalFilterLabel,
   formatDateTime,
   incidentStatusLabel,
   sourceLabel,
 } from "../logic/errorIncidentViewUtils";
-import { buildEventTriagePacket, buildIncidentTriagePacket } from "../logic/triagePackets";
+import { useAdminErrorIncidentsPanelState } from "../logic/useAdminErrorIncidentsPanelState";
 import styles from "../../../styles/admin.module.css";
 
 type ErrorIncidentsPanelProps = {
@@ -117,55 +114,40 @@ export function ErrorIncidentsPanel({
   onEventNextPage,
   onRefresh,
 }: ErrorIncidentsPanelProps) {
-  const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
-  const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [bulkResolveSubmitting, setBulkResolveSubmitting] = useState(false);
-  const [bulkResolveResult, setBulkResolveResult] = useState<string | null>(null);
-  const autoAdvancedEventPageRef = useRef<number | null>(null);
-  const errorSourceOptions = useMemo(() => {
-    const values = new Set([
-      ...errors.map((row) => row.source),
-      ...errorEvents.map((row) => row.source),
-    ]);
-    return ["all", ...Array.from(values).sort()];
-  }, [errorEvents, errors]);
-  const visibleEvents = useMemo(
-    () => errorEvents.filter((row) => eventMatchesIncidentFilter(row, errorEventIncidentFilter)),
-    [errorEventIncidentFilter, errorEvents]
-  );
-  const selectedEvent = useMemo(
-    () => errorEvents.find((row) => row.id === selectedEventId) ?? null,
-    [errorEvents, selectedEventId]
-  );
-  const selectedIncidentId = selectedEvent?.incidentId ?? null;
-  const resolvableVisibleIncidentIds = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          visibleEvents
-            .map((row) => (row.incidentStatus === "open" ? row.incidentId : null))
-            .filter((incidentId): incidentId is string => Boolean(incidentId))
-        )
-      ),
-    [visibleEvents]
-  );
-  const resolvableVisibleUnlinkedEventIds = useMemo(
-    () => visibleEvents.filter((row) => row.incidentId === null).map((row) => row.id),
-    [visibleEvents]
-  );
-  const resolveVisibleTargetCount =
-    resolvableVisibleIncidentIds.length + resolvableVisibleUnlinkedEventIds.length;
-
+  const {
+    copiedIncidentId,
+    copiedEventId,
+    selectedEvent,
+    selectedIncidentId,
+    errorSourceOptions,
+    visibleEvents,
+    listedOpenIncidentCount,
+    resolveVisibleTargetCount,
+    bulkResolveSubmitting,
+    bulkResolveResult,
+    eventMetadataText,
+    openSelectedEvent,
+    closeSelectedEvent,
+    handleCopyIncident,
+    handleCopyEvent,
+    handleResolveEventRow,
+    handleIgnoreEventRow,
+    resolveVisibleEvents,
+  } = useAdminErrorIncidentsPanelState({
+    errors,
+    errorEvents,
+    errorEventsLoading,
+    errorEventsPagination,
+    errorEventIncidentFilter,
+    onEventNextPage,
+    onUpdateErrorStatus,
+    onUpdateErrorEventStatus,
+  });
   const resultStart =
     errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
   const resultEnd = Math.min(
     errorPagination.page * errorPagination.perPage,
     errorPagination.totalCount
-  );
-  const listedOpenIncidentCount = useMemo(
-    () => errors.filter((row) => row.status === "open").length,
-    [errors]
   );
   const eventResultStart =
     errorEventsPagination.totalCount === 0
@@ -179,132 +161,6 @@ export function ErrorIncidentsPanel({
   const telemetryHealthSubtext = errorEventsHealth.degraded
     ? "Event stream fallback active"
     : "Event stream available";
-
-  const handleCopyIncident = useCallback(async (row: AdminErrorLogRow) => {
-    const success = await copyToClipboard(buildIncidentTriagePacket(row));
-    if (!success) return;
-    setCopiedIncidentId(row.id);
-    window.setTimeout(() => {
-      setCopiedIncidentId((current) => (current === row.id ? null : current));
-    }, 1200);
-  }, []);
-
-  const handleCopyEvent = useCallback(async (row: AdminErrorEventRow) => {
-    const success = await copyToClipboard(buildEventTriagePacket(row));
-    if (!success) return;
-    setCopiedEventId(row.id);
-    window.setTimeout(() => {
-      setCopiedEventId((current) => (current === row.id ? null : current));
-    }, 1200);
-  }, []);
-
-  const handleEventStatusUpdate = useCallback(
-    async (incidentId: string | null, status: AdminErrorStatus) => {
-      if (!incidentId) return;
-      await onUpdateErrorStatus(incidentId, status);
-    },
-    [onUpdateErrorStatus]
-  );
-
-  const handleResolveEventRow = useCallback(
-    async (row: AdminErrorEventRow) => {
-      if (row.incidentId && row.incidentStatus === "open") {
-        await handleEventStatusUpdate(row.incidentId, "resolved");
-        return;
-      }
-      if (row.incidentId === null) {
-        await onUpdateErrorEventStatus(row.id, "resolved");
-      }
-    },
-    [handleEventStatusUpdate, onUpdateErrorEventStatus]
-  );
-
-  const handleIgnoreEventRow = useCallback(
-    async (row: AdminErrorEventRow) => {
-      if (row.incidentId && row.incidentStatus === "open") {
-        await handleEventStatusUpdate(row.incidentId, "ignored");
-        return;
-      }
-      if (row.incidentId === null) {
-        await onUpdateErrorEventStatus(row.id, "ignored");
-      }
-    },
-    [handleEventStatusUpdate, onUpdateErrorEventStatus]
-  );
-
-  const resolveVisibleEvents = useCallback(async () => {
-    if (resolveVisibleTargetCount === 0 || bulkResolveSubmitting) return;
-
-    setBulkResolveSubmitting(true);
-    setBulkResolveResult(null);
-    try {
-      for (const incidentId of resolvableVisibleIncidentIds) {
-        await handleEventStatusUpdate(incidentId, "resolved");
-      }
-      for (const eventId of resolvableVisibleUnlinkedEventIds) {
-        await onUpdateErrorEventStatus(eventId, "resolved");
-      }
-
-      const linkedResolvedCount = resolvableVisibleIncidentIds.length;
-      const promotedResolvedCount = resolvableVisibleUnlinkedEventIds.length;
-      setBulkResolveResult(
-        `Resolved ${linkedResolvedCount} linked incident${linkedResolvedCount === 1 ? "" : "s"} and resolved ${promotedResolvedCount} unlinked event${promotedResolvedCount === 1 ? "" : "s"}.`
-      );
-    } finally {
-      setBulkResolveSubmitting(false);
-    }
-  }, [
-    bulkResolveSubmitting,
-    handleEventStatusUpdate,
-    onUpdateErrorEventStatus,
-    resolvableVisibleIncidentIds,
-    resolvableVisibleUnlinkedEventIds,
-    resolveVisibleTargetCount,
-  ]);
-
-  const eventMetadataText = useMemo(() => {
-    if (!selectedEvent) return "";
-    return JSON.stringify(selectedEvent.metadata ?? {}, null, 2);
-  }, [selectedEvent]);
-
-  useEffect(() => {
-    const shouldAutoAdvance =
-      !errorEventsLoading &&
-      errorEventIncidentFilter !== "all" &&
-      errorEvents.length > 0 &&
-      visibleEvents.length === 0 &&
-      errorEventsPagination.hasNextPage;
-    if (!shouldAutoAdvance) {
-      autoAdvancedEventPageRef.current = null;
-      return;
-    }
-    if (autoAdvancedEventPageRef.current === errorEventsPagination.page) {
-      return;
-    }
-    autoAdvancedEventPageRef.current = errorEventsPagination.page;
-    onEventNextPage();
-  }, [
-    errorEventIncidentFilter,
-    errorEvents.length,
-    errorEventsLoading,
-    errorEventsPagination.hasNextPage,
-    errorEventsPagination.page,
-    onEventNextPage,
-    visibleEvents.length,
-  ]);
-
-  useEffect(() => {
-    if (!selectedEventId) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedEventId(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [selectedEventId]);
 
   return (
     <section className={styles.adminSection}>
@@ -947,7 +803,7 @@ export function ErrorIncidentsPanel({
                   <button
                     type="button"
                     className="ghost-btn mini"
-                    onClick={() => setSelectedEventId(row.id)}
+                    onClick={() => openSelectedEvent(row.id)}
                     disabled={errorEventsLoading}
                   >
                     View
@@ -1024,7 +880,7 @@ export function ErrorIncidentsPanel({
           className={styles.adminModalBackdrop}
           role="dialog"
           aria-modal="true"
-          onClick={() => setSelectedEventId(null)}
+          onClick={closeSelectedEvent}
         >
           <div className={styles.adminModalCard} onClick={(event) => event.stopPropagation()}>
             <div className={styles.adminSectionHead}>
@@ -1035,11 +891,7 @@ export function ErrorIncidentsPanel({
                   {selectedEvent.requestId ? ` · req ${selectedEvent.requestId}` : ""}
                 </p>
               </div>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => setSelectedEventId(null)}
-              >
+              <button type="button" className="ghost-btn mini" onClick={closeSelectedEvent}>
                 Close
               </button>
             </div>

@@ -34,6 +34,12 @@ type LibraryPromptPayload = Extract<ReferenceIngestionInput, { kind: "libraryPro
 
 export type MediaLibraryDragPayload = LibraryMediaPayload | LibraryPromptPayload;
 
+const MEDIA_LIBRARY_FALLBACK_TRANSFER_HINT_TYPES = [
+  MEDIA_LIBRARY_FALLBACK_MARKER_TYPE,
+  MEDIA_LIBRARY_FALLBACK_KIND_TYPE,
+  MEDIA_LIBRARY_FALLBACK_ID_TYPE,
+] as const;
+
 const normalizeTransferText = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -51,6 +57,19 @@ const safeTransferSetData = (
   } catch {
     return false;
   }
+};
+
+const hasTransferType = (
+  transfer: Pick<DataTransfer, "types"> | null | undefined,
+  type: string
+): boolean => {
+  const rawTypes = transfer?.types as unknown;
+  if (!rawTypes) return false;
+  const typed = rawTypes as { contains?: (value: string) => boolean };
+  if (typeof typed.contains === "function") {
+    return typed.contains(type);
+  }
+  return Array.from(rawTypes as ArrayLike<string>).includes(type);
 };
 
 const normalizePositiveNumber = (value: string | null | undefined): number | undefined => {
@@ -185,6 +204,15 @@ export const readMediaLibraryDragPayload = (
   if (parsed) return parsed;
   return readFallbackMediaLibraryDragPayload(transfer);
 };
+
+/**
+ * Returns whether a transfer advertises media-library drag payload types without reading payload data.
+ */
+export const hasMediaLibraryDragTypeHints = (
+  transfer: Pick<DataTransfer, "types"> | null | undefined
+): boolean =>
+  getMediaLibraryDragTypes().some((type) => hasTransferType(transfer, type)) ||
+  MEDIA_LIBRARY_FALLBACK_TRANSFER_HINT_TYPES.some((type) => hasTransferType(transfer, type));
 
 const setTransferTextIfPresent = (
   transfer: Pick<DataTransfer, "setData">,

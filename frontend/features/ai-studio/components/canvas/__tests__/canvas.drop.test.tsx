@@ -11,6 +11,27 @@ import {
 } from "./canvasTestHarness";
 
 describe("Canvas drop behavior", () => {
+  it("activates drop state during dragover for media-library type hints without reading payload data", () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const transfer = {
+      files: { length: 0, item: () => null } as unknown as FileList,
+      types: ["text/shortpulse-media-library-marker", "text/shortpulse-media-library-kind"],
+      getData: vi.fn(() => {
+        throw new Error("payload read should not be required");
+      }),
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragOver(viewport, { dataTransfer: transfer });
+
+    expect(viewport).toHaveClass("is-drop-active");
+    expect(transfer.getData).not.toHaveBeenCalled();
+  });
+
   it("activates drop state during dragover for internal custom-type payloads", () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

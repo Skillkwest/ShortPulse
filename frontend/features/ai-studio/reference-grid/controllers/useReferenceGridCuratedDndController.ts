@@ -4,6 +4,7 @@
  */
 import { useCallback, type MutableRefObject } from "react";
 import {
+  hasMediaLibraryDragTypeHints,
   readMediaLibraryDragPayload,
   type MediaLibraryDragPayload,
 } from "../../logic/mediaLibraryDragPayload";
@@ -54,10 +55,15 @@ type UseReferenceGridCuratedDndControllerResult = {
 const hasInternalReferenceDrag = (transfer: DataTransfer): boolean => {
   const types = Array.from(transfer.types || []).map((value) => value.toLowerCase());
   if (types.includes("text/reference-id")) return true;
+  if (types.length > 0) return false;
   return Boolean(transfer.getData("text/reference-id"));
 };
 
 const resolveReferenceDragSourceSurface = (transfer: DataTransfer): ReferenceDragSourceSurface => {
+  const types = Array.from(transfer.types || []).map((value) => value.toLowerCase());
+  if (types.length > 0 && !types.includes("text/reference-source-surface")) {
+    return "all-refs";
+  }
   const sourceSurface = transfer.getData("text/reference-source-surface");
   return sourceSurface === "curated" ? "curated" : "all-refs";
 };
@@ -157,15 +163,15 @@ export const useReferenceGridCuratedDndController = ({
       if (!isCuratedSplitEnabled) return;
       event.preventDefault();
       event.stopPropagation();
-      const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
-      if (!hasInternalReferenceDrag(event.dataTransfer) && !mediaLibraryPayload) {
+      const hasLibraryPayloadHint = hasMediaLibraryDragTypeHints(event.dataTransfer);
+      if (!hasInternalReferenceDrag(event.dataTransfer) && !hasLibraryPayloadHint) {
         event.dataTransfer.dropEffect = "none";
         setCuratedDropActiveSafe(false);
         return;
       }
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
       event.dataTransfer.dropEffect =
-        sourceSurface === "curated" && !mediaLibraryPayload ? "move" : "copy";
+        sourceSurface === "curated" && !hasLibraryPayloadHint ? "move" : "copy";
       setCuratedDropActiveSafe(true);
     },
     [isCuratedSplitEnabled, setCuratedDropActiveSafe]
@@ -179,7 +185,7 @@ export const useReferenceGridCuratedDndController = ({
       curatedDragDepthRef.current += 1;
       setCuratedDropActiveSafe(
         hasInternalReferenceDrag(event.dataTransfer) ||
-          Boolean(readQuickSlotLibraryPayload(event.dataTransfer))
+          hasMediaLibraryDragTypeHints(event.dataTransfer)
       );
     },
     [curatedDragDepthRef, isCuratedSplitEnabled, setCuratedDropActiveSafe]

@@ -1051,6 +1051,34 @@ describe("ReferenceGrid curated split", () => {
     );
   });
 
+  it("activates quick-slot drag state from media-library type hints without reading payload data", () => {
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          curatedReferenceIds: ["out-1"],
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    const transfer = {
+      files: { length: 0, item: () => null } as unknown as FileList,
+      types: ["text/shortpulse-media-library-marker", "text/shortpulse-media-library-kind"],
+      getData: vi.fn(() => {
+        throw new Error("payload read should not be required");
+      }),
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragEnter(curatedSection, { dataTransfer: transfer });
+    fireEvent.dragOver(curatedSection, { dataTransfer: transfer });
+
+    expect(curatedSection).toHaveClass("is-drop-active");
+    expect(transfer.getData).not.toHaveBeenCalled();
+  });
+
   it("routes media-library prompt drops onto quick-slot cards using positional placement", () => {
     const onAddLibraryPromptReferenceToQuickSlot = vi.fn(() => "prompt-out-1");
     const onSelectOutput = vi.fn();

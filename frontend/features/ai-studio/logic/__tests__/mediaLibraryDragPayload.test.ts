@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   getMediaLibraryDragTypes,
+  hasMediaLibraryDragTypeHints,
   readMediaLibraryDragPayload,
   writeMediaLibraryDragPayload,
 } from "../mediaLibraryDragPayload";
@@ -102,6 +103,19 @@ describe("mediaLibraryDragPayload", () => {
     expect(getMediaLibraryDragTypes()).toContain("application/x-shortpulse-media-library-item");
     expect(getMediaLibraryDragTypes()).toContain("text/x-shortpulse-media-library-item");
     expect(getMediaLibraryDragTypes()).toContain("text/shortpulse-media-library-marker");
+  });
+
+  it("detects media-library drag hints without reading payload data", () => {
+    const getData = vi.fn(() => {
+      throw new Error("payload read should not be required");
+    });
+    const transfer = {
+      types: ["text/shortpulse-media-library-marker", "text/shortpulse-media-library-kind"],
+      getData,
+    } as unknown as DataTransfer;
+
+    expect(hasMediaLibraryDragTypeHints(transfer)).toBe(true);
+    expect(getData).not.toHaveBeenCalled();
   });
 
   it("keeps writing fallback payload fields when custom MIME transfer writes fail", () => {

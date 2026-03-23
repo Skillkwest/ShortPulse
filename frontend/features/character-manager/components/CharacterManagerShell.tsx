@@ -36,6 +36,7 @@ import {
   type ResolveCharacterDropReference,
 } from "../hooks/useCharacterManagerDroppedReferenceController";
 import { useCharacterManagerCharacterSheetInteractions } from "../hooks/useCharacterManagerCharacterSheetInteractions";
+import { useCharacterManagerShellActionHandlers } from "../hooks/useCharacterManagerShellActionHandlers";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
 import { useCharacterManagerShellViewState } from "../hooks/useCharacterManagerShellViewState";
@@ -567,22 +568,6 @@ export function CharacterManagerShell({
     };
   }, []);
 
-  const uploadSimpleFiles = useCallback(
-    async (incomingFiles: FileList | File[]) => {
-      const files = Array.from(incomingFiles);
-      if (!files.length || pageBusy || quickSwapMutating || isDropResolutionBusy) return;
-      clearAllMessages();
-      await appendQuickSwapFilesFromHook(files);
-    },
-    [
-      appendQuickSwapFilesFromHook,
-      clearAllMessages,
-      isDropResolutionBusy,
-      pageBusy,
-      quickSwapMutating,
-    ]
-  );
-
   const isFileDragEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
     const transfer = event.dataTransfer;
     if (!transfer) return false;
@@ -597,101 +582,6 @@ export function CharacterManagerShell({
     if (extractInternalReferenceDragPayload(event.dataTransfer)) return true;
     return hasDroppedImageReferenceTransfer(event.dataTransfer);
   }, []);
-
-  const handleSimpleFileSelection = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files ? Array.from(event.target.files) : [];
-      event.target.value = "";
-      if (!files.length) return;
-      void uploadSimpleFiles(files);
-    },
-    [uploadSimpleFiles]
-  );
-
-  const openCharacterSheetPicker = useCallback(
-    (dropZoneKey: CharacterSheetDropZoneKey) => {
-      if (pageBusy || isDropResolutionBusy) return;
-      clearAllMessages();
-      setPendingCharacterSheetUploadZoneKey(dropZoneKey);
-      characterSheetFileInputRef.current?.click();
-    },
-    [clearAllMessages, isDropResolutionBusy, pageBusy]
-  );
-
-  const openProfilePicker = useCallback(() => {
-    if (pageBusy) return;
-    if (profileImageUrl && !isProfileAdjusterVisible) {
-      setProfileAdjustDraft(profileImageTransform);
-      setIsProfileAdjusterVisible(true);
-      return;
-    }
-    clearAllMessages();
-    profileFileInputRef.current?.click();
-  }, [
-    clearAllMessages,
-    isProfileAdjusterVisible,
-    pageBusy,
-    profileImageTransform,
-    profileImageUrl,
-  ]);
-
-  const openQuickSwapUploadPicker = useCallback(() => {
-    if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
-    clearAllMessages();
-    simpleFileInputRef.current?.click();
-  }, [clearAllMessages, isDropResolutionBusy, pageBusy, quickSwapMutating]);
-
-  const handleProfileSelection = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = "";
-      if (!file || pageBusy) return;
-      void setProfileImageFile(file);
-      setProfileAdjustDraft(DEFAULT_PROFILE_IMAGE_TRANSFORM);
-      setIsProfileAdjusterVisible(true);
-    },
-    [pageBusy, setProfileImageFile]
-  );
-
-  const clearProfilePreview = useCallback(() => {
-    void clearProfileImage();
-    setProfileAdjustDraft(null);
-    setIsProfileAdjusterVisible(false);
-    if (profileFileInputRef.current) {
-      profileFileInputRef.current.value = "";
-    }
-  }, [clearProfileImage]);
-
-  const handleCreateNewCharacter = useCallback(() => {
-    setActiveTab("create");
-    setProfileAdjustDraft(null);
-    setIsProfileAdjusterVisible(false);
-
-    void createCharacter().finally(() => {
-      setActiveTab("create");
-      window.requestAnimationFrame(() => {
-        characterNameInputRef.current?.focus();
-      });
-    });
-  }, [createCharacter, setActiveTab]);
-
-  const saveProfileAdjustments = useCallback(async () => {
-    if (!profileImageUrl) {
-      setProfileAdjustDraft(null);
-      setIsProfileAdjusterVisible(false);
-      return;
-    }
-
-    const didSave = await saveProfileImageTransform({
-      zoom: activeProfileImageTransform.zoom,
-      offsetX: activeProfileImageTransform.offsetX,
-      offsetY: activeProfileImageTransform.offsetY,
-    });
-    if (didSave) {
-      setProfileAdjustDraft(null);
-      setIsProfileAdjusterVisible(false);
-    }
-  }, [activeProfileImageTransform, profileImageUrl, saveProfileImageTransform]);
 
   const getCharacterInitials = useCallback((name: string) => {
     const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -758,6 +648,41 @@ export function CharacterManagerShell({
     }
     dragNode.classList.add("is-dragging");
   }, []);
+
+  const {
+    uploadSimpleFiles,
+    handleSimpleFileSelection,
+    openCharacterSheetPicker,
+    openProfilePicker,
+    openQuickSwapUploadPicker,
+    handleProfileSelection,
+    clearProfilePreview,
+    handleCreateNewCharacter,
+    saveProfileAdjustments,
+  } = useCharacterManagerShellActionHandlers({
+    pageBusy,
+    quickSwapMutating,
+    isDropResolutionBusy,
+    clearAllMessages,
+    appendQuickSwapFiles: appendQuickSwapFilesFromHook,
+    setPendingCharacterSheetUploadZoneKey,
+    characterSheetFileInputRef,
+    profileFileInputRef,
+    simpleFileInputRef,
+    profileImageUrl,
+    isProfileAdjusterVisible,
+    profileImageTransform,
+    setProfileAdjustDraft,
+    setIsProfileAdjusterVisible,
+    setProfileImageFile,
+    clearProfileImage,
+    createCharacter,
+    setActiveTab,
+    characterNameInputRef,
+    profileImageVisibleTransform: activeProfileImageTransform,
+    saveProfileImageTransform,
+    defaultProfileImageTransform: DEFAULT_PROFILE_IMAGE_TRANSFORM,
+  });
 
   const {
     handleCharacterSheetFileSelection,

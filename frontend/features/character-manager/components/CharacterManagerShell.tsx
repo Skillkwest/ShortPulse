@@ -36,6 +36,7 @@ import {
 } from "../hooks/useCharacterManagerDroppedReferenceController";
 import { useCharacterManagerCharacterSheetInteractions } from "../hooks/useCharacterManagerCharacterSheetInteractions";
 import { useCharacterManagerAccountState } from "../hooks/useCharacterManagerAccountState";
+import { useCharacterManagerDragInteractions } from "../hooks/useCharacterManagerDragInteractions";
 import { useCharacterManagerShellActionHandlers } from "../hooks/useCharacterManagerShellActionHandlers";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
@@ -87,9 +88,6 @@ const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
-const DRAG_GHOST_SCALE = 0.74;
-const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
-  ".character-reference-upload-image-wrap, .character-character-sheet-media";
 const MEDIA_BUCKET = "media_library";
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
@@ -187,7 +185,6 @@ export function CharacterManagerShell({
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
   const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
   const rootContainerRef = useRef<HTMLElement | null>(null);
-  const dragGhostMapRef = useRef(new Map<HTMLElement, HTMLElement>());
   const fileDragDepthRef = useRef(0);
   const pageBusy =
     loading ||
@@ -453,16 +450,6 @@ export function CharacterManagerShell({
     };
   }, [referencePreviewEntry, setReferencePreviewSignedUrl]);
 
-  useEffect(
-    () => () => {
-      for (const ghost of dragGhostMapRef.current.values()) {
-        ghost.remove();
-      }
-      dragGhostMapRef.current.clear();
-    },
-    []
-  );
-
   useEffect(() => {
     if (typeof window === "undefined") return;
     const clearDropActiveState = () => {
@@ -518,46 +505,6 @@ export function CharacterManagerShell({
     setDeleteTargetCharacterSheetPresetId,
   ]);
 
-  const applyDragGhost = useCallback((event: React.DragEvent<HTMLElement>) => {
-    const dragNode = event.currentTarget as HTMLElement;
-    const transfer = event.dataTransfer;
-    try {
-      const blobNode = dragNode.querySelector<HTMLElement>(DRAG_GHOST_IMAGE_BLOB_SELECTOR);
-      const ghostSourceNode = blobNode ?? dragNode;
-      const sourceRect = ghostSourceNode.getBoundingClientRect();
-      const fallbackRect = dragNode.getBoundingClientRect();
-      const sourceWidth = sourceRect.width > 0 ? sourceRect.width : fallbackRect.width;
-      const sourceHeight = sourceRect.height > 0 ? sourceRect.height : fallbackRect.height;
-      const ghost = ghostSourceNode.cloneNode(true) as HTMLElement;
-      const scaledWidth = Math.max(56, sourceWidth * DRAG_GHOST_SCALE);
-      const scaledHeight = Math.max(72, sourceHeight * DRAG_GHOST_SCALE);
-      ghost.classList.add("character-drag-ghost");
-      if (blobNode) {
-        ghost.classList.add("character-drag-ghost--image-only");
-      }
-      if (ghostSourceNode.classList.contains("character-character-sheet-media")) {
-        ghost.classList.add("character-drag-ghost--character-sheet-media");
-      }
-      ghost.style.boxSizing = "border-box";
-      ghost.style.width = `${scaledWidth}px`;
-      ghost.style.height = `${scaledHeight}px`;
-      ghost.style.transform = `scale(${DRAG_GHOST_SCALE}) rotate(-2deg)`;
-      ghost.style.transformOrigin = "center";
-      ghost.style.position = "absolute";
-      ghost.style.top = "-9999px";
-      ghost.style.left = "-9999px";
-      ghost.style.pointerEvents = "none";
-      ghost.style.opacity = "0.96";
-
-      document.body.appendChild(ghost);
-      dragGhostMapRef.current.set(dragNode, ghost);
-      transfer.setDragImage(ghost, scaledWidth / 2, scaledHeight / 2);
-    } catch {
-      transfer.setDragImage(dragNode, dragNode.offsetWidth / 2, dragNode.offsetHeight / 2);
-    }
-    dragNode.classList.add("is-dragging");
-  }, []);
-
   const {
     uploadSimpleFiles,
     handleSimpleFileSelection,
@@ -592,6 +539,19 @@ export function CharacterManagerShell({
     saveProfileImageTransform,
     defaultProfileImageTransform: DEFAULT_PROFILE_IMAGE_TRANSFORM,
   });
+  const { handleReferenceDragStart, handleCharacterSheetDragStart, handleReferenceDragEnd } =
+    useCharacterManagerDragInteractions({
+      pageBusy,
+      quickSwapMutating,
+      isDropResolutionBusy,
+      resolvedCharacterSheetPresetAssignments,
+      setDraggedQuickSwapItemId,
+      setDraggedCharacterSheetZoneKey,
+      setActiveCharacterSheetDropZone,
+      quickSwapMimeType: DND_QUICK_SWAP_ITEM,
+      referenceSlotMimeType: DND_REFERENCE_SLOT_KEY,
+      characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,
+    });
 
   const {
     handleCharacterSheetFileSelection,
@@ -620,66 +580,6 @@ export function CharacterManagerShell({
     referenceSlotMimeType: DND_REFERENCE_SLOT_KEY,
     characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,
   });
-
-  const handleReferenceDragStart = useCallback(
-    (item: CharacterQuickSwapItem) => (event: React.DragEvent<HTMLElement>) => {
-      if (pageBusy || quickSwapMutating || isDropResolutionBusy) {
-        event.preventDefault();
-        return;
-      }
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData(
-        DND_QUICK_SWAP_ITEM,
-        JSON.stringify({
-          id: item.id,
-          mediaFileId: item.mediaFileId,
-          storagePath: item.storagePath,
-          previewUrl: item.previewUrl,
-        })
-      );
-      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, item.mediaFileId);
-      event.dataTransfer.setData("text/plain", item.mediaFileId);
-      setDraggedQuickSwapItemId(item.id);
-      setDraggedCharacterSheetZoneKey(null);
-      applyDragGhost(event);
-    },
-    [applyDragGhost, isDropResolutionBusy, pageBusy, quickSwapMutating]
-  );
-
-  const handleCharacterSheetDragStart = useCallback(
-    (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
-      if (pageBusy || isDropResolutionBusy) {
-        event.preventDefault();
-        return;
-      }
-      const assignedReference = resolvedCharacterSheetPresetAssignments[characterSheetSlotKey];
-      if (!assignedReference) {
-        event.preventDefault();
-        return;
-      }
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData(DND_CHARACTER_SHEET_ZONE_KEY, characterSheetSlotKey);
-      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, assignedReference.mediaFileId);
-      event.dataTransfer.setData("text/plain", assignedReference.mediaFileId);
-      setDraggedCharacterSheetZoneKey(characterSheetSlotKey);
-      setDraggedQuickSwapItemId(null);
-      applyDragGhost(event);
-    },
-    [applyDragGhost, isDropResolutionBusy, pageBusy, resolvedCharacterSheetPresetAssignments]
-  );
-
-  const handleReferenceDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
-    const dragNode = event.currentTarget as HTMLElement;
-    dragNode.classList.remove("is-dragging");
-    const ghost = dragGhostMapRef.current.get(dragNode);
-    if (ghost) {
-      ghost.remove();
-      dragGhostMapRef.current.delete(dragNode);
-    }
-    setDraggedQuickSwapItemId(null);
-    setDraggedCharacterSheetZoneKey(null);
-    setActiveCharacterSheetDropZone(null);
-  }, []);
 
   useEffect(() => {
     if (!referencePreview) return;

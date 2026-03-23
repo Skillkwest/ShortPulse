@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaPreviewSigningController } from "../useMediaPreviewSigningController";
 import { createMediaPerfTimer, logMediaPerf } from "../../../../lib/mediaPerfTelemetry";
 import {
-  classifyMediaPreviewPath,
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../../../../lib/mediaPreviewPath";
@@ -17,15 +16,10 @@ vi.mock("../../../../lib/mediaPerfTelemetry", () => ({
   logMediaPerf: vi.fn(),
 }));
 
-vi.mock("../../../../lib/mediaPreviewPath", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/mediaPreviewPath")>();
-  return {
-    ...actual,
-    classifyMediaPreviewPath: vi.fn(actual.classifyMediaPreviewPath),
-    resolveMediaDirectPreviewUrls: vi.fn(),
-    resolveMediaSigningStoragePaths: vi.fn(),
-  };
-});
+vi.mock("../../../../lib/mediaPreviewPath", () => ({
+  resolveMediaDirectPreviewUrls: vi.fn(),
+  resolveMediaSigningStoragePaths: vi.fn(),
+}));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: vi.fn(),
@@ -33,7 +27,6 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 
 const createMediaPerfTimerMock = vi.mocked(createMediaPerfTimer);
 const logMediaPerfMock = vi.mocked(logMediaPerf);
-const classifyMediaPreviewPathMock = vi.mocked(classifyMediaPreviewPath);
 const resolveMediaDirectPreviewUrlsMock = vi.mocked(resolveMediaDirectPreviewUrls);
 const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
 const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
@@ -65,20 +58,6 @@ describe("useMediaPreviewSigningController", () => {
     vi.clearAllMocks();
     consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     createMediaPerfTimerMock.mockReturnValue(vi.fn());
-    classifyMediaPreviewPathMock.mockImplementation((row, resolvedPath) => {
-      const normalizedResolvedPath = typeof resolvedPath === "string" ? resolvedPath.trim() : "";
-      const thumbVariantPath =
-        row && typeof row === "object" && "thumb_variant_path" in row
-          ? (row.thumb_variant_path as string | null | undefined)
-          : null;
-      const storagePath =
-        row && typeof row === "object" && "storage_path" in row
-          ? (row.storage_path as string | null | undefined)
-          : null;
-      if (thumbVariantPath && normalizedResolvedPath === thumbVariantPath) return "durable";
-      if (storagePath && normalizedResolvedPath === storagePath) return "original";
-      return "unknown";
-    });
     resolveMediaSigningStoragePathsMock.mockImplementation(
       (row: { storage_path?: string | null }) => [row.storage_path ?? ""]
     );
@@ -300,141 +279,6 @@ describe("useMediaPreviewSigningController", () => {
     expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         storagePaths: ["user/images/primary.png", "user/images/fallback-a.png"],
-      })
-    );
-  });
-
-  it("does not blind-prefetch beyond the initial slice before visibility is known", async () => {
-    getSignedMediaUrlsBatchMock.mockResolvedValue(
-      new Map([["user/images/first.png", "https://signed/first"]])
-    );
-    resolveMediaSigningStoragePathsMock.mockImplementation(
-      (row: { storage_path?: string | null }) => [row.storage_path ?? ""]
-    );
-
-    renderHook(() => {
-      const rows = [
-        makeRow({ id: "row-1", storage_path: "user/images/first.png" }),
-        makeRow({ id: "row-2", storage_path: "user/images/second.png" }),
-        makeRow({ id: "row-3", storage_path: "user/images/third.png" }),
-      ];
-      const [signPassNonce, setSignPassNonce] = useState(0);
-      const activeTabRef = useRef<MediaTab>("uploaded_images");
-      const activeMediaQueryRef = useRef("");
-      const currentUserIdRef = useRef<string | null>("user-1");
-      const isMountedRef = useRef(true);
-      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
-      const signAttemptRef = useRef<Record<string, number>>({});
-      const visibleMediaIdsRef = useRef(new Set<string>());
-      const applySignedUrlsToTab = vi.fn();
-      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
-      const hydrateViaStorageDownload = vi.fn(async () => null);
-
-      useMediaPreviewSigningController({
-        activeMediaTab: "uploaded_images",
-        activeMediaCacheLoading: false,
-        activeMediaCachePagesLoaded: 1,
-        activeMediaQueryRef,
-        activeTabRef,
-        applySignedUrlsToTab,
-        currentUserIdRef,
-        filteredMedia: rows,
-        hydrateViaStorageDownload,
-        isMountedRef,
-        mediaSignInFlightRef,
-        resolveSignedUrlsByMediaIds,
-        setSignPassNonce,
-        signAttemptRef,
-        signBudget: { initialSignLimit: 1, prefetchWindow: 3, signBatchSize: 3 },
-        signPassNonce,
-        visibleMediaIdsRef,
-        visibleMediaVersion: 0,
-      });
-    });
-
-    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalled());
-    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        storagePaths: ["user/images/first.png"],
-      })
-    );
-  });
-
-  it("records durable-vs-original path counts in sign completion telemetry", async () => {
-    const finishTimerSpy = vi.fn();
-    createMediaPerfTimerMock.mockReturnValue(finishTimerSpy);
-    getSignedMediaUrlsBatchMock.mockResolvedValue(
-      new Map([
-        ["user/images/original.png", "https://signed/original"],
-        ["user/variants/images/thumb_480.png", "https://signed/thumb"],
-      ])
-    );
-    resolveMediaSigningStoragePathsMock.mockImplementation(
-      (row: { storage_path?: string | null; thumb_variant_path?: string | null } | undefined) => {
-        const thumbVariantPath = row?.thumb_variant_path ?? null;
-        const storagePath = row?.storage_path ?? "";
-        return thumbVariantPath ? [thumbVariantPath, storagePath] : [storagePath];
-      }
-    );
-
-    renderHook(() => {
-      const [rows, setRows] = useState([
-        makeRow({ id: "row-1", storage_path: "user/images/original.png" }),
-        makeRow({
-          id: "row-2",
-          storage_path: "user/images/second-original.png",
-          thumb_variant_path: "user/variants/images/thumb_480.png",
-        } as Row & { thumb_variant_path?: string }),
-      ]);
-      const [signPassNonce, setSignPassNonce] = useState(0);
-      const activeTabRef = useRef<MediaTab>("uploaded_images");
-      const activeMediaQueryRef = useRef("");
-      const currentUserIdRef = useRef<string | null>("user");
-      const isMountedRef = useRef(true);
-      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
-      const signAttemptRef = useRef<Record<string, number>>({});
-      const visibleMediaIdsRef = useRef(new Set<string>(["row-1", "row-2"]));
-      const applySignedUrlsToTab = vi.fn((_: MediaDataTab, signedById: Map<string, string>) => {
-        setRows((previousRows) =>
-          previousRows.map((row) => {
-            const signedUrl = signedById.get(row.id);
-            return signedUrl ? { ...row, signedUrl } : row;
-          })
-        );
-      });
-      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
-      const hydrateViaStorageDownload = vi.fn(async () => null);
-
-      useMediaPreviewSigningController({
-        activeMediaTab: "uploaded_images",
-        activeMediaCacheLoading: false,
-        activeMediaCachePagesLoaded: 1,
-        activeMediaQueryRef,
-        activeTabRef,
-        applySignedUrlsToTab,
-        currentUserIdRef,
-        filteredMedia: rows,
-        hydrateViaStorageDownload,
-        isMountedRef,
-        mediaSignInFlightRef,
-        resolveSignedUrlsByMediaIds,
-        setSignPassNonce,
-        signAttemptRef,
-        signBudget: { initialSignLimit: 2, prefetchWindow: 0, signBatchSize: 2 },
-        signPassNonce,
-        visibleMediaIdsRef,
-        visibleMediaVersion: 1,
-      });
-    });
-
-    await waitFor(() => expect(finishTimerSpy).toHaveBeenCalled());
-    expect(finishTimerSpy).toHaveBeenCalledWith(
-      "media.sign.batch.completed",
-      expect.objectContaining({
-        primary_durable_count: 1,
-        primary_original_count: 1,
-        resolved_durable_count: 1,
-        resolved_original_count: 1,
       })
     );
   });

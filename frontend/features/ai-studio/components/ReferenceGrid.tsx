@@ -140,6 +140,8 @@ export function ReferenceGrid({
   onAddCuratedReference,
   onRemoveCuratedReference,
   onReorderCuratedReference,
+  onAddLibraryMediaReferenceToQuickSlot,
+  onAddLibraryPromptReferenceToQuickSlot,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
   panelVisibility,
@@ -735,6 +737,8 @@ export function ReferenceGrid({
     onAddCuratedReference,
     onReorderCuratedReference,
     onSelectOutput,
+    onAddLibraryMediaReferenceToQuickSlot,
+    onAddLibraryPromptReferenceToQuickSlot,
   });
 
   const { handleAllRefsScroll, handleCuratedScroll } = useReferenceGridScrollController({

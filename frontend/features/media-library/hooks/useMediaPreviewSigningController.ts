@@ -7,7 +7,6 @@ import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTeleme
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
 import {
-  classifyMediaPreviewPath,
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
@@ -147,6 +146,14 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
         for (let idx = start; idx < end; idx += 1) {
           enqueue(readyRows[idx]);
         }
+      } else {
+        const fallbackEnd = Math.min(
+          readyRows.length,
+          signBudget.initialSignLimit + signBudget.prefetchWindow
+        );
+        for (let idx = signBudget.initialSignLimit; idx < fallbackEnd; idx += 1) {
+          enqueue(readyRows[idx]);
+        }
       }
     }
 
@@ -176,11 +183,6 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       return {
         id: row.id,
         primaryPath: candidates[0] ?? null,
-        primaryPathKind: classifyMediaPreviewPath(
-          row,
-          candidates[0] ?? null,
-          currentUserIdRef.current
-        ),
         candidates,
         directUrls: resolveMediaDirectPreviewUrls(row, currentUserIdRef.current),
       };
@@ -229,12 +231,6 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
             signedUrl,
             usedFallback,
             attemptedPaths: entry.candidates,
-            primaryPathKind: entry.primaryPathKind,
-            resolvedPathKind: classifyMediaPreviewPath(
-              signBatch.find((row) => row.id === entry.id) ?? {},
-              matchedPath,
-              currentUserIdRef.current
-            ),
           };
         })
       )
@@ -280,31 +276,11 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
               : count,
           0
         );
-        const primaryDurableCount = results.reduce(
-          (count, result) => (result.primaryPathKind === "durable" ? count + 1 : count),
-          0
-        );
-        const primaryOriginalCount = results.reduce(
-          (count, result) => (result.primaryPathKind === "original" ? count + 1 : count),
-          0
-        );
-        const resolvedDurableCount = results.reduce(
-          (count, result) => (result.resolvedPathKind === "durable" ? count + 1 : count),
-          0
-        );
-        const resolvedOriginalCount = results.reduce(
-          (count, result) => (result.resolvedPathKind === "original" ? count + 1 : count),
-          0
-        );
         finishSignBatch("media.sign.batch.completed", {
           signed_count: signedById.size,
           failed_count: failedCount,
           fallback_count: fallbackCount,
           transformed_count: transformedCount,
-          primary_durable_count: primaryDurableCount,
-          primary_original_count: primaryOriginalCount,
-          resolved_durable_count: resolvedDurableCount,
-          resolved_original_count: resolvedOriginalCount,
           preview_delivery_mode: previewDeliveryMode,
           optimizer_bypassed: optimizerBypassed,
           source_class: sourceClass,
@@ -331,10 +307,6 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
             failed_count: failedCount,
             fallback_count: fallbackCount,
             transformed_count: transformedCount,
-            primary_durable_count: primaryDurableCount,
-            primary_original_count: primaryOriginalCount,
-            resolved_durable_count: resolvedDurableCount,
-            resolved_original_count: resolvedOriginalCount,
             preview_delivery_mode: previewDeliveryMode,
             optimizer_bypassed: optimizerBypassed,
             source_class: sourceClass,

@@ -893,6 +893,47 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(onPasteTextReference).not.toHaveBeenCalled();
   });
 
+  it("lets rail-canvas viewport handle media-library drops before shell routing", () => {
+    const onAddLibraryMediaReference = vi.fn();
+    const onRailViewportDrop = vi.fn((event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+    });
+    const props = createProps({
+      onAddLibraryMediaReference,
+      railCanvasProps: {
+        onViewportDragOver: (event: React.DragEvent<HTMLDivElement>) => {
+          event.preventDefault();
+        },
+        onViewportDrop: onRailViewportDrop,
+      } as unknown as AiStudioPageContentProps["railCanvasProps"],
+    });
+
+    const { getByTestId } = render(<AiStudioPageContent {...props} />);
+    const railCanvasViewport = getByTestId("reference-grid-rail-canvas");
+    const dataTransfer = {
+      types: [
+        "text/shortpulse-media-library-marker",
+        "text/shortpulse-media-library-kind",
+        "text/shortpulse-media-library-id",
+        "text/reference-url",
+      ],
+      files: makeEmptyFileList(),
+      getData: (type: string) => {
+        if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+        if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+        if (type === "text/shortpulse-media-library-id") return "media-canvas-1";
+        if (type === "text/reference-url") return "https://cdn.example.com/canvas-image.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    fireEvent.dragOver(railCanvasViewport, { dataTransfer });
+    fireEvent.drop(railCanvasViewport, { dataTransfer });
+
+    expect(onRailViewportDrop).toHaveBeenCalled();
+    expect(onAddLibraryMediaReference).not.toHaveBeenCalled();
+  });
+
   it("routes file drops through the reference-grid file handler", () => {
     const onPasteTextReference = vi.fn();
     const handleReferenceGridFiles = vi.fn();

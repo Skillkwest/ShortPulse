@@ -13,8 +13,6 @@ type MediaRowLike = {
   preview_variant_path?: string | null;
 };
 
-export type MediaPreviewPathKind = "durable" | "original" | "unknown";
-
 const MEDIA_BUCKET = "media_library";
 const UUID_SEGMENT_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -157,53 +155,6 @@ export const resolvePreviewStoragePath = (row: MediaRowLike): string | null => {
   return firstNonEmpty(resolveDurablePreviewStoragePath(row), fallback);
 };
 
-const expandScopedStoragePathCandidates = (
-  path: string | null,
-  userId?: string | null
-): string[] => {
-  if (!path) return [];
-  if (!userId) return [path];
-  const prefix = `${userId}/`;
-  if (path.startsWith(prefix)) return [path];
-  const normalizedPath = path.replace(/^\/+/, "");
-  const [firstSegment, ...restSegments] = normalizedPath.split("/");
-  const expanded: string[] = [];
-  if (firstSegment && restSegments.length && UUID_SEGMENT_REGEX.test(firstSegment)) {
-    expanded.push(`${prefix}${restSegments.join("/")}`);
-  }
-  expanded.push(`${prefix}${normalizedPath}`);
-  expanded.push(path);
-  return Array.from(new Set(expanded.filter(Boolean)));
-};
-
-/**
- * Classifies a resolved preview path as durable-preview, original fallback, or unknown.
- */
-export const classifyMediaPreviewPath = (
-  row: MediaRowLike,
-  resolvedPath: string | null | undefined,
-  userId?: string | null
-): MediaPreviewPathKind => {
-  const normalizedResolvedPath = asStoragePath(resolvedPath);
-  if (!normalizedResolvedPath) return "unknown";
-
-  const durableCandidates = new Set(
-    expandScopedStoragePathCandidates(resolveDurablePreviewStoragePath(row), userId)
-  );
-  if (durableCandidates.has(normalizedResolvedPath)) {
-    return "durable";
-  }
-
-  const originalCandidates = new Set(
-    expandScopedStoragePathCandidates(asStoragePath(row.storage_path), userId)
-  );
-  if (originalCandidates.has(normalizedResolvedPath)) {
-    return "original";
-  }
-
-  return "unknown";
-};
-
 /**
  * Returns ordered storage-path candidates to try when signing a media preview.
  * The first item is the preferred path.
@@ -234,7 +185,20 @@ export const resolveMediaSigningStoragePaths = (
 
   if (!userId) return deduped;
   const prefix = `${userId}/`;
-  const expanded = deduped.flatMap((path) => expandScopedStoragePathCandidates(path, userId));
+  const expanded: string[] = [];
+  for (const path of deduped) {
+    if (path.startsWith(prefix)) {
+      expanded.push(path);
+      continue;
+    }
+    const normalizedPath = path.replace(/^\/+/, "");
+    const [firstSegment, ...restSegments] = normalizedPath.split("/");
+    if (firstSegment && restSegments.length && UUID_SEGMENT_REGEX.test(firstSegment)) {
+      expanded.push(`${prefix}${restSegments.join("/")}`);
+    }
+    expanded.push(`${prefix}${normalizedPath}`);
+    expanded.push(path);
+  }
 
   const expandedDeduped: string[] = [];
   const seenExpanded = new Set<string>();

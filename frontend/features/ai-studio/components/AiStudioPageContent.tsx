@@ -39,6 +39,10 @@ import type {
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { StudioOutput, ToolId } from "../types";
+import type {
+  LibraryMediaReferencePayload,
+  LibraryPromptReferencePayload,
+} from "../reference-grid/referenceGridTypes";
 import type { ReferenceGridProps } from "./ReferenceGrid";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
@@ -130,25 +134,6 @@ const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
-type LibraryMediaReferencePayload = {
-  id: string;
-  url: string;
-  fileType: "image" | "video";
-  originFolderId?: string | null;
-  filename?: string | null;
-  promptText?: string | null;
-  source?: string | null;
-  previewStoragePath?: string | null;
-  fullStoragePath?: string | null;
-  previewUrl?: string | null;
-  fullUrl?: string | null;
-};
-type LibraryPromptReferencePayload = {
-  id: string;
-  promptText: string;
-  originFolderId?: string | null;
-  title?: string | null;
-};
 type RightColumnDropPayload =
   | { kind: "none" }
   | { kind: "internal" }
@@ -972,6 +957,12 @@ export function AiStudioPageContent({
     const railCanvasViewport = rightColumnNode.querySelector('[data-canvas-instance="rail"]');
     return railCanvasViewport instanceof HTMLElement ? railCanvasViewport.contains(target) : false;
   }, []);
+  const isTargetInsideQuickSlot = React.useCallback((target: EventTarget | null): boolean => {
+    const rightColumnNode = rightColumnRef.current;
+    if (!rightColumnNode || !(target instanceof Node)) return false;
+    const quickSlotSection = rightColumnNode.querySelector(".reference-curated-section");
+    return quickSlotSection instanceof HTMLElement ? quickSlotSection.contains(target) : false;
+  }, []);
 
   useVisibleErrorTelemetry({
     source: "client.ai_studio.ui_error_banner",
@@ -1157,10 +1148,25 @@ export function AiStudioPageContent({
     onDropTextReference: resolvedReferenceGridPropsWithStylesPanel.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
     shouldBypassCapture: (event, context) => {
-      if (!isTargetInsideRailCanvas(event.target)) return false;
       const payloadKind = context.payload?.kind;
-      if (payloadKind === "text" || payloadKind === "internal") return true;
-      if (context.dropMode === "text") return true;
+      if (isTargetInsideRailCanvas(event.target)) {
+        if (
+          payloadKind === "text" ||
+          payloadKind === "internal" ||
+          payloadKind === "libraryMedia" ||
+          payloadKind === "libraryPrompt"
+        ) {
+          return true;
+        }
+        if (context.dropMode === "text") return true;
+        return false;
+      }
+      if (isTargetInsideQuickSlot(event.target)) {
+        if (payloadKind === "libraryMedia" || payloadKind === "libraryPrompt") {
+          return true;
+        }
+        return false;
+      }
       return false;
     },
   });

@@ -189,7 +189,9 @@ export default function AiStudioPage() {
     addOutputsFromFiles,
     buildSessionSnapshot,
     addLibraryMediaReference,
+    addLibraryMediaReferenceToQuickSlot,
     addLibraryPromptReference,
+    addLibraryPromptReferenceToQuickSlot,
     toggleReferenceIndicator,
     openModelModal,
     closeModelModal,
@@ -216,6 +218,56 @@ export default function AiStudioPage() {
     selectedStylePrompt,
     selectedStyleContext,
   });
+
+  const handleQuickSlotLibraryMediaDrop = useCallback(
+    async (
+      payload: Parameters<typeof addLibraryMediaReferenceToQuickSlot>[0],
+      options?: {
+        targetId: string | null;
+        placement: "before" | "after" | "end";
+      }
+    ) => {
+      const insertedId = await addLibraryMediaReferenceToQuickSlot(payload, options);
+      if (!insertedId) return null;
+      addCuratedReference(insertedId);
+      if (options?.targetId || options?.placement === "end") {
+        reorderCuratedReference(insertedId, options?.targetId ?? null, options?.placement ?? "end");
+      }
+      setActiveOutputId(insertedId);
+      return insertedId;
+    },
+    [
+      addCuratedReference,
+      addLibraryMediaReferenceToQuickSlot,
+      reorderCuratedReference,
+      setActiveOutputId,
+    ]
+  );
+
+  const handleQuickSlotLibraryPromptDrop = useCallback(
+    (
+      payload: Parameters<typeof addLibraryPromptReferenceToQuickSlot>[0],
+      options?: {
+        targetId: string | null;
+        placement: "before" | "after" | "end";
+      }
+    ) => {
+      const insertedId = addLibraryPromptReferenceToQuickSlot(payload, options);
+      if (!insertedId) return null;
+      addCuratedReference(insertedId);
+      if (options?.targetId || options?.placement === "end") {
+        reorderCuratedReference(insertedId, options?.targetId ?? null, options?.placement ?? "end");
+      }
+      setActiveOutputId(insertedId);
+      return insertedId;
+    },
+    [
+      addCuratedReference,
+      addLibraryPromptReferenceToQuickSlot,
+      reorderCuratedReference,
+      setActiveOutputId,
+    ]
+  );
 
   useEffect(() => {
     setExpertEditSessionState(null);
@@ -779,6 +831,14 @@ export default function AiStudioPage() {
     restoreAllArchivedOutputs,
     selectedTool,
   });
+  const referenceGridPageProps = useMemo(
+    () => ({
+      ...referenceGridHookProps,
+      onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
+      onAddLibraryPromptReferenceToQuickSlot: handleQuickSlotLibraryPromptDrop,
+    }),
+    [handleQuickSlotLibraryMediaDrop, handleQuickSlotLibraryPromptDrop, referenceGridHookProps]
+  );
   const previewDetailProps = useAiStudioPreviewDetailProps({
     activeOutput,
     referenceImageUrl,
@@ -815,7 +875,7 @@ export default function AiStudioPage() {
     panelProps,
     canvasProps: mainCanvasProps,
     railCanvasProps,
-    referenceGridProps: referenceGridHookProps,
+    referenceGridProps: referenceGridPageProps,
     previewDetailProps,
   });
   const handleOpenMediaLibraryPanelOnly = useCallback(() => {

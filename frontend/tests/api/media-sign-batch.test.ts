@@ -59,7 +59,7 @@ describe("POST /api/media/sign-batch", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {
@@ -138,11 +138,11 @@ describe("POST /api/media/sign-batch", () => {
 
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-sign-surface", "reference-grid");
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-sign-preview-profile", "none");
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("keeps panel image signing untransformed when dual transform flags are off", async () => {
+  it("does not apply transforms by default for media-library panel image paths", async () => {
     const path = "user-1/uploads/images/panel-image.jpg";
     const createSignedUrlMock = vi.fn(async () => ({
       data: { signedUrl: "https://example.test/panel-signed" },
@@ -173,11 +173,11 @@ describe("POST /api/media/sign-batch", () => {
       "x-shortpulse-media-sign-preview-profile",
       "media-library-panel-image-card"
     );
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("applies panel image transforms when both transform flags are enabled", async () => {
+  it("keeps direct signing behavior even when transform flags are enabled", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
     vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
 
@@ -207,47 +207,7 @@ describe("POST /api/media/sign-batch", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
-      transform: {
-        width: 512,
-        quality: 50,
-        resize: "contain",
-      },
-    });
-    expect(res.status).toHaveBeenCalledWith(200);
-  });
-
-  it("does not apply transforms to profile-none surfaces even when transform flags are enabled", async () => {
-    vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
-    vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
-
-    const path = "user-1/uploads/images/reference-card.jpg";
-    const createSignedUrlMock = vi.fn(async () => ({
-      data: { signedUrl: "https://example.test/reference-signed" },
-      error: null,
-    }));
-
-    getSupabaseAdminMock.mockReturnValue({
-      storage: {
-        from: vi.fn(() => ({
-          createSignedUrl: createSignedUrlMock,
-        })),
-      },
-    });
-
-    const req = {
-      method: "POST",
-      body: {
-        bucket: "media_library",
-        paths: [path],
-        surface: "reference-grid",
-      },
-    };
-    const res = createMockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, undefined);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

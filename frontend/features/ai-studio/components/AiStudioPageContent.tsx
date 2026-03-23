@@ -287,6 +287,12 @@ const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropP
   return { kind: "none" };
 };
 
+const getEventTargetElement = (target: EventTarget | null): Element | null => {
+  if (target instanceof Element) return target;
+  if (target instanceof Node) return target.parentElement;
+  return null;
+};
+
 type CreateSectionProps = React.ComponentProps<typeof CreatePropertiesPanel>;
 type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
 type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
@@ -952,16 +958,12 @@ export function AiStudioPageContent({
     [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.onCustomPresetOverridesChange]
   );
   const isTargetInsideRailCanvas = React.useCallback((target: EventTarget | null): boolean => {
-    const rightColumnNode = rightColumnRef.current;
-    if (!rightColumnNode || !(target instanceof Node)) return false;
-    const railCanvasViewport = rightColumnNode.querySelector('[data-canvas-instance="rail"]');
-    return railCanvasViewport instanceof HTMLElement ? railCanvasViewport.contains(target) : false;
+    const element = getEventTargetElement(target);
+    return Boolean(element?.closest('[data-canvas-instance="rail"]'));
   }, []);
   const isTargetInsideQuickSlot = React.useCallback((target: EventTarget | null): boolean => {
-    const rightColumnNode = rightColumnRef.current;
-    if (!rightColumnNode || !(target instanceof Node)) return false;
-    const quickSlotSection = rightColumnNode.querySelector(".reference-curated-section");
-    return quickSlotSection instanceof HTMLElement ? quickSlotSection.contains(target) : false;
+    const element = getEventTargetElement(target);
+    return Boolean(element?.closest(".reference-curated-section"));
   }, []);
 
   useVisibleErrorTelemetry({

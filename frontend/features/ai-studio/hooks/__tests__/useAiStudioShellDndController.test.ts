@@ -179,4 +179,77 @@ describe("useAiStudioShellDndController", () => {
     });
     expect(onDropTextReference).toHaveBeenCalledWith("hello");
   });
+
+  it("caches shell fallback bounds across repeated dragovers until drop state clears", () => {
+    const shellRef = { current: document.createElement("section") };
+    const rightRef = { current: document.createElement("div") };
+    shellRef.current.appendChild(rightRef.current);
+    const shellRectSpy = vi.spyOn(shellRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 0,
+      width: 400,
+      height: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    const rightRectSpy = vi.spyOn(rightRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 200,
+      width: 200,
+      height: 400,
+      x: 200,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellDndController({
+        shellRef,
+        rightColumnRef: rightRef,
+        resolveDropMode: () => "text",
+        resolveDropPayload: () => ({ kind: "none" }),
+        onDropFiles: vi.fn(),
+        useRafBackpressure: false,
+      })
+    );
+
+    act(() => {
+      result.current.handleShellDragOverCapture(
+        createDragEvent(createTransfer(["text/plain"]), {
+          target: shellRef.current,
+          clientX: 250,
+          clientY: 40,
+        })
+      );
+      result.current.handleShellDragOverCapture(
+        createDragEvent(createTransfer(["text/plain"]), {
+          target: shellRef.current,
+          clientX: 250,
+          clientY: 80,
+        })
+      );
+    });
+
+    expect(shellRectSpy).toHaveBeenCalledTimes(1);
+    expect(rightRectSpy).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.handleDropCapture(createDragEvent(createTransfer(["text/plain"])));
+      result.current.handleShellDragOverCapture(
+        createDragEvent(createTransfer(["text/plain"]), {
+          target: shellRef.current,
+          clientX: 250,
+          clientY: 120,
+        })
+      );
+    });
+
+    expect(shellRectSpy).toHaveBeenCalledTimes(2);
+    expect(rightRectSpy).toHaveBeenCalledTimes(2);
+  });
 });

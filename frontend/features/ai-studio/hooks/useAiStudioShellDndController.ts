@@ -70,6 +70,13 @@ type UseAiStudioShellDndControllerParams = {
 
 type DragEventHandler = (event: React.DragEvent<HTMLElement>) => void;
 
+type RightColumnFallbackBounds = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
 /**
  * Manages AI shell right-column drag/drop state with optional RAF backpressure.
  * Keeps noisy dragover updates out of the primary page render path.
@@ -91,7 +98,12 @@ export const useAiStudioShellDndController = ({
   const dropModeRef = useRef<ShellDropMode>("none");
   const rafIdRef = useRef<number | null>(null);
   const pendingModeRef = useRef<ShellDropMode | null>(null);
+  const fallbackBoundsRef = useRef<RightColumnFallbackBounds | null>(null);
   const [dropMode, setDropMode] = useState<ShellDropMode>("none");
+
+  const invalidateFallbackBounds = useCallback(() => {
+    fallbackBoundsRef.current = null;
+  }, []);
 
   const flushPendingMode = useCallback(() => {
     rafIdRef.current = null;
@@ -120,13 +132,31 @@ export const useAiStudioShellDndController = ({
   const clearDropState = useCallback(() => {
     dragDepthRef.current = 0;
     pendingModeRef.current = null;
+    invalidateFallbackBounds();
     if (rafIdRef.current != null) {
       window.cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
     dropModeRef.current = "none";
     setDropMode("none");
-  }, []);
+  }, [invalidateFallbackBounds]);
+
+  const resolveFallbackBounds = useCallback((): RightColumnFallbackBounds | null => {
+    if (fallbackBoundsRef.current) return fallbackBoundsRef.current;
+    const rightColumnNode = rightColumnRef.current;
+    const shellNode = shellRef.current;
+    if (!rightColumnNode || !shellNode) return null;
+    const shellRect = shellNode.getBoundingClientRect();
+    const rightRect = rightColumnNode.getBoundingClientRect();
+    const nextBounds = {
+      left: rightRect.left,
+      right: rightRect.right,
+      top: shellRect.top,
+      bottom: shellRect.bottom,
+    };
+    fallbackBoundsRef.current = nextBounds;
+    return nextBounds;
+  }, [rightColumnRef, shellRef]);
 
   const handleDragEnterCapture: DragEventHandler = useCallback(
     (event) => {
@@ -236,20 +266,19 @@ export const useAiStudioShellDndController = ({
   const shouldHandleShellRightColumnFallback = useCallback(
     (event: React.DragEvent<HTMLElement>) => {
       const rightColumnNode = rightColumnRef.current;
-      const shellNode = shellRef.current;
-      if (!rightColumnNode || !shellNode) return false;
+      if (!rightColumnNode) return false;
       if (event.target instanceof Node && rightColumnNode.contains(event.target)) return false;
-      const shellRect = shellNode.getBoundingClientRect();
-      const rightRect = rightColumnNode.getBoundingClientRect();
+      const fallbackBounds = resolveFallbackBounds();
+      if (!fallbackBounds) return false;
       const { clientX, clientY } = event;
       return (
-        clientX >= rightRect.left &&
-        clientX <= rightRect.right &&
-        clientY >= shellRect.top &&
-        clientY <= shellRect.bottom
+        clientX >= fallbackBounds.left &&
+        clientX <= fallbackBounds.right &&
+        clientY >= fallbackBounds.top &&
+        clientY <= fallbackBounds.bottom
       );
     },
-    [rightColumnRef, shellRef]
+    [resolveFallbackBounds, rightColumnRef]
   );
 
   const handleShellDragOverCapture: DragEventHandler = useCallback(
@@ -280,6 +309,19 @@ export const useAiStudioShellDndController = ({
       document.removeEventListener("drop", handleDocumentDragTermination);
     };
   }, [clearDropState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleViewportChange = () => {
+      invalidateFallbackBounds();
+    };
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+    return () => {
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [invalidateFallbackBounds]);
 
   useEffect(
     () => () => {

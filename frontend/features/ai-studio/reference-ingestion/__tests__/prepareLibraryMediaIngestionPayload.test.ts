@@ -9,7 +9,6 @@ const {
   getSignedMediaUrlMock,
   refreshSupabaseSignedUrlIfNeededMock,
   mediaFilesMaybeSingleMock,
-  mediaFilesSelectMock,
   mediaFilesFromMock,
   ensureSupabaseClientMock,
 } = vi.hoisted(() => {
@@ -28,7 +27,6 @@ const {
     getSignedMediaUrlMock: vi.fn(),
     refreshSupabaseSignedUrlIfNeededMock: vi.fn(),
     mediaFilesMaybeSingleMock,
-    mediaFilesSelectMock,
     mediaFilesFromMock,
     ensureSupabaseClientMock: vi.fn(() => ({
       from: mediaFilesFromMock,

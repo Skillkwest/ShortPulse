@@ -206,6 +206,11 @@ export function useAiStudioTasks({
   const pollSessionsRef = useRef<Record<string, number>>({});
   const statusRequestsInFlightRef = useRef(0);
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
+  const recoveryStateRefsRef = useRef<{
+    outputLookupHardStopNotifiedRef?: React.MutableRefObject<Record<string, boolean>>;
+    outputLookupMissesRef?: React.MutableRefObject<Record<string, number>>;
+    outputLookupMissingSinceRef?: React.MutableRefObject<Record<string, number>>;
+  }>({});
   const queuedOutputUpdatersRef = useRef<Record<string, QueuedOutputUpdate[]>>({});
   const queuedOutputFlushPendingRef = useRef(false);
   const queuedOutputFlushRafIdRef = useRef<number | null>(null);
@@ -280,6 +285,7 @@ export function useAiStudioTasks({
 
   const clearPollTimer = useCallback(
     (outputId: string) => {
+      const recoveryStateRefs = recoveryStateRefsRef.current;
       pollSessionsRef.current[outputId] = (pollSessionsRef.current[outputId] ?? 0) + 1;
       const timeoutId = pollTimersRef.current[outputId];
       if (timeoutId) {
@@ -294,9 +300,9 @@ export function useAiStudioTasks({
         });
       }
       delete lastProgressUpdateAtRef.current[outputId];
-      delete outputLookupMissesRef.current[outputId];
-      delete outputLookupMissingSinceRef.current[outputId];
-      delete outputLookupHardStopNotifiedRef.current[outputId];
+      delete recoveryStateRefs.outputLookupMissesRef?.current[outputId];
+      delete recoveryStateRefs.outputLookupMissingSinceRef?.current[outputId];
+      delete recoveryStateRefs.outputLookupHardStopNotifiedRef?.current[outputId];
     },
     [updateOutputById]
   );
@@ -318,6 +324,11 @@ export function useAiStudioTasks({
     onPollingOutputLookupHardStop,
     queueOutputUpdate,
   });
+  recoveryStateRefsRef.current = {
+    outputLookupHardStopNotifiedRef,
+    outputLookupMissesRef,
+    outputLookupMissingSinceRef,
+  };
 
   const startPollingTask = useCallback(
     function pollTask(
@@ -897,6 +908,9 @@ export function useAiStudioTasks({
       notifyGenerationFailure,
       onGenerationFailure,
       onGenerationSuccess,
+      outputLookupHardStopNotifiedRef,
+      outputLookupMissesRef,
+      outputLookupMissingSinceRef,
       queueOutputUpdate,
       scheduleBackgroundRecovery,
     ]

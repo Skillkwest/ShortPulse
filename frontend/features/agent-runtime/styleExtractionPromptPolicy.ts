@@ -3,22 +3,19 @@
  * Enforces a deterministic leading style-class descriptor for extracted style prompts.
  */
 
-const STYLE_CLASS_LABELS = [
-  "Candid Cell Phone Snapshot",
-  "Anime Style",
-  "Cartoon Style",
-  "Hyper-realistic",
-  "Photorealistic",
-  "Vintage",
-  "Digital Illustration",
-  "3D Render",
-  "Concept Art",
-  "Hand-Drawn",
-  "Painting",
-  "Photographic",
-] as const;
-
-type StyleClassLabel = (typeof STYLE_CLASS_LABELS)[number];
+type StyleClassLabel =
+  | "Candid Cell Phone Snapshot"
+  | "Anime Style"
+  | "Cartoon Style"
+  | "Hyper-realistic"
+  | "Photorealistic"
+  | "Vintage"
+  | "Digital Illustration"
+  | "3D Render"
+  | "Concept Art"
+  | "Hand-Drawn"
+  | "Painting"
+  | "Photographic";
 
 type StyleClassRule = {
   label: StyleClassLabel;

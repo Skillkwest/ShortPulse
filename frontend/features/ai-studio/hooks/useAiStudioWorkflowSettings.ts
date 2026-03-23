@@ -75,9 +75,8 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   klingElements: [{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }],
 };
 
-const resolveDefaultWorkflowSettingsForKey = (
-  _key: WorkflowSettingsKey
-): WorkflowSettingsSnapshot => DEFAULT_WORKFLOW_SETTINGS;
+const resolveDefaultWorkflowSettingsForKey = (): WorkflowSettingsSnapshot =>
+  DEFAULT_WORKFLOW_SETTINGS;
 
 const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | null => {
   const workflowId = resolveWorkflowId(tool);
@@ -254,6 +253,7 @@ export const useAiStudioWorkflowSettings = ({
     Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>>
   >({});
   const previousWorkflowSettingsKeyRef = useRef<WorkflowSettingsKey | null>(null);
+  const initialSelectedToolRef = useRef(selectedTool);
   const sharedAspectRef = useRef(DEFAULT_SHARED_ASPECT);
   const activeWorkflowSettingsKey = useMemo(
     () => resolveWorkflowSettingsKey(selectedTool),
@@ -305,7 +305,7 @@ export const useAiStudioWorkflowSettings = ({
 
   const saveOutgoingWorkflowSnapshot = useCallback(
     (key: WorkflowSettingsKey, preserveExistingMode: boolean) => {
-      const defaults = resolveDefaultWorkflowSettingsForKey(key);
+      const defaults = resolveDefaultWorkflowSettingsForKey();
       const existingSnapshot =
         workflowSettingsRef.current[key] ?? cloneWorkflowSettingsSnapshot(defaults, defaults);
       workflowSettingsRef.current[key] = {
@@ -329,12 +329,12 @@ export const useAiStudioWorkflowSettings = ({
       (["create", "edit", "video", "kling"] as const).forEach((key) => {
         next[key] = cloneWorkflowSettingsSnapshot(
           parsed?.[key],
-          resolveDefaultWorkflowSettingsForKey(key)
+          resolveDefaultWorkflowSettingsForKey()
         );
       });
       workflowSettingsRef.current = next;
       const storedSharedAspect = window.sessionStorage.getItem(SHARED_ASPECT_SESSION_KEY)?.trim();
-      const initialWorkflowKey = resolveWorkflowSettingsKey(selectedTool);
+      const initialWorkflowKey = resolveWorkflowSettingsKey(initialSelectedToolRef.current);
       const initialSnapshotAspect = initialWorkflowKey ? next[initialWorkflowKey]?.aspect : null;
       sharedAspectRef.current =
         storedSharedAspect ||
@@ -375,7 +375,7 @@ export const useAiStudioWorkflowSettings = ({
 
     let snapshot = workflowSettingsRef.current[activeWorkflowSettingsKey];
     if (!snapshot) {
-      const defaults = resolveDefaultWorkflowSettingsForKey(activeWorkflowSettingsKey);
+      const defaults = resolveDefaultWorkflowSettingsForKey();
       snapshot = cloneWorkflowSettingsSnapshot(defaults, defaults);
       workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
     }

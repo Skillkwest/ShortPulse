@@ -1,7 +1,12 @@
 # ADR 0048: Generation Pipeline Control-Plane Mutation Ownership
 
-## Status
-Accepted
+- Status: Accepted
+- Date: 2026-03-23
+- Owners: AI Studio / Generation Runtime
+- Related:
+  - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
+  - `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
+  - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 
 ## Context
 The generation pipeline accumulated multiple overlapping mutation surfaces across submit, queue polling, recovery, and fleet health:

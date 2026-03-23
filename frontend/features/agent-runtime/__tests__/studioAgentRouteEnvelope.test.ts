@@ -41,4 +41,22 @@ describe("studioAgentRouteEnvelope", () => {
     expect(result.payload.code).toBe("INVALID_SESSION_KEY");
     expect(result.payload.traceId).toBe("trace-missing-session");
   });
+
+  it("parses directOpenAiBypass from the request body", () => {
+    const result = parseStudioAgentRequestEnvelope({
+      req: {
+        body: {
+          clientSessionKey: "session-123",
+          messages: [{ role: "user", content: "hello" }],
+          directOpenAiBypass: true,
+        },
+      } as never,
+      userId: "user-1",
+      traceId: "trace-1",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.directOpenAiBypass).toBe(true);
+  });
 });

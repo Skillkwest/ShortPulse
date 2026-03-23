@@ -641,7 +641,6 @@ export default function AiStudioPage() {
     optimisticUncoveredDebitTotal: optimisticUncoveredDebitCredits,
     setUiError,
     setUiNotice,
-    setSharedPrompt,
     setPromptOrigin,
     setOptimisticDebitEntries,
     refreshBalance,

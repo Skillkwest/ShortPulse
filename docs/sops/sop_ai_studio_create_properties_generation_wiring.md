@@ -79,7 +79,7 @@ sequenceDiagram
 1. CTA event entry:
 - `CreatePropertiesPanel.onGenerate` -> `useAiStudioGenerationController.handlePrimarySubmit`.
 2. Create text-mode branch:
-- Chat mode ON: send to agent (`handleAgentSend`) and stage prompt from agent output.
+- Chat mode ON: send to the chat lane. If `Agent Assist` is ON, that is the normal studio-agent path; if `Agent Assist` is OFF and the backend gate is enabled, the same chat UI posts `directOpenAiBypass=true` so `/api/ai/studio-agent` talks directly to OpenAI.
 - Chat mode OFF: resolve raw prompt via `resolveChatOffCreatePrompt`, then submit generate as Create/Image.
 - Chat mode OFF cost contract: button estimate and submit/debit guardrail use the image-run cost path (`promptReferenceGenerateCostCredits`, model/aspect/image-resolution aware), not text-token cost.
 3. `handleGenerate` preflight:
@@ -148,11 +148,14 @@ sequenceDiagram
 - Returns normalized response envelope (`message`, optional `actions`, `canonicalPrompt`, `traceId`).
 3. Legacy helper routes still used by Create UX fallbacks:
 - `/api/ai/generate-prompt` -> `agentRuntimeService.generatePrompt` (`legacyPromptGenerationService`).
-  - Create `mode=text` with Chat Mode OFF bypasses `/api/ai/studio-agent` and posts the raw composer/shared prompt directly here.
-  - This direct lane defaults to `OPENAI_DIRECT_PROMPT_MODEL` or `gpt-5.4` when unset; it is intentionally separate from the studio-agent `OPENAI_MODEL` default chain.
+  - This remains the dedicated prompt-refinement helper route; it is not the Create raw-mode submit path.
 - `/api/ai/describe-image` -> `agentRuntimeService.describeImage` (`legacyImageDescribeService`).
 - `/api/ai/extract-style` -> `agentRuntimeService.extractStyle` (`legacyStyleExtractionService`) for Styles Library new-style image intake (returns `stylePrompt` + normalized `styleTitle`).
   - Operational ownership and metadata/telemetry contracts for style-create flows are defined in `docs/sops/sop_ai_studio_style_creator.md`.
+4. Direct OpenAI bypass route:
+- `/api/ai/studio-agent` accepts `directOpenAiBypass=true` in the request envelope.
+- The route only honors that flag when `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
+- When active, it skips studio-agent orchestration and forwards the raw chat transcript directly to OpenAI using `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
 4. Admin control plane routes (policy operations):
 - `GET /api/admin/agent-safety-policy/active`
 - `POST /api/admin/agent-safety-policy/activate`
@@ -175,7 +178,8 @@ When changing Create panel behavior or generation wiring, update all relevant la
 - Manual smoke in `/ai-studio`:
   1. Create expert panel: model/aspect/resolution/character controls render and update.
   2. Chat mode ON/OFF behavior matches expected submit path.
-  3. In Create `mode=text` with chat OFF, Generate and inline raw-mode actions hit `/api/ai/generate-prompt`, update the shared prompt, and show the direct prompt-route cost instead of image-run cost.
-  4. Model modal ordering is context-correct for Create.
-  5. Generate submission reaches queued/dispatched states and polling converges.
-  6. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.
+  3. In Create `mode=text` with chat OFF, Generate and inline raw-mode actions route into file generation and retain image-run cost behavior.
+  4. In Create chat mode with `Agent Assist` visible and OFF, agent sends bypass orchestration and hit the direct OpenAI branch inside `/api/ai/studio-agent`.
+  5. Model modal ordering is context-correct for Create.
+  6. Generate submission reaches queued/dispatched states and polling converges.
+  7. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.

@@ -108,6 +108,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "true";
     process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "false";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "true";
+    delete process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED;
+    delete process.env.STUDIO_AGENT_DIRECT_OPENAI_MODEL;
     process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
     process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";
     process.env.STUDIO_AGENT_TIMEOUT_MS = String(20000);
@@ -147,6 +149,51 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       },
     });
     vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("bypasses agent orchestration and calls OpenAI directly when the direct bypass toggle is enabled", async () => {
+    process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "Direct OpenAI reply" } }],
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-direct-bypass",
+        messages: [{ role: "user", content: "talk to the raw model" }],
+        context: {},
+        directOpenAiBypass: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const payload = requestInit?.body
+      ? (JSON.parse(requestInit.body) as {
+          model?: string;
+          messages?: Array<{ role: string; content: string }>;
+        })
+      : null;
+    expect(payload?.model).toBe("gpt-5.4");
+    expect(payload?.messages).toEqual([{ role: "user", content: "talk to the raw model" }]);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Direct OpenAI reply",
+        actions: expect.objectContaining({ applyPrompt: "Direct OpenAI reply" }),
+        outcome_class: "success_prompt",
+      })
+    );
   });
 
   it("uses orchestration path for MIXED turns even when NEXT_PUBLIC_AGENT_V2=false", async () => {

@@ -3,16 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
-import { postGeneratePrompt } from "../../logic/promptGeneration";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
-
-vi.mock("../../logic/promptGeneration", () => ({
-  postGeneratePrompt: vi.fn(async (prompt: string) => ({
-    prompt: `Direct ${prompt}`,
-  })),
-}));
-
-const postGeneratePromptMock = vi.mocked(postGeneratePrompt);
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -39,7 +30,6 @@ const createParams = (
   optimisticUncoveredDebitTotal: 0,
   setUiError: asDispatch<string | null>(vi.fn()),
   setUiNotice: asDispatch<string | null>(vi.fn()),
-  setSharedPrompt: asDispatch<string>(vi.fn()),
   setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
   setOptimisticDebitEntries: asDispatch<{ credits: number; outputId: string | null }[]>(vi.fn()),
   refreshBalance: vi.fn(async () => 100),
@@ -61,7 +51,6 @@ const createParams = (
 describe("useAiStudioGenerationController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    postGeneratePromptMock.mockResolvedValue({ prompt: "Direct refined prompt" });
   });
 
   it("routes primary text create submit through agent send and applies returned prompt origin", async () => {
@@ -96,13 +85,12 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
-  it("routes primary text create submit directly to OpenAI prompt generation when chat mode is off", async () => {
+  it("routes chat-off primary text create submit into create image generation", async () => {
     const handleAgentSend = vi.fn(async () => ({
       prompt: "agent prompt should not be used",
       referenceTitle: "unused",
     }));
     const generateOutput = vi.fn();
-    const setSharedPrompt = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
       mode: "text",
@@ -112,7 +100,6 @@ describe("useAiStudioGenerationController", () => {
       chatModeEnabled: false,
       handleAgentSend,
       generateOutput,
-      setSharedPrompt: asDispatch<string>(setSharedPrompt),
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
@@ -125,10 +112,14 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).not.toHaveBeenCalled();
-    expect(postGeneratePromptMock).toHaveBeenCalledWith("raw composer prompt");
-    expect(setSharedPrompt).toHaveBeenCalledWith("Direct refined prompt");
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateOutput).toHaveBeenCalledWith(
+      "raw composer prompt",
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      })
+    );
   });
 
   it("falls back to shared prompt for chat-off primary submit when composer input is empty", async () => {
@@ -137,7 +128,6 @@ describe("useAiStudioGenerationController", () => {
       referenceTitle: "unused",
     }));
     const generateOutput = vi.fn();
-    const setSharedPrompt = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
       mode: "text",
@@ -147,7 +137,6 @@ describe("useAiStudioGenerationController", () => {
       chatModeEnabled: false,
       handleAgentSend,
       generateOutput,
-      setSharedPrompt: asDispatch<string>(setSharedPrompt),
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
@@ -160,19 +149,22 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).not.toHaveBeenCalled();
-    expect(postGeneratePromptMock).toHaveBeenCalledWith("shared fallback prompt");
-    expect(setSharedPrompt).toHaveBeenCalledWith("Direct refined prompt");
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateOutput).toHaveBeenCalledWith(
+      "shared fallback prompt",
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      })
+    );
   });
 
-  it("uses chat-off inline generate to submit trimmed raw input to OpenAI only", async () => {
+  it("uses chat-off inline generate to submit trimmed raw input to create image generation", async () => {
     const handleAgentSend = vi.fn(async () => ({
       prompt: "agent prompt should not be used",
       referenceTitle: "unused",
     }));
     const generateOutput = vi.fn();
-    const setSharedPrompt = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
       mode: "text",
@@ -182,7 +174,6 @@ describe("useAiStudioGenerationController", () => {
       chatModeEnabled: false,
       handleAgentSend,
       generateOutput,
-      setSharedPrompt: asDispatch<string>(setSharedPrompt),
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
@@ -195,10 +186,14 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).not.toHaveBeenCalled();
-    expect(postGeneratePromptMock).toHaveBeenCalledWith("raw inline prompt");
-    expect(setSharedPrompt).toHaveBeenCalledWith("Direct refined prompt");
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateOutput).toHaveBeenCalledWith(
+      "raw inline prompt",
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      })
+    );
   });
 
   it("falls back to shared prompt for chat-off inline generate when input is empty", async () => {
@@ -207,7 +202,6 @@ describe("useAiStudioGenerationController", () => {
       referenceTitle: "unused",
     }));
     const generateOutput = vi.fn();
-    const setSharedPrompt = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
       mode: "text",
@@ -217,7 +211,6 @@ describe("useAiStudioGenerationController", () => {
       chatModeEnabled: false,
       handleAgentSend,
       generateOutput,
-      setSharedPrompt: asDispatch<string>(setSharedPrompt),
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
@@ -230,13 +223,17 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).not.toHaveBeenCalled();
-    expect(postGeneratePromptMock).toHaveBeenCalledWith("shared fallback prompt");
-    expect(setSharedPrompt).toHaveBeenCalledWith("Direct refined prompt");
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateOutput).toHaveBeenCalledWith(
+      "shared fallback prompt",
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      })
+    );
   });
 
-  it("does not create optimistic debits for chat-off primary submit", async () => {
+  it("creates optimistic debits for chat-off primary submit because it routes into generation", async () => {
     const setOptimisticDebitEntries = vi.fn();
     const params = createParams({
       mode: "text",
@@ -257,10 +254,10 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+    expect(setOptimisticDebitEntries).toHaveBeenCalledTimes(1);
   });
 
-  it("does not create optimistic debits for chat-off inline generate", async () => {
+  it("creates optimistic debits for chat-off inline generate because it routes into generation", async () => {
     const setOptimisticDebitEntries = vi.fn();
     const params = createParams({
       mode: "text",
@@ -281,7 +278,7 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+    expect(setOptimisticDebitEntries).toHaveBeenCalledTimes(1);
   });
 
   it("shows explicit error when chat-off inline generate has no prompt input", async () => {
@@ -306,34 +303,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(setUiError).toHaveBeenCalledWith("Add a prompt to start a generation.");
-    expect(postGeneratePromptMock).not.toHaveBeenCalled();
     expect(generateOutput).not.toHaveBeenCalled();
-  });
-
-  it("surfaces a direct OpenAI error when chat-off prompt generation returns no prompt", async () => {
-    postGeneratePromptMock.mockResolvedValueOnce(null);
-    const setUiError = vi.fn();
-    const setSharedPrompt = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "shared fallback",
-      agentInput: "raw prompt",
-      chatModeEnabled: false,
-      setUiError: asDispatch<string | null>(setUiError),
-      setSharedPrompt: asDispatch<string>(setSharedPrompt),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handlePrimarySubmit();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setUiError).toHaveBeenCalledWith("OpenAI prompt generation failed. Please retry.");
-    expect(setSharedPrompt).not.toHaveBeenCalled();
   });
 
   it("prevents rapid double-generate submissions via click lock", async () => {

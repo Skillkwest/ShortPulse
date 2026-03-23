@@ -129,7 +129,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
-  const directPromptSystem = loadAgentPrompt("OPENAI_PROMPT_SYSTEM", process.env.OPENAI_PROMPT_SYSTEM);
   const thinkerPrompt = loadAgentPrompt("STUDIO_AGENT_THINKER", process.env.STUDIO_AGENT_THINKER);
   const formatterPrompt = loadAgentPrompt(
     "STUDIO_AGENT_FORMATTER",
@@ -301,15 +300,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (directOpenAiBypassEnabled && directOpenAiBypassRequested) {
     try {
-      const directMessages = [
-        ...(directPromptSystem
-          ? ([{ role: "system", content: directPromptSystem }] as const)
-          : []),
-        ...messages.map((message) => ({
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: message.content,
-        })),
-      ];
+      const directMessages = messages.map((message) => ({
+        role: message.role === "assistant" ? "assistant" : "user",
+        content: message.content,
+      }));
       const directResponse = await fetchStudioAgentChatCompletion({
         apiKey,
         openAiUrl,

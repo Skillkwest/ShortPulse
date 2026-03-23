@@ -453,7 +453,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
               </span>
             </button>
           </div>
-          {agentAssistToggleAvailable ? (
+          {chatModeEnabled && agentAssistToggleAvailable ? (
             <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
               <div className="agent-chat-mode-toggle-copy">
                 <span className="agent-chat-mode-label">Agent Assist</span>

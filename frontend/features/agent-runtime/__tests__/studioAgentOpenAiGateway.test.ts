@@ -28,9 +28,9 @@ describe("studioAgentOpenAiGateway", () => {
     });
   });
 
-  it("keeps agent defaults on OPENAI_MODEL even when direct prompt overrides are present", () => {
+  it("keeps agent defaults on OPENAI_MODEL even when direct bypass overrides are present", () => {
     const config = resolveStudioAgentOpenAiConfig({
-      OPENAI_DIRECT_PROMPT_MODEL: "gpt-5.4",
+      STUDIO_AGENT_DIRECT_OPENAI_MODEL: "gpt-5.4",
     } as unknown as NodeJS.ProcessEnv);
 
     expect(config.openAiModel).toBe("gpt-5-nano");
@@ -86,6 +86,17 @@ describe("studioAgentOpenAiGateway", () => {
     expect(config.requestTimeoutMs).toBe(18000);
     expect(config.visionTimeoutMs).toBe(1000);
     expect(config.turnTimeoutMs).toBe(120000);
+  });
+
+  it("ignores direct bypass enablement flags when resolving agent defaults", () => {
+    const config = resolveStudioAgentOpenAiConfig({
+      STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED: "true",
+      STUDIO_AGENT_DIRECT_OPENAI_MODEL: "gpt-5.4",
+    } as unknown as NodeJS.ProcessEnv);
+
+    expect(config.openAiModel).toBe("gpt-5-nano");
+    expect(config.openAiThinkerModel).toBe("gpt-5-nano");
+    expect(config.openAiFormatterModel).toBe("gpt-5-nano");
   });
 
   it("formats timeout errors deterministically", () => {

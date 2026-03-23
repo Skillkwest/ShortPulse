@@ -89,7 +89,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   optimisticUncoveredDebitTotal: number;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
-  setSharedPrompt: (value: string) => void;
   setPromptOrigin: Dispatch<SetStateAction<"manual" | "agent" | "reference">>;
   setOptimisticDebitEntries: Dispatch<
     SetStateAction<{ credits: number; outputId: string | null; createdAtMs?: number }[]>
@@ -196,7 +195,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   optimisticUncoveredDebitTotal,
   setUiError,
   setUiNotice,
-  setSharedPrompt,
   setPromptOrigin,
   setOptimisticDebitEntries,
   refreshBalance,

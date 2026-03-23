@@ -62,6 +62,7 @@ const createBridgeParams = (
 describe("useAiStudioAgentBridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("clears staged attachments when session context changes", async () => {
@@ -252,6 +253,73 @@ describe("useAiStudioAgentBridge", () => {
 
     resetAgentComposer.mock.calls.forEach((args) => {
       expect(args[0]).toEqual({ preserveInput: true, preserveAttachments: false });
+    });
+  });
+
+  it("enables direct OpenAI bypass only when agent assist is turned off behind the backend gate", async () => {
+    vi.stubEnv("NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED", "true");
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+      handleAgentDescribeTargets: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleAgentSelectVariation: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() => useAiStudioAgentBridge(createBridgeParams()));
+
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ directOpenAiBypassEnabled: false })
+    );
+
+    act(() => {
+      result.current.setAgentAssistEnabled(false);
+    });
+
+    await waitFor(() => {
+      expect(useAiAgentMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ directOpenAiBypassEnabled: true })
+      );
     });
   });
 });

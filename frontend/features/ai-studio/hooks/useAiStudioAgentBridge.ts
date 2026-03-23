@@ -134,6 +134,7 @@ export const useAiStudioAgentBridge = ({
     enabled: agentEnabled,
     sessionNamespace: `ai-studio:${sessionId ?? "none"}`,
     directOpenAiBypassEnabled:
+      chatModeEnabled &&
       agentAssistToggleAvailable &&
       !agentAssistEnabled &&
       (selectedTool === "create" || selectedTool === "text"),

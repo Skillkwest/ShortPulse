@@ -129,6 +129,29 @@ describe("useAiAgent", () => {
     expect(bodyText.toLowerCase()).toContain("lingerie");
   });
 
+  it("includes directOpenAiBypass when the direct bypass option is enabled", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "ok" }),
+    } as Response);
+    const { result } = renderHook(() =>
+      useAiAgent({ enabled: true, directOpenAiBypassEnabled: true })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "hello direct model",
+        payloadText: "hello direct model",
+      });
+    });
+
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      directOpenAiBypass?: boolean;
+    };
+    expect(body.directOpenAiBypass).toBe(true);
+  });
+
   it("reuses stored clientSessionKey across hook remounts and rotates on reset", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,

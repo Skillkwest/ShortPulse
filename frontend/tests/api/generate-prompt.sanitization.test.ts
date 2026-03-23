@@ -26,7 +26,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     vi.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_PROMPT_SYSTEM = "You are a prompt refiner.";
-    delete process.env.OPENAI_DIRECT_PROMPT_MODEL;
+    delete process.env.OPENAI_MODEL;
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
@@ -35,7 +35,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("uses the dedicated direct prompt model default when no override is configured", async () => {
+  it("uses the legacy prompt route default model when OPENAI_MODEL is unset", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -57,7 +57,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       | undefined;
     const payload = requestInit?.body ? (JSON.parse(requestInit.body) as { model?: string }) : null;
 
-    expect(payload?.model).toBe("gpt-5.4");
+    expect(payload?.model).toBe("gpt-5-nano");
   });
 
   it("strips recap/meta tails from generated prompt output", async () => {

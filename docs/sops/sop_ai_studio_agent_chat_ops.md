@@ -8,7 +8,8 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
-- Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps normal send-to-agent behavior; OFF disables send affordances and routes Create `mode=text` through the direct OpenAI prompt lane instead of `/api/ai/studio-agent`. The chat-off inline button and the main Generate action both submit the raw composer/shared prompt to `/api/ai/generate-prompt`, do not invoke agent rewrite, and do nothing when both prompt sources are empty.
+- Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path.
+- Agent Assist toggle (inline composer, right side, backend-gated): only renders when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`. ON keeps the normal studio-agent path. OFF keeps chat mode active but bypasses agent orchestration, sending raw user/assistant chat turns through `/api/ai/studio-agent` directly to OpenAI when the server gate also allows it.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
@@ -17,7 +18,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Describe & Text fallbacks: “Describe” on a reference uses `/api/ai/describe-image` first, then falls back to the agent with `modeHint="describe"`; “Refine prompt” uses `/api/ai/generate-prompt` first, then falls back to the agent with `modeHint="text"`.
 
 ## System prerequisites & gates
-- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (studio-agent default `gpt-5-nano`), optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `OPENAI_DIRECT_PROMPT_MODEL` (Create raw-mode direct route; defaults to `gpt-5.4`), optional `OPENAI_API_BASE`.
+- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (studio-agent default `gpt-5-nano`), optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (server bypass gate), optional `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (Create-panel toggle visibility), optional `STUDIO_AGENT_DIRECT_OPENAI_MODEL` (direct bypass model; defaults to `gpt-5.4`), optional `OPENAI_API_BASE`.
 - Timeout budgets: `STUDIO_AGENT_TIMEOUT_MS` as shared default; optional `STUDIO_AGENT_VISION_TIMEOUT_MS` and `STUDIO_AGENT_TURN_TIMEOUT_MS` split vision-summary and generation-turn budgets. Unset split values inherit `STUDIO_AGENT_TIMEOUT_MS`.
 - Runtime flags: `STUDIO_AGENT_SINGLE_STAGE_ENABLED` (default on), `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED` (default off), `STUDIO_AGENT_TEXT_FAST_PATH_ENABLED` (legacy path behavior when single-stage is off).
 - Safety precheck flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, server pre-provider gate), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; optional `shadow|off`), and `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, client pre-send gate).
@@ -54,8 +55,12 @@ Prompt ownership rule:
   - Primary: `/api/ai/generate-prompt`; on success, saves a “Refined prompt” card and sets prompt.
   - Fallback: agent with `modeHint="text"`; captures `applyPrompt` and saves a card (title defaults when no reference card metadata is returned).
 - **Create raw mode (Chat Mode OFF, Create `mode=text`):**
-  - Primary and only path: `/api/ai/generate-prompt`; on success, updates the shared prompt directly and leaves the agent idle.
-  - No fallback: if the direct OpenAI lane fails, the UI surfaces the error and does not wake the agent.
+  - Primary and only path: resolve the raw composer/shared prompt and submit it into Create/Image generation.
+  - No agent send occurs; this preserves the existing raw-to-file-generation behavior.
+- **Direct OpenAI chat mode (Chat Mode ON + Agent Assist OFF):**
+  - Client still posts `/api/ai/studio-agent`, but sets `directOpenAiBypass=true`.
+  - When the server gate is enabled, the route skips studio-agent orchestration and sends the raw message list directly to OpenAI with model `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
+  - The response still returns the standard `message` + `actions.applyPrompt` envelope so the UI can reuse its normal apply/save/generate flow.
 - **Describe a reference:**
   - Primary: `/api/ai/describe-image` on the active output image.
   - Fallback: agent with `modeHint="describe"` and focused image context; result becomes prompt + prompt card.

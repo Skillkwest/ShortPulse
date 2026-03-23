@@ -19,7 +19,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
 
 ## Prerequisites
-- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (studio-agent default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `OPENAI_DIRECT_PROMPT_MODEL` (Create raw-mode direct prompt lane; defaults to `gpt-5.4`), optional `OPENAI_API_BASE`.
+- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (studio-agent default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (server-authoritative bypass gate), optional `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (shows the Create-panel `Agent Assist` toggle), optional `STUDIO_AGENT_DIRECT_OPENAI_MODEL` (direct bypass model, defaults to `gpt-5.4`), optional `OPENAI_API_BASE`.
 - Timeouts: `STUDIO_AGENT_TIMEOUT_MS` (shared default), optional `STUDIO_AGENT_VISION_TIMEOUT_MS` (vision summary budget), optional `STUDIO_AGENT_TURN_TIMEOUT_MS` (generation turn budget). If split values are unset, both inherit `STUDIO_AGENT_TIMEOUT_MS`.
 - Runtime flags: `STUDIO_AGENT_SINGLE_STAGE_ENABLED` (default on), `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED` (default off, rollback aid), `STUDIO_AGENT_TEXT_FAST_PATH_ENABLED` (legacy path control when single-stage is disabled).
 - Safety policy flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, server pre-provider gate), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), shared/scoped field-mode overrides (`STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES`, `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT`, `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATE_PROMPT`, `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT`), client mirrors (`NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED`, `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES`, `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; fallback compatibility with `STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED`), `STUDIO_AGENT_SAFETY_DEBUG` (default off), `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (default `prod_safe_v1`), `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` (default off, non-production override), `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` (default `production_normalized`, optional `development_verbatim`), `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` (default off), `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` (default `24`, bounded `1..168`), `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (default on), and `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (default `5000`, bounded `1000..60000`).
@@ -34,6 +34,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
   - `messages`: chat history `{ role: "user" | "assistant", content: string }[]`.
   - `clientSessionKey`: stable session key (required; used for canonical continuity).
   - `traceId` (optional): request correlation ID echoed by server.
+  - `directOpenAiBypass` (optional): requests raw OpenAI chat-completions execution without studio-agent orchestration. Server only honors this when `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
   - `context`: {
     `activePrompt`: string;
     `modelId`: string | null;
@@ -69,6 +70,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
    - `refuse`: returns canonical refusal payload with `200` and skips provider call
 7. For image/mixed turns, route can run server-owned vision summaries and inject them into orchestration context. Vision summaries use `STUDIO_AGENT_VISION_TIMEOUT_MS`; generation turns keep `STUDIO_AGENT_TURN_TIMEOUT_MS`.
 8. Provider execution path:
+   - Direct bypass: when `directOpenAiBypass=true` and the server gate is enabled, the route sends the user/assistant message list directly to OpenAI chat completions using `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`, skips the agent coordinator/thinker/formatter path, and still returns the standard prompt-application response envelope.
    - Canonical: single-stage call for `TEXT_ONLY`, `IMAGE_ONLY`, and `MIXED`.
    - Optional rollback: legacy thinker/formatter fallback when `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`.
 9. Response returns normalized prompt output (`message` + `actions.applyPrompt` on success) and canonical prompt continuity.

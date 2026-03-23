@@ -20,6 +20,7 @@ export const clampQueuePollMs = (value: number) =>
 const HIDDEN_TAB_QUEUE_STATUS_RETRY_MS = 10_000;
 const MAX_ACTIVE_QUEUE_STATUS_FETCHES = 3;
 let activeQueueStatusFetches = 0;
+const SLOT_SATURATED_BREADCRUMB_LIMIT = 2;
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -38,6 +39,20 @@ const releaseQueueStatusFetchSlot = (): void => {
 
 export const __resetQueueStatusPollingTestState = (): void => {
   activeQueueStatusFetches = 0;
+};
+
+const resolveDeterministicJitterMs = (
+  outputId: string,
+  attempt: number,
+  maxJitterMs: number
+): number => {
+  if (!Number.isFinite(maxJitterMs) || maxJitterMs <= 0) return 0;
+  let hash = 0;
+  for (let index = 0; index < outputId.length; index += 1) {
+    hash = (hash * 31 + outputId.charCodeAt(index)) | 0;
+  }
+  const mixed = (hash ^ Math.imul(attempt + 1, 0x9e3779b1)) >>> 0;
+  return mixed % (Math.floor(maxJitterMs) + 1);
 };
 
 type NumberMapRef = {
@@ -123,6 +138,7 @@ export const startQueuedStatusPolling = ({
   const queueEnqueuedAtMs = Date.now();
   let hiddenPauseMs = 0;
   let notFoundRetries = 0;
+  let slotSaturatedBreadcrumbCount = 0;
 
   updateOutputById(outputId, (item) =>
     applyQueuedSubmissionPatch({
@@ -164,7 +180,25 @@ export const startQueuedStatusPolling = ({
     }
 
     if (!tryAcquireQueueStatusFetchSlot()) {
-      const retryAfterMs = clampQueuePollMs(initialDelayMs);
+      const retryAfterMs = clampQueuePollMs(
+        initialDelayMs + resolveDeterministicJitterMs(outputId, attempt, 250)
+      );
+      if (slotSaturatedBreadcrumbCount < SLOT_SATURATED_BREADCRUMB_LIMIT) {
+        slotSaturatedBreadcrumbCount += 1;
+        addBreadcrumb({
+          type: "ui",
+          level: "info",
+          message: "fal_queue_status_poll_saturated",
+          data: {
+            output_id: outputId,
+            source_ref: queuedResponse.sourceRef,
+            generation_id: queuedResponse.generationId,
+            active_fetches: activeQueueStatusFetches,
+            retry_after_ms: retryAfterMs,
+            attempt,
+          },
+        });
+      }
       queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
         void pollQueuedStatus(attempt);
       }, retryAfterMs);
@@ -235,7 +269,10 @@ export const startQueuedStatusPolling = ({
         return;
       }
 
-      const retryAfterMs = clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
+      const retryAfterMs = clampQueuePollMs(
+        initialDelayMs * Math.min(4, attempt + 1) +
+          resolveDeterministicJitterMs(outputId, attempt, 200)
+      );
       queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
         void pollQueuedStatus(attempt + 1);
       }, retryAfterMs);

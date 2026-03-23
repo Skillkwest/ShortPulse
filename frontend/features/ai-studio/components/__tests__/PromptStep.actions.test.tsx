@@ -57,6 +57,23 @@ describe("PromptStep agent actions", () => {
     expect(label).not.toHaveClass("helper-text");
   });
 
+  it("renders a separate agent assist toggle only when the backend-gated flag is available", () => {
+    const onAgentAssistEnabledChange = vi.fn();
+
+    render(
+      <PromptStep
+        {...baseProps}
+        agentAssistToggleAvailable
+        onAgentAssistEnabledChange={onAgentAssistEnabledChange}
+      />
+    );
+
+    const toggle = screen.getByRole("button", { name: "Disable agent assist" });
+    expect(screen.getByText("Agent Assist")).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(onAgentAssistEnabledChange).toHaveBeenCalledWith(false);
+  });
+
   it("disables send affordances when chat mode is off", () => {
     const onAgentSend = vi.fn();
     render(<PromptStep {...baseProps} chatModeEnabled={false} onAgentSend={onAgentSend} />);

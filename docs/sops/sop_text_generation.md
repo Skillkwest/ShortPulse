@@ -7,7 +7,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Audit (strengths, gaps, decisions)
 - Strengths: Single canonical prompt source in `frontend/lib/agentPromptsConfig.ts`; strict loader contract (`AgentPromptId`) that the TS compiler can validate; UI state (`useAiStudioState`) auto-wires responses into textareas and Reference Grid without copy/paste; token usage captured for cost visibility.
 - Gaps: Imported images do not yet flow through image-describer drag/drop (logged below as a limitation); UI error surfacing must be explicit (toast/modal/banners) rather than silent HTTP errors.
-- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); default direct text refinement to `gpt-5.4` while vision describe stays on `gpt-5-nano`; keep SOP + TS config as the only config artifacts to minimize files.
+- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); keep `/api/ai/generate-prompt` on the legacy `OPENAI_MODEL` chain while the separate studio-agent direct-bypass lane defaults to `gpt-5.4`; keep SOP + TS config as the only config artifacts to minimize files.
 - Actioned cleanup: Archived redundant prompt docs in `docs/archive/ai-studio-prompts.md` so the TS config remains the only source. Update any links/bookmarks to point to `frontend/lib/agentPromptsConfig.ts`.
 - UX change: Added a prominent error banner in AI Studio to surface prompt/describe failures with a dismiss control.
 - Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video charging is enforced server-side at submit time, while prompt-refine/describe flows currently report usage but are not yet debited.
@@ -43,8 +43,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Environment prerequisites
 
 1. `OPENAI_API_KEY` must be set at runtime for both endpoints.
-2. `/api/ai/generate-prompt` uses `OPENAI_DIRECT_PROMPT_MODEL` when set and otherwise defaults to `gpt-5.4`.
-3. `OPENAI_MODEL` remains the studio-agent default model chain (`gpt-5-nano` when unset); this keeps the direct prompt lane separate from agent defaults.
+2. `/api/ai/generate-prompt` uses `OPENAI_MODEL` and defaults to `gpt-5-nano`.
+3. `STUDIO_AGENT_DIRECT_OPENAI_MODEL` is the separate model default for the studio-agent direct-bypass lane and falls back to `gpt-5.4`.
 4. `OPENAI_VISION_MODEL` and `OPENAI_VISION_FALLBACK_MODEL` default to `gpt-5-nano`.
 5. Trusted-host env: `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated); non-allowlisted external hosts are fail-closed by default.
 6. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
@@ -52,16 +52,23 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Text prompt refinement workflow
 
 1. UI sends POST `/api/ai/generate-prompt` with `{ prompt: string }`.
-   - Create `mode=text` with Chat Mode OFF also uses this route directly, bypassing `/api/ai/studio-agent`.
 2. Handler guards against non-POST methods and missing/empty prompt bodies.
 3. System prompt loads via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")`. If the config entry is empty, the handler still allows env overrides before returning a 500 error.
 4. Request body:
-   - Model: `process.env.OPENAI_DIRECT_PROMPT_MODEL ?? "gpt-5.4"`
+   - Model: `process.env.OPENAI_MODEL ?? "gpt-5-nano"`
    - Messages: system prompt + user prompt
    - `temperature: 0.6`, `max_tokens: 2000`
 5. Upstream response is parsed for `choices[0]?.message?.content`; absence triggers a 502 error.
 6. Successful responses return `{ prompt: string, usage: { inputTokens?, outputTokens? } }`.
-7. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx:55-214`); once `postGeneratePrompt` replies, `useAiStudioState` sets `prompt` and prepends a `StudioOutput` record to `outputs` (`frontend/features/ai-studio/hooks/useAiStudioState.ts:292-352`). The user never copies a string—the textarea and the Reference Grid card both update with the refined prompt, and the new card is immediately draggable.
+7. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx:55-214`); once `postGeneratePrompt` replies, `useAiStudioState` sets `prompt` and prepends a `StudioOutput` record to `outputs` (`frontend/features/ai-studio/hooks/useAiStudioState.ts:292-352`). The user never copies a string: the textarea and the Reference Grid card both update with the refined prompt, and the new card is immediately draggable.
+
+## Direct OpenAI bypass workflow
+
+1. The Create chat surface can show an `Agent Assist` toggle when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
+2. With Chat Mode ON and Agent Assist OFF, `useAiAgent` posts the normal `/api/ai/studio-agent` envelope but sets `directOpenAiBypass=true`.
+3. `/api/ai/studio-agent` only honors that request when `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
+4. The route sends the raw user/assistant message list directly to OpenAI chat completions with model `process.env.STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
+5. The response is normalized back into the same `message` plus `actions.applyPrompt` contract used by the regular agent path, so the existing UI apply/save/generate behavior stays intact.
 8. The system prompt is always loaded directly from `frontend/lib/agentPromptsConfig.ts` via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")` to enforce one canonical source; avoid duplicating text in markdown files and keep the config keys aligned with the exported `AgentPromptId` type so the TS compiler can help you find the right entry.
 
 ## Image description workflow

@@ -77,6 +77,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 
 6. **Execution/closeout defaults**
 - Keep diffs minimal and scoped to the request.
+- Do not continue by adjacency or momentum alone; each new lane must have a concrete repo-backed problem statement and better ROI than stopping.
 - Run relevant validation checks for touched areas.
 - Perform a final self-audit for missed high-value updates and provide suggested next steps.
 

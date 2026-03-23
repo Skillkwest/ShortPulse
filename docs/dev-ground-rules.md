@@ -19,6 +19,7 @@ Use this document to keep the expectations clear whenever I’m making changes i
 15. **Keep structure manageable.** Use feature/domain folders, avoid deep nesting and circular deps, isolate side effects, and keep business logic out of UI glue.
 16. **Use Supabase CLI and avoid Docker for Supabase ops.** For Supabase access in this repo, use Supabase CLI with explicit hosted targets; do not run Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 17. **Treat `npm run db:reset` as blocked by policy.** The script intentionally exits non-zero to prevent local reset workflows that violate this repo's Supabase operations policy.
+18. **Do not continue by adjacency or momentum.** New work must start from a concrete problem statement and a repo-backed reason it is a better use of time than stopping; nearby files or easy-to-add tests are not enough.
 
 ## Canonical run commands (always respond with these)
 - **Frontend startup** (new terminal):

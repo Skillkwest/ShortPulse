@@ -7,7 +7,10 @@ import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveProviderRequestOwnership, settleGenerationOutcome } from "./generationBilling";
-import { getSupabaseAdmin } from "./supabaseAdmin";
+import {
+  buildPersistedCompletedPayload,
+  readPersistedSuccessResultUrls,
+} from "./falStatusPersistedResults";
 import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 import {
@@ -151,74 +154,6 @@ const settleCompletedWithoutMedia = async ({
   }
 };
 
-const toResultUrlList = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === "string") {
-        const trimmed = item.trim();
-        return trimmed.length ? trimmed : null;
-      }
-      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
-      const row = item as Record<string, unknown>;
-      const candidates = [row.url, row.download_url, row.video_url, row.image_url, row.file_url];
-      for (const candidate of candidates) {
-        if (typeof candidate !== "string") continue;
-        const trimmed = candidate.trim();
-        if (trimmed.length) return trimmed;
-      }
-      return null;
-    })
-    .filter((url): url is string => Boolean(url));
-};
-
-const dedupeUrls = (value: string[]): string[] => Array.from(new Set(value));
-
-const readPersistedSuccessResultUrls = async ({
-  userId,
-  requestId,
-}: {
-  userId: string;
-  requestId: string;
-}): Promise<string[]> => {
-  let supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
-  try {
-    supabaseAdmin = getSupabaseAdmin();
-  } catch {
-    return [];
-  }
-
-  try {
-    const { data, error } = await supabaseAdmin
-      .from("ai_generations")
-      .select("status, metadata, created_at")
-      .eq("user_id", userId)
-      .eq("request_id", requestId)
-      .order("created_at", { ascending: false })
-      .limit(5);
-    if (error || !Array.isArray(data) || !data.length) return [];
-
-    for (const item of data) {
-      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-      const row = item as Record<string, unknown>;
-      const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
-      if (status !== "success") continue;
-      const metadata =
-        row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
-          ? (row.metadata as Record<string, unknown>)
-          : null;
-      if (!metadata) continue;
-      const directUrls = dedupeUrls(toResultUrlList(metadata.result_urls ?? metadata.resultUrls));
-      if (directUrls.length) return directUrls;
-      const mediaUrls = dedupeUrls(toResultUrlList(metadata.media_urls ?? metadata.mediaUrls));
-      if (mediaUrls.length) return mediaUrls;
-    }
-    return [];
-  } catch {
-    return [];
-  }
-};
-
 const respondError = ({
   res,
   requestId,
@@ -298,14 +233,12 @@ export const createFalStatusHandler = ({
       requestId,
     });
     if (persistedResultUrls.length > 0) {
-      return res.status(200).json({
-        request_id: requestId,
-        status: "completed",
-        state: "completed",
-        resultUrls: persistedResultUrls,
-        result_urls: persistedResultUrls,
-        videos: persistedResultUrls.map((url) => ({ url })),
-      });
+      return res.status(200).json(
+        buildPersistedCompletedPayload({
+          requestId,
+          resultUrls: persistedResultUrls,
+        })
+      );
     }
 
     let apiKey: string;

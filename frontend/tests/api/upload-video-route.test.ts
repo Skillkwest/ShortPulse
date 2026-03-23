@@ -7,6 +7,7 @@ const logApiRouteExceptionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 
+let mockParseError: Error | null = null;
 let mockFile = {
   filepath: "/tmp/mock-video",
   mimetype: "video/mp4",
@@ -19,6 +20,10 @@ const formidableFactoryMock = vi.fn(() => ({
     _req: unknown,
     callback: (err: unknown, fields: unknown, files: Record<string, unknown>) => void
   ) => {
+    if (mockParseError) {
+      callback(mockParseError, {}, {});
+      return;
+    }
     callback(null, {}, { file: mockFile });
   },
 }));
@@ -50,6 +55,7 @@ describe("POST /api/upload-video", () => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
+    mockParseError = null;
     mockFile = {
       filepath: "/tmp/mock-video",
       mimetype: "video/mp4",
@@ -170,5 +176,42 @@ describe("POST /api/upload-video", () => {
       expect.any(Buffer),
       expect.objectContaining({ contentType: "video/mp4" })
     );
+  });
+
+  it("returns shared validation errors for missing raw content type", async () => {
+    const req = { method: "POST", headers: {}, destroy: vi.fn() };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upload failed",
+      details: "Missing content type",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+  });
+
+  it("logs unexpected multipart parser failures and returns 500", async () => {
+    mockParseError = new Error("Multipart parser exploded");
+
+    const req = { method: "POST", headers: { "content-type": "multipart/form-data; boundary=x" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upload failed",
+      details: "Multipart parser exploded",
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "upload-video",
+        error: expect.objectContaining({ message: "Multipart parser exploded" }),
+      })
+    );
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
   });
 });

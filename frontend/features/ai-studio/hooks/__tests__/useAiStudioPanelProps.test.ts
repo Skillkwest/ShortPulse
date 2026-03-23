@@ -35,6 +35,8 @@ const createParams = (
     agentActions: undefined,
     agentInput: "Agent input",
     chatModeEnabled: true,
+    agentAssistToggleAvailable: true,
+    agentAssistEnabled: false,
     agentBusy: false,
     agentAttachmentError: null,
     agentError: null,
@@ -44,6 +46,7 @@ const createParams = (
     isAgentDropActive: false,
     handleAgentInputChange: vi.fn(),
     setChatModeEnabled: vi.fn(),
+    setAgentAssistEnabled: vi.fn(),
     handleAgentSend: vi.fn(),
     handleAgentEnhanceSend: vi.fn(),
     handleAgentAttachmentDrop: vi.fn(),
@@ -136,7 +139,7 @@ const createParams = (
     handleVideoPromptTextChange: vi.fn(),
     handleRegenerateWithDebit: vi.fn(),
     ...overrides,
-  };
+  } as Parameters<typeof useAiStudioPanelProps>[0];
 };
 
 describe("useAiStudioPanelProps", () => {

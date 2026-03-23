@@ -43,6 +43,7 @@ type StudioAgentRequestEnvelopeSuccess = {
     messages: AgentMessage[];
     context: AgentContext;
     incomingCanonical: string | null;
+    directOpenAiBypass: boolean;
   };
 };
 
@@ -205,6 +206,7 @@ export const parseStudioAgentRequestEnvelope = ({
       messages: parsedMessages.messages,
       context: sanitizeStudioAgentContext(req.body?.context),
       incomingCanonical,
+      directOpenAiBypass: req.body?.directOpenAiBypass === true,
     },
   };
 };

@@ -26,6 +26,8 @@ type UseAiStudioCreatePanelPropsParams = {
   agentActions?: AgentActions;
   agentInput: string;
   chatModeEnabled: boolean;
+  agentAssistToggleAvailable: boolean;
+  agentAssistEnabled: boolean;
   agentBusy: boolean;
   agentAttachmentError: string | null;
   agentError?: string | null;
@@ -36,6 +38,7 @@ type UseAiStudioCreatePanelPropsParams = {
   isAgentDropActive: boolean;
   handleAgentInputChange: (value: string) => void;
   setChatModeEnabled: (value: boolean) => void;
+  setAgentAssistEnabled: (value: boolean) => void;
   handleAgentSend: () => void;
   handleAgentEnhanceSend: () => void;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
@@ -113,6 +116,8 @@ export const useAiStudioCreatePanelProps = ({
   agentActions,
   agentInput,
   chatModeEnabled,
+  agentAssistToggleAvailable,
+  agentAssistEnabled,
   agentBusy,
   agentAttachmentError,
   agentError,
@@ -123,6 +128,7 @@ export const useAiStudioCreatePanelProps = ({
   isAgentDropActive,
   handleAgentInputChange,
   setChatModeEnabled,
+  setAgentAssistEnabled,
   handleAgentSend,
   handleAgentEnhanceSend,
   handleAgentAttachmentDrop,
@@ -172,9 +178,10 @@ export const useAiStudioCreatePanelProps = ({
   beginnerMode,
   expertCreateUiEligible,
 }: UseAiStudioCreatePanelPropsParams): AiStudioCreatePanelContract => {
-  const createGenerateCostCredits = currentCostCredits;
-  const chatOffDirectPromptCostCredits =
-    mode === "text" && !chatModeEnabled ? currentCostCredits : promptReferenceGenerateCostCredits;
+  const createGenerateCostCredits =
+    mode === "text" && !chatModeEnabled
+      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
+      : currentCostCredits;
 
   return useMemo(
     () => ({
@@ -189,6 +196,8 @@ export const useAiStudioCreatePanelProps = ({
       agentActions,
       agentInput,
       chatModeEnabled,
+      agentAssistToggleAvailable,
+      agentAssistEnabled,
       agentIsSending: agentBusy,
       agentError: agentAttachmentError ?? agentError ?? undefined,
       agentPrimarySource,
@@ -198,6 +207,7 @@ export const useAiStudioCreatePanelProps = ({
       agentDropActive: isAgentDropActive,
       onAgentInputChange: handleAgentInputChange,
       onChatModeEnabledChange: setChatModeEnabled,
+      onAgentAssistEnabledChange: setAgentAssistEnabled,
       onAgentSend: handleAgentSend,
       onAgentEnhanceSend: handleAgentEnhanceSend,
       onAgentAttachmentDrop: handleAgentAttachmentDrop,
@@ -221,7 +231,7 @@ export const useAiStudioCreatePanelProps = ({
       onToggleReferenceIndicator: toggleReferenceIndicator,
       isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
       costCredits: createGenerateCostCredits,
-      outputGenerateCostCredits: chatOffDirectPromptCostCredits,
+      outputGenerateCostCredits: promptReferenceGenerateCostCredits,
       hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked,
       guardrailReason: generationGuardrail,
@@ -250,6 +260,8 @@ export const useAiStudioCreatePanelProps = ({
       agentActions,
       agentAttachmentError,
       agentAttachments,
+      agentAssistEnabled,
+      agentAssistToggleAvailable,
       agentBusy,
       chatModeEnabled,
       agentEnabled,
@@ -262,7 +274,6 @@ export const useAiStudioCreatePanelProps = ({
       beginnerMode,
       characterOptions,
       createGenerateCostCredits,
-      chatOffDirectPromptCostCredits,
       currentModelLabel,
       describeInFlightCount,
       expertCreateUiEligible,
@@ -278,6 +289,7 @@ export const useAiStudioCreatePanelProps = ({
       handleAssistantMessageEdit,
       handleAgentSelectVariation,
       handleAgentSend,
+      setAgentAssistEnabled,
       handleClearAgentAttachments,
       handleClearAgentChat,
       handleExpandChat,

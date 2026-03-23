@@ -104,109 +104,6 @@ export type FleetScanRunResult = {
   errors: string[];
 };
 
-const parseDrainageMetrics = (
-  value: unknown
-): { scanned: number; released: number; errors: number } => {
-  const row =
-    Array.isArray(value) && value.length > 0 && value[0] && typeof value[0] === "object"
-      ? (value[0] as Record<string, unknown>)
-      : value && typeof value === "object" && !Array.isArray(value)
-        ? (value as Record<string, unknown>)
-        : null;
-
-  if (!row) {
-    return { scanned: 0, released: 0, errors: 0 };
-  }
-
-  const scanned = Math.max(0, Math.trunc(toNumber(row.scanned_count ?? row.scanned)));
-  const released = Math.max(0, Math.trunc(toNumber(row.released_count ?? row.released)));
-  const errors = Math.max(0, Math.trunc(toNumber(row.error_count ?? row.errors)));
-  return { scanned, released, errors };
-};
-
-const runFleetDrainage = async (): Promise<{
-  summary: FleetDrainageSummary;
-  warnings: string[];
-}> => {
-  const flags = readAdminUserHealthFleetRuntimeFlags();
-  const summary: FleetDrainageSummary = {
-    enabled: flags.drainageEnabled || flags.drainageProviderAttachedEnabled,
-    scanned: 0,
-    released: 0,
-    errors: 0,
-  };
-  if (!summary.enabled) {
-    return { summary, warnings: [] };
-  }
-
-  const supabaseAdmin = getSupabaseAdmin();
-  const warnings: string[] = [];
-
-  if (flags.drainageEnabled) {
-    try {
-      const response = await supabaseAdmin.rpc("release_stale_generation_reservations", {
-        p_limit: flags.drainageBatchSize,
-        p_min_age_seconds: flags.drainageMinAgeSeconds,
-      });
-      if (response.error) {
-        summary.errors += 1;
-        warnings.push(
-          `Fleet drainage failed for release_stale_generation_reservations: ${
-            response.error.message || "unknown error"
-          }`
-        );
-      } else {
-        const metrics = parseDrainageMetrics(response.data);
-        summary.scanned += metrics.scanned;
-        summary.released += metrics.released;
-        summary.errors += metrics.errors;
-      }
-    } catch (error) {
-      summary.errors += 1;
-      warnings.push(
-        `Fleet drainage failed for release_stale_generation_reservations: ${
-          error instanceof Error ? error.message : "unknown error"
-        }`
-      );
-    }
-  }
-
-  if (flags.drainageProviderAttachedEnabled) {
-    try {
-      const response = await supabaseAdmin.rpc(
-        "release_stale_provider_attached_generation_reservations",
-        {
-          p_limit: flags.drainageBatchSize,
-          p_min_age_seconds: flags.drainageProviderAttachedMinAgeSeconds,
-          p_orphan_min_age_seconds: flags.drainageProviderAttachedOrphanMinAgeSeconds,
-        }
-      );
-      if (response.error) {
-        summary.errors += 1;
-        warnings.push(
-          `Fleet drainage failed for release_stale_provider_attached_generation_reservations: ${
-            response.error.message || "unknown error"
-          }`
-        );
-      } else {
-        const metrics = parseDrainageMetrics(response.data);
-        summary.scanned += metrics.scanned;
-        summary.released += metrics.released;
-        summary.errors += metrics.errors;
-      }
-    } catch (error) {
-      summary.errors += 1;
-      warnings.push(
-        `Fleet drainage failed for release_stale_provider_attached_generation_reservations: ${
-          error instanceof Error ? error.message : "unknown error"
-        }`
-      );
-    }
-  }
-
-  return { summary, warnings };
-};
-
 const evaluateCostWithoutSuccess = ({
   userId,
   ledgerRows,
@@ -627,33 +524,6 @@ const maybeEscalateIncidents = async ({
   }
 };
 
-const maybeEscalateDrainageErrors = async ({
-  runId,
-  summary,
-}: {
-  runId: string;
-  summary: FleetDrainageSummary;
-}) => {
-  const flags = readAdminUserHealthFleetRuntimeFlags();
-  if (!flags.incidentsEnabled) return;
-  if (summary.errors <= 0) return;
-
-  await writeAppErrorLog({
-    source: "ops.user_health_fleet",
-    scope: "generation",
-    severity: "medium",
-    message: `Fleet drainage reported ${summary.errors} error(s).`,
-    route: "/api/internal/admin-user-health-fleet/run",
-    metadata: {
-      run_id: runId,
-      drainage_enabled: summary.enabled,
-      drainage_scanned: summary.scanned,
-      drainage_released: summary.released,
-      drainage_errors: summary.errors,
-    },
-  });
-};
-
 /**
  * Execute one fleet health scan and persist run/snapshot/finding outputs.
  */
@@ -665,7 +535,7 @@ export const runAdminUserHealthFleetScan = async ({
   const flags = readAdminUserHealthFleetRuntimeFlags();
   const startedAtMs = Date.now();
   const defaultDrainageSummary: FleetDrainageSummary = {
-    enabled: flags.drainageEnabled || flags.drainageProviderAttachedEnabled,
+    enabled: false,
     scanned: 0,
     released: 0,
     errors: 0,
@@ -709,13 +579,6 @@ export const runAdminUserHealthFleetScan = async ({
   let drainageSummary: FleetDrainageSummary = defaultDrainageSummary;
 
   try {
-    const drainageResult = await runFleetDrainage();
-    drainageSummary = drainageResult.summary;
-    if (drainageResult.warnings.length > 0) {
-      partialData = true;
-      runErrors.push(...drainageResult.warnings);
-    }
-
     const targets = await loadFleetTargetUsers({
       activeWindowDays: flags.activeWindowDays,
       maxUsers: flags.maxUsersPerRun,
@@ -777,16 +640,6 @@ export const runAdminUserHealthFleetScan = async ({
       runId,
       drafts: allDraftsForEscalation,
     });
-
-    try {
-      await maybeEscalateDrainageErrors({
-        runId,
-        summary: drainageSummary,
-      });
-    } catch {
-      partialData = true;
-      runErrors.push("Drainage incident escalation failed.");
-    }
 
     try {
       await getSupabaseAdmin().rpc("prune_admin_user_health_history", {

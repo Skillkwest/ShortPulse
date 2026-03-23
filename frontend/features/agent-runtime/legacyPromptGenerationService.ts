@@ -23,10 +23,6 @@ import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReas
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
 const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";
-export const DEFAULT_DIRECT_PROMPT_MODEL = "gpt-5.4";
-
-const resolveDirectPromptModel = (env: NodeJS.ProcessEnv): string =>
-  env.OPENAI_DIRECT_PROMPT_MODEL?.trim() || DEFAULT_DIRECT_PROMPT_MODEL;
 
 type LegacyPromptSuccess = {
   ok: true;
@@ -308,7 +304,7 @@ export const executeLegacyPromptGeneration = async ({
   try {
     const response = await fetchOpenAiCompatibleChatCompletion({
       apiKey,
-      model: resolveDirectPromptModel(process.env),
+      model: process.env.OPENAI_MODEL ?? "gpt-5-nano",
       openAiApiBase: process.env.OPENAI_API_BASE,
       timeoutMs: 20000,
       messages: [

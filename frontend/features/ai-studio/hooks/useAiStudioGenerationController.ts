@@ -17,7 +17,6 @@ import {
 } from "../logic/generationStartPolicy";
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
-import { postGeneratePrompt } from "../logic/promptGeneration";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
@@ -80,6 +79,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   agentBusy: boolean;
   chatModeEnabled: boolean;
   currentCostCredits: number | null;
+  promptReferenceGenerateCostCredits?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
@@ -186,6 +186,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   agentInput,
   chatModeEnabled,
   currentCostCredits,
+  promptReferenceGenerateCostCredits = null,
   resolveCostCreditsForModel,
   isGenerateDisabled,
   isCreditGuardrail,
@@ -513,36 +514,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     ]
   );
 
-  const handleChatOffDirectPromptGenerate = useCallback(async () => {
-    const rawPrompt = resolveChatOffCreatePrompt({
-      agentInput,
-      sharedPrompt: prompt,
-      allowSharedPromptFallback: true,
-    });
-    if (!rawPrompt) {
-      setUiError("Add a prompt to start a generation.");
-      return;
-    }
-    if (!tryAcquireGenerateClickLock()) {
-      return;
-    }
-    const refined = await postGeneratePrompt(rawPrompt);
-    const nextPrompt = refined?.prompt?.trim();
-    if (!nextPrompt) {
-      setUiError("OpenAI prompt generation failed. Please retry.");
-      return;
-    }
-    setSharedPrompt(nextPrompt);
-    setPromptOrigin("manual");
-  }, [
-    agentInput,
-    prompt,
-    setPromptOrigin,
-    setSharedPrompt,
-    setUiError,
-    tryAcquireGenerateClickLock,
-  ]);
-
   const handlePrimarySubmit = useCallback(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
       if (chatModeEnabled) {
@@ -554,7 +525,19 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           }
         });
       } else {
-        void handleChatOffDirectPromptGenerate();
+        const rawPrompt = resolveChatOffCreatePrompt({
+          agentInput,
+          sharedPrompt: prompt,
+          allowSharedPromptFallback: true,
+        });
+        if (rawPrompt) {
+          setPromptOrigin("manual");
+        }
+        void handleGenerate(rawPrompt ?? "", {
+          modeOverride: "image",
+          toolOverride: "create",
+          costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+        });
       }
       return;
     }
@@ -563,18 +546,36 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     addAgentPromptReference,
     agentInput,
     chatModeEnabled,
+    currentCostCredits,
     handleAgentSend,
-    handleChatOffDirectPromptGenerate,
     handleGenerate,
     mode,
     prompt,
+    promptReferenceGenerateCostCredits,
     selectedTool,
     setPromptOrigin,
   ]);
 
   const handleChatOffInlineGenerate = useCallback(() => {
-    void handleChatOffDirectPromptGenerate();
-  }, [handleChatOffDirectPromptGenerate]);
+    const rawPrompt = resolveChatOffCreatePrompt({
+      agentInput,
+      sharedPrompt: prompt,
+      allowSharedPromptFallback: true,
+    });
+    if (rawPrompt) setPromptOrigin("manual");
+    void handleGenerate(rawPrompt ?? "", {
+      modeOverride: "image",
+      toolOverride: "create",
+      costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+    });
+  }, [
+    agentInput,
+    currentCostCredits,
+    handleGenerate,
+    prompt,
+    promptReferenceGenerateCostCredits,
+    setPromptOrigin,
+  ]);
 
   const runRegenerateWithDebit = useCallback(
     async (options?: RegenerateWithDebitOptions) => {

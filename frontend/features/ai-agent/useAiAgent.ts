@@ -42,6 +42,7 @@ export const useAiAgent = ({
   enabled = true,
   conversationId,
   sessionNamespace = "ai-studio-default",
+  directOpenAiBypassEnabled = false,
 }: UseAiAgentOptions = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [isSending, setIsSending] = useState(false);
@@ -189,6 +190,7 @@ export const useAiAgent = ({
           conversationId: clientSessionKey,
           traceId: `agent-${randomId()}`,
           canonicalPrompt: inputPrecheckResult.canonicalPrompt,
+          directOpenAiBypass: directOpenAiBypassEnabled,
         };
         const transportResult = await sendStudioAgentTurn(body);
         if (!transportResult.ok) {
@@ -313,7 +315,7 @@ export const useAiAgent = ({
         setIsSending(false);
       }
     },
-    [conversationId, enabled, sessionNamespace]
+    [conversationId, directOpenAiBypassEnabled, enabled, sessionNamespace]
   );
 
   const state = useMemo(

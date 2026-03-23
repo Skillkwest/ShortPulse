@@ -21,6 +21,8 @@ export function PromptStep({
   agentActions,
   agentInput = "",
   chatModeEnabled = true,
+  agentAssistToggleAvailable = false,
+  agentAssistEnabled = true,
   agentIsSending = false,
   agentError,
   agentPrimaryPrompt = null,
@@ -32,6 +34,7 @@ export function PromptStep({
   agentChatOpen = false,
   onAgentInputChange,
   onChatModeEnabledChange,
+  onAgentAssistEnabledChange,
   onAgentSend,
   onAgentEnhanceSend,
   onAgentAttachmentDrop,
@@ -257,6 +260,9 @@ export function PromptStep({
                 onAgentInputChange={onAgentInputChange}
                 chatModeEnabled={chatModeEnabled}
                 onChatModeEnabledChange={onChatModeEnabledChange}
+                agentAssistToggleAvailable={agentAssistToggleAvailable}
+                agentAssistEnabled={agentAssistEnabled}
+                onAgentAssistEnabledChange={onAgentAssistEnabledChange}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
                 chatModeInlineGenerate={chatModeInlineGenerate}

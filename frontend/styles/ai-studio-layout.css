@@ -898,6 +898,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   filter: none;
 }
 
+.ai-shell.ai-shell-performance-dense.ai-shell-resizable,
+.ai-shell.ai-shell-performance-dense.ai-shell-resizable.ai-shell-expert-edit {
+  transition: none;
+}
+
+.ai-shell.ai-shell-performance-dense .reference-column .preview-column-header {
+  backdrop-filter: none;
+}
+
 .ai-shell.ai-shell-performance-dense .toolbar-item,
 .ai-shell.ai-shell-performance-dense .ghost-btn,
 .ai-shell.ai-shell-performance-dense .reference-card {

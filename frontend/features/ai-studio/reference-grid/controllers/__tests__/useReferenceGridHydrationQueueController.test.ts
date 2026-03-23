@@ -27,9 +27,13 @@ const adaptivePreviewOutput = (id: string): StudioOutput =>
     resultUrls: null,
   }) as unknown as StudioOutput;
 
-const visibleImageCard = (item: StudioOutput) =>
+const visibleImageCard = (
+  item: StudioOutput,
+  surface: "all-refs" | "curated" = "all-refs"
+) =>
   ({
     item,
+    surface,
     cardPreviewUrl: "https://cdn.example.com/preview.jpg",
     isImagePreview: true,
     isVideoPreview: false,
@@ -53,6 +57,7 @@ describe("useReferenceGridHydrationQueueController", () => {
           outputs: [output],
           visibleCardItems: [visibleImageCard(output)],
           curatedVisibleCardItems: [],
+          hydrationQuickSlotPreferredIdSet: new Set<string>(),
           nearViewportOutputs: [],
           nearViewportCuratedOutputs: [],
           previewQualityPressureLevel: 0,
@@ -88,7 +93,7 @@ describe("useReferenceGridHydrationQueueController", () => {
     const output = imageOutput("out-1");
     const allRefsCard = visibleImageCard(output);
     const quickSlotCard = {
-      ...visibleImageCard(output),
+      ...visibleImageCard(output, "curated"),
       cardPreviewUrl: "https://cdn.example.com/quick-slot-preview.jpg",
       isPriorityHydration: true,
       targetLongEdgePx: 384,
@@ -103,6 +108,7 @@ describe("useReferenceGridHydrationQueueController", () => {
         outputs: [output],
         visibleCardItems: [allRefsCard],
         curatedVisibleCardItems: [quickSlotCard],
+        hydrationQuickSlotPreferredIdSet: new Set([output.id]),
         nearViewportOutputs: [],
         nearViewportCuratedOutputs: [],
         previewQualityPressureLevel: 0,
@@ -137,7 +143,8 @@ describe("useReferenceGridHydrationQueueController", () => {
         activeOutputId: output.id,
         outputs: [output],
         visibleCardItems: [visibleImageCard(output)],
-        curatedVisibleCardItems: [visibleImageCard(output)],
+        curatedVisibleCardItems: [visibleImageCard(output, "curated")],
+        hydrationQuickSlotPreferredIdSet: new Set([output.id]),
         nearViewportOutputs: [],
         nearViewportCuratedOutputs: [],
         previewQualityPressureLevel: 2,

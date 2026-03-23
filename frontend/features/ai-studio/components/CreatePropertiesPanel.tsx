@@ -44,6 +44,8 @@ export type CreatePropertiesPanelProps = {
   agentActions?: AgentActions;
   agentInput?: string;
   chatModeEnabled?: boolean;
+  agentAssistToggleAvailable?: boolean;
+  agentAssistEnabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
   agentPrimarySource?: "agent" | "manual" | "reference";
@@ -76,6 +78,7 @@ export type CreatePropertiesPanelProps = {
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onChatModeEnabledChange?: (value: boolean) => void;
+  onAgentAssistEnabledChange?: (value: boolean) => void;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -325,6 +328,8 @@ export function CreatePropertiesPanel({
   agentActions,
   agentInput = "",
   chatModeEnabled = true,
+  agentAssistToggleAvailable = false,
+  agentAssistEnabled = true,
   agentIsSending = false,
   agentError,
   agentPrimarySource = "manual",
@@ -336,6 +341,7 @@ export function CreatePropertiesPanel({
   onStepActionClick,
   onAgentInputChange,
   onChatModeEnabledChange,
+  onAgentAssistEnabledChange,
   onAgentSend,
   onAgentEnhanceSend,
   onAgentAttachmentDrop,
@@ -533,6 +539,9 @@ export function CreatePropertiesPanel({
     onAgentInputChange,
     chatModeEnabled,
     onChatModeEnabledChange,
+    agentAssistToggleAvailable,
+    agentAssistEnabled,
+    onAgentAssistEnabledChange,
     onAgentSend,
     onAgentEnhanceSend,
     onAgentAttachmentDrop,

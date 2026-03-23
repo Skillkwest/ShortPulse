@@ -104,8 +104,11 @@ export const useAiStudioAgentBridge = ({
   const agentFlag =
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
+  const agentAssistToggleAvailable =
+    process.env.NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
   const agentEnabled = agentFlag && agentSessionEnabled;
+  const [agentAssistEnabled, setAgentAssistEnabled] = useState(true);
   const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
     return readChatModeFromStorage(window.localStorage);
@@ -130,6 +133,10 @@ export const useAiStudioAgentBridge = ({
   } = useAiAgent({
     enabled: agentEnabled,
     sessionNamespace: `ai-studio:${sessionId ?? "none"}`,
+    directOpenAiBypassEnabled:
+      agentAssistToggleAvailable &&
+      !agentAssistEnabled &&
+      (selectedTool === "create" || selectedTool === "text"),
   });
 
   const [agentUiBusy, setAgentUiBusy] = useState(false);
@@ -357,6 +364,9 @@ export const useAiStudioAgentBridge = ({
 
   return {
     agentEnabled,
+    agentAssistToggleAvailable,
+    agentAssistEnabled,
+    setAgentAssistEnabled,
     agentMessages,
     agentError,
     agentBusy,

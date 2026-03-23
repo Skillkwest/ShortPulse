@@ -9,6 +9,7 @@ import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/log
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { readStudioAgentCanonicalPrompt } from "../../../features/agent-runtime/studioAgentCanonicalPersistence";
 import {
+  fetchStudioAgentChatCompletion,
   formatStudioAgentErrorMessage,
   resolveStudioAgentOpenAiConfig,
 } from "../../../features/agent-runtime/studioAgentOpenAiGateway";
@@ -24,6 +25,7 @@ import {
 import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
 import { resolveProviderErrorNormalizationMode } from "../../../features/agent-runtime/safetyPolicy/providerErrorPolicy";
 import {
+  buildStudioAgentInfraFallbackPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentSafetyRefusalPayload,
   emitStudioAgentInputPrecheckTelemetry,
@@ -42,6 +44,12 @@ import {
   describeStudioAgentVisionSummaryError,
 } from "../../../features/agent-runtime/studioAgentVisionSummaries";
 import {
+  shouldCommitStudioAgentCanonicalPrompt,
+  writeStudioAgentCanonicalPrompt,
+} from "../../../features/agent-runtime/studioAgentCanonicalPersistence";
+import { buildAgentMachineOutcome } from "../../../features/agent-runtime/agentMachineOutcome";
+import { resolveStudioAgentFallbackReasonLabel } from "../../../features/agent-runtime/studioAgentFallbackReason";
+import {
   buildPromptCompilerCacheScopeKey,
   resolvePromptTemplateVersion,
 } from "../../../features/agent-runtime/promptCompilerCacheScopeKey";
@@ -49,6 +57,22 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
+
+const DEFAULT_DIRECT_OPENAI_MODEL = "gpt-5.4";
+
+const resolveDirectOpenAiBypassEnabled = (env: NodeJS.ProcessEnv): boolean =>
+  env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
+
+const resolveDirectOpenAiModel = (env: NodeJS.ProcessEnv): string =>
+  env.STUDIO_AGENT_DIRECT_OPENAI_MODEL?.trim() || DEFAULT_DIRECT_OPENAI_MODEL;
+
+const extractDirectOpenAiMessage = (payload: unknown): string | null => {
+  if (!payload || typeof payload !== "object") return null;
+  const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
+  const raw = choices?.[0]?.message?.content;
+  if (typeof raw !== "string" || !raw.trim().length) return null;
+  return sanitizeGenerationPromptText(raw) ?? raw.trim();
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const requestStartedAt = Date.now();
@@ -105,6 +129,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
+  const directPromptSystem = loadAgentPrompt("OPENAI_PROMPT_SYSTEM", process.env.OPENAI_PROMPT_SYSTEM);
   const thinkerPrompt = loadAgentPrompt("STUDIO_AGENT_THINKER", process.env.STUDIO_AGENT_THINKER);
   const formatterPrompt = loadAgentPrompt(
     "STUDIO_AGENT_FORMATTER",
@@ -133,10 +158,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let messages = requestEnvelope.value.messages;
   let context = requestEnvelope.value.context;
   const incomingCanonical = requestEnvelope.value.incomingCanonical;
+  const directOpenAiBypassRequested = requestEnvelope.value.directOpenAiBypass;
 
   const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
   const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
+  const directOpenAiBypassEnabled = resolveDirectOpenAiBypassEnabled(process.env);
   const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
   const safetyInputPrecheckEnabled =
@@ -188,6 +215,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,
   } = openAiConfig;
+  const directOpenAiModel = resolveDirectOpenAiModel(process.env);
 
   const storedCanonical = await readStudioAgentCanonicalPrompt({
     req,
@@ -270,6 +298,100 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   messages = precheckResult.messages;
   context = precheckResult.context;
   effectiveCanonical = precheckResult.canonicalPrompt;
+
+  if (directOpenAiBypassEnabled && directOpenAiBypassRequested) {
+    try {
+      const directMessages = [
+        ...(directPromptSystem
+          ? ([{ role: "system", content: directPromptSystem }] as const)
+          : []),
+        ...messages.map((message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: message.content,
+        })),
+      ];
+      const directResponse = await fetchStudioAgentChatCompletion({
+        apiKey,
+        openAiUrl,
+        model: directOpenAiModel,
+        messages: directMessages,
+        timeoutMs: turnTimeoutMs,
+      });
+
+      if (!directResponse.ok) {
+        const detail = await directResponse.text();
+        return res.status(200).json(
+          buildStudioAgentInfraFallbackPayload({
+            traceId,
+            canonicalPrompt: effectiveCanonical,
+            fallbackReason: resolveStudioAgentFallbackReasonLabel({
+              status: directResponse.status,
+              detail,
+            }),
+          })
+        );
+      }
+
+      const directPayload = await directResponse.json();
+      const directMessage = extractDirectOpenAiMessage(directPayload);
+      if (!directMessage) {
+        return res.status(200).json(
+          buildStudioAgentInfraFallbackPayload({
+            traceId,
+            canonicalPrompt: effectiveCanonical,
+            reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+            fallbackReason: "stage_prompt_missing",
+          })
+        );
+      }
+
+      const nextCanonical = clampCanonicalPrompt(directMessage);
+      if (
+        shouldCommitStudioAgentCanonicalPrompt({
+          canonicalPrompt: nextCanonical,
+          outcomeClass: "success_prompt",
+        })
+      ) {
+        await writeStudioAgentCanonicalPrompt({
+          req,
+          userId: user.id,
+          conversationId: normalizedConversationId,
+          canonicalPrompt: nextCanonical,
+          canonicalDbEnabled,
+          markStage,
+          writeFailureStage: "canonical_write_single_stage",
+          formatErrorMessage: formatStudioAgentErrorMessage,
+        });
+      }
+
+      return res.status(200).json({
+        message: directMessage,
+        actions: {
+          applyPrompt: directMessage,
+          referenceCard: {
+            title: "Direct prompt",
+            prompt: directMessage,
+          },
+        },
+        ...buildAgentMachineOutcome({
+          outcomeClass: "success_prompt",
+          reasonCode: "SUCCESS_PROMPT",
+        }),
+        canonicalPrompt: nextCanonical,
+        traceId,
+      });
+    } catch (error) {
+      return res.status(200).json(
+        buildStudioAgentInfraFallbackPayload({
+          traceId,
+          canonicalPrompt: effectiveCanonical,
+          fallbackReason: resolveStudioAgentFallbackReasonLabel({
+            detail: formatStudioAgentErrorMessage(error),
+          }),
+        })
+      );
+    }
+  }
 
   const selectedReferencesBeforeVision = pickSelectedReferencesForThinker(context);
   const orchestrationBeforeVision = buildStudioAgentOrchestration({

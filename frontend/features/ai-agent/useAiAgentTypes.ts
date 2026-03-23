@@ -8,6 +8,7 @@ export type UseAiAgentOptions = {
   enabled?: boolean;
   conversationId?: string;
   sessionNamespace?: string;
+  directOpenAiBypassEnabled?: boolean;
 };
 
 export type SendParams = {

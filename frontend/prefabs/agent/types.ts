@@ -129,6 +129,7 @@ export type AgentApiRequest = {
   context?: AgentApiContext;
   clientSessionKey: string;
   traceId?: string;
+  directOpenAiBypass?: boolean;
   /**
    * @deprecated Backward-compatibility alias for older clients.
    * Server ignores this when `clientSessionKey` is present.

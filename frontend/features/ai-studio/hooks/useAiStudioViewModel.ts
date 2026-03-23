@@ -6,7 +6,7 @@ import { useCallback, useMemo } from "react";
 import { computeCostForModel, getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
-import { GENERATE_PROMPT_MODEL_ID } from "../logic/promptGeneration";
+import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
 import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
@@ -80,7 +80,6 @@ export const useAiStudioViewModel = ({
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
   const isVideoTool = isVideoWorkflowSelected;
   const isImageTool = (isCreateWorkflowSelected && mode === "image") || isEditWorkflowSelected;
-  const DESCRIBE_PROMPT_MODEL_ID = "gpt-5-nano";
   const pricingImageResolution = useMemo(
     () => normalizeImageResolutionForPricing(imageResolution),
     [imageResolution]
@@ -110,9 +109,9 @@ export const useAiStudioViewModel = ({
       }
       if (mode === "text") {
         if (isDescribeMode) {
-          return computeCostForModel(DESCRIBE_PROMPT_MODEL_ID, estimatedDescribeTokens);
+          return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedDescribeTokens);
         }
-        return computeCostForModel(GENERATE_PROMPT_MODEL_ID, estimatedTextTokens);
+        return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedTextTokens);
       }
       return null;
     }

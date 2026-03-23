@@ -32,4 +32,18 @@ describe("ai-studio layout scroll lock contract", () => {
     expect(css).toContain("var(--ai-shell-left-width, minmax(930px, 1.28fr))");
     expect(css).toContain("transition: none;");
   });
+
+  it("disables shell transition and sticky blur in dense performance sessions", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(".ai-shell.ai-shell-performance-dense.ai-shell-resizable");
+    expect(css).toContain(
+      ".ai-shell.ai-shell-performance-dense.ai-shell-resizable.ai-shell-expert-edit"
+    );
+    expect(css).toContain(
+      ".ai-shell.ai-shell-performance-dense .reference-column .preview-column-header"
+    );
+    expect(css).toContain("backdrop-filter: none;");
+    expect(css).toContain("transition: none;");
+  });
 });

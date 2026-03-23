@@ -20,6 +20,7 @@ import type { MediaTab } from "../logic/mediaMoveRouting";
 import { MEDIA_LIST_API_ENABLED } from "../logic/mediaLibraryFeatureFlags";
 import { fetchMediaListPage } from "../logic/mediaListApi";
 import { resolveMediaFetchTransition, type MediaFetchReason } from "../logic/mediaFetchTransition";
+import { useMediaTabActiveViewSync } from "./useMediaTabActiveViewSync";
 import { useMediaTabLoadMoreController } from "./useMediaTabLoadMoreController";
 import {
   MEDIA_DATA_TABS,
@@ -514,40 +515,11 @@ export const useMediaTabDataController = <
     tabNoProgressStateRef,
   ]);
 
-  useEffect(() => {
-    if (!fetchEnabled) return;
-    if (activeTab === "saved_prompts") {
-      if (!promptsLoaded) {
-        void loadPrompts();
-      } else {
-        setLoading(false);
-      }
-      return;
-    }
-    const cache = mediaTabCache[activeTab];
-    const queryChanged = cache.query !== activeMediaQuery;
-    const isStale = cache.loadedAtMs == null || Date.now() - cache.loadedAtMs > cacheTtlMs;
-    if (cache.loaded && !queryChanged && !isStale) {
-      setFiles(cache.rows);
-      setError(cache.error);
-      setLoading(cache.loading);
-      return;
-    }
-    if (cache.loaded && !queryChanged && isStale) {
-      setFiles(cache.rows);
-      setLoading(cache.rows.length === 0);
-    }
-    const fetchReason: MediaFetchReason =
-      cache.loaded && !queryChanged && isStale
-        ? "stale_refresh"
-        : cache.loaded
-          ? "tab_or_query_reset"
-          : "initial";
-    void fetchMediaTabPage(activeTab, { query: activeMediaQuery, reason: fetchReason });
-  }, [
+  useMediaTabActiveViewSync({
     activeMediaQuery,
     activeTab,
     cacheTtlMs,
+    fetchEnabled,
     fetchMediaTabPage,
     loadPrompts,
     mediaTabCache,
@@ -555,8 +527,7 @@ export const useMediaTabDataController = <
     setError,
     setFiles,
     setLoading,
-    fetchEnabled,
-  ]);
+  });
 
   return {
     fetchMediaTabPage,

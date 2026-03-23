@@ -35,6 +35,7 @@ import {
   useCharacterManagerDroppedReferenceController,
   type ResolveCharacterDropReference,
 } from "../hooks/useCharacterManagerDroppedReferenceController";
+import { useCharacterManagerCharacterSheetInteractions } from "../hooks/useCharacterManagerCharacterSheetInteractions";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
 import { useCharacterManagerShellViewState } from "../hooks/useCharacterManagerShellViewState";
@@ -758,88 +759,33 @@ export function CharacterManagerShell({
     dragNode.classList.add("is-dragging");
   }, []);
 
-  const persistCharacterSheetPresetAssignments = useCallback(
-    (nextAssignments: CharacterSheetPresetAssignments) => {
-      if (!selectedCharacterId) return;
-      void saveCharacterSheetPresetAssignments(nextAssignments);
-    },
-    [saveCharacterSheetPresetAssignments, selectedCharacterId]
-  );
-
-  const assignReferenceToCharacterSheetSlot = useCallback(
-    (characterSheetSlotKey: CharacterSheetDropZoneKey, quickSwapItemId: string) => {
-      if (!selectedCharacterId) return;
-      const referenceEntry = quickSwapItemById.get(quickSwapItemId);
-      if (!referenceEntry) return;
-      const nextAssignments = {
-        ...resolvedCharacterSheetPresetAssignments,
-        [characterSheetSlotKey]: {
-          mediaFileId: referenceEntry.mediaFileId,
-          storagePath: referenceEntry.storagePath,
-          previewUrl: referenceEntry.previewUrl,
-        },
-      };
-      persistCharacterSheetPresetAssignments(nextAssignments);
-    },
-    [
-      persistCharacterSheetPresetAssignments,
-      quickSwapItemById,
-      resolvedCharacterSheetPresetAssignments,
-      selectedCharacterId,
-    ]
-  );
-  const handleCharacterSheetFileSelection = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0] ?? null;
-      event.target.value = "";
-      const targetDropZone = pendingCharacterSheetUploadZoneKey;
-      setPendingCharacterSheetUploadZoneKey(null);
-
-      if (!file || !targetDropZone || pageBusy) return;
-      void setCharacterSheetPresetFile(targetDropZone, file);
-    },
-    [pageBusy, pendingCharacterSheetUploadZoneKey, setCharacterSheetPresetFile]
-  );
-
-  const resolveDraggedQuickSwapItem = useCallback(
-    (transfer: DataTransfer): CharacterQuickSwapItem | null => {
-      const rawPayload = transfer.getData(DND_QUICK_SWAP_ITEM);
-      if (rawPayload) {
-        try {
-          const parsed = JSON.parse(rawPayload) as { id?: string };
-          const parsedId = parsed.id?.trim();
-          if (parsedId && quickSwapItemById.has(parsedId)) {
-            return quickSwapItemById.get(parsedId) ?? null;
-          }
-        } catch {
-          // Ignore malformed payload and continue with compatibility fallbacks.
-        }
-      }
-      const mediaId =
-        transfer.getData(DND_REFERENCE_SLOT_KEY)?.trim() ||
-        transfer.getData("text/plain")?.trim() ||
-        "";
-      if (!mediaId)
-        return draggedQuickSwapItemId
-          ? (quickSwapItemById.get(draggedQuickSwapItemId) ?? null)
-          : null;
-      if (quickSwapItemByMediaFileId.has(mediaId)) {
-        return quickSwapItemByMediaFileId.get(mediaId) ?? null;
-      }
-      if (quickSwapItemByLegacySlotKey.has(mediaId)) {
-        return quickSwapItemByLegacySlotKey.get(mediaId) ?? null;
-      }
-      return draggedQuickSwapItemId
-        ? (quickSwapItemById.get(draggedQuickSwapItemId) ?? null)
-        : null;
-    },
-    [
-      draggedQuickSwapItemId,
-      quickSwapItemById,
-      quickSwapItemByLegacySlotKey,
-      quickSwapItemByMediaFileId,
-    ]
-  );
+  const {
+    handleCharacterSheetFileSelection,
+    handleCharacterSheetDragOver,
+    clearCharacterSheetAssignment,
+    handleCharacterSheetDrop,
+    handleCharacterSheetCardClick,
+  } = useCharacterManagerCharacterSheetInteractions({
+    pageBusy,
+    isDropResolutionBusy,
+    selectedCharacterId,
+    pendingCharacterSheetUploadZoneKey,
+    setPendingCharacterSheetUploadZoneKey,
+    setCharacterSheetPresetFile,
+    resolvedCharacterSheetPresetAssignments,
+    saveCharacterSheetPresetAssignments,
+    quickSwapItemById,
+    quickSwapItemByMediaFileId,
+    quickSwapItemByLegacySlotKey,
+    draggedQuickSwapItemId,
+    draggedCharacterSheetZoneKey,
+    canResolveCharacterDropReference: Boolean(resolveCharacterDropReference),
+    handleCharacterSheetReferenceDrop,
+    setActiveCharacterSheetDropZone,
+    openCharacterSheetPicker,
+    referenceSlotMimeType: DND_REFERENCE_SLOT_KEY,
+    characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,
+  });
 
   const handleReferenceDragStart = useCallback(
     (item: CharacterQuickSwapItem) => (event: React.DragEvent<HTMLElement>) => {
@@ -900,132 +846,6 @@ export function CharacterManagerShell({
     setDraggedCharacterSheetZoneKey(null);
     setActiveCharacterSheetDropZone(null);
   }, []);
-
-  const handleCharacterSheetDragOver = useCallback(
-    (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
-      if (pageBusy || isDropResolutionBusy) return;
-      const sourceCharacterSheetZoneKey =
-        (event.dataTransfer.getData(DND_CHARACTER_SHEET_ZONE_KEY) as
-          | CharacterSheetDropZoneKey
-          | "") || draggedCharacterSheetZoneKey;
-      const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
-      const internalReferenceGridPayload = extractInternalReferenceDragPayload(event.dataTransfer);
-      const hasExternalImageReference = hasDroppedImageReferenceTransfer(event.dataTransfer);
-      const isInternalSheetDrag =
-        Boolean(sourceCharacterSheetZoneKey) &&
-        CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey);
-      const isInternalReferenceDrag = Boolean(quickSwapItem);
-      const isInternalReferenceGridDrag = Boolean(
-        internalReferenceGridPayload && resolveCharacterDropReference
-      );
-      if (
-        !isInternalSheetDrag &&
-        !isInternalReferenceDrag &&
-        !isInternalReferenceGridDrag &&
-        !hasExternalImageReference
-      ) {
-        return;
-      }
-      event.preventDefault();
-      event.dataTransfer.dropEffect =
-        isInternalSheetDrag || isInternalReferenceDrag ? "move" : "copy";
-      setActiveCharacterSheetDropZone(characterSheetSlotKey);
-    },
-    [
-      draggedCharacterSheetZoneKey,
-      isDropResolutionBusy,
-      pageBusy,
-      resolveCharacterDropReference,
-      resolveDraggedQuickSwapItem,
-    ]
-  );
-
-  const clearCharacterSheetAssignment = useCallback(
-    (characterSheetSlotKey: CharacterSheetDropZoneKey) => {
-      if (!selectedCharacterId) return;
-      const assignedReference = resolvedCharacterSheetPresetAssignments[characterSheetSlotKey];
-      if (!assignedReference) return;
-      const nextAssignments = {
-        ...resolvedCharacterSheetPresetAssignments,
-        [characterSheetSlotKey]: null,
-      };
-      persistCharacterSheetPresetAssignments(nextAssignments);
-    },
-    [
-      persistCharacterSheetPresetAssignments,
-      resolvedCharacterSheetPresetAssignments,
-      selectedCharacterId,
-    ]
-  );
-
-  const handleCharacterSheetDrop = useCallback(
-    (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
-      event.preventDefault();
-      setActiveCharacterSheetDropZone(null);
-      if (pageBusy || isDropResolutionBusy) return;
-      const sourceCharacterSheetZoneKey =
-        (event.dataTransfer.getData(DND_CHARACTER_SHEET_ZONE_KEY) as
-          | CharacterSheetDropZoneKey
-          | "") || draggedCharacterSheetZoneKey;
-      if (
-        sourceCharacterSheetZoneKey &&
-        CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey)
-      ) {
-        const sourceReference =
-          resolvedCharacterSheetPresetAssignments[sourceCharacterSheetZoneKey];
-        if (!sourceReference) return;
-        if (sourceCharacterSheetZoneKey === characterSheetSlotKey) return;
-        const targetReference = resolvedCharacterSheetPresetAssignments[characterSheetSlotKey];
-        const nextAssignments = {
-          ...resolvedCharacterSheetPresetAssignments,
-          [sourceCharacterSheetZoneKey]: targetReference ?? null,
-          [characterSheetSlotKey]: sourceReference,
-        };
-        persistCharacterSheetPresetAssignments(nextAssignments);
-        return;
-      }
-
-      const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
-      if (quickSwapItem) {
-        assignReferenceToCharacterSheetSlot(characterSheetSlotKey, quickSwapItem.id);
-        return;
-      }
-
-      setActiveCharacterSheetDropZone(characterSheetSlotKey);
-      void handleCharacterSheetReferenceDrop(characterSheetSlotKey, event.dataTransfer).finally(
-        () => {
-          setActiveCharacterSheetDropZone((current) =>
-            current === characterSheetSlotKey ? null : current
-          );
-        }
-      );
-    },
-    [
-      assignReferenceToCharacterSheetSlot,
-      draggedCharacterSheetZoneKey,
-      handleCharacterSheetReferenceDrop,
-      isDropResolutionBusy,
-      pageBusy,
-      persistCharacterSheetPresetAssignments,
-      resolveDraggedQuickSwapItem,
-      resolvedCharacterSheetPresetAssignments,
-    ]
-  );
-
-  const handleCharacterSheetCardClick = useCallback(
-    (dropZoneKey: CharacterSheetDropZoneKey) => () => {
-      if (pageBusy || isDropResolutionBusy) return;
-      const assignedReference = resolvedCharacterSheetPresetAssignments[dropZoneKey];
-      if (assignedReference) return;
-      openCharacterSheetPicker(dropZoneKey);
-    },
-    [
-      isDropResolutionBusy,
-      openCharacterSheetPicker,
-      pageBusy,
-      resolvedCharacterSheetPresetAssignments,
-    ]
-  );
 
   useEffect(() => {
     if (!referencePreview) return;

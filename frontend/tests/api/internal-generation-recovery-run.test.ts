@@ -98,13 +98,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
   });
 
-  it("accepts bearer token auth and supports GET for cron invocation", async () => {
-    const supabase = createSupabaseMock();
-    getSupabaseAdminMock.mockReturnValue({
-      rpc: supabase.rpc,
-      from: supabase.from,
-    });
-
+  it("rejects GET because the recovery runner mutates state", async () => {
     const req = {
       method: "GET",
       headers: {
@@ -115,12 +109,8 @@ describe("POST /api/internal/generation-recovery/run", () => {
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ok: true,
-      })
-    );
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
   it("accepts bearer token auth with CRON_SECRET fallback when route secret is unset", async () => {
@@ -134,7 +124,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
     });
 
     const req = {
-      method: "GET",
+      method: "POST",
       headers: {
         authorization: "Bearer vercel-cron-secret",
       },

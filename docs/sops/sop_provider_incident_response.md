@@ -247,7 +247,7 @@ Mitigation guidance:
    - stale `running` beyond model wall-time budget
    - `failed_persist` eligible for retry
 2. Reconciler invocation:
-   - Route: `POST` or `GET` `/api/internal/generation-recovery/run`
+   - Route: `POST /api/internal/generation-recovery/run`
    - Auth: `x-shortpulse-cron-secret` or `Authorization: Bearer <secret>` (`SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` manual/fallback).
    - Note: reconciler claims are lease-based; validate `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS` to avoid duplicate concurrent execution.
    - Queue dispatch also runs in this route; inspect `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, and `queueDispatchErrors`.

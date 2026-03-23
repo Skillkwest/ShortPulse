@@ -99,6 +99,7 @@ export const useReferenceGridImageHydrationController = ({
   const hydrationRafFlushRef = useRef<number | null>(null);
   const hydrationPendingLoadedRef = useRef<Record<string, HydratedImageEntry>>({});
   const processHydrationQueueRef = useRef<() => void>(() => {});
+  const validOutputIdSetRef = useRef<Set<string>>(new Set(outputs.map((output) => output.id)));
 
   const recordOptimizerFailoverBypass = useCallback(() => {
     runNonUrgentUpdate(() => {
@@ -276,6 +277,41 @@ export const useReferenceGridImageHydrationController = ({
     });
   }, [flushHydratedImages]);
 
+  const pruneStaleHydrationWork = useCallback(
+    (validOutputIds: Set<string>) => {
+      const currentQueue = hydrationQueueRef.current;
+      const nextQueue = currentQueue.filter((id) => validOutputIds.has(id));
+      const queueChanged =
+        nextQueue.length !== currentQueue.length ||
+        nextQueue.some((id, index) => currentQueue[index] !== id);
+      if (queueChanged) {
+        hydrationQueueRef.current = nextQueue;
+        hydrationQueuedIdSetRef.current = new Set(nextQueue);
+      }
+
+      const currentInflight = hydrationInflightIdSetRef.current;
+      let inflightChanged = false;
+      currentInflight.forEach((id) => {
+        if (validOutputIds.has(id)) return;
+        currentInflight.delete(id);
+        inflightChanged = true;
+      });
+
+      const pendingLoaded = hydrationPendingLoadedRef.current;
+      let pendingChanged = false;
+      Object.keys(pendingLoaded).forEach((id) => {
+        if (validOutputIds.has(id)) return;
+        delete pendingLoaded[id];
+        pendingChanged = true;
+      });
+
+      if (queueChanged || inflightChanged || pendingChanged) {
+        syncImageHydrationState();
+      }
+    },
+    [syncImageHydrationState]
+  );
+
   const processHydrationQueue = useCallback(() => {
     if (!decodeBudgetEnabled || typeof window === "undefined") return;
     if (suspendHydrationProcessing) {
@@ -306,6 +342,13 @@ export const useReferenceGridImageHydrationController = ({
       }
       const finalize = (sourceUrl: string, renderUrl: string) => {
         hydrationInflightIdSetRef.current.delete(nextId);
+        if (!validOutputIdSetRef.current.has(nextId)) {
+          delete hydrationPendingLoadedRef.current[nextId];
+          revokeGeneratedHydrationUrl(nextId);
+          syncImageHydrationState();
+          processHydrationQueueRef.current();
+          return;
+        }
         hydrationPendingLoadedRef.current[nextId] = {
           sourceUrl,
           renderUrl,
@@ -473,7 +516,9 @@ export const useReferenceGridImageHydrationController = ({
 
   useEffect(() => {
     if (!decodeBudgetEnabled) return;
+    validOutputIdSetRef.current = new Set(outputs.map((output) => output.id));
     const validOutputIds = new Set(outputs.map((output) => output.id));
+    pruneStaleHydrationWork(validOutputIds);
     Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
       if (validOutputIds.has(id)) return;
       revokeGeneratedHydrationUrl(id);
@@ -521,7 +566,13 @@ export const useReferenceGridImageHydrationController = ({
         };
       });
     });
-  }, [decodeBudgetEnabled, outputs, revokeGeneratedHydrationUrl, runNonUrgentUpdate]);
+  }, [
+    decodeBudgetEnabled,
+    outputs,
+    pruneStaleHydrationWork,
+    revokeGeneratedHydrationUrl,
+    runNonUrgentUpdate,
+  ]);
 
   useEffect(
     () => () => {

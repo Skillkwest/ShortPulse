@@ -41,7 +41,10 @@ export const useReferenceGridLoadingVisualController = ({
     const nextLoadingIds: string[] = [];
     const nextGenerationLoadingIds: string[] = [];
     const nextHydrationLoadingIds: string[] = [];
+    const seenOutputIds = new Set<string>();
     allVisibleCardItems.forEach((card) => {
+      if (seenOutputIds.has(card.item.id)) return;
+      seenOutputIds.add(card.item.id);
       const visualState = classifyReferenceGridCardVisualState({
         item: card.item,
         cardPreviewUrl: card.cardPreviewUrl,

@@ -17,6 +17,16 @@ const imageOutput = (id: string): StudioOutput =>
     resultUrls: null,
   }) as unknown as StudioOutput;
 
+const adaptivePreviewOutput = (id: string): StudioOutput =>
+  ({
+    id,
+    mode: "image",
+    previewStoragePath: null,
+    fullStoragePath: null,
+    previewUrl: "https://example.supabase.co/storage/v1/render/image/public/media/shared.jpg",
+    resultUrls: null,
+  }) as unknown as StudioOutput;
+
 const visibleImageCard = (item: StudioOutput) =>
   ({
     item,
@@ -113,5 +123,36 @@ describe("useReferenceGridHydrationQueueController", () => {
       previewQualityBand: "balanced",
       fallbackUrl: "https://cdn.example.com/full.jpg",
     });
+  });
+
+  it("does not double-enqueue duplicated active outputs when quick-slot is present", () => {
+    const enqueuePreferred = vi.fn();
+    const prunePreferred = vi.fn();
+    const output = adaptivePreviewOutput("out-1");
+
+    renderHook(() =>
+      useReferenceGridHydrationQueueController({
+        decodeBudgetEnabled: true,
+        suspendHydrationQueue: false,
+        activeOutputId: output.id,
+        outputs: [output],
+        visibleCardItems: [visibleImageCard(output)],
+        curatedVisibleCardItems: [visibleImageCard(output)],
+        nearViewportOutputs: [],
+        nearViewportCuratedOutputs: [],
+        previewQualityPressureLevel: 2,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: true,
+        enqueueImageHydration: enqueuePreferred,
+        pruneHydrationQueueToCandidateIds: prunePreferred,
+      })
+    );
+
+    expect(enqueuePreferred).toHaveBeenCalledTimes(1);
+    const [id] = enqueuePreferred.mock.calls[0] as [string, string, { targetLongEdgePx?: number }];
+    expect(id).toBe("out-1");
   });
 });

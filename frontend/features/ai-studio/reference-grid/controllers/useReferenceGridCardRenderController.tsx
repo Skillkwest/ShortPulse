@@ -107,6 +107,7 @@ export const useReferenceGridCardRenderController = ({
       const isHydrationLoading = hydrationLoadingCardIdSet.has(card.item.id);
       const shouldPreferCuratedSurface =
         !options.isCuratedSurface && curatedVisibleIdSet.has(card.item.id);
+      const suppressDuplicateAllRefsLoading = shouldPreferCuratedSurface && !isGenerationLoading;
       const shouldWarmVideoPreview =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&
@@ -115,14 +116,17 @@ export const useReferenceGridCardRenderController = ({
         card.isVideoPreview && !shouldWarmVideoPreview && !isGenerationLoading;
       const isCardLoading = suppressDormantVideoLoading
         ? false
-        : loadingCardIdSet.has(card.item.id);
-      const loadingVisual: "none" | "spinner" | "hydrating" = suppressDormantVideoLoading
-        ? "none"
-        : isGenerationLoading
-          ? "spinner"
-          : isHydrationLoading
-            ? "hydrating"
-            : "none";
+        : suppressDuplicateAllRefsLoading
+          ? false
+          : loadingCardIdSet.has(card.item.id);
+      const loadingVisual: "none" | "spinner" | "hydrating" =
+        suppressDormantVideoLoading || suppressDuplicateAllRefsLoading
+          ? "none"
+          : isGenerationLoading
+            ? "spinner"
+            : isHydrationLoading
+              ? "hydrating"
+              : "none";
       const canAutoplayVideo =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&

@@ -66,6 +66,24 @@ export const useReferenceGridHydrationQueueController = ({
   useEffect(() => {
     if (!decodeBudgetEnabled) return;
     if (suspendHydrationQueue) return;
+    const referenceGridCardLongEdgePx = Math.max(
+      240,
+      Math.round(Math.max(1, virtualRowHeight - 3))
+    );
+    const quickSlotCardLongEdgePx = Math.max(
+      200,
+      Math.round(Math.max(1, curatedVirtualRowHeight - 3))
+    );
+    const quickSlotPreferredIdSet = new Set<string>([
+      ...curatedVisibleCardItems.map((card) => card.item.id),
+      ...nearViewportCuratedOutputs.map((item) => item.id),
+    ]);
+    const resolvePreferredSurface = (id: string): "reference-grid" | "quick-slot" =>
+      quickSlotPreferredIdSet.has(id) && quickSlotAdaptiveSurfaceEnabled
+        ? "quick-slot"
+        : "reference-grid";
+    const resolvePreferredCardLongEdge = (id: string): number =>
+      quickSlotPreferredIdSet.has(id) ? quickSlotCardLongEdgePx : referenceGridCardLongEdgePx;
     const candidateIdSet = new Set<string>();
     if (activeOutputId) {
       const activeOutput = outputs.find((item) => item.id === activeOutputId);
@@ -74,8 +92,8 @@ export const useReferenceGridHydrationQueueController = ({
           strictPreviewLadder,
           adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
           pressureLevel: previewQualityPressureLevel,
-          surface: "reference-grid",
-          cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
+          surface: resolvePreferredSurface(activeOutputId),
+          cardLongEdgePx: resolvePreferredCardLongEdge(activeOutputId),
           devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
         });
         const activeUrl = resolved.previewUrl ?? resolved.fullUrl;
@@ -100,6 +118,7 @@ export const useReferenceGridHydrationQueueController = ({
 
     curatedVisibleCardItems.forEach((card) => {
       if (!card.isImagePreview || !card.cardPreviewUrl) return;
+      if (candidateIdSet.has(card.item.id)) return;
       candidateIdSet.add(card.item.id);
       enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
         priority: card.isPriorityHydration ? "high" : "normal",
@@ -133,14 +152,14 @@ export const useReferenceGridHydrationQueueController = ({
       });
     });
 
-    nearViewportOutputs.forEach((item) => {
+    nearViewportCuratedOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
       const resolved = resolveReferenceCardUrls(item, {
         strictPreviewLadder,
         adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
         pressureLevel: previewQualityPressureLevel,
-        surface: "reference-grid",
-        cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
+        surface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
+        cardLongEdgePx: quickSlotCardLongEdgePx,
         devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
       });
       const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
@@ -161,14 +180,14 @@ export const useReferenceGridHydrationQueueController = ({
       });
     });
 
-    nearViewportCuratedOutputs.forEach((item) => {
+    nearViewportOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
       const resolved = resolveReferenceCardUrls(item, {
         strictPreviewLadder,
         adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
         pressureLevel: previewQualityPressureLevel,
-        surface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
-        cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualRowHeight - 3))),
+        surface: "reference-grid",
+        cardLongEdgePx: referenceGridCardLongEdgePx,
         devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
       });
       const previewUrl = resolved.previewUrl ?? resolved.fullUrl;

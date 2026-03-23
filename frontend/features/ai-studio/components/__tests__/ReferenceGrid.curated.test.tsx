@@ -477,6 +477,47 @@ describe("ReferenceGrid curated split", () => {
     expect(allRefsVideo?.getAttribute("preload")).toBe("none");
   });
 
+  it("suppresses duplicate all-refs image loading when quick-slot already owns the same output", () => {
+    const duplicatedImage: StudioOutput = {
+      id: "duplicated-image-1",
+      prompt: "Duplicated image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Library",
+      mediaSource: "library",
+      previewUrl: "https://example.com/duplicated-image.png",
+    };
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [duplicatedImage],
+          activeOutputId: duplicatedImage.id,
+          curatedReferenceIds: [duplicatedImage.id],
+        })}
+      />
+    );
+
+    const curatedSection = container.querySelector(
+      ".reference-curated-section"
+    ) as HTMLElement | null;
+    const allRefsSection = container.querySelector(
+      ".reference-all-refs-section"
+    ) as HTMLElement | null;
+    expect(curatedSection).toBeTruthy();
+    expect(allRefsSection).toBeTruthy();
+
+    const curatedCard = curatedSection?.querySelector(".reference-card") as HTMLElement | null;
+    const allRefsCard = allRefsSection?.querySelector(".reference-card") as HTMLElement | null;
+    const allRefsImage = allRefsCard?.querySelector(
+      ".reference-card-image"
+    ) as HTMLImageElement | null;
+    expect(allRefsImage?.getAttribute("loading")).toBe("lazy");
+    expect(curatedCard?.querySelector(".reference-loading")).toBeTruthy();
+    expect(allRefsCard?.querySelector(".reference-loading")).toBeNull();
+  });
+
   it("keeps overflow loading spinners animated", () => {
     const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
       const label = 8 - index;

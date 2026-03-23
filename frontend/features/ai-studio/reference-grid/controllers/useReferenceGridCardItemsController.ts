@@ -75,6 +75,11 @@ export const useReferenceGridCardItemsController = ({
   quickSlotAdaptiveSurfaceEnabled,
   hydratedById,
 }: UseReferenceGridCardItemsControllerArgs): UseReferenceGridCardItemsControllerResult => {
+  const curatedVisibleIdSet = useMemo(
+    () => new Set(visibleCuratedOutputs.map((item) => item.id)),
+    [visibleCuratedOutputs]
+  );
+
   const buildVisibleCardItems = useCallback(
     (
       rows: StudioOutput[],
@@ -82,6 +87,8 @@ export const useReferenceGridCardItemsController = ({
       options: { surface: "reference-grid" | "quick-slot"; cardLongEdgePx: number }
     ) =>
       rows.map((item, visibleIndex) => {
+        const shouldPreferCuratedSurface =
+          options.surface === "reference-grid" && curatedVisibleIdSet.has(item.id);
         const resolvedCardUrls = resolveReferenceCardUrls(item, {
           strictPreviewLadder,
           adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
@@ -93,7 +100,9 @@ export const useReferenceGridCardItemsController = ({
         const cardPreviewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
         const isVideoPreview = isOutputVideoPreview(item, cardPreviewUrl);
         const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
-        const isPriorityHydration = visibleIndex < priorityCount || activeOutputId === item.id;
+        const isPriorityHydration =
+          !shouldPreferCuratedSurface &&
+          (visibleIndex < priorityCount || activeOutputId === item.id);
         const hydratedEntry = hydratedById[item.id];
         const fallbackSourceForCard = resolveFirstRenderableUrl(
           resolvedCardUrls.fullUrl ?? null,
@@ -127,7 +136,7 @@ export const useReferenceGridCardItemsController = ({
           isImagePreview && decodeBudgetEnabled
             ? hasHydratedSourceForCard
               ? (hydratedEntry.renderUrl ?? undefined)
-              : ((fallbackSourceForCard ?? cardPreviewUrl) ?? undefined)
+              : (fallbackSourceForCard ?? cardPreviewUrl ?? undefined)
             : (cardPreviewUrl ?? undefined);
         return {
           item,
@@ -143,6 +152,7 @@ export const useReferenceGridCardItemsController = ({
     [
       activeOutputId,
       adaptivePreviewRoutingEnabled,
+      curatedVisibleIdSet,
       decodeBudgetEnabled,
       hydratedById,
       previewQualityPressureLevel,

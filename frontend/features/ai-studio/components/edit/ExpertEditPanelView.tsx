@@ -4543,7 +4543,6 @@ export function ExpertEditPanelView({
             onPointerMoveCapture={handleInlineStagePointerMoveCapture}
             onPointerUpCapture={handleInlineStagePointerUpCapture}
             onPointerCancelCapture={handleInlineStagePointerCancelCapture}
-            onPointerLeave={handleInlineStagePointerLeaveCapture}
           >
             <div
               ref={primaryDropzoneRef}

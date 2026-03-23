@@ -204,15 +204,17 @@ const createSquareRect = (size: number): DOMRect =>
 
 const dispatchNativeWheelEvent = (
   element: Element,
-  init: Pick<WheelEventInit, "deltaY" | "clientX" | "clientY">
+  init: Partial<WheelEventInit> & Pick<WheelEventInit, "deltaY" | "clientX" | "clientY">
 ) => {
-  element.dispatchEvent(
-    new WheelEvent("wheel", {
-      bubbles: true,
-      cancelable: true,
-      ...init,
-    })
-  );
+  act(() => {
+    element.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      })
+    );
+  });
 };
 
 const mockElementRect = (element: Element, rect: DOMRect) => {
@@ -3073,7 +3075,7 @@ describe("ExpertEditPanelView", () => {
       value: () => inlineRect,
     });
 
-    fireEvent.wheel(primaryDropzone, {
+    dispatchNativeWheelEvent(primaryDropzone, {
       deltaY: -160,
       clientX: 140,
       clientY: 140,
@@ -3083,7 +3085,7 @@ describe("ExpertEditPanelView", () => {
     expect(afterDropzoneWheel?.viewport).toHaveClass("edit-expert-markup-viewport");
     expect(afterDropzoneWheel?.scale ?? 0).toBeGreaterThan(1);
 
-    fireEvent.wheel(primaryDropzone, {
+    dispatchNativeWheelEvent(primaryDropzone, {
       deltaY: -120,
       clientX: 18,
       clientY: 18,
@@ -3122,7 +3124,7 @@ describe("ExpertEditPanelView", () => {
       value: () => modalRect,
     });
 
-    fireEvent.wheel(modalStage, {
+    dispatchNativeWheelEvent(modalStage, {
       deltaY: 120,
       metaKey: true,
       clientX: 280,
@@ -3154,7 +3156,7 @@ describe("ExpertEditPanelView", () => {
     const inlineRect = createSquareRect(320);
     mockElementRect(primaryDropzone, inlineRect);
 
-    fireEvent.wheel(primaryDropzone, {
+    dispatchNativeWheelEvent(primaryDropzone, {
       deltaY: -120,
       clientX: 30,
       clientY: 30,

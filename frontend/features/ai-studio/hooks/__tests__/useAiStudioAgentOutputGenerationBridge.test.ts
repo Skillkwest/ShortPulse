@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentOutputBubbleMediaState } from "../../../prefabs/agent";
+import type { AgentOutputBubbleMediaState } from "../../../../prefabs/agent";
 import type { StudioOutput } from "../../types";
 import { useAiStudioAgentOutputGenerationBridge } from "../useAiStudioAgentOutputGenerationBridge";
 

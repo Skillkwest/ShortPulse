@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
+import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { useAiStudioPageSessionPersistence } from "../useAiStudioPageSessionPersistence";
 import { useAiStudioSessionPersistenceController } from "../useAiStudioSessionPersistenceController";
 
@@ -40,18 +41,20 @@ describe("useAiStudioPageSessionPersistence", () => {
           canvas: args.canvasState,
         }) as AiStudioSessionSnapshot
     );
-    const hydrateFromSessionSnapshot = vi.fn(() => ({
-      workspace: {} as never,
-      outputs: {} as never,
-      agent: {
-        messages: [],
-        input: "",
-        latestPrompt: null,
-        promptOrigin: "manual",
-        chatModeEnabled: false,
-      },
-      canvas: null,
-    }));
+    const hydrateFromSessionSnapshot = vi.fn(
+      (): AiStudioSessionHydrationPayload => ({
+        workspace: {} as never,
+        outputs: {} as never,
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+        },
+        canvas: null,
+      })
+    );
     const hydrateFromSessionAgentSnapshot = vi.fn();
     const hydrateSessionState = vi.fn();
     const setUiNotice = vi.fn();

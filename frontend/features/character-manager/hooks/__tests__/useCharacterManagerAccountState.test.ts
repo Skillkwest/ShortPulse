@@ -132,7 +132,7 @@ describe("useCharacterManagerAccountState", () => {
           id: "user-2",
           email: "next@example.com",
           user_metadata: { plan: "media" },
-        } as User,
+        } as unknown as User,
       });
     });
 

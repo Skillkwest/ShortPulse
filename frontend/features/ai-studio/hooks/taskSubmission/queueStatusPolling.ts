@@ -18,9 +18,27 @@ export const QUEUE_STATUS_NOT_FOUND_MAX_RETRIES = 8;
 export const clampQueuePollMs = (value: number) =>
   Math.max(500, Math.min(10000, Math.trunc(value)));
 const HIDDEN_TAB_QUEUE_STATUS_RETRY_MS = 10_000;
+const MAX_ACTIVE_QUEUE_STATUS_FETCHES = 3;
+let activeQueueStatusFetches = 0;
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
+
+const tryAcquireQueueStatusFetchSlot = (): boolean => {
+  if (activeQueueStatusFetches >= MAX_ACTIVE_QUEUE_STATUS_FETCHES) {
+    return false;
+  }
+  activeQueueStatusFetches += 1;
+  return true;
+};
+
+const releaseQueueStatusFetchSlot = (): void => {
+  activeQueueStatusFetches = Math.max(0, activeQueueStatusFetches - 1);
+};
+
+export const __resetQueueStatusPollingTestState = (): void => {
+  activeQueueStatusFetches = 0;
+};
 
 type NumberMapRef = {
   current: Record<string, number>;
@@ -145,6 +163,14 @@ export const startQueuedStatusPolling = ({
       return;
     }
 
+    if (!tryAcquireQueueStatusFetchSlot()) {
+      const retryAfterMs = clampQueuePollMs(initialDelayMs);
+      queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
+        void pollQueuedStatus(attempt);
+      }, retryAfterMs);
+      return;
+    }
+
     try {
       const queueStatus = await fetchFalQueueStatus({
         sourceRef: queuedResponse.sourceRef,
@@ -213,6 +239,8 @@ export const startQueuedStatusPolling = ({
       queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
         void pollQueuedStatus(attempt + 1);
       }, retryAfterMs);
+    } finally {
+      releaseQueueStatusFetchSlot();
     }
   };
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { fetchFalQueueStatus } from "../../../../../lib/falClient";
 import {
+  __resetQueueStatusPollingTestState,
   QUEUE_STATUS_NOT_FOUND_MAX_RETRIES,
   startQueuedStatusPolling,
 } from "../queueStatusPolling";
@@ -25,6 +26,7 @@ describe("queueStatusPolling", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetQueueStatusPollingTestState();
   });
 
   it("preserves submit-time provider alias when queue-status returns generic fal provider", async () => {
@@ -347,6 +349,65 @@ describe("queueStatusPolling", () => {
       expect(onDispatched).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("caps concurrent queue-status fetches and defers excess pollers", async () => {
+    vi.useFakeTimers();
+    try {
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn();
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      const notifyGenerationFailure = vi.fn();
+      const onDispatched = vi.fn();
+
+      fetchFalQueueStatusMock.mockImplementation(
+        () =>
+          new Promise(() => {
+            // Keep fetch pending so slots remain occupied during assertions.
+          })
+      );
+
+      for (let index = 0; index < 4; index += 1) {
+        startQueuedStatusPolling({
+          outputId: `out-queued-${index}`,
+          provider: "fal-seedream",
+          finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+          effectiveTool: "edit",
+          queuedResponse: {
+            status: "queued",
+            code: "GENERATION_QUEUED",
+            sourceRef: `src-queued-${index}`,
+            generationId: `gen-queued-${index}`,
+            pollAfterMs: 500,
+          },
+          patch: {},
+          queueStatusTimersRef,
+          queueStatusSessionRef,
+          clearQueueStatusPolling,
+          updateOutputById,
+          notifyGenerationFailure,
+          onDispatched,
+        });
+      }
+
+      await vi.advanceTimersByTimeAsync(700);
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(3);
+
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(3);
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+      expect(onDispatched).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      __resetQueueStatusPollingTestState();
     }
   });
 });

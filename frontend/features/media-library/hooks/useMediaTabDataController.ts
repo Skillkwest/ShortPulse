@@ -21,11 +21,16 @@ import { MEDIA_LIST_API_ENABLED } from "../logic/mediaLibraryFeatureFlags";
 import { fetchMediaListPage } from "../logic/mediaListApi";
 import { resolveMediaFetchTransition, type MediaFetchReason } from "../logic/mediaFetchTransition";
 import { useMediaTabActiveViewSync } from "./useMediaTabActiveViewSync";
-import { useMediaTabLoadMoreController } from "./useMediaTabLoadMoreController";
+import {
+  createMediaTabNoProgressState,
+  createMediaTabNullableNumberState,
+  useMediaTabLoadMoreController,
+} from "./useMediaTabLoadMoreController";
 import {
   MEDIA_DATA_TABS,
   buildCursorFromRows,
   createMediaTabBooleanState,
+  createMediaTabRequestState,
   getMediaDataTabForRow,
   mergePageRows,
   normalizeMediaSearchTerm,
@@ -131,6 +136,24 @@ export const useMediaTabDataController = <
   surface,
 }: UseMediaTabDataControllerArgs<TRow, TPrompt>) => {
   const tabFetchInFlightRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
+  const tabLoadMoreAwaitExitRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
+  const tabLoadMoreScrollIntentArmedRef = useRef<MediaTabBooleanState>(
+    createMediaTabBooleanState()
+  );
+  const tabLoadMoreLastScrollTopRef = useRef(createMediaTabNullableNumberState());
+  const tabLoadMoreLastAutoLoadAtMsRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
+  const tabNoProgressStateRef = useRef(createMediaTabNoProgressState());
+  const fetchMediaTabPageRef = useRef<
+    (
+      tab: MediaDataTab,
+      options?: {
+        reset?: boolean;
+        query?: string;
+        reason?: MediaFetchReason;
+        autoTriggered?: boolean;
+      }
+    ) => Promise<void> | void
+  >(async () => {});
 
   const syncActiveMediaCacheRows = useCallback(
     (rows: TRow[]) => {
@@ -187,7 +210,19 @@ export const useMediaTabDataController = <
         return changed ? next : prev;
       });
     },
-    [setMediaTabCache]
+    [setMediaTabCache, tabNoProgressStateRef]
+  );
+
+  const requestLoadMorePage = useCallback(
+    (
+      tab: MediaDataTab,
+      options?: {
+        query?: string;
+        reason?: "load_more";
+        autoTriggered?: boolean;
+      }
+    ) => fetchMediaTabPageRef.current(tab, options),
+    []
   );
 
   const fetchMediaTabPage = useCallback(
@@ -433,9 +468,15 @@ export const useMediaTabDataController = <
       setLoading,
       setMediaTabCache,
       surface,
+      tabLoadMoreAwaitExitRef,
+      tabLoadMoreLastAutoLoadAtMsRef,
+      tabLoadMoreScrollIntentArmedRef,
+      tabNoProgressStateRef,
       tabFetchInFlightRef,
     ]
   );
+
+  fetchMediaTabPageRef.current = fetchMediaTabPage;
 
   const loadPrompts = useCallback(async () => {
     if (!fetchEnabled) return;
@@ -460,13 +501,7 @@ export const useMediaTabDataController = <
     }
   }, [fetchEnabled, setError, setLoading, setPrompts, setPromptsLoaded]);
 
-  const {
-    tabLoadMoreAwaitExitRef,
-    tabLoadMoreScrollIntentArmedRef,
-    tabLoadMoreLastScrollTopRef,
-    tabLoadMoreLastAutoLoadAtMsRef,
-    tabNoProgressStateRef,
-  } = useMediaTabLoadMoreController({
+  useMediaTabLoadMoreController({
     activeMediaCache,
     activeMediaQuery,
     activeMediaTab,
@@ -474,7 +509,12 @@ export const useMediaTabDataController = <
     loadMoreSentinelRef,
     loadMoreObserverRootRef,
     loadMoreRootMargin,
-    fetchMediaTabPage,
+    tabLoadMoreAwaitExitRef,
+    tabLoadMoreScrollIntentArmedRef,
+    tabLoadMoreLastScrollTopRef,
+    tabLoadMoreLastAutoLoadAtMsRef,
+    tabNoProgressStateRef,
+    fetchMediaTabPage: requestLoadMorePage,
   });
 
   useEffect(() => {

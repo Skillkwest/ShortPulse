@@ -1,7 +1,5 @@
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useEffect, type MutableRefObject } from "react";
 import {
-  createMediaTabBooleanState,
-  createMediaTabRequestState,
   type MediaDataTab,
   type MediaTabBooleanState,
   type MediaTabCache,
@@ -11,8 +9,8 @@ import {
 const LOAD_MORE_SCROLL_INTENT_DELTA_PX = 36;
 const LOAD_MORE_COOLDOWN_MS = 450;
 
-type MediaTabNullableNumberState = Record<MediaDataTab, number | null>;
-type MediaTabLoadMoreNoProgressState = Record<
+export type MediaTabNullableNumberState = Record<MediaDataTab, number | null>;
+export type MediaTabLoadMoreNoProgressState = Record<
   MediaDataTab,
   {
     query: string;
@@ -20,14 +18,14 @@ type MediaTabLoadMoreNoProgressState = Record<
   }
 >;
 
-const createMediaTabNullableNumberState = (): MediaTabNullableNumberState => ({
+export const createMediaTabNullableNumberState = (): MediaTabNullableNumberState => ({
   uploaded_images: null,
   uploaded_videos: null,
   private: null,
   ai_generations: null,
 });
 
-const createMediaTabNoProgressState = (): MediaTabLoadMoreNoProgressState => ({
+export const createMediaTabNoProgressState = (): MediaTabLoadMoreNoProgressState => ({
   uploaded_images: { query: "", streak: 0 },
   uploaded_videos: { query: "", streak: 0 },
   private: { query: "", streak: 0 },
@@ -42,6 +40,11 @@ type UseMediaTabLoadMoreControllerArgs<TRow extends { id: string }> = {
   loadMoreSentinelRef: MutableRefObject<HTMLDivElement | null>;
   loadMoreObserverRootRef?: MutableRefObject<HTMLElement | null>;
   loadMoreRootMargin: string;
+  tabLoadMoreAwaitExitRef: MutableRefObject<MediaTabBooleanState>;
+  tabLoadMoreScrollIntentArmedRef: MutableRefObject<MediaTabBooleanState>;
+  tabLoadMoreLastScrollTopRef: MutableRefObject<MediaTabNullableNumberState>;
+  tabLoadMoreLastAutoLoadAtMsRef: MutableRefObject<MediaTabRequestState>;
+  tabNoProgressStateRef: MutableRefObject<MediaTabLoadMoreNoProgressState>;
   fetchMediaTabPage: (
     tab: MediaDataTab,
     options?: {
@@ -68,20 +71,13 @@ export const useMediaTabLoadMoreController = <TRow extends { id: string }>({
   loadMoreSentinelRef,
   loadMoreObserverRootRef,
   loadMoreRootMargin,
+  tabLoadMoreAwaitExitRef,
+  tabLoadMoreScrollIntentArmedRef,
+  tabLoadMoreLastScrollTopRef,
+  tabLoadMoreLastAutoLoadAtMsRef,
+  tabNoProgressStateRef,
   fetchMediaTabPage,
 }: UseMediaTabLoadMoreControllerArgs<TRow>): UseMediaTabLoadMoreControllerResult => {
-  const tabLoadMoreAwaitExitRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
-  const tabLoadMoreScrollIntentArmedRef = useRef<MediaTabBooleanState>(
-    createMediaTabBooleanState()
-  );
-  const tabLoadMoreLastScrollTopRef = useRef<MediaTabNullableNumberState>(
-    createMediaTabNullableNumberState()
-  );
-  const tabLoadMoreLastAutoLoadAtMsRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
-  const tabNoProgressStateRef = useRef<MediaTabLoadMoreNoProgressState>(
-    createMediaTabNoProgressState()
-  );
-
   useEffect(() => {
     if (!activeMediaTab) return;
     tabLoadMoreAwaitExitRef.current[activeMediaTab] = false;
@@ -92,7 +88,15 @@ export const useMediaTabLoadMoreController = <TRow extends { id: string }>({
       query: activeMediaQuery,
       streak: 0,
     };
-  }, [activeMediaQuery, activeMediaTab]);
+  }, [
+    activeMediaQuery,
+    activeMediaTab,
+    tabLoadMoreAwaitExitRef,
+    tabLoadMoreLastAutoLoadAtMsRef,
+    tabLoadMoreLastScrollTopRef,
+    tabLoadMoreScrollIntentArmedRef,
+    tabNoProgressStateRef,
+  ]);
 
   useEffect(() => {
     if (!fetchEnabled) return;
@@ -161,6 +165,10 @@ export const useMediaTabLoadMoreController = <TRow extends { id: string }>({
     loadMoreObserverRootRef,
     loadMoreRootMargin,
     loadMoreSentinelRef,
+    tabLoadMoreAwaitExitRef,
+    tabLoadMoreLastAutoLoadAtMsRef,
+    tabLoadMoreLastScrollTopRef,
+    tabLoadMoreScrollIntentArmedRef,
   ]);
 
   return {

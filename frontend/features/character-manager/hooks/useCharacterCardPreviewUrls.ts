@@ -2,7 +2,7 @@
  * Character Manager card preview URL hook.
  * Owns adaptive preview resolution plus one-shot signed URL refresh retries for character card surfaces.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { AdaptivePressureLevel } from "../../../lib/adaptive-media/types";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { resolveCharacterGridPreviewUrl as resolveCharacterGridPreviewUrlForSurface } from "../logic/characterGridPreviewUrl";
@@ -24,23 +24,35 @@ export const useCharacterCardPreviewUrls = ({
   adaptivePreviewEnabled,
   pressureLevel,
 }: UseCharacterCardPreviewUrlsParams) => {
-  const [cardPreviewUrlByStoragePath, setCardPreviewUrlByStoragePath] = useState<
-    Record<string, string>
-  >({});
-  const cardPreviewRetryCountRef = useRef<Record<string, number>>({});
-
-  useEffect(() => {
-    setCardPreviewUrlByStoragePath({});
-    cardPreviewRetryCountRef.current = {};
-  }, [selectedCharacterId]);
+  const [cardPreviewState, setCardPreviewState] = useState<{
+    characterId: string | null;
+    urlByStoragePath: Record<string, string>;
+  }>({
+    characterId: selectedCharacterId,
+    urlByStoragePath: {},
+  });
+  const cardPreviewRetryStateRef = useRef<{
+    characterId: string | null;
+    countByStoragePath: Record<string, number>;
+  }>({
+    characterId: selectedCharacterId,
+    countByStoragePath: {},
+  });
 
   const refreshCardPreviewSignedUrl = useCallback(
     (storagePath: string | null | undefined, failedUrl?: string | null) => {
       const trimmedStoragePath = storagePath?.trim() ?? "";
       if (!trimmedStoragePath) return;
-      const attempts = cardPreviewRetryCountRef.current[trimmedStoragePath] ?? 0;
+      const activeCharacterId = selectedCharacterId ?? null;
+      if (cardPreviewRetryStateRef.current.characterId !== activeCharacterId) {
+        cardPreviewRetryStateRef.current = {
+          characterId: activeCharacterId,
+          countByStoragePath: {},
+        };
+      }
+      const attempts = cardPreviewRetryStateRef.current.countByStoragePath[trimmedStoragePath] ?? 0;
       if (attempts >= CHARACTER_CARD_PREVIEW_SIGN_RETRY_LIMIT) return;
-      cardPreviewRetryCountRef.current[trimmedStoragePath] = attempts + 1;
+      cardPreviewRetryStateRef.current.countByStoragePath[trimmedStoragePath] = attempts + 1;
 
       void getSignedMediaUrl({
         bucket: MEDIA_BUCKET,
@@ -51,16 +63,22 @@ export const useCharacterCardPreviewUrls = ({
         const nextUrl = signedUrl?.trim() ?? "";
         if (!nextUrl) return;
         if (failedUrl && failedUrl.trim() === nextUrl) return;
-        setCardPreviewUrlByStoragePath((prev) => {
-          if (prev[trimmedStoragePath] === nextUrl) return prev;
+        setCardPreviewState((prev) => {
+          const prevUrls = prev.characterId === activeCharacterId ? prev.urlByStoragePath : {};
+          if (prev.characterId === activeCharacterId && prevUrls[trimmedStoragePath] === nextUrl) {
+            return prev;
+          }
           return {
-            ...prev,
-            [trimmedStoragePath]: nextUrl,
+            characterId: activeCharacterId,
+            urlByStoragePath: {
+              ...prevUrls,
+              [trimmedStoragePath]: nextUrl,
+            },
           };
         });
       });
     },
-    []
+    [selectedCharacterId]
   );
 
   const resolveCharacterGridPreviewUrl = useCallback(
@@ -87,13 +105,16 @@ export const useCharacterCardPreviewUrls = ({
       cardLongEdgePx: number;
     }): string | null => {
       const trimmedStoragePath = storagePath?.trim() ?? "";
+      const activeCharacterId = selectedCharacterId ?? null;
+      const activePreviewUrls =
+        cardPreviewState.characterId === activeCharacterId ? cardPreviewState.urlByStoragePath : {};
       const signedOverride = trimmedStoragePath
-        ? (cardPreviewUrlByStoragePath[trimmedStoragePath] ?? null)
+        ? (activePreviewUrls[trimmedStoragePath] ?? null)
         : null;
       const sourceUrl = signedOverride ?? previewUrl;
       return resolveCharacterGridPreviewUrl(sourceUrl, cardLongEdgePx) ?? sourceUrl ?? null;
     },
-    [cardPreviewUrlByStoragePath, resolveCharacterGridPreviewUrl]
+    [cardPreviewState, resolveCharacterGridPreviewUrl, selectedCharacterId]
   );
 
   return {

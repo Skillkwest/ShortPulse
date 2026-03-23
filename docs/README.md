@@ -187,6 +187,7 @@ Start here for all repository documentation.
 - `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
 - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 - `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
+- `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
 - `docs/planning/media-rendering-hardening-v2-master-plan-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-execution-tracker-2026-03-16.md`
@@ -242,6 +243,10 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`
 - `docs/planning/ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`
 - `docs/planning/ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`
+- `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`
+- `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
+- `docs/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
+- `docs/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`
 - `docs/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
 - `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
 - `docs/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md` (temporary active working note)

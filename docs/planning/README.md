@@ -118,6 +118,10 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`: go/no-go checklist required before behavior-changing phase execution.
 - `ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`: canonical readiness-state register (`hold_with_blockers`, `planning_ready_pending_implementation_gates`, `implementation_ready`) with promotion/reversion criteria and immediate implementation-start SLA.
 - `ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`: standardized packet template for reliability slice evidence.
+- `ai-studio-right-rail-performance-master-plan-2026-03-23.md`: scoped execution contract for AI Studio right-rail performance work with explicit done state and stop rules.
+- `ai-studio-right-rail-performance-master-tracker-2026-03-23.md`: required-vs-optional tracker for right-rail performance scope completion.
+- `ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`: pre-slice checklist that prevents speculative or out-of-scope right-rail implementation.
+- `ai-studio-right-rail-performance-readiness-state-2026-03-23.md`: readiness-state register for when right-rail implementation should continue, hold, or stop.
 - `ai-studio-generation-queue-hardening-2026-03-04.md`: low-drift implementation plan for generation-start recovery and queue hardening.
 - `ai-studio-generation-queue-hardening-tracker-2026-03-04.md`: execution tracker for queue hardening status, tests, and exit criteria.
 - `tmp_generation_drain_audit_working_notes_2026-02-27.md`: temporary active working notes for generation drain/recovery audit decisions pending archival or promotion.

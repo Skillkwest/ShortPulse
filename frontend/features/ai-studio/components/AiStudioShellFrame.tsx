@@ -13,12 +13,12 @@ import type {
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { ToolId } from "../types";
-import type { ReferenceGridProps } from "./ReferenceGrid";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import { AiStudioPropertiesRail } from "./AiStudioPropertiesRail";
 import { AiStudioReferenceRail } from "./AiStudioReferenceRail";
 import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
+import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 
 type RightColumnDropMode = "none" | "text" | "media";
 
@@ -70,7 +70,7 @@ type AiStudioShellFrameProps = {
   onShellDragOverCapture: (event: React.DragEvent<HTMLElement>) => void;
   onShellDropCapture: (event: React.DragEvent<HTMLElement>) => void;
   agentChat: AgentChatProps;
-  referenceGridProps: ReferenceGridProps;
+  referenceGridProps: AiStudioReferenceGridContract;
   railCanvasProps?: CanvasPropertiesPanelProps;
   studioPreviewProps: React.ComponentProps<typeof AiStudioPreviewRail>["studioPreviewProps"];
   handleReferenceGridFiles: (files: FileList) => void;

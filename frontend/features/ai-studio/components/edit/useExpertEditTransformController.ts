@@ -29,6 +29,13 @@ type UseExpertEditTransformControllerParams = {
   shouldApplyViewportTransform: boolean;
   viewportOffsetXRatio: number;
   viewportOffsetYRatio: number;
+  resolveViewportOffsetPixels?: (
+    interactionRect: DOMRect,
+    currentTarget: HTMLDivElement
+  ) => {
+    offsetX: number;
+    offsetY: number;
+  };
   transformPointerSessionRef: React.MutableRefObject<TransformPointerSession>;
   transformGestureBaselineRef: React.MutableRefObject<TransformHistoryEntry | null>;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
@@ -73,6 +80,7 @@ export const useExpertEditTransformController = ({
   shouldApplyViewportTransform,
   viewportOffsetXRatio,
   viewportOffsetYRatio,
+  resolveViewportOffsetPixels,
   transformPointerSessionRef,
   transformGestureBaselineRef,
   setLayers,
@@ -123,13 +131,18 @@ export const useExpertEditTransformController = ({
       const rect = event.currentTarget.getBoundingClientRect();
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
+      const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, event.currentTarget);
       const pointer = resolveCanvasSpacePoint({
         clientX: event.clientX,
         clientY: event.clientY,
         rect,
         sceneScale: sceneZoomScale,
-        viewportOffsetX: shouldApplyViewportTransform ? viewportOffsetXRatio * rect.width : 0,
-        viewportOffsetY: shouldApplyViewportTransform ? viewportOffsetYRatio * rect.height : 0,
+        viewportOffsetX: shouldApplyViewportTransform
+          ? (resolvedViewportOffset?.offsetX ?? viewportOffsetXRatio * rect.width)
+          : 0,
+        viewportOffsetY: shouldApplyViewportTransform
+          ? (resolvedViewportOffset?.offsetY ?? viewportOffsetYRatio * rect.height)
+          : 0,
       });
       const targetDragMode = resolveDragModeFromPointerTarget(event.target);
       const dragMode =
@@ -166,6 +179,7 @@ export const useExpertEditTransformController = ({
       shouldApplyViewportTransform,
       transformGestureBaselineRef,
       transformPointerSessionRef,
+      resolveViewportOffsetPixels,
       viewportOffsetXRatio,
       viewportOffsetYRatio,
     ]
@@ -174,13 +188,18 @@ export const useExpertEditTransformController = ({
   const handleMovePointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
+      const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, event.currentTarget);
       const pointer = resolveCanvasSpacePoint({
         clientX: event.clientX,
         clientY: event.clientY,
         rect,
         sceneScale: sceneZoomScale,
-        viewportOffsetX: shouldApplyViewportTransform ? viewportOffsetXRatio * rect.width : 0,
-        viewportOffsetY: shouldApplyViewportTransform ? viewportOffsetYRatio * rect.height : 0,
+        viewportOffsetX: shouldApplyViewportTransform
+          ? (resolvedViewportOffset?.offsetX ?? viewportOffsetXRatio * rect.width)
+          : 0,
+        viewportOffsetY: shouldApplyViewportTransform
+          ? (resolvedViewportOffset?.offsetY ?? viewportOffsetYRatio * rect.height)
+          : 0,
       });
       const session = transformPointerSessionRef.current;
       if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
@@ -210,6 +229,7 @@ export const useExpertEditTransformController = ({
       setLayers,
       shouldApplyViewportTransform,
       transformPointerSessionRef,
+      resolveViewportOffsetPixels,
       viewportOffsetXRatio,
       viewportOffsetYRatio,
     ]

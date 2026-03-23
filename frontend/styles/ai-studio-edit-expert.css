@@ -1445,15 +1445,6 @@
   transform: translateY(-2px);
 }
 
-.edit-expert-primary-stage-shell {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 100%;
-  min-width: 0;
-}
-
 .edit-expert-primary-column {
   grid-column: 2;
   grid-row: 1;
@@ -1549,13 +1540,6 @@
 .edit-expert-primary-dropzone.is-presets-open {
   border: none;
   box-shadow: none;
-}
-
-.edit-expert-primary-layer-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
 }
 
 .edit-expert-primary-layer-content-clip {

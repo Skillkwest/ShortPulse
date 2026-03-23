@@ -30,9 +30,17 @@ type UseExpertEditMarkupDrawControllerParams = {
   selectedMarkupMode: MarkupMode;
   resolvedMarkupStrokeSize: number;
   maxMarkupStrokeSize: number;
+  renderScale: number;
   markupColor: string;
   markupViewport: MarkupViewportState;
   shouldApplyMarkupViewport: boolean;
+  resolveViewportOffsetPixels?: (
+    stageRect: DOMRect,
+    currentTarget: HTMLDivElement
+  ) => {
+    offsetX: number;
+    offsetY: number;
+  };
   markupStrokeIdCounterRef: React.MutableRefObject<number>;
   markupDrawPointerSessionRef: React.MutableRefObject<MarkupDrawPointerSession>;
   setMarkupStrokes: React.Dispatch<React.SetStateAction<MarkupStroke[]>>;
@@ -60,9 +68,11 @@ export const useExpertEditMarkupDrawController = ({
   selectedMarkupMode,
   resolvedMarkupStrokeSize,
   maxMarkupStrokeSize,
+  renderScale,
   markupColor,
   markupViewport,
   shouldApplyMarkupViewport,
+  resolveViewportOffsetPixels,
   markupStrokeIdCounterRef,
   markupDrawPointerSessionRef,
   setMarkupStrokes,
@@ -103,7 +113,7 @@ export const useExpertEditMarkupDrawController = ({
   const activateMarkupDrawGestureSession = React.useCallback(
     (pointerId: number, mode: MarkupDrawPointerSession["mode"], strokeId: string | null) => {
       lockGlobalCursor(
-        buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize, maxMarkupStrokeSize)
+        buildMarkupBrushReticleCursor(resolvedMarkupStrokeSize, maxMarkupStrokeSize, renderScale)
       );
       markupDrawPointerSessionRef.current = {
         active: true,
@@ -112,7 +122,13 @@ export const useExpertEditMarkupDrawController = ({
         strokeId,
       };
     },
-    [lockGlobalCursor, markupDrawPointerSessionRef, maxMarkupStrokeSize, resolvedMarkupStrokeSize]
+    [
+      lockGlobalCursor,
+      markupDrawPointerSessionRef,
+      maxMarkupStrokeSize,
+      renderScale,
+      resolvedMarkupStrokeSize,
+    ]
   );
 
   const finalizeMarkupDrawGestureSession = React.useCallback(() => {
@@ -130,12 +146,15 @@ export const useExpertEditMarkupDrawController = ({
       }
       if (event.pointerType === "mouse" && event.button !== 0) return false;
       const stageRect = event.currentTarget.getBoundingClientRect();
+      const viewportOffset = resolveViewportOffsetPixels?.(stageRect, event.currentTarget);
       const point = resolveMarkupPointerPoint({
         clientX: event.clientX,
         clientY: event.clientY,
         rect: stageRect,
         viewport: markupViewport,
         applyViewportTransform: shouldApplyMarkupViewport,
+        viewportOffsetX: viewportOffset?.offsetX,
+        viewportOffsetY: viewportOffset?.offsetY,
       });
       if (!point) return false;
       event.preventDefault();
@@ -171,6 +190,7 @@ export const useExpertEditMarkupDrawController = ({
       markupColor,
       markupStrokeIdCounterRef,
       markupViewport,
+      resolveViewportOffsetPixels,
       resolvedMarkupStrokeSize,
       selectedMarkupMode,
       setMarkupStrokes,
@@ -186,6 +206,7 @@ export const useExpertEditMarkupDrawController = ({
         return false;
       }
       const stageRect = event.currentTarget.getBoundingClientRect();
+      const viewportOffset = resolveViewportOffsetPixels?.(stageRect, event.currentTarget);
       const sampleEvents = resolvePointerSampleEvents(event.nativeEvent as PointerEvent);
       const points = sampleEvents
         .map((sampleEvent) =>
@@ -195,6 +216,8 @@ export const useExpertEditMarkupDrawController = ({
             rect: stageRect,
             viewport: markupViewport,
             applyViewportTransform: shouldApplyMarkupViewport,
+            viewportOffsetX: viewportOffset?.offsetX,
+            viewportOffsetY: viewportOffset?.offsetY,
           })
         )
         .filter((sample): sample is MarkupStrokePoint => sample != null);
@@ -226,6 +249,7 @@ export const useExpertEditMarkupDrawController = ({
       eraseMarkupStrokesAtPoints,
       markupDrawPointerSessionRef,
       markupViewport,
+      resolveViewportOffsetPixels,
       setMarkupStrokes,
       shouldApplyMarkupViewport,
     ]

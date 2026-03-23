@@ -31,8 +31,17 @@ export const buildInpaintBrushReticleCursor = (strokeSize: number, sceneScale = 
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
 };
 
-export const buildMarkupBrushReticleCursor = (strokeSize: number, maxStrokeSize: number) => {
-  const diameter = clampNumber(Math.round(strokeSize), MARKUP_CURSOR_DIAMETER_MIN, maxStrokeSize);
+export const buildMarkupBrushReticleCursor = (
+  strokeSize: number,
+  maxStrokeSize: number,
+  renderScale = 1
+) => {
+  const safeScale = Number.isFinite(renderScale) && renderScale > 0 ? renderScale : 1;
+  const diameter = clampNumber(
+    Math.round(strokeSize * safeScale),
+    MARKUP_CURSOR_DIAMETER_MIN,
+    maxStrokeSize
+  );
   const canvasSize = diameter + CURSOR_PADDING * 2;
   const center = canvasSize / 2;
   const radius = diameter / 2;

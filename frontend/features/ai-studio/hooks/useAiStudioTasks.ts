@@ -113,6 +113,12 @@ type TaskCallbacks = {
 const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE;
 const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
+const HIDDEN_TAB_STATUS_POLL_RETRY_MS = 15_000;
+
+const isDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
+const resolveHiddenTabStatusRetryDelayMs = (attempt: number): number =>
+  Math.max(HIDDEN_TAB_STATUS_POLL_RETRY_MS, getPollDelayMs(attempt));
 
 type QueuedOutputUpdate = {
   updater: (item: StudioOutput) => StudioOutput;
@@ -349,6 +355,23 @@ export function useAiStudioTasks({
       if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
         return;
       }
+      if (!isDocumentVisible()) {
+        const hiddenRetryDelayMs = resolveHiddenTabStatusRetryDelayMs(attempt);
+        pollTimersRef.current[outputId] = window.setTimeout(
+          () =>
+            pollTask(
+              taskId,
+              outputId,
+              attempt,
+              provider,
+              startedAt + hiddenRetryDelayMs,
+              noMediaAttempt,
+              activePollSessionId
+            ),
+          hiddenRetryDelayMs
+        );
+        return;
+      }
 
       if (findOutputById && !findOutputById(outputId)) {
         const lookupPolicy = evaluateOutputLookupMiss({
@@ -452,6 +475,23 @@ export function useAiStudioTasks({
       const delay = getPollDelayMs(attempt);
       const timeoutId = window.setTimeout(async () => {
         if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
+          return;
+        }
+        if (!isDocumentVisible()) {
+          const hiddenRetryDelayMs = resolveHiddenTabStatusRetryDelayMs(attempt);
+          pollTimersRef.current[outputId] = window.setTimeout(
+            () =>
+              pollTask(
+                taskId,
+                outputId,
+                attempt,
+                provider,
+                startedAt + hiddenRetryDelayMs,
+                noMediaAttempt,
+                activePollSessionId
+              ),
+            hiddenRetryDelayMs
+          );
           return;
         }
         if (statusRequestsInFlightRef.current >= MAX_CONCURRENT_STATUS_REQUESTS) {

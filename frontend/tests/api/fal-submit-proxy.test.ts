@@ -42,7 +42,13 @@ describe("createFalSubmitHandler", () => {
       userId: "user-1",
       sourceRef: "source-ref-1",
       billingMode: "reservation",
-      markSubmitted: vi.fn().mockResolvedValue(undefined),
+      markSubmitted: vi.fn().mockResolvedValue({
+        ok: true,
+        status: "reserved",
+        sourceRef: "source-ref-1",
+        message: null,
+        code: null,
+      }),
       refund: vi.fn().mockResolvedValue(undefined),
     });
     ensureSubmittedGenerationRecordMock.mockResolvedValue({
@@ -389,6 +395,70 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("logs accepted-path linkage failures but still returns the accepted upstream response", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ request_id: "req-linkage-pending" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    chargeGenerationRequestMock.mockResolvedValueOnce({
+      userId: "user-1",
+      sourceRef: "source-ref-1",
+      billingMode: "reservation",
+      markSubmitted: vi.fn().mockResolvedValue({
+        ok: false,
+        status: "failed",
+        sourceRef: "source-ref-1",
+        message: "mark_submitted_failed",
+        code: "PGRST301",
+      }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-linkage-pending",
+        generationId: "gen-1",
+      })
+    );
+    expect(ensureSubmittedGenerationRecordMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-linkage-pending",
+        sourceRef: "source-ref-1",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.mark_submitted_failed",
+        metadata: expect.objectContaining({
+          billing_mode: "reservation",
+          provider_request_id: "req-linkage-pending",
+          source_ref: "source-ref-1",
+          linkage_status: "failed",
+        }),
+      })
+    );
+  });
+
   it("submits the projected payload returned by the shared contract gate", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(JSON.stringify({ request_id: "req-projected" }), {
@@ -426,6 +496,86 @@ describe("createFalSubmitHandler", () => {
     const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
     expect(requestInit?.body).toBe(JSON.stringify({ prompt: "portrait" }));
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("fails closed when upstream accepts but neither linkage nor generation persistence succeed", async () => {
+    const markSubmittedMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: "failed",
+      sourceRef: "source-ref-link-fail",
+      message: "undefined object",
+      code: "42704",
+    });
+    ensureSubmittedGenerationRecordMock.mockResolvedValueOnce({
+      ok: false,
+      error: "insert failed",
+    });
+    chargeGenerationRequestMock.mockResolvedValueOnce({
+      userId: "user-1",
+      sourceRef: "source-ref-link-fail",
+      billingMode: "reservation",
+      markSubmitted: markSubmittedMock,
+      refund: vi.fn().mockResolvedValue(undefined),
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ request_id: "req-link-fail" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(markSubmittedMock).toHaveBeenCalledWith(
+      "req-link-fail",
+      expect.objectContaining({
+        upstream_status: 200,
+      })
+    );
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: accepted submit could not be durably linked.",
+      expect.objectContaining({
+        provider_request_id: "req-link-fail",
+        submit_link_status: "failed",
+        submit_link_code: "42704",
+        persistence_error: "insert failed",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.persist_generation_failed",
+        statusCode: 500,
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.mark_submitted_failed",
+        statusCode: 500,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
+      code: "GENERATION_SUBMIT_TRACKING_FAILED",
+    });
   });
 
   it("returns 400 when the shared contract gate reports a violation", async () => {
@@ -849,7 +999,13 @@ describe("createFalSubmitHandler", () => {
       userId: "user-1",
       sourceRef: "source-ref-1",
       billingMode: "direct_debit",
-      markSubmitted: vi.fn().mockResolvedValue(undefined),
+      markSubmitted: vi.fn().mockResolvedValue({
+        ok: true,
+        status: "attached",
+        sourceRef: "source-ref-1",
+        message: null,
+        code: null,
+      }),
       refund: vi.fn().mockResolvedValue(undefined),
     });
     const fetchMock = vi.fn();

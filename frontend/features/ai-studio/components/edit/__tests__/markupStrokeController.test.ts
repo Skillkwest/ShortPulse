@@ -59,6 +59,33 @@ describe("markupStrokeController", () => {
     expect(point?.sceneY ?? 0).toBeCloseTo(0.05, 3);
   });
 
+  it("uses explicit viewport offset pixels when the camera authority differs from the interaction rect", () => {
+    const rect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+
+    const point = resolveMarkupPointerPoint({
+      clientX: 130,
+      clientY: 50,
+      rect,
+      viewport: {
+        scale: 2,
+        offsetXRatio: 0.25,
+        offsetYRatio: 0,
+      },
+      applyViewportTransform: true,
+      viewportOffsetX: 60,
+      viewportOffsetY: 0,
+    });
+
+    expect(point).not.toBeNull();
+    expect(point?.sceneX ?? 0).toBeCloseTo(-0.15, 6);
+    expect(point?.sceneY ?? 0).toBeCloseTo(0, 6);
+  });
+
   it("uses direct stage mapping when viewport transform is disabled", () => {
     const rect = {
       left: 10,

@@ -3,7 +3,7 @@
  * Keeps reference grid action wiring out of the page orchestrator.
  */
 import { useMemo } from "react";
-import type { StudioOutput, ToolId } from "../types";
+import type { StudioOutput } from "../types";
 import type { AiStudioReferenceGridContract } from "./contracts/pageContentContracts";
 
 export type UseAiStudioReferenceGridPropsParams = {
@@ -32,7 +32,6 @@ export type UseAiStudioReferenceGridPropsParams = {
   ) => void;
   restoreArchivedOutput?: (id: string) => void;
   restoreAllArchivedOutputs?: () => void;
-  selectedTool: ToolId | null;
 };
 
 /**
@@ -65,7 +64,6 @@ export const useAiStudioReferenceGridProps = ({
   reorderCuratedReference,
   restoreArchivedOutput,
   restoreAllArchivedOutputs,
-  selectedTool,
 }: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridContract =>
   useMemo(
     () => ({
@@ -95,7 +93,6 @@ export const useAiStudioReferenceGridProps = ({
       onReorderCuratedReference: reorderCuratedReference,
       onRestoreArchivedOutput: restoreArchivedOutput,
       onRestoreAllArchivedOutputs: restoreAllArchivedOutputs,
-      selectedTool,
     }),
     [
       activeOutputId,
@@ -118,7 +115,6 @@ export const useAiStudioReferenceGridProps = ({
       restoreAllArchivedOutputs,
       restoreArchivedOutput,
       retryOutputStatus,
-      selectedTool,
       setDetailOutputId,
     ]
   );

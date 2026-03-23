@@ -38,7 +38,6 @@ const createParams = (
   addCuratedReference: vi.fn(),
   removeCuratedReference: vi.fn(),
   reorderCuratedReference: vi.fn(),
-  selectedTool: "image",
   ...overrides,
 });
 
@@ -98,7 +97,6 @@ describe("useAiStudioReferenceGridProps", () => {
     const { result } = renderHook(() =>
       useAiStudioReferenceGridProps(
         createParams({
-          selectedTool: "video",
           archivedOutputs: [archivedOutput],
           restoreArchivedOutput,
           restoreAllArchivedOutputs,
@@ -109,7 +107,6 @@ describe("useAiStudioReferenceGridProps", () => {
     expect(result.current.showHeader).toBe(true);
     expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
     expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
-    expect(result.current.selectedTool).toBe("video");
     expect(result.current.linkedPromptReferenceIds).toEqual(["out-1"]);
     expect(result.current.archivedOutputs?.map((item) => item.id)).toEqual(["archived-1"]);
     result.current.onRestoreArchivedOutput?.("archived-1");

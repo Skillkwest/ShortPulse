@@ -17,8 +17,16 @@ export type ChargeResult = {
   credits: number;
   sourceRef: string;
   billingMode: "reservation" | "direct_debit";
-  markSubmitted: (providerRequestId: string, extra?: JsonObject) => Promise<void>;
+  markSubmitted: (providerRequestId: string, extra?: JsonObject) => Promise<ChargeSubmitLinkResult>;
   refund: (message?: string, extra?: JsonObject) => Promise<void>;
+};
+
+export type ChargeSubmitLinkResult = {
+  ok: boolean;
+  status: string;
+  sourceRef?: string | null;
+  message?: string | null;
+  code?: string | null;
 };
 
 export type LedgerChargeRow = {

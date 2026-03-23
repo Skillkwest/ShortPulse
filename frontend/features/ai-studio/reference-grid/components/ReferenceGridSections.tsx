@@ -80,7 +80,7 @@ type ReferenceGridSectionsProps = {
   handleCuratedSectionDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   handleCuratedScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   handleAllRefsScroll: (event: React.UIEvent<HTMLDivElement>) => void;
-  selectedTool: string | null;
+  isWideLayout: boolean;
   curatedGridStyle: React.CSSProperties;
   gridStyle: React.CSSProperties;
   curatedOutputsLength: number;
@@ -135,7 +135,7 @@ export function ReferenceGridSections({
   handleCuratedSectionDragLeave,
   handleCuratedScroll,
   handleAllRefsScroll,
-  selectedTool,
+  isWideLayout,
   curatedGridStyle,
   gridStyle,
   curatedOutputsLength,
@@ -367,7 +367,7 @@ export function ReferenceGridSections({
                     ref={curatedScrollContainerRef}
                   >
                     <div
-                      className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+                      className={`reference-canvas-grid${isWideLayout ? " reference-canvas-grid--wide" : ""}`}
                       ref={curatedGridRef}
                       style={curatedGridStyle}
                     >
@@ -478,7 +478,7 @@ export function ReferenceGridSections({
                   ref={scrollContainerRef}
                 >
                   <div
-                    className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+                    className={`reference-canvas-grid${isWideLayout ? " reference-canvas-grid--wide" : ""}`}
                     ref={gridRef}
                     style={gridStyle}
                   >
@@ -548,7 +548,7 @@ export function ReferenceGridSections({
                     ref={scrollContainerRef}
                   >
                     <div
-                      className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+                      className={`reference-canvas-grid${isWideLayout ? " reference-canvas-grid--wide" : ""}`}
                       ref={gridRef}
                       style={gridStyle}
                     >

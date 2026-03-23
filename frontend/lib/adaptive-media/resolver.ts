@@ -123,10 +123,12 @@ const applyAdaptivePreviewTransform = ({
   url,
   decision,
   mediaKindHint,
+  surface,
 }: {
   url: string;
   decision: AdaptiveDecision;
   mediaKindHint: AdaptiveMediaKind;
+  surface: AdaptiveInput["surface"];
 }): { url: string; usedOptimizerTransform: boolean } => {
   const parsedCandidate = parseTransformCandidateUrl(url);
   if (!parsedCandidate) return { url, usedOptimizerTransform: false };
@@ -148,6 +150,9 @@ const applyAdaptivePreviewTransform = ({
   if (isSupabaseStorageUrl(parsed)) {
     if (!hasImageSignal) return { url, usedOptimizerTransform: false };
     if (!isRenderImagePath) {
+      if (surface === "reference-grid" || surface === "quick-slot") {
+        return { url, usedOptimizerTransform: false };
+      }
       const nextUrl = toNextImageOptimizedUrl({
         sourceUrl: url,
         targetLongEdgePx: decision.targetLongEdgePx,
@@ -234,6 +239,7 @@ export const resolveAdaptiveMedia = (input: AdaptiveInput): AdaptiveResolvedMedi
       url: resolvedPreviewBase,
       decision,
       mediaKindHint: input.mediaKind,
+      surface: input.surface,
     });
     resolvedPreview = transformed.url;
     usedOptimizerTransform = transformed.usedOptimizerTransform;

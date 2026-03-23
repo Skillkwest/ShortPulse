@@ -73,21 +73,35 @@ export const resolveMarkupPointerPoint = ({
   rect,
   viewport,
   applyViewportTransform,
+  viewportOffsetX,
+  viewportOffsetY,
 }: {
   clientX: number;
   clientY: number;
   rect: DOMRect;
   viewport: MarkupViewportState;
   applyViewportTransform: boolean;
+  viewportOffsetX?: number;
+  viewportOffsetY?: number;
 }): MarkupStrokePoint | null => {
+  const resolvedViewportOffsetX = applyViewportTransform
+    ? typeof viewportOffsetX === "number" && Number.isFinite(viewportOffsetX)
+      ? viewportOffsetX
+      : viewport.offsetXRatio * rect.width
+    : 0;
+  const resolvedViewportOffsetY = applyViewportTransform
+    ? typeof viewportOffsetY === "number" && Number.isFinite(viewportOffsetY)
+      ? viewportOffsetY
+      : viewport.offsetYRatio * rect.height
+    : 0;
   const surfacePoint = resolveSurfacePointFromClientPoint({
     clientX,
     clientY,
     rect,
     viewportTransform: {
       scale: applyViewportTransform ? viewport.scale : 1,
-      offsetX: applyViewportTransform ? viewport.offsetXRatio * rect.width : 0,
-      offsetY: applyViewportTransform ? viewport.offsetYRatio * rect.height : 0,
+      offsetX: resolvedViewportOffsetX,
+      offsetY: resolvedViewportOffsetY,
     },
     clampToBounds: false,
   });

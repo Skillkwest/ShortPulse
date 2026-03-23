@@ -47,7 +47,7 @@ Interaction surfaces stay layout-only (no camera transform on the event target e
 Camera/viewport transform is applied to render content and overlays derived from shared transform state.
 
 Inline ownership:
-1. Camera transform is applied on the primary stage shell/wrapper surface.
+1. Camera transform is applied on inline markup viewport render content inside the primary stage shell.
 2. Pointer sampling surface remains the primary dropzone.
 
 Modal ownership:

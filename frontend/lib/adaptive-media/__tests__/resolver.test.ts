@@ -84,6 +84,25 @@ describe("adaptive-media resolver", () => {
     expect(result.previewUrl).toBe("https://v3b.fal.media/files/b/0a8fb9ad/example.png");
   });
 
+  it("keeps supabase signed object URLs direct in right-rail grid surfaces", () => {
+    const sourceUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc";
+    const result = resolveAdaptiveMedia({
+      surface: "reference-grid",
+      mediaKind: "image",
+      source: "remote",
+      urls: {
+        previewUrl: sourceUrl,
+      },
+      storage: {},
+      strictPreviewLadder: false,
+      adaptivePreviewQuality: true,
+      pressureLevel: 2,
+    });
+
+    expect(result.previewUrl).toBe(sourceUrl);
+  });
+
   it("normalizes canonical storage paths and rejects runtime URLs", () => {
     expect(asCanonicalStoragePath(" user-1/images/file.png ")).toBe("user-1/images/file.png");
     expect(asCanonicalStoragePath("https://example.com/file.png")).toBeNull();

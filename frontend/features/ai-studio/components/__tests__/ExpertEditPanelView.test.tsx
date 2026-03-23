@@ -165,27 +165,15 @@ const readFrameTranslate = (frame: HTMLDivElement) => {
 };
 
 const readMarkupViewportTransform = (scope: ParentNode = document) => {
-  const inlineStageShell = scope.querySelector(
-    ".edit-expert-primary-stage-shell"
-  ) as HTMLDivElement | null;
   const viewport = scope.querySelector(".edit-expert-markup-viewport") as HTMLDivElement | null;
-  const transformSource = (() => {
-    const viewportTransform = viewport?.style.transform ?? "";
-    if (viewportTransform.trim().length > 0) {
-      return {
-        element: viewport,
-        transform: viewportTransform,
-      } as const;
-    }
-    const stageShellTransform = inlineStageShell?.style.transform ?? "";
-    if (stageShellTransform.trim().length > 0) {
-      return {
-        element: inlineStageShell,
-        transform: stageShellTransform,
-      } as const;
-    }
-    return null;
-  })();
+  const viewportTransform = viewport?.style.transform ?? "";
+  const transformSource =
+    viewportTransform.trim().length > 0
+      ? ({
+          element: viewport,
+          transform: viewportTransform,
+        } as const)
+      : null;
   if (!transformSource?.element) return null;
   const match = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*0\)\s*scale\(([-\d.]+)\)/.exec(
     transformSource.transform
@@ -429,29 +417,21 @@ describe("ExpertEditPanelView", () => {
     const { container, rerender } = render(<ExpertEditPanelView {...baseProps} aspect="1:1" />);
     const primaryDropzone = screen.getByLabelText("Primary edit image") as HTMLDivElement;
     const mainStage = container.querySelector(".edit-expert-main-stage") as HTMLDivElement;
-    const primaryStageShell = container.querySelector(
-      ".edit-expert-primary-stage-shell"
-    ) as HTMLDivElement;
     expect(mainStage).not.toBeNull();
-    expect(primaryStageShell).not.toBeNull();
 
     expect(primaryDropzone.style.aspectRatio).toBe("1 / 1");
-    expect(primaryDropzone.style.width).toBe("100%");
-    expect(primaryDropzone.style.height).toBe("");
-    expect(primaryStageShell.style.width).toContain("* 1");
-    expect(primaryStageShell.style.height).toBe("var(--edit-expert-primary-size)");
+    expect(primaryDropzone.style.width).toContain("* 1");
+    expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
 
     rerender(<ExpertEditPanelView {...baseProps} aspect="16:9" />);
     expect(primaryDropzone.style.aspectRatio).toBe("16 / 9");
-    expect(primaryDropzone.style.width).toBe("100%");
-    expect(primaryDropzone.style.height).toBe("");
-    expect(primaryStageShell.style.width).toContain("* 1.777777");
+    expect(primaryDropzone.style.width).toContain("* 1.777777");
+    expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
 
     rerender(<ExpertEditPanelView {...baseProps} aspect="9:16" />);
     expect(primaryDropzone.style.aspectRatio).toBe("9 / 16");
-    expect(primaryDropzone.style.width).toBe("100%");
-    expect(primaryDropzone.style.height).toBe("");
-    expect(primaryStageShell.style.width).toContain("* 0.5625");
+    expect(primaryDropzone.style.width).toContain("* 0.5625");
+    expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
   });
 
   it("toggles styles panel via callback and reflects aria-expanded state", () => {
@@ -3091,7 +3071,7 @@ describe("ExpertEditPanelView", () => {
     });
     const afterDropzoneWheel = readMarkupViewportTransform();
     expect(afterDropzoneWheel).not.toBeNull();
-    expect(afterDropzoneWheel?.viewport).toHaveClass("edit-expert-primary-stage-shell");
+    expect(afterDropzoneWheel?.viewport).toHaveClass("edit-expert-markup-viewport");
     expect(afterDropzoneWheel?.scale ?? 0).toBeGreaterThan(1);
 
     const primaryColumn = container.querySelector(".edit-expert-primary-column");
@@ -3107,7 +3087,7 @@ describe("ExpertEditPanelView", () => {
     });
     const afterBackdropZoom = readMarkupViewportTransform();
     expect(afterBackdropZoom).not.toBeNull();
-    expect(afterBackdropZoom?.viewport).toHaveClass("edit-expert-primary-stage-shell");
+    expect(afterBackdropZoom?.viewport).toHaveClass("edit-expert-markup-viewport");
     expect(afterBackdropZoom?.scale ?? 0).toBeGreaterThan(afterDropzoneWheel?.scale ?? 0);
 
     const markupPanel = screen.getByRole("group", { name: /markup tools/i });

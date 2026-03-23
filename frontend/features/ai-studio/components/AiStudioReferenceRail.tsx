@@ -5,12 +5,12 @@
 import React from "react";
 import { ReferenceGrid } from "./ReferenceGrid";
 import type { ToolId } from "../types";
-import type { ReferenceGridProps } from "./ReferenceGrid";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
+import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
 type AiStudioReferenceRailProps = {
-  referenceGridProps: ReferenceGridProps;
+  referenceGridProps: AiStudioReferenceGridContract;
   railCanvasProps?: CanvasPropertiesPanelProps;
   onDropFiles: (files: FileList) => void;
   onTriggerFilePicker: () => void;

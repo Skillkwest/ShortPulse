@@ -112,11 +112,13 @@ const applyAdaptivePreviewTransform = ({
   targetLongEdgePx,
   qualityBand,
   mediaKindHint,
+  surface,
 }: {
   url: string;
   targetLongEdgePx: number;
   qualityBand: ReferenceGridPreviewQualityBand;
   mediaKindHint: ReferenceGridMediaKindHint;
+  surface: AdaptiveSurface;
 }): string => {
   const parsedCandidate = parseTransformCandidateUrl(url);
   if (!parsedCandidate) {
@@ -134,8 +136,11 @@ const applyAdaptivePreviewTransform = ({
   if (isSupabaseStorageUrl(parsed)) {
     if (!hasImageSignal) return url;
     if (!isRenderImagePath) {
-      // Signed/object URLs often ignore width/quality params; force Next optimizer for reliable
-      // downsampling and compression in the reference grid.
+      // Favor direct signed-object delivery in right-rail grid surfaces so freshly inserted
+      // references paint from the already-known URL instead of paying an extra optimizer hop.
+      if (surface === "reference-grid" || surface === "quick-slot") {
+        return url;
+      }
       return toNextImageOptimizedUrl({
         sourceUrl: url,
         targetLongEdgePx,
@@ -243,6 +248,7 @@ const resolveReferenceCardUrlsLegacy = (
             qualityBand,
             targetLongEdgePx,
             mediaKindHint,
+            surface: options?.surface ?? "reference-grid",
           })
         : resolvedPreviewUrl;
     return {
@@ -261,6 +267,7 @@ const resolveReferenceCardUrlsLegacy = (
           qualityBand,
           targetLongEdgePx,
           mediaKindHint,
+          surface: options?.surface ?? "reference-grid",
         })
       : resolvedPreviewUrl;
 

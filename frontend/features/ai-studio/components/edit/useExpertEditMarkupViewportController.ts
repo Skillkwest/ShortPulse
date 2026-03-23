@@ -52,8 +52,16 @@ type UseExpertEditMarkupViewportControllerResult = {
   endMarkupPanGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   endMarkupPanGestureOnLeave: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   handleMarkupViewportWheel: (
-    event: React.WheelEvent<HTMLDivElement>,
+    event: Pick<
+      React.WheelEvent<HTMLDivElement>,
+      "clientX" | "clientY" | "currentTarget" | "deltaY" | "preventDefault"
+    >,
     scope: ExpertEditStageScope
+  ) => void;
+  handleNativeMarkupViewportWheel: (
+    event: WheelEvent,
+    scope: ExpertEditStageScope,
+    currentTarget: HTMLDivElement
   ) => void;
 };
 
@@ -241,21 +249,35 @@ export const useExpertEditMarkupViewportController = ({
     [clearMarkupPanGestureState, markupPanPointerSessionRef]
   );
 
-  const handleMarkupViewportWheel = React.useCallback(
-    (event: React.WheelEvent<HTMLDivElement>, scope: ExpertEditStageScope) => {
-      if (!shouldApplyMarkupViewport) return;
+  const applyMarkupViewportWheel = React.useCallback(
+    ({
+      clientX,
+      clientY,
+      deltaY,
+      scope,
+      currentTarget,
+      preventDefault,
+    }: {
+      clientX: number;
+      clientY: number;
+      deltaY: number;
+      scope: ExpertEditStageScope;
+      currentTarget: HTMLDivElement;
+      preventDefault: () => void;
+    }) => {
+      if (!shouldApplyMarkupViewport) return false;
       const stageRect = resolveStageRect
-        ? resolveStageRect(scope, event.currentTarget)
-        : event.currentTarget.getBoundingClientRect();
-      if (!stageRect) return;
-      if (stageRect.width <= 0 || stageRect.height <= 0) return;
-      event.preventDefault();
+        ? resolveStageRect(scope, currentTarget)
+        : currentTarget.getBoundingClientRect();
+      if (!stageRect) return false;
+      if (stageRect.width <= 0 || stageRect.height <= 0) return false;
+      preventDefault();
       const stageSize = syncViewportSizeByScope(scope, stageRect);
-      const pointerX = event.clientX - stageRect.left;
-      const pointerY = event.clientY - stageRect.top;
+      const pointerX = clientX - stageRect.left;
+      const pointerY = clientY - stageRect.top;
       const centerX = stageRect.width / 2;
       const centerY = stageRect.height / 2;
-      const zoomMultiplier = Math.exp(-event.deltaY * MARKUP_VIEWPORT_ZOOM_INTENSITY);
+      const zoomMultiplier = Math.exp(-deltaY * MARKUP_VIEWPORT_ZOOM_INTENSITY);
       setMarkupViewport((previous) => {
         const nextScale = clampMarkupViewportScale(previous.scale * zoomMultiplier);
         if (Math.abs(nextScale - previous.scale) <= MARKUP_VIEWPORT_EPSILON) {
@@ -274,8 +296,47 @@ export const useExpertEditMarkupViewportController = ({
           offsetYRatio: nextOffsetY / stageSize.height,
         };
       });
+      return true;
     },
     [resolveStageRect, setMarkupViewport, shouldApplyMarkupViewport, syncViewportSizeByScope]
+  );
+
+  const handleMarkupViewportWheel = React.useCallback(
+    (
+      event: Pick<
+        React.WheelEvent<HTMLDivElement>,
+        "clientX" | "clientY" | "currentTarget" | "deltaY" | "preventDefault"
+      >,
+      scope: ExpertEditStageScope
+    ) => {
+      applyMarkupViewportWheel({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        deltaY: event.deltaY,
+        scope,
+        currentTarget: event.currentTarget,
+        preventDefault: () => {
+          event.preventDefault();
+        },
+      });
+    },
+    [applyMarkupViewportWheel]
+  );
+
+  const handleNativeMarkupViewportWheel = React.useCallback(
+    (event: WheelEvent, scope: ExpertEditStageScope, currentTarget: HTMLDivElement) => {
+      applyMarkupViewportWheel({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        deltaY: event.deltaY,
+        scope,
+        currentTarget,
+        preventDefault: () => {
+          event.preventDefault();
+        },
+      });
+    },
+    [applyMarkupViewportWheel]
   );
 
   return {
@@ -287,5 +348,6 @@ export const useExpertEditMarkupViewportController = ({
     endMarkupPanGesture,
     endMarkupPanGestureOnLeave,
     handleMarkupViewportWheel,
+    handleNativeMarkupViewportWheel,
   };
 };

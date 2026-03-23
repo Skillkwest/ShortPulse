@@ -8,11 +8,13 @@ import {
   readErrorCode,
 } from "./errorGuards";
 import {
+  markGenerationReservationSubmitted,
   captureGenerationReservationByProviderRequest,
   releaseGenerationReservationByProviderRequest,
 } from "./reservationRpcAdapter";
 import { resolveCaptureSettlementPolicy } from "./settlementPolicy";
 import type {
+  ChargeSubmitLinkResult,
   FailedGenerationSettlementOptions,
   FailedGenerationSettlementResult,
   GenerationSettlementOptions,
@@ -102,10 +104,26 @@ export const attachProviderRequestToCharge = async ({
   sourceRef: string;
   providerRequestId: string;
   metadataExtra?: JsonObject;
-}) => {
-  if (!providerRequestId) return;
+}): Promise<ChargeSubmitLinkResult> => {
+  if (!providerRequestId) {
+    return {
+      ok: false,
+      status: "missing_provider_request_id",
+      sourceRef,
+      message: "provider_request_id is required",
+      code: null,
+    };
+  }
   const existing = await lookupChargeBySourceRef(userId, sourceRef);
-  if (!existing) return;
+  if (!existing) {
+    return {
+      ok: false,
+      status: "charge_not_found",
+      sourceRef,
+      message: "charge_not_found",
+      code: null,
+    };
+  }
 
   const nextMetadata = {
     ...readJsonObject(existing.metadata),
@@ -120,10 +138,115 @@ export const attachProviderRequestToCharge = async ({
       .eq("id", existing.id);
     if (error && !isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
       console.error("[generationBilling] attachProviderRequestToCharge failed", error.message);
+      return {
+        ok: false,
+        status: "charge_update_failed",
+        sourceRef: existing.source_ref ?? sourceRef,
+        message: error.message ?? "charge_update_failed",
+        code: readErrorCode(error),
+      };
     }
+    return {
+      ok: true,
+      status: "attached",
+      sourceRef: existing.source_ref ?? sourceRef,
+      message: null,
+      code: null,
+    };
   } catch (error) {
     console.error("[generationBilling] attachProviderRequestToCharge threw", String(error));
+    return {
+      ok: false,
+      status: "charge_update_failed",
+      sourceRef: existing.source_ref ?? sourceRef,
+      message: String(error),
+      code: null,
+    };
   }
+};
+
+const lookupGenerationSourceRefByProviderRequest = async ({
+  userId,
+  providerRequestId,
+}: {
+  userId: string;
+  providerRequestId: string;
+}): Promise<{ generationId: string | null; sourceRef: string | null }> => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from("ai_generations")
+      .select("id, metadata")
+      .eq("user_id", userId)
+      .eq("request_id", providerRequestId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error(
+        "[generationBilling] lookupGenerationSourceRefByProviderRequest failed",
+        error.message
+      );
+      return { generationId: null, sourceRef: null };
+    }
+    const row = readObject(data);
+    const metadata = readJsonObject(row.metadata);
+    return {
+      generationId: asString(row.id) ?? null,
+      sourceRef: asString(metadata.source_ref) ?? null,
+    };
+  } catch (error) {
+    console.error(
+      "[generationBilling] lookupGenerationSourceRefByProviderRequest threw",
+      String(error)
+    );
+    return { generationId: null, sourceRef: null };
+  }
+};
+
+const maybeRepairReservationLinkage = async ({
+  userId,
+  providerRequestId,
+  routeLabel,
+  detail,
+}: {
+  userId: string;
+  providerRequestId: string;
+  routeLabel: string;
+  detail: JsonObject;
+}): Promise<boolean> => {
+  const generationLink = await lookupGenerationSourceRefByProviderRequest({
+    userId,
+    providerRequestId,
+  });
+  if (!generationLink.sourceRef) return false;
+
+  const repaired = await markGenerationReservationSubmitted({
+    userId,
+    sourceRef: generationLink.sourceRef,
+    providerRequestId,
+    metadata: {
+      route: routeLabel,
+      provider_request_id: providerRequestId,
+      repaired_at: new Date().toISOString(),
+      repair_source: "settlement_fallback",
+      generation_id: generationLink.generationId,
+      ...detail,
+    },
+  });
+
+  if (repaired.status === "reserved" || repaired.status === "already_reserved") {
+    return true;
+  }
+
+  console.error("[generationBilling] reservation linkage repair failed", {
+    providerRequestId,
+    routeLabel,
+    sourceRef: generationLink.sourceRef,
+    status: repaired.status,
+    message: repaired.message ?? null,
+  });
+  return false;
 };
 
 const refundChargeRow = async ({
@@ -219,18 +342,40 @@ export const settleGenerationOutcome = async ({
   }
 
   if (outcome === "success") {
-    const captureResult = await captureGenerationReservationByProviderRequest({
+    const metadata = {
+      route: routeLabel,
+      provider_request_id: providerRequestId,
+      captured_at: new Date().toISOString(),
+      ...detail,
+    };
+    let captureResult = await captureGenerationReservationByProviderRequest({
       userId,
       providerRequestId,
       reason,
-      metadata: {
-        route: routeLabel,
-        provider_request_id: providerRequestId,
-        captured_at: new Date().toISOString(),
-        ...detail,
-      },
+      metadata,
     });
-    const capturePolicy = resolveCaptureSettlementPolicy(captureResult.status);
+    let capturePolicy = resolveCaptureSettlementPolicy(captureResult.status);
+    if (
+      !capturePolicy.settled &&
+      capturePolicy.allowLegacyFallback &&
+      captureResult.status === "not_found"
+    ) {
+      const repaired = await maybeRepairReservationLinkage({
+        userId,
+        providerRequestId,
+        routeLabel,
+        detail,
+      });
+      if (repaired) {
+        captureResult = await captureGenerationReservationByProviderRequest({
+          userId,
+          providerRequestId,
+          reason,
+          metadata,
+        });
+        capturePolicy = resolveCaptureSettlementPolicy(captureResult.status);
+      }
+    }
     if (capturePolicy.settled) {
       return {
         settled: true,
@@ -262,17 +407,34 @@ export const settleGenerationOutcome = async ({
     });
   }
 
-  const releaseResult = await releaseGenerationReservationByProviderRequest({
+  const metadata = {
+    route: routeLabel,
+    provider_request_id: providerRequestId,
+    settled_at: new Date().toISOString(),
+    ...detail,
+  };
+  let releaseResult = await releaseGenerationReservationByProviderRequest({
     userId,
     providerRequestId,
     reason,
-    metadata: {
-      route: routeLabel,
-      provider_request_id: providerRequestId,
-      settled_at: new Date().toISOString(),
-      ...detail,
-    },
+    metadata,
   });
+  if (releaseResult.status === "not_found") {
+    const repaired = await maybeRepairReservationLinkage({
+      userId,
+      providerRequestId,
+      routeLabel,
+      detail,
+    });
+    if (repaired) {
+      releaseResult = await releaseGenerationReservationByProviderRequest({
+        userId,
+        providerRequestId,
+        reason,
+        metadata,
+      });
+    }
+  }
   if (releaseResult.status === "released" || releaseResult.status === "already_released") {
     return {
       settled: true,

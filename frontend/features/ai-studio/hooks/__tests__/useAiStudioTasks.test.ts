@@ -173,6 +173,61 @@ describe("useAiStudioTasks", () => {
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
   });
 
+  it("defers status polling while the tab is hidden and resumes when visible", async () => {
+    const visibilityStateSpy = vi.spyOn(document, "visibilityState", "get");
+    try {
+      visibilityStateSpy.mockReturnValue("hidden");
+      fetchFalStatusMock.mockResolvedValueOnce({
+        status: "completed",
+        data: { images: [{ url: "https://cdn.test/hidden-visible.png" }] },
+      });
+
+      let output = makeOutput();
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const notifyGenerationFailure = vi.fn();
+      const onGenerationSuccess = vi.fn();
+
+      const { result } = renderHook(() =>
+        useAiStudioTasks({
+          updateOutputById,
+          notifyGenerationFailure,
+          onGenerationSuccess,
+        })
+      );
+
+      act(() => {
+        result.current.startPollingTask("task-hidden-tab", "out-1", 0, "fal");
+      });
+
+      await vi.advanceTimersByTimeAsync(14_500);
+      expect(fetchFalStatusMock).not.toHaveBeenCalled();
+
+      visibilityStateSpy.mockReturnValue("visible");
+      await vi.advanceTimersByTimeAsync(4_000);
+      await flushQueuedOutputUpdates();
+
+      expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+      expect(onGenerationSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputId: "out-1",
+          taskId: "task-hidden-tab",
+          provider: "fal",
+          resultUrls: ["https://cdn.test/hidden-visible.png"],
+        })
+      );
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+      expect(output.taskState).toBe("success");
+    } finally {
+      visibilityStateSpy.mockRestore();
+    }
+  });
+
   it("surfaces provider detail array messages (file_download_error) as primary failure text", async () => {
     fetchFalStatusMock.mockImplementationOnce(async () =>
       asFalStatusResponse({

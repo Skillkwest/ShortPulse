@@ -2,7 +2,10 @@
  * Unit tests for Expert Edit cursor builders used by inpaint/markup tools.
  */
 import { describe, expect, it } from "vitest";
-import { buildInpaintBrushReticleCursor } from "../expertEditCursorUtils";
+import {
+  buildInpaintBrushReticleCursor,
+  buildMarkupBrushReticleCursor,
+} from "../expertEditCursorUtils";
 
 const decodeCursorSvg = (cursor: string) => {
   const match = cursor.match(/data:image\/svg\+xml,([^"]+)/);
@@ -31,5 +34,16 @@ describe("expertEditCursorUtils", () => {
       readSvgWidth(decodeCursorSvg(baseline)),
       4
     );
+  });
+
+  it("scales markup brush reticle with render zoom", () => {
+    const cursorAt100 = buildMarkupBrushReticleCursor(24, 96, 1);
+    const cursorAt200 = buildMarkupBrushReticleCursor(24, 96, 2);
+    const cursorAt50 = buildMarkupBrushReticleCursor(24, 96, 0.5);
+    const widthAt100 = readSvgWidth(decodeCursorSvg(cursorAt100));
+    const widthAt200 = readSvgWidth(decodeCursorSvg(cursorAt200));
+    const widthAt50 = readSvgWidth(decodeCursorSvg(cursorAt50));
+    expect(widthAt200).toBeGreaterThan(widthAt100);
+    expect(widthAt50).toBeLessThan(widthAt100);
   });
 });

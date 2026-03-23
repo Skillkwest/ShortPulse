@@ -788,4 +788,85 @@ describe("useInpaintMaskController hook", () => {
     });
     expect(exportContainDrawCallFound).toBe(true);
   });
+
+  it("honors wrapper-authoritative viewport offset pixels when painting on the inline dropzone", async () => {
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 200;
+      naturalHeight = 100;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    try {
+      const dropzoneRef = createDropzoneRef();
+      const dropzoneElement = dropzoneRef.current as HTMLDivElement & {
+        setPointerCapture?: (pointerId: number) => void;
+      };
+      dropzoneElement.setPointerCapture = vi.fn();
+
+      const { result } = renderHook(() =>
+        useInpaintMaskController({
+          dropzoneRef,
+          selectedLayerId: "layer-a",
+          selectedLayerImageUrl: "https://example.com/layer-a.png",
+          layerSources: [{ id: "layer-a", imageUrl: "https://example.com/layer-a.png" }],
+          enabled: true,
+          sceneScale: 2,
+          shouldApplyViewportTransform: true,
+          viewportOffsetXRatio: 0.25,
+          viewportOffsetYRatio: 0,
+          resolveViewportOffsetPixels: () => ({
+            offsetX: 60,
+            offsetY: 0,
+          }),
+          paintMode: "brush",
+          selectionMode: "select",
+          strokeSize: 24,
+        })
+      );
+
+      await waitFor(() => {
+        expect(result.current.imageHasInteractiveMask).toBe(true);
+      });
+
+      await act(async () => {
+        result.current.onPointerDown({
+          pointerId: 77,
+          pointerType: "mouse",
+          button: 0,
+          clientX: 130,
+          clientY: 50,
+          currentTarget: dropzoneElement,
+          preventDefault: vi.fn(),
+        } as unknown as React.PointerEvent<HTMLDivElement>);
+      });
+
+      const drawCallFound = createdCanvasContexts.some((ctx) => {
+        const arcCalls =
+          (ctx.arc as unknown as { mock?: { calls?: unknown[][] } }).mock?.calls ?? [];
+        return arcCalls.some((call) => {
+          const [x, y] = call;
+          return x === 85 && y === 50;
+        });
+      });
+
+      expect(drawCallFound).toBe(true);
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
+  });
 });

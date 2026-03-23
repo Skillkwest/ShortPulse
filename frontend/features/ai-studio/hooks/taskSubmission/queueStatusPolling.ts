@@ -17,6 +17,10 @@ export const QUEUE_STATUS_MAX_WAIT_MS = 30 * 60 * 1000;
 export const QUEUE_STATUS_NOT_FOUND_MAX_RETRIES = 8;
 export const clampQueuePollMs = (value: number) =>
   Math.max(500, Math.min(10000, Math.trunc(value)));
+const HIDDEN_TAB_QUEUE_STATUS_RETRY_MS = 10_000;
+
+const isDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
 
 type NumberMapRef = {
   current: Record<string, number>;
@@ -99,6 +103,7 @@ export const startQueuedStatusPolling = ({
   queueStatusSessionRef.current[outputId] = pollSession;
   const initialDelayMs = clampQueuePollMs(queuedResponse.pollAfterMs);
   const queueEnqueuedAtMs = Date.now();
+  let hiddenPauseMs = 0;
   let notFoundRetries = 0;
 
   updateOutputById(outputId, (item) =>
@@ -127,6 +132,16 @@ export const startQueuedStatusPolling = ({
 
   const pollQueuedStatus = async (attempt: number): Promise<void> => {
     if ((queueStatusSessionRef.current[outputId] ?? 0) !== pollSession) {
+      return;
+    }
+    if (!isDocumentVisible()) {
+      const hiddenRetryAfterMs = clampQueuePollMs(
+        Math.max(initialDelayMs, HIDDEN_TAB_QUEUE_STATUS_RETRY_MS)
+      );
+      hiddenPauseMs += hiddenRetryAfterMs;
+      queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
+        void pollQueuedStatus(attempt);
+      }, hiddenRetryAfterMs);
       return;
     }
 
@@ -171,7 +186,7 @@ export const startQueuedStatusPolling = ({
         notFoundRetries = 0;
       }
 
-      if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
+      if (Date.now() - queueEnqueuedAtMs - hiddenPauseMs >= QUEUE_STATUS_MAX_WAIT_MS) {
         clearQueueStatusPolling(outputId);
         notifyGenerationFailure(
           outputId,
@@ -186,7 +201,7 @@ export const startQueuedStatusPolling = ({
         void pollQueuedStatus(attempt + 1);
       }, retryAfterMs);
     } catch (error) {
-      if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
+      if (Date.now() - queueEnqueuedAtMs - hiddenPauseMs >= QUEUE_STATUS_MAX_WAIT_MS) {
         clearQueueStatusPolling(outputId);
         const message =
           error instanceof Error ? error.message : "Unable to read queued generation status.";

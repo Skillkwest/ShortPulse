@@ -516,8 +516,7 @@ describe("ReferenceGrid curated split", () => {
 
     vi.stubGlobal("Image", MockHydrationImage as unknown as typeof Image);
 
-    const fallbackUrl =
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/images/generated-image.png?token=raw";
+    const fallbackUrl = "/api/media/preview/generated-image.png?token=raw";
     const generatedOutput: StudioOutput = {
       id: "generated-1",
       prompt: "Generated image",
@@ -582,8 +581,7 @@ describe("ReferenceGrid curated split", () => {
 
     vi.stubGlobal("Image", MockHydrationImage as unknown as typeof Image);
 
-    const fallbackUrl =
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/images/shared-source.png?token=raw";
+    const fallbackUrl = "/api/media/preview/shared-source.png?token=raw";
     const generatedOutputOne: StudioOutput = {
       id: "generated-same-source-1",
       prompt: "Generated image 1",

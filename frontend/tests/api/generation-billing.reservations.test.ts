@@ -219,8 +219,18 @@ describe("generationBilling reservation RPC handling", () => {
     expect(charge?.sourceRef).toBe("req-ok");
     expect(charge?.billingMode).toBe("reservation");
 
-    await charge?.markSubmitted("provider-req-1", { route: "/api/fal/seedream-edit-submit" });
+    const markResult = await charge?.markSubmitted("provider-req-1", {
+      route: "/api/fal/seedream-edit-submit",
+    });
     await charge?.refund("Auto-release: test", { from: "test" });
+
+    expect(markResult).toEqual({
+      ok: true,
+      status: "reserved",
+      sourceRef: "req-ok",
+      message: null,
+      code: null,
+    });
 
     expect(rpcMock).toHaveBeenNthCalledWith(
       2,
@@ -238,6 +248,64 @@ describe("generationBilling reservation RPC handling", () => {
         p_user_id: "user-1",
         p_source_ref: "req-ok",
         p_reason: "Auto-release: test",
+      })
+    );
+  });
+
+  it("returns a failed submit-link result when reservation submit linkage cannot be recorded", async () => {
+    const rpcMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: [{ status: "reserved", source_ref: "req-link-fail", message: null }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "42704", message: "undefined object" },
+      });
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: rpcMock,
+    });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-link-fail",
+      },
+      url: "/api/fal/seedream-edit-submit",
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      payload: {
+        prompt: "cinematic portrait",
+        image_urls: ["https://example.com/ref.png"],
+      },
+      reason: "Fal Seedream edit generation",
+    });
+
+    expect(charge).not.toBeNull();
+
+    const linkResult = await charge?.markSubmitted("provider-req-link-fail", {
+      route: "/api/fal/seedream-edit-submit",
+    });
+
+    expect(linkResult).toEqual({
+      ok: false,
+      status: "failed",
+      sourceRef: "req-link-fail",
+      message: "undefined object",
+      code: "42704",
+    });
+    expect(rpcMock).toHaveBeenNthCalledWith(
+      2,
+      "mark_generation_reservation_submitted",
+      expect.objectContaining({
+        p_user_id: "user-1",
+        p_source_ref: "req-link-fail",
+        p_provider_request_id: "provider-req-link-fail",
       })
     );
   });

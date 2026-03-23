@@ -72,8 +72,14 @@ export const chargeGenerationRequest = async ({
       credits: 0,
       sourceRef,
       billingMode: "reservation",
-      markSubmitted: async () => {},
-      refund: async () => {},
+      markSubmitted: async () => ({
+        ok: true,
+        status: "skipped",
+        sourceRef,
+        message: null,
+        code: null,
+      }),
+      refund: async () => undefined,
     };
   }
 
@@ -266,7 +272,15 @@ export const chargeGenerationRequest = async ({
       );
     } else if (reserveResult.status === "reserved" || reserveResult.status === "already_reserved") {
       const markSubmitted = async (providerRequestId: string, extra: JsonObject = {}) => {
-        if (!providerRequestId) return;
+        if (!providerRequestId) {
+          return {
+            ok: false,
+            status: "missing_provider_request_id",
+            sourceRef,
+            message: "provider_request_id is required",
+            code: null,
+          };
+        }
         const status = await markGenerationReservationSubmitted({
           userId: user.id,
           sourceRef,
@@ -276,9 +290,25 @@ export const chargeGenerationRequest = async ({
             ...extra,
           },
         });
+        if (status.status === "reserved" || status.status === "already_reserved") {
+          return {
+            ok: true,
+            status: status.status,
+            sourceRef: status.sourceRef ?? sourceRef,
+            message: status.message ?? null,
+            code: status.code ?? null,
+          };
+        }
         if (status.status === "failed") {
           console.error("[generationBilling] reservation markSubmitted failed", status.message);
         }
+        return {
+          ok: false,
+          status: status.status,
+          sourceRef: status.sourceRef ?? sourceRef,
+          message: status.message ?? null,
+          code: status.code ?? null,
+        };
       };
 
       const refund = async (
@@ -388,8 +418,16 @@ export const chargeGenerationRequest = async ({
   };
 
   const markSubmitted = async (providerRequestId: string, extra: JsonObject = {}) => {
-    if (!providerRequestId) return;
-    await attachProviderRequestToCharge({
+    if (!providerRequestId) {
+      return {
+        ok: false,
+        status: "missing_provider_request_id",
+        sourceRef,
+        message: "provider_request_id is required",
+        code: null,
+      };
+    }
+    return attachProviderRequestToCharge({
       userId: user.id,
       sourceRef,
       providerRequestId,

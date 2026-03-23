@@ -701,7 +701,7 @@ export const createFalSubmitHandler = ({
             error: `${routeLabel} submit response did not include request_id`,
           });
         }
-        await charge.markSubmitted(providerRequestId, {
+        const markSubmittedResult = await charge.markSubmitted(providerRequestId, {
           route: req.url ?? null,
           upstream_status: upstream.status,
           upstream_target_url: upstreamResult.targetUrl,
@@ -736,6 +736,44 @@ export const createFalSubmitHandler = ({
           });
         } else {
           persistedGenerationId = persistenceResult.generationId ?? null;
+        }
+        if (!markSubmittedResult.ok) {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "api.fal_submit.mark_submitted_failed",
+            message: "Accepted submit could not durably link billing state to provider request.",
+            statusCode: persistenceResult.ok ? 200 : 500,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              billing_mode: charge.billingMode,
+              provider_request_id: providerRequestId,
+              source_ref: charge.sourceRef,
+              linkage_status: markSubmittedResult.status,
+              linkage_message: markSubmittedResult.message ?? null,
+              linkage_code: markSubmittedResult.code ?? null,
+              persistence_ok: persistenceResult.ok,
+              persistence_error: persistenceResult.ok ? null : persistenceResult.error,
+            },
+          });
+          if (!persistenceResult.ok && charge.billingMode === "reservation") {
+            await charge.refund("Auto-release: accepted submit could not be durably linked.", {
+              provider_request_id: providerRequestId,
+              submit_link_status: markSubmittedResult.status,
+              submit_link_message: markSubmittedResult.message ?? null,
+              submit_link_code: markSubmittedResult.code ?? null,
+              persistence_error: persistenceResult.error,
+              upstream_status: upstream.status,
+              upstream_target_url: upstreamResult.targetUrl,
+              upstream_target_index: upstreamResult.targetIndex,
+            });
+            return res.status(500).json({
+              error:
+                "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
+              code: "GENERATION_SUBMIT_TRACKING_FAILED",
+            });
+          }
         }
       }
       const responsePayload = {

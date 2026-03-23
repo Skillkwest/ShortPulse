@@ -220,6 +220,73 @@ describe("queueStatusPolling", () => {
     }
   });
 
+  it("pauses queue-status fetches while the tab is hidden and resumes when visible", async () => {
+    vi.useFakeTimers();
+    const visibilityStateSpy = vi.spyOn(document, "visibilityState", "get");
+    try {
+      visibilityStateSpy.mockReturnValue("hidden");
+      let output = createOutput("out-queued-hidden");
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      const notifyGenerationFailure = vi.fn();
+      const onDispatched = vi.fn();
+      fetchFalQueueStatusMock.mockResolvedValue({
+        status: "queued",
+        generationId: "gen-queued-hidden",
+        sourceRef: "src-queued-hidden",
+        retryAfterMs: 1000,
+      });
+
+      startQueuedStatusPolling({
+        outputId: "out-queued-hidden",
+        provider: "fal-seedream",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+        effectiveTool: "edit",
+        queuedResponse: {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-queued-hidden",
+          generationId: "gen-queued-hidden",
+          pollAfterMs: 500,
+        },
+        patch: {},
+        queueStatusTimersRef,
+        queueStatusSessionRef,
+        clearQueueStatusPolling,
+        updateOutputById,
+        notifyGenerationFailure,
+        onDispatched,
+      });
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(fetchFalQueueStatusMock).not.toHaveBeenCalled();
+
+      visibilityStateSpy.mockReturnValue("visible");
+      await vi.advanceTimersByTimeAsync(10_500);
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledWith({
+        sourceRef: "src-queued-hidden",
+        generationId: "gen-queued-hidden",
+      });
+    } finally {
+      visibilityStateSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("fails queued status polling after bounded not_found retries", async () => {
     vi.useFakeTimers();
     try {

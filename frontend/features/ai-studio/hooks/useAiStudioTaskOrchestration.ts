@@ -41,6 +41,10 @@ const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
 const QUEUE_RESUME_NOT_FOUND_MAX_RETRIES = 6;
 const QUEUE_RESUME_NOT_FOUND_MAX_AGE_MS = 90_000;
+const QUEUE_RESUME_DEFER_AFTER_ENQUEUE_MS = 3 * 60_000;
+
+const isDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
 
 const resolveQueuedResumeProvider = ({
   queueStatusProvider,
@@ -96,6 +100,14 @@ const isQueueResumeEligible = (output: StudioOutput): boolean => {
   );
 };
 
+const shouldDeferQueueResumeToSubmitPolling = (output: StudioOutput, nowMs: number): boolean => {
+  if (output.queueState !== "queued") return false;
+  if (typeof output.queueEnqueuedAtMs !== "number" || !Number.isFinite(output.queueEnqueuedAtMs)) {
+    return false;
+  }
+  return nowMs - Math.trunc(output.queueEnqueuedAtMs) < QUEUE_RESUME_DEFER_AFTER_ENQUEUE_MS;
+};
+
 /**
  * Returns task submission and polling handlers used by AI Studio state orchestration.
  */
@@ -107,10 +119,15 @@ export const useAiStudioTaskOrchestration = ({
 }: UseAiStudioTaskOrchestrationParams) => {
   const { updateOutputById, notifyGenerationFailure, setUiNotice, setOutputs } =
     taskSubmissionConfig;
+  const outputsRef = useRef<StudioOutput[]>(outputs);
   const stuckSpinnerRetryStateRef = useRef<Record<string, StuckSpinnerRetryState>>({});
   const queueResumeInFlightRef = useRef<Record<string, boolean>>({});
   const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
   const queueResumeNotFoundStateRef = useRef<Record<string, QueueResumeNotFoundState>>({});
+
+  useEffect(() => {
+    outputsRef.current = outputs;
+  }, [outputs]);
 
   const handlePollingOutputLookupHardStop = useCallback(
     async (payload: {
@@ -214,12 +231,15 @@ export const useAiStudioTaskOrchestration = ({
   );
 
   const runQueuedOutputResumeWatchdog = useCallback(() => {
+    if (!isDocumentVisible()) return;
     const now = Date.now();
     const activeQueuedIds = new Set<string>();
+    const outputsSnapshot = outputsRef.current;
 
     let inFlightCount = Object.values(queueResumeInFlightRef.current).filter(Boolean).length;
-    outputs.forEach((output) => {
+    outputsSnapshot.forEach((output) => {
       if (!isQueueResumeEligible(output)) return;
+      if (shouldDeferQueueResumeToSubmitPolling(output, now)) return;
       activeQueuedIds.add(output.id);
       if (inFlightCount >= QUEUE_RESUME_MAX_CONCURRENT) return;
       if (queueResumeInFlightRef.current[output.id]) return;
@@ -305,63 +325,55 @@ export const useAiStudioTaskOrchestration = ({
         delete queueResumeNotFoundStateRef.current[outputId];
       }
     });
-  }, [
-    clearPollTimer,
-    findOutputById,
-    notifyGenerationFailure,
-    outputs,
-    startPollingTask,
-    updateOutputById,
-  ]);
+  }, [clearPollTimer, findOutputById, notifyGenerationFailure, startPollingTask, updateOutputById]);
+
+  const runStuckSpinnerWatchdog = useCallback(() => {
+    if (!isDocumentVisible()) return;
+    const now = Date.now();
+    const activeEligibleIds = new Set<string>();
+    const outputsSnapshot = outputsRef.current;
+
+    outputsSnapshot.forEach((output) => {
+      if (!isAutoRetryEligible(output)) return;
+      activeEligibleIds.add(output.id);
+
+      const existing = stuckSpinnerRetryStateRef.current[output.id];
+      if (!existing) {
+        stuckSpinnerRetryStateRef.current[output.id] = {
+          firstSeenAtMs: now,
+          lastRetryAtMs: 0,
+          retries: 0,
+        };
+        return;
+      }
+
+      if (pollTimersRef.current[output.id]) return;
+      if (existing.retries >= STUCK_SPINNER_MAX_AUTO_RETRIES) return;
+
+      const ageMs = now - existing.firstSeenAtMs;
+      if (ageMs < STUCK_SPINNER_RETRY_AGE_MS) return;
+      if (existing.lastRetryAtMs > 0 && now - existing.lastRetryAtMs < STUCK_SPINNER_RETRY_AGE_MS) {
+        return;
+      }
+
+      existing.retries += 1;
+      existing.lastRetryAtMs = now;
+      retryOutputStatus(output.id);
+    });
+
+    Object.keys(stuckSpinnerRetryStateRef.current).forEach((outputId) => {
+      if (!activeEligibleIds.has(outputId)) {
+        delete stuckSpinnerRetryStateRef.current[outputId];
+      }
+    });
+  }, [pollTimersRef, retryOutputStatus]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const runStuckSpinnerWatchdog = () => {
-      const now = Date.now();
-      const activeEligibleIds = new Set<string>();
-
-      outputs.forEach((output) => {
-        if (!isAutoRetryEligible(output)) return;
-        activeEligibleIds.add(output.id);
-
-        const existing = stuckSpinnerRetryStateRef.current[output.id];
-        if (!existing) {
-          stuckSpinnerRetryStateRef.current[output.id] = {
-            firstSeenAtMs: now,
-            lastRetryAtMs: 0,
-            retries: 0,
-          };
-          return;
-        }
-
-        if (pollTimersRef.current[output.id]) return;
-        if (existing.retries >= STUCK_SPINNER_MAX_AUTO_RETRIES) return;
-
-        const ageMs = now - existing.firstSeenAtMs;
-        if (ageMs < STUCK_SPINNER_RETRY_AGE_MS) return;
-        if (
-          existing.lastRetryAtMs > 0 &&
-          now - existing.lastRetryAtMs < STUCK_SPINNER_RETRY_AGE_MS
-        ) {
-          return;
-        }
-
-        existing.retries += 1;
-        existing.lastRetryAtMs = now;
-        retryOutputStatus(output.id);
-      });
-
-      Object.keys(stuckSpinnerRetryStateRef.current).forEach((outputId) => {
-        if (!activeEligibleIds.has(outputId)) {
-          delete stuckSpinnerRetryStateRef.current[outputId];
-        }
-      });
-    };
-
     runStuckSpinnerWatchdog();
     const intervalId = window.setInterval(runStuckSpinnerWatchdog, STUCK_SPINNER_RETRY_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [outputs, pollTimersRef, retryOutputStatus]);
+  }, [runStuckSpinnerWatchdog]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

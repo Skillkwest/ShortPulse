@@ -86,7 +86,10 @@ export const useReferenceGridCuratedDndController = ({
     ) => {
       if (payload.kind === "libraryMedia") {
         void (async () => {
-          const insertedId = await onAddLibraryMediaReferenceToQuickSlot?.(payload.payload, options);
+          const insertedId = await onAddLibraryMediaReferenceToQuickSlot?.(
+            payload.payload,
+            options
+          );
           if (insertedId) {
             onSelectOutput(insertedId);
           }
@@ -102,11 +105,7 @@ export const useReferenceGridCuratedDndController = ({
       }
       return false;
     },
-    [
-      onAddLibraryMediaReferenceToQuickSlot,
-      onAddLibraryPromptReferenceToQuickSlot,
-      onSelectOutput,
-    ]
+    [onAddLibraryMediaReferenceToQuickSlot, onAddLibraryPromptReferenceToQuickSlot, onSelectOutput]
   );
 
   const handleCuratedSectionDrop = useCallback(
@@ -144,6 +143,7 @@ export const useReferenceGridCuratedDndController = ({
     [
       curatedDragDepthRef,
       curatedReferenceIds,
+      handleLibraryQuickSlotDrop,
       isCuratedSplitEnabled,
       onAddCuratedReference,
       onReorderCuratedReference,

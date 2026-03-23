@@ -9,7 +9,6 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { ToolId } from "../../types";
 
 type VirtualMetricsState = {
   scrollTop: number;
@@ -20,7 +19,7 @@ type VirtualMetricsState = {
 
 type UseReferenceGridVirtualMetricsControllerArgs = {
   isCuratedSplitEnabled: boolean;
-  selectedTool: ToolId | null;
+  isWideLayout: boolean;
   outputsLength: number;
   curatedOutputsLength: number;
   scrollContainerRef: MutableRefObject<HTMLDivElement | null>;
@@ -45,7 +44,7 @@ type UseReferenceGridVirtualMetricsControllerArgs = {
  */
 export const useReferenceGridVirtualMetricsController = ({
   isCuratedSplitEnabled,
-  selectedTool,
+  isWideLayout,
   outputsLength,
   curatedOutputsLength,
   scrollContainerRef,
@@ -69,17 +68,17 @@ export const useReferenceGridVirtualMetricsController = ({
       setMetrics: Dispatch<SetStateAction<VirtualMetricsState>>;
     }) => {
       if (!scrollNode || !gridNode) return;
-      const defaultRequestedMaxColumns = selectedTool
-        ? config.referenceGridMaxColumns
-        : config.referenceGridMaxColumnsWide;
+      const defaultRequestedMaxColumns = isWideLayout
+        ? config.referenceGridMaxColumnsWide
+        : config.referenceGridMaxColumns;
       const requestedMaxColumns =
         surface === "curated"
           ? Math.min(config.quickSlotInventoryMaxColumns, config.referenceGridMaxColumnsWide)
           : defaultRequestedMaxColumns;
       const maxColumns = Math.max(config.referenceGridMinColumns, Math.floor(requestedMaxColumns));
-      const minCardWidth = selectedTool
-        ? config.referenceGridMinCardPx
-        : config.referenceGridMinCardPxWide;
+      const minCardWidth = isWideLayout
+        ? config.referenceGridMinCardPxWide
+        : config.referenceGridMinCardPx;
       const style = window.getComputedStyle(gridNode);
       const rowGap = Number.parseFloat(style.rowGap || style.gap || "0");
       const gap = Number.isFinite(rowGap) ? rowGap : 3;
@@ -119,7 +118,7 @@ export const useReferenceGridVirtualMetricsController = ({
       config.referenceGridMinCardPx,
       config.referenceGridMinCardPxWide,
       config.referenceGridMinColumns,
-      selectedTool,
+      isWideLayout,
     ]
   );
 
@@ -152,6 +151,11 @@ export const useReferenceGridVirtualMetricsController = ({
     if (typeof window === "undefined") return;
     syncVirtualMetrics();
     syncCuratedVirtualMetrics();
+  }, [curatedOutputsLength, outputsLength, syncCuratedVirtualMetrics, syncVirtualMetrics]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Keep observer lifetime tied to surface/layout identity rather than output-count churn.
     const scrollNode = scrollContainerRef.current;
     const gridNode = gridRef.current;
     const curatedScrollNode = curatedScrollContainerRef.current;
@@ -181,13 +185,10 @@ export const useReferenceGridVirtualMetricsController = ({
     };
   }, [
     curatedGridRef,
-    curatedOutputsLength,
     curatedScrollContainerRef,
     gridRef,
     isCuratedSplitEnabled,
-    outputsLength,
     scrollContainerRef,
-    selectedTool,
     syncCuratedVirtualMetrics,
     syncVirtualMetrics,
   ]);

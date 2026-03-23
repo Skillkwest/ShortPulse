@@ -27,7 +27,7 @@ export type AiStudioPanelContracts = {
   propertiesText: AiStudioCreatePanelContract;
 };
 
-export type AiStudioReferenceGridContract = ReferenceGridProps;
+export type AiStudioReferenceGridContract = Omit<ReferenceGridProps, "selectedTool">;
 type StudioPreviewContractProps = ComponentProps<typeof StudioPreview>;
 
 export type AiStudioPreviewDetailContracts = {

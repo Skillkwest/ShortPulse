@@ -10,8 +10,6 @@ import {
   type SetStateAction,
 } from "react";
 import type { StudioOutput } from "../../types";
-import { resolveReferenceCardUrls } from "../../logic/referenceGridMedia";
-import { isOutputVideoPreview } from "../logic/referenceGridMediaHelpers";
 
 const areIdListsEqual = (left: string[], right: string[]) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
@@ -46,8 +44,6 @@ export const useReferenceGridAutoplaySelectionController = ({
   activeOutputId,
   suspendAutoplaySelection = false,
   outputs,
-  virtualRowHeight,
-  strictPreviewLadder,
   videoAttachBudget,
   perfDegradeLevel,
   runNonUrgentUpdate,
@@ -70,16 +66,7 @@ export const useReferenceGridAutoplaySelectionController = ({
       }
     });
     const visibleVideoIds = outputs
-      .filter((output) => {
-        const resolvedPreview = resolveReferenceCardUrls(output, {
-          strictPreviewLadder,
-          surface: "reference-grid",
-          cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
-          devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-        }).previewUrl;
-        if (!resolvedPreview || !isOutputVideoPreview(output, resolvedPreview)) return false;
-        return visibleOutputIdSet.has(output.id);
-      })
+      .filter((output) => output.mode === "video" && visibleOutputIdSet.has(output.id))
       .map((output) => output.id);
     const prioritizedVideoIds =
       activeOutputId && visibleVideoIds.includes(activeOutputId)
@@ -101,12 +88,10 @@ export const useReferenceGridAutoplaySelectionController = ({
     perfDegradeLevel,
     runNonUrgentUpdate,
     setAutoplayEnabledIds,
-    strictPreviewLadder,
     suspendAutoplaySelection,
     videoAttachBudget,
     videoOutputIdByKeyRef,
     videoVisibleKeySetRef,
-    virtualRowHeight,
   ]);
 
   useEffect(() => {

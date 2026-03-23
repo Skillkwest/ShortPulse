@@ -104,4 +104,63 @@ describe("useReferenceGridVideoLifecycleController", () => {
 
     expect(recomputeAutoplayBudget).toHaveBeenCalled();
   });
+
+  it("detaches tracked video nodes on hook cleanup", () => {
+    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+
+    const autoplayingIdsRef = { current: new Set<string>() };
+    const videoVisibleKeySetRef = { current: new Set<string>() };
+    const videoOutputIdByKeyRef = { current: new Map<string, string>() };
+    const videoNodeByKeyRef = { current: new Map<string, HTMLVideoElement>() };
+    const videoDetachTimeoutByKeyRef = { current: new Map<string, number>() };
+    const videoIntersectionObserverBySurfaceRef = {
+      current: new Map<"all-refs" | "curated", IntersectionObserver>(),
+    };
+    const scrollContainerRef = {
+      current: document.createElement("div"),
+    } as React.MutableRefObject<HTMLDivElement | null>;
+    const curatedScrollContainerRef = {
+      current: null,
+    } as React.MutableRefObject<HTMLDivElement | null>;
+
+    const { result, unmount } = renderHook(() =>
+      useReferenceGridVideoLifecycleController({
+        activeOutputId: null,
+        outputs: [createVideoOutput("video-1")],
+        shouldVirtualize: false,
+        renderedOutputIdSet: new Set(),
+        autoplayEnabledIds: [],
+        autoplayEnabledIdSet: new Set(),
+        isCuratedSplitEnabled: false,
+        scrollContainerRef,
+        curatedScrollContainerRef,
+        autoplayingIdsRef,
+        videoVisibleKeySetRef,
+        videoOutputIdByKeyRef,
+        videoNodeByKeyRef,
+        videoDetachTimeoutByKeyRef,
+        videoIntersectionObserverBySurfaceRef,
+        autoplayDetachDelayMs: 100,
+        autoplayVisibilityThreshold: 0.6,
+        recomputeAutoplayBudget: vi.fn(),
+      })
+    );
+
+    const node = document.createElement("video");
+    const pauseSpy = vi.spyOn(node, "pause").mockImplementation(() => undefined);
+    const loadSpy = vi.spyOn(node, "load").mockImplementation(() => undefined);
+    const removeAttributeSpy = vi.spyOn(node, "removeAttribute");
+    node.setAttribute("src", "https://cdn.example.com/video.mp4");
+
+    act(() => {
+      result.current.registerVideoNode("video-key", "video-1", node);
+    });
+
+    unmount();
+
+    expect(pauseSpy).toHaveBeenCalled();
+    expect(removeAttributeSpy).toHaveBeenCalledWith("src");
+    expect(loadSpy).toHaveBeenCalled();
+    expect(videoNodeByKeyRef.current.size).toBe(0);
+  });
 });

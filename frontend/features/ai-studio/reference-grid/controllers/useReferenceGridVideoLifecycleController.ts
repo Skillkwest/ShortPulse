@@ -268,13 +268,18 @@ export const useReferenceGridVideoLifecycleController = ({
 
   useEffect(() => {
     const detachTimeoutById = videoDetachTimeoutByKeyRef.current;
+    const videoNodeByKey = videoNodeByKeyRef.current;
     return () => {
       detachTimeoutById.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
       detachTimeoutById.clear();
+      videoNodeByKey.forEach((node) => {
+        detachVideoNodeMedia(node);
+      });
+      videoNodeByKey.clear();
     };
-  }, [videoDetachTimeoutByKeyRef]);
+  }, [detachVideoNodeMedia, videoDetachTimeoutByKeyRef, videoNodeByKeyRef]);
 
   return {
     registerVideoNode,

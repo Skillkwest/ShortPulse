@@ -186,6 +186,7 @@ Start here for all repository documentation.
 - `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
 - `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
 - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
+- `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
 - `docs/planning/media-rendering-hardening-v2-master-plan-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-execution-tracker-2026-03-16.md`
@@ -391,6 +392,7 @@ Start here for all repository documentation.
 - `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
 - `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
 - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
+- `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
 
 ## Archive
 - `docs/archive/README.md`

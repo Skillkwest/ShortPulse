@@ -60,3 +60,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
 - `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
 - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
+- `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`

@@ -821,6 +821,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   background: none !important;
 }
 
+.ai-studio-page:has(.ai-shell.ai-shell-performance-dense) .ai-hero.panel.ai-amber-hero {
+  backdrop-filter: none;
+}
+
 /* AI Studio main shell layout */
 .ai-shell {
   --ai-shell-divider-track-width: 16px;

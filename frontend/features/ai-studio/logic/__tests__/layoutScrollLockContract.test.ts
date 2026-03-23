@@ -36,6 +36,9 @@ describe("ai-studio layout scroll lock contract", () => {
   it("disables shell transition and sticky blur in dense performance sessions", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 
+    expect(css).toContain(
+      ".ai-studio-page:has(.ai-shell.ai-shell-performance-dense) .ai-hero.panel.ai-amber-hero"
+    );
     expect(css).toContain(".ai-shell.ai-shell-performance-dense.ai-shell-resizable");
     expect(css).toContain(
       ".ai-shell.ai-shell-performance-dense.ai-shell-resizable.ai-shell-expert-edit"

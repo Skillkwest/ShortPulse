@@ -46,7 +46,6 @@ const createDefaultFlags = () => ({
   reservationCleanupBatchSize: 200,
   admissionAtomicEnabled: false,
   queueEnabled: true,
-  queueStatusDispatchKickEnabled: true,
   queueMaxPerUser: 20,
   queueDispatchBatchSize: 25,
   queueLeaseSeconds: 30,

@@ -545,8 +545,6 @@ export function ReferenceGrid({
     activeOutputId,
     suspendAutoplaySelection: suspendBackgroundVisualWork,
     outputs,
-    virtualRowHeight: virtualMetrics.rowHeight,
-    strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
     videoAttachBudget: mediaWorkBudget.videoAttachBudget,
     perfDegradeLevel: perfWatchdog.degradeLevel,
     runNonUrgentUpdate,

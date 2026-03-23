@@ -358,6 +358,7 @@ describe("ReferenceGrid curated split", () => {
     const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
     expect(videoNode).toBeTruthy();
     expect(videoNode?.getAttribute("src")).toBe("https://example.com/imported-raf.mp4");
+    expect(videoNode?.getAttribute("preload")).toBe("metadata");
     expect(container.querySelector(".reference-spinner")).toBeTruthy();
     expect(container.querySelector(".reference-hydration-indicator")).toBeNull();
 
@@ -380,11 +381,32 @@ describe("ReferenceGrid curated split", () => {
     expect(container.querySelector(".reference-spinner")).toBeNull();
   });
 
-  it("keeps video sources attached for non-selected video cards and clears after load", async () => {
-    const { flushAllFrames } = installRafQueue();
-    const importedOutput: StudioOutput = {
+  it("keeps dormant video cards off the loading path until selected or autoplayed", () => {
+    const activeVideo: StudioOutput = {
+      id: "imported-autoplay-video-1",
+      prompt: "Autoplay video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Library",
+      mediaSource: "library",
+      previewUrl: "https://example.com/imported-autoplay.mp4",
+    };
+    const warmBudgetVideos: StudioOutput[] = Array.from({ length: 5 }, (_, index) => ({
+      id: `imported-autoplay-video-${index + 2}`,
+      prompt: `Autoplay video ${index + 2}`,
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Library",
+      mediaSource: "library",
+      previewUrl: `https://example.com/imported-autoplay-${index + 2}.mp4`,
+    }));
+    const dormantVideo: StudioOutput = {
       id: "imported-no-autoplay-video-1",
-      prompt: "Imported video",
+      prompt: "Dormant video",
       mode: "video",
       aspect: "16:9",
       model: "Upload",
@@ -396,25 +418,22 @@ describe("ReferenceGrid curated split", () => {
     const { container } = render(
       <ReferenceGrid
         {...createProps({
-          outputs: [importedOutput],
-          activeOutputId: null,
+          outputs: [activeVideo, ...warmBudgetVideos, dormantVideo],
+          activeOutputId: activeVideo.id,
         })}
       />
     );
 
-    const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
+    const cards = Array.from(container.querySelectorAll(".reference-card"));
+    expect(cards).toHaveLength(7);
+    const dormantCard = cards[cards.length - 1] as HTMLElement | undefined;
+    const videoNode = dormantCard?.querySelector(
+      ".reference-card-video"
+    ) as HTMLVideoElement | null;
     expect(videoNode).toBeTruthy();
     expect(videoNode?.getAttribute("src")).toBe("https://example.com/imported-no-autoplay.mp4");
-    expect(container.querySelector(".reference-spinner")).toBeTruthy();
-
-    act(() => {
-      fireEvent.loadedData(videoNode as HTMLVideoElement);
-    });
-    act(() => {
-      flushAllFrames();
-    });
-
-    expect(container.querySelector(".reference-spinner")).toBeNull();
+    expect(videoNode?.getAttribute("preload")).toBe("none");
+    expect(dormantCard?.querySelector(".reference-spinner")).toBeNull();
   });
 
   it("keeps overflow loading spinners animated", () => {

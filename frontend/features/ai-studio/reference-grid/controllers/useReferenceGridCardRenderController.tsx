@@ -101,12 +101,21 @@ export const useReferenceGridCardRenderController = ({
       const isFailing = isReferenceOutputFailing(card.item);
       const isGenerationLoading = generationLoadingCardIdSet.has(card.item.id);
       const isHydrationLoading = hydrationLoadingCardIdSet.has(card.item.id);
-      const isCardLoading = loadingCardIdSet.has(card.item.id);
-      const loadingVisual: "none" | "spinner" | "hydrating" = isGenerationLoading
-        ? "spinner"
-        : isHydrationLoading
-          ? "hydrating"
-          : "none";
+      const shouldWarmVideoPreview =
+        card.isVideoPreview &&
+        (activeOutputId === card.item.id || autoplayEnabledIdSet.has(card.item.id));
+      const suppressDormantVideoLoading =
+        card.isVideoPreview && !shouldWarmVideoPreview && !isGenerationLoading;
+      const isCardLoading = suppressDormantVideoLoading
+        ? false
+        : loadingCardIdSet.has(card.item.id);
+      const loadingVisual: "none" | "spinner" | "hydrating" = suppressDormantVideoLoading
+        ? "none"
+        : isGenerationLoading
+          ? "spinner"
+          : isHydrationLoading
+            ? "hydrating"
+            : "none";
       const canAutoplayVideo =
         card.isVideoPreview && autoplayEnabledIdSet.has(card.item.id) && perfDegradeLevel < 2;
       const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
@@ -127,6 +136,7 @@ export const useReferenceGridCardRenderController = ({
           isVideoPreview={card.isVideoPreview}
           isImagePreview={card.isImagePreview}
           canAutoplayVideo={canAutoplayVideo}
+          videoPreload={shouldWarmVideoPreview ? "metadata" : "none"}
           isPromptOnly={isPromptOnly}
           isLinkedPromptReference={isLinkedPromptReference}
           canRetryStatus={canRetryStatus}

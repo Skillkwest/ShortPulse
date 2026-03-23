@@ -42,8 +42,6 @@ describe("useReferenceGridAutoplaySelectionController", () => {
           activeOutputId: null,
           suspendAutoplaySelection,
           outputs,
-          virtualRowHeight: 280,
-          strictPreviewLadder: true,
           videoAttachBudget: 1,
           perfDegradeLevel: 0,
           runNonUrgentUpdate,

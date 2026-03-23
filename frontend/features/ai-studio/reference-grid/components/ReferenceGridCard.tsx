@@ -19,6 +19,7 @@ export type ReferenceGridCardProps = {
   isVideoPreview: boolean;
   isImagePreview: boolean;
   canAutoplayVideo: boolean;
+  videoPreload: "metadata" | "none";
   isPromptOnly: boolean;
   isLinkedPromptReference: boolean;
   canRetryStatus: boolean;
@@ -89,6 +90,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   isVideoPreview,
   isImagePreview,
   canAutoplayVideo,
+  videoPreload,
   isPromptOnly,
   isLinkedPromptReference,
   canRetryStatus,
@@ -183,7 +185,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           muted
           loop
           playsInline
-          preload="metadata"
+          preload={videoPreload}
           onLoadedData={() => markLoaded(item.id)}
           onError={() => markLoaded(item.id, { notifyAutoSave: false })}
           onPlay={() => onAutoplayStarted(item.id)}

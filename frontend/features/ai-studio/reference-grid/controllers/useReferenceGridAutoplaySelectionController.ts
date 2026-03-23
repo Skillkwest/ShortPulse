@@ -18,8 +18,6 @@ type UseReferenceGridAutoplaySelectionControllerArgs = {
   activeOutputId: string | null;
   suspendAutoplaySelection?: boolean;
   outputs: StudioOutput[];
-  virtualRowHeight: number;
-  strictPreviewLadder: boolean;
   videoAttachBudget: number;
   perfDegradeLevel: 0 | 1 | 2;
   runNonUrgentUpdate: (updater: () => void) => void;

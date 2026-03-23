@@ -44,7 +44,6 @@ export type FalRuntimeFlags = {
   providerAttachedReservationOrphanMinAgeSeconds: number;
   admissionAtomicEnabled: boolean;
   queueEnabled: boolean;
-  queueStatusReadOnlyEnabled: boolean;
   queueStatusDispatchKickEnabled: boolean;
   queueStatusRecoveryKickEnabled: boolean;
   queueMaxPerUser: number;
@@ -221,10 +220,6 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   ),
   admissionAtomicEnabled: parseBoolean(process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED, false),
   queueEnabled: parseBoolean(process.env.SHORTPULSE_FAL_QUEUE_ENABLED, false),
-  queueStatusReadOnlyEnabled: parseBoolean(
-    process.env.SHORTPULSE_FAL_QUEUE_STATUS_READ_ONLY_ENABLED,
-    false
-  ),
   queueStatusDispatchKickEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED,
     true

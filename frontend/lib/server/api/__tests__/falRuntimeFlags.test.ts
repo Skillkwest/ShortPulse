@@ -22,7 +22,6 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_ENABLED;
-    delete process.env.SHORTPULSE_FAL_QUEUE_STATUS_READ_ONLY_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_STATUS_RECOVERY_KICK_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER;
@@ -60,7 +59,6 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.providerAttachedReservationOrphanMinAgeSeconds).toBe(86400);
     expect(flags.admissionAtomicEnabled).toBe(false);
     expect(flags.queueEnabled).toBe(false);
-    expect(flags.queueStatusReadOnlyEnabled).toBe(false);
     expect(flags.queueStatusDispatchKickEnabled).toBe(true);
     expect(flags.queueStatusRecoveryKickEnabled).toBe(true);
     expect(flags.queueMaxPerUser).toBe(20);
@@ -94,7 +92,6 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS = "90000";
     process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
-    process.env.SHORTPULSE_FAL_QUEUE_STATUS_READ_ONLY_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED = "false";
     process.env.SHORTPULSE_FAL_QUEUE_STATUS_RECOVERY_KICK_ENABLED = "false";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER = "40";
@@ -132,7 +129,6 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.providerAttachedReservationOrphanMinAgeSeconds).toBe(90000);
     expect(flags.admissionAtomicEnabled).toBe(true);
     expect(flags.queueEnabled).toBe(true);
-    expect(flags.queueStatusReadOnlyEnabled).toBe(true);
     expect(flags.queueStatusDispatchKickEnabled).toBe(false);
     expect(flags.queueStatusRecoveryKickEnabled).toBe(false);
     expect(flags.queueMaxPerUser).toBe(40);

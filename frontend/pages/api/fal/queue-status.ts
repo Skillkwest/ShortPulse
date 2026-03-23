@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../lib/server/api/falRuntimeFlags";
-import { runQueueStatusSideEffects } from "../../../lib/server/api/generationQueue/queueStatusSideEffects";
 import { readGenerationQueueStatus } from "../../../lib/server/api/generationQueue/service";
 
 const asQueryString = (value: string | string[] | undefined): string | null => {
@@ -42,22 +41,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    if (!(flags.queueStatusReadOnlyEnabled ?? false)) {
-      await runQueueStatusSideEffects({
-        req,
-        routeLabel: "api/fal/queue-status",
-        userId: user.id,
-        userEmail: user.email ?? null,
-        sourceRef,
-        generationId,
-        flags: {
-          queueStatusDispatchKickEnabled: flags.queueStatusDispatchKickEnabled ?? true,
-          queueStatusRecoveryKickEnabled: flags.queueStatusRecoveryKickEnabled ?? true,
-          reconcilerMaxAttempts: flags.reconcilerMaxAttempts,
-        },
-      });
-    }
-
     const status = await readGenerationQueueStatus({
       userId: user.id,
       sourceRef,

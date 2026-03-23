@@ -3,7 +3,6 @@ import handler from "../../pages/api/fal/queue-status";
 
 const requireApiUserMock = vi.fn();
 const readFalRuntimeFlagsMock = vi.fn();
-const runQueueStatusSideEffectsMock = vi.fn();
 const readGenerationQueueStatusMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 
@@ -13,10 +12,6 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/falRuntimeFlags", () => ({
   readFalRuntimeFlags: (...args: unknown[]) => readFalRuntimeFlagsMock(...args),
-}));
-
-vi.mock("../../lib/server/api/generationQueue/queueStatusSideEffects", () => ({
-  runQueueStatusSideEffects: (...args: unknown[]) => runQueueStatusSideEffectsMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationQueue/service", () => ({
@@ -42,18 +37,9 @@ describe("GET /api/fal/queue-status", () => {
     });
     readFalRuntimeFlagsMock.mockReturnValue({
       queueEnabled: true,
-      queueStatusReadOnlyEnabled: false,
       queueStatusDispatchKickEnabled: true,
       queueStatusRecoveryKickEnabled: true,
       reconcilerMaxAttempts: 5,
-    });
-    runQueueStatusSideEffectsMock.mockResolvedValue({
-      dispatchKickAttempted: true,
-      dispatchKickErrors: 0,
-      dispatchKickExhausted: 0,
-      recoveryKickAttempted: true,
-      recoveryClaimed: false,
-      recoveryClaimReason: "not_found",
     });
     readGenerationQueueStatusMock.mockResolvedValue({
       status: "queued",
@@ -63,7 +49,7 @@ describe("GET /api/fal/queue-status", () => {
     });
   });
 
-  it("returns 200 and runs side effects when read-only mode is disabled", async () => {
+  it("returns 200 without running queue-status side effects", async () => {
     const req = {
       method: "GET",
       query: { sourceRef: "src-1" },
@@ -73,13 +59,6 @@ describe("GET /api/fal/queue-status", () => {
 
     await handler(req as never, res as never);
 
-    expect(runQueueStatusSideEffectsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        routeLabel: "api/fal/queue-status",
-        userId: "user-1",
-        sourceRef: "src-1",
-      })
-    );
     expect(readGenerationQueueStatusMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
@@ -94,14 +73,7 @@ describe("GET /api/fal/queue-status", () => {
     );
   });
 
-  it("returns 200 and skips side effects in read-only mode", async () => {
-    readFalRuntimeFlagsMock.mockReturnValue({
-      queueEnabled: true,
-      queueStatusReadOnlyEnabled: true,
-      queueStatusDispatchKickEnabled: true,
-      queueStatusRecoveryKickEnabled: true,
-      reconcilerMaxAttempts: 5,
-    });
+  it("keeps queue-status read-only even when kick flags are enabled", async () => {
     const req = {
       method: "GET",
       query: { sourceRef: "src-1" },
@@ -111,7 +83,6 @@ describe("GET /api/fal/queue-status", () => {
 
     await handler(req as never, res as never);
 
-    expect(runQueueStatusSideEffectsMock).not.toHaveBeenCalled();
     expect(readGenerationQueueStatusMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",

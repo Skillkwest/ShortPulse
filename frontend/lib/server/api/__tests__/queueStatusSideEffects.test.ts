@@ -66,7 +66,7 @@ describe("runQueueStatusSideEffects", () => {
 
     await runQueueStatusSideEffects({
       req: { method: "GET", headers: {} } as never,
-      routeLabel: "api/fal/queue-status",
+      routeLabel: "api/fal/queue-status-kick",
       userId: "user-1",
       userEmail: "user@example.com",
       sourceRef: "src-1",
@@ -81,7 +81,7 @@ describe("runQueueStatusSideEffects", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.queue.status.kick_partial_failure",
-        routeLabel: "api/fal/queue-status",
+        routeLabel: "api/fal/queue-status-kick",
       })
     );
     expect(claimDueQueueStatusRecoveryMock).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe("runQueueStatusSideEffects", () => {
 
     await runQueueStatusSideEffects({
       req: { method: "GET", headers: {} } as never,
-      routeLabel: "api/fal/queue-status",
+      routeLabel: "api/fal/queue-status-kick",
       userId: "user-1",
       userEmail: "user@example.com",
       sourceRef: "src-1",
@@ -107,7 +107,7 @@ describe("runQueueStatusSideEffects", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.queue.status.kick_failed",
-        routeLabel: "api/fal/queue-status",
+        routeLabel: "api/fal/queue-status-kick",
       })
     );
   });
@@ -123,7 +123,7 @@ describe("runQueueStatusSideEffects", () => {
 
     await runQueueStatusSideEffects({
       req: { method: "GET", headers: {} } as never,
-      routeLabel: "api/fal/queue-status",
+      routeLabel: "api/fal/queue-status-kick",
       userId: "user-1",
       userEmail: "user@example.com",
       sourceRef: "src-1",
@@ -138,7 +138,7 @@ describe("runQueueStatusSideEffects", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.queue.status.recovery_claim_failed",
-        routeLabel: "api/fal/queue-status",
+        routeLabel: "api/fal/queue-status-kick",
       })
     );
   });
@@ -155,7 +155,7 @@ describe("runQueueStatusSideEffects", () => {
 
     await runQueueStatusSideEffects({
       req: { method: "GET", headers: {} } as never,
-      routeLabel: "api/fal/queue-status",
+      routeLabel: "api/fal/queue-status-kick",
       userId: "user-1",
       userEmail: "user@example.com",
       sourceRef: "src-1",
@@ -170,7 +170,7 @@ describe("runQueueStatusSideEffects", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.queue.status.recovery_kick_failed",
-        routeLabel: "api/fal/queue-status",
+        routeLabel: "api/fal/queue-status-kick",
       })
     );
   });
@@ -178,7 +178,7 @@ describe("runQueueStatusSideEffects", () => {
   it("skips dispatch and recovery when both toggles are disabled", async () => {
     const result = await runQueueStatusSideEffects({
       req: { method: "GET", headers: {} } as never,
-      routeLabel: "api/fal/queue-status",
+      routeLabel: "api/fal/queue-status-kick",
       userId: "user-1",
       userEmail: "user@example.com",
       sourceRef: "src-1",

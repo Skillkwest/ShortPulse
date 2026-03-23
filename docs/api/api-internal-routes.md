@@ -34,7 +34,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk using derivative-first candidate selection (`thumb`/`poster`/`preview` variants before original storage path), plus trusted-host direct URL fallback for legacy records, with preview-profile response headers (`x-shortpulse-media-resolve-*`). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts`, `frontend/lib/mediaPreviewTrustPolicy.ts` |
-| `/api/fal/*` | `POST`, `GET` | Bearer (proxy; some routes also verify user in handler) | Submit/poll provider generations with server-side key handling and credit reservation/capture/refund logic, including queue handoff polling at `/api/fal/queue-status` (dispatch-kick optional via rollout flag; user-scoped due recovery kick guarded by reconciler lease/age/attempt policy). Includes Fal model routes (including FLUX Fill inpaint endpoints `/api/fal/flux-pro-fill-submit` + `/api/fal/flux-pro-fill-status` and Bria remove-background endpoints `/api/fal/bria-background-remove-submit` + `/api/fal/bria-background-remove-status`) plus Kie routes (`/api/fal/kie-veo-submit`, `/api/fal/kie-veo-status`, `/api/fal/kie-kling-submit`, `/api/fal/kie-kling-status`) behind Kie runtime flags/allowlist. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/lib/server/api/generationQueue/*.ts`, model docs in `docs/api/api-fal-*.md` and `docs/api/api-kie-*.md` |
+| `/api/fal/*` | `POST`, `GET` | Bearer (proxy; some routes also verify user in handler) | Submit/poll provider generations with server-side key handling and credit reservation/capture/refund logic, including queue handoff polling at `/api/fal/queue-status` and explicit one-shot side-effect kicks at `/api/fal/queue-status-kick`. Includes Fal model routes (including FLUX Fill inpaint endpoints `/api/fal/flux-pro-fill-submit` + `/api/fal/flux-pro-fill-status` and Bria remove-background endpoints `/api/fal/bria-background-remove-submit` + `/api/fal/bria-background-remove-status`) plus Kie routes (`/api/fal/kie-veo-submit`, `/api/fal/kie-veo-status`, `/api/fal/kie-kling-submit`, `/api/fal/kie-kling-status`) behind Kie runtime flags/allowlist. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/lib/server/api/generationQueue/*.ts`, model docs in `docs/api/api-fal-*.md` and `docs/api/api-kie-*.md` |
 | `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; verifies Fal webhook signatures (JWKS/Ed25519 with dual-mode fallback), enforces raw-body size caps (`413` on breach), writes durable webhook inbox records, and executes shared recovery/persistence/settlement path idempotently with sanitized `500` error responses. | `frontend/pages/api/fal/webhook.ts`, `frontend/lib/server/api/falWebhook.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/credits/snapshot` | `GET` | Bearer (proxy + route) | Return user credit snapshot (`availableCents`, `reservedCents`, `spendableCents`) for responsive balance/hold UX. | `frontend/pages/api/credits/snapshot.ts`, `docs/sops/sop_billing_credits_operations.md` |
@@ -83,10 +83,10 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - Queue-enabled over-cap path accepts submit as queued (`202`, `code: GENERATION_QUEUED`) and defers provider submit to server dispatcher.
   - Queue handoff polling contract (`GET /api/fal/queue-status`) returns `queued | dispatched | failed | not_found`.
   - `dispatched` queue-status responses include `provider` and may include optional `modelId` for provider/model-aware client polling route resolution.
-  - Queue-status dispatch kick is rollout-controlled:
-    - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true` (legacy side-effect mode).
-    - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=false` (read-only queue-dispatch mode).
-  - Queue-status route also performs a user-scoped due-recovery kick before reading status (when runtime reconciler is enabled) using compare-and-set lease claim guards on `ai_generations`.
+  - `GET /api/fal/queue-status` is read-only.
+  - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` gates dispatch kicks in the explicit kick lane.
+  - `SHORTPULSE_FAL_QUEUE_STATUS_RECOVERY_KICK_ENABLED` gates due-recovery kicks in the explicit kick lane.
+  - `POST /api/fal/queue-status-kick` is the explicit side-effect lane for one-shot dispatch/recovery kicks using the same user-scoped claim guards.
   - Submit proxy sends `X-Fal-Request-Timeout` to queue endpoints to bound pre-start latency at provider edge.
   - Provider request accepted: attach provider request ID to reservation.
   - Success path: capture reservation to ledger debit.
@@ -201,6 +201,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED`
+  - `SHORTPULSE_FAL_QUEUE_STATUS_RECOVERY_KICK_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`
   - `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`
   - `SHORTPULSE_FAL_QUEUE_LEASE_SECONDS`

@@ -37,7 +37,6 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   reservationCleanupBatchSize: 200,
   admissionAtomicEnabled: false,
   queueEnabled: false,
-  queueStatusReadOnlyEnabled: false,
   queueStatusDispatchKickEnabled: true,
   queueStatusRecoveryKickEnabled: true,
   queueMaxPerUser: 20,

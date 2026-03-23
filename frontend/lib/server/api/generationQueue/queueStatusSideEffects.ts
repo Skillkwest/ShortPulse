@@ -1,6 +1,6 @@
 /**
  * Queue-status side-effect orchestrator.
- * Runs optional queue dispatch/recovery kicks for authenticated queue-status flows.
+ * Runs optional queue dispatch/recovery kicks for the explicit queue-status kick lane.
  */
 import type { NextApiRequest } from "next";
 import { logGenerationFailure } from "../appErrorLogs";
@@ -34,7 +34,7 @@ type RunQueueStatusSideEffectsParams = {
 };
 
 /**
- * Executes queue status side effects and logs non-fatal failures as telemetry.
+ * Executes explicit queue-status kick side effects and logs non-fatal failures as telemetry.
  */
 export const runQueueStatusSideEffects = async ({
   req,

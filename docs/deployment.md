@@ -115,7 +115,8 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS` (`0` disables hard-timeout failover)
-  - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` (`true` legacy kick behavior, `false` read-only `/api/fal/queue-status`)
+  - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` (`true` enables dispatch kick behavior in the explicit `POST /api/fal/queue-status-kick` lane)
+  - `SHORTPULSE_FAL_QUEUE_STATUS_RECOVERY_KICK_ENABLED` (`true` enables due-recovery kick behavior in the explicit `POST /api/fal/queue-status-kick` lane)
   - `SHORTPULSE_FAL_TRUSTED_HOSTS` (optional comma-separated trusted Fal outbound hosts; defaults to Fal-owned hosts)
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`

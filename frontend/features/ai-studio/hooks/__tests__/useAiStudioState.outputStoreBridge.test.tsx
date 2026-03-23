@@ -2,7 +2,11 @@ import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
-import { getAiStudioOutputSnapshot, resetAiStudioOutputStore } from "../aiStudioOutputStore";
+import {
+  getAiStudioOutputSnapshot,
+  resetAiStudioOutputStore,
+  setAiStudioOutputStoreSnapshot,
+} from "../aiStudioOutputStore";
 import { useAiStudioState } from "../useAiStudioState";
 import * as ingestionPreparation from "../../reference-ingestion/prepareLibraryMediaIngestionPayload";
 
@@ -150,6 +154,22 @@ describe("useAiStudioState output store bridge", () => {
   beforeEach(() => {
     resetAiStudioOutputStore();
     mockUpdateOutputById.mockClear();
+    mockUpdateOutputById.mockImplementation(
+      (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+        const snapshot = getAiStudioOutputSnapshot();
+        const current = snapshot.outputById[id];
+        if (!current) return;
+        setAiStudioOutputStoreSnapshot({
+          outputOrder: snapshot.outputOrder,
+          outputById: {
+            ...snapshot.outputById,
+            [id]: updater(current),
+          },
+          archivedOutputOrder: snapshot.archivedOutputOrder,
+          archivedOutputById: snapshot.archivedOutputById,
+        });
+      }
+    );
     mockFindOutputById.mockClear();
     mockDeleteOutputFromLifecycle.mockClear();
     mockNotifyGenerationFailure.mockClear();
@@ -338,7 +358,7 @@ describe("useAiStudioState output store bridge", () => {
     expect(refreshSupabaseSignedUrlIfNeededMock).not.toHaveBeenCalled();
   });
 
-  it("surfaces deterministic UI error when media-library payload prep fails before insert", async () => {
+  it("keeps the optimistic media-library card visible when payload prep refresh fails", async () => {
     const prepareSpy = vi
       .spyOn(ingestionPreparation, "prepareLibraryMediaIngestionPayload")
       .mockRejectedValueOnce(new Error("prep failed"));
@@ -356,11 +376,11 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.uiError).toBe(
-        "Unable to add that media from Media Library right now. Please try again."
-      );
+      expect(result.current.outputs).toHaveLength(1);
     });
-    expect(result.current.outputs.length).toBe(0);
+    expect(result.current.uiError).toBeNull();
+    expect(result.current.outputs[0]?.prompt).toBe("Error prompt");
+    expect(result.current.outputs[0]?.previewUrl).toBe("https://expired.example.com/ref-error.png");
     prepareSpy.mockRestore();
   });
 

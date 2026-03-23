@@ -3,6 +3,14 @@
  * Keeps curated interaction policies out of ReferenceGrid rendering/orchestration code.
  */
 import { useCallback, type MutableRefObject } from "react";
+import {
+  readMediaLibraryDragPayload,
+  type MediaLibraryDragPayload,
+} from "../../logic/mediaLibraryDragPayload";
+import type {
+  LibraryMediaReferencePayload,
+  LibraryPromptReferencePayload,
+} from "../referenceGridTypes";
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 
@@ -18,6 +26,20 @@ type UseReferenceGridCuratedDndControllerArgs = {
     placement: "before" | "after" | "end"
   ) => void;
   onSelectOutput: (id: string) => void;
+  onAddLibraryMediaReferenceToQuickSlot?: (
+    payload: LibraryMediaReferencePayload,
+    options?: {
+      targetId: string | null;
+      placement: "before" | "after" | "end";
+    }
+  ) => Promise<string | null>;
+  onAddLibraryPromptReferenceToQuickSlot?: (
+    payload: LibraryPromptReferencePayload,
+    options?: {
+      targetId: string | null;
+      placement: "before" | "after" | "end";
+    }
+  ) => string | null;
 };
 
 type UseReferenceGridCuratedDndControllerResult = {
@@ -40,6 +62,9 @@ const resolveReferenceDragSourceSurface = (transfer: DataTransfer): ReferenceDra
   return sourceSurface === "curated" ? "curated" : "all-refs";
 };
 
+const readQuickSlotLibraryPayload = (transfer: DataTransfer): MediaLibraryDragPayload | null =>
+  readMediaLibraryDragPayload(transfer);
+
 /**
  * Returns curated-surface drag/drop and keyboard reorder handlers.
  */
@@ -51,7 +76,39 @@ export const useReferenceGridCuratedDndController = ({
   onAddCuratedReference,
   onReorderCuratedReference,
   onSelectOutput,
+  onAddLibraryMediaReferenceToQuickSlot,
+  onAddLibraryPromptReferenceToQuickSlot,
 }: UseReferenceGridCuratedDndControllerArgs): UseReferenceGridCuratedDndControllerResult => {
+  const handleLibraryQuickSlotDrop = useCallback(
+    (
+      payload: MediaLibraryDragPayload,
+      options: { targetId: string | null; placement: "before" | "after" | "end" }
+    ) => {
+      if (payload.kind === "libraryMedia") {
+        void (async () => {
+          const insertedId = await onAddLibraryMediaReferenceToQuickSlot?.(payload.payload, options);
+          if (insertedId) {
+            onSelectOutput(insertedId);
+          }
+        })();
+        return true;
+      }
+      if (payload.kind === "libraryPrompt") {
+        const insertedId = onAddLibraryPromptReferenceToQuickSlot?.(payload.payload, options);
+        if (insertedId) {
+          onSelectOutput(insertedId);
+        }
+        return true;
+      }
+      return false;
+    },
+    [
+      onAddLibraryMediaReferenceToQuickSlot,
+      onAddLibraryPromptReferenceToQuickSlot,
+      onSelectOutput,
+    ]
+  );
+
   const handleCuratedSectionDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (!isCuratedSplitEnabled) return;
@@ -59,6 +116,16 @@ export const useReferenceGridCuratedDndController = ({
       event.stopPropagation();
       curatedDragDepthRef.current = 0;
       setCuratedDropActiveSafe(false);
+      const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
+      if (
+        mediaLibraryPayload &&
+        handleLibraryQuickSlotDrop(mediaLibraryPayload, {
+          targetId: null,
+          placement: "end",
+        })
+      ) {
+        return;
+      }
       const referenceId = event.dataTransfer.getData("text/reference-id").trim();
       if (!referenceId) return;
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
@@ -90,13 +157,15 @@ export const useReferenceGridCuratedDndController = ({
       if (!isCuratedSplitEnabled) return;
       event.preventDefault();
       event.stopPropagation();
-      if (!hasInternalReferenceDrag(event.dataTransfer)) {
+      const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
+      if (!hasInternalReferenceDrag(event.dataTransfer) && !mediaLibraryPayload) {
         event.dataTransfer.dropEffect = "none";
         setCuratedDropActiveSafe(false);
         return;
       }
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      event.dataTransfer.dropEffect = sourceSurface === "curated" ? "move" : "copy";
+      event.dataTransfer.dropEffect =
+        sourceSurface === "curated" && !mediaLibraryPayload ? "move" : "copy";
       setCuratedDropActiveSafe(true);
     },
     [isCuratedSplitEnabled, setCuratedDropActiveSafe]
@@ -108,7 +177,10 @@ export const useReferenceGridCuratedDndController = ({
       event.preventDefault();
       event.stopPropagation();
       curatedDragDepthRef.current += 1;
-      setCuratedDropActiveSafe(hasInternalReferenceDrag(event.dataTransfer));
+      setCuratedDropActiveSafe(
+        hasInternalReferenceDrag(event.dataTransfer) ||
+          Boolean(readQuickSlotLibraryPayload(event.dataTransfer))
+      );
     },
     [curatedDragDepthRef, isCuratedSplitEnabled, setCuratedDropActiveSafe]
   );
@@ -133,6 +205,17 @@ export const useReferenceGridCuratedDndController = ({
       event.stopPropagation();
       curatedDragDepthRef.current = 0;
       setCuratedDropActiveSafe(false);
+      const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
+      if (mediaLibraryPayload) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const placement: "before" | "after" =
+          event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+        handleLibraryQuickSlotDrop(mediaLibraryPayload, {
+          targetId: target.id,
+          placement,
+        });
+        return;
+      }
       const referenceId = event.dataTransfer.getData("text/reference-id").trim();
       if (!referenceId) return;
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
@@ -154,6 +237,7 @@ export const useReferenceGridCuratedDndController = ({
     [
       curatedDragDepthRef,
       curatedReferenceIds,
+      handleLibraryQuickSlotDrop,
       isCuratedSplitEnabled,
       onAddCuratedReference,
       onReorderCuratedReference,

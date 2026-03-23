@@ -6,7 +6,18 @@ import type { CanvasPropertiesPanelProps } from "../components/canvas/useAiStudi
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
 import type { PastedMediaReference } from "./controllers/referenceGridClipboard";
 import type { ReferenceGridPanelVisibility } from "./referenceGridConfig";
+import type { ReferenceIngestionInput } from "../reference-ingestion/types";
 import type { StudioOutput, ToolId } from "../types";
+
+export type LibraryMediaReferencePayload = Extract<
+  ReferenceIngestionInput,
+  { kind: "libraryMedia" }
+>["payload"];
+
+export type LibraryPromptReferencePayload = Extract<
+  ReferenceIngestionInput,
+  { kind: "libraryPrompt" }
+>["payload"];
 
 export type ReferenceGridProps = {
   outputs?: StudioOutput[];
@@ -37,6 +48,20 @@ export type ReferenceGridProps = {
     targetId: string | null,
     placement: "before" | "after" | "end"
   ) => void;
+  onAddLibraryMediaReferenceToQuickSlot?: (
+    payload: LibraryMediaReferencePayload,
+    options?: {
+      targetId: string | null;
+      placement: "before" | "after" | "end";
+    }
+  ) => Promise<string | null>;
+  onAddLibraryPromptReferenceToQuickSlot?: (
+    payload: LibraryPromptReferencePayload,
+    options?: {
+      targetId: string | null;
+      placement: "before" | "after" | "end";
+    }
+  ) => string | null;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
   panelVisibility?: ReferenceGridPanelVisibility;

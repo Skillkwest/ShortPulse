@@ -19,33 +19,51 @@ type UseAiStudioReferenceIngestionActionsArgs = {
   aspect: string;
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
+  updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   setSharedPrompt: (value: string) => void;
   setUiError?: Dispatch<SetStateAction<string | null>>;
+};
+
+type LibraryMediaReferencePayload = {
+  id: string;
+  url: string;
+  fileType: "image" | "video";
+  originFolderId?: string | null;
+  filename?: string | null;
+  promptText?: string | null;
+  source?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  previewUrl?: string | null;
+  fullUrl?: string | null;
+};
+
+type LibraryPromptReferencePayload = {
+  id: string;
+  promptText: string;
+  originFolderId?: string | null;
+  title?: string | null;
+};
+
+type QuickSlotLibraryPlacement = {
+  targetId: string | null;
+  placement: "before" | "after" | "end";
 };
 
 type UseAiStudioReferenceIngestionActionsResult = {
   addAgentPromptReference: (promptText: string, title?: string | null) => void;
   addPastedPromptReference: (promptText: string) => void;
   addPastedMediaReference: (payload: { url: string; mimeType?: string | null }) => void;
-  addLibraryMediaReference: (payload: {
-    id: string;
-    url: string;
-    fileType: "image" | "video";
-    originFolderId?: string | null;
-    filename?: string | null;
-    promptText?: string | null;
-    source?: string | null;
-    previewStoragePath?: string | null;
-    fullStoragePath?: string | null;
-    previewUrl?: string | null;
-    fullUrl?: string | null;
-  }) => void;
-  addLibraryPromptReference: (payload: {
-    id: string;
-    promptText: string;
-    originFolderId?: string | null;
-    title?: string | null;
-  }) => void;
+  addLibraryMediaReference: (payload: LibraryMediaReferencePayload) => void;
+  addLibraryMediaReferenceToQuickSlot: (
+    payload: LibraryMediaReferencePayload,
+    placement?: QuickSlotLibraryPlacement
+  ) => Promise<string | null>;
+  addLibraryPromptReference: (payload: LibraryPromptReferencePayload) => void;
+  addLibraryPromptReferenceToQuickSlot: (
+    payload: LibraryPromptReferencePayload,
+    placement?: QuickSlotLibraryPlacement
+  ) => string | null;
   addOutputsFromFiles: (files: FileList, source?: "filePicker" | "drop") => Promise<void>;
   getAgentContext: (options?: {
     lastAssistantMessage?: string | null;
@@ -59,11 +77,120 @@ export const useAiStudioReferenceIngestionActions = ({
   aspect,
   model,
   setOutputs,
+  updateOutputById,
   setSharedPrompt,
   setUiError,
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
   const libraryMediaIngestionErrorMessage =
     "Unable to add that media from Media Library right now. Please try again.";
+  const buildLibraryMediaOutputWithId = useCallback(
+    (payload: LibraryMediaReferencePayload, outputId: string): StudioOutput | null => {
+      const result = buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "libraryMedia",
+          source: "mediaLibrary",
+          payload,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
+      );
+      const nextOutput = result.outputs[0];
+      if (!nextOutput) return null;
+      return {
+        ...nextOutput,
+        id: outputId,
+      };
+    },
+    [aspect, mode, model]
+  );
+
+  const buildLibraryPromptOutputWithId = useCallback(
+    (payload: LibraryPromptReferencePayload, outputId: string): StudioOutput | null => {
+      const result = buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "libraryPrompt",
+          source: "mediaLibrary",
+          payload,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
+      );
+      const nextOutput = result.outputs[0];
+      if (!nextOutput) return null;
+      return {
+        ...nextOutput,
+        id: outputId,
+      };
+    },
+    [aspect, mode, model]
+  );
+
+  const insertLibraryMediaReference = useCallback(
+    async (payload: LibraryMediaReferencePayload): Promise<string | null> => {
+      const outputId = `library-${randomId()}`;
+      const optimisticOutput = buildLibraryMediaOutputWithId(payload, outputId);
+      if (!optimisticOutput) {
+        setUiError?.(libraryMediaIngestionErrorMessage);
+        return null;
+      }
+
+      setOutputs((prev) => [optimisticOutput, ...prev]);
+
+      try {
+        const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
+        const refreshedOutput = buildLibraryMediaOutputWithId(preparedPayload, outputId);
+        if (!refreshedOutput) return outputId;
+        updateOutputById(outputId, (item) => ({
+          ...item,
+          prompt: refreshedOutput.prompt,
+          model: refreshedOutput.model,
+          status: refreshedOutput.status,
+          timestamp: refreshedOutput.timestamp,
+          resultUrls: refreshedOutput.resultUrls,
+          previewUrl: refreshedOutput.previewUrl,
+          previewStoragePath: refreshedOutput.previewStoragePath,
+          fullStoragePath: refreshedOutput.fullStoragePath,
+          mediaSource: refreshedOutput.mediaSource,
+          previewTier: refreshedOutput.previewTier,
+          savedMediaIds: refreshedOutput.savedMediaIds,
+        }));
+      } catch {
+        // Keep the optimistic card visible. The current drag payload already contains
+        // a renderable preview candidate for right-rail insertion.
+      }
+
+      return outputId;
+    },
+    [
+      buildLibraryMediaOutputWithId,
+      libraryMediaIngestionErrorMessage,
+      setOutputs,
+      setUiError,
+      updateOutputById,
+    ]
+  );
+
+  const insertLibraryPromptReference = useCallback(
+    (payload: LibraryPromptReferencePayload): string | null => {
+      const outputId = `prompt-library-${randomId()}`;
+      const promptOutput = buildLibraryPromptOutputWithId(payload, outputId);
+      if (!promptOutput) return null;
+      setOutputs((prev) => [promptOutput, ...prev]);
+      return outputId;
+    },
+    [buildLibraryPromptOutputWithId, setOutputs]
+  );
+
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
       const result = buildStudioOutputsFromReferenceInputSync(
@@ -135,74 +262,37 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const addLibraryMediaReference = useCallback(
-    (payload: {
-      id: string;
-      url: string;
-      fileType: "image" | "video";
-      originFolderId?: string | null;
-      filename?: string | null;
-      promptText?: string | null;
-      source?: string | null;
-      previewStoragePath?: string | null;
-      fullStoragePath?: string | null;
-      previewUrl?: string | null;
-      fullUrl?: string | null;
-    }) => {
-      void (async () => {
-        try {
-          const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
-          const result = buildStudioOutputsFromReferenceInputSync(
-            {
-              kind: "libraryMedia",
-              source: "mediaLibrary",
-              payload: preparedPayload,
-            },
-            {
-              mode,
-              aspect,
-              model,
-              resolveModelLabel,
-              randomId,
-            }
-          );
-          if (!result.outputs.length) {
-            setUiError?.(libraryMediaIngestionErrorMessage);
-            return;
-          }
-          setOutputs((prev) => [...result.outputs, ...prev]);
-        } catch {
-          setUiError?.(libraryMediaIngestionErrorMessage);
-        }
-      })();
+    (payload: LibraryMediaReferencePayload) => {
+      void insertLibraryMediaReference(payload);
     },
-    [aspect, libraryMediaIngestionErrorMessage, mode, model, setOutputs, setUiError]
+    [insertLibraryMediaReference]
   );
 
   const addLibraryPromptReference = useCallback(
-    (payload: {
-      id: string;
-      promptText: string;
-      originFolderId?: string | null;
-      title?: string | null;
-    }) => {
-      const result = buildStudioOutputsFromReferenceInputSync(
-        {
-          kind: "libraryPrompt",
-          source: "mediaLibrary",
-          payload,
-        },
-        {
-          mode,
-          aspect,
-          model,
-          resolveModelLabel,
-          randomId,
-        }
-      );
-      if (!result.outputs.length) return;
-      setOutputs((prev) => [...result.outputs, ...prev]);
+    (payload: LibraryPromptReferencePayload) => {
+      insertLibraryPromptReference(payload);
     },
-    [aspect, mode, model, setOutputs]
+    [insertLibraryPromptReference]
+  );
+
+  const addLibraryMediaReferenceToQuickSlot = useCallback(
+    async (
+      payload: LibraryMediaReferencePayload,
+      _placement?: QuickSlotLibraryPlacement
+    ): Promise<string | null> => {
+      return await insertLibraryMediaReference(payload);
+    },
+    [insertLibraryMediaReference]
+  );
+
+  const addLibraryPromptReferenceToQuickSlot = useCallback(
+    (
+      payload: LibraryPromptReferencePayload,
+      _placement?: QuickSlotLibraryPlacement
+    ): string | null => {
+      return insertLibraryPromptReference(payload);
+    },
+    [insertLibraryPromptReference]
   );
 
   const addOutputsFromFiles = useCallback(
@@ -249,7 +339,9 @@ export const useAiStudioReferenceIngestionActions = ({
     addPastedPromptReference,
     addPastedMediaReference,
     addLibraryMediaReference,
+    addLibraryMediaReferenceToQuickSlot,
     addLibraryPromptReference,
+    addLibraryPromptReferenceToQuickSlot,
     addOutputsFromFiles,
     getAgentContext,
   };

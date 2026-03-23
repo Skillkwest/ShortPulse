@@ -498,7 +498,9 @@ export const useAiStudioState = ({
     addPastedPromptReference,
     addPastedMediaReference,
     addLibraryMediaReference,
+    addLibraryMediaReferenceToQuickSlot,
     addLibraryPromptReference,
+    addLibraryPromptReferenceToQuickSlot,
     addOutputsFromFiles,
     getAgentContext,
   } = useAiStudioReferenceIngestionActions({
@@ -506,6 +508,7 @@ export const useAiStudioState = ({
     aspect,
     model,
     setOutputs,
+    updateOutputById,
     setSharedPrompt,
     setUiError,
   });
@@ -624,7 +627,9 @@ export const useAiStudioState = ({
     addPastedPromptReference,
     addPastedMediaReference,
     addLibraryMediaReference,
+    addLibraryMediaReferenceToQuickSlot,
     addLibraryPromptReference,
+    addLibraryPromptReferenceToQuickSlot,
     addOutputsFromFiles,
     buildSessionSnapshot,
     hydrateFromSessionSnapshot,

@@ -127,7 +127,7 @@ export const useReferenceGridCardItemsController = ({
           isImagePreview && decodeBudgetEnabled
             ? hasHydratedSourceForCard
               ? (hydratedEntry.renderUrl ?? undefined)
-              : undefined
+              : ((fallbackSourceForCard ?? cardPreviewUrl) ?? undefined)
             : (cardPreviewUrl ?? undefined);
         return {
           item,

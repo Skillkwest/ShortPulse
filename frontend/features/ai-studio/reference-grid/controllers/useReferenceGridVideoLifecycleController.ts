@@ -61,6 +61,12 @@ export const useReferenceGridVideoLifecycleController = ({
     []
   );
 
+  const detachVideoNodeMedia = useCallback((node: HTMLVideoElement) => {
+    node.pause();
+    node.removeAttribute("src");
+    node.load();
+  }, []);
+
   const registerVideoNode = useCallback(
     (nodeKey: string, outputId: string, node: HTMLVideoElement | null) => {
       const currentNode = videoNodeByKeyRef.current.get(nodeKey);
@@ -120,6 +126,7 @@ export const useReferenceGridVideoLifecycleController = ({
         videoIntersectionObserverBySurfaceRef.current.forEach((observer) =>
           observer.unobserve(node)
         );
+        detachVideoNodeMedia(node);
       }
       videoNodeByKeyRef.current.delete(nodeKey);
       videoOutputIdByKeyRef.current.delete(nodeKey);
@@ -134,6 +141,7 @@ export const useReferenceGridVideoLifecycleController = ({
     }
   }, [
     outputs,
+    detachVideoNodeMedia,
     recomputeAutoplayBudget,
     videoDetachTimeoutByKeyRef,
     videoIntersectionObserverBySurfaceRef,

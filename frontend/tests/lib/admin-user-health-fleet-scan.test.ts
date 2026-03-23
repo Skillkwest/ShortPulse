@@ -1,6 +1,6 @@
 /**
  * Regression tests for fleet scan execution behavior.
- * Focuses on flag-gated drainage execution and run-status outcomes.
+ * Focuses on fleet scan run status and steady-state reporting behavior.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runAdminUserHealthFleetScan } from "../../lib/server/adminUserHealth/fleet";
@@ -25,12 +25,6 @@ const baseFlags = {
   incidentsEnabled: false,
   criticalRiskThreshold: 80,
   warningCostWithoutSuccessThresholdCents: 2000,
-  drainageEnabled: false,
-  drainageMinAgeSeconds: 900,
-  drainageBatchSize: 200,
-  drainageProviderAttachedEnabled: false,
-  drainageProviderAttachedMinAgeSeconds: 7200,
-  drainageProviderAttachedOrphanMinAgeSeconds: 86400,
 };
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -66,7 +60,7 @@ describe("runAdminUserHealthFleetScan", () => {
     readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({ ...baseFlags });
   });
 
-  it("skips drainage RPCs when drainage is disabled", async () => {
+  it("keeps drainage reporting disabled and skips cleanup RPCs", async () => {
     const rpcMock = vi.fn(async (functionName: string) => {
       if (functionName === "prune_admin_user_health_history") {
         return { error: null };
@@ -86,6 +80,16 @@ describe("runAdminUserHealthFleetScan", () => {
       released: 0,
       errors: 0,
     });
+    expect(finishFleetScanRunMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          drainage_enabled: false,
+          drainage_scanned: 0,
+          drainage_released: 0,
+          drainage_errors: 0,
+        }),
+      })
+    );
     expect(rpcMock).toHaveBeenCalledWith("prune_admin_user_health_history", {
       p_retention_days: 90,
     });
@@ -96,186 +100,6 @@ describe("runAdminUserHealthFleetScan", () => {
     expect(rpcMock).not.toHaveBeenCalledWith(
       "release_stale_provider_attached_generation_reservations",
       expect.anything()
-    );
-  });
-
-  it("runs both drainage RPCs when enabled and reports aggregated metrics", async () => {
-    readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
-      ...baseFlags,
-      drainageEnabled: true,
-      drainageProviderAttachedEnabled: true,
-      drainageBatchSize: 111,
-      drainageMinAgeSeconds: 333,
-      drainageProviderAttachedMinAgeSeconds: 444,
-      drainageProviderAttachedOrphanMinAgeSeconds: 555,
-    });
-
-    const rpcMock = vi.fn(async (functionName: string, args?: Record<string, unknown>) => {
-      if (functionName === "release_stale_generation_reservations") {
-        expect(args).toEqual({
-          p_limit: 111,
-          p_min_age_seconds: 333,
-        });
-        return {
-          data: [{ scanned_count: 10, released_count: 3, error_count: 0 }],
-          error: null,
-        };
-      }
-      if (functionName === "release_stale_provider_attached_generation_reservations") {
-        expect(args).toEqual({
-          p_limit: 111,
-          p_min_age_seconds: 444,
-          p_orphan_min_age_seconds: 555,
-        });
-        return {
-          data: [{ scanned_count: 4, released_count: 2, error_count: 0 }],
-          error: null,
-        };
-      }
-      if (functionName === "prune_admin_user_health_history") {
-        return { error: null };
-      }
-      return { data: null, error: null };
-    });
-    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
-
-    const result = await runAdminUserHealthFleetScan({
-      triggerSource: "manual",
-    });
-
-    expect(result.status).toBe("completed");
-    expect(result.drainage).toEqual({
-      enabled: true,
-      scanned: 14,
-      released: 5,
-      errors: 0,
-    });
-    expect(finishFleetScanRunMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          drainage_enabled: true,
-          drainage_scanned: 14,
-          drainage_released: 5,
-          drainage_errors: 0,
-        }),
-      })
-    );
-  });
-
-  it("emits a report-only incident when drainage errors are present", async () => {
-    readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
-      ...baseFlags,
-      incidentsEnabled: true,
-      drainageEnabled: true,
-    });
-
-    const rpcMock = vi.fn(async (functionName: string) => {
-      if (functionName === "release_stale_generation_reservations") {
-        return {
-          data: [{ scanned_count: 8, released_count: 2, error_count: 3 }],
-          error: null,
-        };
-      }
-      if (functionName === "prune_admin_user_health_history") {
-        return { error: null };
-      }
-      return { data: null, error: null };
-    });
-    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
-
-    const result = await runAdminUserHealthFleetScan({
-      triggerSource: "scheduled",
-    });
-
-    expect(result.status).toBe("completed");
-    expect(result.drainage).toEqual({
-      enabled: true,
-      scanned: 8,
-      released: 2,
-      errors: 3,
-    });
-    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        source: "ops.user_health_fleet",
-        scope: "generation",
-        severity: "medium",
-        route: "/api/internal/admin-user-health-fleet/run",
-        metadata: expect.objectContaining({
-          run_id: "run-1",
-          drainage_errors: 3,
-        }),
-      })
-    );
-  });
-
-  it("marks run partial when drainage incident escalation fails", async () => {
-    readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
-      ...baseFlags,
-      incidentsEnabled: true,
-      drainageEnabled: true,
-    });
-    writeAppErrorLogMock.mockRejectedValueOnce(new Error("incident sink unavailable"));
-
-    const rpcMock = vi.fn(async (functionName: string) => {
-      if (functionName === "release_stale_generation_reservations") {
-        return {
-          data: [{ scanned_count: 5, released_count: 1, error_count: 1 }],
-          error: null,
-        };
-      }
-      if (functionName === "prune_admin_user_health_history") {
-        return { error: null };
-      }
-      return { data: null, error: null };
-    });
-    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
-
-    const result = await runAdminUserHealthFleetScan({
-      triggerSource: "manual",
-    });
-
-    expect(result.status).toBe("partial");
-    expect(result.partial).toBe(true);
-    expect(result.errors).toEqual(expect.arrayContaining(["Drainage incident escalation failed."]));
-  });
-
-  it("marks run partial when drainage RPC fails but continues processing", async () => {
-    readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
-      ...baseFlags,
-      drainageEnabled: true,
-      drainageProviderAttachedEnabled: false,
-    });
-
-    const rpcMock = vi.fn(async (functionName: string) => {
-      if (functionName === "release_stale_generation_reservations") {
-        return {
-          data: null,
-          error: { message: "drain rpc unavailable" },
-        };
-      }
-      if (functionName === "prune_admin_user_health_history") {
-        return { error: null };
-      }
-      return { data: null, error: null };
-    });
-    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
-
-    const result = await runAdminUserHealthFleetScan({
-      triggerSource: "scheduled",
-    });
-
-    expect(result.status).toBe("partial");
-    expect(result.partial).toBe(true);
-    expect(result.drainage).toEqual({
-      enabled: true,
-      scanned: 0,
-      released: 0,
-      errors: 1,
-    });
-    expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("Fleet drainage failed for release_stale_generation_reservations"),
-      ])
     );
   });
 });

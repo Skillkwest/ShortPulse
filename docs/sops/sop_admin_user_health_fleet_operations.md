@@ -37,13 +37,6 @@ Purpose: operate the fleet-level user health scan safely, triage findings effici
 - `SHORTPULSE_USER_HEALTH_FLEET_TIME_BUDGET_MS`: max run duration.
 - `SHORTPULSE_USER_HEALTH_FLEET_RETENTION_DAYS`: history retention for snapshots/findings.
 - `SHORTPULSE_USER_HEALTH_FLEET_INCIDENTS_ENABLED`: report-only escalation emission.
-- Optional bounded drainage (off by default):
-  - `SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_ENABLED`
-  - `SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_MIN_AGE_SECONDS`
-  - `SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_BATCH_SIZE`
-  - `SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_PROVIDER_ATTACHED_ENABLED`
-  - `SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_PROVIDER_ATTACHED_MIN_AGE_SECONDS`
-  - `SHORTPULSE_USER_HEALTH_FLEET_DRAINAGE_PROVIDER_ATTACHED_ORPHAN_MIN_AGE_SECONDS`
 
 Threshold tuning:
 - `SHORTPULSE_ADMIN_ALERT_USER_HEALTH_FLEET_CRITICAL_RISK`
@@ -72,7 +65,7 @@ Primary fields:
 - `targeted`, `processed`, `failed`, `partial`
 - `criticalUsers`, `warningUsers`
 - `totalCostWithoutSuccessCents`
-- `drainage`: `{ enabled, scanned, released, errors }`
+- `drainage`: compatibility summary `{ enabled, scanned, released, errors }` and remains `off` in steady state
 - `drainageTrend`: latest-run delta object (present for latest-run reads): `{ previousRunId, scannedDelta, releasedDelta, errorsDelta }`
 - `errors[]` (partial/failure reason summary)
 

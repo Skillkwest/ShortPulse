@@ -22,7 +22,6 @@ import type {
   ExpertEditSessionState,
   ExpertEditMarkupHistoryState,
 } from "./expertEditSessionState";
-import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import { resolveStageViewportSize, type StageViewportSize } from "./expertEditViewportUtils";
 
 export type ExpertEditPanelViewProps = {
@@ -184,16 +183,6 @@ export const STATUS_TOAST_FADE_MS = 220;
 export const TRANSIENT_OBJECT_URL_REVOKE_MS = 60_000;
 export const REMOVE_BACKGROUND_PENDING_TIMEOUT_MS = 120_000;
 export const selectedLayerTransformHandleCorners = ["nw", "ne", "se", "sw"] as const;
-
-export const resolveLayerFrameTransformStyle = (layer: ExpertEditLayer) =>
-  `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${
-    Math.round(layer.transform.translateYRatio * 1000) / 10
-  }%) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`;
-
-export const resolveLayerOverlayTransformStyle = (layer: ExpertEditLayer) =>
-  `translate(${Math.round(layer.transform.translateXRatio * 1000) / 10}%, ${
-    Math.round(layer.transform.translateYRatio * 1000) / 10
-  }%) rotate(${layer.transform.rotationDeg}deg)`;
 
 export const resolveImageDimensionsFromUrl = (
   url: string

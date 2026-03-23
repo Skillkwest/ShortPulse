@@ -1463,15 +1463,6 @@
   gap: 8px;
 }
 
-.edit-expert-stage-wrapper {
-  overflow: hidden;
-  border-radius: 0;
-}
-
-.edit-expert-stage-wrapper.is-transform-overlay-active {
-  overflow: hidden;
-}
-
 .edit-expert-primary-column > .edit-expert-column-wrapper--center:first-child {
   padding-bottom: 2px;
 }
@@ -1542,17 +1533,12 @@
   box-shadow: none;
 }
 
-.edit-expert-primary-layer-content-clip {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-
 .edit-expert-markup-viewport {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  overflow: hidden;
   transform-origin: center center;
   will-change: transform;
 }
@@ -1567,16 +1553,14 @@
 
 .edit-expert-primary-layer-frame {
   position: absolute;
-  inset: 0;
   z-index: 1;
-  background-size: contain;
+  background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: center;
 }
 
 .edit-expert-primary-layer-selection-overlay {
   position: absolute;
-  inset: 0;
   z-index: 1002;
   pointer-events: none;
 }

@@ -105,8 +105,6 @@ import {
   isSpaceActivationKey,
   resolveElementViewportSize,
   resolveImageDimensionsFromUrl,
-  resolveLayerFrameTransformStyle,
-  resolveLayerOverlayTransformStyle,
   resolveValidStageRect,
   secondaries,
   selectedLayerTransformHandleCorners,
@@ -1231,21 +1229,58 @@ export function ExpertEditPanelView({
   const shouldShowMarkupBrushReticle = isVideoToolSelected && hasPrimaryCompositePreview;
   const shouldShowSelectedLayerTransformOverlay =
     isMoveToolSelected && Boolean(selectedLayerImageUrl) && hasPrimaryCompositePreview;
-  const selectedLayerImageAspectRatio = React.useMemo(() => {
-    if (!selectedLayer?.imageUrl) return 1;
-    const dimensions = layerImageDimensionCache[selectedLayer.id];
-    if (!dimensions || dimensions.url !== selectedLayer.imageUrl || dimensions.height <= 0) {
-      return 1;
+  const primaryDropzoneAspectRatio = React.useMemo(() => {
+    const parsedAspectRatio = parseAspectRatioToken(aspect);
+    if (
+      parsedAspectRatio == null ||
+      !Number.isFinite(parsedAspectRatio) ||
+      parsedAspectRatio <= 0
+    ) {
+      return "1 / 1";
     }
-    return Math.max(0.0001, dimensions.width / dimensions.height);
-  }, [layerImageDimensionCache, selectedLayer]);
-  const selectedLayerTransformOverlayStyle = React.useMemo<React.CSSProperties | null>(() => {
-    if (!selectedLayer) return null;
-    return {
-      transform: resolveLayerOverlayTransformStyle(selectedLayer),
-      transformOrigin: "center center",
-    };
-  }, [selectedLayer]);
+    return aspect.replace(":", " / ");
+  }, [aspect]);
+  const primaryDropzoneAspectRatioValue = React.useMemo(
+    () => parseAspectRatioToken(aspect) ?? 1,
+    [aspect]
+  );
+  const resolveLayerImageAspectRatio = React.useCallback(
+    (layer: ExpertEditLayer | null) => {
+      if (!layer?.imageUrl) return 1;
+      const dimensions = layerImageDimensionCache[layer.id];
+      if (!dimensions || dimensions.url !== layer.imageUrl || dimensions.height <= 0) {
+        return 1;
+      }
+      return Math.max(0.0001, dimensions.width / dimensions.height);
+    },
+    [layerImageDimensionCache]
+  );
+  const resolveContainedLayerRect = React.useCallback(
+    (imageAspectRatio: number, viewportSize: StageViewportSize) => {
+      const resolvedViewportAspectRatio =
+        viewportSize.width > 1 && viewportSize.height > 1
+          ? viewportSize.width / viewportSize.height
+          : primaryDropzoneAspectRatioValue;
+      let widthPercent = 100;
+      let heightPercent = 100;
+      if (imageAspectRatio > resolvedViewportAspectRatio) {
+        heightPercent = (resolvedViewportAspectRatio / imageAspectRatio) * 100;
+      } else {
+        widthPercent = (imageAspectRatio / resolvedViewportAspectRatio) * 100;
+      }
+      return {
+        widthPercent: Math.max(0.0001, widthPercent),
+        heightPercent: Math.max(0.0001, heightPercent),
+        leftPercent: Math.max(0, (100 - widthPercent) / 2),
+        topPercent: Math.max(0, (100 - heightPercent) / 2),
+      };
+    },
+    [primaryDropzoneAspectRatioValue]
+  );
+  const selectedLayerImageAspectRatio = React.useMemo(
+    () => resolveLayerImageAspectRatio(selectedLayer),
+    [resolveLayerImageAspectRatio, selectedLayer]
+  );
   const morePresetsSurfaceId = React.useId();
   const activeStageRenderScale = markupViewport.scale;
   const primaryDropzoneCursor = React.useMemo(() => {
@@ -1287,21 +1322,6 @@ export function ExpertEditPanelView({
     shouldShowInpaintLassoCursor,
     shouldShowMarkupBrushReticle,
   ]);
-  const primaryDropzoneAspectRatio = React.useMemo(() => {
-    const parsedAspectRatio = parseAspectRatioToken(aspect);
-    if (
-      parsedAspectRatio == null ||
-      !Number.isFinite(parsedAspectRatio) ||
-      parsedAspectRatio <= 0
-    ) {
-      return "1 / 1";
-    }
-    return aspect.replace(":", " / ");
-  }, [aspect]);
-  const primaryDropzoneAspectRatioValue = React.useMemo(
-    () => parseAspectRatioToken(aspect) ?? 1,
-    [aspect]
-  );
   const primaryStageWidthScale = React.useMemo(
     () => Math.max(primaryDropzoneAspectRatioValue, 0.0001),
     [primaryDropzoneAspectRatioValue]
@@ -2592,15 +2612,6 @@ export function ExpertEditPanelView({
       event.stopPropagation();
     },
     [endMarkupPanGesture, isMorePresetsSurfaceOpen]
-  );
-
-  const handleInlineStagePointerLeaveCapture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) return;
-      if (!endMarkupPanGestureOnLeave(event)) return;
-      event.stopPropagation();
-    },
-    [endMarkupPanGestureOnLeave, isMorePresetsSurfaceOpen]
   );
 
   const closeStageContextMenu = React.useCallback(() => {
@@ -4252,37 +4263,45 @@ export function ExpertEditPanelView({
   };
 
   const renderSelectedLayerTransformOverlay = React.useCallback(
-    (scope: "inline" | "modal"): React.ReactNode | null => {
-      if (!shouldShowSelectedLayerTransformOverlay || !selectedLayerTransformOverlayStyle) {
+    (
+      scope: "inline" | "modal",
+      preferredViewportSize: StageViewportSize,
+      stageElement: HTMLDivElement | null
+    ): React.ReactNode | null => {
+      if (!shouldShowSelectedLayerTransformOverlay || !selectedLayer) {
         return null;
       }
-      const viewportSize = scope === "modal" ? markupModalViewportSize : inlineDropzoneViewportSize;
-      const resolvedDropzoneAspectRatio =
-        viewportSize.width > 1 && viewportSize.height > 1
-          ? viewportSize.width / viewportSize.height
-          : primaryDropzoneAspectRatioValue;
-      let selectionBoxWidthPercent = 100;
-      let selectionBoxHeightPercent = 100;
-      if (selectedLayerImageAspectRatio > resolvedDropzoneAspectRatio) {
-        selectionBoxHeightPercent =
-          (resolvedDropzoneAspectRatio / selectedLayerImageAspectRatio) * 100;
-      } else {
-        selectionBoxWidthPercent =
-          (selectedLayerImageAspectRatio / resolvedDropzoneAspectRatio) * 100;
-      }
+      const liveViewportSize = resolveStageViewportSize(
+        stageElement?.getBoundingClientRect() ?? null
+      );
+      const viewportSize = isResolvedStageViewportSize(liveViewportSize)
+        ? liveViewportSize
+        : preferredViewportSize;
+      const layerRect = resolveContainedLayerRect(selectedLayerImageAspectRatio, viewportSize);
+      const translateX = selectedLayer.transform.translateXRatio * viewportSize.width;
+      const translateY = selectedLayer.transform.translateYRatio * viewportSize.height;
       const selectedLayerScale = Math.max(0.0001, selectedLayer?.transform.scale ?? 1);
       return (
         <div
           className="edit-expert-primary-layer-selection-overlay"
-          style={selectedLayerTransformOverlayStyle}
+          style={{
+            left: `${layerRect.leftPercent}%`,
+            top: `${layerRect.topPercent}%`,
+            width: `${layerRect.widthPercent}%`,
+            height: `${layerRect.heightPercent}%`,
+            transform: `translate(${Math.round(translateX * 100) / 100}px, ${
+              Math.round(translateY * 100) / 100
+            }px) rotate(${selectedLayer.transform.rotationDeg}deg)`,
+            transformOrigin: "center center",
+          }}
           aria-hidden="true"
           data-testid={`edit-expert-transform-overlay-${scope}`}
         >
           <div
             className="edit-expert-primary-layer-selection-box"
             style={{
-              width: `${Math.max(0.0001, selectionBoxWidthPercent * selectedLayerScale)}%`,
-              height: `${Math.max(0.0001, selectionBoxHeightPercent * selectedLayerScale)}%`,
+              width: `${Math.max(0.0001, selectedLayerScale * 100)}%`,
+              height: `${Math.max(0.0001, selectedLayerScale * 100)}%`,
             }}
           >
             <span className="edit-expert-primary-layer-selection-outline" />
@@ -4299,12 +4318,9 @@ export function ExpertEditPanelView({
       );
     },
     [
-      inlineDropzoneViewportSize,
-      markupModalViewportSize,
-      primaryDropzoneAspectRatioValue,
+      resolveContainedLayerRect,
       selectedLayer,
       selectedLayerImageAspectRatio,
-      selectedLayerTransformOverlayStyle,
       shouldShowSelectedLayerTransformOverlay,
     ]
   );
@@ -4322,37 +4338,59 @@ export function ExpertEditPanelView({
       overlayCanvas: React.RefObject<HTMLCanvasElement>;
       stageSize: StageViewportSize;
       stageElement: HTMLDivElement | null;
-    }) => (
-      <div className="edit-expert-markup-viewport" style={viewportStyle}>
-        <div className="edit-expert-primary-layer-content-clip">
+    }) => {
+      const liveStageSize = resolveStageViewportSize(stageElement?.getBoundingClientRect() ?? null);
+      const renderStageSize = isResolvedStageViewportSize(liveStageSize)
+        ? liveStageSize
+        : stageSize;
+      return (
+        <div className="edit-expert-markup-viewport" style={viewportStyle}>
           {layers.map((layer, index) =>
-            layer.imageUrl ? (
-              <div
-                key={scope === "modal" ? `markup-modal-${layer.id}` : layer.id}
-                className="edit-expert-primary-layer-frame"
-                style={{
-                  backgroundImage: `url(${layer.imageUrl})`,
-                  zIndex: layers.length - index,
-                  opacity: clampLayerOpacity(layer.opacity),
-                  transform: resolveLayerFrameTransformStyle(layer),
-                  transformOrigin: "center center",
-                }}
-              />
-            ) : null
+            layer.imageUrl
+              ? (() => {
+                  const layerRect = resolveContainedLayerRect(
+                    resolveLayerImageAspectRatio(layer),
+                    renderStageSize
+                  );
+                  const translateX = layer.transform.translateXRatio * renderStageSize.width;
+                  const translateY = layer.transform.translateYRatio * renderStageSize.height;
+                  return (
+                    <div
+                      key={scope === "modal" ? `markup-modal-${layer.id}` : layer.id}
+                      className="edit-expert-primary-layer-frame"
+                      style={{
+                        left: `${layerRect.leftPercent}%`,
+                        top: `${layerRect.topPercent}%`,
+                        width: `${layerRect.widthPercent}%`,
+                        height: `${layerRect.heightPercent}%`,
+                        backgroundImage: `url(${layer.imageUrl})`,
+                        zIndex: layers.length - index,
+                        opacity: clampLayerOpacity(layer.opacity),
+                        transform: `translate(${Math.round(translateX * 100) / 100}px, ${
+                          Math.round(translateY * 100) / 100
+                        }px) scale(${layer.transform.scale}) rotate(${layer.transform.rotationDeg}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    />
+                  );
+                })()
+              : null
           )}
           <canvas
             ref={overlayCanvas}
             className="edit-expert-inpaint-overlay-canvas"
             aria-hidden="true"
           />
-          {renderMarkupStrokeOverlay(scope, stageSize, stageElement)}
+          {renderMarkupStrokeOverlay(scope, renderStageSize, stageElement)}
           {renderPrimaryStageBusyOverlay()}
+          {renderSelectedLayerTransformOverlay(scope, renderStageSize, stageElement)}
         </div>
-        {renderSelectedLayerTransformOverlay(scope)}
-      </div>
-    ),
+      );
+    },
     [
       layers,
+      resolveContainedLayerRect,
+      resolveLayerImageAspectRatio,
       renderMarkupStrokeOverlay,
       renderPrimaryStageBusyOverlay,
       renderSelectedLayerTransformOverlay,
@@ -4500,9 +4538,7 @@ export function ExpertEditPanelView({
           ) : null}
           <div
             ref={inlineStageWrapperRef}
-            className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-stage-wrapper ${
-              shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""
-            }`.trim()}
+            className="edit-expert-column-wrapper edit-expert-column-wrapper--center"
             onPointerDownCapture={handleInlineStagePointerDownCapture}
             onPointerMoveCapture={handleInlineStagePointerMoveCapture}
             onPointerUpCapture={handleInlineStagePointerUpCapture}
@@ -4539,7 +4575,7 @@ export function ExpertEditPanelView({
                   scope: "inline",
                   viewportStyle: inlineMarkupViewportStyle,
                   overlayCanvas: overlayCanvasRef,
-                  stageSize: inlineDropzoneViewportSize,
+                  stageSize: inlineStageViewportSize,
                   stageElement: primaryDropzoneRef.current,
                 })
               ) : (

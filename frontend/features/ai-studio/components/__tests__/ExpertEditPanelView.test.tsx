@@ -157,7 +157,9 @@ const readFrameRotationDeg = (frame: HTMLDivElement) =>
   Number(frame.style.transform.match(/rotate\(([-\d.]+)deg\)/)?.[1] ?? "0");
 
 const readFrameTranslate = (frame: HTMLDivElement) => {
-  const match = frame.style.transform.match(/translate\(([-\d.]+)%\s*,\s*([-\d.]+)%\)/);
+  const match = frame.style.transform.match(
+    /translate\(([-\d.]+)(?:px|%)\s*,\s*([-\d.]+)(?:px|%)\)/
+  );
   return {
     x: Number(match?.[1] ?? "0"),
     y: Number(match?.[2] ?? "0"),
@@ -199,6 +201,19 @@ const createSquareRect = (size: number): DOMRect =>
     y: 0,
     toJSON: () => ({}),
   }) as DOMRect;
+
+const dispatchNativeWheelEvent = (
+  element: Element,
+  init: Pick<WheelEventInit, "deltaY" | "clientX" | "clientY">
+) => {
+  element.dispatchEvent(
+    new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    })
+  );
+};
 
 const mockElementRect = (element: Element, rect: DOMRect) => {
   Object.defineProperty(element, "getBoundingClientRect", {
@@ -2813,8 +2828,8 @@ describe("ExpertEditPanelView", () => {
     expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
   });
 
-  it("pans the inline stage camera from the wrapper surface (including over dropzone content)", async () => {
-    const { container } = render(
+  it("pans the inline stage camera from the primary interaction surface", async () => {
+    render(
       <ExpertEditPanelView
         {...baseProps}
         referenceImageUrl="https://example.com/markup-pan-inline.png"
@@ -2898,27 +2913,21 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(afterDropzonePanAttempt?.offsetX ?? 0)).toBeGreaterThan(80);
     expect(Math.abs(afterDropzonePanAttempt?.offsetY ?? 0)).toBeGreaterThan(80);
 
-    const primaryColumn = container.querySelector(".edit-expert-primary-column");
-    const inlineStageWrapper = primaryColumn?.querySelector(
-      ".edit-expert-column-wrapper--center"
-    ) as HTMLDivElement | null;
-    expect(inlineStageWrapper).not.toBeNull();
-
     fireEvent.keyDown(window, { key: " ", code: "Space" });
-    fireEvent.pointerDown(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerDown(primaryDropzone, {
       pointerId: 603,
       pointerType: "mouse",
       button: 0,
       clientX: 68,
       clientY: 78,
     });
-    fireEvent.pointerMove(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerMove(primaryDropzone, {
       pointerId: 603,
       pointerType: "mouse",
       clientX: 176,
       clientY: 194,
     });
-    fireEvent.pointerUp(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerUp(primaryDropzone, {
       pointerId: 603,
       pointerType: "mouse",
       button: 0,
@@ -2927,12 +2936,12 @@ describe("ExpertEditPanelView", () => {
     });
     fireEvent.keyUp(window, { key: " ", code: "Space" });
 
-    const afterWrapperPan = readMarkupViewportTransform();
-    expect(afterWrapperPan).not.toBeNull();
-    expect(Math.abs(afterWrapperPan?.offsetX ?? 0)).toBeGreaterThan(
+    const afterPrimarySurfacePan = readMarkupViewportTransform();
+    expect(afterPrimarySurfacePan).not.toBeNull();
+    expect(Math.abs(afterPrimarySurfacePan?.offsetX ?? 0)).toBeGreaterThan(
       Math.abs(afterDropzonePanAttempt?.offsetX ?? 0)
     );
-    expect(Math.abs(afterWrapperPan?.offsetY ?? 0)).toBeGreaterThan(
+    expect(Math.abs(afterPrimarySurfacePan?.offsetY ?? 0)).toBeGreaterThan(
       Math.abs(afterDropzonePanAttempt?.offsetY ?? 0)
     );
   });
@@ -3034,8 +3043,8 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(afterPan?.offsetY ?? 0)).toBeGreaterThan(60);
   });
 
-  it("zooms the loaded stage from wrapper surface and shares viewport state with expanded modal", async () => {
-    const { container } = render(
+  it("zooms the loaded stage from the primary surface and shares viewport state with expanded modal", async () => {
+    render(
       <ExpertEditPanelView
         {...baseProps}
         referenceImageUrl="https://example.com/markup-zoom-shared.png"
@@ -3074,13 +3083,7 @@ describe("ExpertEditPanelView", () => {
     expect(afterDropzoneWheel?.viewport).toHaveClass("edit-expert-markup-viewport");
     expect(afterDropzoneWheel?.scale ?? 0).toBeGreaterThan(1);
 
-    const primaryColumn = container.querySelector(".edit-expert-primary-column");
-    const inlineStageWrapper = primaryColumn?.querySelector(
-      ".edit-expert-column-wrapper--center"
-    ) as HTMLDivElement | null;
-    expect(inlineStageWrapper).not.toBeNull();
-
-    fireEvent.wheel(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.wheel(primaryDropzone, {
       deltaY: -120,
       clientX: 18,
       clientY: 18,
@@ -3140,10 +3143,8 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(modalAfterRecenter?.offsetY ?? 0)).toBeLessThan(0.01);
   });
 
-  it("keeps inline stage pan and zoom active from wrapper backdrop without a loaded image", async () => {
-    const { container } = render(
-      <ExpertEditPanelView {...baseProps} referenceText="prompt text" />
-    );
+  it("keeps inline stage pan and zoom active from the primary surface without a loaded image", async () => {
+    render(<ExpertEditPanelView {...baseProps} referenceText="prompt text" />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
@@ -3153,13 +3154,7 @@ describe("ExpertEditPanelView", () => {
     const inlineRect = createSquareRect(320);
     mockElementRect(primaryDropzone, inlineRect);
 
-    const primaryColumn = container.querySelector(".edit-expert-primary-column");
-    const inlineStageWrapper = primaryColumn?.querySelector(
-      ".edit-expert-column-wrapper--center"
-    ) as HTMLDivElement | null;
-    expect(inlineStageWrapper).not.toBeNull();
-
-    fireEvent.wheel(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.wheel(primaryDropzone, {
       deltaY: -120,
       clientX: 30,
       clientY: 30,
@@ -3168,20 +3163,20 @@ describe("ExpertEditPanelView", () => {
     expect(afterZoom).not.toBeNull();
     expect(afterZoom?.scale ?? 0).toBeGreaterThan(1);
 
-    fireEvent.pointerDown(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerDown(primaryDropzone, {
       pointerId: 901,
       pointerType: "mouse",
       button: 1,
       clientX: 120,
       clientY: 124,
     });
-    fireEvent.pointerMove(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerMove(primaryDropzone, {
       pointerId: 901,
       pointerType: "mouse",
       clientX: 198,
       clientY: 214,
     });
-    fireEvent.pointerUp(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerUp(primaryDropzone, {
       pointerId: 901,
       pointerType: "mouse",
       button: 1,
@@ -3716,7 +3711,8 @@ describe("ExpertEditPanelView", () => {
     });
 
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    expect(frame.style.transform).toContain("translate(0%");
+    expect(readFrameTranslate(frame).x).toBeCloseTo(0, 4);
+    expect(readFrameTranslate(frame).y).toBeCloseTo(0, 4);
 
     fireEvent.pointerDown(primaryDropzone, {
       pointerId: 41,
@@ -3738,10 +3734,7 @@ describe("ExpertEditPanelView", () => {
       clientY: 70,
     });
 
-    const translateMatch = frame.style.transform.match(/translate\(([-\d.]+)%\s*,\s*([-\d.]+)%\)/);
-    expect(translateMatch).not.toBeNull();
-    const translateX = Number(translateMatch?.[1] ?? "0");
-    const translateY = Number(translateMatch?.[2] ?? "0");
+    const { x: translateX, y: translateY } = readFrameTranslate(frame);
     expect(translateX).toBeGreaterThan(10);
     expect(translateY).toBeGreaterThan(10);
   });
@@ -3767,6 +3760,57 @@ describe("ExpertEditPanelView", () => {
         "resize"
       );
     });
+  });
+
+  it("aligns the layer frame and transform overlay to the contained image rect", async () => {
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 400;
+      naturalHeight = 800;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/portrait-transform-target.png"
+          referenceText="prompt text"
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+      const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+      const overlay = screen.getByTestId("edit-expert-transform-overlay-inline");
+
+      await waitFor(() => {
+        expect(frame.style.width).toBe("50%");
+      });
+      expect(frame.style.left).toBe("25%");
+      expect(frame.style.height).toBe("100%");
+      expect(overlay.style.width).toBe("50%");
+      expect(overlay.style.left).toBe("25%");
+      expect(overlay.style.height).toBe("100%");
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it("resizes the selected layer when dragging an inline corner transform handle", async () => {
@@ -5905,27 +5949,21 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
     const primaryDropzone = screen.getByLabelText("Primary edit image");
     mockElementRect(primaryDropzone, createSquareRect(200));
-    const primaryColumn = container.querySelector(".edit-expert-primary-column");
-    const inlineStageWrapper = primaryColumn?.querySelector(
-      ".edit-expert-column-wrapper--center"
-    ) as HTMLDivElement | null;
-    expect(inlineStageWrapper).not.toBeNull();
-
     fireEvent.keyDown(window, { code: "Space" });
-    fireEvent.pointerDown(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerDown(primaryDropzone, {
       pointerId: 911,
       pointerType: "mouse",
       button: 0,
       clientX: 100,
       clientY: 100,
     });
-    fireEvent.pointerMove(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerMove(primaryDropzone, {
       pointerId: 911,
       pointerType: "mouse",
       clientX: 130,
       clientY: 112,
     });
-    fireEvent.pointerUp(inlineStageWrapper as HTMLDivElement, {
+    fireEvent.pointerUp(primaryDropzone, {
       pointerId: 911,
       pointerType: "mouse",
       clientX: 130,
@@ -6657,26 +6695,21 @@ describe("ExpertEditPanelView", () => {
       fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
       const primaryDropzone = screen.getByLabelText("Primary edit image");
       mockElementRect(primaryDropzone, createSquareRect(200));
-      const primaryColumn = container.querySelector(".edit-expert-primary-column");
-      const inlineStageWrapper = primaryColumn?.querySelector(
-        ".edit-expert-column-wrapper--center"
-      ) as HTMLDivElement | null;
-      expect(inlineStageWrapper).not.toBeNull();
       fireEvent.keyDown(window, { code: "Space" });
-      fireEvent.pointerDown(inlineStageWrapper as HTMLDivElement, {
+      fireEvent.pointerDown(primaryDropzone, {
         pointerId: 944,
         pointerType: "mouse",
         button: 0,
         clientX: 100,
         clientY: 100,
       });
-      fireEvent.pointerMove(inlineStageWrapper as HTMLDivElement, {
+      fireEvent.pointerMove(primaryDropzone, {
         pointerId: 944,
         pointerType: "mouse",
         clientX: 132,
         clientY: 114,
       });
-      fireEvent.pointerUp(inlineStageWrapper as HTMLDivElement, {
+      fireEvent.pointerUp(primaryDropzone, {
         pointerId: 944,
         pointerType: "mouse",
         clientX: 132,

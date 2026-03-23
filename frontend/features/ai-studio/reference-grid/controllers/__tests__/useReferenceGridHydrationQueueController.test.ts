@@ -6,6 +6,7 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { useReferenceGridHydrationQueueController } from "../useReferenceGridHydrationQueueController";
+import type { ReferenceGridResolvedCardMedia } from "../useReferenceGridResolvedMediaController";
 
 const imageOutput = (id: string): StudioOutput =>
   ({
@@ -27,20 +28,34 @@ const adaptivePreviewOutput = (id: string): StudioOutput =>
     resultUrls: null,
   }) as unknown as StudioOutput;
 
-const visibleImageCard = (
-  item: StudioOutput,
-  surface: "all-refs" | "curated" = "all-refs"
-) =>
+const visibleImageCard = (item: StudioOutput, surface: "all-refs" | "curated" = "all-refs") =>
   ({
     item,
     surface,
     cardPreviewUrl: "https://cdn.example.com/preview.jpg",
+    fallbackUrl: "https://cdn.example.com/full.jpg",
     isImagePreview: true,
     isVideoPreview: false,
     isPriorityHydration: false,
     targetLongEdgePx: 512,
     previewQualityBand: "high",
   }) as const;
+
+const createResolvedCardMedia = (
+  item: StudioOutput,
+  previewUrl: string
+): ReferenceGridResolvedCardMedia => ({
+  previewUrl,
+  fullUrl: previewUrl,
+  fallbackUrl: "https://cdn.example.com/full.jpg",
+  previewQualityBand: "high",
+  targetLongEdgePx: 512,
+  isVideoPreview: false,
+  isImagePreview: true,
+  normalizedPreviewUrl: previewUrl,
+  normalizedFallbackUrl: "https://cdn.example.com/full.jpg",
+  previewOptimizerSourceUrl: null,
+});
 
 describe("useReferenceGridHydrationQueueController", () => {
   it("stops queue scheduling while suspended and resumes on unsuspend", () => {
@@ -60,12 +75,11 @@ describe("useReferenceGridHydrationQueueController", () => {
           hydrationQuickSlotPreferredIdSet: new Set<string>(),
           nearViewportOutputs: [],
           nearViewportCuratedOutputs: [],
-          previewQualityPressureLevel: 0,
-          strictPreviewLadder: true,
-          adaptivePreviewRoutingEnabled: true,
           virtualRowHeight: 280,
           curatedVirtualRowHeight: 240,
           quickSlotAdaptiveSurfaceEnabled: false,
+          resolveCardMedia: ({ item }) =>
+            createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg"),
           enqueueImageHydration,
           pruneHydrationQueueToCandidateIds,
         }),
@@ -111,12 +125,11 @@ describe("useReferenceGridHydrationQueueController", () => {
         hydrationQuickSlotPreferredIdSet: new Set([output.id]),
         nearViewportOutputs: [],
         nearViewportCuratedOutputs: [],
-        previewQualityPressureLevel: 0,
-        strictPreviewLadder: true,
-        adaptivePreviewRoutingEnabled: true,
         virtualRowHeight: 280,
         curatedVirtualRowHeight: 240,
         quickSlotAdaptiveSurfaceEnabled: true,
+        resolveCardMedia: ({ item }) =>
+          createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg"),
         enqueueImageHydration,
         pruneHydrationQueueToCandidateIds,
       })
@@ -147,12 +160,14 @@ describe("useReferenceGridHydrationQueueController", () => {
         hydrationQuickSlotPreferredIdSet: new Set([output.id]),
         nearViewportOutputs: [],
         nearViewportCuratedOutputs: [],
-        previewQualityPressureLevel: 2,
-        strictPreviewLadder: true,
-        adaptivePreviewRoutingEnabled: true,
         virtualRowHeight: 280,
         curatedVirtualRowHeight: 240,
         quickSlotAdaptiveSurfaceEnabled: true,
+        resolveCardMedia: ({ item }) =>
+          createResolvedCardMedia(
+            item,
+            "https://example.supabase.co/storage/v1/render/image/public/media/shared.jpg"
+          ),
         enqueueImageHydration: enqueuePreferred,
         pruneHydrationQueueToCandidateIds: prunePreferred,
       })

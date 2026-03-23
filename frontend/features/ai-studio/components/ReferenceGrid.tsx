@@ -55,6 +55,7 @@ import { useReferenceGridViewportProjectionController } from "../reference-grid/
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
 import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
 import { useReferenceGridHeaderMeasurements } from "../reference-grid/controllers/useReferenceGridHeaderMeasurements";
+import { useReferenceGridResolvedMediaController } from "../reference-grid/controllers/useReferenceGridResolvedMediaController";
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 import {
@@ -568,6 +569,11 @@ export function ReferenceGrid({
     Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount) *
     baseHydrationPriorityRows;
   const quickSlotAdaptiveSurfaceEnabled = isAdaptiveSurfaceEnabled("quick-slot");
+  const { resolveCardMedia } = useReferenceGridResolvedMediaController({
+    previewQualityPressureLevel,
+    strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+    adaptivePreviewRoutingEnabled,
+  });
   const { visibleQuickSlotIdSet, hydrationQuickSlotPreferredIdSet } =
     useReferenceGridSurfaceOwnershipController({
       visibleCuratedOutputs,
@@ -581,9 +587,6 @@ export function ReferenceGrid({
     transformedAdaptivePreviewCount,
   } = useReferenceGridCardItemsController({
     activeOutputId,
-    previewQualityPressureLevel,
-    strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-    adaptivePreviewRoutingEnabled,
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     visibleOutputs,
     visibleCuratedOutputs,
@@ -593,6 +596,7 @@ export function ReferenceGrid({
     virtualRowHeight: virtualMetrics.rowHeight,
     curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
     quickSlotAdaptiveSurfaceEnabled,
+    resolveCardMedia,
     hydratedById: imageHydrationState.hydratedById,
   });
   useReferenceGridPreviewSwapTelemetryController({
@@ -626,12 +630,10 @@ export function ReferenceGrid({
     hydrationQuickSlotPreferredIdSet,
     nearViewportOutputs,
     nearViewportCuratedOutputs,
-    previewQualityPressureLevel,
-    strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-    adaptivePreviewRoutingEnabled,
     virtualRowHeight: virtualMetrics.rowHeight,
     curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
     quickSlotAdaptiveSurfaceEnabled,
+    resolveCardMedia,
     enqueueImageHydration,
     pruneHydrationQueueToCandidateIds,
   });

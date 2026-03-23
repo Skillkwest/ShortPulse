@@ -46,6 +46,9 @@ describe("ai-studio layout scroll lock contract", () => {
     expect(css).toContain(
       ".ai-shell.ai-shell-performance-dense .reference-column .preview-column-header"
     );
+    expect(css).toContain(".ai-shell.ai-shell-performance-dense .toolbar-create-children");
+    expect(css).toContain(".ai-shell.ai-shell-performance-dense .toolbar-create-spacer");
+    expect(css).toContain("will-change: auto;");
     expect(css).toContain("backdrop-filter: none;");
     expect(css).toContain("transition: none;");
   });

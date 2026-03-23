@@ -911,6 +911,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   backdrop-filter: none;
 }
 
+.ai-shell.ai-shell-performance-dense .toolbar-create-children,
+.ai-shell.ai-shell-performance-dense .toolbar-create-spacer {
+  transition: none !important;
+}
+
+.ai-shell.ai-shell-performance-dense .toolbar-create-children {
+  will-change: auto;
+}
+
 .ai-shell.ai-shell-performance-dense .toolbar-item,
 .ai-shell.ai-shell-performance-dense .ghost-btn,
 .ai-shell.ai-shell-performance-dense .reference-card {

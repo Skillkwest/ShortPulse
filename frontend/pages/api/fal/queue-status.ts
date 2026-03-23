@@ -1,11 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { logApiRouteException, logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../lib/server/api/falRuntimeFlags";
-import { dispatchGenerationSubmitQueueBatch } from "../../../lib/server/api/generationQueue/dispatch";
-import { claimDueQueueStatusRecovery } from "../../../lib/server/api/generationQueue/statusRecoveryKick";
+import { runQueueStatusSideEffects } from "../../../lib/server/api/generationQueue/queueStatusSideEffects";
 import { readGenerationQueueStatus } from "../../../lib/server/api/generationQueue/service";
-import { executeGenerationRecovery } from "../../../lib/server/falIntegration/recoveryExecution";
 
 const asQueryString = (value: string | string[] | undefined): string | null => {
   if (typeof value === "string") {
@@ -44,105 +42,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const queueStatusDispatchKickEnabled = flags.queueStatusDispatchKickEnabled ?? true;
-    if (queueStatusDispatchKickEnabled) {
-      try {
-        const kickMetrics = await dispatchGenerationSubmitQueueBatch({
-          req,
-          routeLabel: "api/fal/queue-status",
-          limit: 1,
-          userId: user.id,
-        });
-        if (kickMetrics.errors > 0 || kickMetrics.exhausted > 0) {
-          await logGenerationFailure({
-            req,
-            routeLabel: "api/fal/queue-status",
-            source: "telemetry.queue.status.kick_partial_failure",
-            message: "Queue status dispatch kick completed with queue errors.",
-            statusCode: 200,
-            userId: user.id,
-            userEmail: user.email ?? null,
-            metadata: {
-              source_ref: sourceRef,
-              generation_id: generationId,
-              claimed: kickMetrics.claimed,
-              submitted: kickMetrics.submitted,
-              retried: kickMetrics.retried,
-              requeued_no_capacity: kickMetrics.requeuedNoCapacity,
-              exhausted: kickMetrics.exhausted,
-              skipped: kickMetrics.skipped,
-              errors: kickMetrics.errors,
-            },
-          });
-        }
-      } catch (error) {
-        await logGenerationFailure({
-          req,
-          routeLabel: "api/fal/queue-status",
-          source: "telemetry.queue.status.kick_failed",
-          message: "Queue status dispatch kick failed; continuing with status read.",
-          statusCode: 500,
-          userId: user.id,
-          userEmail: user.email ?? null,
-          metadata: {
-            source_ref: sourceRef,
-            generation_id: generationId,
-            detail: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
-    }
-
-    const recoveryClaim = await claimDueQueueStatusRecovery({
-      userId: user.id,
-      generationId,
-      sourceRef,
-    });
-    if (recoveryClaim.reason === "db_error") {
-      await logGenerationFailure({
+    if (!(flags.queueStatusReadOnlyEnabled ?? false)) {
+      await runQueueStatusSideEffects({
         req,
         routeLabel: "api/fal/queue-status",
-        source: "telemetry.queue.status.recovery_claim_failed",
-        message: "Queue status recovery claim failed at claim stage; continuing with status read.",
-        statusCode: 500,
         userId: user.id,
         userEmail: user.email ?? null,
-        metadata: {
-          source_ref: sourceRef,
-          generation_id: generationId,
-          claim_reason: recoveryClaim.reason,
-          detail: recoveryClaim.errorMessage,
+        sourceRef,
+        generationId,
+        flags: {
+          queueStatusDispatchKickEnabled: flags.queueStatusDispatchKickEnabled ?? true,
+          queueStatusRecoveryKickEnabled: flags.queueStatusRecoveryKickEnabled ?? true,
+          reconcilerMaxAttempts: flags.reconcilerMaxAttempts,
         },
       });
-    }
-    if (recoveryClaim.claimed && recoveryClaim.generationId) {
-      try {
-        await executeGenerationRecovery({
-          actor: "status_proxy",
-          generationId: recoveryClaim.generationId,
-          requestId: recoveryClaim.requestId,
-          userId: user.id,
-          maxAttempts: flags.reconcilerMaxAttempts,
-          routeLabel: "api/fal/queue-status",
-        });
-      } catch (error) {
-        await logGenerationFailure({
-          req,
-          routeLabel: "api/fal/queue-status",
-          source: "telemetry.queue.status.recovery_kick_failed",
-          message: "Queue status recovery execution failed; continuing with status read.",
-          statusCode: 500,
-          userId: user.id,
-          userEmail: user.email ?? null,
-          metadata: {
-            source_ref: sourceRef,
-            generation_id: generationId,
-            claimed_generation_id: recoveryClaim.generationId,
-            claim_reason: recoveryClaim.reason,
-            detail: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
     }
 
     const status = await readGenerationQueueStatus({

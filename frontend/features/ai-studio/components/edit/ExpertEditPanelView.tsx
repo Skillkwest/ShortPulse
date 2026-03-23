@@ -4258,54 +4258,63 @@ export function ExpertEditPanelView({
     );
   };
 
-  const renderSelectedLayerTransformOverlay = (
-    scope: "inline" | "modal"
-  ): React.ReactNode | null => {
-    if (!shouldShowSelectedLayerTransformOverlay || !selectedLayerTransformOverlayStyle) {
-      return null;
-    }
-    const viewportSize = scope === "modal" ? markupModalViewportSize : inlineDropzoneViewportSize;
-    const resolvedDropzoneAspectRatio =
-      viewportSize.width > 1 && viewportSize.height > 1
-        ? viewportSize.width / viewportSize.height
-        : primaryDropzoneAspectRatioValue;
-    let selectionBoxWidthPercent = 100;
-    let selectionBoxHeightPercent = 100;
-    if (selectedLayerImageAspectRatio > resolvedDropzoneAspectRatio) {
-      selectionBoxHeightPercent =
-        (resolvedDropzoneAspectRatio / selectedLayerImageAspectRatio) * 100;
-    } else {
-      selectionBoxWidthPercent =
-        (selectedLayerImageAspectRatio / resolvedDropzoneAspectRatio) * 100;
-    }
-    const selectedLayerScale = Math.max(0.0001, selectedLayer?.transform.scale ?? 1);
-    return (
-      <div
-        className="edit-expert-primary-layer-selection-overlay"
-        style={selectedLayerTransformOverlayStyle}
-        aria-hidden="true"
-        data-testid={`edit-expert-transform-overlay-${scope}`}
-      >
+  const renderSelectedLayerTransformOverlay = React.useCallback(
+    (scope: "inline" | "modal"): React.ReactNode | null => {
+      if (!shouldShowSelectedLayerTransformOverlay || !selectedLayerTransformOverlayStyle) {
+        return null;
+      }
+      const viewportSize = scope === "modal" ? markupModalViewportSize : inlineDropzoneViewportSize;
+      const resolvedDropzoneAspectRatio =
+        viewportSize.width > 1 && viewportSize.height > 1
+          ? viewportSize.width / viewportSize.height
+          : primaryDropzoneAspectRatioValue;
+      let selectionBoxWidthPercent = 100;
+      let selectionBoxHeightPercent = 100;
+      if (selectedLayerImageAspectRatio > resolvedDropzoneAspectRatio) {
+        selectionBoxHeightPercent =
+          (resolvedDropzoneAspectRatio / selectedLayerImageAspectRatio) * 100;
+      } else {
+        selectionBoxWidthPercent =
+          (selectedLayerImageAspectRatio / resolvedDropzoneAspectRatio) * 100;
+      }
+      const selectedLayerScale = Math.max(0.0001, selectedLayer?.transform.scale ?? 1);
+      return (
         <div
-          className="edit-expert-primary-layer-selection-box"
-          style={{
-            width: `${Math.max(0.0001, selectionBoxWidthPercent * selectedLayerScale)}%`,
-            height: `${Math.max(0.0001, selectionBoxHeightPercent * selectedLayerScale)}%`,
-          }}
+          className="edit-expert-primary-layer-selection-overlay"
+          style={selectedLayerTransformOverlayStyle}
+          aria-hidden="true"
+          data-testid={`edit-expert-transform-overlay-${scope}`}
         >
-          <span className="edit-expert-primary-layer-selection-outline" />
-          {selectedLayerTransformHandleCorners.map((corner) => (
-            <span
-              key={`${scope}-selected-layer-handle-${corner}`}
-              className={`edit-expert-primary-layer-selection-handle is-corner-${corner}`}
-              data-edit-expert-transform-drag-mode="resize"
-              data-testid={`edit-expert-transform-handle-${scope}-${corner}`}
-            />
-          ))}
+          <div
+            className="edit-expert-primary-layer-selection-box"
+            style={{
+              width: `${Math.max(0.0001, selectionBoxWidthPercent * selectedLayerScale)}%`,
+              height: `${Math.max(0.0001, selectionBoxHeightPercent * selectedLayerScale)}%`,
+            }}
+          >
+            <span className="edit-expert-primary-layer-selection-outline" />
+            {selectedLayerTransformHandleCorners.map((corner) => (
+              <span
+                key={`${scope}-selected-layer-handle-${corner}`}
+                className={`edit-expert-primary-layer-selection-handle is-corner-${corner}`}
+                data-edit-expert-transform-drag-mode="resize"
+                data-testid={`edit-expert-transform-handle-${scope}-${corner}`}
+              />
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  };
+      );
+    },
+    [
+      inlineDropzoneViewportSize,
+      markupModalViewportSize,
+      primaryDropzoneAspectRatioValue,
+      selectedLayer,
+      selectedLayerImageAspectRatio,
+      selectedLayerTransformOverlayStyle,
+      shouldShowSelectedLayerTransformOverlay,
+    ]
+  );
 
   const renderPrimaryStageViewport = React.useCallback(
     ({

@@ -186,10 +186,15 @@ const probeUrlContentType = async ({
 }): Promise<{ status: number; contentType: string | null } | { error: string }> => {
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), MEDIA_PROBE_TIMEOUT_MS);
+  const abortSignalAny = (
+    AbortSignal as typeof AbortSignal & {
+      any?: (signals: readonly AbortSignal[]) => AbortSignal;
+    }
+  ).any;
   try {
     const mergedSignal =
-      typeof AbortSignal.any === "function"
-        ? AbortSignal.any([signal, timeoutController.signal])
+      typeof abortSignalAny === "function"
+        ? abortSignalAny([signal, timeoutController.signal])
         : signal;
     let response = await fetch(url, {
       method: "HEAD",

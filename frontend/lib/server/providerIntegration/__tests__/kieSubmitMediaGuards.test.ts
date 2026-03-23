@@ -17,17 +17,18 @@ const buildSignedToken = (expiresInSeconds: number): string => {
 };
 
 describe("kieSubmitMediaGuards", () => {
+  const env = process.env as Record<string, string | undefined>;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalProbeOverride = process.env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED;
 
   beforeEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-    process.env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = originalProbeOverride;
+    env.NODE_ENV = originalNodeEnv;
+    env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = originalProbeOverride;
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-    process.env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = originalProbeOverride;
+    env.NODE_ENV = originalNodeEnv;
+    env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = originalProbeOverride;
     vi.unstubAllGlobals();
   });
 
@@ -120,7 +121,7 @@ describe("kieSubmitMediaGuards", () => {
   });
 
   it("rejects media URLs when remote probe returns non-success status", async () => {
-    process.env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = "true";
+    env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = "true";
     const fetchMock = vi.fn().mockResolvedValue(
       new Response("", {
         status: 403,

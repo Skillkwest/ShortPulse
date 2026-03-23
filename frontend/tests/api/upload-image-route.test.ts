@@ -137,7 +137,8 @@ describe("POST /api/upload-image", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid file type",
-      details: "Content type does not match file content.",
+      details:
+        "Content type does not match file content (declared: image/png, detected: image/jpeg).",
     });
     expect(writeAppErrorLogMock).not.toHaveBeenCalled();
   });

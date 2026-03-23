@@ -3,14 +3,7 @@
  * Manages chat state locally and exposes a send helper with structured responses.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  AgentActions,
-  AgentApiContext,
-  AgentApiRequest,
-  AgentContext,
-  AgentMessage,
-  AgentResponse,
-} from "../../prefabs/agent";
+import type { AgentApiContext, AgentApiRequest, AgentMessage } from "../../prefabs/agent";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
@@ -18,9 +11,16 @@ import {
 } from "../agent-runtime/studioAgentSafetyInputPrecheck";
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "../agent-runtime/studioAgentFailurePolicy";
 import { resolveSafetyEnvironment } from "../agent-runtime/safetyPolicy/decisionEngine";
-import type { SafetyModality } from "../agent-runtime/safetyPolicy/types";
 import { buildAgentContext } from "./logic/contextBuilder";
 import { normalizeErrorText } from "../../lib/errorText";
+import {
+  SAFETY_REFUSAL_MESSAGE,
+  isClientDevAbsoluteZeroEnabled,
+  isClientInputPrecheckEnabled,
+  resolveClientSafetyModality,
+  resolveClientSafetyProfileId,
+  resolveSafetyRefusalText,
+} from "./agentClientSafety";
 import { normalizeActions } from "./client/actionNormalizer";
 import {
   appendAssistantMessage,
@@ -30,55 +30,13 @@ import {
 } from "./client/messageStore";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
 import { sendStudioAgentTurn } from "./client/studioAgentTransport";
-
-type UseAiAgentOptions = {
-  initialMessages?: AgentMessage[];
-  enabled?: boolean;
-  conversationId?: string;
-  sessionNamespace?: string;
-};
-
-type SendParams = {
-  text: string;
-  payloadText?: string;
-  previousPrompt?: string | null;
-  context?: AgentContext;
-  skipUserEcho?: boolean;
-  optimisticUserMessageId?: string | null;
-};
-
-type SendResult = {
-  response: AgentResponse | null;
-  actions: AgentActions | undefined;
-};
-
-// Stable default to prevent Fast Refresh issues
-const EMPTY_MESSAGES: AgentMessage[] = [];
-const SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
+import {
+  EMPTY_MESSAGES,
+  type SendParams,
+  type SendResult,
+  type UseAiAgentOptions,
+} from "./useAiAgentTypes";
 const createAgentMessageId = (role: "user" | "assistant") => `agent-${role}-${randomId()}`;
-
-const resolveSafetyRefusalText = (value: unknown): typeof SAFETY_REFUSAL_MESSAGE | null => {
-  const raw = normalizeErrorText(value, { fallback: "", maxLength: 120 });
-  if (raw === SAFETY_REFUSAL_MESSAGE) return SAFETY_REFUSAL_MESSAGE;
-  return null;
-};
-
-const resolveClientSafetyModality = (context: AgentApiContext | undefined): SafetyModality => {
-  if (context?.mode === "video") return "video";
-  if (context?.mode === "image") return "image";
-  if ((context?.media?.length ?? 0) > 0) return "image";
-  return "text";
-};
-
-const isClientInputPrecheckEnabled = (): boolean =>
-  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
-
-const resolveClientSafetyProfileId = (): string | null =>
-  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null;
-
-const isClientDevAbsoluteZeroEnabled = (): boolean =>
-  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
-
 export const useAiAgent = ({
   initialMessages = EMPTY_MESSAGES,
   enabled = true,

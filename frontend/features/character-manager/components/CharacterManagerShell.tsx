@@ -38,12 +38,12 @@ import {
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
 import { useCharacterManagerShellViewState } from "../hooks/useCharacterManagerShellViewState";
+import { useCharacterCardPreviewUrls } from "../hooks/useCharacterCardPreviewUrls";
 import {
   CHARACTER_LIBRARY_EXPAND_STEP,
   CHARACTER_LIBRARY_SMOOTH_TARGET,
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
-import { resolveCharacterGridPreviewUrl as resolveCharacterGridPreviewUrlForSurface } from "../logic/characterGridPreviewUrl";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
@@ -89,7 +89,6 @@ const DRAG_GHOST_SCALE = 0.74;
 const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
   ".character-reference-upload-image-wrap, .character-character-sheet-media";
 const MEDIA_BUCKET = "media_library";
-const CHARACTER_CARD_PREVIEW_SIGN_RETRY_LIMIT = 1;
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -185,10 +184,6 @@ export function CharacterManagerShell({
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
   );
-  const [cardPreviewUrlByStoragePath, setCardPreviewUrlByStoragePath] = useState<
-    Record<string, string>
-  >({});
-  const cardPreviewRetryCountRef = useRef<Record<string, number>>({});
   const characterNameInputRef = useRef<HTMLInputElement | null>(null);
   const profileFileInputRef = useRef<HTMLInputElement | null>(null);
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -325,6 +320,15 @@ export function CharacterManagerShell({
     surface: "character-grid",
     enabled: characterGridAdaptivePreviewEnabled,
   });
+  const {
+    refreshCardPreviewSignedUrl,
+    resolveCharacterCardPreviewUrl,
+    resolveCharacterGridPreviewUrl,
+  } = useCharacterCardPreviewUrls({
+    selectedCharacterId,
+    adaptivePreviewEnabled: characterGridAdaptivePreviewEnabled,
+    pressureLevel: characterGridAdaptivePressure.previewPressureLevel,
+  });
   const quickSwapRemainingActiveCapacity = useMemo(
     () => Math.max(0, CHARACTER_QUICK_SWAP_ACTIVE_LIMIT - quickSwapActiveItems.length),
     [quickSwapActiveItems.length]
@@ -333,65 +337,6 @@ export function CharacterManagerShell({
     referencePreview && quickSwapActiveItems[referencePreview.index]
       ? quickSwapActiveItems[referencePreview.index]
       : null;
-  const refreshCardPreviewSignedUrl = useCallback(
-    (storagePath: string | null | undefined, failedUrl?: string | null) => {
-      const trimmedStoragePath = storagePath?.trim() ?? "";
-      if (!trimmedStoragePath) return;
-      const attempts = cardPreviewRetryCountRef.current[trimmedStoragePath] ?? 0;
-      if (attempts >= CHARACTER_CARD_PREVIEW_SIGN_RETRY_LIMIT) return;
-      cardPreviewRetryCountRef.current[trimmedStoragePath] = attempts + 1;
-
-      void getSignedMediaUrl({
-        bucket: MEDIA_BUCKET,
-        storagePath: trimmedStoragePath,
-        expiresInSeconds: 3600,
-        forceRefresh: true,
-      }).then((signedUrl) => {
-        const nextUrl = signedUrl?.trim() ?? "";
-        if (!nextUrl) return;
-        if (failedUrl && failedUrl.trim() === nextUrl) return;
-        setCardPreviewUrlByStoragePath((prev) => {
-          if (prev[trimmedStoragePath] === nextUrl) return prev;
-          return {
-            ...prev,
-            [trimmedStoragePath]: nextUrl,
-          };
-        });
-      });
-    },
-    []
-  );
-  const resolveCharacterGridPreviewUrl = useCallback(
-    (url: string | null | undefined, cardLongEdgePx: number): string | null => {
-      return resolveCharacterGridPreviewUrlForSurface({
-        url,
-        adaptivePreviewEnabled: characterGridAdaptivePreviewEnabled,
-        pressureLevel: characterGridAdaptivePressure.previewPressureLevel,
-        cardLongEdgePx,
-        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-      });
-    },
-    [characterGridAdaptivePressure.previewPressureLevel, characterGridAdaptivePreviewEnabled]
-  );
-  const resolveCharacterCardPreviewUrl = useCallback(
-    ({
-      previewUrl,
-      storagePath,
-      cardLongEdgePx,
-    }: {
-      previewUrl: string | null | undefined;
-      storagePath: string | null | undefined;
-      cardLongEdgePx: number;
-    }): string | null => {
-      const trimmedStoragePath = storagePath?.trim() ?? "";
-      const signedOverride = trimmedStoragePath
-        ? (cardPreviewUrlByStoragePath[trimmedStoragePath] ?? null)
-        : null;
-      const sourceUrl = signedOverride ?? previewUrl;
-      return resolveCharacterGridPreviewUrl(sourceUrl, cardLongEdgePx) ?? sourceUrl ?? null;
-    },
-    [cardPreviewUrlByStoragePath, resolveCharacterGridPreviewUrl]
-  );
   const quickSwapItemById = useMemo(
     () => new Map(quickSwapActiveItems.map((item) => [item.id, item])),
     [quickSwapActiveItems]
@@ -467,10 +412,6 @@ export function CharacterManagerShell({
     if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
     fileDragDepthRef.current = 0;
   }, [showQuickSwapCollapseToggle, isQuickSwapCollapsed]);
-  useEffect(() => {
-    setCardPreviewUrlByStoragePath({});
-    cardPreviewRetryCountRef.current = {};
-  }, [selectedCharacterId]);
 
   useVisibleErrorTelemetry({
     source: "client.character_manager.error_banner",

@@ -184,6 +184,41 @@ describe("Canvas drop behavior", () => {
     expect(Number(item.getAttribute("data-height"))).toBeCloseTo(154.69, 2);
   });
 
+  it("measures viewport geometry only once for internal reference-grid drops", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    const rectSpy = vi.fn(() => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 600,
+      bottom: 400,
+      width: 600,
+      height: 400,
+      toJSON: () => ({}),
+    }));
+    Object.defineProperty(viewport, "getBoundingClientRect", {
+      configurable: true,
+      value: rectSpy,
+    });
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "img-1",
+        "text/reference-output-id": "img-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    expect(await screen.findByAltText("Reference image")).toBeInTheDocument();
+    expect(rectSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("preprocesses internal drops before insertion when a preparer is provided", async () => {
     const prepareResolvedInternalCanvasDrop = vi.fn(async (_payload, resolved) => {
       if (resolved.kind !== "image") return resolved;

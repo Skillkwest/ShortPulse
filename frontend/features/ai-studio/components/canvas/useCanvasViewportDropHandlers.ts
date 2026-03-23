@@ -90,36 +90,22 @@ export const useCanvasViewportDropHandlers = ({
   const handleResolvedInternalDrop = useCallback(
     async (
       payload: InternalReferenceDragPayload,
-      clientX: number,
-      clientY: number
+      dropPoint?: { x: number; y: number }
     ): Promise<boolean> => {
-      if (!resolveCanvasDropReference || !viewportRef.current) return false;
+      if (!resolveCanvasDropReference) return false;
       const resolved = resolveCanvasDropReference(payload);
       if (!resolved) return false;
       const preparedResolved = prepareResolvedInternalCanvasDrop
         ? await prepareResolvedInternalCanvasDrop(payload, resolved)
         : resolved;
       if (!preparedResolved) return false;
-      const rect = viewportRef.current.getBoundingClientRect();
-      const normalizedPoint = resolveCanvasDropClientPoint({ clientX, clientY, rect });
-      const point = viewportPointToCanvasWorld({
-        clientX: normalizedPoint.clientX,
-        clientY: normalizedPoint.clientY,
-        rect,
-        camera,
-      });
-      await addResolvedItem(preparedResolved, point.x, point.y, {
+      if (!dropPoint) return false;
+      await addResolvedItem(preparedResolved, dropPoint.x, dropPoint.y, {
         showLoadingPlaceholder: true,
       });
       return true;
     },
-    [
-      addResolvedItem,
-      camera,
-      prepareResolvedInternalCanvasDrop,
-      resolveCanvasDropReference,
-      viewportRef,
-    ]
+    [addResolvedItem, prepareResolvedInternalCanvasDrop, resolveCanvasDropReference]
   );
 
   const canHandleViewportTransfer = useCallback(
@@ -177,29 +163,25 @@ export const useCanvasViewportDropHandlers = ({
       setIsDropActive(false);
       const transfer = event.dataTransfer;
       if (!viewportRef.current) return;
-      const rect = viewportRef.current.getBoundingClientRect();
-      const normalizedPoint = resolveCanvasDropClientPoint({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        rect,
-      });
-      const point = viewportPointToCanvasWorld({
-        clientX: normalizedPoint.clientX,
-        clientY: normalizedPoint.clientY,
-        rect,
-        camera,
-      });
-      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      const internalPayload = extractInternalReferenceDragPayload(transfer);
       if (internalPayload) {
         event.preventDefault();
         event.stopPropagation();
+        const rect = viewportRef.current.getBoundingClientRect();
+        const normalizedPoint = resolveCanvasDropClientPoint({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect,
+        });
+        const point = viewportPointToCanvasWorld({
+          clientX: normalizedPoint.clientX,
+          clientY: normalizedPoint.clientY,
+          rect,
+          camera,
+        });
         void (async () => {
           try {
-            const wasHandled = await handleResolvedInternalDrop(
-              internalPayload,
-              event.clientX,
-              event.clientY
-            );
+            const wasHandled = await handleResolvedInternalDrop(internalPayload, point);
             if (!wasHandled) {
               logUnresolvedInternalDrop(internalPayload, "resolve_miss");
             }
@@ -213,6 +195,18 @@ export const useCanvasViewportDropHandlers = ({
         })();
         return;
       }
+      const rect = viewportRef.current.getBoundingClientRect();
+      const normalizedPoint = resolveCanvasDropClientPoint({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        rect,
+      });
+      const point = viewportPointToCanvasWorld({
+        clientX: normalizedPoint.clientX,
+        clientY: normalizedPoint.clientY,
+        rect,
+        camera,
+      });
       const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
       if (mediaLibraryPayload) {
         event.preventDefault();

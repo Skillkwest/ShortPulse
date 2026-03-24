@@ -1554,6 +1554,9 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
   overflow: hidden;
   transform-origin: center center;

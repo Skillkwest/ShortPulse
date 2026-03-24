@@ -358,6 +358,19 @@ function PrimaryCompositionSurface({
   );
 }
 
+type PrimaryStageViewportLayerProps = {
+  children: React.ReactNode;
+  style: React.CSSProperties;
+};
+
+function PrimaryStageViewportLayer({ children, style }: PrimaryStageViewportLayerProps) {
+  return (
+    <div className="edit-expert-markup-viewport" style={style}>
+      {children}
+    </div>
+  );
+}
+
 export function ExpertEditPanelView({
   aspect,
   modelId,
@@ -4516,16 +4529,14 @@ export function ExpertEditPanelView({
     ]
   );
 
-  const renderPrimaryStageViewport = React.useCallback(
+  const renderPrimaryStageSceneContent = React.useCallback(
     ({
       scope,
-      viewportStyle,
       overlayCanvas,
       stageSize,
       stageElement,
     }: {
       scope: "inline" | "modal";
-      viewportStyle: React.CSSProperties;
       overlayCanvas: React.RefObject<HTMLCanvasElement>;
       stageSize: StageViewportSize;
       stageElement: HTMLDivElement | null;
@@ -4535,7 +4546,7 @@ export function ExpertEditPanelView({
         ? liveStageSize
         : stageSize;
       return (
-        <div className="edit-expert-markup-viewport" style={viewportStyle}>
+        <>
           {layers.map((layer, index) =>
             layer.imageUrl
               ? (() => {
@@ -4580,7 +4591,7 @@ export function ExpertEditPanelView({
           {renderMarkupStrokeOverlay(scope, renderStageSize, stageElement)}
           {renderPrimaryStageBusyOverlay()}
           {renderSelectedLayerTransformOverlay(scope, renderStageSize, stageElement)}
-        </div>
+        </>
       );
     },
     [
@@ -4741,66 +4752,70 @@ export function ExpertEditPanelView({
             onPointerUpCapture={handleInlineStagePointerUpCapture}
             onPointerCancelCapture={handleInlineStagePointerCancelCapture}
           >
-            <PrimaryCompositionSurface
-              surfaceRef={primaryCompositionSurfaceRef}
-              isVisible={hasPrimaryCompositePreview}
-              isBusy={isPrimaryStageBusy}
-              isDragActive={primaryDragActive}
-              isPresetsOpen={isMorePresetsSurfaceOpen}
-              isTransformOverlayActive={shouldShowSelectedLayerTransformOverlay}
-              style={
-                hasPrimaryCompositePreview
-                  ? primaryCompositionSurfaceStyle
-                  : emptyPrimaryCompositionSurfaceStyle
-              }
-              onDrop={hasPrimaryCompositePreview ? handlePrimaryDrop : undefined}
-              onDragEnter={hasPrimaryCompositePreview ? handlePrimaryDragEnter : undefined}
-              onDragOver={hasPrimaryCompositePreview ? handlePrimaryDragOver : undefined}
-              onDragLeave={hasPrimaryCompositePreview ? handlePrimaryDragLeave : undefined}
-              onPointerDown={
-                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerDown : undefined
-              }
-              onPointerMove={
-                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerMove : undefined
-              }
-              onPointerUp={
-                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerUp : undefined
-              }
-              onPointerCancel={
-                hasPrimaryCompositePreview
-                  ? inlineStageInteractionRouter.onPointerCancel
-                  : undefined
-              }
-              onPointerLeave={
-                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerLeave : undefined
-              }
-              onMouseDown={
-                hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
-              }
-              onAuxClick={
-                hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
-              }
-              onContextMenu={
-                hasPrimaryCompositePreview ? handlePrimaryDropzoneContextMenu : undefined
-              }
-              onClick={hasPrimaryCompositePreview ? handlePrimaryDropzoneClick : undefined}
-              onDoubleClick={
-                hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
-              }
-            >
-              {hasPrimaryCompositePreview
-                ? renderPrimaryStageViewport({
-                    scope: "inline",
-                    viewportStyle: inlineMarkupViewportStyle,
-                    overlayCanvas: overlayCanvasRef,
-                    stageSize: inlineStageViewportSize,
-                    stageElement: primaryCompositionSurfaceRef.current,
-                  })
-                : null}
-            </PrimaryCompositionSurface>
-            {!hasPrimaryCompositePreview ? (
-              <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle} />
-            ) : null}
+            <PrimaryStageViewportLayer style={inlineMarkupViewportStyle}>
+              <PrimaryCompositionSurface
+                surfaceRef={primaryCompositionSurfaceRef}
+                isVisible={hasPrimaryCompositePreview}
+                isBusy={isPrimaryStageBusy}
+                isDragActive={primaryDragActive}
+                isPresetsOpen={isMorePresetsSurfaceOpen}
+                isTransformOverlayActive={shouldShowSelectedLayerTransformOverlay}
+                style={
+                  hasPrimaryCompositePreview
+                    ? primaryCompositionSurfaceStyle
+                    : emptyPrimaryCompositionSurfaceStyle
+                }
+                onDrop={hasPrimaryCompositePreview ? handlePrimaryDrop : undefined}
+                onDragEnter={hasPrimaryCompositePreview ? handlePrimaryDragEnter : undefined}
+                onDragOver={hasPrimaryCompositePreview ? handlePrimaryDragOver : undefined}
+                onDragLeave={hasPrimaryCompositePreview ? handlePrimaryDragLeave : undefined}
+                onPointerDown={
+                  hasPrimaryCompositePreview
+                    ? inlineStageInteractionRouter.onPointerDown
+                    : undefined
+                }
+                onPointerMove={
+                  hasPrimaryCompositePreview
+                    ? inlineStageInteractionRouter.onPointerMove
+                    : undefined
+                }
+                onPointerUp={
+                  hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerUp : undefined
+                }
+                onPointerCancel={
+                  hasPrimaryCompositePreview
+                    ? inlineStageInteractionRouter.onPointerCancel
+                    : undefined
+                }
+                onPointerLeave={
+                  hasPrimaryCompositePreview
+                    ? inlineStageInteractionRouter.onPointerLeave
+                    : undefined
+                }
+                onMouseDown={
+                  hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
+                }
+                onAuxClick={
+                  hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
+                }
+                onContextMenu={
+                  hasPrimaryCompositePreview ? handlePrimaryDropzoneContextMenu : undefined
+                }
+                onClick={hasPrimaryCompositePreview ? handlePrimaryDropzoneClick : undefined}
+                onDoubleClick={
+                  hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
+                }
+              >
+                {hasPrimaryCompositePreview
+                  ? renderPrimaryStageSceneContent({
+                      scope: "inline",
+                      overlayCanvas: overlayCanvasRef,
+                      stageSize: inlineStageViewportSize,
+                      stageElement: primaryCompositionSurfaceRef.current,
+                    })
+                  : null}
+              </PrimaryCompositionSurface>
+            </PrimaryStageViewportLayer>
           </PrimaryStageShell>
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
             <div
@@ -5193,13 +5208,16 @@ export function ExpertEditPanelView({
         movePanel={renderMarkupModalMovePanel()}
         inpaintPanel={renderMarkupModalInpaintPanel("modal")}
         markupPanel={renderMarkupControlsContent("modal")}
-        stageContent={renderPrimaryStageViewport({
-          scope: "modal",
-          viewportStyle: modalMarkupViewportStyle,
-          overlayCanvas: modalOverlayCanvasRef,
-          stageSize: markupModalViewportSize,
-          stageElement: markupModalStageRef.current,
-        })}
+        stageContent={
+          <PrimaryStageViewportLayer style={modalMarkupViewportStyle}>
+            {renderPrimaryStageSceneContent({
+              scope: "modal",
+              overlayCanvas: modalOverlayCanvasRef,
+              stageSize: markupModalViewportSize,
+              stageElement: markupModalStageRef.current,
+            })}
+          </PrimaryStageViewportLayer>
+        }
         layersPanel={renderLayersToolbar("modal")}
         onClose={closeMarkupModal}
         onDragShield={handleMarkupModalDragShield}

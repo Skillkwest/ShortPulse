@@ -118,6 +118,7 @@ window.__shortpulseMediaPerf?.signStats();
 Key indicators:
 - `p95_duration_ms` for `media.sign.batch.completed`
 - `failed_ratio` grouped by `surface`/`tab`/`query_mode`
+- `total_primary_durable` / `total_resolved_durable` versus `total_primary_original` / `total_resolved_original`
 - `source_class` and `error_kind` dimensions on `media.sign.batch.completed` / `media.sign.batch.failed`
 - `preview_delivery_mode` and `optimizer_bypassed` are debugging-only dimensions during media-rendering hardening; do not use them as pass/fail or rollout-gate evidence until the telemetry truth spec unblocks them
 - first-card/first-media-paint timing trends
@@ -140,6 +141,8 @@ Key indicators:
   - `MEDIA_ROUTE_SIGN_BUDGET_*` in `frontend/pages/media-library.tsx`
 - Modal sign budget constants:
   - `MEDIA_MODAL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- Panel sign budget constants:
+  - `MEDIA_LIBRARY_PANEL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
 - Route/modal fetch-transition rules:
   - `resolveMediaFetchTransition` in `frontend/features/media-library/logic/mediaFetchTransition.ts`
   - fetch reasons: `initial`, `tab_or_query_reset`, `stale_refresh`, `load_more`
@@ -209,6 +212,16 @@ Key indicators:
   - `NEXT_PUBLIC_REFERENCE_GRID_CONTROLLER_SPLIT`
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
+
+## Current panel baseline
+- AI Studio Media Library panel is considered healthy when:
+  - `surface: "media-library-panel"` stays on durable previews only (`total_resolved_original = 0`),
+  - `failed_ratio = 0`,
+  - first-open sign work stays near the current `4 + 1` pattern instead of longer `4 + 4 + 2` style churn,
+  - perceived first-open panel load feels acceptable in manual testing.
+- If panel performance regresses, inspect `window.__shortpulseMediaPerf?.signStats()` and `snapshot()` before changing code. Re-open this lane only when the data shows either:
+  - original-fallback drift, or
+  - materially higher sign-batch latency/churn than the current baseline.
 
 ## Adaptive Media V2 Runbook
 Use this runbook together with `docs/sops/sop_adaptive_media_change_control.md` for PR gating and regression-control requirements.

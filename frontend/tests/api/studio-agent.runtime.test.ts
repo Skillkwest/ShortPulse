@@ -153,6 +153,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
 
   it("bypasses agent orchestration and calls OpenAI directly when the direct bypass toggle is enabled", async () => {
     process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -196,6 +197,18 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         outcome_class: "success_prompt",
       })
     );
+    const directBypassTelemetry = extractTelemetryPayloads(infoSpy).find(
+      (payload) => payload.path === "direct_openai_bypass"
+    );
+    expect(directBypassTelemetry).toEqual(
+      expect.objectContaining({
+        latency_ms_stage: expect.objectContaining({
+          direct_bypass_input_precheck: expect.any(Number),
+          direct_openai_roundtrip: expect.any(Number),
+        }),
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("uses orchestration path for MIXED turns even when NEXT_PUBLIC_AGENT_V2=false", async () => {

@@ -182,6 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const directCanonicalPrompt =
       incomingCanonical ?? sanitizeGenerationPromptText(context.lastAssistantMessage) ?? null;
     let effectiveCanonical = clampCanonicalPrompt(directCanonicalPrompt);
+    const directPrecheckStartedAt = Date.now();
     const precheckResult = runStudioAgentSafetyInputPrecheck({
       enabled: safetyInputPrecheckEnabled,
       messages,
@@ -198,6 +199,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         scopedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
       }),
     });
+    markStage("direct_bypass_input_precheck", directPrecheckStartedAt);
     const safetyTelemetryProfileId =
       safetyProfileId === "prod_safe_v1" ||
       safetyProfileId === "staging_lenient" ||
@@ -238,7 +240,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     context = precheckResult.context;
     effectiveCanonical = precheckResult.canonicalPrompt;
 
-    const directOpenAiStartedAt = Date.now();
+    const directOpenAiRoundTripStartedAt = Date.now();
     try {
       const directMessages = messages.map((message) => ({
         role: message.role === "assistant" ? "assistant" : "user",
@@ -251,7 +253,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         messages: directMessages,
         timeoutMs: turnTimeoutMs,
       });
-      markStage("direct_openai_bypass", directOpenAiStartedAt);
+      markStage("direct_openai_roundtrip", directOpenAiRoundTripStartedAt);
 
       if (!directResponse.ok) {
         const detail = await directResponse.text();
@@ -363,7 +365,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         traceId,
       });
     } catch (error) {
-      markStage("direct_openai_bypass", directOpenAiStartedAt);
+      markStage("direct_openai_roundtrip", directOpenAiRoundTripStartedAt);
       await logApiRouteException({
         req,
         error,

@@ -78,3 +78,15 @@ Track only the current right-rail scope. This tracker is intentionally smaller t
 ### 2026-03-24
 1. Closed the scope formally in the planning package and kept `RR-4` closed until a measured bottleneck or concrete defect reopens it.
 2. Synced the planning and SOP docs so Quick Slot and rail Canvas drop behavior match the shipped right-rail contract.
+3. Captured a clean local AI Studio perf baseline after audit-runtime cleanup and shell rerender stabilization:
+   - `reference-grid-audit`: `ok=true`
+   - `studio-shell-audit`: `ok=true`
+   - `non_grid_properties_rerenders_per_output_status_tick=2` (`<= 3`)
+4. Verified that the prior audit contamination path is gone:
+   - unsupported durability uploads no longer spam `/api/upload-image`
+   - shell audit synthetic drops now use a valid PNG payload
+5. Closure commits tied to the final clean baseline:
+   - `7743e44e` `Skip unsupported reference durability uploads`
+   - `0584cc98` `Use valid audit PNG drop payload`
+   - `89328121` `Decouple properties panel rerender churn`
+6. No remaining right-rail or shell perf gate failure remains in the current local evidence set; further work requires a new measured bottleneck or concrete user-facing defect.

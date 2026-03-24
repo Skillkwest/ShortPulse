@@ -89,6 +89,12 @@ vi.mock("../ReferenceGrid", () => ({
         </div>
       ) : null}
       <div
+        data-testid="reference-grid-quick-slot"
+        className="reference-curated-section"
+        onDragOver={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
+        onDrop={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
+      />
+      <div
         data-testid="reference-grid-rail-canvas"
         data-canvas-instance="rail"
         onDragOver={(event: React.DragEvent<HTMLDivElement>) =>
@@ -930,6 +936,37 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.drop(railCanvasViewport, { dataTransfer });
 
     expect(onRailViewportDrop).toHaveBeenCalled();
+    expect(onAddLibraryMediaReference).not.toHaveBeenCalled();
+  });
+
+  it("lets quick-slot targets bypass shell library-media routing", () => {
+    const onAddLibraryMediaReference = vi.fn();
+    const props = createProps({
+      onAddLibraryMediaReference,
+    });
+
+    const { getByTestId } = render(<AiStudioPageContent {...props} />);
+    const quickSlotTarget = getByTestId("reference-grid-quick-slot");
+    const dataTransfer = {
+      types: [
+        "text/shortpulse-media-library-marker",
+        "text/shortpulse-media-library-kind",
+        "text/shortpulse-media-library-id",
+        "text/reference-url",
+      ],
+      files: makeEmptyFileList(),
+      getData: (type: string) => {
+        if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+        if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+        if (type === "text/shortpulse-media-library-id") return "media-quick-slot-1";
+        if (type === "text/reference-url") return "https://cdn.example.com/quick-slot-image.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    fireEvent.dragOver(quickSlotTarget, { dataTransfer });
+    fireEvent.drop(quickSlotTarget, { dataTransfer });
+
     expect(onAddLibraryMediaReference).not.toHaveBeenCalled();
   });
 

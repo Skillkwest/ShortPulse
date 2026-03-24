@@ -6,6 +6,25 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { useReferenceGridImageHydrationController } from "../useReferenceGridImageHydrationController";
+import {
+  logAdaptiveLocalTranscode,
+  resolveAdaptivePolicyDecision,
+  shouldTranscodeLocalAdaptiveImage,
+  transcodeLocalImageToObjectUrl,
+} from "../../../../../lib/adaptive-media";
+
+vi.mock("../../../../../lib/adaptive-media", async () => {
+  const actual = await vi.importActual<typeof import("../../../../../lib/adaptive-media")>(
+    "../../../../../lib/adaptive-media"
+  );
+  return {
+    ...actual,
+    logAdaptiveLocalTranscode: vi.fn(),
+    resolveAdaptivePolicyDecision: vi.fn(actual.resolveAdaptivePolicyDecision),
+    shouldTranscodeLocalAdaptiveImage: vi.fn(() => false),
+    transcodeLocalImageToObjectUrl: vi.fn(async () => null),
+  };
+});
 
 const createOutput = (id: string): StudioOutput =>
   ({
@@ -26,6 +45,7 @@ describe("useReferenceGridImageHydrationController", () => {
       writable: true,
       value: OriginalImage,
     });
+    vi.clearAllMocks();
   });
 
   it("defers queued image decode while suspended and resumes after unsuspend", async () => {
@@ -206,5 +226,82 @@ describe("useReferenceGridImageHydrationController", () => {
       expect(result.current.imageHydrationState.hydratedById).toEqual({});
       expect(result.current.imageHydrationState.decodeInflight).toBe(0);
     });
+  });
+
+  it("uses the enqueued media surface for adaptive hydration decisions", async () => {
+    const requestedUrls: string[] = [];
+    const imageInstances: MockImage[] = [];
+    class MockImage {
+      decoding = "";
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1200;
+      naturalHeight = 900;
+
+      constructor() {
+        imageInstances.push(this);
+      }
+
+      set src(value: string) {
+        requestedUrls.push(value);
+      }
+    }
+
+    vi.mocked(shouldTranscodeLocalAdaptiveImage).mockReturnValue(true);
+    vi.mocked(transcodeLocalImageToObjectUrl).mockResolvedValue("blob:quick-slot-preview");
+
+    Object.defineProperty(window, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    const output = createOutput("out-1");
+    const runNonUrgentUpdate = vi.fn((updater: () => void) => updater());
+    const liveWatchdogDegradeLevelRef = { current: 0 as 0 | 1 | 2 };
+
+    const { result } = renderHook(() =>
+      useReferenceGridImageHydrationController({
+        decodeBudgetEnabled: true,
+        suspendHydrationProcessing: false,
+        adaptivePreviewRoutingEnabled: true,
+        imageDecodeBudget: 1,
+        activeOutputId: null,
+        outputs: [output],
+        runNonUrgentUpdate,
+        liveWatchdogDegradeLevelRef,
+      })
+    );
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/preview.jpg", {
+        mediaSurface: "quick-slot",
+        targetLongEdgePx: 384,
+        previewQualityBand: "balanced",
+      });
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toEqual(["https://cdn.example.com/preview.jpg"]);
+    });
+
+    act(() => {
+      imageInstances[0]?.onload?.();
+    });
+
+    await waitFor(() => {
+      expect(resolveAdaptivePolicyDecision).toHaveBeenCalled();
+      expect(logAdaptiveLocalTranscode).toHaveBeenCalledWith(
+        expect.objectContaining({ surface: "quick-slot" })
+      );
+      expect(result.current.imageHydrationState.hydratedById["out-1"]).toEqual({
+        sourceUrl: "https://cdn.example.com/preview.jpg",
+        renderUrl: "blob:quick-slot-preview",
+      });
+    });
+
+    expect(resolveAdaptivePolicyDecision).toHaveBeenCalledWith(
+      expect.objectContaining({ surface: "quick-slot", cardLongEdgePx: 384 })
+    );
   });
 });

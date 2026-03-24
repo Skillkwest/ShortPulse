@@ -31,6 +31,7 @@ type UseReferenceGridHydrationQueueControllerArgs = {
     url: string,
     options?: {
       priority?: "high" | "normal" | "low";
+      mediaSurface?: "reference-grid" | "quick-slot";
       targetLongEdgePx?: number;
       previewQualityBand?: ReferenceGridPreviewQualityBand;
       fallbackUrl?: string;
@@ -91,6 +92,7 @@ export const useReferenceGridHydrationQueueController = ({
           candidateIdSet.add(activeOutputId);
           enqueueImageHydration(activeOutputId, resolvedMedia.previewUrl, {
             priority: "high",
+            mediaSurface: resolvePreferredSurface(activeOutputId),
             targetLongEdgePx: resolvedMedia.targetLongEdgePx,
             previewQualityBand: resolvedMedia.previewQualityBand,
             fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
@@ -105,6 +107,7 @@ export const useReferenceGridHydrationQueueController = ({
       candidateIdSet.add(card.item.id);
       enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
         priority: card.isPriorityHydration ? "high" : "normal",
+        mediaSurface: card.mediaSurface,
         targetLongEdgePx: card.targetLongEdgePx,
         previewQualityBand: card.previewQualityBand,
         fallbackUrl: card.fallbackUrl ?? undefined,
@@ -117,6 +120,7 @@ export const useReferenceGridHydrationQueueController = ({
       candidateIdSet.add(card.item.id);
       enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
         priority: card.isPriorityHydration ? "high" : "normal",
+        mediaSurface: card.mediaSurface,
         targetLongEdgePx: card.targetLongEdgePx,
         previewQualityBand: card.previewQualityBand,
         fallbackUrl: card.fallbackUrl ?? undefined,
@@ -134,6 +138,7 @@ export const useReferenceGridHydrationQueueController = ({
       candidateIdSet.add(item.id);
       enqueueImageHydration(item.id, resolvedMedia.previewUrl, {
         priority: "low",
+        mediaSurface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
         targetLongEdgePx: resolvedMedia.targetLongEdgePx,
         previewQualityBand: resolvedMedia.previewQualityBand,
         fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
@@ -151,6 +156,7 @@ export const useReferenceGridHydrationQueueController = ({
       candidateIdSet.add(item.id);
       enqueueImageHydration(item.id, resolvedMedia.previewUrl, {
         priority: "low",
+        mediaSurface: "reference-grid",
         targetLongEdgePx: resolvedMedia.targetLongEdgePx,
         previewQualityBand: resolvedMedia.previewQualityBand,
         fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,

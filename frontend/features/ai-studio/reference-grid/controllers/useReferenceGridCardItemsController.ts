@@ -16,6 +16,7 @@ import type { ReferenceGridResolvedCardMedia } from "./useReferenceGridResolvedM
 export type ReferenceGridVisibleCardItem = {
   item: StudioOutput;
   surface: "all-refs" | "curated";
+  mediaSurface: "reference-grid" | "quick-slot";
   cardPreviewUrl: string | null;
   fallbackUrl: string | null;
   previewQualityBand: ReferenceGridPreviewQualityBand;
@@ -127,6 +128,7 @@ export const useReferenceGridCardItemsController = ({
         return {
           item,
           surface: options.visualSurface,
+          mediaSurface: options.mediaSurface,
           cardPreviewUrl: resolvedMedia.previewUrl,
           fallbackUrl: resolvedMedia.fallbackUrl,
           previewQualityBand: resolvedMedia.previewQualityBand,

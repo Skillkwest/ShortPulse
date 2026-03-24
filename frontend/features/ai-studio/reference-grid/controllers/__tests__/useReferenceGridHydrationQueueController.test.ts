@@ -32,6 +32,7 @@ const visibleImageCard = (item: StudioOutput, surface: "all-refs" | "curated" = 
   ({
     item,
     surface,
+    mediaSurface: surface === "curated" ? "quick-slot" : "reference-grid",
     cardPreviewUrl: "https://cdn.example.com/preview.jpg",
     fallbackUrl: "https://cdn.example.com/full.jpg",
     isImagePreview: true,
@@ -138,6 +139,7 @@ describe("useReferenceGridHydrationQueueController", () => {
     expect(enqueueImageHydration).toHaveBeenCalledTimes(1);
     expect(enqueueImageHydration).toHaveBeenCalledWith("out-1", quickSlotCard.cardPreviewUrl, {
       priority: "high",
+      mediaSurface: "quick-slot",
       targetLongEdgePx: 384,
       previewQualityBand: "balanced",
       fallbackUrl: "https://cdn.example.com/full.jpg",

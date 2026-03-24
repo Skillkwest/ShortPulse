@@ -34,6 +34,7 @@ type ImageHydrationState = {
 
 type EnqueueImageHydrationOptions = {
   priority?: "high" | "normal" | "low";
+  mediaSurface?: "reference-grid" | "quick-slot";
   targetLongEdgePx?: number;
   previewQualityBand?: ReferenceGridPreviewQualityBand;
   fallbackUrl?: string;
@@ -87,6 +88,7 @@ export const useReferenceGridImageHydrationController = ({
     Record<
       string,
       {
+        mediaSurface: "reference-grid" | "quick-slot";
         targetLongEdgePx: number;
         previewQualityBand: ReferenceGridPreviewQualityBand;
       }
@@ -152,7 +154,7 @@ export const useReferenceGridImageHydrationController = ({
       }
       if (naturalWidth <= 0 || naturalHeight <= 0) return sourceUrl;
       const decision = resolveAdaptivePolicyDecision({
-        surface: "reference-grid",
+        surface: previewMeta.mediaSurface,
         mediaKind: "image",
         source: resolveAdaptiveSourceKind(sourceUrl),
         urls: {
@@ -182,7 +184,7 @@ export const useReferenceGridImageHydrationController = ({
       }
       hydrationGeneratedObjectUrlByIdRef.current[id] = objectUrl;
       logAdaptiveLocalTranscode({
-        surface: "reference-grid",
+        surface: previewMeta.mediaSurface,
         pressureLevel: liveWatchdogDegradeLevelRef.current,
         qualityBand: decision.qualityBand,
         targetLongEdgePx: decision.targetLongEdgePx,
@@ -403,6 +405,7 @@ export const useReferenceGridImageHydrationController = ({
       const previousUrl = hydrationUrlByIdRef.current[id];
       if (typeof options?.targetLongEdgePx === "number" && options.previewQualityBand) {
         hydrationPreviewMetaByIdRef.current[id] = {
+          mediaSurface: options.mediaSurface ?? "reference-grid",
           targetLongEdgePx: options.targetLongEdgePx,
           previewQualityBand: options.previewQualityBand,
         };

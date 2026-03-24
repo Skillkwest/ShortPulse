@@ -1,7 +1,7 @@
 # AI Studio Right-Rail Performance Tracker (2026-03-23)
 
 Last updated: 2026-03-23  
-Status: Active (`closeout-audit pending`)  
+Status: Completed (`scope done`)
 Owner: AI Studio Engineering  
 Program doc: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`
 
@@ -32,8 +32,8 @@ Track only the current right-rail scope. This tracker is intentionally smaller t
 | `RRP-05` | Duplicate All Refs copies do not do redundant visible work when Quick Slot already owns the same output | Completed | `useReferenceGridCardItemsController.ts`, `useReferenceGridLoadingVisualController.ts`, `useReferenceGridCardRenderController.tsx` |
 | `RRP-06` | Newly inserted image media can paint without waiting for hydration completion | Completed | Right-rail image-source fallback path and curated regression coverage |
 | `RRP-07` | Hydration scheduling uses shared preferred-surface and media-resolution policy | Completed | Checkpoint `3f484597`, `useReferenceGridResolvedMediaController.ts`, `useReferenceGridHydrationQueueController.ts` |
-| `RRP-08` | Targeted tests cover the main right-rail contracts | Completed | Reference Grid, hydration queue, shared resolver, shell drop, and canvas drop suites |
-| `RRP-09` | No remaining obvious duplicated right-rail policy seam exists | In Progress | Closeout audit still required before calling the scope done |
+| `RRP-08` | Targeted tests cover the main right-rail contracts | Completed | Reference Grid, hydration queue, image hydration surface parity, shared resolver, shell drop, quick-slot bypass, and canvas drop suites |
+| `RRP-09` | No remaining obvious duplicated right-rail policy seam exists | Completed | Closeout audit passed after propagating media-surface ownership through hydration metadata and locking the final page-level bypass regression |
 
 ## Optional backlog
 | ID | Item | Status | Entry rule |
@@ -56,17 +56,19 @@ Track only the current right-rail scope. This tracker is intentionally smaller t
 | `8c261d92` | Share cached drag transfer hints across right rail |
 
 ## Open decisions
-1. Is `RRP-09` already satisfied, or does `useReferenceGridImageHydrationController.ts` still contain a policy seam large enough to justify another structural pass?
-2. Do we stop at closeout once `RRP-09` is audited, or does user-directed scope expansion create a new program?
+1. No additional implementation is justified inside this scope unless profiling or a concrete defect reopens `RR-4`.
+2. Any further right-rail work requires either a measured bottleneck or explicit user-directed scope expansion.
 
 ## Immediate next action
-1. Perform one explicit closeout audit against `RRP-09`.
-2. If `RRP-09` passes, declare the current right-rail scope done and stop.
-3. If `RRP-09` fails, only reopen implementation in the smallest structural seam that resolves the failed requirement.
+1. Stop this scope.
+2. Reopen only if a measured bottleneck or a new concrete defect appears.
+3. Treat `RR-4` as a separate evidence-gated lane, not a continuation by momentum.
 
 ## Notes log
 ### 2026-03-23
 1. Created a bounded scope contract for the right-rail effort to prevent open-ended optimization drift.
 2. Locked four execution lanes, with `RR-4` explicitly measurement-gated.
 3. Marked `RRP-01` through `RRP-08` complete based on repo state, targeted tests, and recent implementation checkpoints.
-4. Left `RRP-09` in progress to force one closeout audit before more implementation.
+4. Closed `RRP-09` after the final closeout audit confirmed no remaining obvious cross-controller right-rail policy seam.
+5. Added image-hydration surface propagation so Quick Slot and All Refs no longer diverge inside adaptive hydration runtime decisions.
+6. Added the missing page-level Quick Slot shell-bypass regression test so the right-rail routing contract is locked at the page boundary.

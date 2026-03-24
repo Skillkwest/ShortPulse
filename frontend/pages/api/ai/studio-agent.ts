@@ -63,6 +63,14 @@ import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafety
 import { emitStudioAgentTurnTelemetry } from "../../../features/agent-runtime/studioAgentRouteOutcomes";
 
 const DEFAULT_DIRECT_OPENAI_MODEL = "gpt-5.4";
+const DIRECT_OPENAI_SYSTEM_PROMPT = `You are a professional prompt writer for image generation.
+Optimize prompts for Google Nano Banana family image models and Seedance family image and video models.
+Be concise, helpful, and business casual.
+
+If the user is asking for help, answer briefly and directly.
+If the user's message appears to be an image-generation prompt or a request to create one, rewrite it into a strong production-ready prompt with clear subject, composition, lighting, style, and quality details.
+When rewriting a prompt, return only the final prompt unless the user explicitly asks for explanation.
+Do not add markdown, labels, or extra commentary unless the user asks for it.`;
 
 const resolveDirectOpenAiBypassEnabled = (env: NodeJS.ProcessEnv): boolean =>
   env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
@@ -242,10 +250,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const directOpenAiRoundTripStartedAt = Date.now();
     try {
-      const directMessages = messages.map((message) => ({
-        role: message.role === "assistant" ? "assistant" : "user",
-        content: message.content,
-      }));
+      const directMessages = [
+        {
+          role: "system",
+          content: DIRECT_OPENAI_SYSTEM_PROMPT,
+        },
+        ...messages.map((message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: message.content,
+        })),
+      ];
       const directResponse = await fetchStudioAgentChatCompletion({
         apiKey,
         openAiUrl,

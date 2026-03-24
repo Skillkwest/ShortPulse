@@ -188,7 +188,15 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         })
       : null;
     expect(payload?.model).toBe("gpt-5.4");
-    expect(payload?.messages).toEqual([{ role: "user", content: "talk to the raw model" }]);
+    expect(payload?.messages).toEqual([
+      expect.objectContaining({
+        role: "system",
+        content: expect.stringContaining(
+          "You are a professional prompt writer for image generation."
+        ),
+      }),
+      { role: "user", content: "talk to the raw model" },
+    ]);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -7,6 +7,7 @@ import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
+  resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
@@ -102,6 +103,22 @@ const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
 const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
+const MEDIA_LIBRARY_PANEL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
+const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
+  initialSignLimit: 4,
+  prefetchWindow: 4,
+  signBatchSize: 4,
+};
+const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
+  initialSignLimit: 3,
+  prefetchWindow: 3,
+  signBatchSize: 3,
+};
+const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
+  initialSignLimit: 2,
+  prefetchWindow: 2,
+  signBatchSize: 2,
+};
 
 const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
   try {
@@ -122,6 +139,14 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
   if (itemType === "videos") return "uploaded_videos";
   return "uploaded_images";
 };
+
+const resolvePanelSignBudget = (): MediaSignBudget =>
+  resolveMediaPreviewSignBudget({
+    desktop: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_DESKTOP,
+    smallScreen: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_SMALL_SCREEN,
+    constrained: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_CONSTRAINED,
+    smallScreenQuery: MEDIA_LIBRARY_PANEL_SIGN_SMALL_SCREEN_QUERY,
+  });
 
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
@@ -181,7 +206,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
   const [signPassNonce, setSignPassNonce] = useState(0);
-  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
+  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolvePanelSignBudget);
   const [folderCanvasFullSignedById, setFolderCanvasFullSignedById] = useState<
     Record<string, string>
   >({});
@@ -313,7 +338,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     if (typeof window === "undefined" || typeof navigator === "undefined") return;
     const refreshBudget = () => {
       setSignBudget((prev) => {
-        const next = resolveModalSignBudget();
+        const next = resolvePanelSignBudget();
         if (
           prev.initialSignLimit === next.initialSignLimit &&
           prev.prefetchWindow === next.prefetchWindow &&

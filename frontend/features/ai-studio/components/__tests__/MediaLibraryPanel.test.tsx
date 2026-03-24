@@ -18,6 +18,7 @@ const deleteMediaFileWithStorageMock = vi.fn();
 const deleteMediaPromptByIdMock = vi.fn();
 const logMediaEventMock = vi.fn();
 const isAdaptiveSurfaceEnabledMock = vi.fn();
+const useMediaPreviewSigningControllerMock = vi.fn();
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -119,7 +120,8 @@ vi.mock("../../../media-library/hooks/useMediaAdaptivePressure", () => ({
 }));
 
 vi.mock("../../../media-library/hooks/useMediaPreviewSigningController", () => ({
-  useMediaPreviewSigningController: () => undefined,
+  useMediaPreviewSigningController: (...args: unknown[]) =>
+    useMediaPreviewSigningControllerMock(...args),
 }));
 
 vi.mock("../../../media-library/hooks/useMediaPreviewRecoveryController", () => ({
@@ -338,6 +340,7 @@ describe("MediaLibraryPanel", () => {
     deleteMediaFileWithStorageMock.mockResolvedValue(undefined);
     deleteMediaPromptByIdMock.mockResolvedValue(undefined);
     logMediaEventMock.mockResolvedValue(undefined);
+    useMediaPreviewSigningControllerMock.mockReset();
     uploadMediaFileMock.mockResolvedValue({
       id: "uploaded-1",
       filename: "upload.png",
@@ -543,6 +546,23 @@ describe("MediaLibraryPanel", () => {
     const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestProps).toBeTruthy();
     expect(typeof latestProps.resolveCardPreviewUrl).toBe("function");
+  });
+
+  it("uses a panel-specific signing budget instead of the modal budget", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(useMediaPreviewSigningControllerMock).toHaveBeenCalled();
+    });
+
+    const latestArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0];
+    expect(latestArgs).toBeTruthy();
+    expect(latestArgs.surface).toBe("media-library-panel");
+    expect(latestArgs.signBudget).toEqual({
+      initialSignLimit: 4,
+      prefetchWindow: 4,
+      signBatchSize: 4,
+    });
   });
 
   it.each(["media-library-panel-grid"] as const)(

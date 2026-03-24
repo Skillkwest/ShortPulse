@@ -132,7 +132,7 @@ export const buildRecoveredSuccessUpdate = ({
   metadata: JsonObject;
   mediaUrls: string[];
   mediaFileIds: string[];
-  actor: "reconciler" | "admin_replay" | "webhook" | "status_proxy";
+  actor: "reconciler" | "admin_replay" | "webhook";
   autosaveEnabled?: boolean;
   autosaveDecision?: string;
   autosaveDecisionReason?: string;

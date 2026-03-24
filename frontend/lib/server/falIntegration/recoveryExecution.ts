@@ -38,7 +38,7 @@ type JsonObject = Record<string, unknown>;
 type GenerationRow = RecoveryGenerationRow;
 
 export type RecoveryProbeState = "running" | "failed" | "completed";
-export type RecoveryActor = "reconciler" | "admin_replay" | "webhook" | "status_proxy";
+export type RecoveryActor = "reconciler" | "admin_replay" | "webhook";
 export type RecoveryResultState =
   | "recovered"
   | "already_persisted"

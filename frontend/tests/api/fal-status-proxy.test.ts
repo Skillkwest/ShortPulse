@@ -77,6 +77,8 @@ describe("createFalStatusHandler", () => {
   });
 
   afterEach(() => {
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 
@@ -131,13 +133,6 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-1");
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image.png");
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        providerRequestId: "req-1",
-        outcome: "success",
-      })
-    );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
@@ -321,12 +316,6 @@ describe("createFalStatusHandler", () => {
         }),
       })
     );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-kie-running",
-        outcome: "fail",
-      })
-    );
   });
 
   it("captures kie successFlag=1 payload media from data.response.resultUrls", async () => {
@@ -381,12 +370,6 @@ describe("createFalStatusHandler", () => {
         state: "completed",
       })
     );
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-kie-success",
-        outcome: "success",
-      })
-    );
   });
 
   it("returns terminal status payload media without depending on result fetch probes", async () => {
@@ -431,16 +414,6 @@ describe("createFalStatusHandler", () => {
     expect(payload.request_id).toBe("req-terminal-media");
     expect(payload.data?.images?.[0]?.url).toBe(
       "https://cdn.shortpulse.test/terminal-status-media.png"
-    );
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        providerRequestId: "req-terminal-media",
-        outcome: "success",
-      })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "fail" })
     );
   });
 
@@ -611,16 +584,6 @@ describe("createFalStatusHandler", () => {
     expect(payload.data?.images?.[0]?.url).toBe(
       "https://cdn.shortpulse.test/cross-alias-media.png"
     );
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        providerRequestId: "req-cross-alias",
-        outcome: "success",
-      })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "fail" })
-    );
   });
 
   it("does not downgrade terminal status when completed status payload has stale in-progress result data", async () => {
@@ -747,16 +710,6 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-veo-alias-conflict");
     expect(payload.data?.videos?.[0]?.url).toBe("https://cdn.shortpulse.test/veo-alias-media.mp4");
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        providerRequestId: "req-veo-alias-conflict",
-        outcome: "success",
-      })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "fail" })
-    );
   });
 
   it("treats retryable status upstream failures as transient and keeps polling payload", async () => {
@@ -791,9 +744,6 @@ describe("createFalStatusHandler", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "upstream temporarily unavailable",
     });
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "fail" })
-    );
   });
 
   it("treats retryable result upstream failures as transient and keeps completed status payload", async () => {
@@ -839,9 +789,6 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         status: "COMPLETED",
       })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "fail" })
     );
   });
 
@@ -909,27 +856,6 @@ describe("createFalStatusHandler", () => {
     expect(payload.request_id).toBe("req-result-terminal-failure");
     expect(payload.detail?.detail?.[0]?.type).toBe("downstream_service_error");
     expect(payload.detail?.detail?.[0]?.msg).toBe("Downstream service error");
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        providerRequestId: "req-result-terminal-failure",
-        outcome: "fail",
-      })
-    );
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        requestId: "req-result-terminal-failure",
-        observation: expect.objectContaining({
-          state: "failed",
-        }),
-      })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-result-terminal-failure",
-        outcome: "success",
-      })
-    );
   });
 
   it("treats transport failures as transient when status transient failures are enabled", async () => {
@@ -963,12 +889,6 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.fal.status.transient.transport",
-      })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-transient-transport",
-        outcome: "fail",
       })
     );
   });
@@ -1009,12 +929,6 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.fal.status.transient.non_json_status",
-      })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-transient-status-non-json",
-        outcome: "fail",
       })
     );
   });
@@ -1065,12 +979,6 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.fal.status.transient.non_json_result",
-      })
-    );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-transient-result-non-json",
-        outcome: "fail",
       })
     );
   });
@@ -1126,12 +1034,6 @@ describe("createFalStatusHandler", () => {
         source: "telemetry.fal.status.transient.no_media",
       })
     );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-transient-no-media",
-        outcome: "fail",
-      })
-    );
   });
 
   it("keeps missing-media terminal behavior when status transient failures are disabled", async () => {
@@ -1177,21 +1079,6 @@ describe("createFalStatusHandler", () => {
         status: "error",
         state: "error",
         request_id: "req-terminal-no-media",
-      })
-    );
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-terminal-no-media",
-        outcome: "fail",
-      })
-    );
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        requestId: "req-terminal-no-media",
-        observation: expect.objectContaining({
-          state: "completed",
-          mediaUrls: [],
-        }),
       })
     );
   });

@@ -149,7 +149,7 @@ describe("executeGenerationRecovery", () => {
     readExistingRecoveryMediaRowsMock.mockResolvedValue([{ id: "media-1", index: 0 }]);
 
     const result = await executeGenerationRecovery({
-      actor: "status_proxy",
+      actor: "reconciler",
       generationId: "gen-1",
       routeLabel: "test/recovery",
     });

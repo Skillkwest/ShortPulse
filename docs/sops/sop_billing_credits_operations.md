@@ -25,7 +25,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Queue/recovery provider-family expansion (Fal + Kie): `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql`.
 - Runtime convergence + idempotency migrations: `sql/migrations/020_generation_runtime_convergence.sql` to `sql/migrations/023_generation_reconciler_claims.sql`.
 - Server debit helper: `frontend/lib/server/api/generationBilling.ts`.
-- Fal status settlement helper: `frontend/lib/server/api/falStatusProxy.ts`.
+- Provider status polling helper: `frontend/lib/server/api/falStatusProxy.ts`.
 - Unified settlement service: `frontend/lib/server/api/generationBilling/settlementService.ts` (`settleGenerationOutcome`).
 - Ledger compatibility insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
@@ -112,9 +112,10 @@ Safety checks:
 - Successful submit records `provider_request_id` on the reservation/charge context.
 - Kie submit routes also persist `taskId` as `provider_request_id` on the charge context for ownership checks during status polling.
 - Status polling denies requests unless provider request ownership resolves as `owned` for the caller.
-- Fal status/webhook routes settle generation outcomes idempotently by `provider_request_id`:
+- Webhook/recovery routes settle generation outcomes idempotently by `provider_request_id`:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.
   - Failed/error/content-policy/malformed output: release reservation (no debit posted).
+- Status polling is observational only; it does not capture or release reservations.
 - Direct-debit fallback is an emergency-only kill switch (`SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED=false` by default).
 - Atomic admit+reserve is feature flagged (`SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED=false` by default) and should be enabled only after migration `032` is applied.
 - Prompt-refine and describe-image calls currently return usage but are not yet debited.

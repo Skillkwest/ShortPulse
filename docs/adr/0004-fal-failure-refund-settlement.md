@@ -1,7 +1,7 @@
 # ADR 0004: Fal Reservation/Capture Settlement
 
 ## Status
-Accepted
+Superseded by ADR 0021 and ADR 0048. Shared recovery execution now owns terminal settlement; status routes are observational only.
 
 ## Context
 Fal generation charging is server-authoritative. Prior behavior debited at submit and only auto-refunded on submit transport/reject failure. If provider accepted submit but later failed during queue polling or result fetch, users could be left with incorrect debits and temporary debit UX during running tasks.

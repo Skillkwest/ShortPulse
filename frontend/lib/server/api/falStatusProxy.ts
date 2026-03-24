@@ -1,17 +1,16 @@
 /**
- * Shared Fal status proxy with failure-aware refund settlement.
- * Polls queue status/result and refunds failed generations idempotently.
+ * Shared provider status proxy.
+ * Polls provider status/result endpoints without mutating settlement or recovery state.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
-import { resolveProviderRequestOwnership, settleGenerationOutcome } from "./generationBilling";
+import { resolveProviderRequestOwnership } from "./generationBilling";
 import {
   buildPersistedCompletedPayload,
   readPersistedSuccessResultUrls,
 } from "./falStatusPersistedResults";
-import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 import {
   buildFalStatusErrorPayload,
@@ -54,106 +53,6 @@ type FalStatusConfig = {
   alwaysHttp200?: boolean;
 };
 
-const settleFailure = async ({
-  userId,
-  requestId,
-  reason,
-  routeLabel,
-  detail,
-}: {
-  userId: string;
-  requestId: string;
-  reason: string;
-  routeLabel: string;
-  detail?: JsonObject;
-}) => {
-  const result = await settleGenerationOutcome({
-    userId,
-    providerRequestId: requestId,
-    outcome: "fail",
-    reason,
-    routeLabel,
-    detail,
-  });
-  if (!result.settled && result.note !== "charge_not_found") {
-    console.error("[falStatusProxy] settlement did not complete", {
-      requestId,
-      routeLabel,
-      note: result.note,
-      sourceRef: result.sourceRef ?? null,
-    });
-  }
-  try {
-    await executeGenerationRecovery({
-      actor: "status_proxy",
-      requestId,
-      userId,
-      routeLabel,
-      observation: {
-        state: "failed",
-        payload: detail ?? null,
-        mediaUrls: [],
-      },
-    });
-  } catch (error) {
-    console.error("[falStatusProxy] failed to sync generation failure state", {
-      requestId,
-      routeLabel,
-      error: String(error),
-    });
-  }
-};
-
-const settleCompletedWithoutMedia = async ({
-  userId,
-  requestId,
-  reason,
-  routeLabel,
-  detail,
-}: {
-  userId: string;
-  requestId: string;
-  reason: string;
-  routeLabel: string;
-  detail?: JsonObject;
-}) => {
-  const result = await settleGenerationOutcome({
-    userId,
-    providerRequestId: requestId,
-    outcome: "fail",
-    reason,
-    routeLabel,
-    detail,
-  });
-  if (!result.settled && result.note !== "charge_not_found") {
-    console.error("[falStatusProxy] settlement did not complete", {
-      requestId,
-      routeLabel,
-      note: result.note,
-      sourceRef: result.sourceRef ?? null,
-    });
-  }
-  try {
-    await executeGenerationRecovery({
-      actor: "status_proxy",
-      requestId,
-      userId,
-      routeLabel,
-      observation: {
-        state: "completed",
-        payload: detail ?? null,
-        mediaUrls: [],
-      },
-    });
-  } catch (error) {
-    console.error("[falStatusProxy] failed to sync no-media completed state", {
-      requestId,
-      routeLabel,
-      error: String(error),
-    });
-  }
-};
-
 const respondError = ({
   res,
   requestId,
@@ -174,7 +73,7 @@ const respondError = ({
 };
 
 /**
- * Builds a Fal status route that normalizes failures and settles refunds.
+ * Builds a provider status route that normalizes polling responses without side effects.
  */
 export const createFalStatusHandler = ({
   provider = "fal",
@@ -406,44 +305,6 @@ export const createFalStatusHandler = ({
         payload: JsonObject;
         payloadStatus: string;
       }) => {
-        const captureResult = await settleGenerationOutcome({
-          userId: user.id,
-          providerRequestId: requestId,
-          outcome: "success",
-          reason: "Generation charge captured after successful Fal output.",
-          routeLabel,
-          detail: {
-            stage: "result",
-            payload_status: payloadStatus,
-          },
-        });
-        if (!captureResult.settled && captureResult.note !== "charge_not_found") {
-          console.error("[falStatusProxy] capture did not settle", {
-            requestId,
-            routeLabel,
-            note: captureResult.note,
-          });
-        }
-        try {
-          await executeGenerationRecovery({
-            actor: "status_proxy",
-            requestId,
-            userId: user.id,
-            routeLabel,
-            observation: {
-              state: "completed",
-              payload,
-              mediaUrls: [],
-            },
-          });
-        } catch (error) {
-          console.error("[falStatusProxy] failed to sync generation success state", {
-            requestId,
-            routeLabel,
-            error: String(error),
-          });
-        }
-
         return res.status(200).json({
           ...payload,
           status: payloadStatus,
@@ -567,16 +428,6 @@ export const createFalStatusHandler = ({
             upstreamStatus: statusResp.status,
           });
         }
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-release: Fal status payload malformed.",
-          routeLabel,
-          detail: {
-            stage: "status",
-            malformed: true,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error: `${routeLabel} returned non-JSON status response`,
@@ -592,17 +443,6 @@ export const createFalStatusHandler = ({
         payload: statusData.json,
       });
       if (contentPolicyMessage) {
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-refund: Fal generation blocked by content policy.",
-          routeLabel,
-          detail: {
-            stage: "status",
-            content_policy: true,
-            payload: statusData.json,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error: contentPolicyMessage,
@@ -628,17 +468,6 @@ export const createFalStatusHandler = ({
           status: normalizedStatus,
         })
       ) {
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-refund: Fal generation failed during status polling.",
-          routeLabel,
-          detail: {
-            stage: "status",
-            upstream_status: normalizedStatus,
-            payload: statusData.json,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error:
@@ -663,17 +492,6 @@ export const createFalStatusHandler = ({
         ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
         }
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-release: Fal status endpoint returned non-OK response.",
-          routeLabel,
-          detail: {
-            stage: "status",
-            upstream_status: statusResp.status,
-            payload: statusData.json,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error:
@@ -854,17 +672,6 @@ export const createFalStatusHandler = ({
             upstreamStatus: resultResp.status,
           });
         }
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-refund: Fal generation result was non-JSON.",
-          routeLabel,
-          detail: {
-            stage: "result",
-            upstream_status: resultResp.status,
-            raw: resultData.text.slice(0, 500),
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error: `${routeLabel} result returned non-JSON response`,
@@ -880,17 +687,6 @@ export const createFalStatusHandler = ({
         payload: resultData.json,
       });
       if (resultPolicyMessage) {
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-refund: Fal generation blocked by content policy.",
-          routeLabel,
-          detail: {
-            stage: "result",
-            content_policy: true,
-            payload: resultData.json,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error: resultPolicyMessage,
@@ -911,17 +707,6 @@ export const createFalStatusHandler = ({
         ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
         }
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-refund: Fal generation result endpoint failed.",
-          routeLabel,
-          detail: {
-            stage: "result",
-            upstream_status: resultResp.status,
-            payload: resultData.json,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error:
@@ -953,16 +738,6 @@ export const createFalStatusHandler = ({
       }
 
       if (explicitResultFailure) {
-        await settleFailure({
-          userId: user.id,
-          requestId,
-          reason: "Auto-refund: Fal generation failed during result retrieval.",
-          routeLabel,
-          detail: {
-            stage: "result",
-            payload: resultData.json,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error: resultErrorMessage || "Generation failed to produce media output",
@@ -974,16 +749,6 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultHasMedia) {
-        await settleCompletedWithoutMedia({
-          userId: user.id,
-          requestId,
-          reason: "Auto-refund: Fal generation completed without usable media.",
-          routeLabel,
-          detail: {
-            stage: "result",
-            payload: resultData.json,
-          },
-        });
         return respondErrorWithLogging({
           requestId,
           error: resultErrorMessage || "Generation failed to produce media output",
@@ -1009,16 +774,6 @@ export const createFalStatusHandler = ({
           detail: String(error),
         });
       }
-      await settleFailure({
-        userId: user.id,
-        requestId,
-        reason: "Auto-release: Fal status check transport failure.",
-        routeLabel,
-        detail: {
-          stage: "status",
-          transport_error: String(error),
-        },
-      });
       return respondErrorWithLogging({
         requestId,
         error: `${routeLabel} status check failed`,

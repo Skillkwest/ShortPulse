@@ -168,6 +168,7 @@ import {
 import {
   resolveNestedSurfaceOffsetFromClientRect,
   resolveNestedSurfacePointFromClientPoint,
+  resolveScenePointFromPixelSpace,
 } from "./stageSceneGeometry";
 import {
   applyTransformHistoryEntryToLayers,
@@ -1453,6 +1454,57 @@ export function ExpertEditPanelView({
     [markupViewport]
   );
 
+  const resolveInlineCompositionScenePoint = React.useCallback(
+    ({
+      clientX,
+      clientY,
+      clampToBounds,
+    }: {
+      clientX: number;
+      clientY: number;
+      clampToBounds: boolean;
+    }) => {
+      const surfacePoint = resolveInlineCompositionSurfacePoint({
+        clientX,
+        clientY,
+        clampToBounds,
+      });
+      const frameStackElement = primaryCanvasFrameStackRef.current;
+      const surfaceElement = primaryCompositionSurfaceRef.current;
+      const fallbackSurfaceRect = resolveValidStageRect(
+        surfaceElement?.getBoundingClientRect() ?? null
+      );
+      const surfaceWidth = Math.max(
+        1,
+        frameStackElement?.clientWidth ||
+          surfaceElement?.clientWidth ||
+          fallbackSurfaceRect?.width ||
+          1
+      );
+      const surfaceHeight = Math.max(
+        1,
+        frameStackElement?.clientHeight ||
+          surfaceElement?.clientHeight ||
+          fallbackSurfaceRect?.height ||
+          1
+      );
+      if (!surfacePoint || surfaceWidth <= 0 || surfaceHeight <= 0) {
+        return null;
+      }
+      const scenePoint = resolveScenePointFromPixelSpace({
+        x: surfacePoint.x,
+        y: surfacePoint.y,
+        spaceWidth: surfaceWidth,
+        spaceHeight: surfaceHeight,
+      });
+      return {
+        sceneX: scenePoint.x,
+        sceneY: scenePoint.y,
+      };
+    },
+    [resolveInlineCompositionSurfacePoint]
+  );
+
   const {
     overlayCanvasRef,
     modalOverlayCanvasRef,
@@ -2574,6 +2626,14 @@ export function ExpertEditPanelView({
     markupColor,
     markupViewport,
     shouldApplyMarkupViewport: true,
+    resolveClientPointToSurfacePoint: ({ clientX, clientY, currentTarget, clampToBounds }) =>
+      currentTarget === markupModalStageRef.current
+        ? null
+        : resolveInlineCompositionScenePoint({
+            clientX,
+            clientY,
+            clampToBounds,
+          }),
     markupStrokeIdCounterRef,
     markupDrawPointerSessionRef,
     setMarkupStrokes,

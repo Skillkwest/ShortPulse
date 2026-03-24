@@ -190,15 +190,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-panel-grid");
-  const effectiveSignBudget = useMemo<MediaSignBudget>(
-    () => ({
-      ...signBudget,
-      signBatchSize: Math.max(signBudget.signBatchSize, signBudget.initialSignLimit),
-    }),
-    [signBudget]
-  );
-  // Favor one initial visible-slice signing pass before expanding into background prefetch.
-  const isPanelSignPrefetchEnabled = MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED && signPassNonce > 0;
   const mediaAdaptivePressure = useMediaAdaptivePressure({
     surface: "media-library-modal",
     enabled: adaptivePreviewQualityEnabled,
@@ -582,7 +573,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     resolveSignedUrlsByMediaIds,
     setSignPassNonce,
     signAttemptRef,
-    signBudget: effectiveSignBudget,
+    signBudget,
     signPassNonce,
     visibleMediaIdsRef,
     visibleMediaVersion,
@@ -591,7 +582,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     unresolvedWarningPrefix: "[media-library-panel]",
     maxSignAttemptsPerItem: MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
     maxSignCandidatesPerRow: 4,
-    isSignPrefetchEnabled: isPanelSignPrefetchEnabled,
+    isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
   });
 
   const getMediaCardRef = useCallback((fileId: string) => {

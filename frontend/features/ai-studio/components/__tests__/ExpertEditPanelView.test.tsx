@@ -3733,7 +3733,8 @@ describe("ExpertEditPanelView", () => {
       const movedFrameBeforeReset = document.querySelector(
         ".edit-expert-primary-layer-frame"
       ) as HTMLDivElement;
-      expect(Math.abs(readFrameTranslate(movedFrameBeforeReset).x)).toBeGreaterThan(0.1);
+      expect(readFrameTranslate(movedFrameBeforeReset).x).toBeCloseTo(0, 4);
+      expect(readFrameTranslate(movedFrameBeforeReset).y).toBeCloseTo(0, 4);
 
       fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
       fireEvent.pointerDown(primaryDropzone, {
@@ -3788,7 +3789,7 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("moves the selected layer inside the primary dropzone when dragging in move mode", async () => {
+  it("keeps the selected layer fixed when dragging in move mode while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -3841,11 +3842,11 @@ describe("ExpertEditPanelView", () => {
     });
 
     const { x: translateX, y: translateY } = readFrameTranslate(frame);
-    expect(translateX).toBeGreaterThan(10);
-    expect(translateY).toBeGreaterThan(10);
+    expect(translateX).toBeCloseTo(0, 4);
+    expect(translateY).toBeCloseTo(0, 4);
   });
 
-  it("renders selected-layer transform overlay and corner handles in move mode", async () => {
+  it("hides selected-layer transform overlay and handles in move mode while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -3858,22 +3859,13 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const compositionSurface = screen.getByLabelText("Primary composition surface");
-    const transformOverlay = screen.getByTestId("edit-expert-transform-overlay-inline");
-
-    expect(compositionSurface).not.toHaveClass("is-transform-overlay-active");
-    expect(transformOverlay).toBeInTheDocument();
-    expect(transformOverlay.parentElement).toBe(compositionSurface.parentElement);
-    expect(transformOverlay.parentElement).not.toBe(compositionSurface);
+    expect(screen.queryByTestId("edit-expert-transform-overlay-inline")).toBeNull();
     (["nw", "ne", "se", "sw"] as const).forEach((corner) => {
-      expect(screen.getByTestId(`edit-expert-transform-handle-inline-${corner}`)).toHaveAttribute(
-        "data-edit-expert-transform-drag-mode",
-        "resize"
-      );
+      expect(screen.queryByTestId(`edit-expert-transform-handle-inline-${corner}`)).toBeNull();
     });
   });
 
-  it("aligns the layer frame and transform overlay to the contained image rect", async () => {
+  it("keeps the layer frame aligned to the contained image rect while transform overlay is hidden", async () => {
     const previousImage = globalThis.Image;
     class MockImage {
       onload: (() => void) | null = null;
@@ -3905,16 +3897,12 @@ describe("ExpertEditPanelView", () => {
       fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
       const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-      const overlay = screen.getByTestId("edit-expert-transform-overlay-inline");
-
       await waitFor(() => {
         expect(frame.style.width).toBe("50%");
       });
       expect(frame.style.left).toBe("25%");
       expect(frame.style.height).toBe("100%");
-      expect(overlay.style.width).toBe("50%");
-      expect(overlay.style.left).toBe("25%");
-      expect(overlay.style.height).toBe("100%");
+      expect(screen.queryByTestId("edit-expert-transform-overlay-inline")).toBeNull();
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,
@@ -3924,7 +3912,7 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("resizes the selected layer when dragging an inline corner transform handle", async () => {
+  it("does not resize the selected layer from inline corner handles while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -3966,23 +3954,11 @@ describe("ExpertEditPanelView", () => {
       endY: 90,
       shiftKey: true,
     });
-    const shrunkScale = readFrameScale(frame);
-    dragStagePointer({
-      currentTarget: primaryDropzone,
-      downTarget: screen.getByTestId("edit-expert-transform-handle-inline-ne"),
-      pointerId: 63,
-      startX: 196,
-      startY: 4,
-      endX: 236,
-      endY: -24,
-    });
-
-    expect(shrunkScale).toBeLessThan(initialScale);
-    expect(readFrameScale(frame)).toBeGreaterThan(shrunkScale);
-    expect(readFrameScale(frame)).toBeLessThanOrEqual(initialScale);
+    expect(readFrameScale(frame)).toBeCloseTo(initialScale, 4);
+    expect(screen.queryByTestId("edit-expert-transform-handle-inline-ne")).toBeNull();
   });
 
-  it("keeps transform overlay chrome fixed-size while selection dimensions scale", async () => {
+  it("does not render transform overlay chrome while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4012,15 +3988,6 @@ describe("ExpertEditPanelView", () => {
       value: () => rect,
     });
 
-    const overlay = screen.getByTestId("edit-expert-transform-overlay-inline");
-    const overlayBox = overlay.querySelector(
-      ".edit-expert-primary-layer-selection-box"
-    ) as HTMLDivElement | null;
-    expect(overlayBox).not.toBeNull();
-    const initialOverlayBoxWidthPercent = Number.parseFloat(overlayBox?.style.width ?? "0");
-    expect(initialOverlayBoxWidthPercent).toBeGreaterThan(0);
-    expect(overlay.style.transform).not.toContain("scale(");
-
     dragStagePointer({
       currentTarget: primaryDropzone,
       pointerId: 262,
@@ -4030,28 +3997,10 @@ describe("ExpertEditPanelView", () => {
       endY: 90,
       shiftKey: true,
     });
-    const shrunkOverlayBoxWidthPercent = Number.parseFloat(overlayBox?.style.width ?? "0");
-    dragStagePointer({
-      currentTarget: primaryDropzone,
-      downTarget: screen.getByTestId("edit-expert-transform-handle-inline-ne"),
-      pointerId: 263,
-      startX: 196,
-      startY: 4,
-      endX: 236,
-      endY: -24,
-    });
-
-    const resizedOverlay = screen.getByTestId("edit-expert-transform-overlay-inline");
-    const resizedOverlayBox = resizedOverlay.querySelector(
-      ".edit-expert-primary-layer-selection-box"
-    ) as HTMLDivElement | null;
-    expect(resizedOverlay.style.transform).not.toContain("scale(");
-    expect(Number.parseFloat(resizedOverlayBox?.style.width ?? "0")).toBeGreaterThan(
-      shrunkOverlayBoxWidthPercent
-    );
+    expect(screen.queryByTestId("edit-expert-transform-overlay-inline")).toBeNull();
   });
 
-  it("undoes and redoes move transforms from the move history controls", async () => {
+  it("leaves move history controls inert while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4108,23 +4057,22 @@ describe("ExpertEditPanelView", () => {
     });
 
     const movedTranslate = readFrameTranslate(frame);
-    expect(movedTranslate.x).toBeGreaterThan(10);
-    expect(movedTranslate.y).toBeGreaterThan(10);
-    expect(undoButton).not.toBeDisabled();
+    expect(movedTranslate.x).toBeCloseTo(0, 4);
+    expect(movedTranslate.y).toBeCloseTo(0, 4);
+    expect(undoButton).toBeDisabled();
     expect(redoButton).toBeDisabled();
-    expect(recenterButton).not.toBeDisabled();
 
     fireEvent.click(undoButton);
     const undoneTranslate = readFrameTranslate(frame);
     expect(Math.abs(undoneTranslate.x)).toBeLessThan(0.01);
     expect(Math.abs(undoneTranslate.y)).toBeLessThan(0.01);
-    expect(redoButton).not.toBeDisabled();
-    expect(recenterButton).not.toBeDisabled();
+    expect(redoButton).toBeDisabled();
+    expect(recenterButton).toBeDisabled();
 
     fireEvent.click(redoButton);
     const redoneTranslate = readFrameTranslate(frame);
-    expect(redoneTranslate.x).toBeCloseTo(movedTranslate.x, 4);
-    expect(redoneTranslate.y).toBeCloseTo(movedTranslate.y, 4);
+    expect(redoneTranslate.x).toBeCloseTo(0, 4);
+    expect(redoneTranslate.y).toBeCloseTo(0, 4);
   });
 
   it("resizes only the selected layer when adjust drag starts with shift", async () => {
@@ -4207,11 +4155,11 @@ describe("ExpertEditPanelView", () => {
     const uploadedScaleAfter = readFrameScale(uploadedFrameAfter as HTMLDivElement);
     const foundationScaleAfter = readFrameScale(foundationFrameAfter as HTMLDivElement);
 
-    expect(uploadedScaleAfter).toBeLessThan(uploadedScaleBefore);
+    expect(uploadedScaleAfter).toBe(uploadedScaleBefore);
     expect(foundationScaleAfter).toBe(foundationScaleBefore);
   });
 
-  it("resizes the selected layer when adjust drag starts with shift", async () => {
+  it("does not resize the selected layer when adjust drag starts with shift while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4265,11 +4213,10 @@ describe("ExpertEditPanelView", () => {
     });
 
     const resizedScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
-    expect(resizedScale).toBeGreaterThan(initialScale);
-    expect(resizedScale).toBeLessThanOrEqual(2);
+    expect(resizedScale).toBeCloseTo(initialScale, 4);
   });
 
-  it("allows resizing smaller than the previous minimum floor with shift adjust drag", async () => {
+  it("does not shrink the selected layer from shift adjust drag while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4325,11 +4272,10 @@ describe("ExpertEditPanelView", () => {
     });
 
     const resizedScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
-    expect(resizedScale).toBeLessThan(0.5);
-    expect(resizedScale).toBeGreaterThanOrEqual(0.2);
+    expect(resizedScale).toBeCloseTo(initialScale, 4);
   });
 
-  it("rotates the selected layer with alt/option drag and records undo/redo history", async () => {
+  it("does not rotate the selected layer with alt/option drag while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4372,7 +4318,7 @@ describe("ExpertEditPanelView", () => {
     });
 
     const rotatedDeg = readFrameRotationDeg(frame);
-    expect(Math.abs(rotatedDeg)).toBeGreaterThan(20);
+    expect(Math.abs(rotatedDeg)).toBeCloseTo(0, 4);
 
     const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
     const undoButton = within(moveSettingsPanel).getByRole("button", {
@@ -4385,10 +4331,10 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(undoButton);
     expect(readFrameRotationDeg(frame)).toBeCloseTo(0, 3);
     fireEvent.click(redoButton);
-    expect(readFrameRotationDeg(frame)).toBeCloseTo(rotatedDeg, 3);
+    expect(readFrameRotationDeg(frame)).toBeCloseTo(0, 3);
   });
 
-  it("re-centers the selected layer from the move history row", async () => {
+  it("keeps the selected layer centered from the move history row while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4441,9 +4387,9 @@ describe("ExpertEditPanelView", () => {
     });
 
     const movedTranslate = readFrameTranslate(frame);
-    expect(Math.abs(movedTranslate.x)).toBeGreaterThan(10);
-    expect(Math.abs(movedTranslate.y)).toBeGreaterThan(10);
-    expect(recenterButton).not.toBeDisabled();
+    expect(Math.abs(movedTranslate.x)).toBeLessThan(0.01);
+    expect(Math.abs(movedTranslate.y)).toBeLessThan(0.01);
+    expect(recenterButton).toBeDisabled();
 
     fireEvent.click(recenterButton);
     const resetTranslate = readFrameTranslate(frame);
@@ -4452,7 +4398,7 @@ describe("ExpertEditPanelView", () => {
     expect(recenterButton).toBeDisabled();
   });
 
-  it("re-centers the selected layer when double clicking the primary stage in move mode", async () => {
+  it("keeps the selected layer centered when double clicking the primary stage in move mode while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4503,8 +4449,8 @@ describe("ExpertEditPanelView", () => {
     });
 
     const movedTranslate = readFrameTranslate(frame);
-    expect(Math.abs(movedTranslate.x)).toBeGreaterThan(10);
-    expect(Math.abs(movedTranslate.y)).toBeGreaterThan(10);
+    expect(Math.abs(movedTranslate.x)).toBeLessThan(0.01);
+    expect(Math.abs(movedTranslate.y)).toBeLessThan(0.01);
 
     fireEvent.doubleClick(primaryDropzone);
     const resetTranslate = readFrameTranslate(frame);
@@ -4543,7 +4489,7 @@ describe("ExpertEditPanelView", () => {
     expect(brushCursor).toContain("crosshair");
 
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+    expect(primaryDropzone.style.cursor).toBe("");
 
     fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
     fireEvent.click(screen.getByRole("button", { name: /^lasso$/i }));
@@ -5025,7 +4971,7 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("applies move, resize, and rotate transforms from the expanded modal stage", async () => {
+  it("keeps image transforms fixed from the expanded modal stage while transform editing is frozen", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -5052,6 +4998,9 @@ describe("ExpertEditPanelView", () => {
       ".edit-expert-primary-layer-frame"
     ) as HTMLDivElement;
     expect(modalFrame).toBeTruthy();
+    const initialTranslate = readFrameTranslate(modalFrame);
+    const initialScale = readFrameScale(modalFrame);
+    const initialRotation = readFrameRotationDeg(modalFrame);
 
     dragStagePointer({
       currentTarget: modalStage,
@@ -5071,10 +5020,9 @@ describe("ExpertEditPanelView", () => {
       endY: 148,
     });
     const translated = readFrameTranslate(modalFrame);
-    expect(Math.abs(translated.x)).toBeGreaterThan(10);
-    expect(Math.abs(translated.y)).toBeGreaterThan(10);
+    expect(translated.x).toBeCloseTo(initialTranslate.x, 4);
+    expect(translated.y).toBeCloseTo(initialTranslate.y, 4);
 
-    const movedScale = readFrameScale(modalFrame);
     dragStagePointer({
       currentTarget: modalStage,
       pointerId: 42,
@@ -5084,8 +5032,7 @@ describe("ExpertEditPanelView", () => {
       endY: 120,
       shiftKey: true,
     });
-    expect(readFrameScale(modalFrame)).toBeGreaterThan(movedScale);
-    expect(readFrameScale(modalFrame)).toBeLessThanOrEqual(1);
+    expect(readFrameScale(modalFrame)).toBeCloseTo(initialScale, 4);
 
     fireEvent.pointerDown(modalStage, {
       pointerId: 43,
@@ -5109,7 +5056,7 @@ describe("ExpertEditPanelView", () => {
       clientX: 120,
       clientY: 220,
     });
-    expect(Math.abs(readFrameRotationDeg(modalFrame))).toBeGreaterThan(3);
+    expect(readFrameRotationDeg(modalFrame)).toBeCloseTo(initialRotation, 4);
   });
 
   it("applies undo/redo general actions to markup strokes", async () => {
@@ -5952,7 +5899,7 @@ describe("ExpertEditPanelView", () => {
     });
   });
 
-  it("manual flatten forwards current layer transforms to stage flatten helper", async () => {
+  it("manual flatten forwards frozen layer transforms to stage flatten helper", async () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
     uploadPrimaryFile(container, "layer-1.png");
@@ -6019,8 +5966,8 @@ describe("ExpertEditPanelView", () => {
     }>;
     const movedLayer = flattenArgs.find((layer) => layer.imageUrl?.includes("layer-2.png"));
     expect(movedLayer).toBeDefined();
-    expect(Math.abs(movedLayer?.transform?.translateXRatio ?? 0)).toBeGreaterThan(0.01);
-    expect(Math.abs(movedLayer?.transform?.translateYRatio ?? 0)).toBeGreaterThan(0.01);
+    expect(movedLayer?.transform?.translateXRatio ?? 0).toBeCloseTo(0, 4);
+    expect(movedLayer?.transform?.translateYRatio ?? 0).toBeCloseTo(0, 4);
   });
 
   it("auto-flattens on generate and forwards flattened refs with primary first", async () => {
@@ -6535,7 +6482,7 @@ describe("ExpertEditPanelView", () => {
     );
   });
 
-  it("keeps the moved layer position after remove background completes", async () => {
+  it("keeps the frozen layer position after remove background completes", async () => {
     let releasePendingSubmit = () => {};
     const pendingSubmitPromise = new Promise<void>((resolve) => {
       releasePendingSubmit = () => {
@@ -6595,8 +6542,8 @@ describe("ExpertEditPanelView", () => {
       endY: 76,
     });
     const movedTranslate = readFrameTranslate(frame);
-    expect(movedTranslate.x).toBeGreaterThan(10);
-    expect(movedTranslate.y).toBeGreaterThan(10);
+    expect(movedTranslate.x).toBeCloseTo(0, 4);
+    expect(movedTranslate.y).toBeCloseTo(0, 4);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Remove Background" }));

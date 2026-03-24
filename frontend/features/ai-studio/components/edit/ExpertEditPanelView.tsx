@@ -242,6 +242,7 @@ const EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX = 860;
 const EDIT_EXPERT_PRIMARY_SIZE_MIN_PX = 520;
 const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 660;
 const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.45;
+const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = false;
 
 const resolvePrimaryCanvasNominalHeightPx = () => {
   if (typeof window === "undefined" || !Number.isFinite(window.innerWidth)) {
@@ -1415,7 +1416,10 @@ export function ExpertEditPanelView({
     imageHasInteractiveMask;
   const shouldShowMarkupBrushReticle = isVideoToolSelected && hasPrimaryCompositePreview;
   const shouldShowSelectedLayerTransformOverlay =
-    isMoveToolSelected && Boolean(selectedLayerImageUrl) && hasPrimaryCompositePreview;
+    EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED &&
+    isMoveToolSelected &&
+    Boolean(selectedLayerImageUrl) &&
+    hasPrimaryCompositePreview;
   const primaryCompositionSurfaceAspectRatio = React.useMemo(() => {
     const parsedAspectRatio = parseAspectRatioToken(aspect);
     if (
@@ -1456,7 +1460,11 @@ export function ExpertEditPanelView({
   const morePresetsSurfaceId = React.useId();
   const activeStageRenderScale = markupViewport.scale;
   const primaryCompositionSurfaceCursor = React.useMemo(() => {
-    if (isMoveToolSelected && selectedLayerImageUrl) {
+    if (
+      EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED &&
+      isMoveToolSelected &&
+      selectedLayerImageUrl
+    ) {
       if (activeTransformDragMode === "rotate") {
         return isTransformPointerDragging ? "grabbing" : "crosshair";
       }
@@ -2380,7 +2388,7 @@ export function ExpertEditPanelView({
   });
 
   const handleRecenterMoveAction = React.useCallback(() => {
-    if (selectedLayer) {
+    if (EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED && selectedLayer) {
       const nextLayers = layers.map((layer) =>
         layer.id === selectedLayer.id
           ? {
@@ -2590,6 +2598,7 @@ export function ExpertEditPanelView({
         context: { scope: "inline" | "modal" }
       ) => {
         if (context.scope === "modal" && beginMarkupPanGesture(event, context.scope)) return;
+        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
         handleMovePointerDown(event);
       },
       onPointerMove: (
@@ -2597,6 +2606,7 @@ export function ExpertEditPanelView({
         context: { scope: "inline" | "modal" }
       ) => {
         if (context.scope === "modal" && continueMarkupPanGesture(event)) return;
+        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
         handleMovePointerMove(event);
       },
       onPointerUp: (
@@ -2604,6 +2614,7 @@ export function ExpertEditPanelView({
         context: { scope: "inline" | "modal" }
       ) => {
         if (context.scope === "modal" && endMarkupPanGesture(event)) return;
+        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
         endTransformPointerSession(event);
       },
       onPointerCancel: (
@@ -2611,6 +2622,7 @@ export function ExpertEditPanelView({
         context: { scope: "inline" | "modal" }
       ) => {
         if (context.scope === "modal" && endMarkupPanGesture(event)) return;
+        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
         endTransformPointerSession(event);
       },
       onPointerLeave: (
@@ -2618,6 +2630,7 @@ export function ExpertEditPanelView({
         context: { scope: "inline" | "modal" }
       ) => {
         if (context.scope === "modal" && endMarkupPanGestureOnLeave(event)) return;
+        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
         handleMovePointerLeave(event);
       },
       onWheel: (

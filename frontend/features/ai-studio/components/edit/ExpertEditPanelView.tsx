@@ -300,7 +300,6 @@ type PrimaryCompositionSurfaceProps = {
   isBusy: boolean;
   isDragActive: boolean;
   isPresetsOpen: boolean;
-  isTransformOverlayActive: boolean;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   style: React.CSSProperties;
   onDrop?: React.DragEventHandler<HTMLDivElement>;
@@ -325,7 +324,6 @@ function PrimaryCompositionSurface({
   isBusy,
   isDragActive,
   isPresetsOpen,
-  isTransformOverlayActive,
   surfaceRef,
   style,
   onDrop,
@@ -348,9 +346,7 @@ function PrimaryCompositionSurface({
       ref={surfaceRef}
       className={`edit-expert-primary-composition-surface ${
         isVisible ? "has-preview" : "is-hidden-stage-surface"
-      } ${isPresetsOpen ? "is-presets-open" : ""} ${
-        isDragActive ? "is-dragging" : ""
-      } ${isTransformOverlayActive ? "is-transform-overlay-active" : ""}`}
+      } ${isPresetsOpen ? "is-presets-open" : ""} ${isDragActive ? "is-dragging" : ""}`}
       style={style}
       onDrop={onDrop}
       onDragEnter={onDragEnter}
@@ -4479,7 +4475,11 @@ export function ExpertEditPanelView({
     (
       scope: "inline" | "modal",
       preferredViewportSize: StageViewportSize,
-      stageElement: HTMLDivElement | null
+      stageElement: HTMLDivElement | null,
+      interactionHandlers?: Pick<
+        React.HTMLAttributes<HTMLDivElement>,
+        "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onPointerLeave"
+      >
     ): React.ReactNode | null => {
       if (!shouldShowSelectedLayerTransformOverlay || !selectedLayer) {
         return null;
@@ -4502,6 +4502,11 @@ export function ExpertEditPanelView({
       return (
         <div
           className="edit-expert-primary-layer-selection-overlay"
+          onPointerDown={interactionHandlers?.onPointerDown}
+          onPointerMove={interactionHandlers?.onPointerMove}
+          onPointerUp={interactionHandlers?.onPointerUp}
+          onPointerCancel={interactionHandlers?.onPointerCancel}
+          onPointerLeave={interactionHandlers?.onPointerLeave}
           style={{
             left: `${layerRect.leftPercent}%`,
             top: `${layerRect.topPercent}%`,
@@ -4601,7 +4606,6 @@ export function ExpertEditPanelView({
           />
           {renderMarkupStrokeOverlay(scope, renderStageSize, stageElement)}
           {renderPrimaryStageBusyOverlay()}
-          {renderSelectedLayerTransformOverlay(scope, renderStageSize, stageElement)}
         </>
       );
     },
@@ -4611,7 +4615,6 @@ export function ExpertEditPanelView({
       resolveLayerImageAspectRatio,
       renderMarkupStrokeOverlay,
       renderPrimaryStageBusyOverlay,
-      renderSelectedLayerTransformOverlay,
     ]
   );
 
@@ -4779,7 +4782,6 @@ export function ExpertEditPanelView({
                   isBusy={isPrimaryStageBusy}
                   isDragActive={primaryDragActive}
                   isPresetsOpen={isMorePresetsSurfaceOpen}
-                  isTransformOverlayActive={shouldShowSelectedLayerTransformOverlay}
                   style={
                     hasPrimaryCompositePreview
                       ? primaryCompositionSurfaceStyle
@@ -4833,6 +4835,20 @@ export function ExpertEditPanelView({
                       })
                     : null}
                 </PrimaryCompositionSurface>
+                {hasPrimaryCompositePreview
+                  ? renderSelectedLayerTransformOverlay(
+                      "inline",
+                      inlineStageViewportSize,
+                      primaryCompositionSurfaceRef.current,
+                      {
+                        onPointerDown: inlineStageInteractionRouter.onPointerDown,
+                        onPointerMove: inlineStageInteractionRouter.onPointerMove,
+                        onPointerUp: inlineStageInteractionRouter.onPointerUp,
+                        onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
+                        onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
+                      }
+                    )
+                  : null}
               </PrimaryCanvasFrameStack>
             </PrimaryStageViewportLayer>
           </PrimaryStageShell>
@@ -5219,23 +5235,34 @@ export function ExpertEditPanelView({
         modalRef={handleMarkupModalRef}
         controlsColumnRef={handleMarkupModalControlsRef}
         stageRef={handleMarkupModalStageRef}
-        stageClassName={
-          shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : undefined
-        }
         stageStyle={markupModalStageStyle}
         generalPanel={renderMarkupModalGeneralPanel()}
         movePanel={renderMarkupModalMovePanel()}
         inpaintPanel={renderMarkupModalInpaintPanel("modal")}
         markupPanel={renderMarkupControlsContent("modal")}
         stageContent={
-          <PrimaryStageViewportLayer style={modalMarkupViewportStyle}>
-            {renderPrimaryStageSceneContent({
-              scope: "modal",
-              overlayCanvas: modalOverlayCanvasRef,
-              stageSize: markupModalViewportSize,
-              stageElement: markupModalStageRef.current,
-            })}
-          </PrimaryStageViewportLayer>
+          <>
+            <PrimaryStageViewportLayer style={modalMarkupViewportStyle}>
+              {renderPrimaryStageSceneContent({
+                scope: "modal",
+                overlayCanvas: modalOverlayCanvasRef,
+                stageSize: markupModalViewportSize,
+                stageElement: markupModalStageRef.current,
+              })}
+            </PrimaryStageViewportLayer>
+            {renderSelectedLayerTransformOverlay(
+              "modal",
+              markupModalViewportSize,
+              markupModalStageRef.current,
+              {
+                onPointerDown: modalStageInteractionRouter.onPointerDown,
+                onPointerMove: modalStageInteractionRouter.onPointerMove,
+                onPointerUp: modalStageInteractionRouter.onPointerUp,
+                onPointerCancel: modalStageInteractionRouter.onPointerCancel,
+                onPointerLeave: modalStageInteractionRouter.onPointerLeave,
+              }
+            )}
+          </>
         }
         layersPanel={renderLayersToolbar("modal")}
         onClose={closeMarkupModal}

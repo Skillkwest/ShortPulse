@@ -3858,7 +3858,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    expect(screen.getByLabelText("Primary composition surface")).toHaveClass(
+    expect(screen.getByLabelText("Primary composition surface")).not.toHaveClass(
       "is-transform-overlay-active"
     );
     expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();

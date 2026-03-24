@@ -1547,10 +1547,6 @@
   pointer-events: none;
 }
 
-.edit-expert-primary-composition-surface.is-transform-overlay-active {
-  overflow: visible;
-}
-
 .edit-expert-primary-composition-surface:hover {
   border-color: rgba(201, 205, 214, 0.44);
 }
@@ -3403,10 +3399,6 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-}
-
-.edit-expert-markup-modal-stage.is-transform-overlay-active {
-  overflow: visible;
 }
 
 .edit-expert-markup-modal-stage * {

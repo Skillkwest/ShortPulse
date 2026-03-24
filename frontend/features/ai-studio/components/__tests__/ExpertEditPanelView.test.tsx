@@ -456,7 +456,7 @@ describe("ExpertEditPanelView", () => {
     expect(container.querySelector(".edit-expert-primary-canvas-frame")).not.toBeNull();
     expect(
       container.querySelector(".edit-expert-primary-stage-shell") as HTMLDivElement | null
-    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 24px)" });
+    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 96px)" });
   });
 
   it("keeps the primary stage shell height contract after loading a preview", () => {
@@ -470,7 +470,7 @@ describe("ExpertEditPanelView", () => {
 
     expect(
       container.querySelector(".edit-expert-primary-stage-shell") as HTMLDivElement | null
-    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 24px)" });
+    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 96px)" });
   });
 
   it("renders two center-column wrappers and keeps prompt/selectors in the lower wrapper", () => {

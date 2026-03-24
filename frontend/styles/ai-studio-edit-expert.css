@@ -3395,6 +3395,7 @@
   justify-content: center;
   box-sizing: border-box;
   padding-inline: var(--edit-expert-markup-stage-inline-pad);
+  padding-block: 48px;
   overflow: hidden;
   max-width: 100%;
   max-height: 100%;

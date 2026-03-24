@@ -165,7 +165,10 @@ import {
   type MarkupPanPointerSession,
   type StageViewportSize,
 } from "./expertEditViewportUtils";
-import { resolveNestedSurfacePointFromClientPoint } from "./stageSceneGeometry";
+import {
+  resolveNestedSurfaceOffsetFromClientRect,
+  resolveNestedSurfacePointFromClientPoint,
+} from "./stageSceneGeometry";
 import {
   applyTransformHistoryEntryToLayers,
   areLayerTransformsEqual,
@@ -1413,17 +1416,35 @@ export function ExpertEditPanelView({
       if (surfaceWidth <= 0 || surfaceHeight <= 0) {
         return null;
       }
+      const viewportTransform = {
+        scale: markupViewport.scale,
+        offsetX: markupViewport.offsetXRatio * wrapperRect.width,
+        offsetY: markupViewport.offsetYRatio * wrapperRect.height,
+      };
+      const resolvedSurfaceOffset = fallbackSurfaceRect
+        ? resolveNestedSurfaceOffsetFromClientRect({
+            viewportRect: wrapperRect,
+            viewportTransform,
+            surfaceRect: fallbackSurfaceRect,
+            surfaceWidth,
+            surfaceHeight,
+          })
+        : null;
       return resolveNestedSurfacePointFromClientPoint({
         clientX,
         clientY,
         viewportRect: wrapperRect,
-        viewportTransform: {
-          scale: markupViewport.scale,
-          offsetX: markupViewport.offsetXRatio * wrapperRect.width,
-          offsetY: markupViewport.offsetYRatio * wrapperRect.height,
-        },
-        surfaceOffsetX: frameStackElement?.offsetLeft ?? surfaceElement?.offsetLeft ?? 0,
-        surfaceOffsetY: frameStackElement?.offsetTop ?? surfaceElement?.offsetTop ?? 0,
+        viewportTransform,
+        surfaceOffsetX:
+          resolvedSurfaceOffset?.offsetX ??
+          frameStackElement?.offsetLeft ??
+          surfaceElement?.offsetLeft ??
+          0,
+        surfaceOffsetY:
+          resolvedSurfaceOffset?.offsetY ??
+          frameStackElement?.offsetTop ??
+          surfaceElement?.offsetTop ??
+          0,
         surfaceWidth,
         surfaceHeight,
         clampToBounds,

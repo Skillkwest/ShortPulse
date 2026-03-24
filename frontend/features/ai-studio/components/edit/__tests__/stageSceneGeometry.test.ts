@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapPixelPointBetweenSpacesViaScene,
   mapPixelRectBetweenSpacesViaScene,
+  resolveNestedSurfaceOffsetFromClientRect,
   resolveNestedSurfacePointFromClientPoint,
   resolvePixelPointFromSceneSpace,
   resolveSceneMappedDrawRect,
@@ -276,5 +277,58 @@ describe("stageSceneGeometry", () => {
     expect(resolvedSurfacePoint).not.toBeNull();
     expect(resolvedSurfacePoint?.x ?? 0).toBeCloseTo(sourceSurfacePoint.x, 6);
     expect(resolvedSurfacePoint?.y ?? 0).toBeCloseTo(sourceSurfacePoint.y, 6);
+  });
+
+  it("recovers nested surface logical offsets from a live client rect under zoom", () => {
+    const viewportRect = {
+      left: 24,
+      top: 16,
+      width: 1200,
+      height: 900,
+    } as DOMRect;
+    const viewportTransform = {
+      scale: 1.8,
+      offsetX: 96,
+      offsetY: -54,
+    };
+    const surfaceWidth = 420;
+    const surfaceHeight = 560;
+    const sourceOffset = {
+      x: 340,
+      y: 180,
+    };
+    const surfaceCenterSamplePoint = resolveViewportSamplePointFromSurfacePoint({
+      point: {
+        x: sourceOffset.x + surfaceWidth / 2,
+        y: sourceOffset.y + surfaceHeight / 2,
+      },
+      viewportTransform,
+      viewportWidth: viewportRect.width,
+      viewportHeight: viewportRect.height,
+    });
+    const surfaceRect = {
+      left:
+        viewportRect.left +
+        surfaceCenterSamplePoint.x -
+        (surfaceWidth * viewportTransform.scale) / 2,
+      top:
+        viewportRect.top +
+        surfaceCenterSamplePoint.y -
+        (surfaceHeight * viewportTransform.scale) / 2,
+      width: surfaceWidth * viewportTransform.scale,
+      height: surfaceHeight * viewportTransform.scale,
+    } as DOMRect;
+
+    const resolvedOffset = resolveNestedSurfaceOffsetFromClientRect({
+      viewportRect,
+      viewportTransform,
+      surfaceRect,
+      surfaceWidth,
+      surfaceHeight,
+    });
+
+    expect(resolvedOffset).not.toBeNull();
+    expect(resolvedOffset?.offsetX ?? 0).toBeCloseTo(sourceOffset.x, 6);
+    expect(resolvedOffset?.offsetY ?? 0).toBeCloseTo(sourceOffset.y, 6);
   });
 });

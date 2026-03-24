@@ -328,6 +328,42 @@ export const resolveNestedSurfacePointFromClientPoint = ({
 };
 
 /**
+ * Resolves a nested surface's logical top-left offset inside an untransformed viewport
+ * from the surface's live client rect. Using the rect center avoids flex/transform layout
+ * drift that can make offsetLeft/offsetTop unreliable under zoomed viewport layers.
+ */
+export const resolveNestedSurfaceOffsetFromClientRect = ({
+  viewportRect,
+  viewportTransform,
+  surfaceRect,
+  surfaceWidth,
+  surfaceHeight,
+}: {
+  viewportRect: DOMRect;
+  viewportTransform: StageViewportTransform;
+  surfaceRect: DOMRect;
+  surfaceWidth: number;
+  surfaceHeight: number;
+}): { offsetX: number; offsetY: number } | null => {
+  const safeSurface = resolveSafeDimensions({
+    width: surfaceWidth,
+    height: surfaceHeight,
+  });
+  const surfaceCenterPoint = resolveSurfacePointFromClientPoint({
+    clientX: surfaceRect.left + surfaceRect.width / 2,
+    clientY: surfaceRect.top + surfaceRect.height / 2,
+    rect: viewportRect,
+    viewportTransform,
+    clampToBounds: false,
+  });
+  if (!surfaceCenterPoint) return null;
+  return {
+    offsetX: surfaceCenterPoint.x - safeSurface.width / 2,
+    offsetY: surfaceCenterPoint.y - safeSurface.height / 2,
+  };
+};
+
+/**
  * Resolves a uniform draw rect that preserves scene geometry when drawing one surface into another.
  */
 export const resolveSceneMappedDrawRect = ({

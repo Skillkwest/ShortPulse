@@ -2575,14 +2575,6 @@ export function ExpertEditPanelView({
     markupViewport,
     shouldApplyMarkupViewport: true,
     resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
-    resolveClientPointToSurfacePoint: ({ clientX, clientY, currentTarget, clampToBounds }) =>
-      currentTarget === markupModalStageRef.current
-        ? null
-        : resolveInlineCompositionSurfacePoint({
-            clientX,
-            clientY,
-            clampToBounds,
-          }),
     markupStrokeIdCounterRef,
     markupDrawPointerSessionRef,
     setMarkupStrokes,

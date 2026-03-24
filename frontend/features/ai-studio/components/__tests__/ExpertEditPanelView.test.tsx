@@ -2129,6 +2129,78 @@ describe("ExpertEditPanelView", () => {
     expect(overlay?.querySelectorAll("polyline").length ?? 0).toBe(1);
   });
 
+  it("draws inline markup strokes when the outer stage is larger than the composition surface", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-draw-inline-offset.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
+    const primaryStage = primaryDropzone.closest(
+      ".edit-expert-primary-stage-shell"
+    ) as HTMLDivElement | null;
+    expect(primaryStage).not.toBeNull();
+    mockElementRect(
+      primaryStage as HTMLDivElement,
+      {
+        left: 0,
+        top: 0,
+        width: 860,
+        height: 616,
+        right: 860,
+        bottom: 616,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    );
+    mockElementRect(primaryDropzone, {
+      left: 277.5,
+      top: 37,
+      width: 305,
+      height: 542,
+      right: 582.5,
+      bottom: 579,
+      x: 277.5,
+      y: 37,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.pointerDown(primaryDropzone, {
+      pointerId: 903,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 333,
+      clientY: 109,
+    });
+    fireEvent.pointerMove(primaryDropzone, {
+      pointerId: 903,
+      pointerType: "mouse",
+      clientX: 465,
+      clientY: 243,
+    });
+    fireEvent.pointerUp(primaryDropzone, {
+      pointerId: 903,
+      pointerType: "mouse",
+      clientX: 465,
+      clientY: 243,
+    });
+
+    const overlay = primaryDropzone.querySelector(
+      ".edit-expert-markup-strokes-overlay"
+    ) as SVGElement | null;
+    const stroke = overlay?.querySelector("polyline") as SVGPolylineElement | null;
+    expect(stroke).not.toBeNull();
+    expect((stroke?.getAttribute("points") ?? "").length).toBeGreaterThan(0);
+  });
+
   it("terminates inline markup draw gestures on pointer cancel", async () => {
     render(
       <ExpertEditPanelView

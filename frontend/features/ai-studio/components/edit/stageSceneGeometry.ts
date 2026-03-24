@@ -266,6 +266,68 @@ export const resolveSurfacePointFromClientPoint = ({
 };
 
 /**
+ * Resolves a client-space sample into a nested logical surface that sits inside an
+ * untransformed viewport. This is used when camera transforms are applied to a parent
+ * viewport layer but tools still need canonical coordinates for an inner composition frame.
+ */
+export const resolveNestedSurfacePointFromClientPoint = ({
+  clientX,
+  clientY,
+  viewportRect,
+  viewportTransform,
+  surfaceOffsetX,
+  surfaceOffsetY,
+  surfaceWidth,
+  surfaceHeight,
+  clampToBounds = false,
+}: {
+  clientX: number;
+  clientY: number;
+  viewportRect: DOMRect;
+  viewportTransform: StageViewportTransform;
+  surfaceOffsetX: number;
+  surfaceOffsetY: number;
+  surfaceWidth: number;
+  surfaceHeight: number;
+  clampToBounds?: boolean;
+}): StageSurfacePoint | null => {
+  const viewportPoint = resolveSurfacePointFromClientPoint({
+    clientX,
+    clientY,
+    rect: viewportRect,
+    viewportTransform,
+    clampToBounds: false,
+  });
+  if (!viewportPoint) return null;
+
+  const safeSurface = resolveSafeDimensions({
+    width: surfaceWidth,
+    height: surfaceHeight,
+  });
+  const surfacePoint = {
+    x: viewportPoint.x - surfaceOffsetX,
+    y: viewportPoint.y - surfaceOffsetY,
+  };
+
+  if (!clampToBounds) {
+    if (
+      surfacePoint.x < 0 ||
+      surfacePoint.y < 0 ||
+      surfacePoint.x > safeSurface.width ||
+      surfacePoint.y > safeSurface.height
+    ) {
+      return null;
+    }
+    return surfacePoint;
+  }
+
+  return {
+    x: clamp(surfacePoint.x, 0, safeSurface.width),
+    y: clamp(surfacePoint.y, 0, safeSurface.height),
+  };
+};
+
+/**
  * Resolves a uniform draw rect that preserves scene geometry when drawing one surface into another.
  */
 export const resolveSceneMappedDrawRect = ({

@@ -41,6 +41,12 @@ type UseExpertEditMarkupDrawControllerParams = {
     offsetX: number;
     offsetY: number;
   };
+  resolveClientPointToSurfacePoint?: (params: {
+    clientX: number;
+    clientY: number;
+    currentTarget: HTMLDivElement;
+    clampToBounds: boolean;
+  }) => MarkupStrokePoint | null;
   markupStrokeIdCounterRef: React.MutableRefObject<number>;
   markupDrawPointerSessionRef: React.MutableRefObject<MarkupDrawPointerSession>;
   setMarkupStrokes: React.Dispatch<React.SetStateAction<MarkupStroke[]>>;
@@ -73,6 +79,7 @@ export const useExpertEditMarkupDrawController = ({
   markupViewport,
   shouldApplyMarkupViewport,
   resolveViewportOffsetPixels,
+  resolveClientPointToSurfacePoint,
   markupStrokeIdCounterRef,
   markupDrawPointerSessionRef,
   setMarkupStrokes,
@@ -146,16 +153,26 @@ export const useExpertEditMarkupDrawController = ({
       }
       if (event.pointerType === "mouse" && event.button !== 0) return false;
       const stageRect = event.currentTarget.getBoundingClientRect();
+      const logicalStageWidth = Math.max(1, event.currentTarget.clientWidth || stageRect.width);
+      const logicalStageHeight = Math.max(1, event.currentTarget.clientHeight || stageRect.height);
+      const logicalStageRect = new DOMRect(0, 0, logicalStageWidth, logicalStageHeight);
       const viewportOffset = resolveViewportOffsetPixels?.(stageRect, event.currentTarget);
-      const point = resolveMarkupPointerPoint({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        rect: stageRect,
-        viewport: markupViewport,
-        applyViewportTransform: shouldApplyMarkupViewport,
-        viewportOffsetX: viewportOffset?.offsetX,
-        viewportOffsetY: viewportOffset?.offsetY,
-      });
+      const point =
+        resolveClientPointToSurfacePoint?.({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          currentTarget: event.currentTarget,
+          clampToBounds: false,
+        }) ??
+        resolveMarkupPointerPoint({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect: stageRect,
+          viewport: markupViewport,
+          applyViewportTransform: shouldApplyMarkupViewport,
+          viewportOffsetX: viewportOffset?.offsetX,
+          viewportOffsetY: viewportOffset?.offsetY,
+        });
       if (!point) return false;
       event.preventDefault();
       if (event.currentTarget.setPointerCapture) {
@@ -163,7 +180,7 @@ export const useExpertEditMarkupDrawController = ({
       }
       beginMarkupGestureHistory();
       if (selectedMarkupMode === "eraser") {
-        eraseMarkupStrokesAtPoints([point], stageRect);
+        eraseMarkupStrokesAtPoints([point], logicalStageRect);
         activateMarkupDrawGestureSession(event.pointerId, "eraser", null);
         return true;
       }
@@ -173,7 +190,7 @@ export const useExpertEditMarkupDrawController = ({
         color: markupColor,
         sizeRatio: resolveMarkupStrokeSizeRatio({
           strokeSizePx: resolvedMarkupStrokeSize,
-          stageHeight: stageRect.height,
+          stageHeight: logicalStageHeight,
         }),
         points: [point],
       };
@@ -190,6 +207,7 @@ export const useExpertEditMarkupDrawController = ({
       markupColor,
       markupStrokeIdCounterRef,
       markupViewport,
+      resolveClientPointToSurfacePoint,
       resolveViewportOffsetPixels,
       resolvedMarkupStrokeSize,
       selectedMarkupMode,
@@ -206,30 +224,39 @@ export const useExpertEditMarkupDrawController = ({
         return false;
       }
       const stageRect = event.currentTarget.getBoundingClientRect();
+      const logicalStageWidth = Math.max(1, event.currentTarget.clientWidth || stageRect.width);
+      const logicalStageHeight = Math.max(1, event.currentTarget.clientHeight || stageRect.height);
+      const logicalStageRect = new DOMRect(0, 0, logicalStageWidth, logicalStageHeight);
       const viewportOffset = resolveViewportOffsetPixels?.(stageRect, event.currentTarget);
       const sampleEvents = resolvePointerSampleEvents(event.nativeEvent as PointerEvent);
       const points = sampleEvents
-        .map((sampleEvent) =>
-          resolveMarkupPointerPoint({
-            clientX: sampleEvent.clientX,
-            clientY: sampleEvent.clientY,
-            rect: stageRect,
-            viewport: markupViewport,
-            applyViewportTransform: shouldApplyMarkupViewport,
-            viewportOffsetX: viewportOffset?.offsetX,
-            viewportOffsetY: viewportOffset?.offsetY,
-          })
-        )
+        .map((sampleEvent) => {
+          return (
+            resolveClientPointToSurfacePoint?.({
+              clientX: sampleEvent.clientX,
+              clientY: sampleEvent.clientY,
+              currentTarget: event.currentTarget,
+              clampToBounds: false,
+            }) ??
+            resolveMarkupPointerPoint({
+              clientX: sampleEvent.clientX,
+              clientY: sampleEvent.clientY,
+              rect: stageRect,
+              viewport: markupViewport,
+              applyViewportTransform: shouldApplyMarkupViewport,
+              viewportOffsetX: viewportOffset?.offsetX,
+              viewportOffsetY: viewportOffset?.offsetY,
+            })
+          );
+        })
         .filter((sample): sample is MarkupStrokePoint => sample != null);
       if (!points.length) return false;
       event.preventDefault();
       if (session.mode === "eraser") {
-        eraseMarkupStrokesAtPoints(points, stageRect);
+        eraseMarkupStrokesAtPoints(points, logicalStageRect);
         return true;
       }
       if (!session.strokeId) return false;
-      const stageWidth = Math.max(1, stageRect.width);
-      const stageHeight = Math.max(1, stageRect.height);
       setMarkupStrokes((previousStrokes) =>
         previousStrokes.map((stroke) => {
           if (stroke.id !== session.strokeId) {
@@ -238,8 +265,8 @@ export const useExpertEditMarkupDrawController = ({
           return appendMarkupStrokePoints({
             stroke,
             samples: points,
-            stageWidth,
-            stageHeight,
+            stageWidth: logicalStageWidth,
+            stageHeight: logicalStageHeight,
           });
         })
       );
@@ -249,6 +276,7 @@ export const useExpertEditMarkupDrawController = ({
       eraseMarkupStrokesAtPoints,
       markupDrawPointerSessionRef,
       markupViewport,
+      resolveClientPointToSurfacePoint,
       resolveViewportOffsetPixels,
       setMarkupStrokes,
       shouldApplyMarkupViewport,

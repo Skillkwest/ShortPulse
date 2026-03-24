@@ -10,6 +10,7 @@ import {
 } from "../../logic/expertEditStageFlatten";
 import { resolveSceneMappedDrawRect } from "./stageSceneGeometry";
 import {
+  mapSurfacePointToMaskCanvasPoint,
   resolveInpaintBrushPaintRadius,
   resolveMaskInteractionPoint,
   resolveMaskSpaceScaleFromSurface,
@@ -29,6 +30,13 @@ export type InpaintLayerSource = {
   id: string;
   imageUrl: string | null;
 };
+
+type ResolveClientPointToSurfacePoint = (params: {
+  clientX: number;
+  clientY: number;
+  currentTarget: HTMLDivElement;
+  clampToBounds: boolean;
+}) => InpaintPoint | null;
 
 type PointerSession = {
   pointerId: number;
@@ -65,6 +73,7 @@ type UseInpaintMaskControllerParams = {
     offsetX: number;
     offsetY: number;
   };
+  resolveClientPointToSurfacePoint?: ResolveClientPointToSurfacePoint;
   paintMode: InpaintPaintMode;
   selectionMode: InpaintSelectionMode;
   strokeSize: number;
@@ -267,6 +276,7 @@ export const useInpaintMaskController = ({
   viewportOffsetXRatio,
   viewportOffsetYRatio,
   resolveViewportOffsetPixels,
+  resolveClientPointToSurfacePoint,
   paintMode,
   selectionMode,
   strokeSize,
@@ -666,19 +676,40 @@ export const useInpaintMaskController = ({
       }
       if (event.pointerType === "mouse" && event.button !== 0) return;
       const interactionRect = event.currentTarget.getBoundingClientRect();
+      const logicalInteractionRect = new DOMRect(
+        0,
+        0,
+        Math.max(1, event.currentTarget.clientWidth || interactionRect.width),
+        Math.max(1, event.currentTarget.clientHeight || interactionRect.height)
+      );
       const canvas = ensureMaskCanvasForLayer(selectedLayerId);
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const viewportOffsets = resolveViewportOffsets(interactionRect, event.currentTarget);
-      const point = resolveMaskInteractionPoint({
-        sampleEvent: event,
-        interactionRect,
-        maskWidth: canvas.width,
-        maskHeight: canvas.height,
-        sceneScale,
-        ...viewportOffsets,
-        clampToBounds: false,
-      });
+      const resolvedSurfacePoint =
+        resolveClientPointToSurfacePoint?.({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          currentTarget: event.currentTarget,
+          clampToBounds: false,
+        }) ?? null;
+      const point =
+        resolvedSurfacePoint != null
+          ? mapSurfacePointToMaskCanvasPoint({
+              point: resolvedSurfacePoint,
+              interactionRect: logicalInteractionRect,
+              maskWidth: canvas.width,
+              maskHeight: canvas.height,
+            })
+          : resolveMaskInteractionPoint({
+              sampleEvent: event,
+              interactionRect,
+              maskWidth: canvas.width,
+              maskHeight: canvas.height,
+              sceneScale,
+              ...viewportOffsets,
+              clampToBounds: false,
+            });
       if (!point) return;
 
       event.preventDefault();
@@ -695,8 +726,8 @@ export const useInpaintMaskController = ({
 
       if (paintMode === "brush") {
         const surfaceToMaskScale = resolveMaskSpaceScaleFromSurface({
-          surfaceWidth: interactionRect.width,
-          surfaceHeight: interactionRect.height,
+          surfaceWidth: logicalInteractionRect.width,
+          surfaceHeight: logicalInteractionRect.height,
           maskWidth: canvas.width,
           maskHeight: canvas.height,
         });
@@ -731,6 +762,7 @@ export const useInpaintMaskController = ({
       selectionMode,
       sceneScale,
       strokeSize,
+      resolveClientPointToSurfacePoint,
       resolveViewportOffsets,
     ]
   );
@@ -742,6 +774,12 @@ export const useInpaintMaskController = ({
 
       event.preventDefault();
       const interactionRect = event.currentTarget.getBoundingClientRect();
+      const logicalInteractionRect = new DOMRect(
+        0,
+        0,
+        Math.max(1, event.currentTarget.clientWidth || interactionRect.width),
+        Math.max(1, event.currentTarget.clientHeight || interactionRect.height)
+      );
       const canvas = ensureMaskCanvasForLayer(selectedLayerId);
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -750,25 +788,46 @@ export const useInpaintMaskController = ({
 
       if (paintMode === "lasso") {
         events.forEach((sampleEvent) => {
-          const point =
-            resolveMaskInteractionPoint({
-              sampleEvent,
-              interactionRect,
-              maskWidth: canvas.width,
-              maskHeight: canvas.height,
-              sceneScale,
-              ...viewportOffsets,
+          const resolvedSurfacePoint =
+            resolveClientPointToSurfacePoint?.({
+              clientX: sampleEvent.clientX,
+              clientY: sampleEvent.clientY,
+              currentTarget: event.currentTarget,
               clampToBounds: false,
             }) ??
-            resolveMaskInteractionPoint({
-              sampleEvent,
-              interactionRect,
-              maskWidth: canvas.width,
-              maskHeight: canvas.height,
-              sceneScale,
-              ...viewportOffsets,
+            resolveClientPointToSurfacePoint?.({
+              clientX: sampleEvent.clientX,
+              clientY: sampleEvent.clientY,
+              currentTarget: event.currentTarget,
               clampToBounds: true,
-            });
+            }) ??
+            null;
+          const point =
+            resolvedSurfacePoint != null
+              ? mapSurfacePointToMaskCanvasPoint({
+                  point: resolvedSurfacePoint,
+                  interactionRect: logicalInteractionRect,
+                  maskWidth: canvas.width,
+                  maskHeight: canvas.height,
+                })
+              : (resolveMaskInteractionPoint({
+                  sampleEvent,
+                  interactionRect,
+                  maskWidth: canvas.width,
+                  maskHeight: canvas.height,
+                  sceneScale,
+                  ...viewportOffsets,
+                  clampToBounds: false,
+                }) ??
+                resolveMaskInteractionPoint({
+                  sampleEvent,
+                  interactionRect,
+                  maskWidth: canvas.width,
+                  maskHeight: canvas.height,
+                  sceneScale,
+                  ...viewportOffsets,
+                  clampToBounds: true,
+                }));
           if (!point) return;
           session.lassoPoints.push(point);
           session.lastPoint = point;
@@ -783,8 +842,8 @@ export const useInpaintMaskController = ({
       let didPaint = false;
       let previousPoint = session.lastPoint;
       const surfaceToMaskScale = resolveMaskSpaceScaleFromSurface({
-        surfaceWidth: interactionRect.width,
-        surfaceHeight: interactionRect.height,
+        surfaceWidth: logicalInteractionRect.width,
+        surfaceHeight: logicalInteractionRect.height,
         maskWidth: canvas.width,
         maskHeight: canvas.height,
       });
@@ -793,25 +852,46 @@ export const useInpaintMaskController = ({
         surfaceToMaskScale,
       });
       events.forEach((sampleEvent) => {
-        const point =
-          resolveMaskInteractionPoint({
-            sampleEvent,
-            interactionRect,
-            maskWidth: canvas.width,
-            maskHeight: canvas.height,
-            sceneScale,
-            ...viewportOffsets,
+        const resolvedSurfacePoint =
+          resolveClientPointToSurfacePoint?.({
+            clientX: sampleEvent.clientX,
+            clientY: sampleEvent.clientY,
+            currentTarget: event.currentTarget,
             clampToBounds: false,
           }) ??
-          resolveMaskInteractionPoint({
-            sampleEvent,
-            interactionRect,
-            maskWidth: canvas.width,
-            maskHeight: canvas.height,
-            sceneScale,
-            ...viewportOffsets,
+          resolveClientPointToSurfacePoint?.({
+            clientX: sampleEvent.clientX,
+            clientY: sampleEvent.clientY,
+            currentTarget: event.currentTarget,
             clampToBounds: true,
-          });
+          }) ??
+          null;
+        const point =
+          resolvedSurfacePoint != null
+            ? mapSurfacePointToMaskCanvasPoint({
+                point: resolvedSurfacePoint,
+                interactionRect: logicalInteractionRect,
+                maskWidth: canvas.width,
+                maskHeight: canvas.height,
+              })
+            : (resolveMaskInteractionPoint({
+                sampleEvent,
+                interactionRect,
+                maskWidth: canvas.width,
+                maskHeight: canvas.height,
+                sceneScale,
+                ...viewportOffsets,
+                clampToBounds: false,
+              }) ??
+              resolveMaskInteractionPoint({
+                sampleEvent,
+                interactionRect,
+                maskWidth: canvas.width,
+                maskHeight: canvas.height,
+                sceneScale,
+                ...viewportOffsets,
+                clampToBounds: true,
+              }));
         if (!point) return;
         if (!previousPoint) previousPoint = point;
         drawBrushSegment({
@@ -844,6 +924,7 @@ export const useInpaintMaskController = ({
       selectionMode,
       sceneScale,
       strokeSize,
+      resolveClientPointToSurfacePoint,
       resolveViewportOffsets,
     ]
   );

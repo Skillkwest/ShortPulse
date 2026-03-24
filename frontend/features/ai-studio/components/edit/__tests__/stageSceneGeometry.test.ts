@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapPixelPointBetweenSpacesViaScene,
   mapPixelRectBetweenSpacesViaScene,
+  resolveNestedSurfacePointFromClientPoint,
   resolvePixelPointFromSceneSpace,
   resolveSceneMappedDrawRect,
   resolveScenePointFromPixelSpace,
@@ -227,5 +228,53 @@ describe("stageSceneGeometry", () => {
         });
       });
     });
+  });
+
+  it("maps client samples into a nested composition surface inside a zoomed viewport", () => {
+    const viewportRect = {
+      left: 24,
+      top: 16,
+      width: 1200,
+      height: 900,
+    } as DOMRect;
+    const viewportTransform = {
+      scale: 1.8,
+      offsetX: 96,
+      offsetY: -54,
+    };
+    const surfaceOffsetX = 340;
+    const surfaceOffsetY = 180;
+    const surfaceWidth = 420;
+    const surfaceHeight = 560;
+    const sourceSurfacePoint = {
+      x: 155,
+      y: 220,
+    };
+    const viewportSurfacePoint = {
+      x: surfaceOffsetX + sourceSurfacePoint.x,
+      y: surfaceOffsetY + sourceSurfacePoint.y,
+    };
+    const samplePoint = resolveViewportSamplePointFromSurfacePoint({
+      point: viewportSurfacePoint,
+      viewportTransform,
+      viewportWidth: viewportRect.width,
+      viewportHeight: viewportRect.height,
+    });
+
+    const resolvedSurfacePoint = resolveNestedSurfacePointFromClientPoint({
+      clientX: viewportRect.left + samplePoint.x,
+      clientY: viewportRect.top + samplePoint.y,
+      viewportRect,
+      viewportTransform,
+      surfaceOffsetX,
+      surfaceOffsetY,
+      surfaceWidth,
+      surfaceHeight,
+      clampToBounds: false,
+    });
+
+    expect(resolvedSurfacePoint).not.toBeNull();
+    expect(resolvedSurfacePoint?.x ?? 0).toBeCloseTo(sourceSurfacePoint.x, 6);
+    expect(resolvedSurfacePoint?.y ?? 0).toBeCloseTo(sourceSurfacePoint.y, 6);
   });
 });

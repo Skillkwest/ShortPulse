@@ -165,6 +165,7 @@ import {
   type MarkupPanPointerSession,
   type StageViewportSize,
 } from "./expertEditViewportUtils";
+import { resolveNestedSurfacePointFromClientPoint } from "./stageSceneGeometry";
 import {
   applyTransformHistoryEntryToLayers,
   areLayerTransformsEqual,
@@ -389,6 +390,7 @@ type PrimaryCanvasFrameStackProps = {
   children: React.ReactNode;
   isPopulated: boolean;
   isDragActive: boolean;
+  frameStackRef?: React.RefObject<HTMLDivElement | null>;
   style: React.CSSProperties;
   onDrop?: React.DragEventHandler<HTMLDivElement>;
   onDragEnter?: React.DragEventHandler<HTMLDivElement>;
@@ -400,6 +402,7 @@ function PrimaryCanvasFrameStack({
   children,
   isPopulated,
   isDragActive,
+  frameStackRef,
   style,
   onDrop,
   onDragEnter,
@@ -408,6 +411,7 @@ function PrimaryCanvasFrameStack({
 }: PrimaryCanvasFrameStackProps) {
   return (
     <div
+      ref={frameStackRef}
       className={`edit-expert-primary-canvas-frame-stack ${isPopulated ? "has-preview" : "is-empty"} ${
         isDragActive ? "is-dragging" : ""
       }`}
@@ -501,6 +505,7 @@ export function ExpertEditPanelView({
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const inlineStageWrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const primaryCanvasFrameStackRef = React.useRef<HTMLDivElement | null>(null);
   const primaryCompositionSurfaceRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalControlsRef = React.useRef<HTMLDivElement | null>(null);
@@ -1370,6 +1375,63 @@ export function ExpertEditPanelView({
     return resolveMarkupViewportOffsetPixels(markupViewport, authoritativeViewportSize);
   };
 
+  const resolveInlineCompositionSurfacePoint = React.useCallback(
+    ({
+      clientX,
+      clientY,
+      clampToBounds,
+    }: {
+      clientX: number;
+      clientY: number;
+      clampToBounds: boolean;
+    }) => {
+      const wrapperRect = resolveValidStageRect(
+        inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
+      );
+      const frameStackElement = primaryCanvasFrameStackRef.current;
+      const surfaceElement = primaryCompositionSurfaceRef.current;
+      if (!wrapperRect) {
+        return null;
+      }
+      const fallbackSurfaceRect = resolveValidStageRect(
+        surfaceElement?.getBoundingClientRect() ?? null
+      );
+      const surfaceWidth = Math.max(
+        1,
+        frameStackElement?.clientWidth ||
+          surfaceElement?.clientWidth ||
+          fallbackSurfaceRect?.width ||
+          1
+      );
+      const surfaceHeight = Math.max(
+        1,
+        frameStackElement?.clientHeight ||
+          surfaceElement?.clientHeight ||
+          fallbackSurfaceRect?.height ||
+          1
+      );
+      if (surfaceWidth <= 0 || surfaceHeight <= 0) {
+        return null;
+      }
+      return resolveNestedSurfacePointFromClientPoint({
+        clientX,
+        clientY,
+        viewportRect: wrapperRect,
+        viewportTransform: {
+          scale: markupViewport.scale,
+          offsetX: markupViewport.offsetXRatio * wrapperRect.width,
+          offsetY: markupViewport.offsetYRatio * wrapperRect.height,
+        },
+        surfaceOffsetX: frameStackElement?.offsetLeft ?? surfaceElement?.offsetLeft ?? 0,
+        surfaceOffsetY: frameStackElement?.offsetTop ?? surfaceElement?.offsetTop ?? 0,
+        surfaceWidth,
+        surfaceHeight,
+        clampToBounds,
+      });
+    },
+    [markupViewport]
+  );
+
   const {
     overlayCanvasRef,
     modalOverlayCanvasRef,
@@ -1397,6 +1459,14 @@ export function ExpertEditPanelView({
     viewportOffsetXRatio: markupViewport.offsetXRatio,
     viewportOffsetYRatio: markupViewport.offsetYRatio,
     resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
+    resolveClientPointToSurfacePoint: ({ clientX, clientY, currentTarget, clampToBounds }) =>
+      currentTarget === markupModalStageRef.current
+        ? null
+        : resolveInlineCompositionSurfacePoint({
+            clientX,
+            clientY,
+            clampToBounds,
+          }),
     paintMode: selectedInpaintMode,
     selectionMode: selectedInpaintSelectionTab,
     strokeSize: inpaintStrokeSize,
@@ -1542,9 +1612,13 @@ export function ExpertEditPanelView({
     };
   }, [inlineStageViewportSize, markupViewport]);
 
-  const inlineCompositionSurfaceViewportSize = resolveElementViewportSize(
-    primaryCompositionSurfaceRef.current
-  );
+  const inlineCompositionSurfaceViewportSize = (() => {
+    const frameStackViewportSize = resolveElementViewportSize(primaryCanvasFrameStackRef.current);
+    if (isResolvedStageViewportSize(frameStackViewportSize)) {
+      return frameStackViewportSize;
+    }
+    return resolveElementViewportSize(primaryCompositionSurfaceRef.current);
+  })();
 
   const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
     const viewportOffset = resolveMarkupViewportOffsetPixels(
@@ -2480,6 +2554,14 @@ export function ExpertEditPanelView({
     markupViewport,
     shouldApplyMarkupViewport: true,
     resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
+    resolveClientPointToSurfacePoint: ({ clientX, clientY, currentTarget, clampToBounds }) =>
+      currentTarget === markupModalStageRef.current
+        ? null
+        : resolveInlineCompositionSurfacePoint({
+            clientX,
+            clientY,
+            clampToBounds,
+          }),
     markupStrokeIdCounterRef,
     markupDrawPointerSessionRef,
     setMarkupStrokes,
@@ -4497,12 +4579,10 @@ export function ExpertEditPanelView({
       if (!shouldShowSelectedLayerTransformOverlay || !selectedLayer) {
         return null;
       }
-      const liveViewportSize = resolveStageViewportSize(
-        stageElement?.getBoundingClientRect() ?? null
-      );
-      const viewportSize = isResolvedStageViewportSize(liveViewportSize)
-        ? liveViewportSize
-        : preferredViewportSize;
+      const viewportSize = resolveRenderableStageViewportSize({
+        preferredSize: preferredViewportSize,
+        stageElement,
+      });
       const constrainedTransform = resolveRenderableLayerTransform(selectedLayer);
       const layerRect = resolveContainedLayerRect({
         imageAspectRatio: selectedLayerImageAspectRatio,
@@ -4573,10 +4653,10 @@ export function ExpertEditPanelView({
       stageSize: StageViewportSize;
       stageElement: HTMLDivElement | null;
     }) => {
-      const liveStageSize = resolveStageViewportSize(stageElement?.getBoundingClientRect() ?? null);
-      const renderStageSize = isResolvedStageViewportSize(liveStageSize)
-        ? liveStageSize
-        : stageSize;
+      const renderStageSize = resolveRenderableStageViewportSize({
+        preferredSize: stageSize,
+        stageElement,
+      });
       return (
         <>
           {layers.map((layer, index) =>
@@ -4781,6 +4861,7 @@ export function ExpertEditPanelView({
           >
             <PrimaryStageViewportLayer style={inlineMarkupViewportStyle}>
               <PrimaryCanvasFrameStack
+                frameStackRef={primaryCanvasFrameStackRef}
                 isPopulated={hasPrimaryCompositePreview}
                 isDragActive={primaryDragActive}
                 style={primaryCanvasFrameBoundsStyle}
@@ -4843,16 +4924,16 @@ export function ExpertEditPanelView({
                     ? renderPrimaryStageSceneContent({
                         scope: "inline",
                         overlayCanvas: overlayCanvasRef,
-                        stageSize: inlineStageViewportSize,
-                        stageElement: primaryCompositionSurfaceRef.current,
+                        stageSize: inlineCompositionSurfaceViewportSize,
+                        stageElement: primaryCanvasFrameStackRef.current,
                       })
                     : null}
                 </PrimaryCompositionSurface>
                 {hasPrimaryCompositePreview
                   ? renderSelectedLayerTransformOverlay(
                       "inline",
-                      inlineStageViewportSize,
-                      primaryCompositionSurfaceRef.current,
+                      inlineCompositionSurfaceViewportSize,
+                      primaryCanvasFrameStackRef.current,
                       {
                         onPointerDown: inlineStageInteractionRouter.onPointerDown,
                         onPointerMove: inlineStageInteractionRouter.onPointerMove,

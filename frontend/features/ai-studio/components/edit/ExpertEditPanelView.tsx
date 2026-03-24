@@ -390,15 +390,35 @@ function PrimaryStageViewportLayer({ children, style }: PrimaryStageViewportLaye
 type PrimaryCanvasFrameStackProps = {
   children: React.ReactNode;
   isPopulated: boolean;
+  isDragActive: boolean;
   style: React.CSSProperties;
+  onDrop?: React.DragEventHandler<HTMLDivElement>;
+  onDragEnter?: React.DragEventHandler<HTMLDivElement>;
+  onDragOver?: React.DragEventHandler<HTMLDivElement>;
+  onDragLeave?: React.DragEventHandler<HTMLDivElement>;
 };
 
-function PrimaryCanvasFrameStack({ children, isPopulated, style }: PrimaryCanvasFrameStackProps) {
+function PrimaryCanvasFrameStack({
+  children,
+  isPopulated,
+  isDragActive,
+  style,
+  onDrop,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+}: PrimaryCanvasFrameStackProps) {
   return (
     <div
-      className={`edit-expert-primary-canvas-frame-stack ${isPopulated ? "has-preview" : "is-empty"}`}
+      className={`edit-expert-primary-canvas-frame-stack ${isPopulated ? "has-preview" : "is-empty"} ${
+        isDragActive ? "is-dragging" : ""
+      }`}
       style={style}
       data-testid="edit-expert-primary-canvas-frame-stack"
+      onDrop={onDrop}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
     >
       <div className="edit-expert-primary-canvas-frame" aria-hidden="true" />
       {children}
@@ -2012,16 +2032,11 @@ export function ExpertEditPanelView({
         setPrimaryDragActive(false);
         return;
       }
-      if (!hasPrimaryCompositePreview) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
       if (allowPrimaryImageDrag(event)) {
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag, hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]
+    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
   );
 
   const handlePrimaryDragOver = React.useCallback(
@@ -2031,16 +2046,11 @@ export function ExpertEditPanelView({
         setPrimaryDragActive(false);
         return;
       }
-      if (!hasPrimaryCompositePreview) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
       if (allowPrimaryImageDrag(event)) {
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag, hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]
+    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
   );
 
   const handlePrimaryDragLeave = React.useCallback(() => {
@@ -2056,9 +2066,6 @@ export function ExpertEditPanelView({
       }
       event.preventDefault();
       setPrimaryDragActive(false);
-      if (!hasPrimaryCompositePreview) {
-        return;
-      }
       const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
       void (async () => {
         let nextUrl = imageUrl;
@@ -2080,12 +2087,7 @@ export function ExpertEditPanelView({
         applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl });
       })();
     },
-    [
-      applyPrimaryImageIngress,
-      hasPrimaryCompositePreview,
-      isMorePresetsSurfaceOpen,
-      resolvePreviewUrlById,
-    ]
+    [applyPrimaryImageIngress, isMorePresetsSurfaceOpen, resolvePreviewUrlById]
   );
 
   const commitTransformHistoryTransition = React.useCallback(
@@ -4787,7 +4789,12 @@ export function ExpertEditPanelView({
             <PrimaryStageViewportLayer style={inlineMarkupViewportStyle}>
               <PrimaryCanvasFrameStack
                 isPopulated={hasPrimaryCompositePreview}
+                isDragActive={primaryDragActive}
                 style={primaryCanvasFrameBoundsStyle}
+                onDrop={handlePrimaryDrop}
+                onDragEnter={handlePrimaryDragEnter}
+                onDragOver={handlePrimaryDragOver}
+                onDragLeave={handlePrimaryDragLeave}
               >
                 <PrimaryCompositionSurface
                   surfaceRef={primaryCompositionSurfaceRef}
@@ -4801,10 +4808,6 @@ export function ExpertEditPanelView({
                       ? primaryCompositionSurfaceStyle
                       : emptyPrimaryCompositionSurfaceStyle
                   }
-                  onDrop={hasPrimaryCompositePreview ? handlePrimaryDrop : undefined}
-                  onDragEnter={hasPrimaryCompositePreview ? handlePrimaryDragEnter : undefined}
-                  onDragOver={hasPrimaryCompositePreview ? handlePrimaryDragOver : undefined}
-                  onDragLeave={hasPrimaryCompositePreview ? handlePrimaryDragLeave : undefined}
                   onPointerDown={
                     hasPrimaryCompositePreview
                       ? inlineStageInteractionRouter.onPointerDown

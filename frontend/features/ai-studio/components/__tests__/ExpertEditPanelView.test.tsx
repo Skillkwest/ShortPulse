@@ -5419,6 +5419,37 @@ describe("ExpertEditPanelView", () => {
     expect(onPrimaryImageChange).not.toHaveBeenCalled();
   });
 
+  it("accepts reference image drops onto the blank primary canvas frame", async () => {
+    const resolvePreviewUrlById = vi.fn(() => "https://example.com/reference-grid-image.png");
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        resolvePreviewUrlById={resolvePreviewUrlById}
+      />
+    );
+
+    const primaryCanvasFrameStack = container.querySelector(
+      '[data-testid="edit-expert-primary-canvas-frame-stack"]'
+    ) as HTMLDivElement;
+    const transfer = createReferenceImageDropTransfer({
+      url: "blob:reference-grid-source",
+      referenceId: "out-1",
+    });
+
+    await act(async () => {
+      fireEvent.dragEnter(primaryCanvasFrameStack, { dataTransfer: transfer });
+      fireEvent.dragOver(primaryCanvasFrameStack, { dataTransfer: transfer });
+      fireEvent.drop(primaryCanvasFrameStack, { dataTransfer: transfer });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolvePreviewUrlById).toHaveBeenCalledWith("out-1");
+    expect(screen.getByLabelText("Primary composition surface")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+  });
+
   it("does not open the custom stage actions menu from the blank primary stage", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 

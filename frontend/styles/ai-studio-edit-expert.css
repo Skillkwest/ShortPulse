@@ -1520,6 +1520,11 @@
   box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.12);
 }
 
+.edit-expert-primary-canvas-frame-stack.is-dragging .edit-expert-primary-canvas-frame {
+  border-color: var(--edit-expert-accent-strong);
+  background-color: var(--edit-expert-drop-hover);
+}
+
 .edit-expert-primary-composition-surface {
   position: absolute;
   inset: 0;
@@ -1551,11 +1556,6 @@
 
 .edit-expert-primary-composition-surface:hover {
   border-color: rgba(201, 205, 214, 0.44);
-}
-
-.edit-expert-primary-composition-surface.is-dragging {
-  border-color: var(--edit-expert-accent-strong);
-  background-color: var(--edit-expert-drop-hover);
 }
 
 .edit-expert-primary-composition-surface.has-preview {

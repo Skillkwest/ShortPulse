@@ -108,6 +108,21 @@ describe("useAiStudioSessionReferenceDurability", () => {
     });
   });
 
+  it("skips unsupported local data image references", async () => {
+    renderHook(() =>
+      useHarness([
+        createOutput({
+          previewUrl: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'></svg>",
+        }),
+      ])
+    );
+
+    await waitFor(() => {
+      expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+      expect(uploadVideoAssetToStorageMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("keeps local preview unchanged when upload fails", async () => {
     uploadImageAssetToStorageMock.mockRejectedValueOnce(new Error("upload failed"));
     const { result } = renderHook(() =>

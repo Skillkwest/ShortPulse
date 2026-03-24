@@ -23,15 +23,44 @@ type LocalReferenceCandidate = {
   signature: string;
 };
 
+const SUPPORTED_DATA_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+]);
+
+const SUPPORTED_DATA_VIDEO_MIME_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-m4v",
+]);
+
+const resolveDataUrlMimeType = (value: string): string | null => {
+  const normalized = value.trim();
+  if (!normalized.startsWith("data:")) return null;
+  const mimeType = normalized.slice("data:".length).split(";")[0]?.trim().toLowerCase() ?? "";
+  return mimeType || null;
+};
+
 const isLocalPreviewUrl = (value: string | null | undefined): boolean => {
   if (typeof value !== "string") return false;
   const normalized = value.trim();
   if (!normalized) return false;
-  return (
-    normalized.startsWith("blob:") ||
-    normalized.startsWith("data:image/") ||
-    normalized.startsWith("data:video/")
-  );
+  if (normalized.startsWith("blob:")) return true;
+  const dataMimeType = resolveDataUrlMimeType(normalized);
+  if (!dataMimeType) return false;
+  if (dataMimeType.startsWith("image/")) {
+    return SUPPORTED_DATA_IMAGE_MIME_TYPES.has(dataMimeType);
+  }
+  if (dataMimeType.startsWith("video/")) {
+    return SUPPORTED_DATA_VIDEO_MIME_TYPES.has(dataMimeType);
+  }
+  return false;
 };
 
 const resolveCandidateSignature = (output: StudioOutput): string => {

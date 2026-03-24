@@ -1,8 +1,9 @@
 # AI Studio Right-Rail Performance Implementation Entry Checklist (2026-03-23)
 
 Status: Dormant (`scope closed; reuse only if reopened`)  
-Program doc: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`  
-Tracker: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
+Canonical program doc: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`  
+Canonical tracker: `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`  
+Supporting history: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`
 
 Use this checklist before starting any additional right-rail implementation slice after the scope is deliberately reopened.
 
@@ -18,10 +19,10 @@ Use this checklist before starting any additional right-rail implementation slic
 4. Reject the slice if it is justified only by adjacency, easy coverage, or speculative cleanup.
 5. Check the current worktree for conflicting dirty files in the same lane before editing.
 6. Re-read the current right-rail contract docs:
-   - master plan
-   - master tracker
-   - readiness state
+   - scope contract
+   - compact tracker
    - ADR 0049
+   - supporting readiness/master docs only if the reopen decision depends on historical execution context
 7. Define the targeted validation bundle before editing.
 8. Keep the diff limited to the specific right-rail seam that closes the row.
 9. Commit immediately after the slice is green.

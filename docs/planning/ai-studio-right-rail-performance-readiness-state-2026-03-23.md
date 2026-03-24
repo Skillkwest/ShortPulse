@@ -1,8 +1,9 @@
 # AI Studio Right-Rail Performance Readiness State (2026-03-23)
 
-Last updated: 2026-03-23  
-Program doc: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`  
-Tracker: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
+Last updated: 2026-03-24  
+Canonical program doc: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`  
+Canonical tracker: `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`  
+Supporting history: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
 
 ## Current State
 `done_required_scope`
@@ -18,8 +19,8 @@ Tracker: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-
 
 ## Promotion Rules
 Promote to `implementation_ready_scoped` when:
-1. Master plan exists.
-2. Tracker exists with required vs optional rows.
+1. Canonical scope contract exists.
+2. Canonical tracker exists with required vs optional rows.
 3. Implementation entry checklist exists.
 4. Durable architecture decisions are recorded in an ADR when needed.
 

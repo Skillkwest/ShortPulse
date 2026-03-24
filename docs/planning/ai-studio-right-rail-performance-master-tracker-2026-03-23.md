@@ -3,6 +3,7 @@
 Last updated: 2026-03-24  
 Status: Completed (`done_required_scope`)  
 Owner: AI Studio Engineering  
+Canonical closeout docs: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`  
 Program doc: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`  
 Implementation entry checklist: `docs/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`  
 Readiness state: `docs/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`
@@ -15,6 +16,8 @@ Readiness state: `docs/planning/ai-studio-right-rail-performance-readiness-state
 - `Optional`
 
 ## Program Snapshot
+This tracker is retained as supporting historical execution detail. Use the canonical compact tracker above for the current closed-state summary and reopen criteria.
+
 | Lane | Status | Current Focus | Stop Condition |
 | --- | --- | --- | --- |
 | Lane A Surface Contract | Completed | Keep target routing and duplicate ownership stable | New bugs or regressions only |

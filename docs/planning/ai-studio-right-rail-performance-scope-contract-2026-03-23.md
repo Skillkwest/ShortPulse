@@ -1,7 +1,7 @@
 # AI Studio Right-Rail Performance Scope Contract (2026-03-23)
 
-Last updated: 2026-03-23  
-Status: Active  
+Last updated: 2026-03-24  
+Status: Completed (`scope done`)  
 Owner: AI Studio Engineering  
 Companion tracker: `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`
 
@@ -133,7 +133,7 @@ For right-rail behavior-changing work:
 4. `npm -C frontend run docs:check` when planning docs change.
 
 ## Current decision posture
-This scope is allowed to continue only until the required done-state items are true. After that point, further right-rail work requires:
+This scope is complete. Further right-rail work now requires:
 1. a measured bottleneck,
 2. a concrete repo-backed defect, or
 3. a user-directed scope expansion.

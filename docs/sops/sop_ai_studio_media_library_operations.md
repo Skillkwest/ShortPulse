@@ -121,7 +121,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Folder delete removes junction memberships, not `media_files`/`media_prompts` rows.
 - Folder list and membership reads are user-scoped only.
 
-## Current Runtime Delta (as of 2026-03-13)
+## Current Runtime Delta (as of 2026-03-24)
 1. `All Media` inline-tab layout:
    - Status: Aligned.
    - Current: `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder, with prompt text cards and masonry media cards at true aspect ratio.
@@ -137,29 +137,32 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 5. Drag ghost visibility for Media Library drags:
    - Status: Aligned.
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
-6. Delete from `All Media` permanent remove:
+6. Right-rail cross-surface ingest:
+   - Status: Aligned.
+   - Current: Media Library media and prompt payloads route directly into Reference Grid, Quick Slot Inventory, and rail Canvas without shell fallback stealing the interaction.
+7. Delete from `All Media` permanent remove:
    - Status: Aligned.
    - Current: Root-level delete action permanently removes media/prompt rows from library (including storage cleanup for media).
-7. Folder-canvas independent spaces:
+8. Folder-canvas independent spaces:
    - Status: Partially aligned.
    - Current: Custom folders mount dedicated canvas spaces with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior.
    - Gap: Folder-canvas linked-item removal currently follows canvas delete/selection interactions; dedicated explicit remove controls are deferred.
-8. `All Media` completeness backfill:
+9. `All Media` completeness backfill:
    - Status: Pending rollout.
    - Current: Backfill and diagnostics exist in SQL (`064` + drift check) but require environment application/runbook execution to converge legacy missing rows.
-9. `All Media` panel preview compaction activation:
+10. `All Media` panel preview compaction activation:
    - Status: Aligned.
    - Current: Adaptive panel compaction activates when either `media-library-grid` or `media-library-modal-grid` adaptive surface is enabled, with default surface fallback including both media-library surfaces when the allowlist env is unset/blank.
-10. Browser-blocked URL persistence fallback:
+11. Browser-blocked URL persistence fallback:
    - Status: Aligned.
    - Current: `POST /api/media/copy-from-url` provides authenticated trusted-host server-side URL fetch/persist fallback when browser media fetch is blocked by CORS/security/network conditions.
-11. Signed preview delivery for media-library card surfaces:
+12. Signed preview delivery for media-library card surfaces:
    - Status: Aligned.
    - Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry, do not route signed object URLs through `/_next/image`, and keep signed transforms dual-flag gated (disabled by default). The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` now batches untransformed paths through Supabase multi-signing while preserving per-item signing for transform-backed image paths.
-12. Derivative worker pipeline for image thumbs:
+13. Derivative worker pipeline for image thumbs:
    - Status: In rollout.
    - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success.
-13. Character-scope containment in Media Library APIs:
+14. Character-scope containment in Media Library APIs:
    - Status: Aligned.
    - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
 
@@ -184,7 +187,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - `Custom -> All Media` unassigns membership.
    - `Custom -> Custom` moves membership.
 4. Cross-surface ingest:
-   - Drag media/prompt into Reference Grid, Quick Slot Inventory, and Canvas.
+   - Drag media/prompt into Reference Grid, Quick Slot Inventory, and Canvas; confirm the intended right-rail surface owns the drop without shell reroute.
    - Right-click media in `All Media` sends to Reference Grid.
 5. Internal reference resolver:
    - Existing-media id path.

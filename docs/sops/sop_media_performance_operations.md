@@ -90,11 +90,13 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 2. Drag/keyboard resize the top divider and validate pills:
    - left pill `Canvas ↓` expands the canvas section
    - right pill `Inventory ↑` collapses canvas to header height
-3. Confirm `Quick Slot Inventory` remains empty by default and only accepts internal drags from `All refs`.
+3. Confirm `Quick Slot Inventory` remains empty by default and accepts both internal drags from `All refs` and Media Library media/prompt payloads.
 4. Drag a card from bottom `All refs` into `Quick Slot Inventory`; verify add + dedupe semantics.
-5. Reorder quick-slot cards by dragging within top inventory section; verify before/after/end behavior.
-6. Remove a quick-slot card using the explicit remove control on the active card.
-7. Drag the lower horizontal divider with pointer and keyboard (`ArrowUp`, `ArrowDown`, `Home`, `End`) and verify quick-slot/all-refs resizing.
+5. Drag media and prompt items from Media Library into `Quick Slot Inventory`; verify the drop lands in Quick Slot without shell reroute and preserves dedupe semantics.
+6. Drag compatible content into right-rail `Canvas`; verify the drop lands on canvas rather than a shell fallback target.
+7. Reorder quick-slot cards by dragging within top inventory section; verify before/after/end behavior.
+8. Remove a quick-slot card using the explicit remove control on the active card.
+9. Drag the lower horizontal divider with pointer and keyboard (`ArrowUp`, `ArrowDown`, `Home`, `End`) and verify quick-slot/all-refs resizing.
 
 ### 4) Validate Usage Accuracy
 1. Confirm Media Library storage usage uses RPC-backed total:

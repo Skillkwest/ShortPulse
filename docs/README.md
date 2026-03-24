@@ -247,6 +247,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
 - `docs/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
 - `docs/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`
+- `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`
+- `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`
 - `docs/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
 - `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
 - `docs/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md` (temporary active working note)

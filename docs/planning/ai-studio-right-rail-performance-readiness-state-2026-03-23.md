@@ -5,7 +5,7 @@ Program doc: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03
 Tracker: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
 
 ## Current State
-`implementation_ready_scoped`
+`done_required_scope`
 
 ## State Definitions
 | State | Meaning | Allowed Action |
@@ -35,10 +35,10 @@ Promote to `done_all_scope` when:
 1. Optional rows are either complete, intentionally declined, or archived.
 
 ## Current Rationale
-The right-rail scope is currently ready for scoped implementation because:
-1. The protected surfaces are explicit.
-2. The main structural contracts already landed in repo state.
-3. The remaining continuation gate is no longer “what should we do?” but “is the next slice required or measured?”
+The right-rail scope is currently closed at required-done state because:
+1. The protected surfaces are explicit and their required contracts are satisfied.
+2. The main structural contracts landed in repo state and the final closeout audit passed.
+3. The remaining work is optional or measurement-gated, so continuing implementation by momentum would be low value.
 
 ## Hold Conditions
 Return to `hold_scope_clarification` if:
@@ -48,3 +48,7 @@ Return to `hold_scope_clarification` if:
 Return to `hold_for_profile` if:
 1. required rows are effectively complete, and
 2. the next proposed optimization is speculative.
+
+Reopen to `implementation_ready_scoped` only if:
+1. a measured bottleneck appears inside the right-rail scope, or
+2. a new concrete defect reopens a required row.

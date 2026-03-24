@@ -122,6 +122,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-right-rail-performance-master-tracker-2026-03-23.md`: required-vs-optional tracker for right-rail performance scope completion.
 - `ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`: pre-slice checklist that prevents speculative or out-of-scope right-rail implementation.
 - `ai-studio-right-rail-performance-readiness-state-2026-03-23.md`: readiness-state register for when right-rail implementation should continue, hold, or stop.
+- `ai-studio-right-rail-performance-scope-contract-2026-03-23.md`: closeout scope contract for the bounded right-rail effort, including final stop rules.
+- `ai-studio-right-rail-performance-tracker-2026-03-23.md`: compact completion tracker for the shipped right-rail scope and reopen criteria.
 - `ai-studio-generation-queue-hardening-2026-03-04.md`: low-drift implementation plan for generation-start recovery and queue hardening.
 - `ai-studio-generation-queue-hardening-tracker-2026-03-04.md`: execution tracker for queue hardening status, tests, and exit criteria.
 - `tmp_generation_drain_audit_working_notes_2026-02-27.md`: temporary active working notes for generation drain/recovery audit decisions pending archival or promotion.

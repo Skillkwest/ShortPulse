@@ -1,10 +1,10 @@
 # AI Studio Right-Rail Performance Implementation Entry Checklist (2026-03-23)
 
-Status: Active  
+Status: Dormant (`scope closed; reuse only if reopened`)  
 Program doc: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`  
 Tracker: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
 
-Use this checklist before starting any additional right-rail implementation slice.
+Use this checklist before starting any additional right-rail implementation slice after the scope is deliberately reopened.
 
 ## Entry Checklist
 1. Identify the exact open tracker row the slice is meant to close.

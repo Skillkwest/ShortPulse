@@ -1,7 +1,7 @@
 # AI Studio Right-Rail Performance Master Plan (2026-03-23)
 
-Last updated: 2026-03-23  
-Status: Active (`implementation_ready_scoped`)  
+Last updated: 2026-03-24  
+Status: Completed (`done_required_scope`)  
 Owner: AI Studio Engineering  
 Tracker anchor: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`  
 Implementation entry checklist: `docs/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`  
@@ -9,7 +9,7 @@ Readiness state: `docs/planning/ai-studio-right-rail-performance-readiness-state
 ADR anchor: `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
 
 ## Summary
-This plan defines the scoped execution contract for AI Studio right-rail performance work so implementation can continue without drifting into broad Reference Grid churn or speculative micro-optimization.
+This plan defines the scoped execution contract for AI Studio right-rail performance work so implementation can continue without drifting into broad Reference Grid churn or speculative micro-optimization. The required scope is now complete and closed.
 
 Primary intent:
 1. Keep the right rail fast and predictable for the surfaces users interact with directly.
@@ -115,6 +115,8 @@ Completed or materially advanced in current repo state:
 2. `8c261d92` `Share cached drag transfer hints across right rail`
 3. `bad386cf` `Consolidate reference-grid duplicate surface ownership`
 4. `3f484597` `Share reference-grid media resolution across hot paths`
+5. `59a8c012` `Add AI Studio right-rail performance scope docs`
+6. `33554d4f` `Close AI Studio right-rail scope`
 
 Primary implementation seams now aligned to this plan:
 1. `frontend/features/ai-studio/components/ReferenceGrid.tsx`

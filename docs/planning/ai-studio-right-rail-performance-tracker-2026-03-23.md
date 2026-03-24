@@ -1,6 +1,6 @@
 # AI Studio Right-Rail Performance Tracker (2026-03-23)
 
-Last updated: 2026-03-23  
+Last updated: 2026-03-24  
 Status: Completed (`scope done`)
 Owner: AI Studio Engineering  
 Program doc: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`
@@ -20,7 +20,7 @@ Track only the current right-rail scope. This tracker is intentionally smaller t
 | `RR-1` | Surface routing and drop ownership | Completed | Shell bypass and direct right-rail drop handling are in place. |
 | `RR-2` | Duplicate-surface ownership | Completed | Quick Slot ownership is centralized and used downstream. |
 | `RR-3` | Shared media resolution and first paint | Completed | Shared media resolution is now reused across visible-card and hydration paths. |
-| `RR-4` | Measurement-gated follow-up only | Planned | No entry without profiling or a concrete remaining defect. |
+| `RR-4` | Measurement-gated follow-up only | Completed | Scope closed without entering this lane because no measured bottleneck remained. |
 
 ## Required done-state tracker
 | ID | Requirement | Status | Evidence |
@@ -53,6 +53,8 @@ Track only the current right-rail scope. This tracker is intentionally smaller t
 | `da0e8a3e` | Deprioritize duplicate all-refs image work |
 | `bad386cf` | Consolidate reference-grid duplicate surface ownership |
 | `3f484597` | Share reference-grid media resolution across hot paths |
+| `59a8c012` | Add AI Studio right-rail performance scope docs |
+| `33554d4f` | Close AI Studio right-rail scope |
 | `8c261d92` | Share cached drag transfer hints across right rail |
 
 ## Open decisions
@@ -72,3 +74,7 @@ Track only the current right-rail scope. This tracker is intentionally smaller t
 4. Closed `RRP-09` after the final closeout audit confirmed no remaining obvious cross-controller right-rail policy seam.
 5. Added image-hydration surface propagation so Quick Slot and All Refs no longer diverge inside adaptive hydration runtime decisions.
 6. Added the missing page-level Quick Slot shell-bypass regression test so the right-rail routing contract is locked at the page boundary.
+
+### 2026-03-24
+1. Closed the scope formally in the planning package and kept `RR-4` closed until a measured bottleneck or concrete defect reopens it.
+2. Synced the planning and SOP docs so Quick Slot and rail Canvas drop behavior match the shipped right-rail contract.

@@ -64,8 +64,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Direct OpenAI bypass workflow
 
-1. The Create chat surface can show an `Agent Assist` toggle when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
-2. With Chat Mode ON and Agent Assist OFF, `useAiAgent` posts the normal `/api/ai/studio-agent` envelope but sets `directOpenAiBypass=true`.
+1. The Create chat surface defaults to the direct bypass path when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
+2. With Chat Mode ON and that client flag enabled, `useAiAgent` posts the normal `/api/ai/studio-agent` envelope but sets `directOpenAiBypass=true`.
 3. `/api/ai/studio-agent` only honors that request when `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
 4. The route sends the raw user/assistant message list directly to OpenAI chat completions with model `process.env.STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
 5. The response is normalized back into the same `message` plus `actions.applyPrompt` contract used by the regular agent path, so the existing UI apply/save/generate behavior stays intact.

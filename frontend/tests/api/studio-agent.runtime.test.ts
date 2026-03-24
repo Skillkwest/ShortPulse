@@ -174,6 +174,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     await studioAgentHandler(req as never, res as never);
 
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(readAgentConversationCanonicalPromptMock).not.toHaveBeenCalled();
+    expect(upsertAgentConversationCanonicalPromptMock).not.toHaveBeenCalled();
     expect(fetch).toHaveBeenCalledTimes(1);
     const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
       | { body?: string }

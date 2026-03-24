@@ -79,7 +79,7 @@ sequenceDiagram
 1. CTA event entry:
 - `CreatePropertiesPanel.onGenerate` -> `useAiStudioGenerationController.handlePrimarySubmit`.
 2. Create text-mode branch:
-- Chat mode ON: send to the chat lane. If `Agent Assist` is ON, that is the normal studio-agent path; if `Agent Assist` is OFF and the backend gate is enabled, the same chat UI posts `directOpenAiBypass=true` so `/api/ai/studio-agent` talks directly to OpenAI.
+- Chat mode ON: send to the chat lane. When `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create/Text chat surface defaults to `directOpenAiBypass=true` so `/api/ai/studio-agent` talks directly to OpenAI without a separate UI toggle.
 - Chat mode OFF: resolve raw prompt via `resolveChatOffCreatePrompt`, then submit generate as Create/Image.
 - Chat mode OFF cost contract: button estimate and submit/debit guardrail use the image-run cost path (`promptReferenceGenerateCostCredits`, model/aspect/image-resolution aware), not text-token cost.
 3. `handleGenerate` preflight:
@@ -179,7 +179,7 @@ When changing Create panel behavior or generation wiring, update all relevant la
   1. Create expert panel: model/aspect/resolution/character controls render and update.
   2. Chat mode ON/OFF behavior matches expected submit path.
   3. In Create `mode=text` with chat OFF, Generate and inline raw-mode actions route into file generation and retain image-run cost behavior.
-  4. In Create chat mode with `Agent Assist` visible and OFF, agent sends bypass orchestration and hit the direct OpenAI branch inside `/api/ai/studio-agent`.
+  4. In Create chat mode with the bypass flag enabled, agent sends bypass orchestration and hits the direct OpenAI branch inside `/api/ai/studio-agent`.
   5. Model modal ordering is context-correct for Create.
   6. Generate submission reaches queued/dispatched states and polling converges.
   7. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.

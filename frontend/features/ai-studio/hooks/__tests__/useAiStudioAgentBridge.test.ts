@@ -256,7 +256,7 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
-  it("enables direct OpenAI bypass only when agent assist is turned off behind the backend gate", async () => {
+  it("enables direct OpenAI bypass automatically when the backend gate is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED", "true");
 
     useAiAgentMock.mockReturnValue({
@@ -309,17 +309,9 @@ describe("useAiStudioAgentBridge", () => {
     const { result } = renderHook(() => useAiStudioAgentBridge(createBridgeParams()));
 
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ directOpenAiBypassEnabled: false })
+      expect.objectContaining({ directOpenAiBypassEnabled: true })
     );
-
-    act(() => {
-      result.current.setAgentAssistEnabled(false);
-    });
-
-    await waitFor(() => {
-      expect(useAiAgentMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({ directOpenAiBypassEnabled: true })
-      );
-    });
+    expect(result.current.agentAssistToggleAvailable).toBe(false);
+    expect(result.current.agentAssistEnabled).toBe(false);
   });
 });

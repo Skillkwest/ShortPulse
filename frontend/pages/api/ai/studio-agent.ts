@@ -47,7 +47,10 @@ import {
   shouldCommitStudioAgentCanonicalPrompt,
   writeStudioAgentCanonicalPrompt,
 } from "../../../features/agent-runtime/studioAgentCanonicalPersistence";
-import { buildAgentMachineOutcome } from "../../../features/agent-runtime/agentMachineOutcome";
+import {
+  buildAgentMachineOutcome,
+  resolveInfraFallbackReasonCode,
+} from "../../../features/agent-runtime/agentMachineOutcome";
 import { resolveStudioAgentFallbackReasonLabel } from "../../../features/agent-runtime/studioAgentFallbackReason";
 import {
   buildPromptCompilerCacheScopeKey,
@@ -57,6 +60,7 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
+import { emitStudioAgentTurnTelemetry } from "../../../features/agent-runtime/studioAgentRouteOutcomes";
 
 const DEFAULT_DIRECT_OPENAI_MODEL = "gpt-5.4";
 
@@ -72,6 +76,21 @@ const extractDirectOpenAiMessage = (payload: unknown): string | null => {
   const raw = choices?.[0]?.message?.content;
   if (typeof raw !== "string" || !raw.trim().length) return null;
   return sanitizeGenerationPromptText(raw) ?? raw.trim();
+};
+
+const resolveDirectOpenAiBypassFlow = (
+  context: {
+    media?: Array<unknown> | null;
+    references?: Array<{ kind?: string | null } | null> | null;
+  } | null
+): "TEXT_ONLY" | "MIXED" => {
+  const hasMediaContext = (context?.media?.length ?? 0) > 0;
+  const hasImageReferenceContext =
+    context?.references?.some((reference) => {
+      const kind = reference?.kind;
+      return kind === "image" || kind === "video";
+    }) ?? false;
+  return hasMediaContext || hasImageReferenceContext ? "MIXED" : "TEXT_ONLY";
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -128,6 +147,290 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
+  const normalizedConversationId = requestEnvelope.value.clientSessionKey;
+  let messages = requestEnvelope.value.messages;
+  let context = requestEnvelope.value.context;
+  const incomingCanonical = requestEnvelope.value.incomingCanonical;
+  const directOpenAiBypassRequested = requestEnvelope.value.directOpenAiBypass;
+
+  const directOpenAiBypassEnabled = resolveDirectOpenAiBypassEnabled(process.env);
+  const safetyInputPrecheckEnabled =
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
+  const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
+  const safetyProfile = await resolveRuntimeSafetyProfile({
+    envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
+  });
+  const safetyProfileId = safetyProfile.profileId;
+  const safetyPolicyDocument = resolveSafetyPolicyDocument({
+    activePolicy: safetyProfile.activePolicy,
+    profileId: safetyProfileId,
+  });
+  const safetyPolicySchemaVersion = safetyPolicyDocument.schemaVersion;
+  const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
+  const safetyDevAbsoluteZeroEnabled =
+    process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
+  const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
+  const { openAiUrl, turnTimeoutMs } = openAiConfig;
+  const directOpenAiModel = resolveDirectOpenAiModel(process.env);
+
+  if (directOpenAiBypassEnabled && directOpenAiBypassRequested) {
+    const directBypassFlow = resolveDirectOpenAiBypassFlow(context);
+    const directSafetyModality = resolveSafetyModality({
+      route: "studio-agent",
+      flow: directBypassFlow,
+    });
+    const directCanonicalPrompt =
+      incomingCanonical ?? sanitizeGenerationPromptText(context.lastAssistantMessage) ?? null;
+    let effectiveCanonical = clampCanonicalPrompt(directCanonicalPrompt);
+    const precheckResult = runStudioAgentSafetyInputPrecheck({
+      enabled: safetyInputPrecheckEnabled,
+      messages,
+      context,
+      canonicalPrompt: effectiveCanonical,
+      modality: directSafetyModality,
+      profileId: safetyProfileId,
+      environment: safetyEnvironment,
+      devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+      policyDocument: safetyPolicyDocument,
+      rewriteRecheckMode: "allow_or_rewrite",
+      fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+        sharedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+        scopedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
+      }),
+    });
+    const safetyTelemetryProfileId =
+      safetyProfileId === "prod_safe_v1" ||
+      safetyProfileId === "staging_lenient" ||
+      safetyProfileId === "dev_absolute_zero"
+        ? safetyProfileId
+        : null;
+    if (precheckResult.outcome !== "pass") {
+      emitStudioAgentInputPrecheckTelemetry({
+        flow: directBypassFlow,
+        outcome: precheckResult.outcome,
+        rewrittenFieldCount: precheckResult.rewrittenFieldCount,
+        providerCallSkipped: precheckResult.providerCallSkipped,
+        policyVersion: safetyProfile.policyVersion,
+        policySchemaVersion: safetyPolicyDocument.schemaVersion,
+        promptTemplateVersion: null,
+        runtimeScopeKey: null,
+        profileId: safetyTelemetryProfileId,
+        modality: precheckResult.decision?.modality ?? "text",
+        category: precheckResult.decision?.category ?? null,
+        decisionAction: precheckResult.decision?.action ?? null,
+        decisionSource: precheckResult.decision?.source ?? null,
+        hardFloorViolation: precheckResult.decision?.hardFloorViolation ?? false,
+        refusalField: precheckResult.scopeTelemetry.refusalField,
+        rewrittenFields: precheckResult.scopeTelemetry.rewrittenFields,
+        nonBlockingSignalCount: precheckResult.scopeTelemetry.nonBlockingSignalCount,
+      });
+    }
+    if (precheckResult.outcome === "refusal") {
+      return res.status(200).json(
+        buildStudioAgentSafetyRefusalPayload({
+          traceId,
+          canonicalPrompt: precheckResult.canonicalPrompt,
+          reasonCode: "SAFETY_INPUT_REFUSAL",
+        })
+      );
+    }
+    messages = precheckResult.messages;
+    context = precheckResult.context;
+    effectiveCanonical = precheckResult.canonicalPrompt;
+
+    const directOpenAiStartedAt = Date.now();
+    try {
+      const directMessages = messages.map((message) => ({
+        role: message.role === "assistant" ? "assistant" : "user",
+        content: message.content,
+      }));
+      const directResponse = await fetchStudioAgentChatCompletion({
+        apiKey,
+        openAiUrl,
+        model: directOpenAiModel,
+        messages: directMessages,
+        timeoutMs: turnTimeoutMs,
+      });
+      markStage("direct_openai_bypass", directOpenAiStartedAt);
+
+      if (!directResponse.ok) {
+        const detail = await directResponse.text();
+        const reasonCode = resolveInfraFallbackReasonCode({
+          status: directResponse.status,
+          detail,
+        });
+        const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+          status: directResponse.status,
+          detail,
+        });
+        emitStudioAgentTurnTelemetry({
+          flow: directBypassFlow,
+          path: "direct_openai_bypass",
+          status: "success",
+          model: directOpenAiModel,
+          outcomeClass: "fallback_infra",
+          retryUsed: false,
+          reasonCode,
+          totalLatencyMs: Date.now() - requestStartedAt,
+          stageLatencyMs,
+          fallbackReason,
+          safetyTelemetry: {
+            policyVersion: safetyProfile.policyVersion,
+            policySchemaVersion: safetyPolicyDocument.schemaVersion,
+            promptTemplateVersion: null,
+            runtimeScopeKey: null,
+            profileId: safetyTelemetryProfileId,
+            modality: directSafetyModality,
+          },
+        });
+        return res.status(200).json(
+          buildStudioAgentInfraFallbackPayload({
+            traceId,
+            canonicalPrompt: effectiveCanonical,
+            reasonCode,
+            fallbackReason,
+          })
+        );
+      }
+
+      const directPayload = await directResponse.json();
+      const directMessage = extractDirectOpenAiMessage(directPayload);
+      if (!directMessage) {
+        emitStudioAgentTurnTelemetry({
+          flow: directBypassFlow,
+          path: "direct_openai_bypass",
+          status: "success",
+          model: directOpenAiModel,
+          outcomeClass: "fallback_infra",
+          retryUsed: false,
+          reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+          totalLatencyMs: Date.now() - requestStartedAt,
+          stageLatencyMs,
+          fallbackReason: "stage_prompt_missing",
+          safetyTelemetry: {
+            policyVersion: safetyProfile.policyVersion,
+            policySchemaVersion: safetyPolicyDocument.schemaVersion,
+            promptTemplateVersion: null,
+            runtimeScopeKey: null,
+            profileId: safetyTelemetryProfileId,
+            modality: directSafetyModality,
+          },
+        });
+        return res.status(200).json(
+          buildStudioAgentInfraFallbackPayload({
+            traceId,
+            canonicalPrompt: effectiveCanonical,
+            reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+            fallbackReason: "stage_prompt_missing",
+          })
+        );
+      }
+
+      const nextCanonical = clampCanonicalPrompt(directMessage);
+      emitStudioAgentTurnTelemetry({
+        flow: directBypassFlow,
+        path: "direct_openai_bypass",
+        status: "success",
+        model: directOpenAiModel,
+        outcomeClass: "success_prompt",
+        retryUsed: false,
+        reasonCode: "SUCCESS_PROMPT",
+        totalLatencyMs: Date.now() - requestStartedAt,
+        stageLatencyMs,
+        safetyTelemetry: {
+          policyVersion: safetyProfile.policyVersion,
+          policySchemaVersion: safetyPolicyDocument.schemaVersion,
+          promptTemplateVersion: null,
+          runtimeScopeKey: null,
+          profileId: safetyTelemetryProfileId,
+          modality: directSafetyModality,
+        },
+      });
+      return res.status(200).json({
+        message: directMessage,
+        actions: {
+          applyPrompt: directMessage,
+          referenceCard: {
+            title: "Direct prompt",
+            prompt: directMessage,
+          },
+        },
+        ...buildAgentMachineOutcome({
+          outcomeClass: "success_prompt",
+          reasonCode: "SUCCESS_PROMPT",
+        }),
+        canonicalPrompt: nextCanonical,
+        traceId,
+      });
+    } catch (error) {
+      markStage("direct_openai_bypass", directOpenAiStartedAt);
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "ai/studio-agent",
+        metadata: {
+          user_id: user.id,
+          conversation_id: normalizedConversationId,
+          stage: "direct_openai_bypass",
+        },
+      });
+      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+        detail: formatStudioAgentErrorMessage(error),
+      });
+      const reasonCode = resolveInfraFallbackReasonCode({
+        detail: formatStudioAgentErrorMessage(error),
+      });
+      emitStudioAgentTurnTelemetry({
+        flow: directBypassFlow,
+        path: "direct_openai_bypass",
+        status: "success",
+        model: directOpenAiModel,
+        outcomeClass: "fallback_infra",
+        retryUsed: false,
+        reasonCode,
+        totalLatencyMs: Date.now() - requestStartedAt,
+        stageLatencyMs,
+        fallbackReason,
+        safetyTelemetry: {
+          policyVersion: safetyProfile.policyVersion,
+          policySchemaVersion: safetyPolicyDocument.schemaVersion,
+          promptTemplateVersion: null,
+          runtimeScopeKey: null,
+          profileId: safetyTelemetryProfileId,
+          modality: directSafetyModality,
+        },
+      });
+      return res.status(200).json(
+        buildStudioAgentInfraFallbackPayload({
+          traceId,
+          canonicalPrompt: effectiveCanonical,
+          reasonCode,
+          fallbackReason,
+        })
+      );
+    }
+  }
+
+  const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
+  const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
+  const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
+  const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
+  const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
+  const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
+    .trim()
+    .toLowerCase();
+  const safetyPostProcessMode =
+    envPostprocessMode === "enforce" ||
+    envPostprocessMode === "shadow" ||
+    envPostprocessMode === "off"
+      ? envPostprocessMode
+      : process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED === "false"
+        ? "off"
+        : safetyPolicyDocument.postprocess.mode;
+  const safetyProviderErrorMode = resolveProviderErrorNormalizationMode(
+    process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
+  );
+  const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
   const thinkerPrompt = loadAgentPrompt("STUDIO_AGENT_THINKER", process.env.STUDIO_AGENT_THINKER);
   const formatterPrompt = loadAgentPrompt(
@@ -152,69 +455,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     route: "studio-agent",
     prompts: [systemPrompt, thinkerPrompt ?? "", formatterPrompt ?? "", imageDescribePrompt ?? ""],
   });
-
-  const normalizedConversationId = requestEnvelope.value.clientSessionKey;
-  let messages = requestEnvelope.value.messages;
-  let context = requestEnvelope.value.context;
-  const incomingCanonical = requestEnvelope.value.incomingCanonical;
-  const directOpenAiBypassRequested = requestEnvelope.value.directOpenAiBypass;
-
-  const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
-  const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
-  const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
-  const directOpenAiBypassEnabled = resolveDirectOpenAiBypassEnabled(process.env);
-  const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
-  const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
-  const safetyInputPrecheckEnabled =
-    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
-  const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
-  const safetyProfile = await resolveRuntimeSafetyProfile({
-    envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
-  });
-  const safetyProfileId = safetyProfile.profileId;
-  const safetyPolicyDocument = resolveSafetyPolicyDocument({
-    activePolicy: safetyProfile.activePolicy,
-    profileId: safetyProfileId,
-  });
-  const safetyPolicySchemaVersion = safetyPolicyDocument.schemaVersion;
   const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
     route: "studio-agent",
     promptTemplateVersion,
     policySchemaVersion: safetyPolicySchemaVersion,
     controlPlanePolicyVersion: safetyProfile.policyVersion,
   });
-  const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
-    .trim()
-    .toLowerCase();
-  const safetyPostProcessMode =
-    envPostprocessMode === "enforce" ||
-    envPostprocessMode === "shadow" ||
-    envPostprocessMode === "off"
-      ? envPostprocessMode
-      : process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED === "false"
-        ? "off"
-        : safetyPolicyDocument.postprocess.mode;
-  const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
-  const safetyDevAbsoluteZeroEnabled =
-    process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
-  const safetyProviderErrorMode = resolveProviderErrorNormalizationMode(
-    process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
-  );
-  const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
-  const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const {
-    openAiUrl,
     openAiModel,
     openAiVisionModel,
     openAiThinkerModel,
     openAiFormatterModel,
     visionTimeoutMs,
-    turnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,
   } = openAiConfig;
-  const directOpenAiModel = resolveDirectOpenAiModel(process.env);
 
   const storedCanonical = await readStudioAgentCanonicalPrompt({
     req,
@@ -297,105 +553,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   messages = precheckResult.messages;
   context = precheckResult.context;
   effectiveCanonical = precheckResult.canonicalPrompt;
-
-  if (directOpenAiBypassEnabled && directOpenAiBypassRequested) {
-    try {
-      const directMessages = messages.map((message) => ({
-        role: message.role === "assistant" ? "assistant" : "user",
-        content: message.content,
-      }));
-      const directResponse = await fetchStudioAgentChatCompletion({
-        apiKey,
-        openAiUrl,
-        model: directOpenAiModel,
-        messages: directMessages,
-        timeoutMs: turnTimeoutMs,
-      });
-
-      if (!directResponse.ok) {
-        const detail = await directResponse.text();
-        return res.status(200).json(
-          buildStudioAgentInfraFallbackPayload({
-            traceId,
-            canonicalPrompt: effectiveCanonical,
-            fallbackReason: resolveStudioAgentFallbackReasonLabel({
-              status: directResponse.status,
-              detail,
-            }),
-          })
-        );
-      }
-
-      const directPayload = await directResponse.json();
-      const directMessage = extractDirectOpenAiMessage(directPayload);
-      if (!directMessage) {
-        return res.status(200).json(
-          buildStudioAgentInfraFallbackPayload({
-            traceId,
-            canonicalPrompt: effectiveCanonical,
-            reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
-            fallbackReason: "stage_prompt_missing",
-          })
-        );
-      }
-
-      const nextCanonical = clampCanonicalPrompt(directMessage);
-      if (
-        shouldCommitStudioAgentCanonicalPrompt({
-          canonicalPrompt: nextCanonical,
-          outcomeClass: "success_prompt",
-        })
-      ) {
-        await writeStudioAgentCanonicalPrompt({
-          req,
-          userId: user.id,
-          conversationId: normalizedConversationId,
-          canonicalPrompt: nextCanonical,
-          canonicalDbEnabled,
-          markStage,
-          writeFailureStage: "canonical_write_single_stage",
-          formatErrorMessage: formatStudioAgentErrorMessage,
-        });
-      }
-
-      return res.status(200).json({
-        message: directMessage,
-        actions: {
-          applyPrompt: directMessage,
-          referenceCard: {
-            title: "Direct prompt",
-            prompt: directMessage,
-          },
-        },
-        ...buildAgentMachineOutcome({
-          outcomeClass: "success_prompt",
-          reasonCode: "SUCCESS_PROMPT",
-        }),
-        canonicalPrompt: nextCanonical,
-        traceId,
-      });
-    } catch (error) {
-      await logApiRouteException({
-        req,
-        error,
-        routeLabel: "ai/studio-agent",
-        metadata: {
-          user_id: user.id,
-          conversation_id: normalizedConversationId,
-          stage: "direct_openai_bypass",
-        },
-      });
-      return res.status(200).json(
-        buildStudioAgentInfraFallbackPayload({
-          traceId,
-          canonicalPrompt: effectiveCanonical,
-          fallbackReason: resolveStudioAgentFallbackReasonLabel({
-            detail: formatStudioAgentErrorMessage(error),
-          }),
-        })
-      );
-    }
-  }
 
   const selectedReferencesBeforeVision = pickSelectedReferencesForThinker(context);
   const orchestrationBeforeVision = buildStudioAgentOrchestration({

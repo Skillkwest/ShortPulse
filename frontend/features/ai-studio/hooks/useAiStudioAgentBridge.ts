@@ -104,11 +104,13 @@ export const useAiStudioAgentBridge = ({
   const agentFlag =
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
-  const agentAssistToggleAvailable =
+  const directOpenAiBypassEnabledByConfig =
     process.env.NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
   const agentEnabled = agentFlag && agentSessionEnabled;
-  const [agentAssistEnabled, setAgentAssistEnabled] = useState(true);
+  const agentAssistToggleAvailable = false;
+  const agentAssistEnabled = !directOpenAiBypassEnabledByConfig;
+  const setAgentAssistEnabled = useCallback((_value: boolean) => {}, []);
   const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
     return readChatModeFromStorage(window.localStorage);
@@ -135,8 +137,7 @@ export const useAiStudioAgentBridge = ({
     sessionNamespace: `ai-studio:${sessionId ?? "none"}`,
     directOpenAiBypassEnabled:
       chatModeEnabled &&
-      agentAssistToggleAvailable &&
-      !agentAssistEnabled &&
+      directOpenAiBypassEnabledByConfig &&
       (selectedTool === "create" || selectedTool === "text"),
   });
 

@@ -9,7 +9,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
 - Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path.
-- Agent Assist toggle (inline composer, right side, backend-gated): only renders when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`. ON keeps the normal studio-agent path. OFF keeps chat mode active but bypasses agent orchestration, sending raw user/assistant chat turns through `/api/ai/studio-agent` directly to OpenAI when the server gate also allows it.
+- Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
@@ -57,8 +57,8 @@ Prompt ownership rule:
 - **Create raw mode (Chat Mode OFF, Create `mode=text`):**
   - Primary and only path: resolve the raw composer/shared prompt and submit it into Create/Image generation.
   - No agent send occurs; this preserves the existing raw-to-file-generation behavior.
-- **Direct OpenAI chat mode (Chat Mode ON + Agent Assist OFF):**
-  - Client still posts `/api/ai/studio-agent`, but sets `directOpenAiBypass=true`.
+- **Direct OpenAI chat mode (Chat Mode ON + bypass flag enabled):**
+  - Client still posts `/api/ai/studio-agent`, but always sets `directOpenAiBypass=true` for the Create/Text chat lane.
   - When the server gate is enabled, the route skips studio-agent orchestration and sends the raw message list directly to OpenAI with model `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
   - The response still returns the standard `message` + `actions.applyPrompt` envelope so the UI can reuse its normal apply/save/generate flow.
 - **Describe a reference:**

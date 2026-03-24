@@ -5356,6 +5356,38 @@ describe("ExpertEditPanelView", () => {
     expect(inputClickSpy).not.toHaveBeenCalled();
   });
 
+  it("keeps the blank primary stage inert to upload click", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+    const primaryInput = getPrimaryFileInput(container);
+    const inputClickSpy = vi.spyOn(primaryInput, "click");
+
+    fireEvent.click(screen.getByLabelText("Primary edit image"));
+
+    expect(inputClickSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps the blank primary stage inert to drag/drop ingest", () => {
+    const onPrimaryImageChange = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onPrimaryImageChange={onPrimaryImageChange} />);
+
+    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const transfer = createImageDropTransfer("https://example.com/blank-stage-drop.png");
+    fireEvent.dragEnter(primaryDropzone, { dataTransfer: transfer });
+    fireEvent.dragOver(primaryDropzone, { dataTransfer: transfer });
+    fireEvent.drop(primaryDropzone, { dataTransfer: transfer });
+
+    expect(primaryDropzone).not.toHaveClass("is-dragging");
+    expect(onPrimaryImageChange).not.toHaveBeenCalled();
+  });
+
+  it("does not open the custom stage actions menu from the blank primary stage", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    fireEvent.contextMenu(screen.getByLabelText("Primary edit image"));
+
+    expect(screen.queryByRole("menu", { name: /stage actions/i })).not.toBeInTheDocument();
+  });
+
   it("suppresses primary drag/drop ingest while presets surface is open", () => {
     render(
       <ExpertEditPanelView
@@ -5396,6 +5428,8 @@ describe("ExpertEditPanelView", () => {
       render(
         <ExpertEditPanelView
           {...baseProps}
+          referenceImageUrl="https://example.com/existing-primary.png"
+          referenceText="prompt text"
           onPrimaryImageChange={onPrimaryImageChange}
           resolvePreviewUrlById={resolvePreviewUrlById}
         />

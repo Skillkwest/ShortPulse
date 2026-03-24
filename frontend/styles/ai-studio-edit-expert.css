@@ -1511,6 +1511,7 @@
 .edit-expert-primary-dropzone.is-empty {
   border-color: transparent;
   background: transparent;
+  cursor: default;
 }
 
 .edit-expert-primary-dropzone.is-transform-overlay-active {

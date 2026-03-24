@@ -1832,11 +1832,16 @@ export function ExpertEditPanelView({
         setPrimaryDragActive(false);
         return;
       }
+      if (!hasPrimaryCompositePreview) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
       if (allowPrimaryImageDrag(event)) {
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
+    [allowPrimaryImageDrag, hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]
   );
 
   const handlePrimaryDragOver = React.useCallback(
@@ -1846,11 +1851,16 @@ export function ExpertEditPanelView({
         setPrimaryDragActive(false);
         return;
       }
+      if (!hasPrimaryCompositePreview) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
       if (allowPrimaryImageDrag(event)) {
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
+    [allowPrimaryImageDrag, hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]
   );
 
   const handlePrimaryDragLeave = React.useCallback(() => {
@@ -1866,6 +1876,9 @@ export function ExpertEditPanelView({
       }
       event.preventDefault();
       setPrimaryDragActive(false);
+      if (!hasPrimaryCompositePreview) {
+        return;
+      }
       const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
       void (async () => {
         let nextUrl = imageUrl;
@@ -1887,7 +1900,12 @@ export function ExpertEditPanelView({
         applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl });
       })();
     },
-    [applyPrimaryImageIngress, isMorePresetsSurfaceOpen, resolvePreviewUrlById]
+    [
+      applyPrimaryImageIngress,
+      hasPrimaryCompositePreview,
+      isMorePresetsSurfaceOpen,
+      resolvePreviewUrlById,
+    ]
   );
 
   const commitTransformHistoryTransition = React.useCallback(
@@ -2640,10 +2658,14 @@ export function ExpertEditPanelView({
   const handlePrimaryDropzoneContextMenu = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (!hasPrimaryCompositePreview) {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
       openStageContextMenu(event.clientX, event.clientY);
     },
-    [isMorePresetsSurfaceOpen, openStageContextMenu]
+    [hasPrimaryCompositePreview, isMorePresetsSurfaceOpen, openStageContextMenu]
   );
 
   const handleStageContextMenuRecenter = React.useCallback(() => {
@@ -2713,8 +2735,7 @@ export function ExpertEditPanelView({
   }, [closeStageContextMenu, foundationLayerId, selectedLayer?.id]);
 
   const handlePrimaryDropzoneClick = React.useCallback(() => {
-    if (isMorePresetsSurfaceOpen || hasPrimaryCompositePreview) return;
-    primaryInputRef.current?.click();
+    if (isMorePresetsSurfaceOpen || !hasPrimaryCompositePreview) return;
   }, [hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]);
 
   const handlePrimaryDropzoneDoubleClick = React.useCallback(

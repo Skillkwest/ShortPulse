@@ -21,6 +21,11 @@ type SignBatchErrorResponse = {
   details?: string;
 };
 
+type SignedUrlRow = {
+  path?: unknown;
+  signedUrl?: unknown;
+};
+
 const MEDIA_BUCKET = "media_library";
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const MIN_SIGNED_URL_TTL_SECONDS = 60;
@@ -139,16 +144,42 @@ export default async function handler(
 
     const expiresInSeconds = toSafeExpiresInSeconds(body?.expiresInSeconds);
     const supabaseAdmin = getSupabaseAdmin();
+    const storage = supabaseAdmin.storage.from(MEDIA_BUCKET);
     const urls: Record<string, string | null> = {};
     for (const path of paths) {
       urls[path] = null;
     }
+    const batchEligiblePaths: string[] = [];
+    const transformBackedPaths: Array<{
+      path: string;
+      transform: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
+    }> = [];
+    for (const path of paths) {
+      const transform = resolvePolicySignedImageTransform(resolvedPreviewProfile, path);
+      if (transform) {
+        transformBackedPaths.push({ path, transform });
+        continue;
+      }
+      batchEligiblePaths.push(path);
+    }
+
+    if (batchEligiblePaths.length) {
+      const { data, error } = await storage.createSignedUrls(batchEligiblePaths, expiresInSeconds);
+      if (!error) {
+        for (const signedItem of data ?? []) {
+          const path = toSafePath((signedItem as SignedUrlRow).path);
+          if (!path || !(path in urls)) continue;
+          const signedUrl = (signedItem as SignedUrlRow).signedUrl;
+          urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;
+        }
+      }
+    }
+
     await Promise.all(
-      paths.map(async (path) => {
-        const transform = resolvePolicySignedImageTransform(resolvedPreviewProfile, path);
-        const { data, error } = await supabaseAdmin.storage
-          .from(MEDIA_BUCKET)
-          .createSignedUrl(path, expiresInSeconds, transform ? { transform } : undefined);
+      transformBackedPaths.map(async ({ path, transform }) => {
+        const { data, error } = await storage.createSignedUrl(path, expiresInSeconds, {
+          transform,
+        });
         if (error) return;
         const signedUrl = data?.signedUrl;
         urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;

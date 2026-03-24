@@ -22,11 +22,12 @@ vi.mock("../../lib/server/adminUserHealth/runtime", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
 
-describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
+describe("POST /api/internal/admin-user-health-fleet/run", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.CRON_SECRET;
@@ -42,6 +43,7 @@ describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
 
     await handler(req as never, res as never);
 
+    expect(res.setHeader).toHaveBeenCalledWith("Allow", "POST");
     expect(res.status).toHaveBeenCalledWith(405);
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
@@ -70,7 +72,7 @@ describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
   });
 
-  it("accepts POST with x-shortpulse-cron-secret and marks trigger as manual", async () => {
+  it("accepts POST with x-shortpulse-cron-secret and defaults trigger to scheduled", async () => {
     runAdminUserHealthFleetScanMock.mockResolvedValue({
       ok: true,
       status: "completed",
@@ -98,7 +100,7 @@ describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
     await handler(req as never, res as never);
 
     expect(runAdminUserHealthFleetScanMock).toHaveBeenCalledWith({
-      triggerSource: "manual",
+      triggerSource: "scheduled",
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
@@ -116,7 +118,7 @@ describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
     );
   });
 
-  it("accepts GET with bearer token and CRON_SECRET fallback", async () => {
+  it("accepts POST with bearer token and CRON_SECRET fallback", async () => {
     readAdminUserHealthFleetRuntimeFlagsMock.mockReturnValue({
       enabled: true,
       cronSecret: null,
@@ -137,13 +139,54 @@ describe("GET|POST /api/internal/admin-user-health-fleet/run", () => {
       errors: ["time budget reached"],
     });
 
-    const req = { method: "GET", headers: { authorization: "Bearer vercel-secret" } };
+    const req = { method: "POST", headers: { authorization: "Bearer vercel-secret" } };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
 
     expect(runAdminUserHealthFleetScanMock).toHaveBeenCalledWith({
       triggerSource: "scheduled",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("accepts explicit manual trigger overrides on POST", async () => {
+    runAdminUserHealthFleetScanMock.mockResolvedValue({
+      ok: true,
+      status: "completed",
+      runId: "run-manual",
+      targeted: 1,
+      processed: 1,
+      failed: 0,
+      partial: false,
+      criticalUsers: 0,
+      warningUsers: 0,
+      totalCostWithoutSuccessCents: 0,
+      drainage: {
+        enabled: false,
+        scanned: 0,
+        released: 0,
+        errors: 0,
+      },
+      durationMs: 30,
+      errors: [],
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "fleet-secret",
+        "x-shortpulse-trigger-source": "manual",
+      },
+      query: {},
+      body: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(runAdminUserHealthFleetScanMock).toHaveBeenCalledWith({
+      triggerSource: "manual",
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });

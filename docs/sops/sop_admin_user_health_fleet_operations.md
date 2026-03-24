@@ -47,8 +47,14 @@ Manual trigger (local/protected env):
 ```bash
 curl -X POST \
   -H "x-shortpulse-cron-secret: <SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET>" \
+  -H "x-shortpulse-trigger-source: manual" \
   http://localhost:3000/api/internal/admin-user-health-fleet/run
 ```
+
+Notes:
+- The route is `POST`-only.
+- Scheduler-owned runs default to `triggerSource=scheduled`.
+- Use `x-shortpulse-trigger-source: manual` only for explicit operator-triggered replays when you want the persisted run metadata labeled as manual.
 
 Scheduler trigger:
 - Use `sql/configure_admin_user_health_fleet_scheduler_supabase.sql` (current hourly cadence).

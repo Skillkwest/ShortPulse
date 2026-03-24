@@ -108,12 +108,14 @@
   width: var(--create-expert-output-column-width, 94px);
   min-width: var(--create-expert-output-column-width, 94px);
   max-width: var(--create-expert-output-column-width, 94px);
-  align-self: center;
+  align-self: stretch;
   justify-self: end;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  justify-content: flex-end;
   gap: 6px;
+  min-height: 100%;
 }
 
 .create-expert-panel
@@ -131,17 +133,7 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail
   .agent-output-bubble-controls {
-  align-self: stretch;
-  justify-content: flex-start;
-  padding-top: 12px;
-}
-
-.create-expert-panel
-  .create-expert-prompt-step
-  .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail
-  .agent-output-bubble-controls
-  .agent-output-generate-pill.agent-generate-prefab {
-  margin-top: auto;
+  padding-bottom: 12px;
 }
 
 .create-expert-panel

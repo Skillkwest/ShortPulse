@@ -172,8 +172,8 @@ import {
   buildTransformHistoryEntry,
   clampLayerOpacity,
   defaultLayerTransform,
+  resolveClippedLayerTransform,
   resolveContainedLayerRect,
-  resolveContainedLayerTransform,
   type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
@@ -1450,15 +1450,12 @@ export function ExpertEditPanelView({
     () => resolveLayerImageAspectRatio(selectedLayer),
     [resolveLayerImageAspectRatio, selectedLayer]
   );
-  const resolveConstrainedLayerTransformForViewport = React.useCallback(
-    (layer: ExpertEditLayer, viewportSize: StageViewportSize) =>
-      resolveContainedLayerTransform({
+  const resolveRenderableLayerTransform = React.useCallback(
+    (layer: ExpertEditLayer) =>
+      resolveClippedLayerTransform({
         transform: layer.transform,
-        imageAspectRatio: resolveLayerImageAspectRatio(layer),
-        dropzoneWidth: viewportSize.width,
-        dropzoneHeight: viewportSize.height,
       }),
-    [resolveLayerImageAspectRatio]
+    []
   );
   const morePresetsSurfaceId = React.useId();
   const activeStageRenderScale = markupViewport.scale;
@@ -1501,18 +1498,6 @@ export function ExpertEditPanelView({
     shouldShowInpaintLassoCursor,
     shouldShowMarkupBrushReticle,
   ]);
-  const transformConstraintViewportSize = React.useMemo<StageViewportSize>(() => {
-    if (primaryCompositionSurfaceAspectRatioValue >= 1) {
-      return {
-        width: primaryCompositionSurfaceAspectRatioValue,
-        height: 1,
-      };
-    }
-    return {
-      width: 1,
-      height: 1 / Math.max(primaryCompositionSurfaceAspectRatioValue, 0.0001),
-    };
-  }, [primaryCompositionSurfaceAspectRatioValue]);
   const primaryCanvasFrameBoundsStyle = React.useMemo<React.CSSProperties>(() => {
     const nominalHeight = resolvePrimaryCanvasNominalHeightPx();
     const availableWidth = isResolvedStageViewportSize(inlineStageViewportSize)
@@ -3564,10 +3549,7 @@ export function ExpertEditPanelView({
         if (!layer.imageUrl) {
           return layer;
         }
-        const nextTransform = resolveConstrainedLayerTransformForViewport(
-          layer,
-          transformConstraintViewportSize
-        );
+        const nextTransform = resolveRenderableLayerTransform(layer);
         if (areLayerTransformsEqual(layer.transform, nextTransform)) {
           return layer;
         }
@@ -3579,7 +3561,7 @@ export function ExpertEditPanelView({
       });
       return hasChanges ? nextLayers : previousLayers;
     });
-  }, [resolveConstrainedLayerTransformForViewport, setLayers, transformConstraintViewportSize]);
+  }, [resolveRenderableLayerTransform, setLayers]);
 
   React.useEffect(() => {
     if (isTransformPointerDragging) return;
@@ -4508,10 +4490,7 @@ export function ExpertEditPanelView({
       const viewportSize = isResolvedStageViewportSize(liveViewportSize)
         ? liveViewportSize
         : preferredViewportSize;
-      const constrainedTransform = resolveConstrainedLayerTransformForViewport(
-        selectedLayer,
-        viewportSize
-      );
+      const constrainedTransform = resolveRenderableLayerTransform(selectedLayer);
       const layerRect = resolveContainedLayerRect({
         imageAspectRatio: selectedLayerImageAspectRatio,
         viewportWidth: viewportSize.width,
@@ -4557,7 +4536,7 @@ export function ExpertEditPanelView({
       );
     },
     [
-      resolveConstrainedLayerTransformForViewport,
+      resolveRenderableLayerTransform,
       selectedLayer,
       selectedLayerImageAspectRatio,
       shouldShowSelectedLayerTransformOverlay,
@@ -4585,10 +4564,7 @@ export function ExpertEditPanelView({
           {layers.map((layer, index) =>
             layer.imageUrl
               ? (() => {
-                  const constrainedTransform = resolveConstrainedLayerTransformForViewport(
-                    layer,
-                    renderStageSize
-                  );
+                  const constrainedTransform = resolveRenderableLayerTransform(layer);
                   const layerRect = resolveContainedLayerRect({
                     imageAspectRatio: resolveLayerImageAspectRatio(layer),
                     viewportWidth: renderStageSize.width,
@@ -4631,7 +4607,7 @@ export function ExpertEditPanelView({
     },
     [
       layers,
-      resolveConstrainedLayerTransformForViewport,
+      resolveRenderableLayerTransform,
       resolveLayerImageAspectRatio,
       renderMarkupStrokeOverlay,
       renderPrimaryStageBusyOverlay,

@@ -4262,8 +4262,8 @@ describe("ExpertEditPanelView", () => {
     });
 
     const resizedScale = Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
-    expect(resizedScale).toBeLessThanOrEqual(1);
-    expect(resizedScale).toBeGreaterThan(initialScale * 0.5);
+    expect(resizedScale).toBeGreaterThan(initialScale);
+    expect(resizedScale).toBeLessThanOrEqual(2);
   });
 
   it("allows resizing smaller than the previous minimum floor with shift adjust drag", async () => {

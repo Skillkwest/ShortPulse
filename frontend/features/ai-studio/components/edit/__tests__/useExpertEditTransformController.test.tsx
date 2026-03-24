@@ -141,7 +141,7 @@ describe("useExpertEditTransformController", () => {
 
     expect(result.current.activeTransformDragMode).toBe("resize");
     expect(result.current.isTransformPointerDragging).toBe(true);
-    expect(result.current.layers[0]?.transform.scale ?? 0).toBeCloseTo(1, 6);
+    expect(result.current.layers[0]?.transform.scale ?? 0).toBeCloseTo(2, 6);
 
     act(() => {
       result.current.controller.endTransformPointerSession(

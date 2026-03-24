@@ -4,7 +4,7 @@
  */
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 import { clampExpertEditCameraScale } from "./expertEditCameraContract";
-import { resolveContainedLayerTransform } from "../components/edit/expertEditLayerTransformUtils";
+import { resolveClippedLayerTransform } from "../components/edit/expertEditLayerTransformUtils";
 
 export type ExpertEditStageFlattenLayer = {
   imageUrl: string | null;
@@ -251,11 +251,8 @@ export const buildStageFlattenDrawPlan = ({
   outputHeight: number;
 }): StageFlattenDrawInstruction[] =>
   decodedLayers.map((layer) => {
-    const constrainedTransform = resolveContainedLayerTransform({
+    const constrainedTransform = resolveClippedLayerTransform({
       transform: layer.transform,
-      imageAspectRatio: layer.width / Math.max(1, layer.height),
-      dropzoneWidth: outputWidth,
-      dropzoneHeight: outputHeight,
     });
     const containSize = resolveContainSizeForStage(
       layer.width,

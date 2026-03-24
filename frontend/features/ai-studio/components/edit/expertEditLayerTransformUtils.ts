@@ -229,6 +229,17 @@ export const resolveContainedLayerTransform = ({
   };
 };
 
+export const resolveClippedLayerTransform = ({
+  transform,
+}: {
+  transform: LayerTransform;
+}): LayerTransform => ({
+  translateXRatio: Number.isFinite(transform.translateXRatio) ? transform.translateXRatio : 0,
+  translateYRatio: Number.isFinite(transform.translateYRatio) ? transform.translateYRatio : 0,
+  scale: Math.max(LAYER_SCALE_EPSILON, clampLayerScale(transform.scale)),
+  rotationDeg: normalizeLayerRotationDeg(transform.rotationDeg),
+});
+
 export const normalizeLayerRotationDeg = (value: number) => {
   if (!Number.isFinite(value)) return 0;
   let normalized = value % 360;

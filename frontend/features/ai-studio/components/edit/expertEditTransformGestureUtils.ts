@@ -5,8 +5,8 @@ import {
   clampLayerScale,
   computeDistance,
   normalizeLayerRotationDeg,
+  resolveClippedLayerTransform,
   resolveContainedLayerRect,
-  resolveContainedLayerTransform,
   resolveTransformGeometry,
   type LayerTransform,
 } from "./expertEditLayerTransformUtils";
@@ -86,26 +86,21 @@ export const resolveTransformSessionUpdate = ({
   session,
   pointerX,
   pointerY,
-  imageAspectRatio,
 }: {
   session: TransformPointerSession;
   pointerX: number;
   pointerY: number;
-  imageAspectRatio: number;
 }): Partial<LayerTransform> | null => {
   if (session.dragMode === "move") {
     const deltaX = pointerX - session.startCanvasX;
     const deltaY = pointerY - session.startCanvasY;
-    return resolveContainedLayerTransform({
+    return resolveClippedLayerTransform({
       transform: {
         translateXRatio: session.baseTranslateXRatio + deltaX / session.dropzoneWidth,
         translateYRatio: session.baseTranslateYRatio + deltaY / session.dropzoneHeight,
         scale: session.baseScale,
         rotationDeg: session.baseRotationDeg,
       },
-      imageAspectRatio,
-      dropzoneWidth: session.dropzoneWidth,
-      dropzoneHeight: session.dropzoneHeight,
     });
   }
   if (session.dragMode === "resize") {
@@ -113,7 +108,7 @@ export const resolveTransformSessionUpdate = ({
       1,
       computeDistance(pointerX, pointerY, session.centerX, session.centerY)
     );
-    return resolveContainedLayerTransform({
+    return resolveClippedLayerTransform({
       transform: {
         translateXRatio: session.baseTranslateXRatio,
         translateYRatio: session.baseTranslateYRatio,
@@ -122,14 +117,11 @@ export const resolveTransformSessionUpdate = ({
         ),
         rotationDeg: session.baseRotationDeg,
       },
-      imageAspectRatio,
-      dropzoneWidth: session.dropzoneWidth,
-      dropzoneHeight: session.dropzoneHeight,
     });
   }
   if (session.dragMode === "rotate") {
     const nextPointerAngle = Math.atan2(pointerY - session.centerY, pointerX - session.centerX);
-    return resolveContainedLayerTransform({
+    return resolveClippedLayerTransform({
       transform: {
         translateXRatio: session.baseTranslateXRatio,
         translateYRatio: session.baseTranslateYRatio,
@@ -139,9 +131,6 @@ export const resolveTransformSessionUpdate = ({
             ((nextPointerAngle - session.basePointerAngleRad) * 180) / Math.PI
         ),
       },
-      imageAspectRatio,
-      dropzoneWidth: session.dropzoneWidth,
-      dropzoneHeight: session.dropzoneHeight,
     });
   }
   return null;

@@ -212,7 +212,6 @@ export const useExpertEditTransformController = ({
         session,
         pointerX: pointer.x,
         pointerY: pointer.y,
-        imageAspectRatio: selectedLayerImageAspectRatio,
       });
       if (!transformUpdate) return;
       setLayers((previousLayers) =>
@@ -235,7 +234,6 @@ export const useExpertEditTransformController = ({
       shouldApplyViewportTransform,
       transformPointerSessionRef,
       resolveViewportOffsetPixels,
-      selectedLayerImageAspectRatio,
       viewportOffsetXRatio,
       viewportOffsetYRatio,
     ]

@@ -3,6 +3,10 @@
 ## Status
 Accepted
 
+Implementation note:
+- The worker/rpc foundation in this ADR remains authoritative.
+- The derivative-generation engine described in Decision item 4 was later replaced by local `sharp` processing in [ADR 0039](./0039-media-library-transform-sunset-and-local-derivative-engine.md).
+- Current runtime does not depend on Supabase signed transforms for derivative generation.
 ## Context
 Media Library image-card performance depends on fast preview delivery. We already stabilized card delivery by keeping Supabase signed URLs out of Next optimizer wrapping on media-library surfaces, but many image rows still lacked durable thumb variants. We needed a low-risk path to generate and persist thumbnail derivatives without introducing a new external media-processing stack.
 
@@ -19,11 +23,11 @@ Constraints:
    - `mark_media_derivative_ready(...)`.
    - `mark_media_derivative_failed(...)`.
 3. Add internal worker route `POST /api/internal/media-derivatives/run` (also `GET` for scheduler compatibility) with cron-secret/bearer auth and fail-closed flag gate.
-4. Implement derivative generation as Supabase-first transformed-source fetch + upload:
-   - Sign transformed source URLs from canonical storage paths.
-   - Fetch transformed payloads server-side.
-   - Upload `thumb_240` and `thumb_480` under user-scoped variant paths.
-   - Upsert `media_asset_variants` rows and promote `media_files.thumb_variant_path`.
+4. Implement derivative generation behind the worker route and claim/update RPCs.
+   - Initial rollout used Supabase-first transformed-source fetch + upload.
+   - Current runtime uses local Node `sharp` processing from source-object downloads, per ADR 0039.
+   - Worker still uploads `thumb_240` and `thumb_480` under user-scoped variant paths.
+   - Worker still upserts `media_asset_variants` rows and promotes `media_files.thumb_variant_path`.
 
 ## Consequences
 - Positive:

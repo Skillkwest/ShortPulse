@@ -15,6 +15,7 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 }));
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
+  classifyMediaPreviewPath: vi.fn(() => "unknown"),
   resolveMediaSigningStoragePaths: mockResolveMediaSigningStoragePaths,
 }));
 

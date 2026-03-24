@@ -309,6 +309,46 @@ Notes:
 - `CRON_SECRET` remains optional for manual cURL/bearer invocation and non-Supabase fallback workflows.
 - If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
 
+## Media derivative scheduler (Supabase Cron)
+
+Use Supabase Cron for the Media Library image derivative worker route.
+
+Route-parity gate is mandatory before setting or updating `shortpulse_media_derivatives_run_url` for any environment.
+
+1. Set `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=true` and configure:
+   - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
+2. In Supabase Vault for each environment, create:
+   - `shortpulse_media_derivatives_run_url` = full endpoint URL (for example `https://<deployment-domain>/api/internal/media-derivatives/run`)
+   - `shortpulse_media_derivatives_cron_secret` = same value as `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
+   - optional when deployment protection is enabled: `shortpulse_vercel_protection_bypass_token` = Vercel protection bypass token
+3. Run `sql/configure_media_derivative_scheduler_supabase.sql` in the target Supabase project.
+4. Verify scheduler state:
+   ```sql
+   select jobid, jobname, schedule, command, active
+   from cron.job
+   where jobname = 'shortpulse_media_derivatives_every_minute';
+   ```
+5. Verify recent execution outcomes:
+   ```sql
+   select jobid, status, start_time, end_time, return_message
+   from cron.job_run_details
+   where jobid = (
+     select jobid
+     from cron.job
+     where jobname = 'shortpulse_media_derivatives_every_minute'
+   )
+   order by start_time desc
+   limit 20;
+   ```
+6. Run canonical control-plane diagnostics:
+   - `sql/check_control_plane_scheduler_health.sql`
+   - `sql/check_pg_net_failure_taxonomy.sql`
+   - `sql/check_media_derivative_processing_backlog.sql`
+
+Notes:
+- Vercel Cron is not required for this route.
+- Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with the other internal operators.
+- If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
 ## Admin fleet scheduler (Supabase Cron)
 
 Use Supabase Cron for the admin fleet-health scan route.

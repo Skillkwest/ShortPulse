@@ -8,6 +8,7 @@ import {
 import { useMediaPreviewRecoveryController } from "../useMediaPreviewRecoveryController";
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
+  classifyMediaPreviewPath: vi.fn(() => "unknown"),
   resolveMediaDirectPreviewUrls: vi.fn(),
   resolveMediaSigningStoragePaths: vi.fn(),
 }));

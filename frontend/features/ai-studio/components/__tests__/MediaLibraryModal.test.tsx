@@ -22,12 +22,14 @@ type MediaRow = {
 
 const mockMediaRows: MediaRow[] = [];
 const {
+  mockClassifyMediaPreviewPath,
   mockFetchWithAuth,
   mockResolveMediaDirectPreviewUrls,
   mockResolveMediaSigningStoragePaths,
   mockGetSignedMediaUrl,
   mockGetSignedMediaUrlsBatch,
 } = vi.hoisted(() => ({
+  mockClassifyMediaPreviewPath: vi.fn(() => "unknown" as const),
   mockFetchWithAuth: vi.fn(async () => ({ ok: false, json: async () => ({}) })),
   mockResolveMediaDirectPreviewUrls: vi.fn((...args: unknown[]) => {
     void args;
@@ -54,6 +56,7 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 }));
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
+  classifyMediaPreviewPath: mockClassifyMediaPreviewPath,
   resolveMediaDirectPreviewUrls: mockResolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths: mockResolveMediaSigningStoragePaths,
 }));

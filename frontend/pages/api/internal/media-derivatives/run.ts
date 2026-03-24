@@ -126,6 +126,11 @@ const resolveBackoffSeconds = ({
   return Math.max(1, Math.min(maxSeconds, Math.trunc(backoff)));
 };
 
+const isTerminalDerivativeError = (message: string): boolean => {
+  const normalized = message.trim().toLowerCase();
+  return normalized.includes("unsupported image format");
+};
+
 const toClaimedRows = (value: unknown): ClaimedMediaDerivativeRow[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -227,8 +232,11 @@ export default async function handler(
       } catch (error) {
         errors += 1;
         failed += 1;
+        const errorMessage =
+          error instanceof Error ? error.message : "derivative_processing_failed";
         const attempts = Math.max(1, row.processing_attempts);
-        const exhaustedNow = attempts >= flags.maxAttempts;
+        const exhaustedNow =
+          attempts >= flags.maxAttempts || isTerminalDerivativeError(errorMessage);
         const retrySeconds = resolveBackoffSeconds({
           attempts,
           baseSeconds: flags.retryBaseSeconds,
@@ -238,7 +246,7 @@ export default async function handler(
         const markFailedResponse = await supabaseAdmin.rpc("mark_media_derivative_failed", {
           p_media_file_id: row.id,
           p_user_id: row.user_id,
-          p_error: error instanceof Error ? error.message : "derivative_processing_failed",
+          p_error: errorMessage,
           p_retry_seconds: retrySeconds,
           p_exhausted: exhaustedNow,
         });

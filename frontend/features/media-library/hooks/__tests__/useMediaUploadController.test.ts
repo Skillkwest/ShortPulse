@@ -11,6 +11,7 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 }));
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
+  classifyMediaPreviewPath: vi.fn(() => "unknown"),
   resolveMediaSigningStoragePaths: vi.fn(),
 }));
 

@@ -190,4 +190,57 @@ describe("POST /api/internal/media-derivatives/run", () => {
       })
     );
   });
+
+  it("treats unsupported image format decode failures as terminal on first attempt", async () => {
+    processClaimedMediaDerivativeMock.mockRejectedValueOnce(
+      new Error("decode_failed: Input buffer contains unsupported image format")
+    );
+    const rpc = vi.fn(async (functionName: string) => {
+      if (functionName === "claim_media_derivative_batch") {
+        return {
+          data: [
+            {
+              id: "media-3",
+              user_id: "user-3",
+              storage_path: "user-3/generations/images/image-3.png",
+              file_type: "image",
+              processing_attempts: 1,
+              processing_status: "processing",
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: true, error: null };
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "derivative-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(rpc).toHaveBeenCalledWith("mark_media_derivative_failed", {
+      p_media_file_id: "media-3",
+      p_user_id: "user-3",
+      p_error: "decode_failed: Input buffer contains unsupported image format",
+      p_retry_seconds: 60,
+      p_exhausted: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        ready: 0,
+        failed: 1,
+        exhausted: 1,
+        errors: 1,
+      })
+    );
+  });
 });

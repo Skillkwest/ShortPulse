@@ -10,6 +10,7 @@ import {
 } from "../../logic/mediaLibraryPageHelpers";
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
+  classifyMediaPreviewPath: vi.fn(() => "unknown"),
   resolveMediaSigningStoragePaths: vi.fn(),
 }));
 

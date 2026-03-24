@@ -7,6 +7,7 @@ import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
 } from "../../../lib/mediaPreviewTransformProfile";
+import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -144,9 +145,10 @@ export default async function handler(
     }
     await Promise.all(
       paths.map(async (path) => {
+        const transform = resolvePolicySignedImageTransform(resolvedPreviewProfile, path);
         const { data, error } = await supabaseAdmin.storage
           .from(MEDIA_BUCKET)
-          .createSignedUrl(path, expiresInSeconds);
+          .createSignedUrl(path, expiresInSeconds, transform ? { transform } : undefined);
         if (error) return;
         const signedUrl = data?.signedUrl;
         urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;

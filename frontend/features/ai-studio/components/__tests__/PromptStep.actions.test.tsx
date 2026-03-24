@@ -61,7 +61,7 @@ describe("PromptStep agent actions", () => {
     render(<PromptStep {...baseProps} agentAssistEnabled={false} />);
 
     expect(screen.queryByText("Agent Assist")).toBeNull();
-    expect(screen.getByPlaceholderText("Message OpenAI directly...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask ShortPulse or write your prompt")).toBeInTheDocument();
   });
 
   it("disables send affordances when chat mode is off", () => {

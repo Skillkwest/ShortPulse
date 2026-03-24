@@ -361,7 +361,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
               chatModeEnabled
                 ? agentAssistEnabled
                   ? "Message the agent..."
-                  : "Message OpenAI directly..."
+                  : "Ask ShortPulse or write your prompt"
                 : "Write your prompt..."
             }
             onKeyDown={handleAgentInputKeyDown}

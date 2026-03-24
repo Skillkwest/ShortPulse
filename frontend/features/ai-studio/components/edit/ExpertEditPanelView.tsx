@@ -237,6 +237,127 @@ import {
   cloneMarkupStrokesSnapshot,
   type ExpertEditSessionState,
 } from "./expertEditSessionState";
+
+type PrimaryStageShellProps = {
+  children: React.ReactNode;
+  isEmpty: boolean;
+  isBusy: boolean;
+  stageRef: React.RefObject<HTMLDivElement | null>;
+  onPointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
+  onPointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
+  onPointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
+  onPointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
+};
+
+function PrimaryStageShell({
+  children,
+  isEmpty,
+  isBusy,
+  stageRef,
+  onPointerDownCapture,
+  onPointerMoveCapture,
+  onPointerUpCapture,
+  onPointerCancelCapture,
+}: PrimaryStageShellProps) {
+  return (
+    <div
+      ref={stageRef}
+      className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell ${
+        isEmpty ? "is-empty-stage" : ""
+      }`}
+      aria-label={isEmpty ? "Primary edit stage" : undefined}
+      aria-busy={isEmpty && isBusy ? true : undefined}
+      onPointerDownCapture={onPointerDownCapture}
+      onPointerMoveCapture={onPointerMoveCapture}
+      onPointerUpCapture={onPointerUpCapture}
+      onPointerCancelCapture={onPointerCancelCapture}
+    >
+      {children}
+    </div>
+  );
+}
+
+type PrimaryCompositionSurfaceProps = {
+  children: React.ReactNode;
+  isVisible: boolean;
+  isBusy: boolean;
+  isDragActive: boolean;
+  isPresetsOpen: boolean;
+  isTransformOverlayActive: boolean;
+  surfaceRef: React.RefObject<HTMLDivElement | null>;
+  style: React.CSSProperties;
+  onDrop?: React.DragEventHandler<HTMLDivElement>;
+  onDragEnter?: React.DragEventHandler<HTMLDivElement>;
+  onDragOver?: React.DragEventHandler<HTMLDivElement>;
+  onDragLeave?: React.DragEventHandler<HTMLDivElement>;
+  onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerMove?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerUp?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerCancel?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerLeave?: React.PointerEventHandler<HTMLDivElement>;
+  onMouseDown?: React.MouseEventHandler<HTMLDivElement>;
+  onAuxClick?: React.MouseEventHandler<HTMLDivElement>;
+  onContextMenu?: React.MouseEventHandler<HTMLDivElement>;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
+  onDoubleClick?: React.MouseEventHandler<HTMLDivElement>;
+};
+
+function PrimaryCompositionSurface({
+  children,
+  isVisible,
+  isBusy,
+  isDragActive,
+  isPresetsOpen,
+  isTransformOverlayActive,
+  surfaceRef,
+  style,
+  onDrop,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onPointerLeave,
+  onMouseDown,
+  onAuxClick,
+  onContextMenu,
+  onClick,
+  onDoubleClick,
+}: PrimaryCompositionSurfaceProps) {
+  return (
+    <div
+      ref={surfaceRef}
+      className={`edit-expert-primary-composition-surface ${
+        isVisible ? "has-preview" : "is-hidden-stage-surface"
+      } ${isPresetsOpen ? "is-presets-open" : ""} ${
+        isDragActive ? "is-dragging" : ""
+      } ${isTransformOverlayActive ? "is-transform-overlay-active" : ""}`}
+      style={style}
+      onDrop={onDrop}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onPointerLeave={onPointerLeave}
+      onMouseDown={onMouseDown}
+      onAuxClick={onAuxClick}
+      onContextMenu={onContextMenu}
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      aria-label={isVisible ? "Primary composition surface" : undefined}
+      aria-busy={isVisible && isBusy ? true : undefined}
+      aria-hidden={!isVisible}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function ExpertEditPanelView({
   aspect,
   modelId,
@@ -4611,25 +4732,22 @@ export function ExpertEditPanelView({
               </div>
             </div>
           ) : null}
-          <div
-            ref={inlineStageWrapperRef}
-            className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell ${
-              !hasPrimaryCompositePreview ? "is-empty-stage" : ""
-            }`}
-            aria-label={!hasPrimaryCompositePreview ? "Primary edit stage" : undefined}
-            aria-busy={!hasPrimaryCompositePreview && isPrimaryStageBusy ? true : undefined}
+          <PrimaryStageShell
+            stageRef={inlineStageWrapperRef}
+            isEmpty={!hasPrimaryCompositePreview}
+            isBusy={isPrimaryStageBusy}
             onPointerDownCapture={handleInlineStagePointerDownCapture}
             onPointerMoveCapture={handleInlineStagePointerMoveCapture}
             onPointerUpCapture={handleInlineStagePointerUpCapture}
             onPointerCancelCapture={handleInlineStagePointerCancelCapture}
           >
-            <div
-              ref={primaryCompositionSurfaceRef}
-              className={`edit-expert-primary-composition-surface ${
-                hasPrimaryCompositePreview ? "has-preview" : "is-hidden-stage-surface"
-              } ${isMorePresetsSurfaceOpen ? "is-presets-open" : ""} ${
-                primaryDragActive ? "is-dragging" : ""
-              } ${shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""}`}
+            <PrimaryCompositionSurface
+              surfaceRef={primaryCompositionSurfaceRef}
+              isVisible={hasPrimaryCompositePreview}
+              isBusy={isPrimaryStageBusy}
+              isDragActive={primaryDragActive}
+              isPresetsOpen={isMorePresetsSurfaceOpen}
+              isTransformOverlayActive={shouldShowSelectedLayerTransformOverlay}
               style={
                 hasPrimaryCompositePreview
                   ? primaryCompositionSurfaceStyle
@@ -4669,9 +4787,6 @@ export function ExpertEditPanelView({
               onDoubleClick={
                 hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
               }
-              aria-label={hasPrimaryCompositePreview ? "Primary composition surface" : undefined}
-              aria-busy={hasPrimaryCompositePreview && isPrimaryStageBusy ? true : undefined}
-              aria-hidden={!hasPrimaryCompositePreview}
             >
               {hasPrimaryCompositePreview
                 ? renderPrimaryStageViewport({
@@ -4682,11 +4797,11 @@ export function ExpertEditPanelView({
                     stageElement: primaryCompositionSurfaceRef.current,
                   })
                 : null}
-            </div>
+            </PrimaryCompositionSurface>
             {!hasPrimaryCompositePreview ? (
               <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle} />
             ) : null}
-          </div>
+          </PrimaryStageShell>
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
             <div
               className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""} ${

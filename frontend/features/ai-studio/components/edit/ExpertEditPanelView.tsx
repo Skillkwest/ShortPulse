@@ -281,6 +281,7 @@ function PrimaryStageShell({
       className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell ${
         isEmpty ? "is-empty-stage" : ""
       }`}
+      style={{ minHeight: "calc(var(--edit-expert-primary-size) + 24px)" }}
       aria-label={isEmpty ? "Primary edit stage" : undefined}
       aria-busy={isEmpty && isBusy ? true : undefined}
       onPointerDownCapture={onPointerDownCapture}

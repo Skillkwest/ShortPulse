@@ -1495,10 +1495,6 @@
   overflow: hidden;
 }
 
-.edit-expert-primary-stage-shell.is-empty-stage {
-  min-height: calc(var(--edit-expert-primary-size) + 24px);
-}
-
 .edit-expert-primary-canvas-frame-stack {
   position: relative;
   flex: 0 0 auto;

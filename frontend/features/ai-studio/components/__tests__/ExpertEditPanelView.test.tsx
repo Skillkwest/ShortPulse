@@ -435,10 +435,10 @@ describe("ExpertEditPanelView", () => {
     document.body.style.overflow = "";
   });
 
-  it("renders one primary and three secondary edit dropzones", () => {
+  it("renders one primary edit stage and three secondary edit dropzones", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
-    expect(screen.getByLabelText("Primary edit image")).toBeInTheDocument();
+    expect(screen.getByLabelText("Primary edit stage")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 2")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 3")).toBeInTheDocument();
@@ -485,7 +485,14 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("updates primary dropzone aspect ratio from the edit aspect selector value", () => {
-    const { container, rerender } = render(<ExpertEditPanelView {...baseProps} aspect="1:1" />);
+    const { container, rerender } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="1:1"
+        referenceImageUrl="https://example.com/aspect-loaded.png"
+        referenceText="prompt text"
+      />
+    );
     const primaryDropzone = screen.getByLabelText("Primary edit image") as HTMLDivElement;
     const mainStage = container.querySelector(".edit-expert-main-stage") as HTMLDivElement;
     expect(mainStage).not.toBeNull();
@@ -494,12 +501,26 @@ describe("ExpertEditPanelView", () => {
     expect(primaryDropzone.style.width).toContain("* 1");
     expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
 
-    rerender(<ExpertEditPanelView {...baseProps} aspect="16:9" />);
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="16:9"
+        referenceImageUrl="https://example.com/aspect-loaded.png"
+        referenceText="prompt text"
+      />
+    );
     expect(primaryDropzone.style.aspectRatio).toBe("16 / 9");
     expect(primaryDropzone.style.width).toContain("* 1.777777");
     expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
 
-    rerender(<ExpertEditPanelView {...baseProps} aspect="9:16" />);
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="9:16"
+        referenceImageUrl="https://example.com/aspect-loaded.png"
+        referenceText="prompt text"
+      />
+    );
     expect(primaryDropzone.style.aspectRatio).toBe("9 / 16");
     expect(primaryDropzone.style.width).toContain("* 0.5625");
     expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
@@ -913,9 +934,9 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(trigger);
     const surface = screen.getByRole("region", { name: /more presets/i });
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryStage = screen.getByLabelText("Primary edit stage");
     expect(surface).toBeInTheDocument();
-    expect(primaryDropzone.contains(surface)).toBe(false);
+    expect(primaryStage.contains(surface)).toBe(false);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(within(surface).queryByText("Selfie")).not.toBeInTheDocument();
     expect(within(surface).queryByText("Enhance Realism")).not.toBeInTheDocument();
@@ -2857,31 +2878,31 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
-    mockElementRect(primaryDropzone, createSquareRect(320));
+    const primaryStage = screen.getByLabelText("Primary edit stage");
+    mockElementRect(primaryStage, createSquareRect(320));
 
-    fireEvent.pointerDown(primaryDropzone, {
+    fireEvent.pointerDown(primaryStage, {
       pointerId: 906,
       pointerType: "mouse",
       button: 0,
       clientX: 88,
       clientY: 94,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    fireEvent.pointerMove(primaryStage, {
       pointerId: 906,
       pointerType: "mouse",
       clientX: 128,
       clientY: 134,
     });
-    fireEvent.pointerUp(primaryDropzone, {
+    fireEvent.pointerUp(primaryStage, {
       pointerId: 906,
       pointerType: "mouse",
       clientX: 128,
       clientY: 134,
     });
 
-    expect(screen.getByText("Add a layer image before drawing markup.")).toBeInTheDocument();
-    expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
+    expect(screen.queryByText("Add a layer image before drawing markup.")).not.toBeInTheDocument();
+    expect(primaryStage.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
   });
 
   it("pans the inline stage camera from the primary interaction surface", async () => {
@@ -3206,11 +3227,11 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryStage = screen.getByLabelText("Primary edit stage");
     const inlineRect = createSquareRect(320);
-    mockElementRect(primaryDropzone, inlineRect);
+    mockElementRect(primaryStage, inlineRect);
 
-    dispatchNativeWheelEvent(primaryDropzone, {
+    dispatchNativeWheelEvent(primaryStage, {
       deltaY: -120,
       clientX: 30,
       clientY: 30,
@@ -3219,20 +3240,20 @@ describe("ExpertEditPanelView", () => {
     expect(afterZoom).not.toBeNull();
     expect(afterZoom?.scale ?? 0).toBeGreaterThan(1);
 
-    fireEvent.pointerDown(primaryDropzone, {
+    fireEvent.pointerDown(primaryStage, {
       pointerId: 901,
       pointerType: "mouse",
       button: 1,
       clientX: 120,
       clientY: 124,
     });
-    fireEvent.pointerMove(primaryDropzone, {
+    fireEvent.pointerMove(primaryStage, {
       pointerId: 901,
       pointerType: "mouse",
       clientX: 198,
       clientY: 214,
     });
-    fireEvent.pointerUp(primaryDropzone, {
+    fireEvent.pointerUp(primaryStage, {
       pointerId: 901,
       pointerType: "mouse",
       button: 1,
@@ -3244,7 +3265,7 @@ describe("ExpertEditPanelView", () => {
     expect(afterPan).not.toBeNull();
     expect(Math.abs(afterPan?.offsetX ?? 0)).toBeGreaterThan(40);
     expect(Math.abs(afterPan?.offsetY ?? 0)).toBeGreaterThan(40);
-    expect(primaryDropzone).toHaveClass("is-empty");
+    expect(primaryStage).toHaveClass("is-empty-stage");
     expect(screen.queryByText("Click to upload an image")).not.toBeInTheDocument();
   });
 
@@ -4470,15 +4491,16 @@ describe("ExpertEditPanelView", () => {
 
   it("shows brush and lasso cursors only for active inpaint modes when selected layer has an image", async () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryStage = screen.getByLabelText("Primary edit stage");
 
-    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+    expect(primaryStage).toHaveStyle({ cursor: "" });
 
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
 
     uploadPrimaryFile(container, "reticle-target.png");
+    const primaryDropzone = await screen.findByLabelText("Primary edit image");
     const brushCursor = primaryDropzone.style.cursor;
     expect(brushCursor).toContain("data:image/svg+xml");
     expect(brushCursor).toContain("crosshair");
@@ -4740,26 +4762,26 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
     fireEvent.click(screen.getByRole("button", { name: /^lasso$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
-    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+    const primaryStage = screen.getByLabelText("Primary edit stage");
+    expect(primaryStage).toHaveStyle({ cursor: "" });
   });
 
   it("shows a toast when drawing is attempted without a selected layer image", () => {
     render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryStage = screen.getByLabelText("Primary edit stage");
 
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
 
-    fireEvent.pointerDown(primaryDropzone, {
+    fireEvent.pointerDown(primaryStage, {
       pointerId: 1,
       pointerType: "mouse",
       button: 0,
       clientX: 0,
       clientY: 0,
     });
-    expect(screen.getByText("Select a layer image before drawing.")).toBeInTheDocument();
+    expect(screen.queryByText("Select a layer image before drawing.")).not.toBeInTheDocument();
   });
 
   it("updates inpaint brush reticle size as stroke slider changes", async () => {
@@ -5351,7 +5373,7 @@ describe("ExpertEditPanelView", () => {
     const inputClickSpy = vi.spyOn(primaryInput, "click");
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    fireEvent.click(screen.getByLabelText("Primary edit image"));
+    fireEvent.click(screen.getByLabelText("Primary edit stage"));
 
     expect(inputClickSpy).not.toHaveBeenCalled();
   });
@@ -5361,7 +5383,7 @@ describe("ExpertEditPanelView", () => {
     const primaryInput = getPrimaryFileInput(container);
     const inputClickSpy = vi.spyOn(primaryInput, "click");
 
-    fireEvent.click(screen.getByLabelText("Primary edit image"));
+    fireEvent.click(screen.getByLabelText("Primary edit stage"));
 
     expect(inputClickSpy).not.toHaveBeenCalled();
   });
@@ -5370,20 +5392,20 @@ describe("ExpertEditPanelView", () => {
     const onPrimaryImageChange = vi.fn();
     render(<ExpertEditPanelView {...baseProps} onPrimaryImageChange={onPrimaryImageChange} />);
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryStage = screen.getByLabelText("Primary edit stage");
     const transfer = createImageDropTransfer("https://example.com/blank-stage-drop.png");
-    fireEvent.dragEnter(primaryDropzone, { dataTransfer: transfer });
-    fireEvent.dragOver(primaryDropzone, { dataTransfer: transfer });
-    fireEvent.drop(primaryDropzone, { dataTransfer: transfer });
+    fireEvent.dragEnter(primaryStage, { dataTransfer: transfer });
+    fireEvent.dragOver(primaryStage, { dataTransfer: transfer });
+    fireEvent.drop(primaryStage, { dataTransfer: transfer });
 
-    expect(primaryDropzone).not.toHaveClass("is-dragging");
+    expect(primaryStage).toHaveClass("is-empty-stage");
     expect(onPrimaryImageChange).not.toHaveBeenCalled();
   });
 
   it("does not open the custom stage actions menu from the blank primary stage", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
-    fireEvent.contextMenu(screen.getByLabelText("Primary edit image"));
+    fireEvent.contextMenu(screen.getByLabelText("Primary edit stage"));
 
     expect(screen.queryByRole("menu", { name: /stage actions/i })).not.toBeInTheDocument();
   });

@@ -1384,6 +1384,18 @@ export function ExpertEditPanelView({
     primaryStageStyle,
     primaryDropzoneCursor,
   ]);
+  const emptyPrimaryDropzoneStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      position: "absolute",
+      inset: 0,
+      border: "none",
+      background: "transparent",
+      boxShadow: "none",
+      pointerEvents: "none",
+      cursor: "default",
+    }),
+    []
+  );
   const noopStageWheel = React.useCallback(() => {}, []);
   const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
     const modalCursor =
@@ -4598,7 +4610,11 @@ export function ExpertEditPanelView({
           ) : null}
           <div
             ref={inlineStageWrapperRef}
-            className="edit-expert-column-wrapper edit-expert-column-wrapper--center"
+            className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell ${
+              !hasPrimaryCompositePreview ? "is-empty-stage" : ""
+            }`}
+            aria-label={!hasPrimaryCompositePreview ? "Primary edit stage" : undefined}
+            aria-busy={!hasPrimaryCompositePreview && isPrimaryStageBusy ? true : undefined}
             onPointerDownCapture={handleInlineStagePointerDownCapture}
             onPointerMoveCapture={handleInlineStagePointerMoveCapture}
             onPointerUpCapture={handleInlineStagePointerUpCapture}
@@ -4606,43 +4622,63 @@ export function ExpertEditPanelView({
           >
             <div
               ref={primaryDropzoneRef}
-              className={`edit-expert-primary-dropzone ${hasPrimaryCompositePreview ? "has-preview" : ""} ${
-                !hasPrimaryCompositePreview ? "is-empty" : ""
-              } ${
-                isMorePresetsSurfaceOpen ? "is-presets-open" : ""
-              } ${primaryDragActive ? "is-dragging" : ""} ${
-                shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""
-              }`}
-              style={primaryDropzoneStyle}
-              onDrop={handlePrimaryDrop}
-              onDragEnter={handlePrimaryDragEnter}
-              onDragOver={handlePrimaryDragOver}
-              onDragLeave={handlePrimaryDragLeave}
-              onPointerDown={inlineStageInteractionRouter.onPointerDown}
-              onPointerMove={inlineStageInteractionRouter.onPointerMove}
-              onPointerUp={inlineStageInteractionRouter.onPointerUp}
-              onPointerCancel={inlineStageInteractionRouter.onPointerCancel}
-              onPointerLeave={inlineStageInteractionRouter.onPointerLeave}
-              onMouseDown={handleMarkupStageMiddleClickSuppress}
-              onAuxClick={handleMarkupStageMiddleClickSuppress}
-              onContextMenu={handlePrimaryDropzoneContextMenu}
-              onClick={handlePrimaryDropzoneClick}
-              onDoubleClick={handlePrimaryDropzoneDoubleClick}
-              aria-label="Primary edit image"
-              aria-busy={isPrimaryStageBusy || undefined}
+              className={`edit-expert-primary-dropzone ${
+                hasPrimaryCompositePreview ? "has-preview" : "is-hidden-stage-surface"
+              } ${isMorePresetsSurfaceOpen ? "is-presets-open" : ""} ${
+                primaryDragActive ? "is-dragging" : ""
+              } ${shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""}`}
+              style={hasPrimaryCompositePreview ? primaryDropzoneStyle : emptyPrimaryDropzoneStyle}
+              onDrop={hasPrimaryCompositePreview ? handlePrimaryDrop : undefined}
+              onDragEnter={hasPrimaryCompositePreview ? handlePrimaryDragEnter : undefined}
+              onDragOver={hasPrimaryCompositePreview ? handlePrimaryDragOver : undefined}
+              onDragLeave={hasPrimaryCompositePreview ? handlePrimaryDragLeave : undefined}
+              onPointerDown={
+                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerDown : undefined
+              }
+              onPointerMove={
+                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerMove : undefined
+              }
+              onPointerUp={
+                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerUp : undefined
+              }
+              onPointerCancel={
+                hasPrimaryCompositePreview
+                  ? inlineStageInteractionRouter.onPointerCancel
+                  : undefined
+              }
+              onPointerLeave={
+                hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerLeave : undefined
+              }
+              onMouseDown={
+                hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
+              }
+              onAuxClick={
+                hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
+              }
+              onContextMenu={
+                hasPrimaryCompositePreview ? handlePrimaryDropzoneContextMenu : undefined
+              }
+              onClick={hasPrimaryCompositePreview ? handlePrimaryDropzoneClick : undefined}
+              onDoubleClick={
+                hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
+              }
+              aria-label={hasPrimaryCompositePreview ? "Primary edit image" : undefined}
+              aria-busy={hasPrimaryCompositePreview && isPrimaryStageBusy ? true : undefined}
+              aria-hidden={!hasPrimaryCompositePreview}
             >
-              {hasPrimaryCompositePreview ? (
-                renderPrimaryStageViewport({
-                  scope: "inline",
-                  viewportStyle: inlineMarkupViewportStyle,
-                  overlayCanvas: overlayCanvasRef,
-                  stageSize: inlineStageViewportSize,
-                  stageElement: primaryDropzoneRef.current,
-                })
-              ) : (
-                <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle} />
-              )}
+              {hasPrimaryCompositePreview
+                ? renderPrimaryStageViewport({
+                    scope: "inline",
+                    viewportStyle: inlineMarkupViewportStyle,
+                    overlayCanvas: overlayCanvasRef,
+                    stageSize: inlineStageViewportSize,
+                    stageElement: primaryDropzoneRef.current,
+                  })
+                : null}
             </div>
+            {!hasPrimaryCompositePreview ? (
+              <div className="edit-expert-markup-viewport" style={inlineMarkupViewportStyle} />
+            ) : null}
           </div>
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
             <div

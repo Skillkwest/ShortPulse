@@ -1490,6 +1490,15 @@
   gap: 8px;
 }
 
+.edit-expert-primary-stage-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.edit-expert-primary-stage-shell.is-empty-stage {
+  min-height: calc(var(--edit-expert-primary-size) + 24px);
+}
+
 .edit-expert-primary-dropzone {
   position: relative;
   border: 1px dashed var(--edit-expert-drop-border);
@@ -1508,10 +1517,12 @@
     background-color 0.15s ease;
 }
 
-.edit-expert-primary-dropzone.is-empty {
-  border-color: transparent;
+.edit-expert-primary-dropzone.is-hidden-stage-surface {
+  border: none;
   background: transparent;
+  box-shadow: none;
   cursor: default;
+  pointer-events: none;
 }
 
 .edit-expert-primary-dropzone.is-transform-overlay-active {
@@ -1520,10 +1531,6 @@
 
 .edit-expert-primary-dropzone:hover {
   border-color: rgba(201, 205, 214, 0.44);
-}
-
-.edit-expert-primary-dropzone.is-empty:hover {
-  border-color: transparent;
 }
 
 .edit-expert-primary-dropzone.is-dragging {

@@ -1499,11 +1499,33 @@
   min-height: calc(var(--edit-expert-primary-size) + 24px);
 }
 
-.edit-expert-primary-composition-surface {
+.edit-expert-primary-canvas-frame-stack {
   position: relative;
+  flex: 0 0 auto;
+}
+
+.edit-expert-primary-canvas-frame {
+  position: absolute;
+  inset: 0;
   border: 1px dashed var(--edit-expert-drop-border);
   border-radius: 0;
   background: var(--edit-expert-secondary-bg);
+  box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.08);
+  pointer-events: none;
+}
+
+.edit-expert-primary-canvas-frame-stack.has-preview .edit-expert-primary-canvas-frame {
+  border-color: rgba(201, 205, 214, 0.24);
+  background: rgba(148, 160, 161, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.12);
+}
+
+.edit-expert-primary-composition-surface {
+  position: absolute;
+  inset: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
   cursor: pointer;
   display: flex;
@@ -1518,9 +1540,7 @@
 }
 
 .edit-expert-primary-composition-surface.is-hidden-stage-surface {
-  border: none;
-  background: transparent;
-  box-shadow: none;
+  visibility: hidden;
   cursor: default;
   pointer-events: none;
 }
@@ -1539,7 +1559,6 @@
 }
 
 .edit-expert-primary-composition-surface.has-preview {
-  border: none;
   background-color: #94a0a108;
   box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.2);
   touch-action: none;

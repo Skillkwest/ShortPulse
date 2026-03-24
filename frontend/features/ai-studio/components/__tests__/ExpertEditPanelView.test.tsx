@@ -446,6 +446,16 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
   });
 
+  it("shows a visible primary canvas frame inside the blank stage", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    expect(screen.getByLabelText("Primary edit stage")).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="edit-expert-primary-canvas-frame-stack"]')
+    ).not.toBeNull();
+    expect(container.querySelector(".edit-expert-primary-canvas-frame")).not.toBeNull();
+  });
+
   it("renders two center-column wrappers and keeps prompt/selectors in the lower wrapper", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
     const primaryColumn = container.querySelector(".edit-expert-primary-column");
@@ -494,12 +504,17 @@ describe("ExpertEditPanelView", () => {
       />
     );
     const primaryDropzone = screen.getByLabelText("Primary composition surface") as HTMLDivElement;
+    const primaryCanvasFrameStack = container.querySelector(
+      '[data-testid="edit-expert-primary-canvas-frame-stack"]'
+    ) as HTMLDivElement;
     const mainStage = container.querySelector(".edit-expert-main-stage") as HTMLDivElement;
     expect(mainStage).not.toBeNull();
+    expect(primaryCanvasFrameStack).not.toBeNull();
 
-    expect(primaryDropzone.style.aspectRatio).toBe("1 / 1");
-    expect(primaryDropzone.style.width).toContain("* 1");
-    expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
+    expect(primaryDropzone.style.aspectRatio).toBe("");
+    expect(primaryCanvasFrameStack.style.aspectRatio).toBe("1 / 1");
+    expect(primaryCanvasFrameStack.style.width).toContain("* 1");
+    expect(primaryCanvasFrameStack.style.height).toBe("var(--edit-expert-primary-size)");
 
     rerender(
       <ExpertEditPanelView
@@ -509,9 +524,9 @@ describe("ExpertEditPanelView", () => {
         referenceText="prompt text"
       />
     );
-    expect(primaryDropzone.style.aspectRatio).toBe("16 / 9");
-    expect(primaryDropzone.style.width).toContain("* 1.777777");
-    expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
+    expect(primaryCanvasFrameStack.style.aspectRatio).toBe("16 / 9");
+    expect(primaryCanvasFrameStack.style.width).toContain("* 1.777777");
+    expect(primaryCanvasFrameStack.style.height).toBe("var(--edit-expert-primary-size)");
 
     rerender(
       <ExpertEditPanelView
@@ -521,9 +536,9 @@ describe("ExpertEditPanelView", () => {
         referenceText="prompt text"
       />
     );
-    expect(primaryDropzone.style.aspectRatio).toBe("9 / 16");
-    expect(primaryDropzone.style.width).toContain("* 0.5625");
-    expect(primaryDropzone.style.height).toBe("var(--edit-expert-primary-size)");
+    expect(primaryCanvasFrameStack.style.aspectRatio).toBe("9 / 16");
+    expect(primaryCanvasFrameStack.style.width).toContain("* 0.5625");
+    expect(primaryCanvasFrameStack.style.height).toBe("var(--edit-expert-primary-size)");
   });
 
   it("toggles styles panel via callback and reflects aria-expanded state", () => {

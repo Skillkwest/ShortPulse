@@ -371,6 +371,25 @@ function PrimaryStageViewportLayer({ children, style }: PrimaryStageViewportLaye
   );
 }
 
+type PrimaryCanvasFrameStackProps = {
+  children: React.ReactNode;
+  isPopulated: boolean;
+  style: React.CSSProperties;
+};
+
+function PrimaryCanvasFrameStack({ children, isPopulated, style }: PrimaryCanvasFrameStackProps) {
+  return (
+    <div
+      className={`edit-expert-primary-canvas-frame-stack ${isPopulated ? "has-preview" : "is-empty"}`}
+      style={style}
+      data-testid="edit-expert-primary-canvas-frame-stack"
+    >
+      <div className="edit-expert-primary-canvas-frame" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
 export function ExpertEditPanelView({
   aspect,
   modelId,
@@ -1468,6 +1487,13 @@ export function ExpertEditPanelView({
     }),
     [primaryStageWidthScale]
   );
+  const primaryCanvasFrameBoundsStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...primaryStageStyle,
+      aspectRatio: primaryCompositionSurfaceAspectRatio,
+    }),
+    [primaryCompositionSurfaceAspectRatio, primaryStageStyle]
+  );
   const markupViewportCursor = React.useMemo(() => {
     if (isMarkupPanDragging) return "grabbing";
     if (isMarkupPanSpacePressed) return "grab";
@@ -1501,10 +1527,7 @@ export function ExpertEditPanelView({
   }, [markupModalViewportSize, markupViewport]);
 
   const primaryCompositionSurfaceStyle = React.useMemo(() => {
-    const style: React.CSSProperties = {
-      ...primaryStageStyle,
-      aspectRatio: primaryCompositionSurfaceAspectRatio,
-    };
+    const style: React.CSSProperties = {};
     if (!isMorePresetsSurfaceOpen) {
       if (markupViewportCursor) {
         style.cursor = markupViewportCursor;
@@ -1513,21 +1536,9 @@ export function ExpertEditPanelView({
       }
     }
     return style;
-  }, [
-    isMorePresetsSurfaceOpen,
-    markupViewportCursor,
-    primaryCompositionSurfaceAspectRatio,
-    primaryStageStyle,
-    primaryCompositionSurfaceCursor,
-  ]);
+  }, [isMorePresetsSurfaceOpen, markupViewportCursor, primaryCompositionSurfaceCursor]);
   const emptyPrimaryCompositionSurfaceStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      position: "absolute",
-      inset: 0,
-      border: "none",
-      background: "transparent",
-      boxShadow: "none",
-      pointerEvents: "none",
       cursor: "default",
     }),
     []
@@ -4753,68 +4764,75 @@ export function ExpertEditPanelView({
             onPointerCancelCapture={handleInlineStagePointerCancelCapture}
           >
             <PrimaryStageViewportLayer style={inlineMarkupViewportStyle}>
-              <PrimaryCompositionSurface
-                surfaceRef={primaryCompositionSurfaceRef}
-                isVisible={hasPrimaryCompositePreview}
-                isBusy={isPrimaryStageBusy}
-                isDragActive={primaryDragActive}
-                isPresetsOpen={isMorePresetsSurfaceOpen}
-                isTransformOverlayActive={shouldShowSelectedLayerTransformOverlay}
-                style={
-                  hasPrimaryCompositePreview
-                    ? primaryCompositionSurfaceStyle
-                    : emptyPrimaryCompositionSurfaceStyle
-                }
-                onDrop={hasPrimaryCompositePreview ? handlePrimaryDrop : undefined}
-                onDragEnter={hasPrimaryCompositePreview ? handlePrimaryDragEnter : undefined}
-                onDragOver={hasPrimaryCompositePreview ? handlePrimaryDragOver : undefined}
-                onDragLeave={hasPrimaryCompositePreview ? handlePrimaryDragLeave : undefined}
-                onPointerDown={
-                  hasPrimaryCompositePreview
-                    ? inlineStageInteractionRouter.onPointerDown
-                    : undefined
-                }
-                onPointerMove={
-                  hasPrimaryCompositePreview
-                    ? inlineStageInteractionRouter.onPointerMove
-                    : undefined
-                }
-                onPointerUp={
-                  hasPrimaryCompositePreview ? inlineStageInteractionRouter.onPointerUp : undefined
-                }
-                onPointerCancel={
-                  hasPrimaryCompositePreview
-                    ? inlineStageInteractionRouter.onPointerCancel
-                    : undefined
-                }
-                onPointerLeave={
-                  hasPrimaryCompositePreview
-                    ? inlineStageInteractionRouter.onPointerLeave
-                    : undefined
-                }
-                onMouseDown={
-                  hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
-                }
-                onAuxClick={
-                  hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
-                }
-                onContextMenu={
-                  hasPrimaryCompositePreview ? handlePrimaryDropzoneContextMenu : undefined
-                }
-                onClick={hasPrimaryCompositePreview ? handlePrimaryDropzoneClick : undefined}
-                onDoubleClick={
-                  hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
-                }
+              <PrimaryCanvasFrameStack
+                isPopulated={hasPrimaryCompositePreview}
+                style={primaryCanvasFrameBoundsStyle}
               >
-                {hasPrimaryCompositePreview
-                  ? renderPrimaryStageSceneContent({
-                      scope: "inline",
-                      overlayCanvas: overlayCanvasRef,
-                      stageSize: inlineStageViewportSize,
-                      stageElement: primaryCompositionSurfaceRef.current,
-                    })
-                  : null}
-              </PrimaryCompositionSurface>
+                <PrimaryCompositionSurface
+                  surfaceRef={primaryCompositionSurfaceRef}
+                  isVisible={hasPrimaryCompositePreview}
+                  isBusy={isPrimaryStageBusy}
+                  isDragActive={primaryDragActive}
+                  isPresetsOpen={isMorePresetsSurfaceOpen}
+                  isTransformOverlayActive={shouldShowSelectedLayerTransformOverlay}
+                  style={
+                    hasPrimaryCompositePreview
+                      ? primaryCompositionSurfaceStyle
+                      : emptyPrimaryCompositionSurfaceStyle
+                  }
+                  onDrop={hasPrimaryCompositePreview ? handlePrimaryDrop : undefined}
+                  onDragEnter={hasPrimaryCompositePreview ? handlePrimaryDragEnter : undefined}
+                  onDragOver={hasPrimaryCompositePreview ? handlePrimaryDragOver : undefined}
+                  onDragLeave={hasPrimaryCompositePreview ? handlePrimaryDragLeave : undefined}
+                  onPointerDown={
+                    hasPrimaryCompositePreview
+                      ? inlineStageInteractionRouter.onPointerDown
+                      : undefined
+                  }
+                  onPointerMove={
+                    hasPrimaryCompositePreview
+                      ? inlineStageInteractionRouter.onPointerMove
+                      : undefined
+                  }
+                  onPointerUp={
+                    hasPrimaryCompositePreview
+                      ? inlineStageInteractionRouter.onPointerUp
+                      : undefined
+                  }
+                  onPointerCancel={
+                    hasPrimaryCompositePreview
+                      ? inlineStageInteractionRouter.onPointerCancel
+                      : undefined
+                  }
+                  onPointerLeave={
+                    hasPrimaryCompositePreview
+                      ? inlineStageInteractionRouter.onPointerLeave
+                      : undefined
+                  }
+                  onMouseDown={
+                    hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
+                  }
+                  onAuxClick={
+                    hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
+                  }
+                  onContextMenu={
+                    hasPrimaryCompositePreview ? handlePrimaryDropzoneContextMenu : undefined
+                  }
+                  onClick={hasPrimaryCompositePreview ? handlePrimaryDropzoneClick : undefined}
+                  onDoubleClick={
+                    hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
+                  }
+                >
+                  {hasPrimaryCompositePreview
+                    ? renderPrimaryStageSceneContent({
+                        scope: "inline",
+                        overlayCanvas: overlayCanvasRef,
+                        stageSize: inlineStageViewportSize,
+                        stageElement: primaryCompositionSurfaceRef.current,
+                      })
+                    : null}
+                </PrimaryCompositionSurface>
+              </PrimaryCanvasFrameStack>
             </PrimaryStageViewportLayer>
           </PrimaryStageShell>
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">

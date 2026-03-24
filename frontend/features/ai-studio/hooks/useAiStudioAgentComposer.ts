@@ -49,6 +49,13 @@ const normalizeDroppedImageCandidate = (value: string | null | undefined) => {
   return normalized;
 };
 
+const mergeDroppedPromptIntoInput = (currentInput: string, droppedPrompt: string) => {
+  if (!currentInput.trim().length) return droppedPrompt;
+  return currentInput.endsWith("\n")
+    ? `${currentInput}${droppedPrompt}`
+    : `${currentInput}\n${droppedPrompt}`;
+};
+
 type UseAiStudioAgentComposerParams = {
   agentSessionEnabled: boolean;
   ensureAgentSession: () => void;
@@ -227,13 +234,7 @@ export const useAiStudioAgentComposer = ({
       }
 
       if (normalizedPromptText) {
-        insertAttachment({
-          id: randomId(),
-          kind: "prompt",
-          referenceId: droppedReferenceId,
-          text: normalizedPromptText,
-          aspect: matchedOutput?.aspect ?? null,
-        });
+        setAgentInput((current) => mergeDroppedPromptIntoInput(current, normalizedPromptText));
       }
     },
     [

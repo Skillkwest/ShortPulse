@@ -217,6 +217,31 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
+  it("inserts dropped prompt text into the composer input instead of creating a prompt attachment", () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "A cinematic portrait at golden hour",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentInput).toBe("A cinematic portrait at golden hour");
+    expect(result.current.agentAttachments).toEqual([]);
+  });
+
   it("preserves input text when composer reset requests preserveInput", () => {
     const { result } = renderHook(() =>
       useAiStudioAgentComposer({

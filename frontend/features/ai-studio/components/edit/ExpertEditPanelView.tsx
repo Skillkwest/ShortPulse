@@ -2574,7 +2574,6 @@ export function ExpertEditPanelView({
     markupColor,
     markupViewport,
     shouldApplyMarkupViewport: true,
-    resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
     markupStrokeIdCounterRef,
     markupDrawPointerSessionRef,
     setMarkupStrokes,

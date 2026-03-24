@@ -1499,7 +1499,7 @@
   min-height: calc(var(--edit-expert-primary-size) + 24px);
 }
 
-.edit-expert-primary-dropzone {
+.edit-expert-primary-composition-surface {
   position: relative;
   border: 1px dashed var(--edit-expert-drop-border);
   border-radius: 0;
@@ -1517,7 +1517,7 @@
     background-color 0.15s ease;
 }
 
-.edit-expert-primary-dropzone.is-hidden-stage-surface {
+.edit-expert-primary-composition-surface.is-hidden-stage-surface {
   border: none;
   background: transparent;
   box-shadow: none;
@@ -1525,27 +1525,27 @@
   pointer-events: none;
 }
 
-.edit-expert-primary-dropzone.is-transform-overlay-active {
+.edit-expert-primary-composition-surface.is-transform-overlay-active {
   overflow: visible;
 }
 
-.edit-expert-primary-dropzone:hover {
+.edit-expert-primary-composition-surface:hover {
   border-color: rgba(201, 205, 214, 0.44);
 }
 
-.edit-expert-primary-dropzone.is-dragging {
+.edit-expert-primary-composition-surface.is-dragging {
   border-color: var(--edit-expert-accent-strong);
   background-color: var(--edit-expert-drop-hover);
 }
 
-.edit-expert-primary-dropzone.has-preview {
+.edit-expert-primary-composition-surface.has-preview {
   border: none;
   background-color: #94a0a108;
   box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.2);
   touch-action: none;
 }
 
-.edit-expert-primary-dropzone.is-presets-open {
+.edit-expert-primary-composition-surface.is-presets-open {
   border: none;
   box-shadow: none;
 }

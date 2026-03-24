@@ -4622,7 +4622,7 @@ export function ExpertEditPanelView({
           >
             <div
               ref={primaryDropzoneRef}
-              className={`edit-expert-primary-dropzone ${
+              className={`edit-expert-primary-composition-surface ${
                 hasPrimaryCompositePreview ? "has-preview" : "is-hidden-stage-surface"
               } ${isMorePresetsSurfaceOpen ? "is-presets-open" : ""} ${
                 primaryDragActive ? "is-dragging" : ""
@@ -4662,7 +4662,7 @@ export function ExpertEditPanelView({
               onDoubleClick={
                 hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
               }
-              aria-label={hasPrimaryCompositePreview ? "Primary edit image" : undefined}
+              aria-label={hasPrimaryCompositePreview ? "Primary composition surface" : undefined}
               aria-busy={hasPrimaryCompositePreview && isPrimaryStageBusy ? true : undefined}
               aria-hidden={!hasPrimaryCompositePreview}
             >

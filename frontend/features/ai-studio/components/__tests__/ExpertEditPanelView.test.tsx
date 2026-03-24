@@ -493,7 +493,7 @@ describe("ExpertEditPanelView", () => {
         referenceText="prompt text"
       />
     );
-    const primaryDropzone = screen.getByLabelText("Primary edit image") as HTMLDivElement;
+    const primaryDropzone = screen.getByLabelText("Primary composition surface") as HTMLDivElement;
     const mainStage = container.querySelector(".edit-expert-main-stage") as HTMLDivElement;
     expect(mainStage).not.toBeNull();
 
@@ -1639,7 +1639,7 @@ describe("ExpertEditPanelView", () => {
       render(
         <ExpertEditPanelView {...baseProps} sessionState={createSessionStateWithMarkupStroke()} />
       );
-      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
       expect(
         primaryDropzone.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
       ).toHaveLength(1);
@@ -2067,7 +2067,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -2110,7 +2110,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -2172,7 +2172,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -2238,7 +2238,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(within(markupPanel).getByRole("button", { name: /markup color/i }));
     fireEvent.click(screen.getByRole("button", { name: /select #22d3ee color/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -2285,7 +2285,7 @@ describe("ExpertEditPanelView", () => {
     const strokeSlider = within(markupPanel).getByRole("slider", {
       name: /stroke size/i,
     }) as HTMLInputElement;
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
     act(() => {
       window.dispatchEvent(new Event("resize"));
@@ -2359,7 +2359,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const stage16x9 = {
       width: 320,
       height: 180,
@@ -2621,7 +2621,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
     act(() => {
       window.dispatchEvent(new Event("resize"));
@@ -2771,7 +2771,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
     const markupPanel = screen.getByRole("group", { name: /markup tools/i });
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -2836,7 +2836,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
     const markupPanel = screen.getByRole("group", { name: /markup tools/i });
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -2918,7 +2918,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -3036,7 +3036,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const inlineRect = createSquareRect(320);
     mockElementRect(primaryDropzone, inlineRect);
 
@@ -3085,7 +3085,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     const beforePan = readMarkupViewportTransform();
@@ -3133,7 +3133,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const inlineRect = {
       left: 0,
       top: 0,
@@ -3209,7 +3209,7 @@ describe("ExpertEditPanelView", () => {
     expect(modalAfterZoomOut).not.toBeNull();
     expect(modalAfterZoomOut?.scale ?? 0).toBeLessThan(modalViewport?.scale ?? 0);
 
-    const modalPrimaryDropzone = screen.getByLabelText("Primary edit image");
+    const modalPrimaryDropzone = screen.getByLabelText("Primary composition surface");
     fireEvent.contextMenu(modalPrimaryDropzone, { clientX: 300, clientY: 300 });
     const stageMenu = screen.getByRole("menu", { name: /stage actions/i });
     fireEvent.click(within(stageMenu).getByRole("menuitem", { name: /^recenter$/i }));
@@ -3588,7 +3588,7 @@ describe("ExpertEditPanelView", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     fireEvent.contextMenu(primaryDropzone, { clientX: 140, clientY: 120 });
 
     const stageMenu = screen.getByRole("menu", { name: /stage actions/i });
@@ -3663,7 +3663,7 @@ describe("ExpertEditPanelView", () => {
       fireEvent.change(zoomSlider, { target: { value: "100" } });
       expect(readMarkupViewportTransform()?.scale ?? 0).toBeGreaterThan(1);
 
-      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
       const rect = {
         left: 0,
         top: 0,
@@ -3769,7 +3769,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -3826,7 +3826,9 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    expect(screen.getByLabelText("Primary edit image")).toHaveClass("is-transform-overlay-active");
+    expect(screen.getByLabelText("Primary composition surface")).toHaveClass(
+      "is-transform-overlay-active"
+    );
     expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
     (["nw", "ne", "se", "sw"] as const).forEach((corner) => {
       expect(screen.getByTestId(`edit-expert-transform-handle-inline-${corner}`)).toHaveAttribute(
@@ -3900,7 +3902,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -3958,7 +3960,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4027,7 +4029,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4105,7 +4107,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4187,7 +4189,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4245,7 +4247,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4305,7 +4307,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(200));
 
     const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
@@ -4364,7 +4366,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4428,7 +4430,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4500,7 +4502,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
 
     uploadPrimaryFile(container, "reticle-target.png");
-    const primaryDropzone = await screen.findByLabelText("Primary edit image");
+    const primaryDropzone = await screen.findByLabelText("Primary composition surface");
     const brushCursor = primaryDropzone.style.cursor;
     expect(brushCursor).toContain("data:image/svg+xml");
     expect(brushCursor).toContain("crosshair");
@@ -4532,7 +4534,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
     expect(primaryDropzone.style.cursor).toContain("crosshair");
 
@@ -4555,7 +4557,7 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -4734,7 +4736,7 @@ describe("ExpertEditPanelView", () => {
         referenceImageUrl="https://example.com/reticle-source.png"
       />
     );
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
 
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
     const rail = screen.getByLabelText("Inpaint action tools");
@@ -4795,7 +4797,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const initialCursor = primaryDropzone.style.cursor;
     expect(initialCursor).toContain("data:image/svg+xml");
 
@@ -4843,7 +4845,7 @@ describe("ExpertEditPanelView", () => {
       fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
-      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
       fireEvent.pointerDown(primaryDropzone, {
         pointerId: 1,
         pointerType: "mouse",
@@ -5351,7 +5353,7 @@ describe("ExpertEditPanelView", () => {
         />
       );
       fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
       fireEvent.pointerDown(primaryDropzone, {
         pointerId: 1,
         pointerType: "mouse",
@@ -5420,7 +5422,7 @@ describe("ExpertEditPanelView", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const transfer = createImageDropTransfer("https://example.com/new-drop-image.png");
     fireEvent.dragEnter(primaryDropzone, { dataTransfer: transfer });
     fireEvent.dragOver(primaryDropzone, { dataTransfer: transfer });
@@ -5457,7 +5459,7 @@ describe("ExpertEditPanelView", () => {
         />
       );
 
-      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
       const transfer = createReferenceImageDropTransfer({
         url: "blob:reference-grid-source",
         referenceId: "out-1",
@@ -5894,7 +5896,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -6034,7 +6036,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.change(zoomSlider, { target: { value: "100" } });
 
     fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     mockElementRect(primaryDropzone, createSquareRect(200));
     fireEvent.keyDown(window, { code: "Space" });
     fireEvent.pointerDown(primaryDropzone, {
@@ -6422,7 +6424,10 @@ describe("ExpertEditPanelView", () => {
 
     expect(screen.getByTestId("edit-expert-remove-background-loading-overlay")).toBeInTheDocument();
     expect(screen.getByText("Removing background...")).toBeInTheDocument();
-    expect(screen.getByLabelText("Primary edit image")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByLabelText("Primary composition surface")).toHaveAttribute(
+      "aria-busy",
+      "true"
+    );
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeDisabled();
 
     rerender(
@@ -6439,7 +6444,7 @@ describe("ExpertEditPanelView", () => {
 
     expect(screen.queryByTestId("edit-expert-remove-background-loading-overlay")).toBeNull();
     expect(screen.queryByText("Removing background...")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Primary edit image")).not.toHaveAttribute("aria-busy");
+    expect(screen.getByLabelText("Primary composition surface")).not.toHaveAttribute("aria-busy");
 
     releasePendingSubmit();
     await act(async () => {
@@ -6458,7 +6463,10 @@ describe("ExpertEditPanelView", () => {
 
     expect(screen.getByTestId("edit-expert-inline-generate-loading-overlay")).toBeInTheDocument();
     expect(screen.getByText("Generating...")).toBeInTheDocument();
-    expect(screen.getByLabelText("Primary edit image")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByLabelText("Primary composition surface")).toHaveAttribute(
+      "aria-busy",
+      "true"
+    );
   });
 
   it("keeps the moved layer position after remove background completes", async () => {
@@ -6485,7 +6493,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary edit image");
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
     const rect = {
       left: 0,
       top: 0,
@@ -6778,7 +6786,7 @@ describe("ExpertEditPanelView", () => {
       });
 
       fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
-      const primaryDropzone = screen.getByLabelText("Primary edit image");
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
       mockElementRect(primaryDropzone, createSquareRect(200));
       fireEvent.keyDown(window, { code: "Space" });
       fireEvent.pointerDown(primaryDropzone, {

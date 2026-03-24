@@ -108,7 +108,7 @@ async function ensureExpertEditMarkupStage(page) {
   await rail.waitFor({ timeout: 20_000 });
   await rail.getByRole("button", { name: /^markup$/i }).click();
 
-  const primaryDropzone = page.getByLabel("Primary edit image").first();
+  const primaryDropzone = page.getByLabel("Primary composition surface").first();
   await primaryDropzone.waitFor({ timeout: 20_000 });
 
   const fileInput = page.locator('input[type="file"][accept="image/*"]').first();
@@ -133,7 +133,7 @@ async function readViewportState(page) {
   return page.evaluate(() => {
     const doc = globalThis.document;
     const HTMLElementCtor = globalThis.HTMLElement;
-    const stage = doc.querySelector('[aria-label="Primary edit image"]');
+    const stage = doc.querySelector('[aria-label="Primary composition surface"]');
     if (!(stage instanceof HTMLElementCtor)) {
       return null;
     }
@@ -251,7 +251,7 @@ async function drawAndMeasurePointerToStroke(page, stageBox) {
     const doc = globalThis.document;
     const HTMLElementCtor = globalThis.HTMLElement;
     const SVGPolylineCtor = globalThis.SVGPolylineElement;
-    const stage = doc.querySelector('[aria-label="Primary edit image"]');
+    const stage = doc.querySelector('[aria-label="Primary composition surface"]');
     if (!(stage instanceof HTMLElementCtor)) return { ok: false, reason: "missing_stage" };
     const stageRect = stage.getBoundingClientRect();
 

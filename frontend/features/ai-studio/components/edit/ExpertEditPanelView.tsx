@@ -238,6 +238,22 @@ import {
   type ExpertEditSessionState,
 } from "./expertEditSessionState";
 
+const EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX = 860;
+const EDIT_EXPERT_PRIMARY_SIZE_MIN_PX = 520;
+const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 660;
+const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.45;
+
+const resolvePrimaryCanvasNominalHeightPx = () => {
+  if (typeof window === "undefined" || !Number.isFinite(window.innerWidth)) {
+    return EDIT_EXPERT_PRIMARY_SIZE_MIN_PX;
+  }
+  return clampNumber(
+    window.innerWidth * EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR,
+    EDIT_EXPERT_PRIMARY_SIZE_MIN_PX,
+    EDIT_EXPERT_PRIMARY_SIZE_MAX_PX
+  );
+};
+
 type PrimaryStageShellProps = {
   children: React.ReactNode;
   isEmpty: boolean;
@@ -1464,10 +1480,6 @@ export function ExpertEditPanelView({
     shouldShowInpaintLassoCursor,
     shouldShowMarkupBrushReticle,
   ]);
-  const primaryStageWidthScale = React.useMemo(
-    () => Math.max(primaryCompositionSurfaceAspectRatioValue, 0.0001),
-    [primaryCompositionSurfaceAspectRatioValue]
-  );
   const transformConstraintViewportSize = React.useMemo<StageViewportSize>(() => {
     if (primaryCompositionSurfaceAspectRatioValue >= 1) {
       return {
@@ -1480,20 +1492,29 @@ export function ExpertEditPanelView({
       height: 1 / Math.max(primaryCompositionSurfaceAspectRatioValue, 0.0001),
     };
   }, [primaryCompositionSurfaceAspectRatioValue]);
-  const primaryStageStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      width: `max(0px, min(100%, calc(var(--edit-expert-primary-size) * ${primaryStageWidthScale})))`,
-      height: "var(--edit-expert-primary-size)",
-    }),
-    [primaryStageWidthScale]
-  );
-  const primaryCanvasFrameBoundsStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      ...primaryStageStyle,
+  const primaryCanvasFrameBoundsStyle = React.useMemo<React.CSSProperties>(() => {
+    const nominalHeight = resolvePrimaryCanvasNominalHeightPx();
+    const availableWidth = isResolvedStageViewportSize(inlineStageViewportSize)
+      ? inlineStageViewportSize.width
+      : EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX;
+    const availableHeight = isResolvedStageViewportSize(inlineStageViewportSize)
+      ? Math.min(inlineStageViewportSize.height, nominalHeight)
+      : nominalHeight;
+    const containedFrameRect = resolveContainedLayerRect({
+      imageAspectRatio: primaryCompositionSurfaceAspectRatioValue,
+      viewportWidth: availableWidth,
+      viewportHeight: availableHeight,
+    });
+    return {
+      width: `${Math.round(containedFrameRect.width * 100) / 100}px`,
+      height: `${Math.round(containedFrameRect.height * 100) / 100}px`,
       aspectRatio: primaryCompositionSurfaceAspectRatio,
-    }),
-    [primaryCompositionSurfaceAspectRatio, primaryStageStyle]
-  );
+    };
+  }, [
+    inlineStageViewportSize,
+    primaryCompositionSurfaceAspectRatio,
+    primaryCompositionSurfaceAspectRatioValue,
+  ]);
   const markupViewportCursor = React.useMemo(() => {
     if (isMarkupPanDragging) return "grabbing";
     if (isMarkupPanSpacePressed) return "grab";

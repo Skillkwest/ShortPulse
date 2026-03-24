@@ -1499,6 +1499,7 @@
   position: relative;
   flex: 0 0 auto;
   pointer-events: auto;
+  overflow: visible;
 }
 
 .edit-expert-primary-canvas-frame {
@@ -1587,6 +1588,7 @@
   position: absolute;
   z-index: 1002;
   pointer-events: none;
+  overflow: visible;
 }
 
 .edit-expert-primary-layer-selection-box {
@@ -1595,6 +1597,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  overflow: visible;
 }
 
 .edit-expert-primary-layer-selection-outline {

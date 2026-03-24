@@ -3858,10 +3858,13 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    expect(screen.getByLabelText("Primary composition surface")).not.toHaveClass(
-      "is-transform-overlay-active"
-    );
-    expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
+    const compositionSurface = screen.getByLabelText("Primary composition surface");
+    const transformOverlay = screen.getByTestId("edit-expert-transform-overlay-inline");
+
+    expect(compositionSurface).not.toHaveClass("is-transform-overlay-active");
+    expect(transformOverlay).toBeInTheDocument();
+    expect(transformOverlay.parentElement).toBe(compositionSurface.parentElement);
+    expect(transformOverlay.parentElement).not.toBe(compositionSurface);
     (["nw", "ne", "se", "sw"] as const).forEach((corner) => {
       expect(screen.getByTestId(`edit-expert-transform-handle-inline-${corner}`)).toHaveAttribute(
         "data-edit-expert-transform-drag-mode",

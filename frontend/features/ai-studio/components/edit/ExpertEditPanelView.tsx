@@ -244,9 +244,9 @@ import {
 } from "./expertEditSessionState";
 
 const EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX = 860;
-const EDIT_EXPERT_PRIMARY_SIZE_MIN_PX = 520;
-const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 660;
-const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.45;
+const EDIT_EXPERT_PRIMARY_SIZE_MIN_PX = 420;
+const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 540;
+const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.355;
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = false;
 
 const resolvePrimaryCanvasNominalHeightPx = () => {
@@ -264,7 +264,7 @@ type PrimaryStageShellProps = {
   children: React.ReactNode;
   isEmpty: boolean;
   isBusy: boolean;
-  stageRef: React.RefObject<HTMLDivElement | null>;
+  stageRef: React.Ref<HTMLDivElement>;
   onPointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
   onPointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
   onPointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
@@ -287,7 +287,7 @@ function PrimaryStageShell({
       className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell ${
         isEmpty ? "is-empty-stage" : ""
       }`}
-      style={{ minHeight: "calc(var(--edit-expert-primary-size) + 96px)" }}
+      style={{ minHeight: "calc(var(--edit-expert-primary-size) + 72px)" }}
       aria-label={isEmpty ? "Primary edit stage" : undefined}
       aria-busy={isEmpty && isBusy ? true : undefined}
       onPointerDownCapture={onPointerDownCapture}
@@ -306,7 +306,7 @@ type PrimaryCompositionSurfaceProps = {
   isBusy: boolean;
   isDragActive: boolean;
   isPresetsOpen: boolean;
-  surfaceRef: React.RefObject<HTMLDivElement | null>;
+  surfaceRef: React.Ref<HTMLDivElement>;
   style: React.CSSProperties;
   onDrop?: React.DragEventHandler<HTMLDivElement>;
   onDragEnter?: React.DragEventHandler<HTMLDivElement>;
@@ -394,7 +394,7 @@ type PrimaryCanvasFrameStackProps = {
   children: React.ReactNode;
   isPopulated: boolean;
   isDragActive: boolean;
-  frameStackRef?: React.RefObject<HTMLDivElement | null>;
+  frameStackRef?: React.Ref<HTMLDivElement>;
   style: React.CSSProperties;
   onDrop?: React.DragEventHandler<HTMLDivElement>;
   onDragEnter?: React.DragEventHandler<HTMLDivElement>;
@@ -427,6 +427,11 @@ function PrimaryCanvasFrameStack({
       onDragLeave={onDragLeave}
     >
       <div className="edit-expert-primary-canvas-frame" aria-hidden="true" />
+      {!isPopulated ? (
+        <p className="edit-expert-primary-empty-helper" aria-hidden="true">
+          Drag &amp; drop an image from the Reference Grid
+        </p>
+      ) : null}
       {children}
     </div>
   );

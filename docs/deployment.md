@@ -16,6 +16,8 @@ Use these names as the only canonical GitHub Environment identifiers in active r
 Notes:
 - Vercel scope labels such as `Production` and `Preview` are platform labels, not GitHub Environment names.
 - Active docs should not introduce alternate GitHub Environment names such as `Production – short-pulse` or `Production – shortpulse`.
+- Current active deploy posture in this repo: `preview` is the only authoritative deployed runtime and is treated as staging.
+- `production` remains reserved for future cutover and should not be treated as an active source of truth until production credentials and release posture are explicitly introduced.
 - Current protection posture is still open:
   - `staging`: no required reviewers, no deployment branch policy
   - `production`: no required reviewers, no deployment branch policy
@@ -38,6 +40,15 @@ Notes:
 6. Confirm deployment/release notes still distinguish current environment protection state from planned production-readiness protection state.
 
 ## Environment variables
+
+Vercel project settings are the canonical source of truth for deployed environments.
+
+Rules:
+- Use Vercel envs for deployed `development`, `preview`, and `production` behavior.
+- Use `vercel env pull frontend/.env.local --environment development` to materialize local runtime values after the repo is linked.
+- Do not treat `frontend/.env.local`, `.env.agent.local`, `/tmp` exports, or ad-hoc text snapshots as authoritative for deployed values.
+- Keep tooling-only keys out of Vercel project envs. This includes staging probe helpers and Vercel operator tokens such as `SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`, `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`, `VERCEL_API_TOKEN`, and `VERCEL_AUTOMATION_BYPASS_TOKEN`.
+- Environment-specific deploy keys such as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_BASE_URL`, and `SHORTPULSE_PUBLIC_API_BASE_URL` must not be stored as one shared Vercel record spanning `development`, `preview`, and `production`.
 
 Set these in Vercel project settings (`Production` + `Preview` as applicable):
 
@@ -152,12 +163,44 @@ Before deploying from a staged env export file, validate required keys:
 ```bash
 node scripts/check_vercel_env_file.mjs \
   --file /tmp/vercel_staging_env_YYYYMMDD_HHMMSS.txt \
-  --profile phase04
+  --profile phase04 \
+  --environment preview
 ```
 
 Notes:
 - `core` profile validates baseline deploy keys.
 - `phase04` adds queue/reconciler/read-only rollout keys used by current program phase.
+
+### Live Vercel env contract parity (required)
+
+Before deploy, alias cutover, or scheduler URL updates, validate live Vercel env state against the shared contract for the active deployed environment:
+
+```bash
+node scripts/check_vercel_env_contract.mjs
+```
+
+Current default behavior:
+- audits `preview` only, because staging is the only active deployed environment in this repo today.
+- keeps `production` checks available for future cutover work.
+
+Optional production-inclusive audit:
+
+```bash
+node scripts/check_vercel_env_contract.mjs --environment preview --environment production
+```
+
+Optional branch-specific preview audit:
+
+```bash
+node scripts/check_vercel_env_contract.mjs --environment preview --git-branch <branch-name>
+```
+
+Behavior:
+- Hard-fails when required deploy keys are missing in the audited environment(s).
+- Hard-fails when local/tooling-only keys are stored in Vercel project envs.
+- Hard-fails when environment-specific deploy keys are shared across `development`, `preview`, and `production`.
+- When both `preview` and `production` are audited, hard-fails when they resolve the same values for the Supabase/base-URL keys that must remain environment-specific.
+- Hard-fails when mirrored client/server rollout flags diverge.
 
 ### Deployment route parity gate (required)
 

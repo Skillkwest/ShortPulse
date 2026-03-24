@@ -37,6 +37,9 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 
 ## Deployment target parity (required before scheduler/ops cutover)
 
+- `node scripts/check_vercel_env_contract.mjs`
+- Verify command output reports `PASS` for `preview` before deploy, alias cutover, or scheduler URL updates.
+- When production cutover work begins, switch to `node scripts/check_vercel_env_contract.mjs --environment preview --environment production` and require `PASS` for both.
 - `node scripts/verify_deployment_route_parity.mjs --base-url https://<target-alias-or-url> --token <SHORTPULSE_VERCEL_API_TOKEN>`
 - Verify command output reports `PASS` and includes resolved deployment URL + creation timestamp.
 - Run against each target environment URL (`staging` and `production`) before updating cron/scheduler endpoints or running drain/recovery operations.

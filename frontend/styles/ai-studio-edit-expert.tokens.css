@@ -64,7 +64,7 @@
   --ai-accent-strong: var(--edit-expert-accent-strong);
   --ai-accent-shadow: var(--edit-expert-accent-shadow);
   --edit-expert-stage-max-width: clamp(360px, 58vw, 560px);
-  --edit-expert-primary-size: clamp(384px, 35.1vw, 544px);
+  --edit-expert-primary-size: clamp(332px, 30vw, 480px);
   --edit-expert-side-rail-width: 196px;
   --edit-expert-side-rail-width-left: 188px;
   --edit-expert-side-rail-width-right: 188px;
@@ -88,6 +88,8 @@
   --edit-expert-title-to-control-gap: 10px;
   --edit-expert-tools-title-to-control-gap: 8px;
   --edit-expert-input-min-height: 86px;
+  --edit-expert-prompt-input-min-height: 72px;
+  --edit-expert-prompt-input-max-height: 90px;
   --edit-expert-input-bg: rgba(12, 15, 22, 0.88);
   --edit-expert-input-border: rgba(201, 205, 214, 0.16);
   --edit-expert-drop-border: rgba(201, 205, 214, 0.18);

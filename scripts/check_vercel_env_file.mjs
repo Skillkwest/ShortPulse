@@ -1,80 +1,45 @@
 #!/usr/bin/env node
 
 /**
- * Validates a Vercel-style env file against required key profiles.
+ * Validates a Vercel-style env file against the shared ShortPulse env contract.
  * Intended for pre-deploy checks against exported/staged env bundles.
  */
 
-import fs from "node:fs";
 import path from "node:path";
+import {
+  FILE_PROFILE_REQUIRED_KEYS,
+  MIRRORED_FLAG_PAIRS,
+  PREVIEW_PRODUCTION_MUST_DIFFER_KEYS,
+  VERCEL_ENVIRONMENTS,
+  getFileProfileRequiredKeys,
+  getRequiredVercelKeysForEnvironment,
+  isKnownVercelKey,
+  isLocalOrToolingOnlyKey,
+  parseEnvFileToMap,
+} from "./lib/vercel_env_contract.mjs";
 
 const PROFILE_CORE = "core";
-const PROFILE_PHASE04 = "phase04";
-
-const REQUIRED_BY_PROFILE = {
-  [PROFILE_CORE]: [
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "FAL_KEY",
-    "SHORTPULSE_ADMIN_EMAILS",
-    "APP_BASE_URL",
-  ],
-  [PROFILE_PHASE04]: [
-    "SHORTPULSE_PUBLIC_API_BASE_URL",
-    "SHORTPULSE_STAGING_BASE_URL",
-    "SHORTPULSE_FAL_QUEUE_ENABLED",
-    "SHORTPULSE_FAL_RECONCILER_ENABLED",
-    "SHORTPULSE_FAL_RECONCILER_CRON_SECRET",
-    "SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED",
-  ],
-};
 
 const usage = () => {
   console.log(`Usage:
-  node scripts/check_vercel_env_file.mjs --file <path> [--profile core|phase04]
+  node scripts/check_vercel_env_file.mjs --file <path> [--profile core|phase04] [--environment development|preview|production]
 
 Options:
   --file <path>           Path to env file to validate.
   --profile <name>        Validation profile. Repeatable.
                           Default: core
-                          Available: core, phase04
+                          Available: ${Object.keys(FILE_PROFILE_REQUIRED_KEYS).join(", ")}
+  --environment <name>    Optional Vercel environment-specific validation rules.
+                          Available: ${VERCEL_ENVIRONMENTS.join(", ")}
   --help                  Show this message.
 `);
-};
-
-const parseLine = (line) => {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith("#")) return null;
-  const normalized = trimmed.startsWith("export ") ? trimmed.slice("export ".length) : trimmed;
-  const eqIndex = normalized.indexOf("=");
-  if (eqIndex <= 0) return null;
-  const key = normalized.slice(0, eqIndex).trim();
-  const value = normalized.slice(eqIndex + 1).trim();
-  return { key, value };
-};
-
-const parseEnvFile = (filePath) => {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Env file not found: ${filePath}`);
-  }
-  const content = fs.readFileSync(filePath, "utf8");
-  const entries = content
-    .split(/\r?\n/)
-    .map((line) => parseLine(line))
-    .filter(Boolean);
-
-  const map = new Map();
-  for (const entry of entries) {
-    map.set(entry.key, entry.value);
-  }
-  return map;
 };
 
 const parseArgs = (argv) => {
   const parsed = {
     file: "",
     profiles: [PROFILE_CORE],
+    environment: "",
     help: false,
   };
 
@@ -94,12 +59,24 @@ const parseArgs = (argv) => {
       if (!profile) {
         throw new Error("--profile requires a value");
       }
-      if (!(profile in REQUIRED_BY_PROFILE)) {
+      if (!(profile in FILE_PROFILE_REQUIRED_KEYS)) {
         throw new Error(`Unknown profile: ${profile}`);
       }
       if (!parsed.profiles.includes(profile)) {
         parsed.profiles.push(profile);
       }
+      index += 1;
+      continue;
+    }
+    if (arg === "--environment") {
+      const environment = (argv[index + 1] ?? "").trim().toLowerCase();
+      if (!environment) {
+        throw new Error("--environment requires a value");
+      }
+      if (!VERCEL_ENVIRONMENTS.includes(environment)) {
+        throw new Error(`Unknown environment: ${environment}`);
+      }
+      parsed.environment = environment;
       index += 1;
       continue;
     }
@@ -121,11 +98,16 @@ const main = () => {
   }
 
   const filePath = path.resolve(process.cwd(), args.file);
-  const envMap = parseEnvFile(filePath);
+  const envMap = parseEnvFileToMap(filePath);
 
   const requiredKeys = new Set();
   for (const profile of args.profiles) {
-    for (const key of REQUIRED_BY_PROFILE[profile]) {
+    for (const key of getFileProfileRequiredKeys(profile)) {
+      requiredKeys.add(key);
+    }
+  }
+  if (args.environment) {
+    for (const key of getRequiredVercelKeysForEnvironment(args.environment)) {
       requiredKeys.add(key);
     }
   }
@@ -136,6 +118,7 @@ const main = () => {
   });
 
   const warnings = [];
+  const errors = [];
   const appBaseUrl = envMap.get("APP_BASE_URL") ?? "";
   const publicApiBase = envMap.get("SHORTPULSE_PUBLIC_API_BASE_URL") ?? "";
   if (appBaseUrl && publicApiBase && appBaseUrl !== publicApiBase) {
@@ -148,17 +131,56 @@ const main = () => {
       "SHORTPULSE_PUBLIC_API_BASE_URL is empty; runtime will fall back to APP_BASE_URL."
     );
   }
+  for (const key of envMap.keys()) {
+    if (isLocalOrToolingOnlyKey(key)) {
+      warnings.push(`${key} is local/tooling-only and should not be treated as a deploy requirement.`);
+      continue;
+    }
+    if (!isKnownVercelKey(key)) {
+      warnings.push(`${key} is not declared in frontend/.env.example and should be reviewed for contract drift.`);
+    }
+  }
+  for (const [serverKey, clientKey] of MIRRORED_FLAG_PAIRS) {
+    const serverValue = envMap.get(serverKey);
+    const clientValue = envMap.get(clientKey);
+    if (
+      serverValue !== undefined &&
+      clientValue !== undefined &&
+      serverValue !== "" &&
+      clientValue !== "" &&
+      serverValue !== clientValue
+    ) {
+      errors.push(`${serverKey} and ${clientKey} differ. Keep mirrored client/server rollout flags aligned.`);
+    }
+  }
+  if (args.environment === "preview" || args.environment === "production") {
+    for (const key of PREVIEW_PRODUCTION_MUST_DIFFER_KEYS) {
+      if (!envMap.has(key) || (envMap.get(key) ?? "") === "") continue;
+      if (key === "APP_BASE_URL" || key === "SHORTPULSE_PUBLIC_API_BASE_URL") {
+        const value = envMap.get(key) ?? "";
+        if (!/^https:\/\//i.test(value)) {
+          errors.push(`${key} must be an https URL for ${args.environment} exports.`);
+        }
+      }
+    }
+  }
 
-  if (missing.length > 0) {
+  if (missing.length > 0 || errors.length > 0) {
     console.error("[vercel-env-check] missing required keys:");
     for (const key of missing) {
       console.error(`- ${key}`);
+    }
+    if (errors.length > 0) {
+      console.error("[vercel-env-check] contract violations:");
+      for (const error of errors) {
+        console.error(`- ${error}`);
+      }
     }
     process.exit(1);
   }
 
   console.log(
-    `[vercel-env-check] ok profiles=${args.profiles.join(",")} file=${filePath}`
+    `[vercel-env-check] ok profiles=${args.profiles.join(",")} environment=${args.environment || "n/a"} file=${filePath}`
   );
   if (warnings.length > 0) {
     for (const warning of warnings) {

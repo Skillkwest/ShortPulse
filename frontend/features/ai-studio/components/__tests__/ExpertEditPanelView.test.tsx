@@ -450,13 +450,14 @@ describe("ExpertEditPanelView", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
     expect(screen.getByLabelText("Primary edit stage")).toBeInTheDocument();
+    expect(screen.getByText("Drag & drop an image from the Reference Grid")).toBeInTheDocument();
     expect(
       container.querySelector('[data-testid="edit-expert-primary-canvas-frame-stack"]')
     ).not.toBeNull();
     expect(container.querySelector(".edit-expert-primary-canvas-frame")).not.toBeNull();
     expect(
       container.querySelector(".edit-expert-primary-stage-shell") as HTMLDivElement | null
-    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 96px)" });
+    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 72px)" });
   });
 
   it("keeps the primary stage shell height contract after loading a preview", () => {
@@ -468,9 +469,10 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
+    expect(screen.queryByText("Drag & drop an image from the Reference Grid")).toBeNull();
     expect(
       container.querySelector(".edit-expert-primary-stage-shell") as HTMLDivElement | null
-    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 96px)" });
+    )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 72px)" });
   });
 
   it("renders two center-column wrappers and keeps prompt/selectors in the lower wrapper", () => {
@@ -530,8 +532,8 @@ describe("ExpertEditPanelView", () => {
 
     expect(primaryDropzone.style.aspectRatio).toBe("");
     expect(primaryCanvasFrameStack.style.aspectRatio).toBe("1 / 1");
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(520, 2);
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(520, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(420, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(420, 2);
 
     rerender(
       <ExpertEditPanelView
@@ -542,8 +544,8 @@ describe("ExpertEditPanelView", () => {
       />
     );
     expect(primaryCanvasFrameStack.style.aspectRatio).toBe("16 / 9");
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(860, 2);
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(483.75, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(746.67, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(420, 2);
 
     rerender(
       <ExpertEditPanelView
@@ -554,8 +556,8 @@ describe("ExpertEditPanelView", () => {
       />
     );
     expect(primaryCanvasFrameStack.style.aspectRatio).toBe("9 / 16");
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(292.5, 2);
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(520, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(236.25, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(420, 2);
   });
 
   it("toggles styles panel via callback and reflects aria-expanded state", () => {

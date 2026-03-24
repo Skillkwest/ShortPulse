@@ -1502,6 +1502,21 @@
   overflow: visible;
 }
 
+.edit-expert-primary-empty-helper {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(70%, 360px);
+  margin: 0;
+  color: rgba(201, 205, 214, 0.52);
+  font-size: 16px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  text-align: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .edit-expert-primary-canvas-frame {
   position: absolute;
   inset: 0;
@@ -4821,8 +4836,9 @@
   position: relative;
   z-index: 6;
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   gap: 12px;
+  min-height: var(--edit-expert-prompt-input-max-height);
   padding-inline: 0;
   box-sizing: border-box;
 }
@@ -4831,6 +4847,8 @@
   width: 100%;
   min-width: 0;
   flex: 1 1 auto;
+  display: flex;
+  align-items: flex-end;
   border: none;
   background: transparent;
   border-radius: 0;
@@ -4841,6 +4859,8 @@
   display: flex;
   align-items: flex-end;
   gap: 10px;
+  width: 100%;
+  min-height: var(--edit-expert-prompt-input-max-height);
 }
 
 .edit-expert-prompt-input-shell {
@@ -4924,9 +4944,9 @@
 }
 
 .edit-expert-prompt-input {
-  min-height: 72px;
+  min-height: var(--edit-expert-prompt-input-min-height);
   height: auto;
-  max-height: 90px;
+  max-height: var(--edit-expert-prompt-input-max-height);
   overflow-y: hidden;
   resize: none;
 }

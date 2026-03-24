@@ -1,0 +1,219 @@
+#!/usr/bin/env node
+
+/**
+ * Canonical ShortPulse environment-variable contract for local tooling and Vercel audits.
+ * The contract is intentionally conservative: it enforces high-risk target/scope rules now
+ * and can be extended incrementally as more keys are formally classified.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(MODULE_DIR, "../..");
+
+export const VERCEL_ENVIRONMENTS = ["development", "preview", "production"];
+export const DEFAULT_VERCEL_AUDIT_ENVIRONMENTS = ["preview"];
+
+export const REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT = Object.freeze({
+  development: [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "FAL_KEY",
+  ],
+  preview: [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "FAL_KEY",
+    "APP_BASE_URL",
+    "SHORTPULSE_PUBLIC_API_BASE_URL",
+    "SHORTPULSE_ADMIN_EMAILS",
+  ],
+  production: [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "FAL_KEY",
+    "APP_BASE_URL",
+    "SHORTPULSE_PUBLIC_API_BASE_URL",
+    "SHORTPULSE_ADMIN_EMAILS",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+  ],
+});
+
+export const FILE_PROFILE_REQUIRED_KEYS = Object.freeze({
+  core: [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "FAL_KEY",
+    "SHORTPULSE_ADMIN_EMAILS",
+    "APP_BASE_URL",
+  ],
+  phase04: [
+    "SHORTPULSE_PUBLIC_API_BASE_URL",
+    "SHORTPULSE_FAL_QUEUE_ENABLED",
+    "SHORTPULSE_FAL_RECONCILER_ENABLED",
+    "SHORTPULSE_FAL_RECONCILER_CRON_SECRET",
+    "SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED",
+  ],
+});
+
+export const PREVIEW_PRODUCTION_MUST_DIFFER_KEYS = Object.freeze([
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "APP_BASE_URL",
+  "SHORTPULSE_PUBLIC_API_BASE_URL",
+]);
+
+export const TARGET_SCOPED_VERCEL_KEYS = Object.freeze([
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "APP_BASE_URL",
+  "SHORTPULSE_PUBLIC_API_BASE_URL",
+]);
+
+export const LOCAL_OR_TOOLING_ONLY_KEYS = new Set([
+  "SHORTPULSE_STAGING_BASE_URL",
+  "SHORTPULSE_STAGING_BEARER_TOKEN",
+  "SHORTPULSE_API_BASE_URL",
+  "SHORTPULSE_VERCEL_API_TOKEN",
+  "SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN",
+  "VERCEL_API_TOKEN",
+  "VERCEL_AUTOMATION_BYPASS_TOKEN",
+  "PLAYWRIGHT_AUDIT_EMAIL",
+  "PLAYWRIGHT_AUDIT_PASSWORD",
+  "PLAYWRIGHT_BASE_URL",
+  "AI_STUDIO_PERF_PORT",
+  "AI_STUDIO_PERF_SKIP_BUILD",
+  "SHORTPULSE_MODEL_CATALOG_MAX_STALE_DAYS",
+  "SHORTPULSE_MODEL_CATALOG_STALE_MODE",
+  "ARCHITECTURE_BOUNDARY_MODE",
+  "REFERENCE_GRID_BOUNDARY_MODE",
+  "REFERENCE_GRID_SIZE_BUDGET_MODE",
+]);
+
+export const MIRRORED_FLAG_PAIRS = Object.freeze([
+  [
+    "SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS",
+    "NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS",
+  ],
+  ["SHORTPULSE_MEDIA_UPLOAD_API_ENABLED", "NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED"],
+  ["SHORTPULSE_MEDIA_LIST_API_ENABLED", "NEXT_PUBLIC_MEDIA_LIST_API_ENABLED"],
+  [
+    "SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED",
+    "NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED",
+  ],
+]);
+
+export const SENSITIVE_PRESENCE_ONLY_KEYS = new Set([
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+]);
+
+const FRONTEND_ENV_EXAMPLE_PATH = path.join(REPO_ROOT, "frontend", ".env.example");
+const AGENT_ENV_EXAMPLE_PATH = path.join(REPO_ROOT, ".env.agent.local.example");
+
+const stripWrappingQuotes = (value) => {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+};
+
+const parseLine = (line) => {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith("#")) return null;
+
+  const normalized = trimmed.startsWith("export ") ? trimmed.slice("export ".length) : trimmed;
+  const eqIndex = normalized.indexOf("=");
+  if (eqIndex <= 0) return null;
+
+  const key = normalized.slice(0, eqIndex).trim();
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) return null;
+
+  return {
+    key,
+    value: stripWrappingQuotes(normalized.slice(eqIndex + 1)),
+  };
+};
+
+/**
+ * Parses a simple dotenv-compatible file into a map.
+ * @param {string} filePath
+ * @returns {Map<string, string>}
+ */
+export const parseEnvFileToMap = (filePath) => {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Env file not found: ${filePath}`);
+  }
+
+  const content = fs.readFileSync(filePath, "utf8");
+  const map = new Map();
+  for (const line of content.split(/\r?\n/)) {
+    const parsed = parseLine(line);
+    if (!parsed) continue;
+    map.set(parsed.key, parsed.value);
+  }
+  return map;
+};
+
+const readTemplateKeys = (filePath) => new Set(parseEnvFileToMap(filePath).keys());
+
+const FRONTEND_ENV_EXAMPLE_KEYS = readTemplateKeys(FRONTEND_ENV_EXAMPLE_PATH);
+const AGENT_ENV_EXAMPLE_KEYS = readTemplateKeys(AGENT_ENV_EXAMPLE_PATH);
+
+export const KNOWN_FRONTEND_ENV_EXAMPLE_KEYS = new Set(FRONTEND_ENV_EXAMPLE_KEYS);
+export const KNOWN_AGENT_ENV_EXAMPLE_KEYS = new Set(AGENT_ENV_EXAMPLE_KEYS);
+
+export const KNOWN_VERCEL_KEYS = new Set(
+  [...FRONTEND_ENV_EXAMPLE_KEYS].filter((key) => !LOCAL_OR_TOOLING_ONLY_KEYS.has(key))
+);
+
+/**
+ * Returns the required keys for a specific Vercel environment.
+ * @param {"development" | "preview" | "production"} environment
+ * @returns {string[]}
+ */
+export const getRequiredVercelKeysForEnvironment = (environment) => {
+  if (!(environment in REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT)) {
+    throw new Error(`Unknown Vercel environment: ${environment}`);
+  }
+  return [...REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT[environment]];
+};
+
+/**
+ * Returns the required keys for a file-validation profile.
+ * @param {"core" | "phase04"} profile
+ * @returns {string[]}
+ */
+export const getFileProfileRequiredKeys = (profile) => {
+  if (!(profile in FILE_PROFILE_REQUIRED_KEYS)) {
+    throw new Error(`Unknown env-file profile: ${profile}`);
+  }
+  return [...FILE_PROFILE_REQUIRED_KEYS[profile]];
+};
+
+/**
+ * Returns whether a key is expected to be present in Vercel project envs.
+ * @param {string} key
+ * @returns {boolean}
+ */
+export const isKnownVercelKey = (key) => KNOWN_VERCEL_KEYS.has(key);
+
+/**
+ * Returns whether a key is intentionally local/tooling-only and should stay out of Vercel.
+ * @param {string} key
+ * @returns {boolean}
+ */
+export const isLocalOrToolingOnlyKey = (key) => LOCAL_OR_TOOLING_ONLY_KEYS.has(key);

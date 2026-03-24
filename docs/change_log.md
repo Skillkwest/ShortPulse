@@ -3,6 +3,13 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Added Vercel env-governance tooling and docs:
+  - new shared env contract module (`scripts/lib/vercel_env_contract.mjs`),
+  - new live Vercel parity audit (`scripts/check_vercel_env_contract.mjs`),
+  - extended staged env export validation (`scripts/check_vercel_env_file.mjs`) with environment-aware contract checks,
+  - clarified `frontend/.env.local` vs `.env.agent.local` responsibilities in local/deployment/release docs,
+  - aligned the default live audit posture with the current preview-only staging deployment model,
+  - added missing runtime flag `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` to `frontend/.env.example`.
 - Promoted AI Studio Reference Grid reliability state to `implementation_ready` after closing `RGR-B02` via time-bounded waiver metadata for `KI-AI-RG-STYLES-001`; recorded `P0-S1` kickoff evidence and moved `RGR-M02`..`RGR-M04` to `In Progress`.
 - Added AI Studio Reference Grid reliability P0 entry baseline evidence packet (`2026-03-21-p0-entry-baseline-packet.md`) and closed blocker/gate tracking for `RGR-B01` / `RGR-G03`; implementation entry remains blocked on `RGR-B02`.
 - Removed an AI Studio reliability implementation-entry deadlock by reclassifying `RGR-M02`..`RGR-M04` as P0 exit gates (not entry prerequisites), added explicit blocker/gate status tracking (`RGR-B01`/`RGR-B02`, `RGR-G01`..`RGR-G05`), and tightened kickoff SLA + adaptive gate requirements across readiness/tracker/checklist/full-recovery governance docs.

@@ -86,6 +86,37 @@ describe("useAgentOutputBubbleLinking", () => {
     });
   });
 
+  it("keeps the empty bubble media map stable across unrelated output updates", () => {
+    const initialOutputs = [
+      buildOutput({
+        id: "out-stable-1",
+        taskState: "pending",
+      }),
+    ];
+    const { result, rerender } = renderHook(
+      ({ outputs }: { outputs: StudioOutput[] }) => useAgentOutputBubbleLinking({ outputs }),
+      {
+        initialProps: {
+          outputs: initialOutputs,
+        },
+      }
+    );
+
+    const initialMedia = result.current.assistantBubbleMedia;
+
+    rerender({
+      outputs: [
+        buildOutput({
+          id: "out-stable-1",
+          taskState: "running",
+        }),
+      ],
+    });
+
+    expect(result.current.assistantBubbleMedia).toBe(initialMedia);
+    expect(result.current.assistantBubbleMedia).toEqual({});
+  });
+
   it("prunes stale links when no matching output exists after grace window", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-01T00:00:00.000Z"));

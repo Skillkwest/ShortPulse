@@ -1011,108 +1011,147 @@ export function AiStudioPageContent({
     },
   });
 
-  const panelRegistry = React.useMemo(
-    () => ({
-      create: (
-        <>
-          <CreatePropertiesPanel
+  const createPropertiesPanelContent = React.useMemo(
+    () => (
+      <>
+        <CreatePropertiesPanel {...resolvedCreatePropertiesWithStyles} />
+        {!showExpertCreatePanel ? (
+          <ComposeSendCard
             {...resolvedCreatePropertiesWithStyles}
-            agentChatOpen={agentChat.isOpen}
-            onAgentEnhanceSend={resolvedCreatePropertiesWithStyles.onAgentEnhanceSend}
+            onGenerate={resolvedCreatePropertiesWithStyles.onGenerate}
           />
-          {!showExpertCreatePanel ? (
-            <ComposeSendCard
-              {...resolvedCreatePropertiesWithStyles}
-              onGenerate={resolvedCreatePropertiesWithStyles.onGenerate}
-            />
-          ) : null}
-        </>
-      ),
-      edit: showExpertEditPanel ? (
+        ) : null}
+      </>
+    ),
+    [resolvedCreatePropertiesWithStyles, showExpertCreatePanel]
+  );
+  const editPropertiesPanelContent = React.useMemo(
+    () =>
+      showExpertEditPanel ? (
         <ExpertEditPanelView {...resolvedExpertEditProperties} />
       ) : (
         <EditPropertiesPanel {...propertiesImage} />
       ),
-      video: <VideoPropertiesPanel {...propertiesVideo} />,
-      sound: <SoundPropertiesPanel />,
-      canvas: <CanvasPropertiesPanel {...propertiesCanvas} />,
-      character: (
-        <CharacterPanel
-          beginnerMode={beginnerMode}
-          resolveCharacterDropReference={resolveCharacterDropReference}
-        />
-      ),
-      presets: (
-        <PresetsLibraryPanel
-          presets={presetsLibraryCatalog}
-          selectedPresetId={selectedPresetId}
-          onSelectPreset={handleSelectedPresetIdChange}
-          onSavePresetOverride={handlePresetOverrideSave}
-        />
-      ),
-      styles: (
-        <StylesLibraryPanel
-          styles={visibleStylesCatalog}
-          selectedStyleId={selectedStyleId}
-          onSaveStyleDetails={upsertStyleDetails}
-          saveError={styleDetailsSaveError}
-          onDeleteStyle={deleteStyleId}
-          deleteError={stylesDeleteError}
-          resolveInternalStyleDrop={resolveStyleLibraryInternalDrop}
-        />
-      ),
-      "media-library":
-        onAddLibraryMediaReference && onAddLibraryPromptReference ? (
-          <MediaLibraryPanel
-            onSelectMedia={onAddLibraryMediaReference}
-            onSelectPrompt={onAddLibraryPromptReference}
-            resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
-            resolveCanvasDropReference={resolveCanvasDropReference}
-          />
-        ) : (
-          <p className="tiny subdued">Media Library panel is unavailable.</p>
-        ),
-      none: null,
-    }),
+    [propertiesImage, resolvedExpertEditProperties, showExpertEditPanel]
+  );
+  const videoPropertiesPanelContent = React.useMemo(
+    () => <VideoPropertiesPanel {...propertiesVideo} />,
+    [propertiesVideo]
+  );
+  const canvasPropertiesPanelContent = React.useMemo(
+    () => <CanvasPropertiesPanel {...propertiesCanvas} />,
+    [propertiesCanvas]
+  );
+  const characterPropertiesPanelContent = React.useMemo(
+    () => (
+      <CharacterPanel
+        beginnerMode={beginnerMode}
+        resolveCharacterDropReference={resolveCharacterDropReference}
+      />
+    ),
+    [beginnerMode, resolveCharacterDropReference]
+  );
+  const presetsPropertiesPanelContent = React.useMemo(
+    () => (
+      <PresetsLibraryPanel
+        presets={presetsLibraryCatalog}
+        selectedPresetId={selectedPresetId}
+        onSelectPreset={handleSelectedPresetIdChange}
+        onSavePresetOverride={handlePresetOverrideSave}
+      />
+    ),
     [
-      agentChat.isOpen,
-      beginnerMode,
-      propertiesImage,
-      propertiesCanvas,
-      resolvedCreatePropertiesWithStyles,
-      resolvedExpertEditProperties,
-      resolveCharacterDropReference,
-      propertiesVideo,
-      showExpertEditPanel,
-      showExpertCreatePanel,
+      handlePresetOverrideSave,
+      handleSelectedPresetIdChange,
       presetsLibraryCatalog,
       selectedPresetId,
-      handleSelectedPresetIdChange,
-      handlePresetOverrideSave,
-      selectedStyleId,
-      upsertStyleDetails,
-      styleDetailsSaveError,
-      deleteStyleId,
-      stylesDeleteError,
-      visibleStylesCatalog,
-      onAddLibraryMediaReference,
-      onAddLibraryPromptReference,
-      resolveMediaLibraryInternalDropItem,
-      resolveStyleLibraryInternalDrop,
-      resolveCanvasDropReference,
     ]
   );
-  const resolvePanelFromRegistry = React.useCallback(
-    (kind: keyof typeof panelRegistry) => panelRegistry[kind],
-    [panelRegistry]
+  const stylesPropertiesPanelContent = React.useMemo(
+    () => (
+      <StylesLibraryPanel
+        styles={visibleStylesCatalog}
+        selectedStyleId={selectedStyleId}
+        onSaveStyleDetails={upsertStyleDetails}
+        saveError={styleDetailsSaveError}
+        onDeleteStyle={deleteStyleId}
+        deleteError={stylesDeleteError}
+        resolveInternalStyleDrop={resolveStyleLibraryInternalDrop}
+      />
+    ),
+    [
+      deleteStyleId,
+      resolveStyleLibraryInternalDrop,
+      selectedStyleId,
+      styleDetailsSaveError,
+      stylesDeleteError,
+      upsertStyleDetails,
+      visibleStylesCatalog,
+    ]
+  );
+  const mediaLibraryPropertiesPanelContent = React.useMemo(
+    () =>
+      onAddLibraryMediaReference && onAddLibraryPromptReference ? (
+        <MediaLibraryPanel
+          onSelectMedia={onAddLibraryMediaReference}
+          onSelectPrompt={onAddLibraryPromptReference}
+          resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
+          resolveCanvasDropReference={resolveCanvasDropReference}
+        />
+      ) : (
+        <p className="tiny subdued">Media Library panel is unavailable.</p>
+      ),
+    [
+      onAddLibraryMediaReference,
+      onAddLibraryPromptReference,
+      resolveCanvasDropReference,
+      resolveMediaLibraryInternalDropItem,
+    ]
+  );
+  const resolvePropertiesPanelContent = React.useCallback(
+    (kind: typeof propertiesPanelKind) => {
+      switch (kind) {
+        case "create":
+          return createPropertiesPanelContent;
+        case "edit":
+          return editPropertiesPanelContent;
+        case "video":
+          return videoPropertiesPanelContent;
+        case "sound":
+          return <SoundPropertiesPanel />;
+        case "canvas":
+          return canvasPropertiesPanelContent;
+        case "character":
+          return characterPropertiesPanelContent;
+        case "presets":
+          return presetsPropertiesPanelContent;
+        case "styles":
+          return stylesPropertiesPanelContent;
+        case "media-library":
+          return mediaLibraryPropertiesPanelContent;
+        case "none":
+        default:
+          return null;
+      }
+    },
+    [
+      canvasPropertiesPanelContent,
+      characterPropertiesPanelContent,
+      createPropertiesPanelContent,
+      editPropertiesPanelContent,
+      mediaLibraryPropertiesPanelContent,
+      presetsPropertiesPanelContent,
+      stylesPropertiesPanelContent,
+      videoPropertiesPanelContent,
+    ]
   );
   const memoizedPropertiesPanelContent = React.useMemo(
-    () => resolvePanelFromRegistry(propertiesPanelKind),
-    [propertiesPanelKind, resolvePanelFromRegistry]
+    () => resolvePropertiesPanelContent(propertiesPanelKind),
+    [propertiesPanelKind, resolvePropertiesPanelContent]
   );
   const propertiesPanelContent = FLAG_PANEL_MEMOIZATION
     ? memoizedPropertiesPanelContent
-    : resolvePanelFromRegistry(propertiesPanelKind);
+    : resolvePropertiesPanelContent(propertiesPanelKind);
   const toolbarRail = FLAG_SHELL_BOUNDARY_SPLIT ? (
     <AiStudioToolbarRail
       selectedTool={selectedTool}

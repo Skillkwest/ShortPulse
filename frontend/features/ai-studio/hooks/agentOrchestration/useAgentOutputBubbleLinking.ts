@@ -8,6 +8,7 @@ import type { StudioOutput } from "../../types";
 
 const STALE_LINK_PRUNE_AGE_MS = 5 * 60 * 1000;
 export const STAGED_AGENT_OUTPUT_MESSAGE_ID = "staged-agent-output";
+const EMPTY_ASSISTANT_BUBBLE_MEDIA: Record<string, AgentOutputBubbleMediaState> = {};
 
 type LinkEntry = {
   outputId: string;
@@ -71,7 +72,7 @@ export const useAgentOutputBubbleLinking = ({ outputs }: { outputs: StudioOutput
 
   const assistantBubbleMedia = useMemo<Record<string, AgentOutputBubbleMediaState>>(() => {
     const entries = Object.entries(outputLinksByMessageId);
-    if (!entries.length) return {};
+    if (!entries.length) return EMPTY_ASSISTANT_BUBBLE_MEDIA;
     const resolved: Record<string, AgentOutputBubbleMediaState> = {};
     entries.forEach(([messageId, entry]) => {
       const output = outputById.get(entry.outputId);

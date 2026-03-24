@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent, type AiStudioPageContentProps } from "../AiStudioPageContent";
 import { EDIT_PRESET_SURFACE_PRESET_IDS } from "../edit/expertEditPresets";
 
+const createPropertiesPanelRenderSpy = vi.fn();
+
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -29,15 +31,18 @@ vi.mock("../CreatePropertiesPanel", () => ({
     isStylesPanelOpen?: boolean;
     selectedStyleId?: string | null;
     onStylesPanelToggle?: () => void;
-  }) => (
-    <div data-testid="text-properties">
-      <button type="button" aria-label="Styles" onClick={() => props.onStylesPanelToggle?.()}>
-        Styles
-      </button>
-      <div data-testid="create-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
-      <div data-testid="create-selected-style">{props.selectedStyleId ?? ""}</div>
-    </div>
-  ),
+  }) => {
+    createPropertiesPanelRenderSpy();
+    return (
+      <div data-testid="text-properties">
+        <button type="button" aria-label="Styles" onClick={() => props.onStylesPanelToggle?.()}>
+          Styles
+        </button>
+        <div data-testid="create-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
+        <div data-testid="create-selected-style">{props.selectedStyleId ?? ""}</div>
+      </div>
+    );
+  },
   ComposeSendCard: () => <div data-testid="compose-send-card" />,
 }));
 
@@ -303,6 +308,35 @@ const createProps = (
 });
 
 describe("AiStudioPageContent right column drop router", () => {
+  it("keeps the active create properties panel stable when inactive panel props change", () => {
+    createPropertiesPanelRenderSpy.mockClear();
+    const stableCreateProps = {} as AiStudioPageContentProps["propertiesCreate"];
+    const baseProps = createProps({
+      selectedTool: "create",
+      propertiesCreate: stableCreateProps,
+      propertiesImage: {
+        inactivePanelVersion: 1,
+      } as unknown as AiStudioPageContentProps["propertiesImage"],
+    });
+
+    const { rerender } = render(<AiStudioPageContent {...baseProps} />);
+    const renderCountAfterInitialMount = createPropertiesPanelRenderSpy.mock.calls.length;
+
+    rerender(
+      <AiStudioPageContent
+        {...createProps({
+          ...baseProps,
+          propertiesCreate: stableCreateProps,
+          propertiesImage: {
+            inactivePanelVersion: 2,
+          } as unknown as AiStudioPageContentProps["propertiesImage"],
+        })}
+      />
+    );
+
+    expect(createPropertiesPanelRenderSpy.mock.calls.length).toBe(renderCountAfterInitialMount);
+  });
+
   it("renders header shortcut buttons in the top AI Studio header row", () => {
     render(<AiStudioPageContent {...createProps()} />);
 

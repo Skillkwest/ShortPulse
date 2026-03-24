@@ -656,10 +656,10 @@ describe("useInpaintMaskController helpers", () => {
 
 describe("useInpaintMaskController hook", () => {
   it("restores a selected-layer snapshot and round-trips it through capture", async () => {
-    const dropzoneRef = createDropzoneRef();
+    const surfaceRef = createDropzoneRef();
     const { result } = renderHook(() =>
       useInpaintMaskController({
-        dropzoneRef,
+        surfaceRef,
         selectedLayerId: "layer-a",
         selectedLayerImageUrl: null,
         layerSources: [{ id: "layer-a", imageUrl: null }],
@@ -693,10 +693,10 @@ describe("useInpaintMaskController hook", () => {
   });
 
   it("exports and clears the restored selected-layer mask", async () => {
-    const dropzoneRef = createDropzoneRef();
+    const surfaceRef = createDropzoneRef();
     const { result } = renderHook(() =>
       useInpaintMaskController({
-        dropzoneRef,
+        surfaceRef,
         selectedLayerId: "layer-a",
         selectedLayerImageUrl: null,
         layerSources: [{ id: "layer-a", imageUrl: null }],
@@ -738,10 +738,10 @@ describe("useInpaintMaskController hook", () => {
   });
 
   it("exports selected-layer masks using contain-fit geometry before camera transform", async () => {
-    const dropzoneRef = createDropzoneRef();
+    const surfaceRef = createDropzoneRef();
     const { result } = renderHook(() =>
       useInpaintMaskController({
-        dropzoneRef,
+        surfaceRef,
         selectedLayerId: "layer-a",
         selectedLayerImageUrl: null,
         layerSources: [{ id: "layer-a", imageUrl: null }],
@@ -808,15 +808,15 @@ describe("useInpaintMaskController hook", () => {
     });
 
     try {
-      const dropzoneRef = createDropzoneRef();
-      const dropzoneElement = dropzoneRef.current as HTMLDivElement & {
+      const surfaceRef = createDropzoneRef();
+      const dropzoneElement = surfaceRef.current as HTMLDivElement & {
         setPointerCapture?: (pointerId: number) => void;
       };
       dropzoneElement.setPointerCapture = vi.fn();
 
       const { result } = renderHook(() =>
         useInpaintMaskController({
-          dropzoneRef,
+          surfaceRef,
           selectedLayerId: "layer-a",
           selectedLayerImageUrl: "https://example.com/layer-a.png",
           layerSources: [{ id: "layer-a", imageUrl: "https://example.com/layer-a.png" }],

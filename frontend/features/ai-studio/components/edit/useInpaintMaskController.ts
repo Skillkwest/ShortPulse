@@ -49,7 +49,7 @@ export type InpaintMaskSnapshot = {
 };
 
 type UseInpaintMaskControllerParams = {
-  dropzoneRef: React.RefObject<HTMLDivElement | null>;
+  surfaceRef: React.RefObject<HTMLDivElement | null>;
   selectedLayerId: string | null;
   selectedLayerImageUrl: string | null;
   layerSources: InpaintLayerSource[];
@@ -257,7 +257,7 @@ export const shouldEndPointerSessionOnLeave = ({
  * Manages mask painting interactions and overlay rendering for Expert Edit inpaint.
  */
 export const useInpaintMaskController = ({
-  dropzoneRef,
+  surfaceRef,
   selectedLayerId,
   selectedLayerImageUrl,
   layerSources,
@@ -291,7 +291,7 @@ export const useInpaintMaskController = ({
   const lastAntsTickRef = React.useRef(0);
   const overlayRafRef = React.useRef<number | null>(null);
   const maskAnalysisTimersRef = React.useRef<Map<string, number>>(new Map());
-  const [dropzoneSize, setDropzoneSize] = React.useState({ width: 0, height: 0 });
+  const [surfaceSize, setSurfaceSize] = React.useState({ width: 0, height: 0 });
   const [selectedImageNaturalSize, setSelectedImageNaturalSize] = React.useState<{
     width: number;
     height: number;
@@ -323,11 +323,11 @@ export const useInpaintMaskController = ({
       const targetWidth =
         isSelectedLayer && selectedImageNaturalSize
           ? Math.max(1, Math.round(selectedImageNaturalSize.width))
-          : Math.max(1, Math.round(dropzoneSize.width));
+          : Math.max(1, Math.round(surfaceSize.width));
       const targetHeight =
         isSelectedLayer && selectedImageNaturalSize
           ? Math.max(1, Math.round(selectedImageNaturalSize.height))
-          : Math.max(1, Math.round(dropzoneSize.height));
+          : Math.max(1, Math.round(surfaceSize.height));
       const existing = maskCanvasesRef.current.get(layerId);
       if (existing) {
         if (existing.width === targetWidth && existing.height === targetHeight) {
@@ -346,7 +346,7 @@ export const useInpaintMaskController = ({
       maskCanvasesRef.current.set(layerId, canvas);
       return canvas;
     },
-    [dropzoneSize.height, dropzoneSize.width, selectedImageNaturalSize, selectedLayerId]
+    [selectedImageNaturalSize, selectedLayerId, surfaceSize.height, surfaceSize.width]
   );
 
   const renderOverlay = React.useCallback(
@@ -887,12 +887,12 @@ export const useInpaintMaskController = ({
   );
 
   React.useEffect(() => {
-    const dropzone = dropzoneRef.current;
-    if (!dropzone) return;
+    const surface = surfaceRef.current;
+    if (!surface) return;
     const updateSize = () => {
-      const nextWidth = Math.max(1, Math.round(dropzone.clientWidth));
-      const nextHeight = Math.max(1, Math.round(dropzone.clientHeight));
-      setDropzoneSize((current) =>
+      const nextWidth = Math.max(1, Math.round(surface.clientWidth));
+      const nextHeight = Math.max(1, Math.round(surface.clientHeight));
+      setSurfaceSize((current) =>
         current.width === nextWidth && current.height === nextHeight
           ? current
           : { width: nextWidth, height: nextHeight }
@@ -906,9 +906,9 @@ export const useInpaintMaskController = ({
       };
     }
     const observer = new ResizeObserver(updateSize);
-    observer.observe(dropzone);
+    observer.observe(surface);
     return () => observer.disconnect();
-  }, [dropzoneRef]);
+  }, [surfaceRef]);
 
   React.useEffect(() => {
     if (!selectedLayerImageUrl) {
@@ -981,9 +981,9 @@ export const useInpaintMaskController = ({
   }, [layerSources, renderOverlayNow, selectedLayerId]);
 
   React.useEffect(() => {
-    if (!dropzoneSize.width || !dropzoneSize.height) return;
+    if (!surfaceSize.width || !surfaceSize.height) return;
     renderOverlayNow();
-  }, [dropzoneSize.height, dropzoneSize.width, renderOverlayNow]);
+  }, [renderOverlayNow, surfaceSize.height, surfaceSize.width]);
 
   React.useEffect(() => {
     renderOverlayNow();

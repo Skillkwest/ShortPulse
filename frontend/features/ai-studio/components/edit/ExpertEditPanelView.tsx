@@ -314,7 +314,7 @@ export function ExpertEditPanelView({
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const inlineStageWrapperRef = React.useRef<HTMLDivElement | null>(null);
-  const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const primaryCompositionSurfaceRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalControlsRef = React.useRef<HTMLDivElement | null>(null);
   const markupModalStageRef = React.useRef<HTMLDivElement | null>(null);
@@ -1160,10 +1160,10 @@ export function ExpertEditPanelView({
         inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
       );
       if (wrapperRect) return wrapperRect;
-      const dropzoneRect = resolveValidStageRect(
-        primaryDropzoneRef.current?.getBoundingClientRect() ?? null
+      const compositionSurfaceRect = resolveValidStageRect(
+        primaryCompositionSurfaceRef.current?.getBoundingClientRect() ?? null
       );
-      if (dropzoneRect) return dropzoneRect;
+      if (compositionSurfaceRect) return compositionSurfaceRect;
       return resolveValidStageRect(currentTarget.getBoundingClientRect() ?? interactionRect);
     };
 
@@ -1200,7 +1200,7 @@ export function ExpertEditPanelView({
     onPointerCancel: handleInpaintPointerCancel,
     onPointerLeave: handleInpaintPointerLeave,
   } = useInpaintMaskController({
-    dropzoneRef: primaryDropzoneRef,
+    surfaceRef: primaryCompositionSurfaceRef,
     selectedLayerId: selectedLayer?.id ?? null,
     selectedLayerImageUrl,
     layerSources: inpaintLayerSources,
@@ -1230,7 +1230,7 @@ export function ExpertEditPanelView({
   const shouldShowMarkupBrushReticle = isVideoToolSelected && hasPrimaryCompositePreview;
   const shouldShowSelectedLayerTransformOverlay =
     isMoveToolSelected && Boolean(selectedLayerImageUrl) && hasPrimaryCompositePreview;
-  const primaryDropzoneAspectRatio = React.useMemo(() => {
+  const primaryCompositionSurfaceAspectRatio = React.useMemo(() => {
     const parsedAspectRatio = parseAspectRatioToken(aspect);
     if (
       parsedAspectRatio == null ||
@@ -1241,7 +1241,7 @@ export function ExpertEditPanelView({
     }
     return aspect.replace(":", " / ");
   }, [aspect]);
-  const primaryDropzoneAspectRatioValue = React.useMemo(
+  const primaryCompositionSurfaceAspectRatioValue = React.useMemo(
     () => parseAspectRatioToken(aspect) ?? 1,
     [aspect]
   );
@@ -1272,7 +1272,7 @@ export function ExpertEditPanelView({
   );
   const morePresetsSurfaceId = React.useId();
   const activeStageRenderScale = markupViewport.scale;
-  const primaryDropzoneCursor = React.useMemo(() => {
+  const primaryCompositionSurfaceCursor = React.useMemo(() => {
     if (isMoveToolSelected && selectedLayerImageUrl) {
       if (activeTransformDragMode === "rotate") {
         return isTransformPointerDragging ? "grabbing" : "crosshair";
@@ -1312,21 +1312,21 @@ export function ExpertEditPanelView({
     shouldShowMarkupBrushReticle,
   ]);
   const primaryStageWidthScale = React.useMemo(
-    () => Math.max(primaryDropzoneAspectRatioValue, 0.0001),
-    [primaryDropzoneAspectRatioValue]
+    () => Math.max(primaryCompositionSurfaceAspectRatioValue, 0.0001),
+    [primaryCompositionSurfaceAspectRatioValue]
   );
   const transformConstraintViewportSize = React.useMemo<StageViewportSize>(() => {
-    if (primaryDropzoneAspectRatioValue >= 1) {
+    if (primaryCompositionSurfaceAspectRatioValue >= 1) {
       return {
-        width: primaryDropzoneAspectRatioValue,
+        width: primaryCompositionSurfaceAspectRatioValue,
         height: 1,
       };
     }
     return {
       width: 1,
-      height: 1 / Math.max(primaryDropzoneAspectRatioValue, 0.0001),
+      height: 1 / Math.max(primaryCompositionSurfaceAspectRatioValue, 0.0001),
     };
-  }, [primaryDropzoneAspectRatioValue]);
+  }, [primaryCompositionSurfaceAspectRatioValue]);
   const primaryStageStyle = React.useMemo<React.CSSProperties>(
     () => ({
       width: `max(0px, min(100%, calc(var(--edit-expert-primary-size) * ${primaryStageWidthScale})))`,
@@ -1351,7 +1351,9 @@ export function ExpertEditPanelView({
     };
   }, [inlineStageViewportSize, markupViewport]);
 
-  const inlineDropzoneViewportSize = resolveElementViewportSize(primaryDropzoneRef.current);
+  const inlineCompositionSurfaceViewportSize = resolveElementViewportSize(
+    primaryCompositionSurfaceRef.current
+  );
 
   const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
     const viewportOffset = resolveMarkupViewportOffsetPixels(
@@ -1364,27 +1366,27 @@ export function ExpertEditPanelView({
     };
   }, [markupModalViewportSize, markupViewport]);
 
-  const primaryDropzoneStyle = React.useMemo(() => {
+  const primaryCompositionSurfaceStyle = React.useMemo(() => {
     const style: React.CSSProperties = {
       ...primaryStageStyle,
-      aspectRatio: primaryDropzoneAspectRatio,
+      aspectRatio: primaryCompositionSurfaceAspectRatio,
     };
     if (!isMorePresetsSurfaceOpen) {
       if (markupViewportCursor) {
         style.cursor = markupViewportCursor;
-      } else if (primaryDropzoneCursor) {
-        style.cursor = primaryDropzoneCursor;
+      } else if (primaryCompositionSurfaceCursor) {
+        style.cursor = primaryCompositionSurfaceCursor;
       }
     }
     return style;
   }, [
     isMorePresetsSurfaceOpen,
     markupViewportCursor,
-    primaryDropzoneAspectRatio,
+    primaryCompositionSurfaceAspectRatio,
     primaryStageStyle,
-    primaryDropzoneCursor,
+    primaryCompositionSurfaceCursor,
   ]);
-  const emptyPrimaryDropzoneStyle = React.useMemo<React.CSSProperties>(
+  const emptyPrimaryCompositionSurfaceStyle = React.useMemo<React.CSSProperties>(
     () => ({
       position: "absolute",
       inset: 0,
@@ -1400,7 +1402,7 @@ export function ExpertEditPanelView({
   const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
     const modalCursor =
       markupViewportCursor ??
-      primaryDropzoneCursor ??
+      primaryCompositionSurfaceCursor ??
       (isVideoToolSelected ? "crosshair" : undefined);
     const cursorStyle = modalCursor ? { cursor: modalCursor } : null;
     if (markupModalStageSize) {
@@ -1413,7 +1415,7 @@ export function ExpertEditPanelView({
       };
     }
     return {
-      aspectRatio: primaryDropzoneAspectRatio,
+      aspectRatio: primaryCompositionSurfaceAspectRatio,
       width: "100%",
       maxWidth: "100%",
       maxHeight: "100%",
@@ -1423,8 +1425,8 @@ export function ExpertEditPanelView({
     isVideoToolSelected,
     markupModalStageSize,
     markupViewportCursor,
-    primaryDropzoneAspectRatio,
-    primaryDropzoneCursor,
+    primaryCompositionSurfaceAspectRatio,
+    primaryCompositionSurfaceCursor,
   ]);
 
   const resolveInlineStageRect = React.useCallback(
@@ -1433,10 +1435,10 @@ export function ExpertEditPanelView({
         inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
       );
       if (wrapperRect) return wrapperRect;
-      const primaryDropzoneRect = resolveValidStageRect(
-        primaryDropzoneRef.current?.getBoundingClientRect() ?? null
+      const primaryCompositionSurfaceRect = resolveValidStageRect(
+        primaryCompositionSurfaceRef.current?.getBoundingClientRect() ?? null
       );
-      if (primaryDropzoneRect) return primaryDropzoneRect;
+      if (primaryCompositionSurfaceRect) return primaryCompositionSurfaceRect;
       return resolveValidStageRect(currentTarget?.getBoundingClientRect() ?? null);
     },
     []
@@ -1461,13 +1463,13 @@ export function ExpertEditPanelView({
       viewportHeight: activeViewportSize.height,
     };
     return {
-      outputAspectRatio: primaryDropzoneAspectRatioValue,
+      outputAspectRatio: primaryCompositionSurfaceAspectRatioValue,
       camera,
     };
   }, [
     isMarkupExpandSelected,
     markupViewport,
-    primaryDropzoneAspectRatioValue,
+    primaryCompositionSurfaceAspectRatioValue,
     resolveInlineStageRect,
   ]);
   const renderMarkupStrokeOverlay = React.useCallback(
@@ -1484,8 +1486,8 @@ export function ExpertEditPanelView({
       const effectiveStageSize =
         keyPrefix === "modal" &&
         !isResolvedStageViewportSize(resolvedStageSize) &&
-        isResolvedStageViewportSize(inlineDropzoneViewportSize)
-          ? inlineDropzoneViewportSize
+        isResolvedStageViewportSize(inlineCompositionSurfaceViewportSize)
+          ? inlineCompositionSurfaceViewportSize
           : resolvedStageSize;
       const stageWidth = Math.max(1, effectiveStageSize.width);
       const stageHeight = Math.max(1, effectiveStageSize.height);
@@ -1546,7 +1548,7 @@ export function ExpertEditPanelView({
         </svg>
       );
     },
-    [inlineDropzoneViewportSize, markupStrokes]
+    [inlineCompositionSurfaceViewportSize, markupStrokes]
   );
 
   const renderPrimaryStageBusyOverlay = React.useCallback((): React.ReactNode | null => {
@@ -3264,8 +3266,9 @@ export function ExpertEditPanelView({
         horizontalGap * 2;
       const availableHeight = modalRect.height - paddingTop - paddingBottom;
       const safeAspectRatio =
-        Number.isFinite(primaryDropzoneAspectRatioValue) && primaryDropzoneAspectRatioValue > 0
-          ? primaryDropzoneAspectRatioValue
+        Number.isFinite(primaryCompositionSurfaceAspectRatioValue) &&
+        primaryCompositionSurfaceAspectRatioValue > 0
+          ? primaryCompositionSurfaceAspectRatioValue
           : 1;
       if (availableWidth <= 0 || availableHeight <= 0) {
         setMarkupModalStageSize((previous) => (previous == null ? previous : null));
@@ -3322,7 +3325,7 @@ export function ExpertEditPanelView({
         window.removeEventListener("resize", updateStageSize);
       }
     };
-  }, [isMarkupExpandSelected, markupModalDomVersion, primaryDropzoneAspectRatioValue]);
+  }, [isMarkupExpandSelected, markupModalDomVersion, primaryCompositionSurfaceAspectRatioValue]);
 
   React.useEffect(() => {
     if (!isMarkupExpandSelected) return;
@@ -4621,13 +4624,17 @@ export function ExpertEditPanelView({
             onPointerCancelCapture={handleInlineStagePointerCancelCapture}
           >
             <div
-              ref={primaryDropzoneRef}
+              ref={primaryCompositionSurfaceRef}
               className={`edit-expert-primary-composition-surface ${
                 hasPrimaryCompositePreview ? "has-preview" : "is-hidden-stage-surface"
               } ${isMorePresetsSurfaceOpen ? "is-presets-open" : ""} ${
                 primaryDragActive ? "is-dragging" : ""
               } ${shouldShowSelectedLayerTransformOverlay ? "is-transform-overlay-active" : ""}`}
-              style={hasPrimaryCompositePreview ? primaryDropzoneStyle : emptyPrimaryDropzoneStyle}
+              style={
+                hasPrimaryCompositePreview
+                  ? primaryCompositionSurfaceStyle
+                  : emptyPrimaryCompositionSurfaceStyle
+              }
               onDrop={hasPrimaryCompositePreview ? handlePrimaryDrop : undefined}
               onDragEnter={hasPrimaryCompositePreview ? handlePrimaryDragEnter : undefined}
               onDragOver={hasPrimaryCompositePreview ? handlePrimaryDragOver : undefined}
@@ -4672,7 +4679,7 @@ export function ExpertEditPanelView({
                     viewportStyle: inlineMarkupViewportStyle,
                     overlayCanvas: overlayCanvasRef,
                     stageSize: inlineStageViewportSize,
-                    stageElement: primaryDropzoneRef.current,
+                    stageElement: primaryCompositionSurfaceRef.current,
                   })
                 : null}
             </div>

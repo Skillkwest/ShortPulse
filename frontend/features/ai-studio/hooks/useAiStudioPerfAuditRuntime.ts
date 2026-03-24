@@ -19,6 +19,19 @@ import type { StudioOutput } from "../types";
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#2ad1ff"/><stop offset="1" stop-color="#0f6fff"/></linearGradient></defs><rect width="240" height="240" fill="url(#g)"/><circle cx="120" cy="94" r="50" fill="rgba(255,255,255,0.24)"/><rect x="48" y="152" width="144" height="56" rx="18" fill="rgba(0,0,0,0.24)"/></svg>'
 )}`;
+const PERF_AUDIT_REFERENCE_PNG_BYTES = new Uint8Array([
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0,
+  0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2, 0, 239,
+  154, 236, 175, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+]);
+
+export const getPerfAuditReferenceImageBytes = (): Uint8Array =>
+  new Uint8Array(PERF_AUDIT_REFERENCE_PNG_BYTES);
+
+export const createPerfAuditReferenceImageFile = (): File =>
+  new File([getPerfAuditReferenceImageBytes()], "audit-reference.png", {
+    type: "image/png",
+  });
 
 type AiStudioPerfWindow = Window & {
   __shortpulseAiStudioPerf?: {
@@ -308,7 +321,7 @@ export function useAiStudioPerfAuditRuntime({
     const resolveDropTransfer = () => {
       if (typeof DataTransfer === "undefined") return null;
       const transfer = new DataTransfer();
-      transfer.items.add(new File(["audit"], "audit-reference.png", { type: "image/png" }));
+      transfer.items.add(createPerfAuditReferenceImageFile());
       return transfer;
     };
     const createSyntheticDragEvent = (type: "dragover" | "drop", transfer: DataTransfer | null) => {

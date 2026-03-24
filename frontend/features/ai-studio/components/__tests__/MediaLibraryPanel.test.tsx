@@ -18,6 +18,7 @@ const deleteMediaFileWithStorageMock = vi.fn();
 const deleteMediaPromptByIdMock = vi.fn();
 const logMediaEventMock = vi.fn();
 const isAdaptiveSurfaceEnabledMock = vi.fn();
+const useMediaPreviewSigningControllerMock = vi.fn();
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -119,7 +120,8 @@ vi.mock("../../../media-library/hooks/useMediaAdaptivePressure", () => ({
 }));
 
 vi.mock("../../../media-library/hooks/useMediaPreviewSigningController", () => ({
-  useMediaPreviewSigningController: () => undefined,
+  useMediaPreviewSigningController: (...args: unknown[]) =>
+    useMediaPreviewSigningControllerMock(...args),
 }));
 
 vi.mock("../../../media-library/hooks/useMediaPreviewRecoveryController", () => ({
@@ -338,6 +340,7 @@ describe("MediaLibraryPanel", () => {
     deleteMediaFileWithStorageMock.mockResolvedValue(undefined);
     deleteMediaPromptByIdMock.mockResolvedValue(undefined);
     logMediaEventMock.mockResolvedValue(undefined);
+    useMediaPreviewSigningControllerMock.mockReset();
     uploadMediaFileMock.mockResolvedValue({
       id: "uploaded-1",
       filename: "upload.png",
@@ -543,6 +546,20 @@ describe("MediaLibraryPanel", () => {
     const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestProps).toBeTruthy();
     expect(typeof latestProps.resolveCardPreviewUrl).toBe("function");
+  });
+
+  it("keeps panel prefetch off for the initial signing pass and signs the full initial slice", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(useMediaPreviewSigningControllerMock).toHaveBeenCalled();
+    });
+
+    const latestArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0];
+    expect(latestArgs).toBeTruthy();
+    expect(latestArgs.surface).toBe("media-library-panel");
+    expect(latestArgs.isSignPrefetchEnabled).toBe(false);
+    expect(latestArgs.signBudget.signBatchSize).toBe(latestArgs.signBudget.initialSignLimit);
   });
 
   it.each(["media-library-panel-grid"] as const)(

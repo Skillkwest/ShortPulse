@@ -46,4 +46,14 @@ describe("expertEditCursorUtils", () => {
     expect(widthAt200).toBeGreaterThan(widthAt100);
     expect(widthAt50).toBeLessThan(widthAt100);
   });
+
+  it("allows markup reticle diameter to grow beyond base stroke max under zoom", () => {
+    const cursorAt100 = buildMarkupBrushReticleCursor(30, 30, 1);
+    const cursorAt200 = buildMarkupBrushReticleCursor(30, 30, 2);
+    const widthAt100 = readSvgWidth(decodeCursorSvg(cursorAt100));
+    const widthAt200 = readSvgWidth(decodeCursorSvg(cursorAt200));
+
+    expect(widthAt200).toBeGreaterThan(widthAt100);
+    expect(widthAt200 - widthAt100).toBeGreaterThan(20);
+  });
 });

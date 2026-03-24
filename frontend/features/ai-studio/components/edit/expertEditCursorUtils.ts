@@ -4,6 +4,7 @@
 import { resolveInpaintBrushDiameter } from "./inpaintMaskGeometry";
 
 const MARKUP_CURSOR_DIAMETER_MIN = 1;
+const MARKUP_CURSOR_DIAMETER_MAX = 128;
 const INPAINT_CURSOR_DIAMETER_MIN = 8;
 const INPAINT_CURSOR_DIAMETER_MAX = 52;
 const CURSOR_PADDING = 6;
@@ -37,10 +38,11 @@ export const buildMarkupBrushReticleCursor = (
   renderScale = 1
 ) => {
   const safeScale = Number.isFinite(renderScale) && renderScale > 0 ? renderScale : 1;
+  const baseDiameter = clampNumber(strokeSize, MARKUP_CURSOR_DIAMETER_MIN, maxStrokeSize);
   const diameter = clampNumber(
-    Math.round(strokeSize * safeScale),
+    Math.round(baseDiameter * safeScale),
     MARKUP_CURSOR_DIAMETER_MIN,
-    maxStrokeSize
+    MARKUP_CURSOR_DIAMETER_MAX
   );
   const canvasSize = diameter + CURSOR_PADDING * 2;
   const center = canvasSize / 2;

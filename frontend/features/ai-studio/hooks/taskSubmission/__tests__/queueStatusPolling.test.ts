@@ -352,6 +352,81 @@ describe("queueStatusPolling", () => {
     }
   });
 
+  it("continues polling through dispatching status and respects dispatch retry cadence", async () => {
+    vi.useFakeTimers();
+    try {
+      let output = createOutput("out-dispatching");
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      const notifyGenerationFailure = vi.fn();
+      const onDispatched = vi.fn();
+      fetchFalQueueStatusMock
+        .mockResolvedValueOnce({
+          status: "dispatching",
+          generationId: "gen-dispatching-1",
+          sourceRef: "src-dispatching-1",
+          retryAfterMs: 2000,
+        })
+        .mockResolvedValueOnce({
+          status: "dispatched",
+          generationId: "gen-dispatching-1",
+          sourceRef: "src-dispatching-1",
+          requestId: "req-dispatching-1",
+          provider: "fal",
+        });
+
+      startQueuedStatusPolling({
+        outputId: "out-dispatching",
+        provider: "fal-seedream",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+        effectiveTool: "edit",
+        queuedResponse: {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-dispatching-1",
+          generationId: "gen-dispatching-1",
+          pollAfterMs: 5000,
+        },
+        patch: {},
+        queueStatusTimersRef,
+        queueStatusSessionRef,
+        clearQueueStatusPolling,
+        updateOutputById,
+        notifyGenerationFailure,
+        onDispatched,
+      });
+
+      await vi.advanceTimersByTimeAsync(5_100);
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(1);
+      expect(onDispatched).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(2_100);
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(2);
+      expect(onDispatched).toHaveBeenCalledWith(
+        "req-dispatching-1",
+        "gen-dispatching-1",
+        "fal-seedream"
+      );
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("caps concurrent queue-status fetches and defers excess pollers", async () => {
     vi.useFakeTimers();
     try {

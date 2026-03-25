@@ -79,7 +79,7 @@ const queueStatusRetryDelayMs = (
   initialDelayMs: number,
   attempt: number
 ) =>
-  queueStatus.status === "queued"
+  queueStatus.status === "queued" || queueStatus.status === "dispatching"
     ? clampQueuePollMs(queueStatus.retryAfterMs)
     : clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
 

@@ -63,6 +63,12 @@ export type FalQueueStatusResponse =
       retryAfterMs: number;
     }
   | {
+      status: "dispatching";
+      generationId: string;
+      sourceRef: string | null;
+      retryAfterMs: number;
+    }
+  | {
       status: "dispatched";
       generationId: string;
       sourceRef: string | null;

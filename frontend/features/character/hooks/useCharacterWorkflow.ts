@@ -269,7 +269,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
               throw new Error(queueStatus.message);
             }
             const retryAfterMs =
-              queueStatus.status === "queued"
+              queueStatus.status === "queued" || queueStatus.status === "dispatching"
                 ? Math.max(500, Math.min(10000, queueStatus.retryAfterMs))
                 : initialDelayMs;
             await new Promise((resolve) => setTimeout(resolve, retryAfterMs));

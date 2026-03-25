@@ -103,6 +103,12 @@ export type GenerationQueueStatus =
       retryAfterMs: number;
     }
   | {
+      status: "dispatching";
+      generationId: string;
+      sourceRef: string | null;
+      retryAfterMs: number;
+    }
+  | {
       status: "dispatched";
       generationId: string;
       sourceRef: string | null;
@@ -147,6 +153,10 @@ const parseQueueStatus = (value: unknown): "queued" | "dispatching" | "exhausted
   }
   return null;
 };
+
+const QUEUE_STATUS_QUEUED_RETRY_MS = 5000;
+const QUEUE_STATUS_DISPATCHING_RETRY_MS = 2000;
+const QUEUE_STATUS_PRE_DISPATCH_RETRY_MS = 7000;
 
 const toQueueMutationResult = ({
   operation,
@@ -562,12 +572,21 @@ export const readGenerationQueueStatus = async ({
     };
   }
 
-  if (queueStatus === "queued" || queueStatus === "dispatching") {
+  if (queueStatus === "queued") {
     return {
       status: "queued",
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
-      retryAfterMs: 2000,
+      retryAfterMs: QUEUE_STATUS_QUEUED_RETRY_MS,
+    };
+  }
+
+  if (queueStatus === "dispatching") {
+    return {
+      status: "dispatching",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRef ?? null,
+      retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
     };
   }
 
@@ -581,7 +600,7 @@ export const readGenerationQueueStatus = async ({
       status: "queued",
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
-      retryAfterMs: 2000,
+      retryAfterMs: QUEUE_STATUS_PRE_DISPATCH_RETRY_MS,
     };
   }
 

@@ -140,6 +140,7 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
 | Signal / state | Primary interpretation | Required action |
 | --- | --- | --- |
 | queue status `exhausted` growth | queue dispatch retries/waits are hitting terminal limits | inspect queue error codes, verify provider health, confirm reservation release on exhausted rows |
+| queue-status reports `dispatching` for long periods | queue claim/lease succeeded but provider handoff is not converging | inspect queue lease age, dispatch retries, and provider submit telemetry before widening capacity or replaying jobs |
 | queue-status remains `queued` with no `request_id` while queue row is exhausted | stale client perception caused by nondeterministic queue-status resolution | verify queue-status path returns `failed` for exhausted rows and inspect `last_error` / `last_error_code` |
 | `terminal_success_no_media` or `no_media` retry loops | provider terminal payload missing media URLs | continue bounded recovery retries; replay residual outliers; verify provider payload adapters |
 | provider `running` beyond age windows | long-running or stranded provider job | enforce age/attempt policy, then exhaust + release when thresholds are reached |

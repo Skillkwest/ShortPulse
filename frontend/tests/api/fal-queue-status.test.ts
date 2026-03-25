@@ -118,6 +118,31 @@ describe("GET /api/fal/queue-status", () => {
     );
   });
 
+  it("passes through dispatching queue status responses", async () => {
+    readGenerationQueueStatusMock.mockResolvedValueOnce({
+      status: "dispatching",
+      generationId: "gen-dispatching-1",
+      sourceRef: "src-dispatching-1",
+      retryAfterMs: 2000,
+    });
+    const req = {
+      method: "GET",
+      query: { generationId: "gen-dispatching-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "dispatching",
+        retryAfterMs: 2000,
+      })
+    );
+  });
+
   it("returns 500 when queue status read fails", async () => {
     readGenerationQueueStatusMock.mockRejectedValueOnce(new Error("status read failed"));
     const req = {

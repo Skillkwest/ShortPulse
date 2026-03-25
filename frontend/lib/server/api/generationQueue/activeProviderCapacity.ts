@@ -20,6 +20,7 @@ type GenerationRow = {
   requestId: string;
   status: string | null;
   recoveryState: string | null;
+  createdAtMs: number | null;
 };
 
 export type ActiveProviderCapacitySnapshot = {
@@ -74,12 +75,24 @@ const parseGenerationRow = (value: unknown): GenerationRow | null => {
     requestId,
     status: asString(row.status)?.toLowerCase() ?? null,
     recoveryState: asString(row.recovery_state)?.toLowerCase() ?? null,
+    createdAtMs: parseTimestampMs(row.created_at),
   };
 };
 
-const classifyGenerationRequestState = (rows: GenerationRow[]): "active" | "stale" | "unknown" => {
+const STALE_ACTIVE_RECOVERY_STATES = new Set(["queued", "recovering"]);
+
+const classifyGenerationRequestState = ({
+  rows,
+  nowMs,
+  activeGenerationStaleIgnoreMinAgeMs,
+}: {
+  rows: GenerationRow[];
+  nowMs: number;
+  activeGenerationStaleIgnoreMinAgeMs: number;
+}): "active" | "stale" | "unknown" => {
   let hasActive = false;
   let hasTerminal = false;
+  let allActiveRowsLookStale = true;
   for (const row of rows) {
     const status = row.status;
     const recoveryState = row.recoveryState;
@@ -89,12 +102,21 @@ const classifyGenerationRequestState = (rows: GenerationRow[]): "active" | "stal
     }
     if (status && ACTIVE_GENERATION_STATUSES.has(status)) {
       hasActive = true;
+      const ageMs = row.createdAtMs == null ? null : Math.max(0, nowMs - row.createdAtMs);
+      const isStaleActiveRow =
+        ageMs !== null &&
+        ageMs >= activeGenerationStaleIgnoreMinAgeMs &&
+        STALE_ACTIVE_RECOVERY_STATES.has(recoveryState ?? "");
+      if (!isStaleActiveRow) {
+        allActiveRowsLookStale = false;
+      }
       continue;
     }
     if (status && TERMINAL_GENERATION_STATUSES.has(status)) {
       hasTerminal = true;
     }
   }
+  if (hasActive && allActiveRowsLookStale) return "stale";
   if (hasActive) return "active";
   if (hasTerminal) return "stale";
   return "unknown";
@@ -109,17 +131,26 @@ export const readActiveProviderCapacitySnapshot = async ({
   modelId,
   staleIgnoreMinAgeSeconds,
   orphanGraceSeconds,
+  activeGenerationStaleIgnoreMinAgeSeconds,
   nowMs = Date.now(),
 }: {
   userId: string;
   modelId: string;
   staleIgnoreMinAgeSeconds: number;
   orphanGraceSeconds: number;
+  activeGenerationStaleIgnoreMinAgeSeconds?: number;
   nowMs?: number;
 }): Promise<ActiveProviderCapacitySnapshot> => {
   const tier = resolveGenerationAdmissionTier(modelId);
   const staleIgnoreMinAgeMs = Math.max(0, Math.trunc(staleIgnoreMinAgeSeconds) * 1000);
   const orphanGraceMs = Math.max(0, Math.trunc(orphanGraceSeconds) * 1000);
+  const activeGenerationStaleIgnoreMinAgeMs = Math.max(
+    staleIgnoreMinAgeMs,
+    Math.max(
+      0,
+      Math.trunc(activeGenerationStaleIgnoreMinAgeSeconds ?? staleIgnoreMinAgeSeconds) * 1000
+    )
+  );
 
   const reservationsResponse = await getSupabaseAdmin()
     .from("ai_credit_reservations")
@@ -148,7 +179,7 @@ export const readActiveProviderCapacitySnapshot = async ({
 
   const generationsResponse = await getSupabaseAdmin()
     .from("ai_generations")
-    .select("request_id, status, recovery_state")
+    .select("request_id, status, recovery_state, created_at")
     .eq("user_id", userId)
     .in("request_id", requestIds);
   if (generationsResponse.error) throw generationsResponse.error;
@@ -172,7 +203,11 @@ export const readActiveProviderCapacitySnapshot = async ({
       generationRowsByRequestId.get(reservation.providerRequestId) ?? [];
     let classification: "active" | "stale" | "unknown";
     if (generationRowsForRequest.length) {
-      classification = classifyGenerationRequestState(generationRowsForRequest);
+      classification = classifyGenerationRequestState({
+        rows: generationRowsForRequest,
+        nowMs,
+        activeGenerationStaleIgnoreMinAgeMs,
+      });
     } else {
       const ageMs =
         reservation.createdAtMs == null ? 0 : Math.max(0, nowMs - reservation.createdAtMs);

@@ -115,7 +115,7 @@ const buildQueuedSubmitPayload = ({
   code: "GENERATION_QUEUED",
   sourceRef,
   generationId,
-  pollAfterMs: 2000,
+  pollAfterMs: 5000,
 });
 
 const applyRewrittenPromptToPayload = ({
@@ -386,6 +386,10 @@ export const createFalSubmitHandler = ({
           userId: charge.userId,
           modelId,
           staleIgnoreMinAgeSeconds: runtimeFlags.queueMaxWaitSeconds,
+          activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
+            runtimeFlags.runningExhaustMinAgeSeconds,
+            runtimeFlags.providerAttachedReservationCleanupMinAgeSeconds
+          ),
           orphanGraceSeconds: Math.max(60, runtimeFlags.queueBaseBackoffSeconds * 12),
         });
         if (capacitySnapshot.staleIgnoredGlobal > 0) {

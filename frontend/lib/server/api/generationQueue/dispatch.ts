@@ -123,8 +123,13 @@ const readProviderCapacityState = async ({
   const snapshot = await readActiveProviderCapacitySnapshot({
     userId,
     modelId,
-    // Ignore stale holds once they are older than queue max-wait.
+    // Ignore orphaned holds once they outlive queue max-wait.
     staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
+    // Keep provider-linked running rows active until they exceed recovery cleanup windows.
+    activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
+      flags.runningExhaustMinAgeSeconds,
+      flags.providerAttachedReservationCleanupMinAgeSeconds
+    ),
     // Keep very recent unmatched reservations fail-closed during persistence races.
     orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
   });

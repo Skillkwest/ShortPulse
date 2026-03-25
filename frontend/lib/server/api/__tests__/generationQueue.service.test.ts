@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimGenerationSubmitQueueBatch,
+  readGenerationQueueStatus,
   removeQueueItem,
   updateQueueItemForRetry,
 } from "../generationQueue/service";
@@ -220,5 +221,112 @@ describe("generationQueue/service mutation result guards", () => {
         reason: "db_error",
       })
     );
+  });
+});
+
+describe("generationQueue/service.readGenerationQueueStatus", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const createStatusSupabaseMock = ({
+    queueRow,
+    generationRow,
+  }: {
+    queueRow?: Record<string, unknown> | null;
+    generationRow?: Record<string, unknown> | null;
+  }) => {
+    const queueMaybeSingle = vi.fn(async () => ({ data: queueRow ?? null, error: null }));
+    const queueEq2 = vi.fn(() => ({ maybeSingle: queueMaybeSingle }));
+    const queueEq1 = vi.fn(() => ({ eq: queueEq2 }));
+    const queueSelect = vi.fn(() => ({ eq: queueEq1 }));
+
+    const generationMaybeSingle = vi.fn(async () => ({ data: generationRow ?? null, error: null }));
+    const generationLimit = vi.fn(() => ({ maybeSingle: generationMaybeSingle }));
+    const generationOrder = vi.fn(() => ({
+      limit: generationLimit,
+      maybeSingle: generationMaybeSingle,
+    }));
+    const generationContains = vi.fn(() => ({
+      order: generationOrder,
+      limit: generationLimit,
+      maybeSingle: generationMaybeSingle,
+    }));
+    const generationEq2 = vi.fn(() => ({ maybeSingle: generationMaybeSingle }));
+    const generationEq1 = vi.fn(() => ({ eq: generationEq2, contains: generationContains }));
+    const generationSelect = vi.fn(() => ({ eq: generationEq1, contains: generationContains }));
+
+    return {
+      from: vi.fn((tableName: string) => {
+        if (tableName === "ai_generation_submit_queue") {
+          return { select: queueSelect };
+        }
+        if (tableName === "ai_generations") {
+          return { select: generationSelect };
+        }
+        throw new Error(`Unexpected table: ${tableName}`);
+      }),
+    };
+  };
+
+  it("returns dispatching when the queue row holds the active lease", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: {
+          id: "queue-1",
+          status: "dispatching",
+          source_ref: "src-1",
+          generation_id: "gen-1",
+        },
+        generationRow: {
+          id: "gen-1",
+          status: "pending",
+          request_id: null,
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-1" },
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-1",
+      })
+    ).resolves.toEqual({
+      status: "dispatching",
+      generationId: "gen-1",
+      sourceRef: "src-1",
+      retryAfterMs: 2000,
+    });
+  });
+
+  it("returns slower queued retry guidance when the generation is still pre-dispatch without a queue row", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-2",
+          status: "running",
+          request_id: null,
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-2" },
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-2",
+      })
+    ).resolves.toEqual({
+      status: "queued",
+      generationId: "gen-2",
+      sourceRef: "src-2",
+      retryAfterMs: 7000,
+    });
   });
 });

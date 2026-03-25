@@ -134,6 +134,8 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       queueMaxAttempts: 5,
       queueBaseBackoffSeconds: 5,
       queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
       admission: {
         globalMax: 1,
         tierLimits: {
@@ -189,6 +191,12 @@ describe("generationQueue/dispatch no-capacity handling", () => {
         exhausted: 0,
       })
     );
+    expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        staleIgnoreMinAgeSeconds: 1200,
+        activeGenerationStaleIgnoreMinAgeSeconds: 7200,
+      })
+    );
     expect(releaseQueueLeaseBackToQueuedMock).toHaveBeenCalledTimes(1);
     expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
@@ -226,6 +234,12 @@ describe("generationQueue/dispatch no-capacity handling", () => {
         claimed: 1,
         requeuedNoCapacity: 0,
         exhausted: 1,
+      })
+    );
+    expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        staleIgnoreMinAgeSeconds: 1200,
+        activeGenerationStaleIgnoreMinAgeSeconds: 7200,
       })
     );
     expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(

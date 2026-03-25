@@ -161,6 +161,8 @@ describe("generationQueue/dispatch transition integrity", () => {
       queueMaxAttempts: 5,
       queueBaseBackoffSeconds: 5,
       queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
       admission: {
         globalMax: 8,
         tierLimits: {
@@ -204,6 +206,8 @@ describe("generationQueue/dispatch transition integrity", () => {
       queueMaxAttempts: 5,
       queueBaseBackoffSeconds: 5,
       queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
       admission: {
         globalMax: 8,
         tierLimits: {
@@ -658,6 +662,8 @@ describe("generationQueue/dispatch transition integrity", () => {
       queueMaxAttempts: 5,
       queueBaseBackoffSeconds: 5,
       queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
       admission: {
         globalMax: 8,
         tierLimits: {

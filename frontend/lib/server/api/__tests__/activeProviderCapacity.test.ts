@@ -135,4 +135,43 @@ describe("readActiveProviderCapacitySnapshot", () => {
       staleIgnoredTier: 1,
     });
   });
+
+  it("ignores provider-linked running holds once they exceed the stale active threshold", async () => {
+    const nowMs = Date.parse("2026-03-25T12:00:00.000Z");
+    const supabase = buildSupabaseMock({
+      reservations: [
+        {
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          provider_request_id: "req-stale-running",
+          created_at: "2026-03-25T08:00:00.000Z",
+        },
+      ],
+      generations: [
+        {
+          request_id: "req-stale-running",
+          status: "running",
+          recovery_state: "queued",
+          created_at: "2026-03-25T08:00:00.000Z",
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase);
+
+    const snapshot = await readActiveProviderCapacitySnapshot({
+      userId: "user-1",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      staleIgnoreMinAgeSeconds: 1200,
+      activeGenerationStaleIgnoreMinAgeSeconds: 7200,
+      orphanGraceSeconds: 60,
+      nowMs,
+    });
+
+    expect(snapshot).toEqual({
+      tier: "image_heavy",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 1,
+      staleIgnoredTier: 1,
+    });
+  });
 });

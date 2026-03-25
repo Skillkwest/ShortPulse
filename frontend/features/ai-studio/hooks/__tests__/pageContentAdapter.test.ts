@@ -15,6 +15,7 @@ describe("mapHookContractsToPageContentProps", () => {
     const onUpdateOutputPrompt = vi.fn();
     const onDeleteOutput = vi.fn();
     const onDetailDownload = vi.fn();
+    const onDetailSaveReference = vi.fn();
     const onDetailSavePrompt = vi.fn();
     const onOpenMediaLibrary = vi.fn();
 
@@ -36,6 +37,7 @@ describe("mapHookContractsToPageContentProps", () => {
         onUpdateOutputPrompt,
         onDeleteOutput,
         onDetailDownload,
+        onDetailSaveReference,
         onDetailSavePrompt,
         onOpenMediaLibrary,
       },
@@ -55,6 +57,7 @@ describe("mapHookContractsToPageContentProps", () => {
     expect(result.onUpdateOutputPrompt).toBe(onUpdateOutputPrompt);
     expect(result.onDeleteOutput).toBe(onDeleteOutput);
     expect(result.onDetailDownload).toBe(onDetailDownload);
+    expect(result.onDetailSaveReference).toBe(onDetailSaveReference);
     expect(result.onDetailSavePrompt).toBe(onDetailSavePrompt);
     expect(result.onOpenMediaLibrary).toBe(onOpenMediaLibrary);
   });

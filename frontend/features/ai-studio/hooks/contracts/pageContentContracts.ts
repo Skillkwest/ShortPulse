@@ -37,6 +37,7 @@ export type AiStudioPreviewDetailContracts = {
   onUpdateOutputPrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
   onDetailDownload: (id: string) => void;
+  onDetailSaveReference: (id: string) => void;
   onDetailSavePrompt: (promptText: string) => void;
   onOpenMediaLibrary: () => void;
 };

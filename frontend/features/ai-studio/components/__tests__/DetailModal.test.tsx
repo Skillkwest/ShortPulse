@@ -193,6 +193,62 @@ describe("DetailModal", () => {
     expect(onDownloadReference).toHaveBeenCalledWith("out-1");
   });
 
+  it("renders a Save button before Download for media and routes clicks through the save callback", () => {
+    const onSaveReference = vi.fn();
+    render(
+      <DetailModal
+        output={baseOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSaveReference={onSaveReference}
+      />
+    );
+
+    const actionButtons = screen
+      .getAllByRole("button")
+      .filter((button) => button.textContent === "Save" || button.textContent === "Download");
+    expect(actionButtons.map((button) => button.textContent)).toEqual(["Save", "Download"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSaveReference).toHaveBeenCalledWith("out-1");
+  });
+
+  it("shows Saved state for media references that are already persisted", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          saveState: "saved",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSaveReference={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("shows Retry Save for failed media persistence state", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          saveState: "failed",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSaveReference={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Retry Save" })).toBeInTheDocument();
+  });
+
   it("keeps image previews fit-to-screen on open and does not zoom in on double-click", () => {
     const { container } = render(
       <DetailModal

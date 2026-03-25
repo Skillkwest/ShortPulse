@@ -33,6 +33,7 @@ export type AiStudioPageContentAdapterOutput = Pick<
   | "onUpdateOutputPrompt"
   | "onDeleteOutput"
   | "onDetailDownload"
+  | "onDetailSaveReference"
   | "onDetailSavePrompt"
   | "onOpenMediaLibrary"
 >;
@@ -61,6 +62,7 @@ export const mapHookContractsToPageContentProps = ({
   onUpdateOutputPrompt: previewDetailProps.onUpdateOutputPrompt,
   onDeleteOutput: previewDetailProps.onDeleteOutput,
   onDetailDownload: previewDetailProps.onDetailDownload,
+  onDetailSaveReference: previewDetailProps.onDetailSaveReference,
   onDetailSavePrompt: previewDetailProps.onDetailSavePrompt,
   onOpenMediaLibrary: previewDetailProps.onOpenMediaLibrary,
 });

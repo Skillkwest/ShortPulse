@@ -19,6 +19,7 @@ type UseAiStudioPreviewDetailPropsParams = {
   setDetailOutputId: (id: string | null) => void;
   updateOutputPrompt: (id: string, prompt: string) => void;
   deleteOutput: (id: string) => void;
+  handleSaveReference: (id: string) => void;
   handleDownloadReference: (id: string) => void;
   savePromptToLibrary: (customPrompt?: string) => void;
   handleOpenMediaLibrary: () => void;
@@ -40,6 +41,7 @@ export const useAiStudioPreviewDetailProps = ({
   setDetailOutputId,
   updateOutputPrompt,
   deleteOutput,
+  handleSaveReference,
   handleDownloadReference,
   savePromptToLibrary,
   handleOpenMediaLibrary,
@@ -62,6 +64,7 @@ export const useAiStudioPreviewDetailProps = ({
       onUpdateOutputPrompt: updateOutputPrompt,
       onDeleteOutput: deleteOutput,
       onDetailDownload: handleDownloadReference,
+      onDetailSaveReference: handleSaveReference,
       onDetailSavePrompt: savePromptToLibrary,
       onOpenMediaLibrary: handleOpenMediaLibrary,
     }),
@@ -74,6 +77,7 @@ export const useAiStudioPreviewDetailProps = ({
       handleManualPromptChange,
       handleOpenMediaLibrary,
       handleRegenerateWithDebit,
+      handleSaveReference,
       referenceImageUrl,
       savePromptToLibrary,
       selectedTool,

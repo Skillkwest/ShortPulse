@@ -132,7 +132,8 @@
   gap: 6px;
 }
 
-.prompt-save-modal-btn {
+.prompt-save-modal-btn,
+.art-action-btn-save {
   font-size: 12px;
   padding: 0 12px;
   border-color: rgba(52, 200, 255, 0.46);
@@ -140,19 +141,22 @@
   color: rgba(224, 247, 255, 0.96);
 }
 
-.prompt-save-modal-btn:hover:not(:disabled) {
+.prompt-save-modal-btn:hover:not(:disabled),
+.art-action-btn-save:hover:not(:disabled) {
   background: rgba(37, 169, 191, 0.28);
   border-color: rgba(52, 200, 255, 0.66);
 }
 
-.prompt-save-modal-btn.is-saved {
+.prompt-save-modal-btn.is-saved,
+.art-action-btn-save.is-saved {
   border-color: rgba(72, 255, 176, 0.56);
   background: rgba(49, 184, 129, 0.22);
   color: rgba(214, 255, 237, 0.96);
   box-shadow: inset 0 0 0 1px rgba(72, 255, 176, 0.18);
 }
 
-.prompt-save-modal-btn:disabled {
+.prompt-save-modal-btn:disabled,
+.art-action-btn-save:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;

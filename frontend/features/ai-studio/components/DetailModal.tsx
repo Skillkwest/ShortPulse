@@ -19,6 +19,7 @@ type DetailModalProps = {
   onUpdatePrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
   onDownloadReference?: (id: string) => void;
+  onSaveReference?: (id: string) => void;
   onSavePrompt?: (promptText: string) => void;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
@@ -35,6 +36,7 @@ export function DetailModal({
   onUpdatePrompt,
   onDeleteOutput,
   onDownloadReference,
+  onSaveReference,
   onSavePrompt,
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
@@ -263,6 +265,20 @@ export function DetailModal({
   const isDeleteConfirmOpen = Boolean(outputId && deleteConfirmOutputId === outputId);
   const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
   const isPromptLibrarySaved = Boolean(outputId && promptLibrarySavedOutputId === outputId);
+  const mediaSaveState = output?.saveState ?? "idle";
+  const isMediaSaveButtonVisible = Boolean(
+    !isPromptOnly && displayPreviewUrl && outputId && onSaveReference
+  );
+  const isMediaSaved = mediaSaveState === "saved";
+  const isMediaSaveDisabled = mediaSaveState === "saving" || mediaSaveState === "saved";
+  const mediaSaveLabel =
+    mediaSaveState === "saving"
+      ? "Saving..."
+      : mediaSaveState === "saved"
+        ? "Saved"
+        : mediaSaveState === "failed"
+          ? "Retry Save"
+          : "Save";
 
   const isPromptEditable = Boolean(isPromptOnly);
   const trimmedPrompt = draftPrompt.trim();
@@ -566,6 +582,11 @@ export function DetailModal({
     downloadUrlToFile(displayPreviewUrl, downloadFilename);
   };
 
+  const handleSaveMediaReference = () => {
+    if (!outputId || !onSaveReference || isMediaSaveDisabled) return;
+    onSaveReference(outputId);
+  };
+
   const handlePreviewAspectLoad = useCallback(
     (width: number, height: number) => {
       if (!outputId) return;
@@ -796,6 +817,17 @@ export function DetailModal({
               </div>
 
               <div className="art-modal-action-row">
+                {isMediaSaveButtonVisible ? (
+                  <button
+                    type="button"
+                    className={`art-action-btn art-action-btn-save ${isMediaSaved ? "is-saved" : ""}`}
+                    onClick={handleSaveMediaReference}
+                    disabled={isMediaSaveDisabled}
+                    title="Save to media library"
+                  >
+                    {mediaSaveLabel}
+                  </button>
+                ) : null}
                 {displayPreviewUrl && (
                   <button
                     type="button"

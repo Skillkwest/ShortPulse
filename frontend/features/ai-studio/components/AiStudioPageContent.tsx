@@ -512,6 +512,7 @@ export type AiStudioPageContentProps = {
   onUpdateOutputPrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
   onDetailDownload?: (id: string) => void;
+  onDetailSaveReference?: (id: string) => void;
   onDetailSavePrompt?: (promptText: string) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
@@ -581,6 +582,7 @@ export function AiStudioPageContent({
   onUpdateOutputPrompt,
   onDeleteOutput,
   onDetailDownload,
+  onDetailSaveReference,
   onDetailSavePrompt,
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
@@ -1360,6 +1362,7 @@ export function AiStudioPageContent({
         onUpdatePrompt={onUpdateOutputPrompt}
         onDeleteOutput={onDeleteOutput}
         onDownloadReference={onDetailDownload}
+        onSaveReference={onDetailSaveReference}
         onSavePrompt={onDetailSavePrompt}
         refreshCharacterOptions={refreshCharacterOptions}
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}

@@ -30,6 +30,7 @@ const createParams = (
   setDetailOutputId: vi.fn(),
   updateOutputPrompt: vi.fn(),
   deleteOutput: vi.fn(),
+  handleSaveReference: vi.fn(),
   handleDownloadReference: vi.fn(),
   savePromptToLibrary: vi.fn(),
   handleOpenMediaLibrary: vi.fn(),
@@ -58,6 +59,7 @@ describe("useAiStudioPreviewDetailProps", () => {
     const setDetailOutputId = vi.fn();
     const updateOutputPrompt = vi.fn();
     const deleteOutput = vi.fn();
+    const handleSaveReference = vi.fn();
     const handleDownloadReference = vi.fn();
     const savePromptToLibrary = vi.fn();
 
@@ -67,6 +69,7 @@ describe("useAiStudioPreviewDetailProps", () => {
           setDetailOutputId,
           updateOutputPrompt,
           deleteOutput,
+          handleSaveReference,
           handleDownloadReference,
           savePromptToLibrary,
         })
@@ -76,12 +79,14 @@ describe("useAiStudioPreviewDetailProps", () => {
     result.current.onDetailClose();
     result.current.onUpdateOutputPrompt("out-1", "Updated prompt");
     result.current.onDeleteOutput("out-1");
+    result.current.onDetailSaveReference?.("out-1");
     result.current.onDetailDownload?.("out-1");
     result.current.onDetailSavePrompt?.("Saved prompt");
 
     expect(setDetailOutputId).toHaveBeenCalledWith(null);
     expect(updateOutputPrompt).toHaveBeenCalledWith("out-1", "Updated prompt");
     expect(deleteOutput).toHaveBeenCalledWith("out-1");
+    expect(handleSaveReference).toHaveBeenCalledWith("out-1");
     expect(handleDownloadReference).toHaveBeenCalledWith("out-1");
     expect(savePromptToLibrary).toHaveBeenCalledWith("Saved prompt");
   });

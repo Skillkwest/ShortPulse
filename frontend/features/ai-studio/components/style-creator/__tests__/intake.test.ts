@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import {
   clearInternalReferenceDragSession,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   registerInternalReferenceDragSession,
 } from "../../../../../lib/internalReferenceDragSession";
@@ -502,6 +503,56 @@ describe("style-creator intake preprocessing", () => {
           outputId: "out-session",
           mediaId: "media-session",
           referenceRenderUrl: "data:image/jpeg;base64,session-rendered-source",
+        })
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      clearInternalReferenceDragSession(dragSessionToken);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("resolves internal drops from a text drag-session token when custom mime types are stripped", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const dragSessionToken = registerInternalReferenceDragSession({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-session-text",
+      outputId: "out-session-text",
+      imageIndex: 0,
+      mediaId: "media-session-text",
+      referenceUrl: null,
+      referenceRenderUrl: "data:image/jpeg;base64,session-text-rendered-source",
+      sourceSurface: "all-refs",
+    });
+    const transfer = {
+      files: [],
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer;
+    const resolveInternalStyleDrop = vi.fn(async () => ({
+      primarySourceUrl: "",
+      fallbackSourceUrls: [],
+      imageUrlCandidates: [],
+      promptText: "internal prompt",
+    }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, { resolveInternalStyleDrop });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(resolveInternalStyleDrop).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputId: "out-session-text",
+          mediaId: "media-session-text",
+          referenceRenderUrl: "data:image/jpeg;base64,session-text-rendered-source",
         })
       );
       expect(fetchMock).not.toHaveBeenCalled();

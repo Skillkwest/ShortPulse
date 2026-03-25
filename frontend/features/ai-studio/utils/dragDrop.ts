@@ -5,6 +5,7 @@ import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../lib/internalReferenceDr
 import {
   clearInternalReferenceDragSession,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   registerInternalReferenceDragSession,
 } from "../../../lib/internalReferenceDragSession";
 import type { ReferenceDragSourceSurface } from "../../../lib/internalReferenceDragPayload";
@@ -713,6 +714,7 @@ export const prepareReferenceDrag = (
     dragNodeDataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY] = dragSessionToken;
   }
   transfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE, dragSessionToken);
+  transfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE, dragSessionToken);
   if (resolvedReferenceTransferUrl) {
     transfer.setData("text/uri-list", resolvedReferenceTransferUrl);
     transfer.setData("text/reference-url", resolvedReferenceTransferUrl);

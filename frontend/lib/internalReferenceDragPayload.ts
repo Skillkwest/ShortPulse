@@ -4,6 +4,8 @@
  */
 import {
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  getInternalReferenceDragSessionToken,
   resolveInternalReferenceDragSession,
 } from "./internalReferenceDragSession";
 
@@ -22,6 +24,7 @@ const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   "text/reference-id",
   "text/reference-output-id",
   "text/reference-media-id",
@@ -153,7 +156,7 @@ export const extractInternalReferenceDragPayload = (
 ): InternalReferenceDragPayload | null => {
   if (!transfer) return null;
   const sessionPayload = resolveInternalReferenceDragSession(
-    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE)
+    getInternalReferenceDragSessionToken(transfer)
   );
   if (sessionPayload) {
     return sessionPayload;

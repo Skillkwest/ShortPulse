@@ -11,7 +11,11 @@ import {
 } from "../../utils/dragDrop";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
-import { INTERNAL_REFERENCE_DRAG_SESSION_TYPE } from "../../../../lib/internalReferenceDragSession";
+import {
+  getInternalReferenceDragSessionToken,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+} from "../../../../lib/internalReferenceDragSession";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
 import {
   BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
@@ -798,7 +802,7 @@ const resolveFallbackImageUrlViaServerCopy = async ({
 export const captureStyleDropSnapshot = (transfer: DataTransfer): StyleDropSnapshot => ({
   transferTypes: getNormalizedTransferTypes(transfer),
   files: Array.from(transfer.files ?? []),
-  internalReferenceDragToken: transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE),
+  internalReferenceDragToken: getInternalReferenceDragSessionToken(transfer) ?? "",
   referenceOrigin: transfer.getData("text/reference-origin"),
   referenceVersion: transfer.getData("text/reference-version"),
   referenceOutputId: transfer.getData("text/reference-output-id"),
@@ -826,6 +830,7 @@ const buildStyleDropSnapshotTransfer = (snapshot: StyleDropSnapshot): DataTransf
         case "text/reference-origin":
           return snapshot.referenceOrigin;
         case INTERNAL_REFERENCE_DRAG_SESSION_TYPE:
+        case INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE:
           return snapshot.internalReferenceDragToken;
         case "text/reference-version":
           return snapshot.referenceVersion;

@@ -59,6 +59,8 @@ describe("resolveStyleInternalDropCandidates", () => {
 
     expect(resolved).toBeTruthy();
     expect(resolved?.managedStoragePath).toBe("user-1/generations/images/out-1-preview.png");
+    expect(resolved?.primarySourceUrl).toBe("https://cdn.example.com/out-1-result.png");
+    expect(resolved?.fallbackSourceUrls).toEqual(["https://cdn.example.com/out-1-preview.png"]);
     expect(resolved?.imageUrlCandidates).toContain("https://cdn.example.com/out-1-result.png");
     expect(resolved?.promptText).toBe("cinematic portrait");
   });
@@ -104,6 +106,8 @@ describe("resolveStyleInternalDropCandidates", () => {
       "user-1/generations/images/out-1-preview.png"
     );
     expect(resolved?.managedStoragePath).toBe("user-1/generations/images/out-1-preview.png");
+    expect(resolved?.primarySourceUrl).toBe("https://cdn.example.com/signed/out-1-preview.png");
+    expect(resolved?.fallbackSourceUrls).toEqual(["https://cdn.example.com/out-1-preview.png"]);
     expect(resolved?.imageUrlCandidates[0]).toBe(
       "https://cdn.example.com/signed/out-1-preview.png"
     );
@@ -169,6 +173,8 @@ describe("resolveStyleInternalDropCandidates", () => {
       "https://cdn.example.com/signed/lookup.png",
       "https://cdn.example.com/stale-reference.png",
     ]);
+    expect(resolved?.primarySourceUrl).toBe("https://cdn.example.com/signed/lookup.png");
+    expect(resolved?.fallbackSourceUrls).toEqual(["https://cdn.example.com/stale-reference.png"]);
     expect(resolved?.resolutionReason).toBe("saved_media_lookup");
     expect(resolved?.serverCopyHints).toEqual({
       outputId: "out-missing",
@@ -217,6 +223,7 @@ describe("resolveStyleInternalDropCandidates", () => {
     });
 
     expect(resolved?.imageUrlCandidates[0]).toBe("https://cdn.example.com/signed/lookup.png");
+    expect(resolved?.primarySourceUrl).toBe("https://cdn.example.com/signed/lookup.png");
     expect(resolved?.imageUrlCandidates).toContain("https://provider.example.com/stale.png");
     expect(resolved?.resolutionReason).toBe("saved_media_lookup");
   });
@@ -281,6 +288,13 @@ describe("resolveStyleInternalDropCandidates", () => {
       "https://provider.example.com/result-index-0.png",
       "https://provider.example.com/preview.png",
     ]);
+    expect(resolved?.primarySourceUrl).toBe(
+      "https://cdn.example.com/signed/generation-index-0.png"
+    );
+    expect(resolved?.fallbackSourceUrls).toEqual([
+      "https://provider.example.com/result-index-0.png",
+      "https://provider.example.com/preview.png",
+    ]);
     expect(resolved?.resolutionReason).toBe("generation_index_lookup");
     expect(resolved?.serverCopyHints).toEqual({
       outputId: "out-1",
@@ -328,6 +342,8 @@ describe("resolveStyleInternalDropCandidates", () => {
     });
 
     expect(resolved?.managedStoragePath).toBeNull();
+    expect(resolved?.primarySourceUrl).toBe("blob:upload-original-object");
+    expect(resolved?.fallbackSourceUrls).toEqual(["https://signed.example.com/upload-preview.png"]);
     expect(resolved?.imageUrlCandidates).toEqual([
       "blob:upload-original-object",
       "https://signed.example.com/upload-preview.png",

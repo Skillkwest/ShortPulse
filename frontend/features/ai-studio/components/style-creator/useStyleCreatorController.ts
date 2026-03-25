@@ -31,14 +31,13 @@ import {
   normalizeStyleDropPreviewError,
   normalizeStylePromptFallbackText,
   normalizeStyleDetailsDraft,
-  preprocessStyleImageDataUrl,
-  resolveStyleSource,
   type StyleDropSnapshot,
   type ResolveInternalStyleDrop,
   reorderById,
 } from "./intake";
 import { runDeleteStyleCommand, runSaveStyleDetailsCommand } from "./persistence";
 import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } from "./telemetry";
+import { buildCreatedStyleDetails, resolveProcessedStyleSource } from "./workflow";
 import type {
   PendingStyleEditState,
   StyleExtractionFailureClass,
@@ -399,7 +398,7 @@ export const useStyleCreatorController = ({
     async (dropSnapshot: StyleDropSnapshot) => {
       setLocalSaveError(null);
       try {
-        const resolvedSource = await resolveStyleSource({
+        const resolvedSource = await resolveProcessedStyleSource({
           dropSnapshot,
           resolveInternalStyleDrop,
         });
@@ -414,14 +413,11 @@ export const useStyleCreatorController = ({
           candidateCount: resolvedSource.candidateCount,
           serverCopyAttempted: resolvedSource.serverCopyAttempted,
         });
-        const { previewImageUrl, extractionSourceImageUrl } = await preprocessStyleImageDataUrl(
-          resolvedSource.sourceImageDataUrl
-        );
         setPendingStyleEdit((previous) =>
-          applyStylePreviewToPendingEdit(previous, previewImageUrl)
+          applyStylePreviewToPendingEdit(previous, resolvedSource.previewImageUrl)
         );
         if (pendingStyleEdit?.mode === "create") {
-          void extractStyleForCreateDraft(extractionSourceImageUrl);
+          void extractStyleForCreateDraft(resolvedSource.extractionSourceImageUrl);
         }
       } catch (error) {
         const normalizedError = normalizeStyleDropPreviewError(error);
@@ -493,8 +489,7 @@ export const useStyleCreatorController = ({
     async (file: File) => {
       setLocalSaveError(null);
       try {
-        const resolvedSource = await resolveStyleSource({ file });
-        const processed = await preprocessStyleImageDataUrl(resolvedSource.sourceImageDataUrl);
+        const processed = await resolveProcessedStyleSource({ file });
         setPendingStyleEdit((previous) =>
           applyStylePreviewToPendingEdit(previous, processed.previewImageUrl)
         );
@@ -519,7 +514,7 @@ export const useStyleCreatorController = ({
       setCreateStyleFromDropSubmitting(true);
       setStylesLibraryDropError(null);
       try {
-        const resolvedSource = await resolveStyleSource({
+        const resolvedSource = await resolveProcessedStyleSource({
           dropSnapshot,
           resolveInternalStyleDrop,
         });
@@ -534,17 +529,13 @@ export const useStyleCreatorController = ({
           candidateCount: resolvedSource.candidateCount,
           serverCopyAttempted: resolvedSource.serverCopyAttempted,
         });
-        const { previewImageUrl, extractionSourceImageUrl } = await preprocessStyleImageDataUrl(
-          resolvedSource.sourceImageDataUrl
-        );
-
         let extractedStylePrompt = normalizeStylePromptFallbackText(resolvedSource.promptText);
         let extractedStyleTitle: string | null = null;
         let extractionOutcome: StyleExtractionOutcome = "fallback";
         let extractionSourceUrlKind: "data" | "url" | "unknown" = "unknown";
 
         const extractionResult = await runStyleExtraction({
-          sourceImageUrl: extractionSourceImageUrl,
+          sourceImageUrl: resolvedSource.extractionSourceImageUrl,
         });
 
         extractionOutcome = extractionResult.outcome;
@@ -595,19 +586,15 @@ export const useStyleCreatorController = ({
         const saved = await runSaveStyleDetailsCommand({
           styleId: customStyleId,
           onSaveStyleDetails,
-          details: toPersistableStyleDetails({
-            style: customStyleName,
-            title: customStyleName,
-            referenceImageName: customStyleName,
-            stylePrompt: extractedStylePrompt,
-            previewImageUrl,
-            styleProfile: buildStyleProfileFromPrompt(extractedStylePrompt),
-            extractionMeta: buildStyleExtractionMeta({
-              outcome: extractionOutcome,
-              flow: "library_drop",
+          details: toPersistableStyleDetails(
+            buildCreatedStyleDetails({
+              styleName: customStyleName,
+              extractedStylePrompt,
+              previewImageUrl: resolvedSource.previewImageUrl,
+              extractionOutcome,
               sourceUrlKind: extractionSourceUrlKind,
-            }),
-          }),
+            })
+          ),
         });
         if (!saved) {
           setStylesLibraryDropError("Unable to create this style right now.");

@@ -189,6 +189,16 @@ const pushImageCandidate = (next: string[], value: string | null | undefined) =>
   }
 };
 
+const splitPrimaryAndFallbackSources = (
+  candidates: readonly string[]
+): { primarySourceUrl: string | null; fallbackSourceUrls: string[] } => {
+  const [primarySourceUrl, ...fallbackSourceUrls] = candidates;
+  return {
+    primarySourceUrl: primarySourceUrl ?? null,
+    fallbackSourceUrls,
+  };
+};
+
 const resolveOutputStoragePath = (output: StudioOutput): string | null => {
   return (
     asCanonicalStoragePath(output.previewStoragePath) ??
@@ -253,6 +263,8 @@ export const resolveStyleInternalDropCandidates = async ({
     if (!mediaLookupCandidates.length) return null;
     const mediaLookupPreviewUrlHint = mediaLookupCandidates[0] ?? null;
     return {
+      primarySourceUrl: mediaLookupPreviewUrlHint,
+      fallbackSourceUrls: mediaLookupCandidates.slice(mediaLookupPreviewUrlHint ? 1 : 0),
       imageUrlCandidates: mediaLookupCandidates,
       promptText: null,
       serverCopyHints: {
@@ -363,9 +375,12 @@ export const resolveStyleInternalDropCandidates = async ({
     asTrimmedString(indexedResultUrl) ??
     asTrimmedString(resolvedOutput.resultUrls?.[0]) ??
     previewUrlHint;
+  const { primarySourceUrl, fallbackSourceUrls } = splitPrimaryAndFallbackSources(candidates);
 
   return {
     managedStoragePath: storagePath,
+    primarySourceUrl,
+    fallbackSourceUrls,
     imageUrlCandidates: candidates,
     promptText: resolvedOutput.prompt || resolvedOutput.previewText || null,
     serverCopyHints: {

@@ -50,6 +50,8 @@ export type InternalStyleDropServerCopyHints = {
 
 export type ResolvedInternalStyleDrop = {
   managedStoragePath?: string | null;
+  primarySourceUrl?: string | null;
+  fallbackSourceUrls?: string[];
   imageUrlCandidates: string[];
   promptText?: string | null;
   serverCopyHints?: InternalStyleDropServerCopyHints;
@@ -485,51 +487,6 @@ const getFirstUriListValue = (value: string): string => {
   );
 };
 
-const collectDroppedImageUrlCandidates = (
-  transfer: DataTransfer,
-  primaryCandidate: string,
-  priorityCandidates: readonly string[] = [],
-  options?: { preserveNextImageOptimizerUrls?: boolean }
-): string[] => {
-  const candidates: string[] = [];
-  const addCandidate = (value: string | null | undefined) => {
-    const normalized = value?.trim() ?? "";
-    if (!normalized) return;
-    if (!candidates.includes(normalized)) {
-      candidates.push(normalized);
-    }
-  };
-  const normalizeOptions =
-    options?.preserveNextImageOptimizerUrls === true
-      ? { unwrapNextImage: false as const }
-      : undefined;
-  const pushCandidate = (value: string | null | undefined) => {
-    const normalizedPrimary =
-      normalizeReferenceTransferUrlCandidate(value, normalizeOptions) ??
-      (typeof value === "string" ? value.trim() : "");
-    if (!normalizedPrimary) return;
-    addCandidate(normalizedPrimary);
-    if (options?.preserveNextImageOptimizerUrls !== true) {
-      return;
-    }
-    const normalizedUnwrapped = normalizeReferenceTransferUrlCandidate(value);
-    if (normalizedUnwrapped && normalizedUnwrapped !== normalizedPrimary) {
-      addCandidate(normalizedUnwrapped);
-    }
-  };
-  priorityCandidates.forEach((candidate) => pushCandidate(candidate));
-  pushCandidate(transfer.getData(REFERENCE_RENDER_URL_TRANSFER_TYPE));
-  pushCandidate(primaryCandidate);
-  pushCandidate(transfer.getData("text/reference-url"));
-  pushCandidate(transfer.getData("image/url"));
-  pushCandidate(getFirstUriListValue(transfer.getData("text/uri-list")));
-  const plainText = transfer.getData("text/plain").trim();
-  if (URLISH_TEXT_PATTERN.test(plainText)) {
-    pushCandidate(plainText);
-  }
-  return candidates;
-};
-
 const readDroppedImageDataUrlWithRefreshFallback = async (sourceUrl: string): Promise<string> => {
   const normalizedSourceUrl = sourceUrl.trim();
   if (/^data:image\//i.test(normalizedSourceUrl)) {
@@ -857,6 +814,89 @@ const hasStyleReorderTransfer = (transfer: DataTransfer | null | undefined): boo
   return Array.from(transfer.types ?? []).includes("text/style-library-id");
 };
 
+const buildStyleDropSnapshotTransfer = (snapshot: StyleDropSnapshot): DataTransfer =>
+  ({
+    types: snapshot.transferTypes,
+    files: snapshot.files,
+    getData: (type: string) => {
+      switch (type) {
+        case "text/reference-origin":
+          return snapshot.referenceOrigin;
+        case "text/reference-version":
+          return snapshot.referenceVersion;
+        case "text/reference-output-id":
+          return snapshot.referenceOutputId;
+        case "text/reference-media-id":
+          return snapshot.referenceMediaId;
+        case "text/reference-image-index":
+          return snapshot.referenceImageIndex;
+        case "text/reference-source-surface":
+          return snapshot.referenceSourceSurface;
+        case "text/reference-url":
+          return snapshot.referenceUrl;
+        case REFERENCE_RENDER_URL_TRANSFER_TYPE:
+          return snapshot.referenceRenderUrl;
+        case "image/url":
+          return snapshot.imageUrl;
+        case "text/plain":
+          return snapshot.plainText;
+        case "text/uri-list":
+          return snapshot.uriList;
+        default:
+          return "";
+      }
+    },
+  }) as unknown as DataTransfer;
+
+const dedupeStyleSourceUrls = (values: Array<string | null | undefined>): string[] => {
+  const next: string[] = [];
+  values.forEach((value) => {
+    const normalized = value?.trim() ?? "";
+    if (!normalized || next.includes(normalized)) return;
+    next.push(normalized);
+  });
+  return next;
+};
+
+const collectSnapshotImageUrlCandidates = ({
+  snapshot,
+  internalPayloadPresent,
+  dragPayloadImageUrl,
+}: {
+  snapshot: StyleDropSnapshot;
+  internalPayloadPresent: boolean;
+  dragPayloadImageUrl?: string | null;
+}): string[] => {
+  const normalizeOptions = internalPayloadPresent
+    ? ({ unwrapNextImage: false } as const)
+    : undefined;
+  const plainText = snapshot.plainText.trim();
+  const snapshotUriList = getFirstUriListValue(snapshot.uriList);
+  const primaryCandidates = [
+    normalizeReferenceTransferUrlCandidate(snapshot.referenceRenderUrl, normalizeOptions),
+    normalizeReferenceTransferUrlCandidate(snapshot.imageUrl, normalizeOptions),
+    normalizeReferenceTransferUrlCandidate(snapshot.referenceUrl, normalizeOptions),
+    normalizeReferenceTransferUrlCandidate(snapshotUriList, normalizeOptions),
+    normalizeReferenceTransferUrlCandidate(dragPayloadImageUrl, normalizeOptions),
+    URLISH_TEXT_PATTERN.test(plainText)
+      ? normalizeReferenceTransferUrlCandidate(plainText, normalizeOptions)
+      : null,
+  ];
+  const unwrappedInternalCandidates = internalPayloadPresent
+    ? [
+        normalizeReferenceTransferUrlCandidate(snapshot.referenceRenderUrl),
+        normalizeReferenceTransferUrlCandidate(snapshot.imageUrl),
+        normalizeReferenceTransferUrlCandidate(snapshot.referenceUrl),
+        normalizeReferenceTransferUrlCandidate(snapshotUriList),
+        normalizeReferenceTransferUrlCandidate(dragPayloadImageUrl),
+        URLISH_TEXT_PATTERN.test(plainText)
+          ? normalizeReferenceTransferUrlCandidate(plainText)
+          : null,
+      ]
+    : [];
+  return dedupeStyleSourceUrls([...primaryCandidates, ...unwrappedInternalCandidates]);
+};
+
 /**
  * Resolves a single usable style source from either a dropped file or transfer payload.
  * This is the authoritative intake boundary for preview derivation and style extraction.
@@ -916,38 +956,7 @@ export const resolveStyleSource = async ({
       };
     }
 
-    const transferLikeSnapshot = {
-      types: snapshot.transferTypes,
-      files: snapshot.files,
-      getData: (type: string) => {
-        switch (type) {
-          case "text/reference-origin":
-            return snapshot.referenceOrigin;
-          case "text/reference-version":
-            return snapshot.referenceVersion;
-          case "text/reference-output-id":
-            return snapshot.referenceOutputId;
-          case "text/reference-media-id":
-            return snapshot.referenceMediaId;
-          case "text/reference-image-index":
-            return snapshot.referenceImageIndex;
-          case "text/reference-source-surface":
-            return snapshot.referenceSourceSurface;
-          case "text/reference-url":
-            return snapshot.referenceUrl;
-          case REFERENCE_RENDER_URL_TRANSFER_TYPE:
-            return snapshot.referenceRenderUrl;
-          case "image/url":
-            return snapshot.imageUrl;
-          case "text/plain":
-            return snapshot.plainText;
-          case "text/uri-list":
-            return snapshot.uriList;
-          default:
-            return "";
-        }
-      },
-    } as unknown as DataTransfer;
+    const transferLikeSnapshot = buildStyleDropSnapshotTransfer(snapshot);
 
     const internalDropPayload = extractInternalReferenceDragPayload(transferLikeSnapshot);
     const internalDropResolution =
@@ -956,29 +965,33 @@ export const resolveStyleSource = async ({
         : null;
     resolutionReason = internalDropResolution?.resolutionReason ?? null;
     const dragPayload = extractDragDropPayload(transferLikeSnapshot);
-    const droppedImageUrl =
-      (internalDropPayload
-        ? normalizeReferenceTransferUrlCandidate(snapshot.referenceUrl, {
-            unwrapNextImage: false,
-          })
-        : null) ??
-      dragPayload.imageUrl?.trim() ??
+    const internalResolvedCandidates = internalDropResolution?.imageUrlCandidates ?? [];
+    const directTransferSourceUrls = collectSnapshotImageUrlCandidates({
+      snapshot,
+      internalPayloadPresent: Boolean(internalDropPayload),
+      dragPayloadImageUrl: dragPayload.imageUrl,
+    });
+    const internalPrimarySourceUrl =
+      internalDropResolution?.primarySourceUrl?.trim() ??
+      internalResolvedCandidates[0]?.trim() ??
       "";
-    const droppedImageUrlCandidates = collectDroppedImageUrlCandidates(
-      transferLikeSnapshot,
-      droppedImageUrl,
-      internalDropResolution?.imageUrlCandidates ?? [],
-      { preserveNextImageOptimizerUrls: Boolean(internalDropPayload) }
-    );
-    candidateCount = droppedImageUrlCandidates.length;
-    if (!droppedImageUrlCandidates.length) {
+    const internalFallbackSourceUrls =
+      internalDropResolution?.fallbackSourceUrls ??
+      internalResolvedCandidates.slice(internalPrimarySourceUrl ? 1 : 0);
+    const sourceUrls = dedupeStyleSourceUrls([
+      internalPrimarySourceUrl,
+      ...directTransferSourceUrls,
+      ...internalFallbackSourceUrls,
+    ]);
+    candidateCount = sourceUrls.length;
+    const managedStoragePath = internalDropResolution?.managedStoragePath?.trim() ?? "";
+    if (!managedStoragePath && !sourceUrls.length) {
       throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
     }
     const fallbackPromptText = normalizeStylePromptFallbackText(dragPayload.promptText);
     const internalPromptText = normalizeStylePromptFallbackText(internalDropResolution?.promptText);
     let sourceImageDataUrl: string | null = null;
     let lastReadError: unknown = null;
-    const managedStoragePath = internalDropResolution?.managedStoragePath?.trim() ?? "";
     if (managedStoragePath) {
       try {
         sourceImageDataUrl = await readManagedImageDataUrlFromStoragePath(managedStoragePath);
@@ -986,7 +999,7 @@ export const resolveStyleSource = async ({
         lastReadError = error;
       }
     }
-    for (const candidateUrl of droppedImageUrlCandidates) {
+    for (const candidateUrl of sourceUrls) {
       if (sourceImageDataUrl) break;
       try {
         sourceImageDataUrl = await readDroppedImageDataUrlWithRefreshFallback(candidateUrl);
@@ -1003,7 +1016,7 @@ export const resolveStyleSource = async ({
       if (normalizedReadError.code === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
         resolutionStage = "server_copy_fallback";
         serverCopyAttempted = true;
-        const serverCopySourceUrls = collectInternalServerCopySourceUrls(droppedImageUrlCandidates);
+        const serverCopySourceUrls = collectInternalServerCopySourceUrls(sourceUrls);
         for (const sourceUrl of serverCopySourceUrls) {
           const fallbackUrl = await resolveFallbackImageUrlViaServerCopy({
             sourceUrl,

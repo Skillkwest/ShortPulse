@@ -343,7 +343,7 @@ describe("style-creator intake preprocessing", () => {
     }
   });
 
-  it("prefers resolved internal-drop candidates ahead of stale transfer URLs", async () => {
+  it("prefers the resolved internal primary source ahead of stale transfer URLs", async () => {
     installImageAndCanvasMocks({
       width: 1200,
       height: 900,
@@ -371,6 +371,8 @@ describe("style-creator intake preprocessing", () => {
     try {
       const resolved = await resolveDroppedStylePreview(transfer, {
         resolveInternalStyleDrop: async () => ({
+          primarySourceUrl: "data:image/jpeg;base64,internal-drop-snapshot",
+          fallbackSourceUrls: [],
           imageUrlCandidates: ["data:image/jpeg;base64,internal-drop-snapshot"],
           promptText: "internal prompt",
         }),
@@ -401,6 +403,43 @@ describe("style-creator intake preprocessing", () => {
     } as unknown as DataTransfer;
     const resolveInternalStyleDrop = vi.fn(async () => ({
       imageUrlCandidates: ["data:image/jpeg;base64,internal-candidate"],
+      promptText: "internal prompt",
+    }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, { resolveInternalStyleDrop });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(resolveInternalStyleDrop).toHaveBeenCalledTimes(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("resolves internal drops from one authoritative source even when reference-url is missing", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-render-url"],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-321";
+        if (type === "text/reference-render-url")
+          return "/_next/image?url=%2Finternal-style.png&w=1080&q=75";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolveInternalStyleDrop = vi.fn(async () => ({
+      primarySourceUrl: "data:image/jpeg;base64,authoritative-internal-source",
+      fallbackSourceUrls: ["https://cdn.example.com/stale-reference.png"],
+      imageUrlCandidates: ["https://cdn.example.com/stale-reference.png"],
       promptText: "internal prompt",
     }));
     const fetchMock = vi.fn();

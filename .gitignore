@@ -22,3 +22,9 @@ frontend/.env.local
 vercel_staging_env_*.txt
 .vercel
 .tmp/
+# Frontend app/source modules are TypeScript-first; do not commit transpiled JS sidecars.
+frontend/features/**/*.js
+frontend/lib/**/*.js
+frontend/prefabs/**/*.js
+!frontend/tests/**/*.js
+!frontend/next.config.js

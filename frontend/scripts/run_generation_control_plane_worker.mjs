@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global console */
 
 import fs from "node:fs";
 import os from "node:os";

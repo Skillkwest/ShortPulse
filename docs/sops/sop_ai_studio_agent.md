@@ -34,7 +34,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
   - `messages`: chat history `{ role: "user" | "assistant", content: string }[]`.
   - `clientSessionKey`: stable session key (required; used for canonical continuity).
   - `traceId` (optional): request correlation ID echoed by server.
-  - `directOpenAiBypass` (optional): requests raw OpenAI chat-completions execution without studio-agent orchestration. Server only honors this when `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
+  - `directOpenAiBypass` (optional): requests raw OpenAI chat-completions execution without studio-agent orchestration. Server only honors this when `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`. When the active send includes image media in `context.media`, the route forwards that media to OpenAI as multimodal `image_url` content on the latest user turn.
   - `context`: {
     `activePrompt`: string;
     `modelId`: string | null;
@@ -71,6 +71,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 7. For image/mixed turns, route can run server-owned vision summaries and inject them into orchestration context. Vision summaries use `STUDIO_AGENT_VISION_TIMEOUT_MS`; generation turns keep `STUDIO_AGENT_TURN_TIMEOUT_MS`.
 8. Provider execution path:
    - Direct bypass: when `directOpenAiBypass=true` and the server gate is enabled, the route sends the user/assistant message list directly to OpenAI chat completions using `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`, skips the agent coordinator/thinker/formatter path, and still returns the standard prompt-application response envelope.
+   - If `context.media` contains staged images, the route upgrades the latest user turn to multimodal input (`text + image_url`) so the direct lane can visually analyze the image and answer with a generation-ready prompt.
    - Canonical: single-stage call for `TEXT_ONLY`, `IMAGE_ONLY`, and `MIXED`.
    - Optional rollback: legacy thinker/formatter fallback when `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`.
 9. Response returns normalized prompt output (`message` + `actions.applyPrompt` on success) and canonical prompt continuity.

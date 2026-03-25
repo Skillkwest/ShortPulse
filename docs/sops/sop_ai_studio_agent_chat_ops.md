@@ -9,7 +9,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
 - Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path.
-- Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control.
+- Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control. The bypass lane can also attach staged image media as multimodal input so users can ask for image descriptions or prompt rewrites directly from dropped images.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
@@ -60,6 +60,7 @@ Prompt ownership rule:
 - **Direct OpenAI chat mode (Chat Mode ON + bypass flag enabled):**
   - Client still posts `/api/ai/studio-agent`, but always sets `directOpenAiBypass=true` for the Create/Text chat lane.
   - When the server gate is enabled, the route skips studio-agent orchestration and sends the raw message list directly to OpenAI with model `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
+  - If the active send includes staged images, the latest user turn is sent as multimodal input (`text + image_url`) so the direct lane can describe the image and turn it into a generation-ready prompt.
   - The response still returns the standard `message` + `actions.applyPrompt` envelope so the UI can reuse its normal apply/save/generate flow.
 - **Describe a reference:**
   - Primary: `/api/ai/describe-image` on the active output image.

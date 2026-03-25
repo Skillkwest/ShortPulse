@@ -61,6 +61,8 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
 import { emitStudioAgentTurnTelemetry } from "../../../features/agent-runtime/studioAgentRouteOutcomes";
+import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
+import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
 
 const DEFAULT_DIRECT_OPENAI_MODEL = "gpt-5.4";
 const DIRECT_OPENAI_SYSTEM_PROMPT = `You are a professional prompt writer for image generation.
@@ -68,15 +70,63 @@ Optimize prompts for Google Nano Banana family image models and Seedream family 
 Be concise, helpful, and business casual.
 
 If the user is asking for help, answer briefly and directly.
+If the user attaches an image, analyze the image visually and turn it into a detailed generation-ready prompt.
+If the user asks you to describe an image or convert it into a prompt, base your answer on the visible content plus any user instructions.
 If the user's message appears to be an image-generation prompt or a request to create one, rewrite it into a strong production-ready prompt with clear subject, composition, lighting, style, and quality details.
 When rewriting a prompt, return only the final prompt unless the user explicitly asks for explanation.
 Do not add markdown, labels, or extra commentary unless the user asks for it.`;
+const DIRECT_OPENAI_IMAGE_FALLBACK_TEXT =
+  "Describe this image as a detailed production-ready prompt for image generation.";
 
 const resolveDirectOpenAiBypassEnabled = (env: NodeJS.ProcessEnv): boolean =>
   env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
 
 const resolveDirectOpenAiModel = (env: NodeJS.ProcessEnv): string =>
   env.STUDIO_AGENT_DIRECT_OPENAI_MODEL?.trim() || DEFAULT_DIRECT_OPENAI_MODEL;
+
+const buildDirectOpenAiMessages = ({
+  messages,
+  context,
+}: {
+  messages: AgentMessage[];
+  context: AgentContext;
+}): OpenAiChatMessage[] => {
+  const imageParts =
+    context.media
+      ?.filter((item) => item.kind === "image" && typeof item.url === "string" && item.url.length)
+      .map((item) => ({
+        type: "image_url" as const,
+        image_url: {
+          url: item.url as string,
+          detail: "high" as const,
+        },
+      })) ?? [];
+  const latestUserIndex = messages.reduce(
+    (latestIndex, message, index) => (message.role === "user" ? index : latestIndex),
+    -1
+  );
+
+  return [
+    {
+      role: "system",
+      content: DIRECT_OPENAI_SYSTEM_PROMPT,
+    },
+    ...messages.map((message, index): OpenAiChatMessage => {
+      const role = message.role === "assistant" ? "assistant" : "user";
+      if (index !== latestUserIndex || !imageParts.length || role !== "user") {
+        return {
+          role,
+          content: message.content,
+        };
+      }
+      const textContent = message.content.trim() || DIRECT_OPENAI_IMAGE_FALLBACK_TEXT;
+      return {
+        role,
+        content: [{ type: "text", text: textContent }, ...imageParts],
+      };
+    }),
+  ];
+};
 
 const extractDirectOpenAiMessage = (payload: unknown): string | null => {
   if (!payload || typeof payload !== "object") return null;
@@ -250,16 +300,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const directOpenAiRoundTripStartedAt = Date.now();
     try {
-      const directMessages = [
-        {
-          role: "system",
-          content: DIRECT_OPENAI_SYSTEM_PROMPT,
-        },
-        ...messages.map((message) => ({
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: message.content,
-        })),
-      ];
+      const directMessages = buildDirectOpenAiMessages({
+        messages,
+        context,
+      });
       const directResponse = await fetchStudioAgentChatCompletion({
         apiKey,
         openAiUrl,

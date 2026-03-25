@@ -219,6 +219,80 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     infoSpy.mockRestore();
   });
 
+  it("sends attached images to the direct bypass as multimodal user content", async () => {
+    process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "Detailed image prompt" } }],
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-direct-bypass-vision",
+        messages: [{ role: "user", content: "Describe this image." }],
+        context: {
+          media: [
+            {
+              id: "img-1",
+              kind: "image",
+              url: "https://example.com/reference-image.jpg",
+            },
+          ],
+        },
+        directOpenAiBypass: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const payload = requestInit?.body
+      ? (JSON.parse(requestInit.body) as {
+          messages?: Array<{
+            role: string;
+            content:
+              | string
+              | Array<
+                  | { type: "text"; text: string }
+                  | {
+                      type: "image_url";
+                      image_url: { url: string; detail?: "high" | "low" | "auto" };
+                    }
+                >;
+          }>;
+        })
+      : null;
+
+    expect(payload?.messages?.[1]).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "Describe this image." },
+        {
+          type: "image_url",
+          image_url: {
+            url: "https://example.com/reference-image.jpg",
+            detail: "high",
+          },
+        },
+      ],
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Detailed image prompt",
+        actions: expect.objectContaining({ applyPrompt: "Detailed image prompt" }),
+      })
+    );
+  });
+
   it("uses orchestration path for MIXED turns even when NEXT_PUBLIC_AGENT_V2=false", async () => {
     process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
     const req = {

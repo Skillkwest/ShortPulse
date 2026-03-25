@@ -68,6 +68,15 @@ npm install
 npm run dev
 ```
 
+If Fal queue mode is enabled locally (`SHORTPULSE_FAL_QUEUE_ENABLED=true` with `APP_BASE_URL` pointing at localhost), run the generation worker in a second terminal:
+
+```bash
+cd frontend
+npm run dev:generation-worker
+```
+
+The worker polls `/api/internal/generation-recovery/run`, writes a heartbeat under `frontend/.tmp/generation-control-plane-worker-heartbeat.json`, and local queued submits now fail closed when that heartbeat is stale or missing.
+
 ## Supabase tooling policy
 
 - Use Supabase CLI for Supabase access in this repo.

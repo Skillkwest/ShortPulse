@@ -37,7 +37,7 @@ type AppErrorWriteResult = {
 };
 
 type ApiExceptionOptions = {
-  req: NextApiRequest;
+  req?: NextApiRequest;
   error: unknown;
   routeLabel: string;
   metadata?: JsonObject;
@@ -46,7 +46,7 @@ type ApiExceptionOptions = {
 };
 
 type GenerationFailureLogOptions = {
-  req: NextApiRequest;
+  req?: NextApiRequest;
   routeLabel: string;
   message: string;
   statusCode?: number | null;
@@ -334,7 +334,7 @@ const getTable = <T>(tableName: string): T | null => {
 };
 
 const getRequestHeader = (
-  req: NextApiRequest,
+  req: NextApiRequest | undefined,
   headerName: string
 ): string | string[] | undefined => {
   const headers = req && typeof req === "object" ? (req as { headers?: unknown }).headers : null;
@@ -623,7 +623,7 @@ export const logApiRouteException = async ({
   user = null,
 }: ApiExceptionOptions): Promise<void> => {
   try {
-    const resolvedUser = user ?? (await getOptionalApiUser(req));
+    const resolvedUser = user ?? (req ? await getOptionalApiUser(req) : null);
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown API exception");
     const stack = error instanceof Error ? (error.stack ?? null) : null;
@@ -636,12 +636,12 @@ export const logApiRouteException = async ({
       message,
       stack,
       route: routeLabel,
-      endpoint: req.url ?? null,
+      endpoint: req?.url ?? null,
       requestId,
       userId: resolvedUser?.id ?? null,
       userEmail: resolvedUser?.email ?? null,
       metadata: {
-        method: req.method ?? null,
+        method: req?.method ?? null,
         route_label: routeLabel,
         ...metadata,
       },
@@ -670,7 +670,7 @@ export const logGenerationFailure = async ({
     let resolvedUserId = toTrimmedString(userId, 120);
     let resolvedUserEmail = toTrimmedString(userEmail, 320);
 
-    if (!resolvedUserId && !resolvedUserEmail) {
+    if (!resolvedUserId && !resolvedUserEmail && req) {
       const resolvedUser = await getOptionalApiUser(req);
       resolvedUserId = toTrimmedString(resolvedUser?.id, 120);
       resolvedUserEmail = toTrimmedString(resolvedUser?.email, 320);
@@ -689,13 +689,13 @@ export const logGenerationFailure = async ({
       message,
       stack,
       route: routeLabel,
-      endpoint: req.url ?? null,
+      endpoint: req?.url ?? null,
       requestId,
       statusCode: normalizedStatusCode,
       userId: resolvedUserId,
       userEmail: resolvedUserEmail,
       metadata: {
-        method: req.method ?? null,
+        method: req?.method ?? null,
         route_label: routeLabel,
         ...metadata,
       },

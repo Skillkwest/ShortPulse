@@ -13,6 +13,10 @@ import {
   resolveEffectiveEditSubmitModelId,
   type EditSubmitIntent,
 } from "../logic/editSubmitIntent";
+import {
+  CONCURRENT_GENERATION_CAP_MESSAGE,
+  MAX_CONCURRENT_GENERATIONS,
+} from "../logic/concurrentGenerationCap";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
@@ -34,6 +38,7 @@ type ViewModelInput = {
   imageResolution: string;
   videoGenerateAudio: boolean;
   balanceCredits: number | null;
+  activeGenerationCount?: number;
   editSubmitIntent?: EditSubmitIntent;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
 };
@@ -56,6 +61,7 @@ export const useAiStudioViewModel = ({
   imageResolution,
   videoGenerateAudio,
   balanceCredits,
+  activeGenerationCount = 0,
   editSubmitIntent,
   costParamsForModel,
 }: ViewModelInput) => {
@@ -300,9 +306,13 @@ export const useAiStudioViewModel = ({
         return "Add a motion reference video before generating in Motion Control.";
       }
     }
+    if (activeGenerationCount >= MAX_CONCURRENT_GENERATIONS) {
+      return CONCURRENT_GENERATION_CAP_MESSAGE;
+    }
     if (isCreditGuardrail) return "You do not have enough credits for this run.";
     return null;
   }, [
+    activeGenerationCount,
     extraImageUrls,
     hasDescribeImage,
     isVideoTool,

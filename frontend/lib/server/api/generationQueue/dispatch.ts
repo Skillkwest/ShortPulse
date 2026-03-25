@@ -1,4 +1,3 @@
-import type { NextApiRequest } from "next";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import { logGenerationFailure } from "../appErrorLogs";
 import { readFalRuntimeFlags } from "../falRuntimeFlags";
@@ -38,6 +37,7 @@ import {
   isVideoGenerationModelId,
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
+import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
 
 type JsonObject = Record<string, unknown>;
 
@@ -51,9 +51,9 @@ type QueueDispatchMetrics = {
   errors: number;
 };
 
-type DispatchOptions = {
-  req: NextApiRequest;
-  routeLabel: string;
+type QueueDispatchContext = Pick<GenerationControlPlaneLogContext, "req" | "routeLabel">;
+
+type DispatchOptions = QueueDispatchContext & {
   limit: number;
   userId?: string | null;
 };
@@ -289,7 +289,7 @@ const processClaimedQueueItem = async ({
   maxAttempts,
   baseBackoffSeconds,
 }: {
-  req: NextApiRequest;
+  req?: QueueDispatchContext["req"];
   routeLabel: string;
   item: ClaimedGenerationQueueItem;
   maxAttempts: number;

@@ -13,6 +13,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - AI Studio safety-control runtime knobs are centrally gated: `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (default `prod_safe_v1`), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default true, server pre-provider gate for `/api/ai/studio-agent`), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` (default true), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default true), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default true), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), shared/scoped field-mode overrides (`STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES`, `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT`, `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATE_PROMPT`, `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT`), client mirrors (`NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED`, `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES`, `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`), `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` (default false), `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` (default `production_normalized`), `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` (default false), `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` (bounded `1..168`, default `24`), and control-plane runtime sync controls `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (default true) plus `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (bounded `1000..60000`, default `5000`).
 - Kie provider routes remain runtime-gated (fail-closed by default): `SHORTPULSE_KIE_INTEGRATION_ENABLED=false` disables Kie submit/status calls unless explicitly enabled and allowlisted.
 - Fal runtime v2 operational routes: `/api/fal/webhook` (signature-verified webhook ingestion), `/api/fal/queue-status` (authenticated read-only queued-submit status handoff that now distinguishes `queued` vs `dispatching` pre-provider phases), and `/api/internal/generation-recovery/run` (cron-secret protected reconciler + queue dispatcher trigger).
+- Local generation worker helper: `npm -C frontend run dev:generation-worker` runs the shared generation control-plane loop directly in local development, writes a heartbeat under `frontend/.tmp/`, and is required for localhost queue mode to drain.
 - Media derivative operations route: `/api/internal/media-derivatives/run` (cron-secret protected image-derivative worker that claims `media_files` image rows, generates local `sharp` derivatives, and writes `thumb_*` variants under `media_asset_variants`).
 - Queue/recovery scheduling is externalized: configure Supabase Cron to call `/api/internal/generation-recovery/run` every minute via `sql/configure_generation_recovery_scheduler_supabase.sql`; keep `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` configured for auth.
 - Local AI Studio media uploads: `/api/upload-image` and `/api/upload-video` are compatibility adapters for transient reference uploads. They reuse the shared server-authoritative upload validation/storage path, preserve legacy `{ url, path, size }` responses, and emit usage telemetry for sunset review.
@@ -43,6 +44,11 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
    npm run dev
    ```
    This starts the Next.js app, including server API routes under `frontend/pages/api/*`.
+   If local queue mode is enabled (`SHORTPULSE_FAL_QUEUE_ENABLED=true` and `APP_BASE_URL=http://localhost:3000`), run the generation worker in a second terminal:
+   ```bash
+   cd frontend
+   npm run dev:generation-worker
+   ```
 
 ## Optional Supabase bootstrap
 

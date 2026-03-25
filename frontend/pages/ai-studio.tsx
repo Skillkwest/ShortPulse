@@ -19,6 +19,10 @@ import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
   shouldDisableGenerateWhileCharacterLoading,
 } from "../features/ai-studio/logic/createGenerationGuards";
+import {
+  CONCURRENT_GENERATION_CAP_MESSAGE,
+  countInFlightGenerations,
+} from "../features/ai-studio/logic/concurrentGenerationCap";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
@@ -337,6 +341,10 @@ export default function AiStudioPage() {
     balanceCredits,
     referenceGridPreconnectHintsEnabled: FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   });
+  const activeGenerationCount = useMemo(
+    () => countInFlightGenerations([...outputs, ...archivedOutputs]),
+    [archivedOutputs, outputs]
+  );
 
   useAiStudioPerfAuditRuntime({
     enabled: FLAG_PERF_AUDIT_RUNTIME,
@@ -560,6 +568,7 @@ export default function AiStudioPage() {
     imageResolution,
     videoGenerateAudio,
     balanceCredits: effectiveBalanceCredits,
+    activeGenerationCount,
     editSubmitIntent,
     costParamsForModel,
   });
@@ -576,6 +585,21 @@ export default function AiStudioPage() {
     generationGuardrail ??
     (isCharacterLoadingGenerateDisabled ? CHARACTER_LOADING_GENERATION_GUARDRAIL : null);
   const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
+
+  useEffect(() => {
+    const isConcurrentLimitGuardrail = generationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE;
+
+    if (isConcurrentLimitGuardrail) {
+      if (uiNotice == null) {
+        setUiNotice(CONCURRENT_GENERATION_CAP_MESSAGE);
+      }
+      return;
+    }
+
+    if (uiNotice === CONCURRENT_GENERATION_CAP_MESSAGE) {
+      setUiNotice(null);
+    }
+  }, [generationGuardrail, setUiNotice, uiNotice]);
   const {
     isMediaLibraryOpen,
     isMediaLibraryPanelEnabled,

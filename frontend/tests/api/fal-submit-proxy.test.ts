@@ -5,6 +5,9 @@ const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const ensureSubmittedGenerationRecordMock = vi.fn();
 const evaluateUserGenerationAdmissionMock = vi.fn();
+const hasFreshLocalGenerationWorkerHeartbeatMock = vi.fn();
+const isLocalDevGenerationWorkerRequiredMock = vi.fn();
+const readActiveProviderCapacitySnapshotMock = vi.fn();
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
@@ -24,6 +27,18 @@ vi.mock("../../lib/server/api/generationAdmission/generationAdmissionService", (
     evaluateUserGenerationAdmissionMock(...args),
 }));
 
+vi.mock("../../lib/server/api/generationQueue/activeProviderCapacity", () => ({
+  readActiveProviderCapacitySnapshot: (...args: unknown[]) =>
+    readActiveProviderCapacitySnapshotMock(...args),
+}));
+
+vi.mock("../../lib/server/generationControlPlane/localWorkerHeartbeat", () => ({
+  hasFreshLocalGenerationWorkerHeartbeat: (...args: unknown[]) =>
+    hasFreshLocalGenerationWorkerHeartbeatMock(...args),
+  isLocalDevGenerationWorkerRequired: (...args: unknown[]) =>
+    isLocalDevGenerationWorkerRequiredMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -38,6 +53,7 @@ describe("createFalSubmitHandler", () => {
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       sourceRef: "source-ref-1",
@@ -69,6 +85,15 @@ describe("createFalSubmitHandler", () => {
         tierActive: 0,
         tierMax: 4,
       },
+    });
+    hasFreshLocalGenerationWorkerHeartbeatMock.mockReturnValue(true);
+    isLocalDevGenerationWorkerRequiredMock.mockReturnValue(false);
+    readActiveProviderCapacitySnapshotMock.mockResolvedValue({
+      tier: "image_standard",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
     });
   });
 
@@ -575,6 +600,52 @@ describe("createFalSubmitHandler", () => {
       error:
         "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
       code: "GENERATION_SUBMIT_TRACKING_FAILED",
+    });
+  });
+
+  it("fails closed when queueing is required in local dev and the worker heartbeat is missing", async () => {
+    isLocalDevGenerationWorkerRequiredMock.mockReturnValue(true);
+    hasFreshLocalGenerationWorkerHeartbeatMock.mockReturnValue(false);
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
+    readActiveProviderCapacitySnapshotMock.mockResolvedValueOnce({
+      tier: "image_standard",
+      globalActive: 4,
+      tierActive: 4,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: local generation queue worker heartbeat missing.",
+      expect.objectContaining({
+        reason: "local_queue_worker_missing",
+      })
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "5");
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Generation queue worker is not running in local development. Start `npm run dev:generation-worker` and retry.",
+      code: "GENERATION_QUEUE_WORKER_UNAVAILABLE",
+      retryAfterSeconds: 5,
     });
   });
 

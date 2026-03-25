@@ -7,6 +7,10 @@ import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
 import { ensureSubmittedGenerationRecord } from "./generationSubmitPersistence";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
+import {
+  hasFreshLocalGenerationWorkerHeartbeat,
+  isLocalDevGenerationWorkerRequired,
+} from "../generationControlPlane/localWorkerHeartbeat";
 import { evaluateUserGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import type { SubmitTarget } from "../falIntegration/contracts";
@@ -101,6 +105,13 @@ const buildAdmissionLimitPayload = ({
 const buildAdmissionUnavailablePayload = (retryAfterSeconds: number) => ({
   error: "Generation admission is temporarily unavailable. Please retry shortly.",
   code: "GENERATION_ADMISSION_UNAVAILABLE",
+  retryAfterSeconds,
+});
+
+const buildQueueWorkerUnavailablePayload = (retryAfterSeconds: number) => ({
+  error:
+    "Generation queue worker is not running in local development. Start `npm run dev:generation-worker` and retry.",
+  code: "GENERATION_QUEUE_WORKER_UNAVAILABLE",
   retryAfterSeconds,
 });
 
@@ -453,6 +464,31 @@ export const createFalSubmitHandler = ({
       }
 
       if (runtimeFlags.queueEnabled && admissionDecision.enforced) {
+        if (
+          isLocalDevGenerationWorkerRequired(runtimeFlags) &&
+          !hasFreshLocalGenerationWorkerHeartbeat()
+        ) {
+          await charge.refund("Auto-release: local generation queue worker heartbeat missing.", {
+            reason: "local_queue_worker_missing",
+            app_base_url: runtimeFlags.publicApiBaseUrl,
+          });
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "api.fal_submit.queue_worker_unavailable",
+            message: "Local generation queue worker heartbeat missing while queueing was required.",
+            statusCode: 503,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              source_ref: charge.sourceRef,
+              app_base_url: runtimeFlags.publicApiBaseUrl,
+            },
+          });
+          res.setHeader("Retry-After", "5");
+          return res.status(503).json(buildQueueWorkerUnavailablePayload(5));
+        }
+
         const queueDepth = await countUserQueuedGenerationSubmits(charge.userId);
         if (queueDepth >= runtimeFlags.queueMaxPerUser) {
           await charge.refund("Auto-release: generation queue depth limit reached.", {

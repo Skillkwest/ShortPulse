@@ -178,7 +178,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     ]);
 
     const result = await dispatchGenerationSubmitQueueBatch({
-      req: { method: "GET", headers: {} } as never,
+      req: undefined,
       routeLabel: "test/dispatch",
       limit: 1,
       userId: "user-1",
@@ -201,6 +201,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalled();
   });
 
   it("exhausts and releases when capacity is full beyond max wait", async () => {

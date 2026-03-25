@@ -338,6 +338,7 @@ describe("dragDrop payload extraction", () => {
       "text/reference-media-id": "media-123",
       "text/reference-source-surface": "all-refs",
       "text/reference-url": "https://cdn.example.com/out-123.png",
+      "text/reference-render-url": "https://cdn.example.com/out-123-render.png",
     });
 
     const payload = extractInternalReferenceDragPayload(transfer);
@@ -350,6 +351,7 @@ describe("dragDrop payload extraction", () => {
       imageIndex: 2,
       mediaId: "media-123",
       referenceUrl: "https://cdn.example.com/out-123.png",
+      referenceRenderUrl: "https://cdn.example.com/out-123-render.png",
       sourceSurface: "all-refs",
     });
   });
@@ -393,8 +395,46 @@ describe("dragDrop payload extraction", () => {
       imageIndex: 0,
       mediaId: "media-token",
       referenceUrl: "https://example.com/out-token.png",
+      referenceRenderUrl: "https://example.com/out-token.png",
       sourceSurface: "all-refs",
     });
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("preserves rendered transfer urls inside same-document drag session payloads", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragImageSrc = "data:image/jpeg;base64,generated-render";
+
+    prepareReferenceDrag(
+      event,
+      {
+        id: "out-render-session",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        previewUrl: "https://provider.example.com/generated.png",
+      },
+      { sourceSurface: "all-refs" }
+    );
+
+    const dragSessionToken = setData.mock.calls.find(
+      ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+    )?.[1];
+
+    const payload = extractInternalReferenceDragPayload({
+      files: emptyFileList,
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer);
+
+    expect(payload?.referenceUrl).toBe("data:image/jpeg;base64,generated-render");
+    expect(payload?.referenceRenderUrl).toBe("data:image/jpeg;base64,generated-render");
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });

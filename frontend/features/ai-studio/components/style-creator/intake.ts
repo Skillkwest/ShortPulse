@@ -976,6 +976,10 @@ export const resolveStyleSource = async ({
       internalPayloadPresent: Boolean(internalDropPayload),
       dragPayloadImageUrl: dragPayload.imageUrl,
     });
+    const payloadRenderedSourceUrl =
+      normalizeReferenceTransferUrlCandidate(internalDropPayload?.referenceRenderUrl, {
+        unwrapNextImage: false,
+      }) ?? "";
     const internalPrimarySourceUrl =
       internalDropResolution?.primarySourceUrl?.trim() ??
       internalResolvedCandidates[0]?.trim() ??
@@ -985,6 +989,7 @@ export const resolveStyleSource = async ({
       internalResolvedCandidates.slice(internalPrimarySourceUrl ? 1 : 0);
     const sourceUrls = dedupeStyleSourceUrls([
       internalPrimarySourceUrl,
+      payloadRenderedSourceUrl,
       ...directTransferSourceUrls,
       ...internalFallbackSourceUrls,
     ]);

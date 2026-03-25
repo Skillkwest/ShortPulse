@@ -475,6 +475,7 @@ describe("style-creator intake preprocessing", () => {
       imageIndex: 0,
       mediaId: "media-session",
       referenceUrl: null,
+      referenceRenderUrl: "data:image/jpeg;base64,session-rendered-source",
       sourceSurface: "all-refs",
     });
     const transfer = {
@@ -484,7 +485,7 @@ describe("style-creator intake preprocessing", () => {
         type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
     } as unknown as DataTransfer;
     const resolveInternalStyleDrop = vi.fn(async () => ({
-      primarySourceUrl: "data:image/jpeg;base64,session-source",
+      primarySourceUrl: "",
       fallbackSourceUrls: [],
       imageUrlCandidates: [],
       promptText: "internal prompt",
@@ -500,6 +501,7 @@ describe("style-creator intake preprocessing", () => {
         expect.objectContaining({
           outputId: "out-session",
           mediaId: "media-session",
+          referenceRenderUrl: "data:image/jpeg;base64,session-rendered-source",
         })
       );
       expect(fetchMock).not.toHaveBeenCalled();

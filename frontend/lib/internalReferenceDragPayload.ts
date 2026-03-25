@@ -42,6 +42,7 @@ export type InternalReferenceDragPayload = {
   imageIndex: number;
   mediaId: string | null;
   referenceUrl: string | null;
+  referenceRenderUrl?: string | null;
   sourceSurface: ReferenceDragSourceSurface | null;
   width?: number;
   height?: number;
@@ -172,6 +173,10 @@ export const extractInternalReferenceDragPayload = (
     transfer.getData("text/reference-url"),
     { unwrapNextImage: false }
   );
+  const referenceRenderUrl = normalizeReferenceTransferUrlCandidate(
+    transfer.getData("text/reference-render-url"),
+    { unwrapNextImage: false }
+  );
   const hasLegacyInternalHints = Boolean(referenceId && sourceSurface);
   const hasStrongInternalHints = Boolean(outputId || mediaId);
 
@@ -187,6 +192,7 @@ export const extractInternalReferenceDragPayload = (
     imageIndex: parseReferenceImageIndex(transfer.getData(REFERENCE_TRANSFER_IMAGE_INDEX_TYPE)),
     mediaId,
     referenceUrl,
+    ...(referenceRenderUrl ? { referenceRenderUrl } : {}),
     sourceSurface,
   };
 

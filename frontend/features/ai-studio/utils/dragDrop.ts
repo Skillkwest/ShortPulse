@@ -704,6 +704,7 @@ export const prepareReferenceDrag = (
     imageIndex,
     mediaId: referenceMediaId ?? null,
     referenceUrl: resolvedReferenceTransferUrl ?? null,
+    referenceRenderUrl: resolvedRenderedTransferUrl ?? null,
     sourceSurface,
     ...(naturalWidth > 0 ? { width: naturalWidth } : {}),
     ...(naturalHeight > 0 ? { height: naturalHeight } : {}),

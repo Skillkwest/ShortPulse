@@ -103,6 +103,26 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
+  it("suppresses the guardrail reason in reference-based generate steps when requested", () => {
+    render(
+      <ReferenceGenerateStep
+        beginnerMode={false}
+        collapsed={false}
+        generateOrder={1}
+        generateBadge="4"
+        onExpand={vi.fn()}
+        onRegenerate={vi.fn()}
+        isGenerateDisabled
+        isBusy={false}
+        costCredits={15}
+        guardrailReason={message}
+        suppressInlineGuardrailReason
+      />
+    );
+
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+  });
+
   it("suppresses the concurrent cap message in panel-level warnings", () => {
     const { rerender } = render(
       <ComposeSendCard

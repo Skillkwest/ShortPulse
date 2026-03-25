@@ -18,6 +18,7 @@ type ReferenceGenerateStepProps = {
   guardrailReason?: string | null;
   referenceImageWarning?: string | null;
   promptRequiredMessage?: string | null;
+  suppressInlineGuardrailReason?: boolean;
 };
 
 /**
@@ -36,9 +37,12 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
   guardrailReason,
   referenceImageWarning,
   promptRequiredMessage,
+  suppressInlineGuardrailReason = false,
 }) => {
   const inlineGuardrailReason =
-    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
+    suppressInlineGuardrailReason || guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE
+      ? null
+      : guardrailReason;
   return (
     <div
       className={`step-card reference-generate-step ${collapsed ? "is-collapsed" : ""}`}

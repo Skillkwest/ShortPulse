@@ -1058,8 +1058,12 @@ export function ExpertEditPanelView({
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = promptTextValue.trim().length > 0;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
+  const suppressInlineReferenceGuardrail =
+    guardrailReason === "Add a reference image before generating.";
   const inlineGuardrailReason =
-    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
+    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE || suppressInlineReferenceGuardrail
+      ? null
+      : guardrailReason;
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]

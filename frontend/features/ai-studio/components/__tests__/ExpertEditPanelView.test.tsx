@@ -403,8 +403,23 @@ describe("ExpertEditPanelView", () => {
     selectedStyleId: null,
   };
 
-  it("shows the guardrail reason next to the disabled inline generate button", () => {
+  it("suppresses the missing-reference guardrail next to the disabled inline generate button", () => {
     const message = "Add a reference image before generating.";
+
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        isGenerateDisabled
+        guardrailReason={message}
+        referenceText="Adjust the coat color."
+      />
+    );
+
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+  });
+
+  it("shows other guardrail reasons next to the disabled inline generate button", () => {
+    const message = "Select a model before generating.";
 
     render(
       <ExpertEditPanelView

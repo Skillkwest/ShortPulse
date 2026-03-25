@@ -436,6 +436,7 @@ export function VideoPropertiesPanel({
           costCredits={costCredits}
           guardrailReason={guardrailReason}
           promptRequiredMessage={null}
+          suppressInlineGuardrailReason
         />
       </div>
     </div>

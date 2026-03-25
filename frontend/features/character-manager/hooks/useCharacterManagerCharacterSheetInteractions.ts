@@ -5,7 +5,7 @@ import {
   type DragEvent,
   type SetStateAction,
 } from "react";
-import { extractInternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
+import { extractInternalReferenceDragPayload } from "../../../lib/internalReferenceDragPayload";
 import { CHARACTER_SHEET_DROP_ZONES } from "../constants";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
 import type {

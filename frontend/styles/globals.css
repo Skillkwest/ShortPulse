@@ -48,6 +48,8 @@
 @import "./ai-studio-create-expert-responsive.css";
 @import "./character.css";
 @import "./character-manager.css";
+@import "./character-manager-workspace.css";
+@import "./character-manager-embedded.css";
 @import "./workspace-tools.css";
 @import "./workspace-media.css";
 @import "./workspace-profile.css";

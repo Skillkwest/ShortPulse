@@ -3,6 +3,10 @@
  * Defines the canonical reference-slot schema and UI assignment types.
  */
 
+export type CharacterWorkflowTab = "create" | "manage";
+
+export type CharacterManagerShellSurface = "page" | "panel";
+
 export type CharacterReferenceSlotKey =
   | "front_full"
   | "side_profile"

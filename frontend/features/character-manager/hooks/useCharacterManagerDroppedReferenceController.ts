@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   extractInternalReferenceDragPayload,
   type InternalReferenceDragPayload,
   type ReferenceDragSourceSurface,
-} from "../../ai-studio/utils/dragDrop";
+} from "../../../lib/internalReferenceDragPayload";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   resolveDroppedImageReference,
   type DroppedImageReference,

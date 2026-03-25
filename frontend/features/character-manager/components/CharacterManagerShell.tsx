@@ -20,6 +20,7 @@ import {
   logAdaptiveDetailFullQualityUsed,
 } from "../../../lib/adaptive-media";
 import { normalizePlanId } from "../../billing/catalog";
+import { extractInternalReferenceDragPayload } from "../../../lib/internalReferenceDragPayload";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
@@ -37,6 +38,7 @@ import { useCharacterManagerCharacterSheetInteractions } from "../hooks/useChara
 import { useCharacterManagerAccountState } from "../hooks/useCharacterManagerAccountState";
 import { useCharacterManagerDragInteractions } from "../hooks/useCharacterManagerDragInteractions";
 import { useCharacterManagerShellActionHandlers } from "../hooks/useCharacterManagerShellActionHandlers";
+import { useCharacterManagerSurfacePolicy } from "../hooks/useCharacterManagerSurfacePolicy";
 import { useCharacterQuickSwapDeck } from "../hooks/useCharacterQuickSwapDeck";
 import { useCharacterQuickSwapTipPreference } from "../hooks/useCharacterQuickSwapTipPreference";
 import { useCharacterManagerShellViewState } from "../hooks/useCharacterManagerShellViewState";
@@ -47,21 +49,24 @@ import {
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
-import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
+import { CharacterCreateWorkspaceSurface } from "./CharacterCreateWorkspaceSurface";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
-import { extractInternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
-import type { CharacterProfileImageTransform, CharacterSheetDropZoneKey } from "../types";
+import type {
+  CharacterManagerShellSurface,
+  CharacterProfileImageTransform,
+  CharacterSheetDropZoneKey,
+  CharacterWorkflowTab,
+} from "../types";
 
-type CharacterWorkflowTab = "create" | "manage";
-type CharacterManagerShellSurface = "page" | "panel";
 type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   initialWorkflowTab?: CharacterWorkflowTab;
   beginnerModeOverride?: boolean;
   showBeginnerModeToggle?: boolean;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  onActiveTabChange?: (activeTab: CharacterWorkflowTab) => void;
 };
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
@@ -126,6 +131,7 @@ export function CharacterManagerShell({
   beginnerModeOverride,
   showBeginnerModeToggle = true,
   resolveCharacterDropReference,
+  onActiveTabChange,
 }: CharacterManagerShellProps) {
   const {
     characters,
@@ -178,7 +184,6 @@ export function CharacterManagerShell({
   const profileFileInputRef = useRef<HTMLInputElement | null>(null);
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
   const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
-  const rootContainerRef = useRef<HTMLElement | null>(null);
   const fileDragDepthRef = useRef(0);
   const pageBusy =
     loading ||
@@ -206,6 +211,11 @@ export function CharacterManagerShell({
   });
   const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
   const { isQuickSwapTipHidden, markQuickSwapTipHidden } = useCharacterQuickSwapTipPreference();
+  const { setBeginnerMode, isEmbeddedSurface, effectiveBeginnerMode, showQuickSwapCollapseToggle } =
+    useCharacterManagerSurfacePolicy({
+      surface,
+      beginnerModeOverride,
+    });
   const {
     activeTab,
     setActiveTab,
@@ -221,12 +231,8 @@ export function CharacterManagerShell({
     setReferencePreviewSignedUrl,
     characterLibraryVisibleCount,
     setCharacterLibraryVisibleCount,
-    setBeginnerMode,
     quickSwapGridColumnCount,
     quickSwapArchiveGridColumnCount,
-    isEmbeddedSurface,
-    effectiveBeginnerMode,
-    showQuickSwapCollapseToggle,
     cancelDeleteCharacter,
     cancelDeleteCharacterSheetPreset,
     openReferencePreview,
@@ -234,8 +240,6 @@ export function CharacterManagerShell({
     navigateReferencePreview,
   } = useCharacterManagerShellViewState({
     initialWorkflowTab,
-    surface,
-    beginnerModeOverride,
     isQuickSwapTipHidden,
     markQuickSwapTipHidden,
     quickSwapActiveItems,
@@ -366,21 +370,6 @@ export function CharacterManagerShell({
   const rootClassName = isEmbeddedSurface
     ? "character-manager-page character-manager-page--embedded"
     : "page page-wide character-manager-page";
-  useEffect(() => {
-    if (!isEmbeddedSurface || activeTab !== "create") return;
-    const rootNode = rootContainerRef.current;
-    if (!rootNode) return;
-    const propertiesPanel = rootNode.closest(".ai-properties");
-    if (!(propertiesPanel instanceof HTMLElement)) return;
-    const previousOverflowY = propertiesPanel.style.overflowY;
-    const previousOverscrollBehaviorY = propertiesPanel.style.overscrollBehaviorY;
-    propertiesPanel.style.overflowY = "hidden";
-    propertiesPanel.style.overscrollBehaviorY = "none";
-    return () => {
-      propertiesPanel.style.overflowY = previousOverflowY;
-      propertiesPanel.style.overscrollBehaviorY = previousOverscrollBehaviorY;
-    };
-  }, [activeTab, isEmbeddedSurface]);
   const clearAllMessages = useCallback(() => {
     clearMessages();
     clearQuickSwapError();
@@ -405,6 +394,13 @@ export function CharacterManagerShell({
     if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
     fileDragDepthRef.current = 0;
   }, [showQuickSwapCollapseToggle, isQuickSwapCollapsed]);
+  useEffect(() => {
+    if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
+    setIsQuickSwapCollapsed(false);
+  }, [isQuickSwapCollapsed, setIsQuickSwapCollapsed, showQuickSwapCollapseToggle]);
+  useEffect(() => {
+    onActiveTabChange?.(activeTab);
+  }, [activeTab, onActiveTabChange]);
 
   useVisibleErrorTelemetry({
     source: "client.character_manager.error_banner",
@@ -601,9 +597,6 @@ export function CharacterManagerShell({
 
   return (
     <RootContainer
-      ref={(node) => {
-        rootContainerRef.current = node;
-      }}
       id={isEmbeddedSurface ? undefined : "main-content"}
       className={rootClassName}
       data-beginner-mode={effectiveBeginnerMode ? "on" : "off"}
@@ -759,7 +752,7 @@ export function CharacterManagerShell({
               <p className="tiny subdued character-create-loading-copy">
                 Pulling your character sheet and references into view.
               </p>
-              <CharacterCreateWorkspaceLayout
+              <CharacterCreateWorkspaceSurface
                 surface={surface}
                 quickSwap={
                   <section className="character-section character-create-loading-card">
@@ -806,7 +799,7 @@ export function CharacterManagerShell({
               />
             </div>
           ) : (
-            <CharacterCreateWorkspaceLayout
+            <CharacterCreateWorkspaceSurface
               surface={surface}
               quickSwap={
                 <CharacterQuickSwapDeckSection
@@ -1241,7 +1234,7 @@ export function CharacterManagerShell({
                   </div>
                 </section>
               }
-              embeddedGuidance={
+              panelGuidance={
                 isEmbeddedSurface && !isQuickSwapTipHidden ? (
                   <p className="character-mode-guidance character-mode-guidance--sheet" role="note">
                     <span className="character-mode-guidance-label">Tip:</span>

@@ -1,0 +1,314 @@
+/**
+ * Character Manager embedded-panel styling.
+ * Owns AI Studio panel-specific layout and appearance overrides without changing shared component contracts.
+ */
+.character-manager-page--embedded {
+  padding-bottom: 0;
+}
+
+.character-manager-page--embedded[data-beginner-mode="on"] {
+  --character-embedded-sheet-width: 360px;
+  --character-embedded-sheet-card-max-width: 204px;
+}
+
+.character-manager-page--embedded .character-mode-panel {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding: 0;
+}
+
+.character-manager-page--embedded .character-library-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+}
+
+.character-manager-page--embedded .character-library-panel-header .eyebrow,
+.character-manager-page--embedded .character-library-panel-header .helper-text {
+  margin: 0;
+}
+
+.character-manager-page--embedded .character-mode-row {
+  flex-wrap: wrap;
+}
+
+.character-manager-page--embedded .character-mode-tab-row {
+  width: 100%;
+  max-width: none;
+  margin-right: 0;
+}
+
+.character-manager-page--embedded .character-manage-panel {
+  padding: 22px 24px 24px;
+  gap: 20px;
+}
+
+.character-manager-page--embedded .character-manage-panel-header {
+  gap: 20px;
+}
+
+.character-manager-page--embedded .character-manage-panel h2 {
+  margin-top: 0;
+}
+
+.character-manager-page--embedded .character-manage-list {
+  gap: 14px;
+}
+
+.character-manager-page--embedded .character-manage-loading {
+  min-height: 178px;
+}
+
+.character-manager-page--embedded .character-manage-loading-skeleton-card {
+  min-height: 96px;
+  padding: 12px;
+}
+
+.character-manager-page--embedded .character-create-loading-profile-row {
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+
+.character-manager-page--embedded .character-create-loading-profile-avatar {
+  width: 92px;
+  height: 92px;
+}
+
+.character-manager-page--embedded .character-manage-panel .character-list-card {
+  min-height: 96px;
+  padding: 14px 16px 14px 14px;
+  gap: 12px;
+}
+
+.character-manager-page--embedded .character-create-workspace-layout {
+  align-items: start;
+}
+
+.character-manager-page--embedded .character-section--references {
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+}
+
+.character-manager-page--embedded .character-section--reference-drop {
+  padding: 10px;
+  gap: 8px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop
+  .character-reference-drop-content {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop
+  .character-quickswap-active-scroll {
+  min-height: 0;
+}
+
+.character-manager-page--embedded .character-section--reference-drop .character-section-head {
+  margin-bottom: 2px;
+}
+
+.character-manager-page--embedded .character-section--reference-drop .character-section-helper {
+  display: none;
+}
+
+.character-manager-page--embedded .character-simple-dropzone--compact {
+  min-height: 72px;
+  padding: 6px 10px;
+}
+
+.character-manager-page--embedded .character-section--references .character-reference-empty-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: stretch;
+  justify-items: stretch;
+}
+
+.character-manager-page--embedded .character-section-title {
+  color: rgba(220, 229, 238, 0.86);
+}
+
+.character-manager-page--embedded .character-profile-card {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: auto;
+  align-items: stretch;
+  row-gap: 8px;
+}
+
+.character-manager-page--embedded .character-profile-card-top-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.character-manager-page--embedded .character-profile-photo-stack {
+  align-content: start;
+}
+
+.character-manager-page--embedded .character-profile-photo-btn {
+  width: 92px;
+  height: 92px;
+}
+
+.character-manager-page--embedded .character-profile-initials {
+  font-size: 24px;
+}
+
+.character-manager-page--embedded .character-profile-fields {
+  align-content: start;
+  gap: 10px;
+}
+
+.character-manager-page--embedded .character-profile-description-block {
+  grid-column: 1;
+}
+
+.character-manager-page--embedded .character-name-input {
+  min-height: 44px;
+}
+
+.character-manager-page--embedded .character-description-input {
+  min-height: 64px;
+}
+
+.character-manager-page--embedded .character-description-footer-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  margin-top: 0;
+}
+
+.character-manager-page--embedded .character-description-helper {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.character-manager-page--embedded .character-sheet-preset-panel {
+  padding-top: 10px;
+}
+
+.character-manager-page--embedded .character-sheet-description-card {
+  margin-bottom: 16px;
+  gap: 10px;
+}
+
+.character-manager-page--embedded .character-sheet-references-title-row {
+  margin: 4px 0 10px;
+}
+
+.character-manager-page--embedded .character-character-sheet-card {
+  width: min(100%, var(--character-embedded-sheet-card-max-width));
+  max-width: var(--character-embedded-sheet-card-max-width);
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop:not(.is-collapsed)
+  .character-section-head {
+  align-items: center;
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop:not(.is-collapsed)
+  .character-section-head-actions {
+  align-self: center;
+}
+
+@media (min-width: 1101px) {
+  .character-manager-page--embedded .character-create-workspace-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--character-embedded-sheet-width));
+  }
+
+  .character-manager-page--embedded .character-layout-region--sheet {
+    min-width: 0;
+  }
+
+  .character-manager-page--embedded .character-layout-region--quickswap {
+    min-width: 0;
+    width: 100%;
+    max-width: var(--character-embedded-sheet-width);
+    justify-self: end;
+    overflow-x: hidden;
+  }
+
+  .character-manager-page--embedded
+    .character-layout-region--quickswap
+    .character-section--reference-drop {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .character-manager-page--embedded .character-mode-guidance--sheet {
+    justify-self: stretch;
+    width: 100%;
+    max-width: var(--character-embedded-sheet-width);
+    margin: 0;
+  }
+}
+
+.character-manager-page--embedded .character-name-input,
+.character-manager-page--embedded .character-description-input,
+.character-manager-page--embedded .character-simple-dropzone,
+.character-manager-page--embedded .character-description-text-container,
+.character-manager-page--embedded .character-reference-upload-placeholder,
+.character-manager-page--embedded .character-reference-empty-hint,
+.character-manager-page--embedded .character-reference-upload-card,
+.character-manager-page--embedded .character-reference-upload-image-wrap {
+  background: var(--color-bg);
+}
+
+.character-manager-page--embedded .character-mode-tab.is-active {
+  border: none;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #106d50 0%, #4cc768 100%);
+  color: #f3fbff;
+  transform: scale(1);
+  padding: 10px 14px;
+  box-shadow:
+    0 0 0 3px #4ae074,
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+@media (max-width: 1280px) and (min-width: 1101px) {
+  .character-manager-page--embedded .character-section--references {
+    justify-self: stretch;
+    width: 100%;
+    max-width: none;
+  }
+
+  .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .character-manager-page--embedded .character-section--references {
+    justify-self: stretch;
+    width: 100%;
+    max-width: none;
+  }
+
+  .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .character-manager-page--embedded .character-profile-card {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 860px) {
+  .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

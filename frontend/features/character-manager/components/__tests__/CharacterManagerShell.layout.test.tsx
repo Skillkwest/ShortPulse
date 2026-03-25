@@ -3,7 +3,7 @@
  * Verifies create-surface region order is stable across page and embedded panel surfaces.
  */
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
 import {
@@ -153,5 +153,33 @@ describe("CharacterManagerShell layout", () => {
     expect(guidance).toBeInTheDocument();
     expect(guidance?.closest("[data-layout-region]")).toBe(quickSwapRegion);
     expect(sheetRegion?.querySelector(".character-mode-guidance")).toBeNull();
+  });
+
+  it("reports panel workflow tab changes without mutating host rail styles directly", () => {
+    const onActiveTabChange = vi.fn();
+    const { container } = render(
+      <div className="ai-properties" style={{ overflowY: "auto", overscrollBehaviorY: "auto" }}>
+        <CharacterManagerShell
+          surface="panel"
+          initialWorkflowTab="manage"
+          beginnerModeOverride
+          onActiveTabChange={onActiveTabChange}
+        />
+      </div>
+    );
+    const propertiesRail = container.querySelector(".ai-properties") as HTMLDivElement | null;
+    if (!propertiesRail) {
+      throw new Error("Expected ai-properties wrapper to exist.");
+    }
+
+    expect(onActiveTabChange).toHaveBeenCalledWith("manage");
+    expect(propertiesRail.style.overflowY).toBe("auto");
+    expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
+
+    expect(onActiveTabChange).toHaveBeenLastCalledWith("create");
+    expect(propertiesRail.style.overflowY).toBe("auto");
+    expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
   });
 });

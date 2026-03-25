@@ -1,13 +1,12 @@
 import React from "react";
-import type { CharacterQuickSwapItem, CharacterSheetPresetId } from "../types";
-
-type CharacterWorkflowTab = "create" | "manage";
-type CharacterManagerShellSurface = "page" | "panel";
+import type {
+  CharacterQuickSwapItem,
+  CharacterSheetPresetId,
+  CharacterWorkflowTab,
+} from "../types";
 
 type UseCharacterManagerShellViewStateParams = {
   initialWorkflowTab?: CharacterWorkflowTab;
-  surface: CharacterManagerShellSurface;
-  beginnerModeOverride?: boolean;
   isQuickSwapTipHidden: boolean;
   markQuickSwapTipHidden: () => Promise<unknown>;
   quickSwapActiveItems: CharacterQuickSwapItem[];
@@ -56,13 +55,8 @@ type UseCharacterManagerShellViewStateResult = {
   >;
   characterLibraryVisibleCount: number;
   setCharacterLibraryVisibleCount: React.Dispatch<React.SetStateAction<number>>;
-  beginnerMode: boolean;
-  setBeginnerMode: React.Dispatch<React.SetStateAction<boolean>>;
   quickSwapGridColumnCount: number;
   quickSwapArchiveGridColumnCount: number;
-  isEmbeddedSurface: boolean;
-  effectiveBeginnerMode: boolean;
-  showQuickSwapCollapseToggle: boolean;
   cancelDeleteCharacter: () => void;
   cancelDeleteCharacterSheetPreset: () => void;
   openReferencePreview: (index: number, aspectRatio: number | null) => void;
@@ -71,7 +65,6 @@ type UseCharacterManagerShellViewStateResult = {
 };
 
 const CHARACTER_LIBRARY_SMOOTH_TARGET = 24;
-const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 const QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD = 4;
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 
@@ -80,17 +73,6 @@ const clampReferencePreviewAspectRatio = (value: number | null | undefined): num
     return DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO;
   }
   return Math.min(Math.max(value, 0.45), 2.8);
-};
-
-const resolveInitialBeginnerMode = (): boolean => {
-  if (typeof window === "undefined") return true;
-  try {
-    const stored = window.localStorage.getItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY);
-    if (stored == null) return true;
-    return stored === "true";
-  } catch {
-    return true;
-  }
 };
 
 const resolveInitialQuickSwapGridColumnCount = (): number => {
@@ -107,8 +89,6 @@ const resolveInitialQuickSwapArchiveGridColumnCount = (): number => {
 
 export const useCharacterManagerShellViewState = ({
   initialWorkflowTab,
-  surface,
-  beginnerModeOverride,
   isQuickSwapTipHidden,
   markQuickSwapTipHidden,
   quickSwapActiveItems,
@@ -136,7 +116,6 @@ export const useCharacterManagerShellViewState = ({
   const [characterLibraryVisibleCount, setCharacterLibraryVisibleCount] = React.useState(
     CHARACTER_LIBRARY_SMOOTH_TARGET
   );
-  const [beginnerMode, setBeginnerMode] = React.useState(resolveInitialBeginnerMode);
   const [quickSwapGridColumnCount, setQuickSwapGridColumnCount] = React.useState(
     resolveInitialQuickSwapGridColumnCount
   );
@@ -144,21 +123,11 @@ export const useCharacterManagerShellViewState = ({
     resolveInitialQuickSwapArchiveGridColumnCount
   );
 
-  const isEmbeddedSurface = surface === "panel";
-  const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
-  const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
-  const showQuickSwapCollapseToggle = surface !== "panel" || effectiveBeginnerMode;
   const quickSwapVisibleRowCount = React.useMemo(() => {
     const columnCount = Math.max(1, quickSwapGridColumnCount);
     const renderedCardCount = quickSwapActiveItems.length + 1;
     return Math.max(1, Math.ceil(renderedCardCount / columnCount));
   }, [quickSwapActiveItems.length, quickSwapGridColumnCount]);
-
-  React.useEffect(() => {
-    if (isBeginnerModeControlled) return;
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY, String(beginnerMode));
-  }, [beginnerMode, isBeginnerModeControlled]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -196,11 +165,6 @@ export const useCharacterManagerShellViewState = ({
     if (quickSwapVisibleRowCount < QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD) return;
     void markQuickSwapTipHidden();
   }, [isQuickSwapTipHidden, markQuickSwapTipHidden, quickSwapVisibleRowCount]);
-
-  React.useEffect(() => {
-    if (showQuickSwapCollapseToggle || !isQuickSwapCollapsed) return;
-    setIsQuickSwapCollapsed(false);
-  }, [isQuickSwapCollapsed, showQuickSwapCollapseToggle]);
 
   const cancelDeleteCharacter = React.useCallback(() => {
     if (isDeletingCharacter) return;
@@ -254,13 +218,8 @@ export const useCharacterManagerShellViewState = ({
     setReferencePreviewSignedUrl,
     characterLibraryVisibleCount,
     setCharacterLibraryVisibleCount,
-    beginnerMode,
-    setBeginnerMode,
     quickSwapGridColumnCount,
     quickSwapArchiveGridColumnCount,
-    isEmbeddedSurface,
-    effectiveBeginnerMode,
-    showQuickSwapCollapseToggle,
     cancelDeleteCharacter,
     cancelDeleteCharacterSheetPreset,
     openReferencePreview,

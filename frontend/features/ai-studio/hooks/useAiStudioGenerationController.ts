@@ -1,15 +1,8 @@
 /**
  * AI Studio generation controller hook.
- * Owns generate click-lock and submission/regeneration orchestration while preserving page behavior.
+ * Owns submission/regeneration orchestration while preserving page behavior.
  */
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
 import {
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
@@ -169,8 +162,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   activeOutputId?: string | null;
 };
 
-const GENERATE_CLICK_COOLDOWN_MS = 700;
-
 /**
  * Returns stable generation action handlers and click-lock state for AI Studio orchestration.
  */
@@ -212,40 +203,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   regenerateOutput,
   activeOutputId,
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
-  const generateClickLockUntilRef = useRef(0);
-  const generateClickLockTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
-  const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
+  // Keep the legacy surface contract stable without introducing a post-click cooldown.
+  const isGenerateClickLocked = false;
 
-  const tryAcquireGenerateClickLock = useCallback(() => {
-    const now = Date.now();
-    if (now < generateClickLockUntilRef.current) {
-      return false;
-    }
-
-    generateClickLockUntilRef.current = now + GENERATE_CLICK_COOLDOWN_MS;
-    setIsGenerateClickLocked(true);
-
-    if (generateClickLockTimerRef.current) {
-      globalThis.clearTimeout(generateClickLockTimerRef.current);
-    }
-    generateClickLockTimerRef.current = globalThis.setTimeout(() => {
-      setIsGenerateClickLocked(false);
-      generateClickLockTimerRef.current = null;
-      if (Date.now() >= generateClickLockUntilRef.current) {
-        generateClickLockUntilRef.current = 0;
-      }
-    }, GENERATE_CLICK_COOLDOWN_MS);
-
-    return true;
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (generateClickLockTimerRef.current) {
-        globalThis.clearTimeout(generateClickLockTimerRef.current);
-      }
-    };
-  }, []);
+  const tryAcquireGenerateClickLock = useCallback(() => true, []);
 
   const resolveGuardrailBlockMessage = useCallback(
     () => generationGuardrail ?? GENERATION_GUARDRAIL_FALLBACK_ERROR,

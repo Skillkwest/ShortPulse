@@ -306,7 +306,7 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
-  it("prevents rapid double-generate submissions via click lock", async () => {
+  it("allows repeated generate submissions without an artificial click cooldown", async () => {
     const generateOutput = vi.fn();
     const params = createParams({
       generateOutput,
@@ -320,7 +320,7 @@ describe("useAiStudioGenerationController", () => {
       ]);
     });
 
-    expect(generateOutput).toHaveBeenCalledTimes(1);
+    expect(generateOutput).toHaveBeenCalledTimes(2);
   });
 
   it("allows generate submissions while agent send is in flight", async () => {

@@ -263,6 +263,7 @@ const resolvePrimaryCanvasNominalHeightPx = () => {
 
 type PrimaryStageShellProps = {
   children: React.ReactNode;
+  overlayActions?: React.ReactNode;
   isEmpty: boolean;
   isBusy: boolean;
   stageRef: React.Ref<HTMLDivElement>;
@@ -274,6 +275,7 @@ type PrimaryStageShellProps = {
 
 function PrimaryStageShell({
   children,
+  overlayActions = null,
   isEmpty,
   isBusy,
   stageRef,
@@ -297,6 +299,7 @@ function PrimaryStageShell({
       onPointerCancelCapture={onPointerCancelCapture}
     >
       {children}
+      {overlayActions}
     </div>
   );
 }
@@ -3162,6 +3165,12 @@ export function ExpertEditPanelView({
   const handleInlineStagePointerDownCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".edit-expert-stage-overlay-ui")
+      ) {
+        return;
+      }
       if (!beginMarkupPanGesture(event, "inline")) return;
       event.stopPropagation();
     },
@@ -3171,6 +3180,12 @@ export function ExpertEditPanelView({
   const handleInlineStagePointerMoveCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".edit-expert-stage-overlay-ui")
+      ) {
+        return;
+      }
       if (!continueMarkupPanGesture(event)) return;
       event.stopPropagation();
     },
@@ -3180,6 +3195,12 @@ export function ExpertEditPanelView({
   const handleInlineStagePointerUpCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".edit-expert-stage-overlay-ui")
+      ) {
+        return;
+      }
       if (!endMarkupPanGesture(event)) return;
       event.stopPropagation();
     },
@@ -3189,6 +3210,12 @@ export function ExpertEditPanelView({
   const handleInlineStagePointerCancelCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isMorePresetsSurfaceOpen) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".edit-expert-stage-overlay-ui")
+      ) {
+        return;
+      }
       if (!endMarkupPanGesture(event)) return;
       event.stopPropagation();
     },
@@ -3442,6 +3469,13 @@ export function ExpertEditPanelView({
     },
     [editingLayerIndex, foundationLayerId, layers, resolvedSelectedLayerIndex]
   );
+
+  const handleDeleteSelectedLayer = React.useCallback(() => {
+    if (!isLayerIndexInBounds({ index: resolvedSelectedLayerIndex, layerCount: layers.length })) {
+      return;
+    }
+    handleDeleteLayer(resolvedSelectedLayerIndex);
+  }, [handleDeleteLayer, layers.length, resolvedSelectedLayerIndex]);
 
   React.useEffect(() => {
     if (layers.length <= 0) {
@@ -5156,6 +5190,20 @@ export function ExpertEditPanelView({
             stageRef={inlineStageWrapperRef}
             isEmpty={!hasPrimaryCompositePreview}
             isBusy={isPrimaryStageBusy}
+            overlayActions={
+              hasPrimaryCompositePreview && selectedLayer ? (
+                <div className="edit-expert-stage-overlay-ui">
+                  <button
+                    type="button"
+                    className="edit-expert-layer-delete-btn edit-expert-stage-delete-btn"
+                    aria-label={`Delete selected layer (${selectedLayer.name})`}
+                    onClick={handleDeleteSelectedLayer}
+                  >
+                    <TrashSimple size={12} weight="regular" />
+                  </button>
+                </div>
+              ) : null
+            }
             onPointerDownCapture={handleInlineStagePointerDownCapture}
             onPointerMoveCapture={handleInlineStagePointerMoveCapture}
             onPointerUpCapture={handleInlineStagePointerUpCapture}

@@ -1330,11 +1330,8 @@
   background: var(--edit-expert-control-focus-surface);
 }
 
-.edit-expert-layer-delete-btn {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+.edit-expert-layer-delete-btn,
+.edit-expert-stage-delete-btn {
   width: 18px;
   height: 18px;
   border-radius: 5px;
@@ -1354,23 +1351,46 @@
     color 0.16s ease;
 }
 
+.edit-expert-layer-delete-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .edit-expert-layer-row:hover .edit-expert-layer-delete-btn,
 .edit-expert-layer-row:focus-within .edit-expert-layer-delete-btn {
   opacity: 1;
   pointer-events: auto;
 }
 
-.edit-expert-layer-delete-btn:hover {
+.edit-expert-layer-delete-btn:hover,
+.edit-expert-stage-delete-btn:hover {
   border-color: rgba(231, 76, 76, 0.72);
   background: rgba(231, 76, 76, 0.18);
   color: rgba(255, 117, 117, 0.98);
 }
 
-.edit-expert-layer-delete-btn:focus-visible {
+.edit-expert-layer-delete-btn:focus-visible,
+.edit-expert-stage-delete-btn:focus-visible {
   outline: none;
   border-color: rgba(231, 76, 76, 0.8);
   background: rgba(231, 76, 76, 0.2);
   color: rgba(255, 117, 117, 0.98);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.edit-expert-stage-overlay-ui {
+  position: absolute;
+  top: 16px;
+  right: 6px;
+  z-index: 1005;
+  pointer-events: auto;
+}
+
+.edit-expert-stage-delete-btn {
+  position: relative;
   opacity: 1;
   pointer-events: auto;
 }

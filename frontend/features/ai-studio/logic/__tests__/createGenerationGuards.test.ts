@@ -116,13 +116,13 @@ describe("createGenerationGuards", () => {
     ).toBe(false);
   });
 
-  it("keeps agent-output generate disabled while click lock is active", () => {
+  it("keeps agent-output generate disabled while other disable state is active", () => {
     expect(
       shouldDisableAgentOutputGenerate({
         mode: "image",
         selectedTool: "create",
-        isGenerateDisabled: false,
-        isGenerateClickLocked: true,
+        isGenerateDisabled: true,
+        isGenerateClickLocked: false,
         hasSufficientCreditsForOutputGenerate: true,
         modelId: "fal-ai/bytedance/seedream/v4.5/edit",
         characterModeEnabled: false,

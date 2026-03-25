@@ -5768,6 +5768,20 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("button", { name: "layer 4" })).not.toBeInTheDocument();
   });
 
+  it("deletes the selected layer from the stage overlay action", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    uploadPrimaryFile(container, "base.png");
+    uploadPrimaryFile(container, "layer-2.png");
+
+    expect(screen.getByRole("button", { name: "layer 2" })).toHaveClass("is-selected");
+
+    fireEvent.click(screen.getByRole("button", { name: /delete selected layer/i }));
+
+    expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 1" })).toHaveClass("is-selected");
+  });
+
   it("allows dragging layers to reorder the vertical stack", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
 

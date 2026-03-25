@@ -189,6 +189,53 @@ describe("resolveStyleInternalDropCandidates", () => {
     });
   });
 
+  it("prefers preview storage paths when resolving media-backed library drops by media id", async () => {
+    const resolved = await resolveStyleInternalDropCandidates({
+      payload: makePayload({
+        outputId: "library-out-1",
+        mediaId: "media-preview-only",
+        referenceUrl: "https://cdn.example.com/library-stale-reference.png",
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: [],
+        archivedOutputOrder: [],
+        outputById: {},
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+      resolveStoragePathFromMediaId: async (mediaId) =>
+        mediaId === "media-preview-only" ? "user-1/library/variants/media-preview-only.png" : null,
+      resolveSignedStorageUrl: async (path) =>
+        path === "user-1/library/variants/media-preview-only.png"
+          ? "https://cdn.example.com/signed/media-preview-only.png"
+          : null,
+    });
+
+    expect(resolved?.primarySourceUrl).toBe(
+      "https://cdn.example.com/signed/media-preview-only.png"
+    );
+    expect(resolved?.managedStoragePath).toBe("user-1/library/variants/media-preview-only.png");
+    expect(resolved?.resolutionReason).toBe("saved_media_lookup");
+    expect(resolved?.serverCopyHints).toEqual({
+      outputId: "library-out-1",
+      mediaId: "media-preview-only",
+      imageIndex: 0,
+      generationId: null,
+      taskId: null,
+      previewStoragePathHint: "user-1/library/variants/media-preview-only.png",
+      fullStoragePathHint: "user-1/library/variants/media-preview-only.png",
+      previewUrlHint: "https://cdn.example.com/signed/media-preview-only.png",
+      fullUrlHint: "https://cdn.example.com/signed/media-preview-only.png",
+    });
+  });
+
   it("uses media-id storage lookup fallback when output lacks canonical storage paths", async () => {
     const output = makeImageOutput({
       previewStoragePath: null,

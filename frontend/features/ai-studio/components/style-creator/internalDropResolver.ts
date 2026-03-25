@@ -49,13 +49,15 @@ const defaultResolveStoragePathFromMediaId = async (mediaId: string): Promise<st
   const supabase = ensureSupabaseClient();
   const { data, error } = await supabase
     .from("media_files")
-    .select("storage_path")
+    .select("preview_storage_path, storage_path")
     .eq("id", normalizedMediaId)
     .limit(1)
     .maybeSingle();
   if (error) return null;
+  const previewStoragePath =
+    typeof data?.preview_storage_path === "string" ? data.preview_storage_path : null;
   const storagePath = typeof data?.storage_path === "string" ? data.storage_path : null;
-  return asCanonicalStoragePath(storagePath);
+  return asCanonicalStoragePath(previewStoragePath) ?? asCanonicalStoragePath(storagePath);
 };
 
 const asTrimmedString = (value: unknown): string | null => {
@@ -263,6 +265,7 @@ export const resolveStyleInternalDropCandidates = async ({
     if (!mediaLookupCandidates.length) return null;
     const mediaLookupPreviewUrlHint = mediaLookupCandidates[0] ?? null;
     return {
+      managedStoragePath: mediaLookupStoragePath,
       primarySourceUrl: mediaLookupPreviewUrlHint,
       fallbackSourceUrls: mediaLookupCandidates.slice(mediaLookupPreviewUrlHint ? 1 : 0),
       imageUrlCandidates: mediaLookupCandidates,

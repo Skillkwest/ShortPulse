@@ -1122,7 +1122,7 @@ export function CharacterManagerShell({
                       description={characterDescription}
                       helperText={CHARACTER_DESCRIPTION_HELPER_TEXT}
                       maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
-                      rows={isEmbeddedSurface ? 3 : 4}
+                      rows={isEmbeddedSurface ? 2 : 4}
                       disabled={loading}
                       onChangeDescription={setCharacterDescription}
                     />

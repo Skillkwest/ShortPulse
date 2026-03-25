@@ -4,6 +4,8 @@
  */
 .character-manager-page--embedded {
   padding-bottom: 0;
+  --character-embedded-sheet-max-width: 760px;
+  --character-embedded-sheet-card-max-width: 188px;
 }
 
 .character-manager-page--embedded[data-beginner-mode="on"] {
@@ -85,9 +87,9 @@
 }
 
 .character-manager-page--embedded .character-section--references {
-  justify-self: stretch;
+  justify-self: start;
   width: 100%;
-  max-width: none;
+  max-width: var(--character-embedded-sheet-max-width);
 }
 
 .character-manager-page--embedded .character-section--reference-drop {
@@ -144,14 +146,15 @@
   grid-template-columns: minmax(0, 1fr);
   min-height: auto;
   align-items: stretch;
-  row-gap: 8px;
+  row-gap: 6px;
+  padding: 10px;
 }
 
 .character-manager-page--embedded .character-profile-card-top-row {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 80px minmax(0, 1fr);
   align-items: start;
-  gap: 12px;
+  gap: 10px;
 }
 
 .character-manager-page--embedded .character-profile-photo-stack {
@@ -159,8 +162,8 @@
 }
 
 .character-manager-page--embedded .character-profile-photo-btn {
-  width: 92px;
-  height: 92px;
+  width: 80px;
+  height: 80px;
 }
 
 .character-manager-page--embedded .character-profile-initials {
@@ -169,7 +172,7 @@
 
 .character-manager-page--embedded .character-profile-fields {
   align-content: start;
-  gap: 10px;
+  gap: 8px;
 }
 
 .character-manager-page--embedded .character-profile-description-block {
@@ -177,11 +180,11 @@
 }
 
 .character-manager-page--embedded .character-name-input {
-  min-height: 44px;
+  min-height: 40px;
 }
 
 .character-manager-page--embedded .character-description-input {
-  min-height: 64px;
+  min-height: 52px;
 }
 
 .character-manager-page--embedded .character-description-footer-row {
@@ -197,16 +200,16 @@
 }
 
 .character-manager-page--embedded .character-sheet-preset-panel {
-  padding-top: 10px;
+  padding-top: 8px;
 }
 
 .character-manager-page--embedded .character-sheet-description-card {
-  margin-bottom: 16px;
-  gap: 10px;
+  margin-bottom: 12px;
+  gap: 8px;
 }
 
 .character-manager-page--embedded .character-sheet-references-title-row {
-  margin: 4px 0 10px;
+  margin: 2px 0 8px;
 }
 
 .character-manager-page--embedded .character-character-sheet-card {
@@ -228,18 +231,21 @@
 
 @media (min-width: 1101px) {
   .character-manager-page--embedded .character-create-workspace-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, var(--character-embedded-sheet-width));
+    grid-template-columns: minmax(0, var(--character-embedded-sheet-max-width)) minmax(0, 1fr);
   }
 
   .character-manager-page--embedded .character-layout-region--sheet {
     min-width: 0;
+    align-self: start;
+    width: 100%;
+    max-width: var(--character-embedded-sheet-max-width);
   }
 
   .character-manager-page--embedded .character-layout-region--quickswap {
     min-width: 0;
     width: 100%;
-    max-width: var(--character-embedded-sheet-width);
-    justify-self: end;
+    max-width: none;
+    justify-self: stretch;
     overflow-x: hidden;
   }
 
@@ -254,7 +260,7 @@
   .character-manager-page--embedded .character-mode-guidance--sheet {
     justify-self: stretch;
     width: 100%;
-    max-width: var(--character-embedded-sheet-width);
+    max-width: none;
     margin: 0;
   }
 }

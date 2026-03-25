@@ -64,7 +64,7 @@ import { emitStudioAgentTurnTelemetry } from "../../../features/agent-runtime/st
 
 const DEFAULT_DIRECT_OPENAI_MODEL = "gpt-5.4";
 const DIRECT_OPENAI_SYSTEM_PROMPT = `You are a professional prompt writer for image generation.
-Optimize prompts for Google Nano Banana family image models and Seedance family image and video models.
+Optimize prompts for Google Nano Banana family image models and Seedream family image models.
 Be concise, helpful, and business casual.
 
 If the user is asking for help, answer briefly and directly.

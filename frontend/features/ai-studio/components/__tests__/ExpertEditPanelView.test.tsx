@@ -403,6 +403,37 @@ describe("ExpertEditPanelView", () => {
     selectedStyleId: null,
   };
 
+  const renderControlledPromptPanel = ({
+    initialPrompt = "",
+    extraImageUrls = [null, null, null] as [string | null, string | null, string | null],
+    onPromptTextChangeSpy = vi.fn(),
+  }: {
+    initialPrompt?: string;
+    extraImageUrls?: [string | null, string | null, string | null];
+    onPromptTextChangeSpy?: ReturnType<typeof vi.fn>;
+  } = {}) => {
+    const ControlledPromptPanel = () => {
+      const [promptText, setPromptText] = React.useState(initialPrompt);
+      return (
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceText={promptText}
+          extraImageUrls={extraImageUrls}
+          onPromptTextChange={(value) => {
+            onPromptTextChangeSpy(value);
+            setPromptText(value);
+          }}
+        />
+      );
+    };
+
+    render(<ControlledPromptPanel />);
+    return {
+      onPromptTextChangeSpy,
+      promptInput: screen.getByLabelText("Edit prompt") as HTMLTextAreaElement,
+    };
+  };
+
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "false");
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED", "false");
@@ -958,6 +989,121 @@ describe("ExpertEditPanelView", () => {
     fireEvent.drop(promptInput, { dataTransfer: transfer });
 
     expect(onPromptTextChange).toHaveBeenCalledWith("Blend @img1 scene");
+  });
+
+  it("opens the anchored reference picker and selects the first populated slot after typing @", () => {
+    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+      initialPrompt: "Blend ",
+      extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
+    });
+
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
+    fireEvent.change(promptInput, { target: { value: "Blend @" } });
+
+    expect(onPromptTextChangeSpy).toHaveBeenCalledWith("Blend @");
+    expect(screen.getByRole("group", { name: /reference image picker/i })).toBeInTheDocument();
+    expect(screen.getByLabelText("Secondary edit image 1").className).toContain(
+      "is-picker-selected"
+    );
+    expect(screen.getByLabelText("Secondary edit image 2").className).not.toContain(
+      "is-picker-selected"
+    );
+  });
+
+  it("opens the anchored reference picker on Tab when populated references exist", () => {
+    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+      initialPrompt: "Blend scene",
+      extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
+    });
+
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+
+    expect(onPromptTextChangeSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("group", { name: /reference image picker/i })).toBeInTheDocument();
+    expect(screen.getByLabelText("Secondary edit image 1").className).toContain(
+      "is-picker-selected"
+    );
+  });
+
+  it("cycles the anchored reference picker selection with Tab", () => {
+    const { promptInput } = renderControlledPromptPanel({
+      initialPrompt: "Blend ",
+      extraImageUrls: [
+        "https://example.com/slot-1.png",
+        "https://example.com/slot-2.png",
+        "https://example.com/slot-3.png",
+      ],
+    });
+
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
+    fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+
+    expect(screen.getByLabelText("Secondary edit image 1").className).not.toContain(
+      "is-picker-selected"
+    );
+    expect(screen.getByLabelText("Secondary edit image 2").className).toContain(
+      "is-picker-selected"
+    );
+  });
+
+  it("inserts the selected picker token on Enter after opening with Tab", () => {
+    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+      initialPrompt: "Blend scene",
+      extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
+    });
+
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+    fireEvent.keyDown(promptInput, { key: "Enter" });
+
+    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img2 scene");
+    expect(promptInput.value).toBe("Blend @img2 scene");
+    expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
+  });
+
+  it("inserts the selected picker token on Enter and closes the picker", () => {
+    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+      initialPrompt: "Blend ",
+      extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
+    });
+
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
+    fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+    fireEvent.keyDown(promptInput, { key: "Enter" });
+
+    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img2");
+    expect(promptInput.value).toBe("Blend @img2");
+    expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
+  });
+
+  it("closes the picker on regular typing and preserves manual token entry", () => {
+    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+      initialPrompt: "Blend ",
+      extraImageUrls: ["https://example.com/slot-1.png", null, null],
+    });
+
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
+    fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    fireEvent.keyDown(promptInput, { key: "a" });
+    fireEvent.change(promptInput, { target: { value: "Blend @a" } });
+
+    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @a");
+    expect(promptInput.value).toBe("Blend @a");
+    expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
   });
 
   it("opens More Presets as a popup outside the primary dropzone", () => {

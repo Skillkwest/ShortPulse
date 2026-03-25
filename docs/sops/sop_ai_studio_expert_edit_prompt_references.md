@@ -59,6 +59,14 @@ Normalization rules:
 1. Prompt text remains plain string state (`editReferenceText`).
 2. Mirror highlight layer is computed from token diagnostics and rendered over the textarea.
 3. Text and token wrapping must stay aligned between textarea and mirror layer.
+4. Typing a bare `@` opens an anchored reference picker when at least one secondary slot is populated.
+5. Pressing `Tab` while the prompt textarea is focused also opens the anchored picker when it is closed and at least one secondary slot is populated.
+6. Picker selection defaults to the first populated secondary slot.
+7. While picker is open:
+   - `Tab` / `Shift+Tab` cycles populated slots.
+   - `Enter` inserts the selected `@imgN` token by replacing the typed bare `@` or the current caret/selection when the picker was opened by `Tab`.
+   - ordinary typing closes the picker and preserves manual prompt entry.
+8. Opening the picker adds a visible selection outline to the selected populated secondary slot.
 
 ### Drag-to-insert tokens
 
@@ -71,6 +79,7 @@ Normalization rules:
    - preserves existing fallback prompt-drop behavior when payload is not a token.
 4. Token insertion applies spacing-safe insertion:
    - inserts leading/trailing spaces only when needed to avoid merged words.
+5. The anchored picker must reuse the same token insertion path as drag-to-insert so caret placement and spacing stay consistent.
 
 ## Generate preflight and submit compilation
 
@@ -163,6 +172,11 @@ Minimum suite coverage:
    - deferred invalid warning (only after Generate attempt).
    - invalid token blocks generate callback.
    - drag secondary slot inserts token at caret.
+   - bare `@` opens anchored picker with first populated slot selected.
+   - `Tab` opens anchored picker at the current caret when populated secondary references exist.
+   - picker `Tab` cycling updates the selected populated slot.
+   - picker `Enter` inserts the selected token and closes the picker.
+   - ordinary typing after picker open closes the picker and preserves manual text entry.
    - token generate path sends both display/submission prompt overrides.
 3. Controller/composer tests:
    - prompt override precedence.
@@ -197,5 +211,9 @@ Minimum suite coverage:
 6. Manual smoke:
    - type valid/invalid tokens in Expert Edit prompt.
    - drag secondary slot into prompt and verify caret insertion.
+   - type `@` with populated secondary references and verify anchored picker open + default slot highlight.
+   - press `Tab` in the prompt with populated secondary references and verify anchored picker opens at the current caret.
+   - press `Tab` / `Shift+Tab` to cycle selected secondary reference.
+   - press `Enter` to insert selected `@imgN` token and close the picker.
    - verify Generate blocks on invalid token and succeeds on valid token.
    - verify reference token highlight color and prompt readability are stable.

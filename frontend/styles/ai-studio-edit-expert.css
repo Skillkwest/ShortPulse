@@ -1756,13 +1756,13 @@
   justify-content: flex-start;
   align-items: center;
   align-self: center;
-  gap: 6px;
+  gap: 18px;
   margin-left: 0;
   z-index: 4;
 }
 
 .edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-secondary-row {
-  gap: 5px;
+  gap: 14px;
 }
 
 .edit-expert-secondary-control {
@@ -1794,6 +1794,29 @@
   line-height: 1;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+.edit-expert-secondary-row .reference-dropzone.is-picker-target {
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease,
+    background 0.16s ease;
+}
+
+.edit-expert-secondary-row .reference-dropzone.is-picker-selected {
+  border-color: rgba(255, 194, 80, 0.92);
+  box-shadow:
+    0 0 0 2px rgba(255, 194, 80, 0.24),
+    0 12px 24px rgba(0, 0, 0, 0.24);
+  transform: translateY(-1px);
+}
+
+.edit-expert-secondary-row .reference-dropzone.extra.has-preview.is-picker-selected {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 194, 80, 0.95),
+    0 0 0 2px rgba(255, 194, 80, 0.22),
+    0 12px 24px rgba(0, 0, 0, 0.24);
 }
 
 .edit-expert-styles-btn {
@@ -4949,6 +4972,124 @@
   max-height: var(--edit-expert-prompt-input-max-height);
   overflow-y: hidden;
   resize: none;
+}
+
+.edit-expert-prompt-token-picker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 194, 80, 0.22);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(18, 20, 25, 0.98) 0%, rgba(12, 14, 18, 0.98) 100%);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.44),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  z-index: 7;
+}
+
+.edit-expert-prompt-token-picker-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.edit-expert-prompt-token-picker-title {
+  margin: 0;
+  color: rgba(255, 245, 223, 0.96);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.edit-expert-prompt-token-picker-hint {
+  margin: 0;
+  color: rgba(212, 219, 230, 0.72);
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.edit-expert-prompt-token-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+  gap: 10px;
+}
+
+.edit-expert-prompt-token-picker-option {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 16px;
+  background: rgba(28, 32, 39, 0.9);
+  color: rgba(245, 249, 255, 0.94);
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 126px;
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.edit-expert-prompt-token-picker-option:hover {
+  border-color: rgba(255, 194, 80, 0.34);
+  background: rgba(36, 40, 47, 0.94);
+}
+
+.edit-expert-prompt-token-picker-option.is-selected {
+  border-color: rgba(255, 194, 80, 0.92);
+  background: rgba(54, 43, 30, 0.94);
+  box-shadow:
+    0 0 0 2px rgba(255, 194, 80, 0.16),
+    0 10px 20px rgba(0, 0, 0, 0.24);
+  transform: translateY(-1px);
+}
+
+.edit-expert-prompt-token-picker-option-thumb {
+  width: 84px;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.edit-expert-prompt-token-picker-option-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-height: 100%;
+}
+
+.edit-expert-prompt-token-picker-option-label {
+  color: rgba(245, 249, 255, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.edit-expert-prompt-token-picker-option-token {
+  color: rgb(255, 194, 80);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
 }
 
 .edit-expert-prompt-token-error {

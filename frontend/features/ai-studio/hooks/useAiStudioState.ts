@@ -2,7 +2,7 @@
  * Shared state + actions for AI Studio.
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
@@ -97,30 +97,31 @@ export const useAiStudioState = ({
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
+  const validOutputIds = useMemo(
+    () =>
+      new Set<string>([
+        ...outputs.map((item) => item.id),
+        ...archivedOutputs.map((item) => item.id),
+      ]),
+    [archivedOutputs, outputs]
+  );
+  const visibleReferenceGridReadyOutputIds = useMemo(() => {
+    if (referenceGridReadyOutputIds.size <= 0) return referenceGridReadyOutputIds;
+    let changed = false;
+    const next = new Set<string>();
+    referenceGridReadyOutputIds.forEach((id) => {
+      if (validOutputIds.has(id)) {
+        next.add(id);
+        return;
+      }
+      changed = true;
+    });
+    return changed ? next : referenceGridReadyOutputIds;
+  }, [referenceGridReadyOutputIds, validOutputIds]);
   const activeOutput = useMemo(
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
   );
-
-  useEffect(() => {
-    const validOutputIds = new Set<string>([
-      ...outputs.map((item) => item.id),
-      ...archivedOutputs.map((item) => item.id),
-    ]);
-    setReferenceGridReadyOutputIds((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      prev.forEach((id) => {
-        if (validOutputIds.has(id)) {
-          next.add(id);
-          return;
-        }
-        changed = true;
-      });
-      if (!changed && next.size === prev.size) return prev;
-      return next;
-    });
-  }, [archivedOutputs, outputs]);
   // UI selections and references (tracked per workflow)
   const {
     selectedTool,
@@ -687,7 +688,7 @@ export const useAiStudioState = ({
     getDefaultDurationSeconds,
     getAgentContext,
     onReferenceOutputMediaLoaded: handleReferenceOutputMediaLoaded,
-    referenceGridReadyOutputIds,
+    referenceGridReadyOutputIds: visibleReferenceGridReadyOutputIds,
     retryOutputStatus,
   };
 };

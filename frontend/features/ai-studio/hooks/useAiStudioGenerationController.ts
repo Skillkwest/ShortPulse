@@ -481,6 +481,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
     },
     [
+      activeGenerationCount,
       currentCostCredits,
       effectiveBalanceCredits,
       enqueueOptimisticDebit,

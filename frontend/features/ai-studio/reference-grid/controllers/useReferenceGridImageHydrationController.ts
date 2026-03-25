@@ -394,6 +394,7 @@ export const useReferenceGridImageHydrationController = ({
     maybeCreateLocalAdaptivePreviewUrl,
     recordOptimizerFailoverError,
     rememberFailedOptimizerSource,
+    revokeGeneratedHydrationUrl,
     scheduleHydrationFlush,
     suspendHydrationProcessing,
     syncImageHydrationState,

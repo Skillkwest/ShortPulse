@@ -244,6 +244,32 @@ describe("useAiStudioState output store bridge", () => {
     });
   });
 
+  it("filters ready reference-grid ids when outputs leave active and archived collections", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([makeOutput("out-1")]);
+    });
+
+    await waitFor(() => {
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["out-1"]);
+    });
+
+    act(() => {
+      result.current.onReferenceOutputMediaLoaded("out-1");
+    });
+
+    expect(result.current.referenceGridReadyOutputIds.has("out-1")).toBe(true);
+
+    act(() => {
+      result.current.setOutputs([]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.referenceGridReadyOutputIds.has("out-1")).toBe(false);
+    });
+  });
+
   it("publishes prompt references added from agent actions", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 

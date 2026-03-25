@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import { resolveCanvasDropImageSourceUrl } from "../components/canvas/canvasDropResolvers";
 import type { ResolveCanvasDropReference } from "../components/canvas/canvasTypes";
 import { resolveStyleInternalDropCandidates } from "../components/style-creator/internalDropResolver";
+import type { PersistOutputSaveResult } from "./useAiStudioPersistenceActions";
 import { resolveMediaLibraryInternalDropResolver } from "../logic/mediaLibraryInternalDropResolver";
 import type { StudioOutput } from "../types";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
@@ -24,6 +25,7 @@ type OutputSnapshot = {
 type UseAiStudioInternalDropResolversParams = {
   getOutputById: (outputId: string) => StudioOutput | null;
   getOutputSnapshot: () => OutputSnapshot;
+  ensureOutputPersisted: (outputId: string) => Promise<PersistOutputSaveResult>;
   saveReferenceToLibrary: (outputId: string) => unknown;
 };
 
@@ -47,6 +49,7 @@ export const resolveSavedMediaIdFromOutput = (
 export const useAiStudioInternalDropResolvers = ({
   getOutputById,
   getOutputSnapshot,
+  ensureOutputPersisted,
   saveReferenceToLibrary,
 }: UseAiStudioInternalDropResolversParams): {
   resolveCharacterDropReference: ResolveCharacterDropReference;
@@ -149,12 +152,10 @@ export const useAiStudioInternalDropResolvers = ({
         payload,
         getOutputById,
         getOutputSnapshot,
+        ensureOutputPersisted,
         resolveSavedMediaIdFromOutput,
-        saveReferenceToLibrary,
-        persistTimeoutMs: MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS,
-        pollIntervalMs: MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS,
       }),
-    [getOutputById, getOutputSnapshot, saveReferenceToLibrary]
+    [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );
 
   return {

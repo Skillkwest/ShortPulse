@@ -3,6 +3,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
+import { ensureSupabaseClient } from "../../../../../lib/supabaseClient";
 import * as imageUploadModule from "../../../utils/imageUpload";
 import {
   canAcceptStyleLibraryImageDropHint,
@@ -15,6 +16,10 @@ import {
 
 vi.mock("../../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
+}));
+
+vi.mock("../../../../../lib/supabaseClient", () => ({
+  ensureSupabaseClient: vi.fn(),
 }));
 
 const originalImage = globalThis.Image;
@@ -336,6 +341,57 @@ describe("style-creator intake preprocessing", () => {
       expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
       expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
       expect(resolveInternalStyleDrop).toHaveBeenCalledTimes(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("prefers managed internal storage downloads before URL candidate fetching", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    vi.mocked(ensureSupabaseClient).mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          download: vi.fn(async () => ({
+            data: new Blob(["managed-image-bytes"], { type: "image/png" }),
+            error: null,
+          })),
+        })),
+      },
+    } as never);
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-123";
+        if (type === "text/reference-url") return "https://cdn.example.com/stale-reference.png";
+        if (type === "text/plain") return "portrait prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, {
+        resolveInternalStyleDrop: async () => ({
+          managedStoragePath: "user-1/generations/images/out-123-preview.png",
+          imageUrlCandidates: ["https://cdn.example.com/stale-reference.png"],
+          promptText: "internal prompt",
+        }),
+      });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();

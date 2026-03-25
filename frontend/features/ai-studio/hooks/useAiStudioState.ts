@@ -346,6 +346,7 @@ export const useAiStudioState = ({
 
   const {
     ensureGenerationRecord,
+    ensureOutputPersisted,
     saveActiveOutput,
     saveReferenceToLibrary,
     savePromptReference,
@@ -620,6 +621,7 @@ export const useAiStudioState = ({
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
     saveActiveOutput,
+    ensureOutputPersisted,
     saveReferenceToLibrary,
     savePromptReference,
     savePromptToLibrary,

@@ -187,6 +187,7 @@ export default function AiStudioPage() {
     rerollOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
+    ensureOutputPersisted,
     saveReferenceToLibrary,
     savePromptReference,
     savePromptToLibrary,
@@ -297,6 +298,7 @@ export default function AiStudioPage() {
   } = useAiStudioInternalDropResolvers({
     getOutputById,
     getOutputSnapshot,
+    ensureOutputPersisted,
     saveReferenceToLibrary,
   });
   const {
@@ -880,6 +882,7 @@ export default function AiStudioPage() {
     setDetailOutputId,
     updateOutputPrompt,
     deleteOutput,
+    handleSaveReference,
     handleDownloadReference,
     savePromptToLibrary,
     handleOpenMediaLibrary,
@@ -898,6 +901,7 @@ export default function AiStudioPage() {
     onUpdateOutputPrompt,
     onDeleteOutput,
     onDetailDownload,
+    onDetailSaveReference,
     onDetailSavePrompt,
   } = mapHookContractsToPageContentProps({
     panelProps,
@@ -962,6 +966,7 @@ export default function AiStudioPage() {
         onUpdateOutputPrompt={onUpdateOutputPrompt}
         onDeleteOutput={onDeleteOutput}
         onDetailDownload={onDetailDownload}
+        onDetailSaveReference={onDetailSaveReference}
         onDetailSavePrompt={onDetailSavePrompt}
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}

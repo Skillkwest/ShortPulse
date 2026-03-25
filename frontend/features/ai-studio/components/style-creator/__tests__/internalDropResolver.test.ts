@@ -37,7 +37,6 @@ const makeImageOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
 describe("resolveStyleInternalDropCandidates", () => {
   it("resolves internal payload candidates from existing output state", async () => {
     const output = makeImageOutput();
-    const saveReferenceToLibrary = vi.fn();
 
     const resolved = await resolveStyleInternalDropCandidates({
       payload: makePayload(),
@@ -48,32 +47,40 @@ describe("resolveStyleInternalDropCandidates", () => {
         outputById: { "out-1": output },
         archivedOutputById: {},
       }),
+      ensureOutputPersisted: async () => ({
+        ok: true,
+        mediaFileIds: [],
+        delivery: null,
+        error: null,
+      }),
       resolveSavedMediaIdFromOutput: (row) => row?.savedMediaIds?.[0] ?? null,
-      saveReferenceToLibrary,
-      persistTimeoutMs: 3500,
-      pollIntervalMs: 120,
       resolveSignedStorageUrl: async () => null,
     });
 
     expect(resolved).toBeTruthy();
+    expect(resolved?.managedStoragePath).toBe("user-1/generations/images/out-1-preview.png");
     expect(resolved?.imageUrlCandidates).toContain("https://cdn.example.com/out-1-result.png");
     expect(resolved?.promptText).toBe("cinematic portrait");
-    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
   });
 
-  it("autosaves and prepends signed storage URL candidates once media id appears", async () => {
-    let nowMs = 0;
+  it("awaits persistence and resolves managed storage metadata without polling", async () => {
     const output = makeImageOutput({
       savedMediaIds: [],
       previewStoragePath: "user-1/generations/images/out-1-preview.png",
       fullStoragePath: null,
       resultUrls: [],
     });
-    const saveReferenceToLibrary = vi.fn();
-    const sleep = vi.fn(async (ms: number) => {
-      nowMs += ms;
-      output.savedMediaIds = ["media-1"];
-    });
+    const ensureOutputPersisted = vi.fn(async () => ({
+      ok: true,
+      mediaFileIds: ["media-1"],
+      delivery: {
+        previewStoragePath: "user-1/generations/images/out-1-preview.png",
+        fullStoragePath: "user-1/generations/images/out-1-full.png",
+        previewUrl: "https://cdn.example.com/signed/out-1-preview.png",
+        fullUrl: "https://cdn.example.com/signed/out-1-full.png",
+      },
+      error: null,
+    }));
     const resolveSignedStorageUrl = vi.fn(
       async () => "https://cdn.example.com/signed/out-1-preview.png"
     );
@@ -87,23 +94,20 @@ describe("resolveStyleInternalDropCandidates", () => {
         outputById: { "out-1": output },
         archivedOutputById: {},
       }),
+      ensureOutputPersisted,
       resolveSavedMediaIdFromOutput: (row) => row?.savedMediaIds?.[0] ?? null,
-      saveReferenceToLibrary,
-      persistTimeoutMs: 3500,
-      pollIntervalMs: 120,
-      now: () => nowMs,
-      sleep,
       resolveSignedStorageUrl,
     });
 
-    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
-    expect(sleep).toHaveBeenCalled();
+    expect(ensureOutputPersisted).toHaveBeenCalledTimes(1);
     expect(resolveSignedStorageUrl).toHaveBeenCalledWith(
       "user-1/generations/images/out-1-preview.png"
     );
+    expect(resolved?.managedStoragePath).toBe("user-1/generations/images/out-1-preview.png");
     expect(resolved?.imageUrlCandidates[0]).toBe(
       "https://cdn.example.com/signed/out-1-preview.png"
     );
+    expect(resolved?.resolutionReason).toBe("persisted_delivery");
   });
 
   it("returns null when no output or fallback reference URL can be resolved", async () => {
@@ -120,10 +124,13 @@ describe("resolveStyleInternalDropCandidates", () => {
         outputById: {},
         archivedOutputById: {},
       }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
       resolveSavedMediaIdFromOutput: () => null,
-      saveReferenceToLibrary: () => undefined,
-      persistTimeoutMs: 3500,
-      pollIntervalMs: 120,
     });
 
     expect(resolved).toBeNull();
@@ -143,10 +150,13 @@ describe("resolveStyleInternalDropCandidates", () => {
         outputById: {},
         archivedOutputById: {},
       }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
       resolveSavedMediaIdFromOutput: () => null,
-      saveReferenceToLibrary: () => undefined,
-      persistTimeoutMs: 3500,
-      pollIntervalMs: 120,
       resolveStoragePathFromMediaId: async (mediaId) =>
         mediaId === "media-lookup" ? "user-1/generations/images/lookup.png" : null,
       resolveSignedStorageUrl: async (path) =>
@@ -191,10 +201,13 @@ describe("resolveStyleInternalDropCandidates", () => {
         outputById: { "out-1": output },
         archivedOutputById: {},
       }),
+      ensureOutputPersisted: async () => ({
+        ok: true,
+        mediaFileIds: ["media-lookup"],
+        delivery: null,
+        error: null,
+      }),
       resolveSavedMediaIdFromOutput: (row) => row?.savedMediaIds?.[0] ?? null,
-      saveReferenceToLibrary: () => undefined,
-      persistTimeoutMs: 3500,
-      pollIntervalMs: 120,
       resolveStoragePathFromMediaId: async (mediaId) =>
         mediaId === "media-lookup" ? "user-1/generations/images/lookup.png" : null,
       resolveSignedStorageUrl: async (path) =>
@@ -244,10 +257,13 @@ describe("resolveStyleInternalDropCandidates", () => {
         outputById: { "out-1": output },
         archivedOutputById: {},
       }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
       resolveSavedMediaIdFromOutput: () => null,
-      saveReferenceToLibrary: () => undefined,
-      persistTimeoutMs: 3500,
-      pollIntervalMs: 120,
       resolveStoragePathFromGenerationOutput,
       resolveSignedStorageUrl: async (path) =>
         path === "user-1/generations/images/generation-index-0.png"

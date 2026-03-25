@@ -10,6 +10,7 @@ import {
 } from "../../utils/dragDrop";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
+import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
 import {
   BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
   CUSTOM_STYLE_NAME_PREFIX,
@@ -30,6 +31,7 @@ const STYLE_IMAGE_OUTPUT_QUALITY = 0.9;
 const REFERENCE_RENDER_URL_TRANSFER_TYPE = "text/reference-render-url";
 const URLISH_TEXT_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
 const SERVER_COPY_ROUTE = "/api/media/copy-from-url";
+const MANAGED_MEDIA_BUCKET = "media_library";
 const STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED =
   process.env.NEXT_PUBLIC_AI_STUDIO_STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED !== "false";
 
@@ -46,10 +48,12 @@ export type InternalStyleDropServerCopyHints = {
 };
 
 export type ResolvedInternalStyleDrop = {
+  managedStoragePath?: string | null;
   imageUrlCandidates: string[];
   promptText?: string | null;
   serverCopyHints?: InternalStyleDropServerCopyHints;
   resolutionReason?:
+    | "persisted_delivery"
     | "output_storage_path"
     | "saved_media_lookup"
     | "generation_index_lookup"
@@ -424,6 +428,24 @@ const readImageDataUrlFromUrl = async (sourceUrl: string): Promise<string> => {
     throw new Error("Dropped URL did not resolve to an image.");
   }
   return readFileAsDataUrl(sourceBlob);
+};
+
+const readManagedImageDataUrlFromStoragePath = async (storagePath: string): Promise<string> => {
+  const normalizedStoragePath = storagePath.trim();
+  if (!normalizedStoragePath) {
+    throw new Error("Unable to read image.");
+  }
+  const supabase = ensureSupabaseClient();
+  const { data, error } = await supabase.storage
+    .from(MANAGED_MEDIA_BUCKET)
+    .download(normalizedStoragePath);
+  if (error || !data) {
+    throw new Error("Unable to read image.");
+  }
+  if (data.type && !data.type.startsWith("image/")) {
+    throw new Error("Dropped URL did not resolve to an image.");
+  }
+  return await readFileAsDataUrl(data);
 };
 
 const getFirstUriListValue = (value: string): string => {
@@ -891,7 +913,16 @@ export const resolveDroppedStylePreview = async (
     const internalPromptText = normalizeStylePromptFallbackText(internalDropResolution?.promptText);
     let sourceImageDataUrl: string | null = null;
     let lastReadError: unknown = null;
+    const managedStoragePath = internalDropResolution?.managedStoragePath?.trim() ?? "";
+    if (managedStoragePath) {
+      try {
+        sourceImageDataUrl = await readManagedImageDataUrlFromStoragePath(managedStoragePath);
+      } catch (error) {
+        lastReadError = error;
+      }
+    }
     for (const candidateUrl of droppedImageUrlCandidates) {
+      if (sourceImageDataUrl) break;
       try {
         sourceImageDataUrl = await readDroppedImageDataUrlWithRefreshFallback(candidateUrl);
         break;

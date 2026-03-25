@@ -79,6 +79,12 @@ describe("useAiStudioInternalDropResolvers", () => {
           outputById: { "out-1": output },
           archivedOutputById: {},
         }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: true,
+          mediaFileIds: ["media-0", "media-1"],
+          delivery: null,
+          error: null,
+        })),
         saveReferenceToLibrary: vi.fn(),
       })
     );
@@ -130,6 +136,12 @@ describe("useAiStudioInternalDropResolvers", () => {
           outputById,
           archivedOutputById: {},
         }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: true,
+          mediaFileIds: ["media-0", "media-1"],
+          delivery: null,
+          error: null,
+        })),
         saveReferenceToLibrary: vi.fn(),
       })
     );
@@ -165,9 +177,16 @@ describe("useAiStudioInternalDropResolvers", () => {
     const output = makeOutput();
     resolveMediaLibraryInternalDropResolverMock.mockResolvedValue({ kind: "media", id: "media-1" });
     resolveStyleInternalDropCandidatesMock.mockResolvedValue({
+      managedStoragePath: "user-1/generations/images/result-0.png",
       imageUrlCandidates: ["https://cdn.example.com/result-0.png"],
       promptText: "User visible prompt",
     });
+    const ensureOutputPersisted = vi.fn(async () => ({
+      ok: true,
+      mediaFileIds: ["media-0", "media-1"],
+      delivery: null,
+      error: null,
+    }));
     const saveReferenceToLibrary = vi.fn();
 
     const { result } = renderHook(() =>
@@ -179,6 +198,7 @@ describe("useAiStudioInternalDropResolvers", () => {
           outputById: { "out-1": output },
           archivedOutputById: {},
         }),
+        ensureOutputPersisted,
         saveReferenceToLibrary,
       })
     );
@@ -189,10 +209,13 @@ describe("useAiStudioInternalDropResolvers", () => {
       kind: "media",
       id: "media-1",
     });
-    await expect(result.current.resolveStyleLibraryInternalDrop(makePayload())).resolves.toEqual({
-      imageUrlCandidates: ["https://cdn.example.com/result-0.png"],
-      promptText: "User visible prompt",
-    });
+    await expect(result.current.resolveStyleLibraryInternalDrop(makePayload())).resolves.toEqual(
+      expect.objectContaining({
+        managedStoragePath: "user-1/generations/images/result-0.png",
+        imageUrlCandidates: ["https://cdn.example.com/result-0.png"],
+        promptText: "User visible prompt",
+      })
+    );
 
     expect(resolveMediaLibraryInternalDropResolverMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -207,9 +230,7 @@ describe("useAiStudioInternalDropResolvers", () => {
       expect.objectContaining({
         getOutputById: expect.any(Function),
         getOutputSnapshot: expect.any(Function),
-        saveReferenceToLibrary,
-        persistTimeoutMs: 3500,
-        pollIntervalMs: 120,
+        ensureOutputPersisted,
       })
     );
 

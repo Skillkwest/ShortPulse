@@ -5,6 +5,7 @@
 import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import type { PersistOutputSaveResult } from "../../hooks/useAiStudioPersistenceActions";
 import type { StudioOutput } from "../../types";
 import type { InternalReferenceDragPayload } from "../../utils/dragDrop";
 import {
@@ -24,12 +25,8 @@ type ResolveStyleInternalDropCandidatesArgs = {
   payload: InternalReferenceDragPayload;
   getOutputById: (outputId: string) => StudioOutput | null;
   getOutputSnapshot: () => OutputSnapshot;
+  ensureOutputPersisted: (outputId: string) => Promise<PersistOutputSaveResult>;
   resolveSavedMediaIdFromOutput: (output: StudioOutput | null, imageIndex: number) => string | null;
-  saveReferenceToLibrary: (outputId: string) => void;
-  persistTimeoutMs: number;
-  pollIntervalMs: number;
-  now?: () => number;
-  sleep?: (ms: number) => Promise<void>;
   resolveSignedStorageUrl?: (storagePath: string) => Promise<string | null>;
   resolveStoragePathFromMediaId?: (mediaId: string) => Promise<string | null>;
   resolveStoragePathFromGenerationOutput?: (args: {
@@ -38,12 +35,6 @@ type ResolveStyleInternalDropCandidatesArgs = {
     imageIndex: number;
   }) => Promise<string | null>;
 };
-
-const defaultNow = (): number => Date.now();
-const defaultSleep = async (ms: number): Promise<void> =>
-  await new Promise<void>((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
 
 const defaultResolveSignedStorageUrl = async (storagePath: string): Promise<string | null> =>
   await getSignedMediaUrl({
@@ -205,6 +196,16 @@ const resolveOutputStoragePath = (output: StudioOutput): string | null => {
   );
 };
 
+const resolvePersistedDeliveryStoragePath = (
+  persisted: PersistOutputSaveResult | null | undefined
+): string | null => {
+  if (!persisted?.delivery) return null;
+  return (
+    asCanonicalStoragePath(persisted.delivery.previewStoragePath) ??
+    asCanonicalStoragePath(persisted.delivery.fullStoragePath)
+  );
+};
+
 /**
  * Resolves style-drop candidates for internal reference-grid drags.
  * Adds signed storage URLs first when canonical storage paths are available.
@@ -213,12 +214,8 @@ export const resolveStyleInternalDropCandidates = async ({
   payload,
   getOutputById,
   getOutputSnapshot,
+  ensureOutputPersisted,
   resolveSavedMediaIdFromOutput,
-  saveReferenceToLibrary,
-  persistTimeoutMs,
-  pollIntervalMs,
-  now = defaultNow,
-  sleep = defaultSleep,
   resolveSignedStorageUrl = defaultResolveSignedStorageUrl,
   resolveStoragePathFromMediaId = defaultResolveStoragePathFromMediaId,
   resolveStoragePathFromGenerationOutput = defaultResolveStoragePathFromGenerationOutput,
@@ -274,28 +271,32 @@ export const resolveStyleInternalDropCandidates = async ({
   let resolvedOutput = initialOutput;
   let resolvedMediaId =
     payload.mediaId?.trim() || resolveSavedMediaIdFromOutput(resolvedOutput, imageIndex);
-  if (!resolvedMediaId) {
+  let persistedResult: PersistOutputSaveResult | null = null;
+  if (resolvedOutputId && (!resolvedMediaId || !resolveOutputStoragePath(resolvedOutput))) {
     try {
-      saveReferenceToLibrary(resolvedOutputId);
-      const startedAt = now();
-      while (now() - startedAt < persistTimeoutMs) {
-        const nextOutput = getOutputById(resolvedOutputId);
-        if (!nextOutput || nextOutput.mode !== "image") break;
+      persistedResult = await ensureOutputPersisted(resolvedOutputId);
+      const nextOutput = getOutputById(resolvedOutputId);
+      if (nextOutput && nextOutput.mode === "image") {
         resolvedOutput = nextOutput;
-        resolvedMediaId = resolveSavedMediaIdFromOutput(nextOutput, imageIndex);
-        if (resolvedMediaId) break;
-        await sleep(pollIntervalMs);
+      }
+      if (!resolvedMediaId) {
+        resolvedMediaId =
+          persistedResult.mediaFileIds[imageIndex] ??
+          persistedResult.mediaFileIds[0] ??
+          resolveSavedMediaIdFromOutput(resolvedOutput, imageIndex);
       }
     } catch {
-      // Continue with best-effort URL candidates from current output state.
+      // Continue with best-effort recovery from durable output state and lookup fallbacks.
     }
   }
 
   const candidates: string[] = [];
   let resolutionReason: ResolvedInternalStyleDrop["resolutionReason"] = null;
-  let storagePath = resolveOutputStoragePath(resolvedOutput);
+  let storagePath =
+    resolvePersistedDeliveryStoragePath(persistedResult) ??
+    resolveOutputStoragePath(resolvedOutput);
   if (storagePath) {
-    resolutionReason = "output_storage_path";
+    resolutionReason = persistedResult?.delivery ? "persisted_delivery" : "output_storage_path";
   }
   if (!storagePath && resolvedMediaId) {
     storagePath = await resolveStoragePathFromMediaId(resolvedMediaId).catch(() => null);
@@ -351,6 +352,7 @@ export const resolveStyleInternalDropCandidates = async ({
     previewUrlHint;
 
   return {
+    managedStoragePath: storagePath,
     imageUrlCandidates: candidates,
     promptText: resolvedOutput.prompt || resolvedOutput.previewText || null,
     serverCopyHints: {
@@ -359,8 +361,10 @@ export const resolveStyleInternalDropCandidates = async ({
       imageIndex,
       generationId: asTrimmedString(resolvedOutput.generationId),
       taskId: asTrimmedString(resolvedOutput.taskId),
-      previewStoragePathHint,
-      fullStoragePathHint,
+      previewStoragePathHint:
+        resolvePersistedDeliveryStoragePath(persistedResult) ?? previewStoragePathHint,
+      fullStoragePathHint:
+        asCanonicalStoragePath(persistedResult?.delivery?.fullStoragePath) ?? fullStoragePathHint,
       previewUrlHint,
       fullUrlHint,
     },

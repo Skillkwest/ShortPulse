@@ -69,6 +69,7 @@ export type StyleSourceResolutionDiagnosticMetadata = {
   resolvedSourceKind?: "file" | "internal" | "external" | null;
   internalPayloadPresent?: boolean | null;
   internalDragTokenPresent?: boolean | null;
+  rawSnapshotSeedCount?: number | null;
   transferTypes?: string[] | null;
   referenceOrigin?: string | null;
   referenceOutputId?: string | null;

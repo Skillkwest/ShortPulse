@@ -16,12 +16,14 @@ import type {
 } from "./types";
 
 type StyleSourceResolutionCaptureEntry = {
+  capture_version: string;
   capturedAt: string;
   flow: StyleExtractionFlow;
   outcome: "resolved" | "blocked_source";
   resolved_source_kind: "file" | "internal" | "external" | null;
   internal_payload_present: boolean | null;
   internal_drag_token_present: boolean | null;
+  raw_snapshot_seed_count: number | null;
   transfer_types: string[] | null;
   reference_origin: string | null;
   reference_output_id: string | null;
@@ -40,12 +42,14 @@ type StyleSourceResolutionCaptureEntry = {
 };
 
 type StyleSourceResolutionDebugHandle = {
+  version: string;
   snapshot: () => StyleSourceResolutionCaptureEntry[];
   latest: () => StyleSourceResolutionCaptureEntry | null;
   clear: () => void;
 };
 
 const STYLE_SOURCE_RESOLUTION_CAPTURE_LIMIT = 12;
+const STYLE_SOURCE_RESOLUTION_CAPTURE_VERSION = "style-source-resolution-v2";
 const styleSourceResolutionCaptureBuffer: StyleSourceResolutionCaptureEntry[] = [];
 
 const normalizeTelemetryError = (value: string | undefined): string | undefined => {
@@ -105,6 +109,7 @@ const normalizeTelemetryValue = (
 const normalizeCaptureEntry = (
   metadata: StyleSourceResolutionDiagnosticMetadata
 ): StyleSourceResolutionCaptureEntry => ({
+  capture_version: STYLE_SOURCE_RESOLUTION_CAPTURE_VERSION,
   capturedAt: new Date().toISOString(),
   flow: metadata.flow,
   outcome: metadata.outcome,
@@ -114,6 +119,11 @@ const normalizeCaptureEntry = (
   internal_drag_token_present:
     typeof metadata.internalDragTokenPresent === "boolean"
       ? metadata.internalDragTokenPresent
+      : null,
+  raw_snapshot_seed_count:
+    typeof metadata.rawSnapshotSeedCount === "number" &&
+    Number.isFinite(metadata.rawSnapshotSeedCount)
+      ? Math.max(0, Math.trunc(metadata.rawSnapshotSeedCount))
       : null,
   transfer_types: normalizeTransferTypes(metadata.transferTypes),
   reference_origin: normalizeTelemetryValue(metadata.referenceOrigin, 80),
@@ -155,6 +165,7 @@ const installStyleSourceResolutionDebugHandle = (): void => {
   if (typeof window === "undefined") return;
   if (window.__shortpulseStyleSourceResolution) return;
   window.__shortpulseStyleSourceResolution = {
+    version: STYLE_SOURCE_RESOLUTION_CAPTURE_VERSION,
     snapshot: getStyleSourceResolutionCaptures,
     latest: () =>
       styleSourceResolutionCaptureBuffer.length
@@ -264,6 +275,11 @@ export const trackStyleSourceResolutionDiagnostic = (
       internal_drag_token_present:
         typeof metadata.internalDragTokenPresent === "boolean"
           ? metadata.internalDragTokenPresent
+          : null,
+      raw_snapshot_seed_count:
+        typeof metadata.rawSnapshotSeedCount === "number" &&
+        Number.isFinite(metadata.rawSnapshotSeedCount)
+          ? Math.max(0, Math.trunc(metadata.rawSnapshotSeedCount))
           : null,
       transfer_types: normalizeTransferTypes(metadata.transferTypes),
       reference_origin: normalizeTelemetryValue(metadata.referenceOrigin, 80),

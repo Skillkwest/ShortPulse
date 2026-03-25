@@ -127,6 +127,24 @@ const classifyPlainTextKind = (value: string): string => {
   return "text";
 };
 
+const countRawSnapshotUrlSeeds = (dropSnapshot: StyleDropSnapshot): number => {
+  const uriListValue = dropSnapshot.uriList
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .find((item) => item.length > 0 && !item.startsWith("#"));
+  const plainText = dropSnapshot.plainText.trim();
+  return [
+    dropSnapshot.referenceRenderUrl,
+    dropSnapshot.imageUrl,
+    dropSnapshot.referenceUrl,
+    uriListValue ?? null,
+    /^(?:data:image\/|blob:|https?:\/\/|\/)/i.test(plainText) ? plainText : null,
+  ].reduce((count, value) => {
+    const trimmed = value?.trim() ?? "";
+    return trimmed ? count + 1 : count;
+  }, 0);
+};
+
 const trackStyleSourceDiagnosticFromSnapshot = ({
   dropSnapshot,
   flow,
@@ -195,6 +213,7 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
         ? internalPayloadPresent
         : Boolean(internalPayload),
     internalDragTokenPresent: Boolean(dropSnapshot.internalReferenceDragToken.trim()),
+    rawSnapshotSeedCount: countRawSnapshotUrlSeeds(dropSnapshot),
     transferTypes: dropSnapshot.transferTypes,
     referenceOrigin: dropSnapshot.referenceOrigin || null,
     referenceOutputId: dropSnapshot.referenceOutputId || null,

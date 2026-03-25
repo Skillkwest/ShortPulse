@@ -53,6 +53,7 @@ describe("style-creator telemetry", () => {
       resolvedSourceKind: "internal",
       internalPayloadPresent: true,
       internalDragTokenPresent: true,
+      rawSnapshotSeedCount: 4,
       transferTypes: ["text/reference-url", "text/reference-output-id", "text/plain"],
       referenceOrigin: "ai-studio-reference-grid",
       referenceOutputId: "out-123",
@@ -82,6 +83,7 @@ describe("style-creator telemetry", () => {
         resolved_source_kind: "internal",
         internal_payload_present: true,
         internal_drag_token_present: true,
+        raw_snapshot_seed_count: 4,
         transfer_types: ["text/reference-url", "text/reference-output-id", "text/plain"],
         reference_origin: "ai-studio-reference-grid",
         reference_output_id: "out-123",
@@ -107,6 +109,7 @@ describe("style-creator telemetry", () => {
       resolvedSourceKind: "internal",
       internalPayloadPresent: true,
       internalDragTokenPresent: true,
+      rawSnapshotSeedCount: 2,
       transferTypes: ["text/reference-drag-token", "text/reference-output-id"],
       referenceOrigin: "ai-studio-reference-grid",
       referenceOutputId: "out-capture",
@@ -129,8 +132,10 @@ describe("style-creator telemetry", () => {
     expect(snapshot[0]).toEqual(
       expect.objectContaining({
         outcome: "resolved",
+        capture_version: "style-source-resolution-v2",
         internal_payload_present: true,
         internal_drag_token_present: true,
+        raw_snapshot_seed_count: 2,
         transfer_types: ["text/reference-drag-token", "text/reference-output-id"],
         reference_output_id: "out-capture",
         resolution_reason: "payload_reference_url",
@@ -139,6 +144,7 @@ describe("style-creator telemetry", () => {
       })
     );
     expect(window.__shortpulseStyleSourceResolution?.latest()).toEqual(snapshot[0]);
+    expect(window.__shortpulseStyleSourceResolution?.version).toBe("style-source-resolution-v2");
     window.__shortpulseStyleSourceResolution?.clear();
     expect(window.__shortpulseStyleSourceResolution?.snapshot()).toEqual([]);
   });

@@ -1034,6 +1034,93 @@ describe("style-creator intake preprocessing", () => {
     }
   });
 
+  it("attempts server-copy fallback for internal drops when the initial failure is classified as missing payload", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-render-url",
+        "text/reference-url",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "library-out-2";
+        if (type === "text/reference-render-url") {
+          return "https://cdn.example.com/library-rendered-reference-2.png";
+        }
+        if (type === "text/reference-url") {
+          return "https://cdn.example.com/library-reference-2.png";
+        }
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "https://cdn.example.com/copied-library-reference-2.png") {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "image/png" },
+          blob: async () => new Blob(["mock-image-bytes"], { type: "image/png" }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(fetchWithAuth).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        delivery: {
+          previewUrl: "https://cdn.example.com/copied-library-reference-2.png",
+          fullUrl: "https://cdn.example.com/copied-library-reference-2.png",
+        },
+      }),
+    } as unknown as Response);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, {
+        resolveInternalStyleDrop: async () => ({
+          imageUrlCandidates: [],
+          fallbackSourceUrls: [],
+          primarySourceUrl: null,
+          promptText: "internal prompt",
+          serverCopyHints: {
+            outputId: "library-out-2",
+            mediaId: "media-library-2",
+            imageIndex: 0,
+            generationId: null,
+            taskId: null,
+            previewStoragePathHint: null,
+            fullStoragePathHint: null,
+            previewUrlHint: "https://cdn.example.com/library-reference-2.png",
+            fullUrlHint: "https://cdn.example.com/library-reference-2.png",
+          },
+        }),
+      });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(fetchWithAuth).toHaveBeenCalledWith(
+        "/api/media/copy-from-url",
+        expect.objectContaining({
+          method: "POST",
+          shortpulseLogScope: "generation",
+          shortpulseSkipErrorLogging: true,
+        })
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://cdn.example.com/copied-library-reference-2.png"
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("maps stale dropped reference URLs to the expired-source error code", async () => {
     const transfer = {
       files: [],

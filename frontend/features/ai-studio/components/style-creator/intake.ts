@@ -1050,17 +1050,21 @@ export const resolveStyleSource = async ({
       }
     }
     if (!sourceImageDataUrl && internalDropPayload && STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED) {
+      const serverCopySourceUrls = collectInternalServerCopySourceUrls([
+        ...sourceUrls,
+        ...snapshotServerCopySourceUrls,
+      ]);
       const normalizedReadError = normalizeStyleDropPreviewError(
         lastReadError ??
           createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload")
       );
-      if (normalizedReadError.code === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
+      const shouldAttemptServerCopy =
+        serverCopySourceUrls.length > 0 &&
+        (normalizedReadError.code === BLOCKED_STYLE_IMAGE_SOURCE_ERROR ||
+          normalizedReadError.code === "missing-dropped-style-image");
+      if (shouldAttemptServerCopy) {
         resolutionStage = "server_copy_fallback";
         serverCopyAttempted = true;
-        const serverCopySourceUrls = collectInternalServerCopySourceUrls([
-          ...sourceUrls,
-          ...snapshotServerCopySourceUrls,
-        ]);
         for (const sourceUrl of serverCopySourceUrls) {
           const fallbackUrl = await resolveFallbackImageUrlViaServerCopy({
             sourceUrl,

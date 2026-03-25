@@ -121,6 +121,17 @@
   line-height: 1.4;
 }
 
+.inline-warning-hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: linear-gradient(120deg, rgba(251, 191, 36, 0.14), rgba(245, 158, 11, 0.08));
+  color: #ffe5a6;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .ai-sessions-modal-backdrop {
   z-index: var(--ai-studio-z-modal-backdrop);
 }

@@ -91,17 +91,20 @@
 }
 
 .character-manager-page--embedded .character-section--reference-drop {
+  align-self: start;
   padding: 10px;
   gap: 8px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  height: fit-content;
 }
 
 .character-manager-page--embedded
   .character-section--reference-drop
   .character-reference-drop-content {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: start;
+  grid-template-rows: auto auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -109,7 +112,9 @@
 .character-manager-page--embedded
   .character-section--reference-drop
   .character-quickswap-active-scroll {
+  align-self: start;
   min-height: 0;
+  max-height: min(70vh, 820px);
 }
 
 .character-manager-page--embedded .character-section--reference-drop .character-section-head {

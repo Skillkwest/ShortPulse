@@ -12,6 +12,7 @@ type ExpertCreatePanelViewProps = {
   costCredits?: number | null;
   isPromptGenerating: boolean;
   isGenerateDisabled: boolean;
+  guardrailReason?: string | null;
   characterModeEnabled: boolean;
   onCharacterModeEnabledToggle: () => void;
   onCharacterPickerOpen: () => void;
@@ -44,6 +45,7 @@ export function ExpertCreatePanelView({
   costCredits,
   isPromptGenerating,
   isGenerateDisabled,
+  guardrailReason,
   characterModeEnabled,
   onCharacterModeEnabledToggle,
   onCharacterPickerOpen,
@@ -192,6 +194,9 @@ export function ExpertCreatePanelView({
             isBusy={isPromptGenerating}
             cost={costValue}
           />
+          {isGenerateDisabled && guardrailReason ? (
+            <div className="inline-warning-hint">{guardrailReason}</div>
+          ) : null}
         </div>
       </div>
     </>

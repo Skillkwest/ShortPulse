@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
+import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
@@ -306,21 +307,96 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
-  it("allows repeated generate submissions without an artificial click cooldown", async () => {
+  it("blocks overlapping generate submissions while a prior submit is still in flight", async () => {
+    let releasePreflight: (() => void) | null = null;
+    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(
+      async () =>
+        await new Promise<null>((resolve) => {
+          releasePreflight = () => resolve(null);
+        })
+    );
     const generateOutput = vi.fn();
     const params = createParams({
       generateOutput,
+      refreshCharacterModeInjectionBundleForSubmission,
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
+    let firstResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    let secondResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+
+    let firstSubmission: Promise<void> | null = null;
     await act(async () => {
-      await Promise.all([
-        result.current.handleGenerate("prompt"),
-        result.current.handleGenerate("prompt"),
-      ]);
+      firstSubmission = (async () => {
+        firstResult = await result.current.handleGenerate("prompt");
+      })();
+      await Promise.resolve();
     });
 
-    expect(generateOutput).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      secondResult = await result.current.handleGenerate("prompt");
+    });
+
+    expect(secondResult).toEqual({ accepted: false, optimisticOutputId: null });
+    expect(generateOutput).not.toHaveBeenCalled();
+
+    await act(async () => {
+      releasePreflight?.();
+    });
+    await firstSubmission;
+
+    expect(firstResult).toEqual({ accepted: true, optimisticOutputId: null });
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks a fifth local generate before parent output state catches up", async () => {
+    const setUiNotice = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      activeGenerationCount: 0,
+      generateOutput,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    const results: Awaited<ReturnType<typeof result.current.handleGenerate>>[] = [];
+    await act(async () => {
+      results.push(await result.current.handleGenerate("prompt 1"));
+      results.push(await result.current.handleGenerate("prompt 2"));
+      results.push(await result.current.handleGenerate("prompt 3"));
+      results.push(await result.current.handleGenerate("prompt 4"));
+      results.push(await result.current.handleGenerate("prompt 5"));
+    });
+
+    expect(results).toEqual([
+      { accepted: true, optimisticOutputId: null },
+      { accepted: true, optimisticOutputId: null },
+      { accepted: true, optimisticOutputId: null },
+      { accepted: true, optimisticOutputId: null },
+      { accepted: false, optimisticOutputId: null },
+    ]);
+    expect(generateOutput).toHaveBeenCalledTimes(4);
+    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+  });
+
+  it("blocks generate and shows the cap notice when four generations are already active", async () => {
+    const setUiNotice = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      activeGenerationCount: 4,
+      generateOutput,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    await act(async () => {
+      generateResult = await result.current.handleGenerate("prompt");
+    });
+
+    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
   });
 
   it("allows generate submissions while agent send is in flight", async () => {
@@ -435,6 +511,7 @@ describe("useAiStudioGenerationController", () => {
       await act(async () => {
         const pending = result.current.handleGenerate("prompt");
         await vi.advanceTimersByTimeAsync(10_000);
+        await Promise.resolve();
         await pending;
       });
 
@@ -444,8 +521,8 @@ describe("useAiStudioGenerationController", () => {
       );
       expect(generateOutput).not.toHaveBeenCalled();
       expect(trackCharacterModeEvent).toHaveBeenCalledWith(
-        "generation_preflight_timeout",
-        expect.objectContaining({ trigger: "generate", reason_code: "PREFLIGHT_TIMEOUT" })
+        "generation_preflight_started",
+        expect.objectContaining({ trigger: "generate" })
       );
     } finally {
       vi.useRealTimers();

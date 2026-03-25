@@ -129,6 +129,7 @@ type ComposeSendCardProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  guardrailReason?: string | null;
   beginnerMode?: boolean;
 };
 
@@ -381,6 +382,7 @@ export function CreatePropertiesPanel({
   stylesCatalog,
   onGenerate,
   onChatOffInlineGenerate,
+  guardrailReason,
 }: CreatePropertiesPanelProps) {
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
   const promptStepNumber = beginnerMode ? "2" : "1";
@@ -629,6 +631,7 @@ export function CreatePropertiesPanel({
           costCredits={costCredits}
           isPromptGenerating={isPromptGenerating}
           isGenerateDisabled={isGenerateDisabled}
+          guardrailReason={guardrailReason}
           characterModeEnabled={characterModeEnabled}
           onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
           onCharacterPickerOpen={openCharacterPicker}
@@ -721,6 +724,7 @@ export function ComposeSendCard({
   costCredits,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  guardrailReason,
   beginnerMode = false,
 }: ComposeSendCardProps) {
   const costValue = costCredits != null ? costCredits : "—";
@@ -743,7 +747,9 @@ export function ComposeSendCard({
           isBusy={isPromptGenerating}
           cost={costValue}
         />
-        {/* Guardrail warning intentionally hidden; disabled button communicates state. */}
+        {isGenerateDisabled && guardrailReason ? (
+          <div className="inline-warning-hint">{guardrailReason}</div>
+        ) : null}
         {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
       </div>
     </div>

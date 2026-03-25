@@ -15,6 +15,39 @@ import type {
   StyleSourceResolutionDiagnosticMetadata,
 } from "./types";
 
+type StyleSourceResolutionCaptureEntry = {
+  capturedAt: string;
+  flow: StyleExtractionFlow;
+  outcome: "resolved" | "blocked_source";
+  resolved_source_kind: "file" | "internal" | "external" | null;
+  internal_payload_present: boolean | null;
+  internal_drag_token_present: boolean | null;
+  transfer_types: string[] | null;
+  reference_origin: string | null;
+  reference_output_id: string | null;
+  reference_media_id: string | null;
+  reference_image_index: number | null;
+  reference_source_surface: string | null;
+  reference_url_kind: string | null;
+  reference_render_url_kind: string | null;
+  image_url_kind: string | null;
+  plain_text_kind: string | null;
+  resolution_stage: "primary" | "server_copy_fallback" | null;
+  resolution_reason: string | null;
+  candidate_count: number | null;
+  server_copy_attempted: boolean | null;
+  error: string | null;
+};
+
+type StyleSourceResolutionDebugHandle = {
+  snapshot: () => StyleSourceResolutionCaptureEntry[];
+  latest: () => StyleSourceResolutionCaptureEntry | null;
+  clear: () => void;
+};
+
+const STYLE_SOURCE_RESOLUTION_CAPTURE_LIMIT = 12;
+const styleSourceResolutionCaptureBuffer: StyleSourceResolutionCaptureEntry[] = [];
+
 const normalizeTelemetryError = (value: string | undefined): string | undefined => {
   if (!value) return undefined;
   const trimmed = value.trim();
@@ -67,6 +100,82 @@ const normalizeTelemetryValue = (
   if (!value) return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed.slice(0, maxLength) : null;
+};
+
+const normalizeCaptureEntry = (
+  metadata: StyleSourceResolutionDiagnosticMetadata
+): StyleSourceResolutionCaptureEntry => ({
+  capturedAt: new Date().toISOString(),
+  flow: metadata.flow,
+  outcome: metadata.outcome,
+  resolved_source_kind: metadata.resolvedSourceKind ?? null,
+  internal_payload_present:
+    typeof metadata.internalPayloadPresent === "boolean" ? metadata.internalPayloadPresent : null,
+  internal_drag_token_present:
+    typeof metadata.internalDragTokenPresent === "boolean"
+      ? metadata.internalDragTokenPresent
+      : null,
+  transfer_types: normalizeTransferTypes(metadata.transferTypes),
+  reference_origin: normalizeTelemetryValue(metadata.referenceOrigin, 80),
+  reference_output_id: normalizeTelemetryValue(metadata.referenceOutputId, 120),
+  reference_media_id: normalizeTelemetryValue(metadata.referenceMediaId, 120),
+  reference_image_index:
+    typeof metadata.referenceImageIndex === "number" &&
+    Number.isFinite(metadata.referenceImageIndex)
+      ? Math.max(0, Math.trunc(metadata.referenceImageIndex))
+      : null,
+  reference_source_surface: normalizeTelemetryValue(metadata.referenceSourceSurface, 80),
+  reference_url_kind: normalizeTelemetryValue(metadata.referenceUrlKind, 80),
+  reference_render_url_kind: normalizeTelemetryValue(metadata.referenceRenderUrlKind, 80),
+  image_url_kind: normalizeTelemetryValue(metadata.imageUrlKind, 80),
+  plain_text_kind: normalizeTelemetryValue(metadata.plainTextKind, 80),
+  resolution_stage:
+    metadata.resolutionStage === "primary" || metadata.resolutionStage === "server_copy_fallback"
+      ? metadata.resolutionStage
+      : null,
+  resolution_reason: normalizeResolutionReason(metadata.resolutionReason) ?? null,
+  candidate_count:
+    typeof metadata.candidateCount === "number" && Number.isFinite(metadata.candidateCount)
+      ? Math.max(0, Math.trunc(metadata.candidateCount))
+      : null,
+  server_copy_attempted:
+    typeof metadata.serverCopyAttempted === "boolean" ? metadata.serverCopyAttempted : null,
+  error: normalizeTelemetryError(metadata.errorMessage) ?? null,
+});
+
+const clearStyleSourceResolutionCaptures = (): void => {
+  styleSourceResolutionCaptureBuffer.length = 0;
+};
+
+const getStyleSourceResolutionCaptures = (): StyleSourceResolutionCaptureEntry[] => [
+  ...styleSourceResolutionCaptureBuffer,
+];
+
+const installStyleSourceResolutionDebugHandle = (): void => {
+  if (typeof window === "undefined") return;
+  if (window.__shortpulseStyleSourceResolution) return;
+  window.__shortpulseStyleSourceResolution = {
+    snapshot: getStyleSourceResolutionCaptures,
+    latest: () =>
+      styleSourceResolutionCaptureBuffer.length
+        ? styleSourceResolutionCaptureBuffer[styleSourceResolutionCaptureBuffer.length - 1]
+        : null,
+    clear: clearStyleSourceResolutionCaptures,
+  };
+};
+
+const recordStyleSourceResolutionCapture = (
+  metadata: StyleSourceResolutionDiagnosticMetadata
+): void => {
+  const entry = normalizeCaptureEntry(metadata);
+  styleSourceResolutionCaptureBuffer.push(entry);
+  if (styleSourceResolutionCaptureBuffer.length > STYLE_SOURCE_RESOLUTION_CAPTURE_LIMIT) {
+    styleSourceResolutionCaptureBuffer.splice(
+      0,
+      styleSourceResolutionCaptureBuffer.length - STYLE_SOURCE_RESOLUTION_CAPTURE_LIMIT
+    );
+  }
+  installStyleSourceResolutionDebugHandle();
 };
 
 /**
@@ -136,6 +245,7 @@ export const trackStyleExtractionOutcome = (
 export const trackStyleSourceResolutionDiagnostic = (
   metadata: StyleSourceResolutionDiagnosticMetadata
 ): void => {
+  recordStyleSourceResolutionCapture(metadata);
   void reportAppError({
     source: STYLE_SOURCE_RESOLUTION_TELEMETRY_SOURCE,
     scope: "app",
@@ -150,6 +260,10 @@ export const trackStyleSourceResolutionDiagnostic = (
       internal_payload_present:
         typeof metadata.internalPayloadPresent === "boolean"
           ? metadata.internalPayloadPresent
+          : null,
+      internal_drag_token_present:
+        typeof metadata.internalDragTokenPresent === "boolean"
+          ? metadata.internalDragTokenPresent
           : null,
       transfer_types: normalizeTransferTypes(metadata.transferTypes),
       reference_origin: normalizeTelemetryValue(metadata.referenceOrigin, 80),
@@ -181,3 +295,9 @@ export const trackStyleSourceResolutionDiagnostic = (
     },
   });
 };
+
+declare global {
+  interface Window {
+    __shortpulseStyleSourceResolution?: StyleSourceResolutionDebugHandle;
+  }
+}

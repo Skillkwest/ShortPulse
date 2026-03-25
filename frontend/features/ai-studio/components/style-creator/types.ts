@@ -68,6 +68,7 @@ export type StyleSourceResolutionDiagnosticMetadata = {
   outcome: "resolved" | "blocked_source";
   resolvedSourceKind?: "file" | "internal" | "external" | null;
   internalPayloadPresent?: boolean | null;
+  internalDragTokenPresent?: boolean | null;
   transferTypes?: string[] | null;
   referenceOrigin?: string | null;
   referenceOutputId?: string | null;

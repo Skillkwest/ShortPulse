@@ -16,6 +16,7 @@ import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } fro
 describe("style-creator telemetry", () => {
   beforeEach(() => {
     reportAppErrorMock.mockClear();
+    window.__shortpulseStyleSourceResolution?.clear();
   });
 
   it("emits normalized resolution metadata for preview-source failures", () => {
@@ -51,6 +52,7 @@ describe("style-creator telemetry", () => {
       outcome: "blocked_source",
       resolvedSourceKind: "internal",
       internalPayloadPresent: true,
+      internalDragTokenPresent: true,
       transferTypes: ["text/reference-url", "text/reference-output-id", "text/plain"],
       referenceOrigin: "ai-studio-reference-grid",
       referenceOutputId: "out-123",
@@ -79,6 +81,7 @@ describe("style-creator telemetry", () => {
         outcome: "blocked_source",
         resolved_source_kind: "internal",
         internal_payload_present: true,
+        internal_drag_token_present: true,
         transfer_types: ["text/reference-url", "text/reference-output-id", "text/plain"],
         reference_origin: "ai-studio-reference-grid",
         reference_output_id: "out-123",
@@ -95,5 +98,48 @@ describe("style-creator telemetry", () => {
         server_copy_attempted: true,
       })
     );
+  });
+
+  it("captures source-resolution packets on the window debug handle", () => {
+    trackStyleSourceResolutionDiagnostic({
+      flow: "library_drop",
+      outcome: "resolved",
+      resolvedSourceKind: "internal",
+      internalPayloadPresent: true,
+      internalDragTokenPresent: true,
+      transferTypes: ["text/reference-drag-token", "text/reference-output-id"],
+      referenceOrigin: "ai-studio-reference-grid",
+      referenceOutputId: "out-capture",
+      referenceMediaId: "media-capture",
+      referenceImageIndex: 1,
+      referenceSourceSurface: "all-refs",
+      referenceUrlKind: "missing",
+      referenceRenderUrlKind: "data_image",
+      imageUrlKind: "missing",
+      plainTextKind: "text",
+      resolutionStage: "primary",
+      resolutionReason: "payload reference url",
+      candidateCount: 1,
+      serverCopyAttempted: false,
+      errorMessage: "",
+    });
+
+    const snapshot = window.__shortpulseStyleSourceResolution?.snapshot() ?? [];
+    expect(snapshot).toHaveLength(1);
+    expect(snapshot[0]).toEqual(
+      expect.objectContaining({
+        outcome: "resolved",
+        internal_payload_present: true,
+        internal_drag_token_present: true,
+        transfer_types: ["text/reference-drag-token", "text/reference-output-id"],
+        reference_output_id: "out-capture",
+        resolution_reason: "payload_reference_url",
+        candidate_count: 1,
+        server_copy_attempted: false,
+      })
+    );
+    expect(window.__shortpulseStyleSourceResolution?.latest()).toEqual(snapshot[0]);
+    window.__shortpulseStyleSourceResolution?.clear();
+    expect(window.__shortpulseStyleSourceResolution?.snapshot()).toEqual([]);
   });
 });

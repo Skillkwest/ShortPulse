@@ -194,6 +194,7 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
       typeof internalPayloadPresent === "boolean"
         ? internalPayloadPresent
         : Boolean(internalPayload),
+    internalDragTokenPresent: Boolean(dropSnapshot.internalReferenceDragToken.trim()),
     transferTypes: dropSnapshot.transferTypes,
     referenceOrigin: dropSnapshot.referenceOrigin || null,
     referenceOutputId: dropSnapshot.referenceOutputId || null,

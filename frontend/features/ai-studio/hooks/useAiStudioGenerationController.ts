@@ -2,14 +2,7 @@
  * AI Studio generation controller hook.
  * Owns submission/regeneration orchestration while preserving page behavior.
  */
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
 import {
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
@@ -217,12 +210,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   activeOutputId,
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
   const generateClickLockedRef = useRef(false);
-  const pendingStartCountRef = useRef(0);
   const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
-
-  useEffect(() => {
-    pendingStartCountRef.current = 0;
-  }, [activeGenerationCount]);
 
   const tryAcquireGenerateClickLock = useCallback(() => {
     if (generateClickLockedRef.current) return false;
@@ -235,11 +223,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     generateClickLockedRef.current = false;
     setIsGenerateClickLocked(false);
   }, []);
-
-  const resolveEffectiveActiveGenerationCount = useCallback(
-    () => activeGenerationCount + pendingStartCountRef.current,
-    [activeGenerationCount]
-  );
 
   const showConcurrentGenerationCapNotice = useCallback(() => {
     setUiNotice(CONCURRENT_GENERATION_CAP_MESSAGE);
@@ -334,7 +317,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           });
         }
 
-        if (resolveEffectiveActiveGenerationCount() >= MAX_CONCURRENT_GENERATIONS) {
+        if (activeGenerationCount >= MAX_CONCURRENT_GENERATIONS) {
           showConcurrentGenerationCapNotice();
           return { accepted: false, optimisticOutputId: null };
         }
@@ -392,7 +375,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           return { accepted: false, optimisticOutputId: null };
         }
 
-        pendingStartCountRef.current += 1;
         const optimisticOutputId = insertOptimisticGenerationPlaceholder?.({
           prompt: promptToUse,
           modeOverride: effectiveMode,
@@ -420,7 +402,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             userReferenceInputs
           );
         } catch (error) {
-          pendingStartCountRef.current = Math.max(0, pendingStartCountRef.current - 1);
           if (error instanceof DeadlineExceededError) {
             trackCharacterModeEvent?.("generation_preflight_timeout", {
               trigger: "generate",
@@ -460,7 +441,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             hasCharacterModeReferences,
           });
         if (characterModeOverrides && characterModeDecision && !characterModeDecision.allow) {
-          pendingStartCountRef.current = Math.max(0, pendingStartCountRef.current - 1);
           trackCharacterModeFallback(characterModeOverrides, effectiveTool);
           trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
             tool: effectiveTool,
@@ -517,7 +497,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       refreshCharacterModeInjectionBundleForSubmission,
       releaseGenerateClickLock,
       resolveGuardrailBlockMessage,
-      resolveEffectiveActiveGenerationCount,
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
@@ -619,7 +598,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         const requiredCredits = resolvedRunCostCredits ?? currentCostCredits;
         let checkedFreshCredits = false;
 
-        if (resolveEffectiveActiveGenerationCount() >= MAX_CONCURRENT_GENERATIONS) {
+        if (activeGenerationCount >= MAX_CONCURRENT_GENERATIONS) {
           showConcurrentGenerationCapNotice();
           return;
         }
@@ -768,7 +747,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           });
         }
 
-        pendingStartCountRef.current += 1;
         enqueueOptimisticDebit(requiredCredits, activeOutputId ?? null);
         const resolvedDisplayPromptOverride =
           typeof options?.displayPromptOverride === "string"
@@ -803,6 +781,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     },
     [
       activeOutputId,
+      activeGenerationCount,
       currentCostCredits,
       effectiveBalanceCredits,
       enqueueOptimisticDebit,
@@ -818,7 +797,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       regenerateOutput,
       releaseGenerateClickLock,
       resolveGuardrailBlockMessage,
-      resolveEffectiveActiveGenerationCount,
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,

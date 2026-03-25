@@ -54,6 +54,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
   isPromptGenerating: boolean;
+  generationGuardrail: string | null;
   isPrimaryStageGenerating: boolean;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
@@ -102,6 +103,7 @@ export const useAiStudioEditExpertPanelProps = ({
   isGenerateDisabled,
   isGenerateClickLocked,
   isPromptGenerating,
+  generationGuardrail,
   isPrimaryStageGenerating,
   referenceImageWarning,
   resolveOutputPreviewUrl,
@@ -169,6 +171,7 @@ export const useAiStudioEditExpertPanelProps = ({
       costCredits: currentCostCredits,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
       isGenerateBusy: isPromptGenerating,
+      guardrailReason: generationGuardrail,
       isPrimaryStageGenerating,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
@@ -197,6 +200,7 @@ export const useAiStudioEditExpertPanelProps = ({
       editReferenceText,
       expertEditEligible,
       extraImageUrls,
+      generationGuardrail,
       handleEditPromptTextChange,
       handleImageRegenerateWithDebit,
       onEditSubmitIntentChange,

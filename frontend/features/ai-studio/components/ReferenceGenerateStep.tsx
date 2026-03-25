@@ -3,6 +3,7 @@
  */
 import React from "react";
 import { AgentGenerateButton } from "../../../prefabs/agent";
+import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../logic/concurrentGenerationCap";
 
 type ReferenceGenerateStepProps = {
   beginnerMode: boolean;
@@ -14,6 +15,7 @@ type ReferenceGenerateStepProps = {
   isGenerateDisabled: boolean;
   isBusy: boolean;
   costCredits?: number | null;
+  guardrailReason?: string | null;
   referenceImageWarning?: string | null;
   promptRequiredMessage?: string | null;
 };
@@ -31,9 +33,12 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
   isGenerateDisabled,
   isBusy,
   costCredits,
+  guardrailReason,
   referenceImageWarning,
   promptRequiredMessage,
 }) => {
+  const inlineGuardrailReason =
+    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
   return (
     <div
       className={`step-card reference-generate-step ${collapsed ? "is-collapsed" : ""}`}
@@ -59,6 +64,9 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
             isBusy={isBusy}
             cost={costCredits != null ? costCredits : "—"}
           />
+          {isGenerateDisabled && inlineGuardrailReason ? (
+            <div className="inline-warning-hint">{inlineGuardrailReason}</div>
+          ) : null}
           {promptRequiredMessage ? (
             <div
               className="reference-image-warning"

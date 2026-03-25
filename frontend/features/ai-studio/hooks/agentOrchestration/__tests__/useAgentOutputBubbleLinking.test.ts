@@ -22,10 +22,12 @@ describe("useAgentOutputBubbleLinking", () => {
 
   it("maps message ids to optimistic outputs and resolves thumbnail URLs", () => {
     const { result, rerender } = renderHook(
-      ({ outputs }: { outputs: StudioOutput[] }) => useAgentOutputBubbleLinking({ outputs }),
+      ({ outputs, readyIds }: { outputs: StudioOutput[]; readyIds: ReadonlySet<string> }) =>
+        useAgentOutputBubbleLinking({ outputs, referenceGridReadyOutputIds: readyIds }),
       {
         initialProps: {
           outputs: [] as StudioOutput[],
+          readyIds: new Set<string>(),
         },
       }
     );
@@ -47,6 +49,24 @@ describe("useAgentOutputBubbleLinking", () => {
           previewUrl: "https://example.com/preview.png",
         }),
       ],
+      readyIds: new Set<string>(),
+    });
+
+    expect(result.current.assistantBubbleMedia["msg-1"]).toEqual({
+      outputId: "out-1",
+      thumbnailUrl: null,
+      state: "pending",
+    });
+
+    rerender({
+      outputs: [
+        buildOutput({
+          id: "out-1",
+          taskState: "success",
+          previewUrl: "https://example.com/preview.png",
+        }),
+      ],
+      readyIds: new Set<string>(["out-1"]),
     });
 
     expect(result.current.assistantBubbleMedia["msg-1"]).toEqual({
@@ -58,10 +78,12 @@ describe("useAgentOutputBubbleLinking", () => {
 
   it("marks linked outputs as failed when task state fails", () => {
     const { result, rerender } = renderHook(
-      ({ outputs }: { outputs: StudioOutput[] }) => useAgentOutputBubbleLinking({ outputs }),
+      ({ outputs, readyIds }: { outputs: StudioOutput[]; readyIds: ReadonlySet<string> }) =>
+        useAgentOutputBubbleLinking({ outputs, referenceGridReadyOutputIds: readyIds }),
       {
         initialProps: {
           outputs: [] as StudioOutput[],
+          readyIds: new Set<string>(),
         },
       }
     );
@@ -77,6 +99,7 @@ describe("useAgentOutputBubbleLinking", () => {
           taskState: "fail",
         }),
       ],
+      readyIds: new Set<string>(),
     });
 
     expect(result.current.assistantBubbleMedia["msg-2"]).toEqual({
@@ -94,10 +117,12 @@ describe("useAgentOutputBubbleLinking", () => {
       }),
     ];
     const { result, rerender } = renderHook(
-      ({ outputs }: { outputs: StudioOutput[] }) => useAgentOutputBubbleLinking({ outputs }),
+      ({ outputs, readyIds }: { outputs: StudioOutput[]; readyIds: ReadonlySet<string> }) =>
+        useAgentOutputBubbleLinking({ outputs, referenceGridReadyOutputIds: readyIds }),
       {
         initialProps: {
           outputs: initialOutputs,
+          readyIds: new Set<string>(),
         },
       }
     );
@@ -111,6 +136,7 @@ describe("useAgentOutputBubbleLinking", () => {
           taskState: "running",
         }),
       ],
+      readyIds: new Set<string>(),
     });
 
     expect(result.current.assistantBubbleMedia).toBe(initialMedia);
@@ -121,10 +147,12 @@ describe("useAgentOutputBubbleLinking", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-01T00:00:00.000Z"));
     const { result, rerender } = renderHook(
-      ({ outputs }: { outputs: StudioOutput[] }) => useAgentOutputBubbleLinking({ outputs }),
+      ({ outputs, readyIds }: { outputs: StudioOutput[]; readyIds: ReadonlySet<string> }) =>
+        useAgentOutputBubbleLinking({ outputs, referenceGridReadyOutputIds: readyIds }),
       {
         initialProps: {
           outputs: [] as StudioOutput[],
+          readyIds: new Set<string>(),
         },
       }
     );
@@ -139,10 +167,48 @@ describe("useAgentOutputBubbleLinking", () => {
 
     act(() => {
       vi.setSystemTime(new Date("2026-03-01T00:06:00.000Z"));
-      rerender({ outputs: [] });
+      rerender({ outputs: [], readyIds: new Set<string>() });
       vi.runOnlyPendingTimers();
     });
 
     expect(result.current.assistantBubbleMedia["msg-stale"]).toBeUndefined();
+  });
+
+  it("allows hidden-in-grid outputs to surface their thumbnail immediately", () => {
+    const { result, rerender } = renderHook(
+      ({ outputs, readyIds }: { outputs: StudioOutput[]; readyIds: ReadonlySet<string> }) =>
+        useAgentOutputBubbleLinking({ outputs, referenceGridReadyOutputIds: readyIds }),
+      {
+        initialProps: {
+          outputs: [] as StudioOutput[],
+          readyIds: new Set<string>(),
+        },
+      }
+    );
+
+    act(() => {
+      result.current.registerOutputLink({
+        messageId: "msg-hidden",
+        optimisticOutputId: "out-hidden",
+      });
+    });
+
+    rerender({
+      outputs: [
+        buildOutput({
+          id: "out-hidden",
+          taskState: "success",
+          previewUrl: "https://example.com/hidden.png",
+          hiddenInReferenceGrid: true,
+        }),
+      ],
+      readyIds: new Set<string>(),
+    });
+
+    expect(result.current.assistantBubbleMedia["msg-hidden"]).toEqual({
+      outputId: "out-hidden",
+      thumbnailUrl: "https://example.com/hidden.png",
+      state: "ready",
+    });
   });
 });

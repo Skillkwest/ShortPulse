@@ -228,6 +228,7 @@ describe("dragDrop payload extraction", () => {
     const { event, dragNode, setData } = makeDragEvent();
     dragNode.dataset.dragPreviewKind = "image";
     dragNode.dataset.dragImageSrc = "blob:http://localhost:3000/ref-rendered-image";
+    dragNode.dataset.dragPreviewUrl = "https://cdn.example.com/weaker-preview.png";
 
     prepareReferenceDrag(event, {
       id: "ref-rendered",
@@ -242,6 +243,10 @@ describe("dragDrop payload extraction", () => {
 
     expect(setData).toHaveBeenCalledWith(
       "text/reference-render-url",
+      "blob:http://localhost:3000/ref-rendered-image"
+    );
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
       "blob:http://localhost:3000/ref-rendered-image"
     );
     expect(setData).toHaveBeenCalledWith(
@@ -461,7 +466,7 @@ describe("dragDrop payload extraction", () => {
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
-  it("prefers card preview URL over rendered image URL for transfer payload image/url", () => {
+  it("prefers rendered image URL over weaker card preview URL for transfer payload image/url", () => {
     const { event, dragNode, setData } = makeDragEvent();
     dragNode.dataset.dragPreviewKind = "image";
     dragNode.dataset.dragPreviewUrl = `${window.location.origin}/_next/image?url=https%3A%2F%2Fcdn.example.com%2Fsigned.png&w=512&q=75`;
@@ -478,7 +483,14 @@ describe("dragDrop payload extraction", () => {
       previewUrl: "https://cdn.example.com/output-preview.png",
     });
 
-    expect(setData).toHaveBeenCalledWith("image/url", "https://cdn.example.com/signed.png");
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://cdn.example.com/rendered-current-src.png"
+    );
+    expect(setData).toHaveBeenCalledWith(
+      "image/url",
+      "https://cdn.example.com/rendered-current-src.png"
+    );
   });
 
   it("keeps drag ghosts at a 4:5 aspect ratio", () => {
@@ -760,6 +772,34 @@ describe("dragDrop payload extraction", () => {
 
     expect(setData).toHaveBeenCalledWith("text/reference-url", "/api/media/preview?id=123");
     expect(setData).toHaveBeenCalledWith("image/url", "/api/media/preview?id=123");
+  });
+
+  it("prefers rendered image candidates over weaker preview urls for image reference payloads", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragPreviewUrl = "https://cdn.example.com/weaker-preview.png";
+    dragNode.dataset.dragImageSrc =
+      "/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
+
+    prepareReferenceDrag(event, {
+      id: "ref-render-priority",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://cdn.example.com/direct-signed.png",
+    });
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "http://localhost:3000/storage/v1/object/sign/media_library/user-1/image.png"
+    );
+    expect(setData).toHaveBeenCalledWith(
+      "image/url",
+      "http://localhost:3000/storage/v1/object/sign/media_library/user-1/image.png"
+    );
   });
 
   it("resolves best transfer URL in priority order", () => {

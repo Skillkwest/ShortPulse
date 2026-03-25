@@ -96,4 +96,5 @@ export type PromptStepProps = {
   agentInputMaxHeightPx?: number;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
+  outputGenerateGuardrailReason?: string | null;
 };

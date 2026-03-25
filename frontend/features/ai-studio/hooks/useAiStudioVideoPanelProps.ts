@@ -75,6 +75,7 @@ type UseAiStudioVideoPanelPropsParams = {
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
   isPromptGenerating: boolean;
+  generationGuardrail: string | null;
   agentBusy: boolean;
   agentAttachmentError: string | null;
   agentError?: string | null;
@@ -133,6 +134,7 @@ export const useAiStudioVideoPanelProps = ({
   isGenerateDisabled,
   isGenerateClickLocked,
   isPromptGenerating,
+  generationGuardrail,
   agentBusy,
   agentAttachmentError,
   agentError,
@@ -184,6 +186,7 @@ export const useAiStudioVideoPanelProps = ({
       onSave: handleVideoPromptSave,
       onRegenerate: handleRegenerateWithDebit,
       costCredits: currentCostCredits,
+      guardrailReason: generationGuardrail,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
@@ -201,6 +204,7 @@ export const useAiStudioVideoPanelProps = ({
       currentCostCredits,
       currentModelLabel,
       extraImageUrls,
+      generationGuardrail,
       handleKlingVoiceIdChange,
       handleOpenModelModal,
       handleReferencePromptEnhance,

@@ -43,12 +43,25 @@ const normalizeOptionalUrl = (value: string | null | undefined): string | null =
   return normalized.length ? normalized : null;
 };
 
-const resolvePersistableOutputUrls = (output: StudioOutput): string[] => {
+const uniqueUrls = (values: Array<string | null | undefined>): string[] => {
+  const next: string[] = [];
+  values.forEach((value) => {
+    const normalized = normalizeOptionalUrl(value);
+    if (!normalized || next.includes(normalized)) return;
+    next.push(normalized);
+  });
+  return next;
+};
+
+export const resolvePersistableOutputUrls = (output: StudioOutput): string[] => {
+  const uploadLocalSource = normalizeOptionalUrl(output.localObjectUrl);
   const baseUrls = output.resultUrls?.length
-    ? output.resultUrls
-    : output.previewUrl
-      ? [output.previewUrl]
-      : [];
+    ? uniqueUrls(output.resultUrls)
+    : uniqueUrls([
+        output.mediaSource === "upload" ? uploadLocalSource : null,
+        output.previewUrl,
+        uploadLocalSource,
+      ]);
   if (!baseUrls.length) return [];
   if (output.mode !== "video") return baseUrls;
   const videoUrls = baseUrls.filter((value) => isVideoUrl(value));

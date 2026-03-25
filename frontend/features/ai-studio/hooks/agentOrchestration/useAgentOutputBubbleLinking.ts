@@ -18,7 +18,13 @@ type LinkEntry = {
 /**
  * Derives bubble-media state from linked outputs and registers new links after generate submits.
  */
-export const useAgentOutputBubbleLinking = ({ outputs }: { outputs: StudioOutput[] }) => {
+export const useAgentOutputBubbleLinking = ({
+  outputs,
+  referenceGridReadyOutputIds = new Set<string>(),
+}: {
+  outputs: StudioOutput[];
+  referenceGridReadyOutputIds?: ReadonlySet<string>;
+}) => {
   const [outputLinksByMessageId, setOutputLinksByMessageId] = useState<Record<string, LinkEntry>>(
     {}
   );
@@ -93,7 +99,11 @@ export const useAgentOutputBubbleLinking = ({ outputs }: { outputs: StudioOutput
         return;
       }
       const thumbnailUrl = output.previewUrl ?? output.resultUrls?.[0] ?? null;
-      if (thumbnailUrl) {
+      const isGridReady =
+        output.hiddenInReferenceGrid === true ||
+        !thumbnailUrl ||
+        referenceGridReadyOutputIds.has(output.id);
+      if (thumbnailUrl && isGridReady) {
         resolved[messageId] = {
           outputId: entry.outputId,
           thumbnailUrl,
@@ -104,11 +114,11 @@ export const useAgentOutputBubbleLinking = ({ outputs }: { outputs: StudioOutput
       resolved[messageId] = {
         outputId: entry.outputId,
         thumbnailUrl: null,
-        state: output.taskState === "success" ? "failed" : "pending",
+        state: "pending",
       };
     });
     return resolved;
-  }, [outputById, outputLinksByMessageId]);
+  }, [outputById, outputLinksByMessageId, referenceGridReadyOutputIds]);
 
   return {
     assistantBubbleMedia,

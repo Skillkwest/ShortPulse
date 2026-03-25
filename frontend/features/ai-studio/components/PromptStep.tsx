@@ -85,6 +85,7 @@ export function PromptStep({
   agentInputMaxHeightPx,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
+  outputGenerateGuardrailReason = null,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -270,6 +271,7 @@ export function PromptStep({
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}
+                outputGenerateGuardrailReason={outputGenerateGuardrailReason}
                 composerLeadingContent={composerLeadingContent}
                 showComposerAttachments={showComposerAttachments}
                 agentInputRef={agentInputRef}

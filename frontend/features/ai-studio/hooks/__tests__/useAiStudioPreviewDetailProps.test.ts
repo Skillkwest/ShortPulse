@@ -19,6 +19,7 @@ const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioPreviewDetailProps>[0]> = {}
 ): Parameters<typeof useAiStudioPreviewDetailProps>[0] => ({
   activeOutput: output,
+  referenceGridReadyOutputIds: new Set<string>(),
   referenceImageUrl: "https://example.com/ref.png",
   selectedTool: "image",
   videoReferenceText: "Video prompt",
@@ -89,5 +90,44 @@ describe("useAiStudioPreviewDetailProps", () => {
     expect(handleSaveReference).toHaveBeenCalledWith("out-1");
     expect(handleDownloadReference).toHaveBeenCalledWith("out-1");
     expect(savePromptToLibrary).toHaveBeenCalledWith("Saved prompt");
+  });
+
+  it("withholds the active output preview until the reference grid marks it ready", () => {
+    const { result, rerender } = renderHook(
+      ({ readyIds }: { readyIds: ReadonlySet<string> }) =>
+        useAiStudioPreviewDetailProps(createParams({ referenceGridReadyOutputIds: readyIds })),
+      {
+        initialProps: { readyIds: new Set<string>() },
+      }
+    );
+
+    expect(result.current.studioPreviewProps.activeOutputPreviewUrl).toBeNull();
+
+    rerender({ readyIds: new Set<string>(["out-1"]) });
+    expect(result.current.studioPreviewProps.activeOutputPreviewUrl).toBe(
+      "https://example.com/out-1.png"
+    );
+  });
+
+  it("does not gate outputs that are intentionally hidden from the reference grid", () => {
+    const hiddenOutput: StudioOutput = {
+      ...output,
+      id: "out-hidden",
+      hiddenInReferenceGrid: true,
+      previewUrl: "https://example.com/out-hidden.png",
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioPreviewDetailProps(
+        createParams({
+          activeOutput: hiddenOutput,
+          detailOutput: hiddenOutput,
+        })
+      )
+    );
+
+    expect(result.current.studioPreviewProps.activeOutputPreviewUrl).toBe(
+      "https://example.com/out-hidden.png"
+    );
   });
 });

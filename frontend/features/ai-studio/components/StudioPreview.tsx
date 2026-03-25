@@ -9,6 +9,7 @@ import { isVideoUrl } from "../logic/stateParsers";
 
 type StudioPreviewProps = {
   activeOutput: StudioOutput | null;
+  activeOutputPreviewUrl?: string | null;
   referenceImageUrl: string | null;
   referenceText: string | null;
   onReferenceImageChange: (url: string | null) => void;
@@ -31,6 +32,7 @@ const preventFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
  */
 function StudioPreviewComponent({
   activeOutput,
+  activeOutputPreviewUrl = null,
   referenceImageUrl,
   referenceText,
   onReferenceImageChange,
@@ -40,7 +42,7 @@ function StudioPreviewComponent({
   onDropFiles,
   onOpenMediaLibrary,
 }: StudioPreviewProps) {
-  const previewMedia = activeOutput?.previewUrl || referenceImageUrl;
+  const previewMedia = activeOutputPreviewUrl || referenceImageUrl;
   const isVideoPreview = Boolean(
     previewMedia && activeOutput?.mode !== "image" && isVideoUrl(previewMedia)
   );

@@ -211,6 +211,7 @@ export default function AiStudioPage() {
     getDefaultDurationSeconds,
     getAgentContext,
     onReferenceOutputMediaLoaded,
+    referenceGridReadyOutputIds,
     retryOutputStatus,
     addAgentPromptReference,
     addPastedPromptReference,
@@ -588,20 +589,6 @@ export default function AiStudioPage() {
     (isCharacterLoadingGenerateDisabled ? CHARACTER_LOADING_GENERATION_GUARDRAIL : null);
   const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
 
-  useEffect(() => {
-    const isConcurrentLimitGuardrail = generationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE;
-
-    if (isConcurrentLimitGuardrail) {
-      if (uiNotice == null) {
-        setUiNotice(CONCURRENT_GENERATION_CAP_MESSAGE);
-      }
-      return;
-    }
-
-    if (uiNotice === CONCURRENT_GENERATION_CAP_MESSAGE) {
-      setUiNotice(null);
-    }
-  }, [generationGuardrail, setUiNotice, uiNotice]);
   const {
     isMediaLibraryOpen,
     isMediaLibraryPanelEnabled,
@@ -687,6 +674,7 @@ export default function AiStudioPage() {
   const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt, disableAgentOutputGenerate } =
     useAiStudioAgentOutputGenerationBridge({
       outputs,
+      referenceGridReadyOutputIds,
       mode,
       selectedTool,
       isGenerateDisabled: effectiveIsGenerateDisabled,
@@ -842,6 +830,10 @@ export default function AiStudioPage() {
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
     activeOutputId,
+    topNotice:
+      effectiveGenerationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE
+        ? effectiveGenerationGuardrail
+        : null,
     curatedReferenceIds,
     removedFromAllRefsIds,
     onReferenceOutputMediaLoaded,
@@ -871,6 +863,7 @@ export default function AiStudioPage() {
   );
   const previewDetailProps = useAiStudioPreviewDetailProps({
     activeOutput,
+    referenceGridReadyOutputIds,
     referenceImageUrl,
     selectedTool,
     videoReferenceText,
@@ -932,7 +925,9 @@ export default function AiStudioPage() {
         referenceGridFileInputRef={referenceGridFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
-        uiNotice={effectiveUiNotice}
+        uiNotice={
+          effectiveUiNotice === CONCURRENT_GENERATION_CAP_MESSAGE ? null : effectiveUiNotice
+        }
         characterError={characterError}
         onDismissUiError={dismissError}
         onDismissUiNotice={dismissNotice}
@@ -1010,6 +1005,7 @@ export default function AiStudioPage() {
           assistantBubbleMedia,
           outputGenerateCostCredits: promptReferenceGenerateCostCredits,
           disableOutputGenerate: disableAgentOutputGenerate,
+          outputGenerateGuardrailReason: disableAgentOutputGenerate ? generationGuardrail : null,
         }}
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}

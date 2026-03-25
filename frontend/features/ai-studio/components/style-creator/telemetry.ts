@@ -2,11 +2,17 @@
  * Telemetry helpers for styles-library extraction outcomes.
  */
 import { reportAppError } from "../../../../lib/appErrorReporter";
-import { STYLE_EXTRACTION_TELEMETRY_FAMILY, STYLE_EXTRACTION_TELEMETRY_SOURCE } from "./constants";
+import {
+  STYLE_EXTRACTION_TELEMETRY_FAMILY,
+  STYLE_EXTRACTION_TELEMETRY_SOURCE,
+  STYLE_SOURCE_RESOLUTION_TELEMETRY_FAMILY,
+  STYLE_SOURCE_RESOLUTION_TELEMETRY_SOURCE,
+} from "./constants";
 import type {
   StyleExtractionFlow,
   StyleExtractionOutcome,
   StyleExtractionTelemetryMetadata,
+  StyleSourceResolutionDiagnosticMetadata,
 } from "./types";
 
 const normalizeTelemetryError = (value: string | undefined): string | undefined => {
@@ -36,6 +42,31 @@ const normalizeResolutionReason = (value: string | null | undefined): string | u
     .replace(/^_+|_+$/g, "");
   if (!normalized.length) return undefined;
   return normalized.slice(0, 64);
+};
+
+const normalizeTransferTypes = (value: string[] | null | undefined): string[] | null => {
+  if (!Array.isArray(value)) return null;
+  const next = value
+    .map((item) =>
+      typeof item === "string"
+        ? item
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9/_+.-]+/g, "_")
+            .slice(0, 80)
+        : ""
+    )
+    .filter(Boolean);
+  return next.length ? next : null;
+};
+
+const normalizeTelemetryValue = (
+  value: string | null | undefined,
+  maxLength = 120
+): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed.slice(0, maxLength) : null;
 };
 
 /**
@@ -95,6 +126,58 @@ export const trackStyleExtractionOutcome = (
           ? metadata.modelUsed.trim().slice(0, 120)
           : null,
       error: normalizeTelemetryError(metadata?.errorMessage) ?? null,
+    },
+  });
+};
+
+/**
+ * Emits diagnostic telemetry for style source-resolution packet capture.
+ */
+export const trackStyleSourceResolutionDiagnostic = (
+  metadata: StyleSourceResolutionDiagnosticMetadata
+): void => {
+  void reportAppError({
+    source: STYLE_SOURCE_RESOLUTION_TELEMETRY_SOURCE,
+    scope: "app",
+    severity: "low",
+    message: `style_source_resolution.${metadata.outcome}`,
+    metadata: {
+      telemetry_family: STYLE_SOURCE_RESOLUTION_TELEMETRY_FAMILY,
+      telemetry_version: 1,
+      flow: metadata.flow,
+      outcome: metadata.outcome,
+      resolved_source_kind: metadata.resolvedSourceKind ?? null,
+      internal_payload_present:
+        typeof metadata.internalPayloadPresent === "boolean"
+          ? metadata.internalPayloadPresent
+          : null,
+      transfer_types: normalizeTransferTypes(metadata.transferTypes),
+      reference_origin: normalizeTelemetryValue(metadata.referenceOrigin, 80),
+      reference_output_id: normalizeTelemetryValue(metadata.referenceOutputId, 120),
+      reference_media_id: normalizeTelemetryValue(metadata.referenceMediaId, 120),
+      reference_image_index:
+        typeof metadata.referenceImageIndex === "number" &&
+        Number.isFinite(metadata.referenceImageIndex)
+          ? Math.max(0, Math.trunc(metadata.referenceImageIndex))
+          : null,
+      reference_source_surface: normalizeTelemetryValue(metadata.referenceSourceSurface, 80),
+      reference_url_kind: normalizeTelemetryValue(metadata.referenceUrlKind, 80),
+      reference_render_url_kind: normalizeTelemetryValue(metadata.referenceRenderUrlKind, 80),
+      image_url_kind: normalizeTelemetryValue(metadata.imageUrlKind, 80),
+      plain_text_kind: normalizeTelemetryValue(metadata.plainTextKind, 80),
+      resolution_stage:
+        metadata.resolutionStage === "primary" ||
+        metadata.resolutionStage === "server_copy_fallback"
+          ? metadata.resolutionStage
+          : null,
+      resolution_reason: normalizeResolutionReason(metadata.resolutionReason) ?? null,
+      candidate_count:
+        typeof metadata.candidateCount === "number" && Number.isFinite(metadata.candidateCount)
+          ? Math.max(0, Math.trunc(metadata.candidateCount))
+          : null,
+      server_copy_attempted:
+        typeof metadata.serverCopyAttempted === "boolean" ? metadata.serverCopyAttempted : null,
+      error: normalizeTelemetryError(metadata.errorMessage) ?? null,
     },
   });
 };

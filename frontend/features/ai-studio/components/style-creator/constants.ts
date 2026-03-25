@@ -30,3 +30,6 @@ export const EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE =
 
 export const STYLE_EXTRACTION_TELEMETRY_SOURCE = "telemetry.ai_studio.style_extraction";
 export const STYLE_EXTRACTION_TELEMETRY_FAMILY = "style_extraction";
+export const STYLE_SOURCE_RESOLUTION_TELEMETRY_SOURCE =
+  "telemetry.ai_studio.style_source_resolution";
+export const STYLE_SOURCE_RESOLUTION_TELEMETRY_FAMILY = "style_source_resolution";

@@ -2,7 +2,7 @@
  * Shared state + actions for AI Studio.
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
@@ -85,6 +85,9 @@ export const useAiStudioState = ({
     setArchivedOutputs,
   } = useAiStudioOutputCollectionState();
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
+  const [referenceGridReadyOutputIds, setReferenceGridReadyOutputIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [referenceProjectionState, setReferenceProjectionState] =
     useState<ReferenceProjectionState>(createEmptyReferenceProjectionState);
   const referenceProjectionStateRef = useRef<ReferenceProjectionState>(referenceProjectionState);
@@ -98,6 +101,26 @@ export const useAiStudioState = ({
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
   );
+
+  useEffect(() => {
+    const validOutputIds = new Set<string>([
+      ...outputs.map((item) => item.id),
+      ...archivedOutputs.map((item) => item.id),
+    ]);
+    setReferenceGridReadyOutputIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (validOutputIds.has(id)) {
+          next.add(id);
+          return;
+        }
+        changed = true;
+      });
+      if (!changed && next.size === prev.size) return prev;
+      return next;
+    });
+  }, [archivedOutputs, outputs]);
   // UI selections and references (tracked per workflow)
   const {
     selectedTool,
@@ -400,6 +423,19 @@ export const useAiStudioState = ({
       findOutputById,
       setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
     });
+
+  const handleReferenceOutputMediaLoaded = useCallback(
+    (outputId: string) => {
+      onReferenceOutputMediaLoaded(outputId);
+      setReferenceGridReadyOutputIds((prev) => {
+        if (prev.has(outputId)) return prev;
+        const next = new Set(prev);
+        next.add(outputId);
+        return next;
+      });
+    },
+    [onReferenceOutputMediaLoaded]
+  );
   const { resolveSubmissionReferenceInputsForTool } = useAiStudioSubmissionReferenceResolver({
     resolveReferenceInputsForTool,
   });
@@ -650,7 +686,8 @@ export const useAiStudioState = ({
     setUiNotice,
     getDefaultDurationSeconds,
     getAgentContext,
-    onReferenceOutputMediaLoaded,
+    onReferenceOutputMediaLoaded: handleReferenceOutputMediaLoaded,
+    referenceGridReadyOutputIds,
     retryOutputStatus,
   };
 };

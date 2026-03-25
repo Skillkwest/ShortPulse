@@ -23,6 +23,7 @@ type HandleGenerateResult = {
 
 type UseAiStudioAgentOutputGenerationBridgeParams = {
   outputs: StudioOutput[];
+  referenceGridReadyOutputIds?: ReadonlySet<string>;
   mode: StudioMode;
   selectedTool: ToolId | null;
   isGenerateDisabled: boolean;
@@ -47,6 +48,7 @@ type UseAiStudioAgentOutputGenerationBridgeParams = {
  */
 export const useAiStudioAgentOutputGenerationBridge = ({
   outputs,
+  referenceGridReadyOutputIds = new Set<string>(),
   mode,
   selectedTool,
   isGenerateDisabled,
@@ -65,7 +67,10 @@ export const useAiStudioAgentOutputGenerationBridge = ({
   setPromptOrigin,
   handleGenerate,
 }: UseAiStudioAgentOutputGenerationBridgeParams) => {
-  const { assistantBubbleMedia, registerOutputLink } = useAgentOutputBubbleLinking({ outputs });
+  const { assistantBubbleMedia, registerOutputLink } = useAgentOutputBubbleLinking({
+    outputs,
+    referenceGridReadyOutputIds,
+  });
 
   const handleGenerateFromAgentOutputPrompt = useCallback(
     (input: AgentOutputGenerateInput) => {

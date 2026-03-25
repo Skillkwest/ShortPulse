@@ -36,6 +36,7 @@ type UseAiStudioEditPanelPropsParams = {
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
   isPromptGenerating: boolean;
+  generationGuardrail: string | null;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   isReferencePromptEnhancing: boolean;
@@ -68,6 +69,7 @@ export const useAiStudioEditPanelProps = ({
   isGenerateDisabled,
   isGenerateClickLocked,
   isPromptGenerating,
+  generationGuardrail,
   referenceImageWarning,
   resolveOutputPreviewUrl,
   isReferencePromptEnhancing,
@@ -96,6 +98,7 @@ export const useAiStudioEditPanelProps = ({
       onRegenerate: handleImageRegenerateWithDebit,
       costCredits: currentCostCredits,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
+      guardrailReason: generationGuardrail,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       agentIsSending: isReferencePromptEnhancing || isPromptGenerating,
@@ -111,6 +114,7 @@ export const useAiStudioEditPanelProps = ({
       currentModelLabel,
       editReferenceText,
       extraImageUrls,
+      generationGuardrail,
       handleEditPromptTextChange,
       handleEditPromptSave,
       handleImageRegenerateWithDebit,

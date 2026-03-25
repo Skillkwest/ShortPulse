@@ -44,6 +44,7 @@ type ReferenceGridSectionsProps = {
   showStylesSection: boolean;
   showHeader: boolean;
   archiveCount: number;
+  topNotice?: string | null;
   isArchivePanelOpen: boolean;
   archivedOutputs: StudioOutput[];
   onToggleArchivePanel: () => void;
@@ -104,6 +105,7 @@ export function ReferenceGridSections({
   showStylesSection,
   showHeader,
   archiveCount,
+  topNotice,
   isArchivePanelOpen,
   archivedOutputs,
   onToggleArchivePanel,
@@ -472,6 +474,9 @@ export function ReferenceGridSections({
                     onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
                   />
                 </div>
+                {topNotice ? (
+                  <div className="inline-warning-hint reference-grid-top-warning">{topNotice}</div>
+                ) : null}
                 <div
                   className="reference-canvas-scroll"
                   onScroll={handleAllRefsScroll}
@@ -542,6 +547,11 @@ export function ReferenceGridSections({
                       onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
                     />
                   </div>
+                  {topNotice ? (
+                    <div className="inline-warning-hint reference-grid-top-warning">
+                      {topNotice}
+                    </div>
+                  ) : null}
                   <div
                     className="reference-canvas-scroll"
                     onScroll={handleAllRefsScroll}

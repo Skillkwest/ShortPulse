@@ -23,6 +23,7 @@ const createParams = (
 ): Parameters<typeof useAiStudioReferenceGridProps>[0] => ({
   outputs: [output],
   activeOutputId: "out-1",
+  topNotice: null,
   curatedReferenceIds: ["out-1"],
   removedFromAllRefsIds: ["out-1"],
   onReferenceOutputMediaLoaded: vi.fn(),
@@ -105,6 +106,7 @@ describe("useAiStudioReferenceGridProps", () => {
     );
 
     expect(result.current.showHeader).toBe(true);
+    expect(result.current.topNotice).toBeNull();
     expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
     expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
     expect(result.current.linkedPromptReferenceIds).toEqual(["out-1"]);
@@ -136,6 +138,21 @@ describe("useAiStudioReferenceGridProps", () => {
     expect(addCuratedReference).toHaveBeenCalledWith("out-1");
     expect(removeCuratedReference).toHaveBeenCalledWith("out-1");
     expect(reorderCuratedReference).toHaveBeenCalledWith("out-1", "out-2", "after");
+  });
+
+  it("preserves the top notice when provided", () => {
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          topNotice:
+            "4 max concurrent generations. Wait for one to finish before starting another.",
+        })
+      )
+    );
+
+    expect(result.current.topNotice).toBe(
+      "4 max concurrent generations. Wait for one to finish before starting another."
+    );
   });
 
   it("retains the legacy alias export for compatibility", () => {

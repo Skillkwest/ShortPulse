@@ -216,6 +216,19 @@ describe("ReferenceGrid curated split", () => {
     expect(telemetryRoot?.getAttribute("data-grid-adaptive-preview-enabled")).toBe("false");
   });
 
+  it("renders a top warning row above all reference cards when provided", () => {
+    const message = "4 max concurrent generations. Wait for one to finish before starting another.";
+    const { container } = render(<ReferenceGrid {...createProps({ topNotice: message })} />);
+
+    const allRefsSection = container.querySelector(
+      ".reference-all-refs-section"
+    ) as HTMLElement | null;
+    expect(allRefsSection).toBeTruthy();
+    expect(within(allRefsSection as HTMLElement).getByText(message)).toHaveClass(
+      "reference-grid-top-warning"
+    );
+  });
+
   it("keeps reference-grid archive controls inside the all-refs section when curated split is disabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_CURATED_SPLIT", "false");
     vi.resetModules();

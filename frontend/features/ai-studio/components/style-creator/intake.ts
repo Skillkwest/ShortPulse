@@ -5,6 +5,7 @@ import type { StylesLibraryStyleDetails } from "../../types";
 import {
   extractDragDropPayload,
   extractInternalReferenceDragPayload,
+  getNormalizedTransferTypes,
   normalizeReferenceTransferUrlCandidate,
   type InternalReferenceDragPayload,
 } from "../../utils/dragDrop";
@@ -66,6 +67,33 @@ export type ResolvedInternalStyleDrop = {
 export type ResolveInternalStyleDrop = (
   payload: InternalReferenceDragPayload
 ) => Promise<ResolvedInternalStyleDrop | null>;
+
+export type ResolvedStyleSource = {
+  kind: "file" | "internal" | "external";
+  sourceImageDataUrl: string;
+  promptText: string;
+  internalPayloadPresent: boolean;
+  resolutionReason: string | null;
+  resolutionStage: "primary" | "server_copy_fallback";
+  candidateCount: number;
+  serverCopyAttempted: boolean;
+};
+
+export type StyleDropSnapshot = {
+  transferTypes: string[];
+  files: File[];
+  referenceOrigin: string;
+  referenceVersion: string;
+  referenceOutputId: string;
+  referenceMediaId: string;
+  referenceImageIndex: string;
+  referenceSourceSurface: string;
+  referenceUrl: string;
+  referenceRenderUrl: string;
+  imageUrl: string;
+  plainText: string;
+  uriList: string;
+};
 
 type ResolveDroppedStylePreviewOptions = {
   resolveInternalStyleDrop?: ResolveInternalStyleDrop;
@@ -810,97 +838,139 @@ const findDroppedImageFile = (transfer: DataTransfer): File | null => {
   return droppedFiles.find((file) => isImageFileCandidate(file)) ?? null;
 };
 
+/**
+ * Captures the Styles-relevant drop payload synchronously while the browser event is still live.
+ */
+export const captureStyleDropSnapshot = (transfer: DataTransfer): StyleDropSnapshot => ({
+  transferTypes: getNormalizedTransferTypes(transfer),
+  files: Array.from(transfer.files ?? []),
+  referenceOrigin: transfer.getData("text/reference-origin"),
+  referenceVersion: transfer.getData("text/reference-version"),
+  referenceOutputId: transfer.getData("text/reference-output-id"),
+  referenceMediaId: transfer.getData("text/reference-media-id"),
+  referenceImageIndex: transfer.getData("text/reference-image-index"),
+  referenceSourceSurface: transfer.getData("text/reference-source-surface"),
+  referenceUrl: transfer.getData("text/reference-url"),
+  referenceRenderUrl: transfer.getData(REFERENCE_RENDER_URL_TRANSFER_TYPE),
+  imageUrl: transfer.getData("image/url"),
+  plainText: transfer.getData("text/plain"),
+  uriList: transfer.getData("text/uri-list"),
+});
+
 const hasStyleReorderTransfer = (transfer: DataTransfer | null | undefined): boolean => {
   if (!transfer) return false;
   return Array.from(transfer.types ?? []).includes("text/style-library-id");
 };
 
 /**
- * Returns true when a transfer payload should be accepted for style intake.
+ * Resolves a single usable style source from either a dropped file or transfer payload.
+ * This is the authoritative intake boundary for preview derivation and style extraction.
  */
-export const canAcceptStyleLibraryImageDropHint = (
-  transfer: DataTransfer | null | undefined
-): boolean => {
-  if (!transfer || hasStyleReorderTransfer(transfer)) return false;
-  const transferTypes = Array.from(transfer.types ?? []);
-  return transferTypes.some((type) => STYLE_DROP_HINT_TRANSFER_TYPES.has(type));
-};
-
-/**
- * Builds the next deterministic custom style name.
- */
-export const buildNextCustomStyleName = (styles: readonly ExpertEditStyleTile[]): string => {
-  const existingNameSet = new Set(
-    styles
-      .filter((style) => !style.placeholder)
-      .map((style) => (style.style?.trim() || style.title.trim()).toLowerCase())
-      .filter(Boolean)
-  );
-  let candidateIndex = 1;
-  while (existingNameSet.has(`${CUSTOM_STYLE_NAME_PREFIX} ${candidateIndex}`.toLowerCase())) {
-    candidateIndex += 1;
-  }
-  return `${CUSTOM_STYLE_NAME_PREFIX} ${candidateIndex}`;
-};
-
-/**
- * Returns true when a style name is still default-generated.
- */
-export const isDefaultCustomStyleName = (value: string): boolean =>
-  /^Custom Style \d+$/i.test(value.trim());
-
-/**
- * Sanitizes drag-drop prompt fallback text used when extraction fails.
- * Drops filename/path-like payloads so style prompts never default to image filenames.
- */
-export const normalizeStylePromptFallbackText = (value: string | null | undefined): string => {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed) return "";
-  if (/^file:\/\//i.test(trimmed)) return "";
-  if (IMAGE_FILENAME_TEXT_PATTERN.test(trimmed)) return "";
-  if (CAMERA_FILENAME_STEM_PATTERN.test(trimmed) && !/[,.]/.test(trimmed)) return "";
-  return clampStylePromptCharacters(trimmed);
-};
-
-/**
- * Resolves a drop payload into preview + extraction source URLs.
- */
-export const resolveDroppedStylePreview = async (
-  transfer: DataTransfer,
-  options?: ResolveDroppedStylePreviewOptions
-): Promise<ResolvedDroppedStylePreview> => {
+export const resolveStyleSource = async ({
+  file,
+  dropSnapshot,
+  transfer,
+  resolveInternalStyleDrop,
+}: {
+  file?: File | null;
+  dropSnapshot?: StyleDropSnapshot | null;
+  transfer?: DataTransfer | null;
+  resolveInternalStyleDrop?: ResolveInternalStyleDrop;
+}): Promise<ResolvedStyleSource> => {
   let resolutionReason: string | null = null;
   let resolutionStage: "primary" | "server_copy_fallback" = "primary";
   let candidateCount = 0;
   let serverCopyAttempted = false;
   try {
-    const droppedImageFile = findDroppedImageFile(transfer);
-    if (droppedImageFile) {
-      const sourceImageDataUrl = await readFileAsDataUrl(droppedImageFile);
-      const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
+    if (file) {
+      if (!isImageFileCandidate(file)) {
+        throw createStyleDropPreviewError("missing-dropped-style-image", "non_image_payload");
+      }
+      const sourceImageDataUrl = await readFileAsDataUrl(file);
       return {
-        previewImageUrl: processed.previewImageUrl,
-        extractionSourceImageUrl: processed.extractionSourceImageUrl,
+        kind: "file",
+        sourceImageDataUrl,
         promptText: "",
+        internalPayloadPresent: false,
+        resolutionReason: null,
+        resolutionStage,
+        candidateCount,
+        serverCopyAttempted,
       };
     }
-    const internalDropPayload = extractInternalReferenceDragPayload(transfer);
+
+    const snapshot = dropSnapshot ?? (transfer ? captureStyleDropSnapshot(transfer) : null);
+
+    if (!snapshot) {
+      throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
+    }
+
+    const droppedImageFile =
+      snapshot.files.find((candidate) => isImageFileCandidate(candidate)) ?? null;
+    if (droppedImageFile) {
+      const sourceImageDataUrl = await readFileAsDataUrl(droppedImageFile);
+      return {
+        kind: "file",
+        sourceImageDataUrl,
+        promptText: "",
+        internalPayloadPresent: false,
+        resolutionReason: null,
+        resolutionStage,
+        candidateCount,
+        serverCopyAttempted,
+      };
+    }
+
+    const transferLikeSnapshot = {
+      types: snapshot.transferTypes,
+      files: snapshot.files,
+      getData: (type: string) => {
+        switch (type) {
+          case "text/reference-origin":
+            return snapshot.referenceOrigin;
+          case "text/reference-version":
+            return snapshot.referenceVersion;
+          case "text/reference-output-id":
+            return snapshot.referenceOutputId;
+          case "text/reference-media-id":
+            return snapshot.referenceMediaId;
+          case "text/reference-image-index":
+            return snapshot.referenceImageIndex;
+          case "text/reference-source-surface":
+            return snapshot.referenceSourceSurface;
+          case "text/reference-url":
+            return snapshot.referenceUrl;
+          case REFERENCE_RENDER_URL_TRANSFER_TYPE:
+            return snapshot.referenceRenderUrl;
+          case "image/url":
+            return snapshot.imageUrl;
+          case "text/plain":
+            return snapshot.plainText;
+          case "text/uri-list":
+            return snapshot.uriList;
+          default:
+            return "";
+        }
+      },
+    } as unknown as DataTransfer;
+
+    const internalDropPayload = extractInternalReferenceDragPayload(transferLikeSnapshot);
     const internalDropResolution =
-      internalDropPayload && options?.resolveInternalStyleDrop
-        ? await options.resolveInternalStyleDrop(internalDropPayload).catch(() => null)
+      internalDropPayload && resolveInternalStyleDrop
+        ? await resolveInternalStyleDrop(internalDropPayload).catch(() => null)
         : null;
     resolutionReason = internalDropResolution?.resolutionReason ?? null;
-    const dragPayload = extractDragDropPayload(transfer);
+    const dragPayload = extractDragDropPayload(transferLikeSnapshot);
     const droppedImageUrl =
       (internalDropPayload
-        ? normalizeReferenceTransferUrlCandidate(transfer.getData("text/reference-url"), {
+        ? normalizeReferenceTransferUrlCandidate(snapshot.referenceUrl, {
             unwrapNextImage: false,
           })
         : null) ??
       dragPayload.imageUrl?.trim() ??
       "";
     const droppedImageUrlCandidates = collectDroppedImageUrlCandidates(
-      transfer,
+      transferLikeSnapshot,
       droppedImageUrl,
       internalDropResolution?.imageUrlCandidates ?? [],
       { preserveNextImageOptimizerUrls: Boolean(internalDropPayload) }
@@ -963,11 +1033,16 @@ export const resolveDroppedStylePreview = async (
         createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload")
       );
     }
-    const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
+
     return {
-      previewImageUrl: processed.previewImageUrl,
-      extractionSourceImageUrl: processed.extractionSourceImageUrl,
+      kind: internalDropPayload ? "internal" : "external",
+      sourceImageDataUrl,
       promptText: fallbackPromptText || internalPromptText,
+      internalPayloadPresent: Boolean(internalDropPayload),
+      resolutionReason,
+      resolutionStage,
+      candidateCount,
+      serverCopyAttempted,
     };
   } catch (error) {
     const normalizedError = normalizeStyleDropPreviewError(error);
@@ -978,6 +1053,72 @@ export const resolveDroppedStylePreview = async (
       serverCopyAttempted,
     });
   }
+};
+
+/**
+ * Returns true when a transfer payload should be accepted for style intake.
+ */
+export const canAcceptStyleLibraryImageDropHint = (
+  transfer: DataTransfer | null | undefined
+): boolean => {
+  if (!transfer || hasStyleReorderTransfer(transfer)) return false;
+  const transferTypes = Array.from(transfer.types ?? []);
+  return transferTypes.some((type) => STYLE_DROP_HINT_TRANSFER_TYPES.has(type));
+};
+
+/**
+ * Builds the next deterministic custom style name.
+ */
+export const buildNextCustomStyleName = (styles: readonly ExpertEditStyleTile[]): string => {
+  const existingNameSet = new Set(
+    styles
+      .filter((style) => !style.placeholder)
+      .map((style) => (style.style?.trim() || style.title.trim()).toLowerCase())
+      .filter(Boolean)
+  );
+  let candidateIndex = 1;
+  while (existingNameSet.has(`${CUSTOM_STYLE_NAME_PREFIX} ${candidateIndex}`.toLowerCase())) {
+    candidateIndex += 1;
+  }
+  return `${CUSTOM_STYLE_NAME_PREFIX} ${candidateIndex}`;
+};
+
+/**
+ * Returns true when a style name is still default-generated.
+ */
+export const isDefaultCustomStyleName = (value: string): boolean =>
+  /^Custom Style \d+$/i.test(value.trim());
+
+/**
+ * Sanitizes drag-drop prompt fallback text used when extraction fails.
+ * Drops filename/path-like payloads so style prompts never default to image filenames.
+ */
+export const normalizeStylePromptFallbackText = (value: string | null | undefined): string => {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "";
+  if (/^file:\/\//i.test(trimmed)) return "";
+  if (IMAGE_FILENAME_TEXT_PATTERN.test(trimmed)) return "";
+  if (CAMERA_FILENAME_STEM_PATTERN.test(trimmed) && !/[,.]/.test(trimmed)) return "";
+  return clampStylePromptCharacters(trimmed);
+};
+
+/**
+ * Resolves a drop payload into preview + extraction source URLs.
+ */
+export const resolveDroppedStylePreview = async (
+  transfer: DataTransfer,
+  options?: ResolveDroppedStylePreviewOptions
+): Promise<ResolvedDroppedStylePreview> => {
+  const resolvedSource = await resolveStyleSource({
+    dropSnapshot: captureStyleDropSnapshot(transfer),
+    resolveInternalStyleDrop: options?.resolveInternalStyleDrop,
+  });
+  const processed = await preprocessStyleImageDataUrl(resolvedSource.sourceImageDataUrl);
+  return {
+    previewImageUrl: processed.previewImageUrl,
+    extractionSourceImageUrl: processed.extractionSourceImageUrl,
+    promptText: resolvedSource.promptText,
+  };
 };
 
 /**

@@ -39,6 +39,7 @@ export type EditPropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
+  guardrailReason?: string | null;
   referenceImageWarning?: string | null;
   agentIsSending?: boolean;
   agentError?: string;
@@ -71,6 +72,7 @@ export function EditPropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
+  guardrailReason,
   agentIsSending = false,
   agentError,
   onAgentEnhanceSend,
@@ -263,6 +265,7 @@ export function EditPropertiesPanel({
           isGenerateDisabled={isGenerateDisabled}
           isBusy={agentIsSending}
           costCredits={costCredits}
+          guardrailReason={guardrailReason}
         />
       </div>
     </div>

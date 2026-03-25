@@ -12,6 +12,7 @@ import {
   resolveAssistantInlineEditStyle,
   type AssistantInlineEditPresentation,
 } from "./assistantInlineEditPresentation";
+import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../../features/ai-studio/logic/concurrentGenerationCap";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -110,6 +111,7 @@ type AgentChatPanelProps = {
   highlightLatestAssistantOnly?: boolean;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
+  outputGenerateGuardrailReason?: string | null;
 };
 
 export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
@@ -152,6 +154,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   highlightLatestAssistantOnly = false,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
+  outputGenerateGuardrailReason = null,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -178,6 +181,10 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   const shouldShowThinkingIndicator = showThinkingIndicator && isSending;
   const shouldRenderThinkingInHistory =
     shouldShowThinkingIndicator && thinkingIndicatorPlacement === "history";
+  const inlineOutputGenerateGuardrailReason =
+    outputGenerateGuardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE
+      ? null
+      : outputGenerateGuardrailReason;
 
   useEffect(() => {
     const messagesEl = messagesRef.current;
@@ -440,6 +447,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
               </button>
             ) : null}
           </div>
+          {disableOutputGenerate && inlineOutputGenerateGuardrailReason ? (
+            <div className="inline-warning-hint">{inlineOutputGenerateGuardrailReason}</div>
+          ) : null}
           {introMessage ||
           stagedPrompt ||
           messages.length > 0 ||

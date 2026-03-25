@@ -11,7 +11,7 @@ import {
   STYLE_PROMPT_MAX_CHARACTERS,
   STYLE_PROMPT_NEAR_LIMIT_CHARACTERS,
 } from "./style-creator/constants";
-import type { ResolveInternalStyleDrop } from "./style-creator/intake";
+import { captureStyleDropSnapshot, type ResolveInternalStyleDrop } from "./style-creator/intake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
@@ -342,7 +342,8 @@ export function StylesLibraryPanel({
                     event.preventDefault();
                     event.stopPropagation();
                     setStylePreviewDropActive(false);
-                    void applyStylePreviewFromTransfer(event.dataTransfer);
+                    const dropSnapshot = captureStyleDropSnapshot(event.dataTransfer);
+                    void applyStylePreviewFromTransfer(dropSnapshot);
                   }}
                 >
                   <input

@@ -349,36 +349,6 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks a fifth local generate before parent output state catches up", async () => {
-    const setUiNotice = vi.fn();
-    const generateOutput = vi.fn();
-    const params = createParams({
-      activeGenerationCount: 0,
-      generateOutput,
-      setUiNotice: asDispatch<string | null>(setUiNotice),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    const results: Awaited<ReturnType<typeof result.current.handleGenerate>>[] = [];
-    await act(async () => {
-      results.push(await result.current.handleGenerate("prompt 1"));
-      results.push(await result.current.handleGenerate("prompt 2"));
-      results.push(await result.current.handleGenerate("prompt 3"));
-      results.push(await result.current.handleGenerate("prompt 4"));
-      results.push(await result.current.handleGenerate("prompt 5"));
-    });
-
-    expect(results).toEqual([
-      { accepted: true, optimisticOutputId: null },
-      { accepted: true, optimisticOutputId: null },
-      { accepted: true, optimisticOutputId: null },
-      { accepted: true, optimisticOutputId: null },
-      { accepted: false, optimisticOutputId: null },
-    ]);
-    expect(generateOutput).toHaveBeenCalledTimes(4);
-    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
-  });
-
   it("blocks generate and shows the cap notice when four generations are already active", async () => {
     const setUiNotice = vi.fn();
     const generateOutput = vi.fn();
@@ -397,6 +367,48 @@ describe("useAiStudioGenerationController", () => {
     expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
     expect(generateOutput).not.toHaveBeenCalled();
     expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+  });
+
+  it("allows generate again after active generation count drops below the cap", async () => {
+    const setUiNotice = vi.fn();
+    const generateOutput = vi.fn();
+    const initialParams = createParams({
+      activeGenerationCount: 4,
+      generateOutput,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      isGenerateDisabled: true,
+      generationGuardrail: CONCURRENT_GENERATION_CAP_MESSAGE,
+    });
+    const { result, rerender } = renderHook(
+      (params: Parameters<typeof useAiStudioGenerationController>[0]) =>
+        useAiStudioGenerationController(params),
+      { initialProps: initialParams }
+    );
+
+    await act(async () => {
+      await result.current.handleGenerate("blocked prompt");
+    });
+
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+
+    rerender(
+      createParams({
+        activeGenerationCount: 0,
+        generateOutput,
+        setUiNotice: asDispatch<string | null>(setUiNotice),
+        isGenerateDisabled: false,
+        generationGuardrail: null,
+      })
+    );
+
+    let nextResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    await act(async () => {
+      nextResult = await result.current.handleGenerate("allowed prompt");
+    });
+
+    expect(nextResult).toEqual({ accepted: true, optimisticOutputId: null });
+    expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
   it("allows generate submissions while agent send is in flight", async () => {

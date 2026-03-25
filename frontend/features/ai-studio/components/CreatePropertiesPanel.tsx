@@ -19,6 +19,7 @@ import type {
 } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 import { StylesControl } from "./StylesControl";
+import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../logic/concurrentGenerationCap";
 import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
@@ -570,6 +571,7 @@ export function CreatePropertiesPanel({
     shouldDisableSave,
     disableOutputGenerate,
     outputGenerateCostCredits,
+    outputGenerateGuardrailReason: disableOutputGenerate ? guardrailReason : null,
     chatOnly: true,
     chatPromptSaveButtonClassName: "create-chat-pin-btn",
     chatPromptSaveButtonUnstyled: true,
@@ -728,6 +730,8 @@ export function ComposeSendCard({
   beginnerMode = false,
 }: ComposeSendCardProps) {
   const costValue = costCredits != null ? costCredits : "—";
+  const inlineGuardrailReason =
+    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
 
   return (
     <div className="step-card prompt-step generate-step-card">
@@ -747,8 +751,8 @@ export function ComposeSendCard({
           isBusy={isPromptGenerating}
           cost={costValue}
         />
-        {isGenerateDisabled && guardrailReason ? (
-          <div className="inline-warning-hint">{guardrailReason}</div>
+        {isGenerateDisabled && inlineGuardrailReason ? (
+          <div className="inline-warning-hint">{inlineGuardrailReason}</div>
         ) : null}
         {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
       </div>

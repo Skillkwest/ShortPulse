@@ -8,6 +8,10 @@ import type { StylesLibraryStyleDetails } from "../../types";
 import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import {
+  extractInternalReferenceDragPayload,
+  getNormalizedTransferTypes,
+} from "../../utils/dragDrop";
+import {
   BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE,
   EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
   EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE,
@@ -19,6 +23,7 @@ import {
   buildNewStyleDetails,
   buildNextCustomStyleName,
   canAcceptStyleLibraryImageDropHint,
+  captureStyleDropSnapshot,
   clampStylePromptCharacters,
   getStyleDropPreviewCandidateCount,
   isDefaultCustomStyleName,
@@ -30,13 +35,13 @@ import {
   normalizeStylePromptFallbackText,
   normalizeStyleDetailsDraft,
   preprocessStyleImageDataUrl,
-  readFileAsDataUrl,
+  resolveStyleSource,
+  type StyleDropSnapshot,
   type ResolveInternalStyleDrop,
   reorderById,
-  resolveDroppedStylePreview,
 } from "./intake";
 import { runDeleteStyleCommand, runSaveStyleDetailsCommand } from "./persistence";
-import { trackStyleExtractionOutcome } from "./telemetry";
+import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } from "./telemetry";
 import type {
   PendingStyleEditState,
   StyleExtractionFailureClass,
@@ -91,6 +96,122 @@ const resolveTelemetryFailureClass = (
     return result.outcome;
   }
   return "unknown";
+};
+
+const classifyTransferredUrlKind = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return "missing";
+  if (/^data:image\//i.test(trimmed)) return "data_image";
+  if (/^blob:/i.test(trimmed)) return "blob";
+  if (typeof window !== "undefined") {
+    try {
+      const parsed = new URL(trimmed, window.location.href);
+      if (parsed.pathname === "/_next/image" && parsed.origin === window.location.origin) {
+        return "same_origin_next_image";
+      }
+      if (parsed.origin === window.location.origin) return "same_origin_url";
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") return "remote_url";
+    } catch {
+      return "other";
+    }
+  }
+  return /^https?:\/\//i.test(trimmed) ? "remote_url" : "other";
+};
+
+const classifyPlainTextKind = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return "missing";
+  if (/^(?:data:image\/|blob:|https?:\/\/|\/)/i.test(trimmed)) {
+    return classifyTransferredUrlKind(trimmed);
+  }
+  return "text";
+};
+
+const trackStyleSourceDiagnosticFromSnapshot = ({
+  dropSnapshot,
+  flow,
+  outcome,
+  resolvedSourceKind,
+  resolutionStage,
+  resolutionReason,
+  candidateCount,
+  serverCopyAttempted,
+  internalPayloadPresent,
+  errorMessage,
+}: {
+  dropSnapshot: StyleDropSnapshot;
+  flow: "create_modal" | "library_drop";
+  outcome: "resolved" | "blocked_source";
+  resolvedSourceKind?: "file" | "internal" | "external" | null;
+  resolutionStage?: "primary" | "server_copy_fallback" | null;
+  resolutionReason?: string | null;
+  candidateCount?: number | null;
+  serverCopyAttempted?: boolean | null;
+  internalPayloadPresent?: boolean | null;
+  errorMessage?: string;
+}) => {
+  const transferLikeSnapshot = {
+    types: dropSnapshot.transferTypes,
+    files: dropSnapshot.files,
+    getData: (type: string) => {
+      switch (type) {
+        case "text/reference-origin":
+          return dropSnapshot.referenceOrigin;
+        case "text/reference-output-id":
+          return dropSnapshot.referenceOutputId;
+        case "text/reference-id":
+          return dropSnapshot.referenceOutputId;
+        case "text/reference-media-id":
+          return dropSnapshot.referenceMediaId;
+        case "text/reference-image-index":
+          return dropSnapshot.referenceImageIndex;
+        case "text/reference-source-surface":
+          return dropSnapshot.referenceSourceSurface;
+        case "text/reference-url":
+          return dropSnapshot.referenceUrl;
+        case "text/reference-render-url":
+          return dropSnapshot.referenceRenderUrl;
+        case "image/url":
+          return dropSnapshot.imageUrl;
+        case "text/plain":
+          return dropSnapshot.plainText;
+        case "text/uri-list":
+          return dropSnapshot.uriList;
+        default:
+          return "";
+      }
+    },
+  } as unknown as DataTransfer;
+  const internalPayload = extractInternalReferenceDragPayload(transferLikeSnapshot);
+  trackStyleSourceResolutionDiagnostic({
+    flow,
+    outcome,
+    resolvedSourceKind: resolvedSourceKind ?? null,
+    internalPayloadPresent:
+      typeof internalPayloadPresent === "boolean"
+        ? internalPayloadPresent
+        : Boolean(internalPayload),
+    transferTypes: dropSnapshot.transferTypes,
+    referenceOrigin: dropSnapshot.referenceOrigin || null,
+    referenceOutputId: dropSnapshot.referenceOutputId || null,
+    referenceMediaId: dropSnapshot.referenceMediaId || null,
+    referenceImageIndex: (() => {
+      const raw = dropSnapshot.referenceImageIndex.trim();
+      if (!raw) return null;
+      const parsed = Number.parseInt(raw, 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    })(),
+    referenceSourceSurface: dropSnapshot.referenceSourceSurface || null,
+    referenceUrlKind: classifyTransferredUrlKind(dropSnapshot.referenceUrl),
+    referenceRenderUrlKind: classifyTransferredUrlKind(dropSnapshot.referenceRenderUrl),
+    imageUrlKind: classifyTransferredUrlKind(dropSnapshot.imageUrl),
+    plainTextKind: classifyPlainTextKind(dropSnapshot.plainText),
+    resolutionStage: resolutionStage ?? null,
+    resolutionReason: resolutionReason ?? null,
+    candidateCount: candidateCount ?? null,
+    serverCopyAttempted: serverCopyAttempted ?? null,
+    errorMessage,
+  });
 };
 
 /**
@@ -278,12 +399,26 @@ export const useStyleCreatorController = ({
   );
 
   const applyStylePreviewFromTransfer = React.useCallback(
-    async (transfer: DataTransfer) => {
+    async (dropSnapshot: StyleDropSnapshot) => {
       setLocalSaveError(null);
       try {
-        const { previewImageUrl, extractionSourceImageUrl } = await resolveDroppedStylePreview(
-          transfer,
-          { resolveInternalStyleDrop }
+        const resolvedSource = await resolveStyleSource({
+          dropSnapshot,
+          resolveInternalStyleDrop,
+        });
+        trackStyleSourceDiagnosticFromSnapshot({
+          dropSnapshot,
+          flow: "create_modal",
+          outcome: "resolved",
+          resolvedSourceKind: resolvedSource.kind,
+          internalPayloadPresent: resolvedSource.internalPayloadPresent,
+          resolutionStage: resolvedSource.resolutionStage,
+          resolutionReason: resolvedSource.resolutionReason,
+          candidateCount: resolvedSource.candidateCount,
+          serverCopyAttempted: resolvedSource.serverCopyAttempted,
+        });
+        const { previewImageUrl, extractionSourceImageUrl } = await preprocessStyleImageDataUrl(
+          resolvedSource.sourceImageDataUrl
         );
         setPendingStyleEdit((previous) =>
           applyStylePreviewToPendingEdit(previous, previewImageUrl)
@@ -294,10 +429,30 @@ export const useStyleCreatorController = ({
       } catch (error) {
         const normalizedError = normalizeStyleDropPreviewError(error);
         if (normalizedError.code === "missing-dropped-style-image") {
+          trackStyleSourceDiagnosticFromSnapshot({
+            dropSnapshot,
+            flow: "create_modal",
+            outcome: "blocked_source",
+            resolutionStage: getStyleDropPreviewResolutionStage(error),
+            resolutionReason: getStyleDropPreviewResolutionReason(error),
+            candidateCount: getStyleDropPreviewCandidateCount(error),
+            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
+            errorMessage: error instanceof Error ? error.message : "missing-dropped-style-image",
+          });
           setLocalSaveError("Please drop an image reference.");
           return;
         }
         if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
+          trackStyleSourceDiagnosticFromSnapshot({
+            dropSnapshot,
+            flow: "create_modal",
+            outcome: "blocked_source",
+            resolutionStage: getStyleDropPreviewResolutionStage(error),
+            resolutionReason: getStyleDropPreviewResolutionReason(error),
+            candidateCount: getStyleDropPreviewCandidateCount(error),
+            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
+            errorMessage: error instanceof Error ? error.message : EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
+          });
           trackStyleExtractionOutcome("blocked_source", "create_modal", {
             stage: "preview_source",
             failureClass: "blocked_source",
@@ -311,6 +466,16 @@ export const useStyleCreatorController = ({
           setLocalSaveError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
           return;
         }
+        trackStyleSourceDiagnosticFromSnapshot({
+          dropSnapshot,
+          flow: "create_modal",
+          outcome: "blocked_source",
+          resolutionStage: getStyleDropPreviewResolutionStage(error),
+          resolutionReason: getStyleDropPreviewResolutionReason(error),
+          candidateCount: getStyleDropPreviewCandidateCount(error),
+          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
+          errorMessage: error instanceof Error ? error.message : "blocked-style-image-source",
+        });
         trackStyleExtractionOutcome("blocked_source", "create_modal", {
           stage: "preview_source",
           failureClass: "blocked_source",
@@ -329,21 +494,22 @@ export const useStyleCreatorController = ({
 
   const applyStylePreviewFile = React.useCallback(
     async (file: File) => {
-      if (!isImageFileCandidate(file)) {
-        setLocalSaveError("Please drop an image file.");
-        return;
-      }
       setLocalSaveError(null);
       try {
-        const sourceImageDataUrl = await readFileAsDataUrl(file);
-        const processed = await preprocessStyleImageDataUrl(sourceImageDataUrl);
+        const resolvedSource = await resolveStyleSource({ file });
+        const processed = await preprocessStyleImageDataUrl(resolvedSource.sourceImageDataUrl);
         setPendingStyleEdit((previous) =>
           applyStylePreviewToPendingEdit(previous, processed.previewImageUrl)
         );
         if (pendingStyleEdit?.mode === "create") {
           void extractStyleForCreateDraft(processed.extractionSourceImageUrl);
         }
-      } catch {
+      } catch (error) {
+        const normalizedError = normalizeStyleDropPreviewError(error);
+        if (normalizedError.code === "missing-dropped-style-image" && !isImageFileCandidate(file)) {
+          setLocalSaveError("Please drop an image file.");
+          return;
+        }
         setLocalSaveError("Unable to process that image.");
       }
     },
@@ -351,15 +517,31 @@ export const useStyleCreatorController = ({
   );
 
   const createStyleFromDrop = React.useCallback(
-    async (transfer: DataTransfer) => {
+    async (dropSnapshot: StyleDropSnapshot) => {
       if (createStyleFromDropSubmitting) return;
       setCreateStyleFromDropSubmitting(true);
       setStylesLibraryDropError(null);
       try {
-        const { previewImageUrl, extractionSourceImageUrl, promptText } =
-          await resolveDroppedStylePreview(transfer, { resolveInternalStyleDrop });
+        const resolvedSource = await resolveStyleSource({
+          dropSnapshot,
+          resolveInternalStyleDrop,
+        });
+        trackStyleSourceDiagnosticFromSnapshot({
+          dropSnapshot,
+          flow: "library_drop",
+          outcome: "resolved",
+          resolvedSourceKind: resolvedSource.kind,
+          internalPayloadPresent: resolvedSource.internalPayloadPresent,
+          resolutionStage: resolvedSource.resolutionStage,
+          resolutionReason: resolvedSource.resolutionReason,
+          candidateCount: resolvedSource.candidateCount,
+          serverCopyAttempted: resolvedSource.serverCopyAttempted,
+        });
+        const { previewImageUrl, extractionSourceImageUrl } = await preprocessStyleImageDataUrl(
+          resolvedSource.sourceImageDataUrl
+        );
 
-        let extractedStylePrompt = normalizeStylePromptFallbackText(promptText);
+        let extractedStylePrompt = normalizeStylePromptFallbackText(resolvedSource.promptText);
         let extractedStyleTitle: string | null = null;
         let extractionOutcome: StyleExtractionOutcome = "fallback";
         let extractionSourceUrlKind: "data" | "url" | "unknown" = "unknown";
@@ -437,12 +619,32 @@ export const useStyleCreatorController = ({
       } catch (error) {
         const normalizedError = normalizeStyleDropPreviewError(error);
         if (normalizedError.code === "missing-dropped-style-image") {
+          trackStyleSourceDiagnosticFromSnapshot({
+            dropSnapshot,
+            flow: "library_drop",
+            outcome: "blocked_source",
+            resolutionStage: getStyleDropPreviewResolutionStage(error),
+            resolutionReason: getStyleDropPreviewResolutionReason(error),
+            candidateCount: getStyleDropPreviewCandidateCount(error),
+            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
+            errorMessage: error instanceof Error ? error.message : "missing-dropped-style-image",
+          });
           setStylesLibraryDropError(
             "Drop an image from your computer, Reference Grid, or Quick Slot Inventory."
           );
           return;
         }
         if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
+          trackStyleSourceDiagnosticFromSnapshot({
+            dropSnapshot,
+            flow: "library_drop",
+            outcome: "blocked_source",
+            resolutionStage: getStyleDropPreviewResolutionStage(error),
+            resolutionReason: getStyleDropPreviewResolutionReason(error),
+            candidateCount: getStyleDropPreviewCandidateCount(error),
+            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
+            errorMessage: error instanceof Error ? error.message : EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
+          });
           trackStyleExtractionOutcome("blocked_source", "library_drop", {
             stage: "preview_source",
             failureClass: "blocked_source",
@@ -456,6 +658,16 @@ export const useStyleCreatorController = ({
           setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
           return;
         }
+        trackStyleSourceDiagnosticFromSnapshot({
+          dropSnapshot,
+          flow: "library_drop",
+          outcome: "blocked_source",
+          resolutionStage: getStyleDropPreviewResolutionStage(error),
+          resolutionReason: getStyleDropPreviewResolutionReason(error),
+          candidateCount: getStyleDropPreviewCandidateCount(error),
+          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
+          errorMessage: error instanceof Error ? error.message : "blocked-style-image-source",
+        });
         trackStyleExtractionOutcome("blocked_source", "library_drop", {
           stage: "preview_source",
           failureClass: "blocked_source",
@@ -510,7 +722,8 @@ export const useStyleCreatorController = ({
       event.preventDefault();
       stylesLibraryDropDepthRef.current = 0;
       setStylesLibraryDropActive(false);
-      void createStyleFromDrop(event.dataTransfer);
+      const dropSnapshot: StyleDropSnapshot = captureStyleDropSnapshot(event.dataTransfer);
+      void createStyleFromDrop(dropSnapshot);
     },
     [createStyleFromDrop]
   );

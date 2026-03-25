@@ -62,3 +62,25 @@ export type StyleExtractionRuntimeResult = {
   totalMs?: number | null;
   modelUsed?: string | null;
 };
+
+export type StyleSourceResolutionDiagnosticMetadata = {
+  flow: StyleExtractionFlow;
+  outcome: "resolved" | "blocked_source";
+  resolvedSourceKind?: "file" | "internal" | "external" | null;
+  internalPayloadPresent?: boolean | null;
+  transferTypes?: string[] | null;
+  referenceOrigin?: string | null;
+  referenceOutputId?: string | null;
+  referenceMediaId?: string | null;
+  referenceImageIndex?: number | null;
+  referenceSourceSurface?: string | null;
+  referenceUrlKind?: string | null;
+  referenceRenderUrlKind?: string | null;
+  imageUrlKind?: string | null;
+  plainTextKind?: string | null;
+  resolutionStage?: "primary" | "server_copy_fallback" | null;
+  resolutionReason?: string | null;
+  candidateCount?: number | null;
+  serverCopyAttempted?: boolean | null;
+  errorMessage?: string;
+};

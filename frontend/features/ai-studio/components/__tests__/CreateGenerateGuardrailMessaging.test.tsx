@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard } from "../CreatePropertiesPanel";
 import { ExpertCreatePanelView } from "../create/ExpertCreatePanelView";
 import type { PromptStepProps } from "../PromptStep";
+import { ReferenceGenerateStep } from "../ReferenceGenerateStep";
+import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 
 vi.mock("../../../../prefabs/agent", () => ({
   AgentGenerateButton: ({
@@ -31,7 +33,7 @@ vi.mock("../PromptStep", () => ({
 }));
 
 describe("Create generate guardrail messaging", () => {
-  const message = "4 max concurrent generations. Wait for one to finish before starting another.";
+  const message = "Select a model before generating.";
 
   it("shows the guardrail reason directly under the disabled compose generate button", () => {
     render(
@@ -80,5 +82,71 @@ describe("Create generate guardrail messaging", () => {
     );
 
     expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it("shows the guardrail reason in reference-based generate steps", () => {
+    render(
+      <ReferenceGenerateStep
+        beginnerMode={false}
+        collapsed={false}
+        generateOrder={1}
+        generateBadge="4"
+        onExpand={vi.fn()}
+        onRegenerate={vi.fn()}
+        isGenerateDisabled
+        isBusy={false}
+        costCredits={15}
+        guardrailReason={message}
+      />
+    );
+
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it("suppresses the concurrent cap message in panel-level warnings", () => {
+    const { rerender } = render(
+      <ComposeSendCard
+        onGenerate={vi.fn()}
+        costCredits={15}
+        isGenerateDisabled
+        isPromptGenerating={false}
+        guardrailReason={CONCURRENT_GENERATION_CAP_MESSAGE}
+      />
+    );
+
+    expect(screen.queryByText(CONCURRENT_GENERATION_CAP_MESSAGE)).not.toBeInTheDocument();
+
+    rerender(
+      <ExpertCreatePanelView
+        promptStepProps={{} as PromptStepProps}
+        onGenerate={vi.fn()}
+        costCredits={15}
+        isPromptGenerating={false}
+        isGenerateDisabled
+        guardrailReason={CONCURRENT_GENERATION_CAP_MESSAGE}
+        characterModeEnabled={false}
+        onCharacterModeEnabledToggle={vi.fn()}
+        onCharacterPickerOpen={vi.fn()}
+        characterSelectDisabled={false}
+        isCharacterSelectionEmpty
+        selectedCharacterName="No characters available"
+        selectedCharacterProfileImageUrl={null}
+        selectedCharacterInitials={null}
+        isCharacterPickerOpen={false}
+        isCreateModelPickerOpen={false}
+        isModelSelectionEmpty={false}
+        onCreateModelOpen={vi.fn()}
+        useUnoptimizedModelLogo={false}
+        effectiveModelLabel="Seedream 4.5 Edit"
+        aspect="9:16"
+        aspectOptionsForModel={[]}
+        onAspectChange={vi.fn()}
+        shouldShowImageResolutionCard={false}
+        imageResolutionValue="default"
+        imageResolutionOptions={[]}
+      />
+    );
+
+    expect(screen.queryByText(CONCURRENT_GENERATION_CAP_MESSAGE)).not.toBeInTheDocument();
   });
 });

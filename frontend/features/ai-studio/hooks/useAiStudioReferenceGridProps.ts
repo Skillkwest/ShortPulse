@@ -10,6 +10,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
+  topNotice?: string | null;
   curatedReferenceIds?: string[];
   removedFromAllRefsIds?: string[];
   onReferenceOutputMediaLoaded: (id: string) => void;
@@ -46,6 +47,7 @@ export const useAiStudioReferenceGridProps = ({
   outputs,
   archivedOutputs = [],
   activeOutputId,
+  topNotice = null,
   curatedReferenceIds = [],
   removedFromAllRefsIds = [],
   onReferenceOutputMediaLoaded,
@@ -70,6 +72,7 @@ export const useAiStudioReferenceGridProps = ({
       outputs,
       archivedOutputs,
       activeOutputId,
+      topNotice,
       curatedReferenceIds,
       removedFromAllRefsIds,
       showHeader: true,
@@ -100,6 +103,7 @@ export const useAiStudioReferenceGridProps = ({
       archivedOutputs,
       curatedReferenceIds,
       removedFromAllRefsIds,
+      topNotice,
       deleteOutput,
       handleDownloadReference,
       handlePasteMediaReference,

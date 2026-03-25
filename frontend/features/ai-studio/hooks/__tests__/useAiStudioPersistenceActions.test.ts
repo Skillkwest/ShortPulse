@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
   mergeOutputWithPersistedDelivery,
+  resolvePersistableOutputUrls,
   type PersistedMediaDelivery,
 } from "../useAiStudioPersistenceActions";
 
@@ -77,5 +78,33 @@ describe("mergeOutputWithPersistedDelivery", () => {
     expect(merged.previewStoragePath).toBe("user-1/generations/images/preview.png");
     expect(merged.fullStoragePath).toBe("user-1/generations/images/preview.png");
     expect(merged.previewUrl).toBe("https://cdn.example.com/preview-signed.png");
+  });
+});
+
+describe("resolvePersistableOutputUrls", () => {
+  it("prefers upload local object urls ahead of mutable preview urls", () => {
+    const output = makeOutput({
+      mediaSource: "upload",
+      localObjectUrl: "blob:local-upload-original",
+      previewUrl: "https://signed.example.com/upload-preview.png",
+    });
+
+    expect(resolvePersistableOutputUrls(output)).toEqual([
+      "blob:local-upload-original",
+      "https://signed.example.com/upload-preview.png",
+    ]);
+  });
+
+  it("keeps result urls as the primary persistence source when available", () => {
+    const output = makeOutput({
+      mediaSource: "upload",
+      localObjectUrl: "blob:local-upload-original",
+      previewUrl: "https://signed.example.com/upload-preview.png",
+      resultUrls: ["https://provider.example.com/result-1.png"],
+    });
+
+    expect(resolvePersistableOutputUrls(output)).toEqual([
+      "https://provider.example.com/result-1.png",
+    ]);
   });
 });

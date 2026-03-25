@@ -408,6 +408,10 @@
   margin-left: 8px;
 }
 
+.reference-grid-top-warning {
+  margin: 6px 8px 10px;
+}
+
 .reference-all-refs-section.is-inventory-expanded .reference-canvas-scroll {
   display: none;
 }

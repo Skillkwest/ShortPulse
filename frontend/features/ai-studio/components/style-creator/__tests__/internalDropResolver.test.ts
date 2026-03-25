@@ -294,4 +294,44 @@ describe("resolveStyleInternalDropCandidates", () => {
       fullUrlHint: "https://provider.example.com/result-index-0.png",
     });
   });
+
+  it("prefers the stable upload local object url before weaker preview candidates", async () => {
+    const output = makeImageOutput({
+      mediaSource: "upload",
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      localObjectUrl: "blob:upload-original-object",
+      previewUrl: "https://signed.example.com/upload-preview.png",
+      resultUrls: [],
+    });
+
+    const resolved = await resolveStyleInternalDropCandidates({
+      payload: makePayload(),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "persist_failed",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+      resolveStoragePathFromGenerationOutput: async () => null,
+      resolveStoragePathFromMediaId: async () => null,
+      resolveSignedStorageUrl: async () => null,
+    });
+
+    expect(resolved?.managedStoragePath).toBeNull();
+    expect(resolved?.imageUrlCandidates).toEqual([
+      "blob:upload-original-object",
+      "https://signed.example.com/upload-preview.png",
+    ]);
+    expect(resolved?.resolutionReason).toBe("output_preview_url");
+  });
 });

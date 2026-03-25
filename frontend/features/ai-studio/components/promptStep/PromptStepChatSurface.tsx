@@ -72,6 +72,7 @@ type PromptStepChatSurfaceProps = {
   highlightLatestAssistantOnly: boolean;
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
+  outputGenerateGuardrailReason?: string | null;
   composerLeadingContent: React.ReactNode;
   showComposerAttachments: boolean;
   agentInputRef: React.RefObject<HTMLTextAreaElement>;
@@ -143,6 +144,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   highlightLatestAssistantOnly,
   disableOutputGenerate,
   outputGenerateCostCredits,
+  outputGenerateGuardrailReason,
   composerLeadingContent,
   showComposerAttachments,
   agentInputRef,
@@ -283,6 +285,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
             highlightLatestAssistantOnly={highlightLatestAssistantOnly}
             disableOutputGenerate={disableOutputGenerate}
             outputGenerateCostCredits={outputGenerateCostCredits}
+            outputGenerateGuardrailReason={outputGenerateGuardrailReason}
           />
         </div>
       ) : null}

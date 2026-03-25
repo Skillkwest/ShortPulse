@@ -11,6 +11,7 @@ import {
   normalizeStylePromptFallbackText,
   preprocessStyleImageDataUrl,
   resolveDroppedStylePreview,
+  resolveStyleSource,
   resizeImageDataUrlForExtraction,
 } from "../intake";
 
@@ -23,6 +24,7 @@ vi.mock("../../../../../lib/supabaseClient", () => ({
 }));
 
 const originalImage = globalThis.Image;
+const originalFileReader = globalThis.FileReader;
 const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
 const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
 
@@ -81,6 +83,11 @@ afterEach(() => {
     writable: true,
     value: originalImage,
   });
+  Object.defineProperty(globalThis, "FileReader", {
+    configurable: true,
+    writable: true,
+    value: originalFileReader,
+  });
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
     writable: true,
@@ -92,6 +99,25 @@ afterEach(() => {
     value: originalCanvasToDataUrl,
   });
 });
+
+const installFileReaderMock = (result: string) => {
+  class MockFileReader {
+    onload: null | (() => void) = null;
+    onerror: null | (() => void) = null;
+    result: string | null = null;
+
+    readAsDataURL(_blob: Blob) {
+      this.result = result;
+      this.onload?.();
+    }
+  }
+
+  Object.defineProperty(globalThis, "FileReader", {
+    configurable: true,
+    writable: true,
+    value: MockFileReader,
+  });
+};
 
 describe("style-creator intake preprocessing", () => {
   it("caps extraction resize longest dimension at 1024 while preserving aspect ratio", async () => {
@@ -140,6 +166,49 @@ describe("style-creator intake preprocessing", () => {
     const resizedTargets = drawImage.mock.calls.map((args) => [args[7], args[8]]);
     expect(resizedTargets).toContainEqual([512, 512]);
     expect(resizedTargets).toContainEqual([1024, 768]);
+  });
+
+  it("resolves file intake through the unified style source boundary", async () => {
+    installFileReaderMock("data:image/png;base64,from-file");
+
+    const file = new File(["mock-image-bytes"], "style.png", { type: "image/png" });
+    const resolved = await resolveStyleSource({ file });
+
+    expect(resolved).toEqual({
+      kind: "file",
+      sourceImageDataUrl: "data:image/png;base64,from-file",
+      promptText: "",
+      internalPayloadPresent: false,
+      resolutionReason: null,
+      resolutionStage: "primary",
+      candidateCount: 0,
+      serverCopyAttempted: false,
+    });
+  });
+
+  it("resolves dropped transfer intake through the unified style source boundary", async () => {
+    const transfer = {
+      files: [],
+      types: ["text/reference-url", "text/plain"],
+      getData: (type: string) => {
+        if (type === "text/reference-url") return "data:image/png;base64,from-transfer";
+        if (type === "text/plain") return "cinematic dog portrait";
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    const resolved = await resolveStyleSource({ transfer });
+
+    expect(resolved).toEqual({
+      kind: "external",
+      sourceImageDataUrl: "data:image/png;base64,from-transfer",
+      promptText: "cinematic dog portrait",
+      internalPayloadPresent: false,
+      resolutionReason: null,
+      resolutionStage: "primary",
+      candidateCount: 1,
+      serverCopyAttempted: false,
+    });
   });
 
   it("retries same-origin URL drops with authenticated fetch when the first fetch is denied", async () => {
@@ -628,6 +697,61 @@ describe("style-creator intake preprocessing", () => {
         })
       );
       expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.com/copied-reference.png");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("prefers upload-origin local object url candidates ahead of weaker preview urls", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-upload";
+        if (type === "text/reference-url") return "https://signed.example.com/upload-preview.png";
+        if (type === "text/plain") return "upload prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "blob:upload-original-object") {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "image/png" },
+          blob: async () => new Blob(["mock-image-bytes"], { type: "image/png" }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, {
+        resolveInternalStyleDrop: async () => ({
+          imageUrlCandidates: [
+            "blob:upload-original-object",
+            "https://signed.example.com/upload-preview.png",
+          ],
+          promptText: "internal prompt",
+          resolutionReason: "output_preview_url",
+        }),
+      });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith("blob:upload-original-object");
     } finally {
       vi.unstubAllGlobals();
     }

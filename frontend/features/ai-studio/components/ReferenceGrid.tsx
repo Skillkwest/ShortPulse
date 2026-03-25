@@ -121,6 +121,7 @@ export function ReferenceGrid({
   outputs: outputsProp,
   archivedOutputs: archivedOutputsProp,
   activeOutputId,
+  topNotice = null,
   curatedReferenceIds = [],
   removedFromAllRefsIds = [],
   showHeader = true,
@@ -842,6 +843,7 @@ export function ReferenceGrid({
         showStylesSection={isStylesPanelOpen}
         showHeader={showHeader}
         archiveCount={archiveCount}
+        topNotice={topNotice}
         isArchivePanelOpen={isArchivePanelOpen}
         archivedOutputs={archivedOutputs}
         onToggleArchivePanel={() => setIsArchivePanelOpen((prev) => !prev)}

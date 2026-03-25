@@ -196,6 +196,12 @@ const resolveOutputStoragePath = (output: StudioOutput): string | null => {
   );
 };
 
+const resolveOutputLocalObjectUrl = (output: StudioOutput): string | null => {
+  const localObjectUrl = asTrimmedString(output.localObjectUrl);
+  if (!localObjectUrl) return null;
+  return localObjectUrl.replace(/#video=1$/i, "");
+};
+
 const resolvePersistedDeliveryStoragePath = (
   persisted: PersistOutputSaveResult | null | undefined
 ): string | null => {
@@ -295,6 +301,7 @@ export const resolveStyleInternalDropCandidates = async ({
   let storagePath =
     resolvePersistedDeliveryStoragePath(persistedResult) ??
     resolveOutputStoragePath(resolvedOutput);
+  const localUploadObjectUrl = resolveOutputLocalObjectUrl(resolvedOutput);
   if (storagePath) {
     resolutionReason = persistedResult?.delivery ? "persisted_delivery" : "output_storage_path";
   }
@@ -323,6 +330,12 @@ export const resolveStyleInternalDropCandidates = async ({
   const outputPreviewCandidate =
     asTrimmedString(resolvedOutput.previewUrl) ??
     resolveReferenceTransferUrl(resolvedOutput, "image");
+  if (resolvedOutput.mediaSource === "upload") {
+    pushImageCandidate(candidates, localUploadObjectUrl);
+    if (!resolutionReason && localUploadObjectUrl) {
+      resolutionReason = "output_preview_url";
+    }
+  }
   pushImageCandidate(candidates, indexedResultUrl);
   pushImageCandidate(candidates, outputPreviewCandidate);
   fallbackCandidates.forEach((candidate) => pushImageCandidate(candidates, candidate));

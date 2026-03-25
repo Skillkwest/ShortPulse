@@ -19,8 +19,9 @@ import {
   TrashSimple,
   X,
 } from "phosphor-react";
-import { AgentGenerateButton } from "../../../../prefabs/agent";
+import { AgentGenerateButton } from "../../../../prefabs/agent/buttons/AgentGenerateButton";
 import { modelLogos } from "../../constants";
+import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
@@ -443,7 +444,7 @@ function PrimaryCanvasFrameStack({
 
 type PromptTokenPickerState = {
   isOpen: boolean;
-  selectedSlotIndex: number | null;
+  selectedSlotIndex: (typeof secondaries)[number] | null;
   replaceStart: number;
   replaceEnd: number;
 };
@@ -472,6 +473,7 @@ export function ExpertEditPanelView({
   costCredits,
   isGenerateDisabled = false,
   isGenerateBusy = false,
+  guardrailReason = null,
   isPrimaryStageGenerating = false,
   onImageResolutionChange,
   characterOptions = [],
@@ -1056,6 +1058,8 @@ export function ExpertEditPanelView({
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = promptTextValue.trim().length > 0;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
+  const inlineGuardrailReason =
+    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]
@@ -1104,7 +1108,9 @@ export function ExpertEditPanelView({
       if (populatedPromptTokenSlotIndexes.length <= 0) return;
       setPromptTokenPickerState((previous) => {
         if (!previous.isOpen) return previous;
-        const currentSelection = previous.selectedSlotIndex ?? populatedPromptTokenSlotIndexes[0];
+        const currentSelection =
+          previous.selectedSlotIndex ??
+          (populatedPromptTokenSlotIndexes[0] as (typeof secondaries)[number]);
         const currentIndex = populatedPromptTokenSlotIndexes.indexOf(currentSelection);
         const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
         const nextIndex =
@@ -1359,7 +1365,9 @@ export function ExpertEditPanelView({
     }
     if (
       promptTokenPickerState.selectedSlotIndex == null ||
-      !populatedPromptTokenSlotIndexes.includes(promptTokenPickerState.selectedSlotIndex)
+      !populatedPromptTokenSlotIndexes.includes(
+        promptTokenPickerState.selectedSlotIndex as (typeof secondaries)[number]
+      )
     ) {
       setPromptTokenPickerState((previous) => ({
         ...previous,
@@ -5668,6 +5676,9 @@ export function ExpertEditPanelView({
                   isBusy={isGenerateBusy}
                   cost={costCredits != null ? costCredits : "—"}
                 />
+                {inlineGenerateDisabled && inlineGuardrailReason ? (
+                  <div className="inline-warning-hint">{inlineGuardrailReason}</div>
+                ) : null}
               </div>
             </div>
             <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">

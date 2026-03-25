@@ -8,6 +8,7 @@ import type { AiStudioPreviewDetailContracts } from "./contracts/pageContentCont
 
 type UseAiStudioPreviewDetailPropsParams = {
   activeOutput: StudioOutput | null;
+  referenceGridReadyOutputIds: ReadonlySet<string>;
   referenceImageUrl: string | null;
   selectedTool: ToolId | null;
   videoReferenceText: string;
@@ -30,6 +31,7 @@ type UseAiStudioPreviewDetailPropsParams = {
  */
 export const useAiStudioPreviewDetailProps = ({
   activeOutput,
+  referenceGridReadyOutputIds,
   referenceImageUrl,
   selectedTool,
   videoReferenceText,
@@ -46,10 +48,18 @@ export const useAiStudioPreviewDetailProps = ({
   savePromptToLibrary,
   handleOpenMediaLibrary,
 }: UseAiStudioPreviewDetailPropsParams): AiStudioPreviewDetailContracts =>
-  useMemo(
-    () => ({
+  useMemo(() => {
+    const activeOutputPreviewUrl =
+      activeOutput?.previewUrl &&
+      (activeOutput.hiddenInReferenceGrid === true ||
+        referenceGridReadyOutputIds.has(activeOutput.id))
+        ? activeOutput.previewUrl
+        : null;
+
+    return {
       studioPreviewProps: {
         activeOutput,
+        activeOutputPreviewUrl,
         referenceImageUrl,
         referenceText:
           selectedTool === "video" || selectedTool === "kling"
@@ -67,23 +77,23 @@ export const useAiStudioPreviewDetailProps = ({
       onDetailSaveReference: handleSaveReference,
       onDetailSavePrompt: savePromptToLibrary,
       onOpenMediaLibrary: handleOpenMediaLibrary,
-    }),
-    [
-      activeOutput,
-      deleteOutput,
-      detailOutput,
-      editReferenceText,
-      handleDownloadReference,
-      handleManualPromptChange,
-      handleOpenMediaLibrary,
-      handleRegenerateWithDebit,
-      handleSaveReference,
-      referenceImageUrl,
-      savePromptToLibrary,
-      selectedTool,
-      setDetailOutputId,
-      setReferenceImageUrl,
-      updateOutputPrompt,
-      videoReferenceText,
-    ]
-  );
+    };
+  }, [
+    activeOutput,
+    deleteOutput,
+    detailOutput,
+    editReferenceText,
+    handleDownloadReference,
+    handleManualPromptChange,
+    handleOpenMediaLibrary,
+    handleRegenerateWithDebit,
+    handleSaveReference,
+    referenceGridReadyOutputIds,
+    referenceImageUrl,
+    savePromptToLibrary,
+    selectedTool,
+    setDetailOutputId,
+    setReferenceImageUrl,
+    updateOutputPrompt,
+    videoReferenceText,
+  ]);

@@ -23,6 +23,7 @@ export type ReferenceGridProps = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
+  topNotice?: string | null;
   curatedReferenceIds?: string[];
   removedFromAllRefsIds?: string[];
   showHeader?: boolean;

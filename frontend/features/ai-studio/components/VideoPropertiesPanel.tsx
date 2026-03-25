@@ -72,6 +72,7 @@ export type VideoPropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
+  guardrailReason?: string | null;
   referenceImageWarning?: string | null;
   agentIsSending?: boolean;
   agentError?: string;
@@ -128,6 +129,7 @@ export function VideoPropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
+  guardrailReason,
   agentIsSending = false,
   agentError,
   onAgentEnhanceSend,
@@ -432,6 +434,7 @@ export function VideoPropertiesPanel({
           }
           isBusy={agentIsSending}
           costCredits={costCredits}
+          guardrailReason={guardrailReason}
           promptRequiredMessage={null}
         />
       </div>

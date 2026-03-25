@@ -1,7 +1,7 @@
 /**
  * Telemetry contract tests for styles-library extraction outcomes.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { reportAppErrorMock } = vi.hoisted(() => ({
   reportAppErrorMock: vi.fn(),
@@ -11,9 +11,13 @@ vi.mock("../../../../../lib/appErrorReporter", () => ({
   reportAppError: reportAppErrorMock,
 }));
 
-import { trackStyleExtractionOutcome } from "../telemetry";
+import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } from "../telemetry";
 
 describe("style-creator telemetry", () => {
+  beforeEach(() => {
+    reportAppErrorMock.mockClear();
+  });
+
   it("emits normalized resolution metadata for preview-source failures", () => {
     trackStyleExtractionOutcome("blocked_source", "library_drop", {
       stage: "preview_source",
@@ -36,6 +40,58 @@ describe("style-creator telemetry", () => {
         resolution_stage: "server_copy_fallback",
         resolution_reason: "server_copy_delivery",
         candidate_count: 4,
+        server_copy_attempted: true,
+      })
+    );
+  });
+
+  it("emits source-resolution diagnostics with normalized packet metadata", () => {
+    trackStyleSourceResolutionDiagnostic({
+      flow: "library_drop",
+      outcome: "blocked_source",
+      resolvedSourceKind: "internal",
+      internalPayloadPresent: true,
+      transferTypes: ["text/reference-url", "text/reference-output-id", "text/plain"],
+      referenceOrigin: "ai-studio-reference-grid",
+      referenceOutputId: "out-123",
+      referenceMediaId: "media-123",
+      referenceImageIndex: 0,
+      referenceSourceSurface: "all-refs",
+      referenceUrlKind: "same_origin_next_image",
+      referenceRenderUrlKind: "same_origin_url",
+      imageUrlKind: "missing",
+      plainTextKind: "text",
+      resolutionStage: "server_copy_fallback",
+      resolutionReason: "server copy delivery",
+      candidateCount: 3,
+      serverCopyAttempted: true,
+      errorMessage: "blocked-style-image-source",
+    });
+
+    expect(reportAppErrorMock).toHaveBeenCalledTimes(1);
+    const payload = reportAppErrorMock.mock.calls[0]?.[0];
+    expect(payload?.source).toBe("telemetry.ai_studio.style_source_resolution");
+    expect(payload?.message).toBe("style_source_resolution.blocked_source");
+    expect(payload?.metadata).toEqual(
+      expect.objectContaining({
+        telemetry_family: "style_source_resolution",
+        flow: "library_drop",
+        outcome: "blocked_source",
+        resolved_source_kind: "internal",
+        internal_payload_present: true,
+        transfer_types: ["text/reference-url", "text/reference-output-id", "text/plain"],
+        reference_origin: "ai-studio-reference-grid",
+        reference_output_id: "out-123",
+        reference_media_id: "media-123",
+        reference_image_index: 0,
+        reference_source_surface: "all-refs",
+        reference_url_kind: "same_origin_next_image",
+        reference_render_url_kind: "same_origin_url",
+        image_url_kind: "missing",
+        plain_text_kind: "text",
+        resolution_stage: "server_copy_fallback",
+        resolution_reason: "server_copy_delivery",
+        candidate_count: 3,
         server_copy_attempted: true,
       })
     );

@@ -338,6 +338,7 @@ type AgentChatProps = {
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
   disableOutputGenerate?: boolean;
+  outputGenerateGuardrailReason?: string | null;
 };
 
 type AiStudioAlertsStackProps = {
@@ -1218,7 +1219,6 @@ export function AiStudioPageContent({
       return false;
     },
   });
-
   return (
     <>
       <main

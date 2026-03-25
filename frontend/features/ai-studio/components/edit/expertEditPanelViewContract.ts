@@ -64,6 +64,7 @@ export type ExpertEditPanelViewProps = {
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   isGenerateBusy?: boolean;
+  guardrailReason?: string | null;
   isPrimaryStageGenerating?: boolean;
   referenceImageWarning?: string | null;
   onImageResolutionChange?: (value: string) => void;

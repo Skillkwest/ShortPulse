@@ -403,6 +403,21 @@ describe("ExpertEditPanelView", () => {
     selectedStyleId: null,
   };
 
+  it("shows the guardrail reason next to the disabled inline generate button", () => {
+    const message = "Add a reference image before generating.";
+
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        isGenerateDisabled
+        guardrailReason={message}
+        referenceText="Adjust the coat color."
+      />
+    );
+
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
   const renderControlledPromptPanel = ({
     initialPrompt = "",
     extraImageUrls = [null, null, null] as [string | null, string | null, string | null],
@@ -410,7 +425,7 @@ describe("ExpertEditPanelView", () => {
   }: {
     initialPrompt?: string;
     extraImageUrls?: [string | null, string | null, string | null];
-    onPromptTextChangeSpy?: ReturnType<typeof vi.fn>;
+    onPromptTextChangeSpy?: (value: string) => void;
   } = {}) => {
     const ControlledPromptPanel = () => {
       const [promptText, setPromptText] = React.useState(initialPrompt);
@@ -420,7 +435,7 @@ describe("ExpertEditPanelView", () => {
           referenceText={promptText}
           extraImageUrls={extraImageUrls}
           onPromptTextChange={(value) => {
-            onPromptTextChangeSpy(value);
+            onPromptTextChangeSpy?.(value);
             setPromptText(value);
           }}
         />

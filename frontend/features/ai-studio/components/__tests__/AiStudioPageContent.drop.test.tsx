@@ -187,7 +187,7 @@ vi.mock("../canvas/CanvasPropertiesPanel", () => ({
   CanvasPropertiesPanel: () => <div data-testid="canvas-properties" />,
 }));
 
-vi.mock("../../../prefabs/agent", () => ({
+vi.mock("../../../../prefabs/agent", () => ({
   AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
 }));
 

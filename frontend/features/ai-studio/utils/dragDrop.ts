@@ -2,6 +2,7 @@ import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../lib/internalReferenceDragPayload";
+import type { ReferenceDragSourceSurface } from "../../../lib/internalReferenceDragPayload";
 export {
   extractInternalReferenceDragPayload,
   getNormalizedTransferTypes,
@@ -660,15 +661,18 @@ export const prepareReferenceDrag = (
   const datasetPreviewUrl = normalizeReferenceTransferUrlCandidate(previewDataset.previewUrl);
   const datasetSnapshotUrl = normalizeReferenceTransferUrlCandidate(previewDataset.snapshotSrc);
   const resolvedImageTransferUrl =
-    (datasetPreviewUrl && isLikelyImageTransferUrl(datasetPreviewUrl) ? datasetPreviewUrl : null) ??
     (datasetImageUrl && isLikelyImageTransferUrl(datasetImageUrl) ? datasetImageUrl : null) ??
+    (datasetPreviewUrl && isLikelyImageTransferUrl(datasetPreviewUrl) ? datasetPreviewUrl : null) ??
     imagePreviewUrl ??
     null;
   const resolvedRenderedTransferUrl =
     (datasetSnapshotUrl && isLikelyImageTransferUrl(datasetSnapshotUrl)
       ? datasetSnapshotUrl
       : null) ?? resolvedImageTransferUrl;
-  const resolvedReferenceTransferUrl = previewUrl ?? resolvedImageTransferUrl ?? null;
+  const resolvedReferenceTransferUrl =
+    output.mode === "image"
+      ? (resolvedImageTransferUrl ?? previewUrl ?? null)
+      : (previewUrl ?? resolvedImageTransferUrl ?? null);
   const referenceMediaId =
     output.savedMediaIds?.[imageIndex]?.trim() ?? output.savedMediaIds?.[0]?.trim();
   const previewImageNode = dragNode.querySelector(".reference-card-image");

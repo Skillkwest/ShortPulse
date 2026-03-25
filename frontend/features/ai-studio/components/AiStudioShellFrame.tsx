@@ -50,6 +50,7 @@ type AgentChatProps = {
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
   disableOutputGenerate?: boolean;
+  outputGenerateGuardrailReason?: string | null;
 };
 
 type AiStudioShellFrameProps = {
@@ -197,6 +198,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
                 onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
                 outputGenerateCostCredits={agentChat.outputGenerateCostCredits}
                 disableOutputGenerate={agentChat.disableOutputGenerate}
+                outputGenerateGuardrailReason={agentChat.outputGenerateGuardrailReason}
                 beginnerMode={beginnerMode}
               />
             </div>

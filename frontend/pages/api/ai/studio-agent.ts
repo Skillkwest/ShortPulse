@@ -44,10 +44,6 @@ import {
   describeStudioAgentVisionSummaryError,
 } from "../../../features/agent-runtime/studioAgentVisionSummaries";
 import {
-  shouldCommitStudioAgentCanonicalPrompt,
-  writeStudioAgentCanonicalPrompt,
-} from "../../../features/agent-runtime/studioAgentCanonicalPersistence";
-import {
   buildAgentMachineOutcome,
   resolveInfraFallbackReasonCode,
 } from "../../../features/agent-runtime/agentMachineOutcome";

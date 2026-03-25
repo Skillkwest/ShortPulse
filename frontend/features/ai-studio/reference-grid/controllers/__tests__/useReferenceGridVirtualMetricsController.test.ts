@@ -8,7 +8,8 @@ class MockResizeObserver {
   static disconnectCount = 0;
   private disconnected = false;
 
-  constructor(_callback: ResizeObserverCallback) {
+  constructor(callback: ResizeObserverCallback) {
+    void callback;
     MockResizeObserver.instanceCount += 1;
   }
 

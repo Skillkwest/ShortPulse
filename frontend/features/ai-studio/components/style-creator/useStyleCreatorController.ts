@@ -7,10 +7,7 @@ import { postExtractStyle, prepareStyleImageUrl } from "../../logic/styleExtract
 import type { StylesLibraryStyleDetails } from "../../types";
 import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
-import {
-  extractInternalReferenceDragPayload,
-  getNormalizedTransferTypes,
-} from "../../utils/dragDrop";
+import { extractInternalReferenceDragPayload } from "../../utils/dragDrop";
 import {
   BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE,
   EXPIRED_STYLE_IMAGE_SOURCE_ERROR,

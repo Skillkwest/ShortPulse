@@ -276,20 +276,14 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const addLibraryMediaReferenceToQuickSlot = useCallback(
-    async (
-      payload: LibraryMediaReferencePayload,
-      _placement?: QuickSlotLibraryPlacement
-    ): Promise<string | null> => {
+    async (payload: LibraryMediaReferencePayload): Promise<string | null> => {
       return await insertLibraryMediaReference(payload);
     },
     [insertLibraryMediaReference]
   );
 
   const addLibraryPromptReferenceToQuickSlot = useCallback(
-    (
-      payload: LibraryPromptReferencePayload,
-      _placement?: QuickSlotLibraryPlacement
-    ): string | null => {
+    (payload: LibraryPromptReferencePayload): string | null => {
       return insertLibraryPromptReference(payload);
     },
     [insertLibraryPromptReference]

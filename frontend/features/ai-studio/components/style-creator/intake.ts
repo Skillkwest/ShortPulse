@@ -833,11 +833,6 @@ const resolveFallbackImageUrlViaServerCopy = async ({
   return resolveServerCopyDeliveryUrl(routePayload);
 };
 
-const findDroppedImageFile = (transfer: DataTransfer): File | null => {
-  const droppedFiles = Array.from(transfer.files ?? []);
-  return droppedFiles.find((file) => isImageFileCandidate(file)) ?? null;
-};
-
 /**
  * Captures the Styles-relevant drop payload synchronously while the browser event is still live.
  */

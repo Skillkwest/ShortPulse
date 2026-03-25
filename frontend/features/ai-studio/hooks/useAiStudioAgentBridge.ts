@@ -110,7 +110,7 @@ export const useAiStudioAgentBridge = ({
   const agentEnabled = agentFlag && agentSessionEnabled;
   const agentAssistToggleAvailable = false;
   const agentAssistEnabled = !directOpenAiBypassEnabledByConfig;
-  const setAgentAssistEnabled = useCallback((_value: boolean) => {}, []);
+  const setAgentAssistEnabled = useCallback(() => {}, []);
   const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
     return readChatModeFromStorage(window.localStorage);

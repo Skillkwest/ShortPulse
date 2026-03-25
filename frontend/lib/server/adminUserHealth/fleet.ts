@@ -576,7 +576,7 @@ export const runAdminUserHealthFleetScan = async ({
   let criticalUsers = 0;
   let warningUsers = 0;
   let totalCostWithoutSuccessCents = 0;
-  let drainageSummary: FleetDrainageSummary = defaultDrainageSummary;
+  const drainageSummary: FleetDrainageSummary = defaultDrainageSummary;
 
   try {
     const targets = await loadFleetTargetUsers({

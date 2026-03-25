@@ -34,7 +34,6 @@ import {
   isVideoFile,
   normalizeMediaSearchTerm,
   resolveMediaMetadataPromptText,
-  resolveModalSignBudget,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
   type MediaDataTab,

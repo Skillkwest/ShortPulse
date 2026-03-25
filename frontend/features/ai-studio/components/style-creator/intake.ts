@@ -753,6 +753,27 @@ const collectInternalServerCopySourceUrls = (candidateUrls: readonly string[]): 
   return next;
 };
 
+const collectSnapshotServerCopySourceUrls = ({
+  snapshot,
+  internalDropPayload,
+  dragPayloadImageUrl,
+}: {
+  snapshot: StyleDropSnapshot;
+  internalDropPayload: InternalReferenceDragPayload | null;
+  dragPayloadImageUrl?: string | null;
+}): string[] =>
+  collectInternalServerCopySourceUrls(
+    dedupeStyleSourceUrls([
+      snapshot.referenceRenderUrl,
+      snapshot.imageUrl,
+      snapshot.referenceUrl,
+      getFirstUriListValue(snapshot.uriList),
+      dragPayloadImageUrl,
+      internalDropPayload?.referenceRenderUrl,
+      internalDropPayload?.referenceUrl,
+    ])
+  );
+
 const resolveFallbackImageUrlViaServerCopy = async ({
   sourceUrl,
   payload,
@@ -992,15 +1013,20 @@ export const resolveStyleSource = async ({
     const internalFallbackSourceUrls =
       internalDropResolution?.fallbackSourceUrls ??
       internalResolvedCandidates.slice(internalPrimarySourceUrl ? 1 : 0);
+    const snapshotServerCopySourceUrls = collectSnapshotServerCopySourceUrls({
+      snapshot,
+      internalDropPayload,
+      dragPayloadImageUrl: dragPayload.imageUrl,
+    });
     const sourceUrls = dedupeStyleSourceUrls([
       internalPrimarySourceUrl,
       payloadRenderedSourceUrl,
       ...directTransferSourceUrls,
       ...internalFallbackSourceUrls,
     ]);
-    candidateCount = sourceUrls.length;
+    candidateCount = Math.max(sourceUrls.length, snapshotServerCopySourceUrls.length);
     const managedStoragePath = internalDropResolution?.managedStoragePath?.trim() ?? "";
-    if (!managedStoragePath && !sourceUrls.length) {
+    if (!managedStoragePath && !sourceUrls.length && !snapshotServerCopySourceUrls.length) {
       throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
     }
     const fallbackPromptText = normalizeStylePromptFallbackText(dragPayload.promptText);
@@ -1031,7 +1057,10 @@ export const resolveStyleSource = async ({
       if (normalizedReadError.code === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
         resolutionStage = "server_copy_fallback";
         serverCopyAttempted = true;
-        const serverCopySourceUrls = collectInternalServerCopySourceUrls(sourceUrls);
+        const serverCopySourceUrls = collectInternalServerCopySourceUrls([
+          ...sourceUrls,
+          ...snapshotServerCopySourceUrls,
+        ]);
         for (const sourceUrl of serverCopySourceUrls) {
           const fallbackUrl = await resolveFallbackImageUrlViaServerCopy({
             sourceUrl,

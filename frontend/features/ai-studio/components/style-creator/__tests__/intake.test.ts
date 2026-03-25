@@ -941,6 +941,99 @@ describe("style-creator intake preprocessing", () => {
     }
   });
 
+  it("uses captured snapshot urls as server-copy seeds when internal candidates collapse to zero", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-render-url",
+        "text/reference-url",
+        "image/url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "library-out-1";
+        if (type === "text/reference-render-url") {
+          return "https://cdn.example.com/library-rendered-reference.png";
+        }
+        if (type === "text/reference-url") {
+          return "https://cdn.example.com/library-reference.png";
+        }
+        if (type === "image/url") {
+          return "https://cdn.example.com/library-image-url.png";
+        }
+        if (type === "text/plain") return "library prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "https://cdn.example.com/copied-library-reference.png") {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "image/png" },
+          blob: async () => new Blob(["mock-image-bytes"], { type: "image/png" }),
+        };
+      }
+      throw new TypeError("Failed to fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(fetchWithAuth).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        delivery: {
+          previewUrl: "https://cdn.example.com/copied-library-reference.png",
+          fullUrl: "https://cdn.example.com/copied-library-reference.png",
+        },
+      }),
+    } as unknown as Response);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, {
+        resolveInternalStyleDrop: async () => ({
+          imageUrlCandidates: [],
+          fallbackSourceUrls: [],
+          primarySourceUrl: null,
+          promptText: "internal prompt",
+          serverCopyHints: {
+            outputId: "library-out-1",
+            mediaId: "media-library-1",
+            imageIndex: 0,
+            generationId: null,
+            taskId: null,
+            previewStoragePathHint: null,
+            fullStoragePathHint: null,
+            previewUrlHint: "https://cdn.example.com/library-reference.png",
+            fullUrlHint: "https://cdn.example.com/library-reference.png",
+          },
+        }),
+      });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(fetchWithAuth).toHaveBeenCalledWith(
+        "/api/media/copy-from-url",
+        expect.objectContaining({
+          method: "POST",
+          shortpulseLogScope: "generation",
+          shortpulseSkipErrorLogging: true,
+        })
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://cdn.example.com/copied-library-reference.png"
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("maps stale dropped reference URLs to the expired-source error code", async () => {
     const transfer = {
       files: [],

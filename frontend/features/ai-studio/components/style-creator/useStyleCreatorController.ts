@@ -6,6 +6,7 @@ import React from "react";
 import { postExtractStyle, prepareStyleImageUrl } from "../../logic/styleExtraction";
 import type { StylesLibraryStyleDetails } from "../../types";
 import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
+import { INTERNAL_REFERENCE_DRAG_SESSION_TYPE } from "../../../../lib/internalReferenceDragSession";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import { extractInternalReferenceDragPayload } from "../../utils/dragDrop";
 import {
@@ -151,6 +152,8 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
     files: dropSnapshot.files,
     getData: (type: string) => {
       switch (type) {
+        case INTERNAL_REFERENCE_DRAG_SESSION_TYPE:
+          return dropSnapshot.internalReferenceDragToken;
         case "text/reference-origin":
           return dropSnapshot.referenceOrigin;
         case "text/reference-output-id":

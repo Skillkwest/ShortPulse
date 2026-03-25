@@ -3,6 +3,11 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
+import {
+  clearInternalReferenceDragSession,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  registerInternalReferenceDragSession,
+} from "../../../../../lib/internalReferenceDragSession";
 import { ensureSupabaseClient } from "../../../../../lib/supabaseClient";
 import * as imageUploadModule from "../../../utils/imageUpload";
 import {
@@ -452,6 +457,54 @@ describe("style-creator intake preprocessing", () => {
       expect(resolveInternalStyleDrop).toHaveBeenCalledTimes(1);
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("resolves internal drops from a drag-session token when browser metadata is stripped", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const dragSessionToken = registerInternalReferenceDragSession({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-session",
+      outputId: "out-session",
+      imageIndex: 0,
+      mediaId: "media-session",
+      referenceUrl: null,
+      sourceSurface: "all-refs",
+    });
+    const transfer = {
+      files: [],
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer;
+    const resolveInternalStyleDrop = vi.fn(async () => ({
+      primarySourceUrl: "data:image/jpeg;base64,session-source",
+      fallbackSourceUrls: [],
+      imageUrlCandidates: [],
+      promptText: "internal prompt",
+    }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, { resolveInternalStyleDrop });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(resolveInternalStyleDrop).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputId: "out-session",
+          mediaId: "media-session",
+        })
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      clearInternalReferenceDragSession(dragSessionToken);
       vi.unstubAllGlobals();
     }
   });

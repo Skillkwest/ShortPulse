@@ -2,6 +2,11 @@
  * Shared internal reference drag payload helpers.
  * Provides a neutral parsing seam for AI Studio-originated reference drags consumed across features.
  */
+import {
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  resolveInternalReferenceDragSession,
+} from "./internalReferenceDragSession";
+
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const RELATIVE_MEDIA_PATH_HINT_PATTERN =
   /^\/(?:_next\/image|storage\/|.*\.(?:avif|bmp|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#]))/i;
@@ -16,6 +21,7 @@ const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   "text/reference-id",
   "text/reference-output-id",
   "text/reference-media-id",
@@ -145,6 +151,12 @@ export const extractInternalReferenceDragPayload = (
   transfer: DataTransfer | null | undefined
 ): InternalReferenceDragPayload | null => {
   if (!transfer) return null;
+  const sessionPayload = resolveInternalReferenceDragSession(
+    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE)
+  );
+  if (sessionPayload) {
+    return sessionPayload;
+  }
   const originRaw = transfer.getData(REFERENCE_TRANSFER_ORIGIN_TYPE).trim().toLowerCase();
   const sourceSurface = parseReferenceDragSourceSurface(
     transfer.getData(REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE)

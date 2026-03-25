@@ -3,6 +3,7 @@
  * Verifies internal reference drags prefer explicit reference URLs over ambient URI-list payloads.
  */
 import { describe, expect, it, vi } from "vitest";
+import { INTERNAL_REFERENCE_DRAG_SESSION_TYPE } from "../../../../lib/internalReferenceDragSession";
 import {
   clearDragState,
   extractInternalReferenceDragPayload,
@@ -164,6 +165,10 @@ describe("dragDrop payload extraction", () => {
     );
 
     expect(setData).toHaveBeenCalledWith("text/reference-origin", INTERNAL_REFERENCE_DRAG_ORIGIN);
+    expect(setData).toHaveBeenCalledWith(
+      INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+      expect.stringMatching(/^ref-drag-/)
+    );
     expect(setData).toHaveBeenCalledWith("text/reference-version", "1");
     expect(setData).toHaveBeenCalledWith("text/reference-output-id", "ref-1");
     expect(setData).toHaveBeenCalledWith("text/reference-image-index", "0");
@@ -347,6 +352,51 @@ describe("dragDrop payload extraction", () => {
       referenceUrl: "https://cdn.example.com/out-123.png",
       sourceSurface: "all-refs",
     });
+  });
+
+  it("extracts internal reference payloads from same-document drag session tokens", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(
+      event,
+      {
+        id: "out-token",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        previewUrl: "https://example.com/out-token.png",
+        savedMediaIds: ["media-token"],
+      },
+      { sourceSurface: "all-refs" }
+    );
+
+    const dragSessionToken = setData.mock.calls.find(
+      ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+    )?.[1];
+    expect(typeof dragSessionToken).toBe("string");
+
+    const payload = extractInternalReferenceDragPayload({
+      files: emptyFileList,
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer);
+
+    expect(payload).toEqual({
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "out-token",
+      outputId: "out-token",
+      imageIndex: 0,
+      mediaId: "media-token",
+      referenceUrl: "https://example.com/out-token.png",
+      sourceSurface: "all-refs",
+    });
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
   it("extracts optional dimension metadata from internal reference payloads", () => {

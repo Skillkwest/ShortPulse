@@ -2,6 +2,11 @@ import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../lib/internalReferenceDragPayload";
+import {
+  clearInternalReferenceDragSession,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  registerInternalReferenceDragSession,
+} from "../../../lib/internalReferenceDragSession";
 import type { ReferenceDragSourceSurface } from "../../../lib/internalReferenceDragPayload";
 export {
   extractInternalReferenceDragPayload,
@@ -77,6 +82,7 @@ const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
+const INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY = "internalReferenceDragToken";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
 
@@ -684,6 +690,28 @@ export const prepareReferenceDrag = (
     previewImageNode instanceof HTMLImageElement && previewImageNode.naturalHeight > 0
       ? previewImageNode.naturalHeight
       : 0;
+  const dragNodeDataset = dragNode?.dataset ?? null;
+  const previousDragSessionToken =
+    dragNodeDataset?.[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY]?.trim() ?? "";
+  if (previousDragSessionToken) {
+    clearInternalReferenceDragSession(previousDragSessionToken);
+  }
+  const dragSessionToken = registerInternalReferenceDragSession({
+    version: INTERNAL_REFERENCE_DRAG_VERSION,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId: output.id?.trim() || null,
+    outputId: output.id?.trim() || null,
+    imageIndex,
+    mediaId: referenceMediaId ?? null,
+    referenceUrl: resolvedReferenceTransferUrl ?? null,
+    sourceSurface,
+    ...(naturalWidth > 0 ? { width: naturalWidth } : {}),
+    ...(naturalHeight > 0 ? { height: naturalHeight } : {}),
+  });
+  if (dragNodeDataset) {
+    dragNodeDataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY] = dragSessionToken;
+  }
+  transfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE, dragSessionToken);
   if (resolvedReferenceTransferUrl) {
     transfer.setData("text/uri-list", resolvedReferenceTransferUrl);
     transfer.setData("text/reference-url", resolvedReferenceTransferUrl);
@@ -744,6 +772,11 @@ export const prepareReferenceDrag = (
 export const clearDragState = (event: React.DragEvent<HTMLElement>) => {
   const node = event.currentTarget as HTMLElement;
   node.classList.remove("is-dragging");
+  const dragSessionToken = node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  if (dragSessionToken) {
+    clearInternalReferenceDragSession(dragSessionToken);
+    delete node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  }
   const ghost = dragGhostMap.get(node);
   if (ghost && ghost.parentNode) {
     ghost.parentNode.removeChild(ghost);

@@ -20,6 +20,38 @@ const MEDIA_BUCKET = "media_library";
 const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
 const TELEMETRY_FALLBACK_CODES: CharacterModeFallbackCode[] = ["bundle_unavailable"];
 
+/**
+ * Returns true when the currently loaded bundle matches the selected character.
+ */
+export const hasUsableCharacterModeInjectionBundle = ({
+  selectedCharacterId,
+  bundle,
+}: {
+  selectedCharacterId: string;
+  bundle: CharacterModeInjectionBundle | null | undefined;
+}): boolean => {
+  const normalizedSelectedCharacterId = selectedCharacterId.trim();
+  if (!normalizedSelectedCharacterId) return false;
+  return bundle?.characterId === normalizedSelectedCharacterId;
+};
+
+/**
+ * Returns true when a bundle is still fresh enough to reuse without a submit-time refresh.
+ */
+export const isCharacterModeInjectionBundleFresh = ({
+  bundle,
+  staleAfterMs,
+  nowMs = Date.now(),
+}: {
+  bundle: CharacterModeInjectionBundle | null | undefined;
+  staleAfterMs: number;
+  nowMs?: number;
+}): boolean => {
+  if (!bundle) return false;
+  if (!Number.isFinite(staleAfterMs) || staleAfterMs <= 0) return false;
+  return nowMs - bundle.loadedAtMs <= staleAfterMs;
+};
+
 const isCharacterUnavailableError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   const normalized = error.message.trim().toLowerCase();
@@ -102,7 +134,6 @@ export const useAiStudioCharacterModeController = ({
   trackCharacterModeEvent,
   bundleStaleAfterMs,
 }: UseAiStudioCharacterModeControllerParams) => {
-  void bundleStaleAfterMs;
   const noopSetBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>> = () => {};
   const noopSetLoading: Dispatch<SetStateAction<boolean>> = () => {};
   const resolveCharacterScope = useCallback((tool: ToolId | null): "create" | "edit" | null => {
@@ -273,6 +304,26 @@ export const useAiStudioCharacterModeController = ({
       if (!selectedId) return null;
 
       const bundleAgeMs = currentBundle ? Date.now() - currentBundle.loadedAtMs : 0;
+      const hasUsableCurrentBundle = hasUsableCharacterModeInjectionBundle({
+        selectedCharacterId: selectedId,
+        bundle: currentBundle,
+      });
+      const shouldReuseCurrentBundle =
+        hasUsableCurrentBundle &&
+        isCharacterModeInjectionBundleFresh({
+          bundle: currentBundle,
+          staleAfterMs: bundleStaleAfterMs,
+        });
+
+      if (shouldReuseCurrentBundle) {
+        trackCharacterModeEvent("character_mode_bundle_refresh_skipped", {
+          reason: "fresh_bundle_reuse",
+          character_scope: scope,
+          selected_character_id: selectedId,
+          bundle_age_ms: bundleAgeMs,
+        });
+        return currentBundle;
+      }
 
       setBundleLoading(true);
       trackCharacterModeEvent("character_mode_bundle_refresh_before_submit", {
@@ -316,6 +367,7 @@ export const useAiStudioCharacterModeController = ({
       }
     },
     [
+      bundleStaleAfterMs,
       refreshBundleReferenceUrlsForSubmission,
       resolveCharacterScopeState,
       toCharacterModeInjectionBundle,

@@ -29,6 +29,7 @@ import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/ho
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import {
+  hasUsableCharacterModeInjectionBundle,
   useAiStudioCharacterModeController,
   type CharacterModeInjectionBundle,
 } from "../features/ai-studio/hooks/useAiStudioCharacterModeController";
@@ -575,15 +576,25 @@ export default function AiStudioPage() {
     editSubmitIntent,
     costParamsForModel,
   });
-  const isCharacterLoadingGenerateDisabled = useMemo(
-    () =>
-      shouldDisableGenerateWhileCharacterLoading({
-        selectedTool,
-        characterModeEnabled: isCreateCharacterModeEnabled,
-        isCharacterBundleLoading: isCreateCharacterBundleLoading,
-      }),
-    [isCreateCharacterBundleLoading, isCreateCharacterModeEnabled, selectedTool]
-  );
+  const isCharacterLoadingGenerateDisabled = useMemo(() => {
+    const hasUsableCreateCharacterBundle = hasUsableCharacterModeInjectionBundle({
+      selectedCharacterId: createSelectedCharacterId,
+      bundle: createCharacterModeInjectionBundle,
+    });
+    return shouldDisableGenerateWhileCharacterLoading({
+      selectedTool,
+      characterModeEnabled: isCreateCharacterModeEnabled,
+      selectedCharacterId: createSelectedCharacterId,
+      isCharacterBundleLoading: isCreateCharacterBundleLoading,
+      hasUsableCharacterBundle: hasUsableCreateCharacterBundle,
+    });
+  }, [
+    createCharacterModeInjectionBundle,
+    createSelectedCharacterId,
+    isCreateCharacterBundleLoading,
+    isCreateCharacterModeEnabled,
+    selectedTool,
+  ]);
   const effectiveGenerationGuardrail =
     generationGuardrail ??
     (isCharacterLoadingGenerateDisabled ? CHARACTER_LOADING_GENERATION_GUARDRAIL : null);

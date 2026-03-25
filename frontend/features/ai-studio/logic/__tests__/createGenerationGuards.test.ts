@@ -136,28 +136,45 @@ describe("createGenerationGuards", () => {
       shouldDisableGenerateWhileCharacterLoading({
         selectedTool: "create",
         characterModeEnabled: true,
+        selectedCharacterId: "char-1",
         isCharacterBundleLoading: true,
+        hasUsableCharacterBundle: false,
       })
     ).toBe(true);
     expect(
       shouldDisableGenerateWhileCharacterLoading({
         selectedTool: "text",
         characterModeEnabled: true,
+        selectedCharacterId: "char-1",
         isCharacterBundleLoading: true,
+        hasUsableCharacterBundle: false,
       })
     ).toBe(true);
     expect(
       shouldDisableGenerateWhileCharacterLoading({
         selectedTool: "edit",
         characterModeEnabled: true,
+        selectedCharacterId: "char-1",
         isCharacterBundleLoading: true,
+        hasUsableCharacterBundle: false,
       })
     ).toBe(false);
     expect(
       shouldDisableGenerateWhileCharacterLoading({
         selectedTool: "create",
         characterModeEnabled: true,
+        selectedCharacterId: "char-1",
         isCharacterBundleLoading: false,
+        hasUsableCharacterBundle: false,
+      })
+    ).toBe(false);
+    expect(
+      shouldDisableGenerateWhileCharacterLoading({
+        selectedTool: "create",
+        characterModeEnabled: true,
+        selectedCharacterId: "char-1",
+        isCharacterBundleLoading: true,
+        hasUsableCharacterBundle: true,
       })
     ).toBe(false);
     expect(CHARACTER_LOADING_GENERATION_GUARDRAIL).toContain("still loading");

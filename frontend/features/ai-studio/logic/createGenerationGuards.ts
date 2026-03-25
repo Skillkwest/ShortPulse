@@ -27,7 +27,9 @@ type AgentOutputDisableParams = CreateSelectionParams & {
 type CharacterLoadingDisableParams = {
   selectedTool: ToolId | null;
   characterModeEnabled: boolean;
+  selectedCharacterId: string;
   isCharacterBundleLoading: boolean;
+  hasUsableCharacterBundle: boolean;
 };
 
 export const CHARACTER_LOADING_GENERATION_GUARDRAIL =
@@ -112,6 +114,12 @@ export const shouldDisableAgentOutputGenerate = ({
 export const shouldDisableGenerateWhileCharacterLoading = ({
   selectedTool,
   characterModeEnabled,
+  selectedCharacterId,
   isCharacterBundleLoading,
+  hasUsableCharacterBundle,
 }: CharacterLoadingDisableParams): boolean =>
-  isCreatePromptTool(selectedTool) && characterModeEnabled && isCharacterBundleLoading;
+  isCreatePromptTool(selectedTool) &&
+  characterModeEnabled &&
+  selectedCharacterId.trim().length > 0 &&
+  isCharacterBundleLoading &&
+  !hasUsableCharacterBundle;

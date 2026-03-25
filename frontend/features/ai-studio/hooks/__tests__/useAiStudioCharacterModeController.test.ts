@@ -155,15 +155,9 @@ describe("useAiStudioCharacterModeController", () => {
     expect(reportAppErrorMock).not.toHaveBeenCalled();
   });
 
-  it("reloads snapshot before submit and refreshes signed urls", async () => {
+  it("reuses a fresh matching bundle before submit without refreshing", async () => {
     const setCharacterModeInjectionBundle = vi.fn();
-    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createSnapshotWithPresetReference({
-        description: "Base description",
-        storagePath: "user/chars/ref.png",
-        previewUrl: "https://example.com/ref-stale-db.png",
-      })
-    );
+    const setIsCharacterBundleLoading = vi.fn();
     const currentBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
       characterDescription: "Base description",
@@ -178,27 +172,18 @@ describe("useAiStudioCharacterModeController", () => {
       setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
         setCharacterModeInjectionBundle
       ),
+      setIsCharacterBundleLoading: asDispatch<boolean>(setIsCharacterBundleLoading),
     });
     const { result } = renderHook(() => useAiStudioCharacterModeController(params));
 
     const refreshed =
       await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
 
-    expect(refreshed).toEqual(
-      expect.objectContaining({
-        characterId: "char-1",
-        characterDescription: "Base description",
-        sheetReferenceStoragePaths: ["user/chars/ref.png"],
-        sheetReferenceUrls: ["https://example.com/ref-fresh.png"],
-      })
-    );
-    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
-      bucket: "media_library",
-      storagePaths: ["user/chars/ref.png"],
-      forceRefresh: true,
-    });
-    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1");
-    expect(setCharacterModeInjectionBundle).toHaveBeenCalledTimes(1);
+    expect(refreshed).toEqual(currentBundle);
+    expect(loadCharacterManagerDraftByCharacterIdMock).not.toHaveBeenCalled();
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+    expect(setCharacterModeInjectionBundle).not.toHaveBeenCalled();
+    expect(setIsCharacterBundleLoading).not.toHaveBeenCalled();
   });
 
   it("uses legacy description fallback when active preset description is empty", async () => {
@@ -295,8 +280,9 @@ describe("useAiStudioCharacterModeController", () => {
         characterDescription: "Base description",
         sheetReferenceStoragePaths: ["user/chars/ref.png"],
         sheetReferenceUrls: ["https://example.com/ref-stale.png"],
-        loadedAtMs: Date.now(),
+        loadedAtMs: Date.now() - 1000 * 60 * 60,
       },
+      bundleStaleAfterMs: 100,
       trackCharacterModeEvent,
       setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
         setCharacterModeInjectionBundle
@@ -349,12 +335,13 @@ describe("useAiStudioCharacterModeController", () => {
       characterDescription: "Cached description",
       sheetReferenceStoragePaths: ["user/chars/ref.png"],
       sheetReferenceUrls: ["https://example.com/cached.png"],
-      loadedAtMs: Date.now(),
+      loadedAtMs: Date.now() - 1000 * 60 * 60,
     };
     loadCharacterManagerDraftByCharacterIdMock.mockRejectedValueOnce(new Error("session stalled"));
     const params = createParams({
       selectedCharacterId: "char-1",
       characterModeInjectionBundle: currentBundle,
+      bundleStaleAfterMs: 100,
       trackCharacterModeEvent,
     });
     const { result } = renderHook(() => useAiStudioCharacterModeController(params));
@@ -379,7 +366,7 @@ describe("useAiStudioCharacterModeController", () => {
       characterDescription: "Cached description",
       sheetReferenceStoragePaths: ["user/chars/ref.png"],
       sheetReferenceUrls: ["https://example.com/cached.png"],
-      loadedAtMs: Date.now(),
+      loadedAtMs: Date.now() - 1000 * 60 * 60,
     };
     loadCharacterManagerDraftByCharacterIdMock.mockRejectedValueOnce(
       new Error("Character is no longer available.")
@@ -387,6 +374,7 @@ describe("useAiStudioCharacterModeController", () => {
     const params = createParams({
       selectedCharacterId: "char-1",
       characterModeInjectionBundle: currentBundle,
+      bundleStaleAfterMs: 100,
       trackCharacterModeEvent,
       setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
         setCharacterModeInjectionBundle
@@ -415,7 +403,7 @@ describe("useAiStudioCharacterModeController", () => {
       characterDescription: "Cached description",
       sheetReferenceStoragePaths: ["user/chars/ref.png"],
       sheetReferenceUrls: ["https://example.com/cached.png"],
-      loadedAtMs: Date.now(),
+      loadedAtMs: Date.now() - 1000 * 60 * 60,
     };
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValueOnce({
       ...createSnapshotWithPresetReference(),
@@ -424,6 +412,7 @@ describe("useAiStudioCharacterModeController", () => {
     const params = createParams({
       selectedCharacterId: "char-1",
       characterModeInjectionBundle: currentBundle,
+      bundleStaleAfterMs: 100,
       setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
         setCharacterModeInjectionBundle
       ),
@@ -609,7 +598,9 @@ describe("useAiStudioCharacterModeController", () => {
     });
     const { result } = renderHook(() => useAiStudioCharacterModeController(params));
 
-    await result.current.refreshCharacterModeInjectionBundleForSubmission("edit");
+    await act(async () => {
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("edit");
+    });
 
     expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-edit");
     expect(setEditLoading).toHaveBeenCalledWith(true);

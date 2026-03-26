@@ -5,9 +5,9 @@
 import { useCallback } from "react";
 import { resolveCanvasDropImageSourceUrl } from "../components/canvas/canvasDropResolvers";
 import type { ResolveCanvasDropReference } from "../components/canvas/canvasTypes";
-import { resolveStyleInternalDropCandidates } from "../components/style-creator/internalDropResolver";
 import type { PersistOutputSaveResult } from "./useAiStudioPersistenceActions";
 import { resolveMediaLibraryInternalDropResolver } from "../logic/mediaLibraryInternalDropResolver";
+import { resolveInternalReferenceSource } from "../logic/referenceSource/internalReferenceSource";
 import type { StudioOutput } from "../types";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
@@ -59,7 +59,7 @@ export const useAiStudioInternalDropResolvers = ({
   ) => Promise<{ kind: "media" | "prompt"; id: string } | null>;
   resolveStyleLibraryInternalDrop: (
     payload: InternalReferenceDragPayload
-  ) => ReturnType<typeof resolveStyleInternalDropCandidates>;
+  ) => ReturnType<typeof resolveInternalReferenceSource>;
 } => {
   const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
     async (payload: InternalReferenceDragPayload) => {
@@ -148,7 +148,7 @@ export const useAiStudioInternalDropResolvers = ({
 
   const resolveStyleLibraryInternalDrop = useCallback(
     async (payload: InternalReferenceDragPayload) =>
-      await resolveStyleInternalDropCandidates({
+      await resolveInternalReferenceSource({
         payload,
         getOutputById,
         getOutputSnapshot,

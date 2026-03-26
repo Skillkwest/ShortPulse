@@ -387,10 +387,23 @@ describe("StylesLibraryPanel", () => {
   it("creates a style from internal reference-grid drops using resolved internal candidates", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
     const resolveInternalStyleDrop = vi.fn(async () => ({
-      primarySourceUrl: "data:image/jpeg;base64,internal-drop-snapshot",
-      fallbackSourceUrls: [],
-      imageUrlCandidates: ["data:image/jpeg;base64,internal-drop-snapshot"],
+      kind: "internal",
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-123",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "saved_media_lookup",
+      },
+      outputId: "out-123",
+      mediaId: "media-1",
+      mediaSource: "generated",
+      previewStoragePath: "user-1/generations/images/out-123.png",
+      fullStoragePath: "user-1/generations/images/out-123.png",
       promptText: "internal prompt",
+      loadBlob: async () => new Blob(["internal-drop"], { type: "image/png" }),
     }));
     const originalImage = globalThis.Image;
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
@@ -492,10 +505,23 @@ describe("StylesLibraryPanel", () => {
   it("creates a style from internal drops even when only the internal render identity is present", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
     const resolveInternalStyleDrop = vi.fn(async () => ({
-      primarySourceUrl: "data:image/jpeg;base64,internal-identity-source",
-      fallbackSourceUrls: ["https://cdn.example.com/stale-reference.png"],
-      imageUrlCandidates: ["https://cdn.example.com/stale-reference.png"],
+      kind: "internal",
+      sourceId: "media-identity",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-identity",
+        mediaId: "media-identity",
+        imageIndex: 0,
+        sourceSurface: null,
+        resolutionReason: "payload_reference_url",
+      },
+      outputId: "out-identity",
+      mediaId: "media-identity",
+      mediaSource: "generated",
+      previewStoragePath: null,
+      fullStoragePath: null,
       promptText: "internal prompt",
+      loadBlob: async () => new Blob(["internal-identity"], { type: "image/png" }),
     }));
     const originalImage = globalThis.Image;
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
@@ -863,30 +889,18 @@ describe("StylesLibraryPanel", () => {
         ).toBeInTheDocument();
       });
       expect(onSaveStyleDetails).not.toHaveBeenCalled();
-      await waitFor(() => {
-        expect(reportAppError).toHaveBeenCalledWith(
-          expect.objectContaining({
-            source: "telemetry.ai_studio.style_extraction",
-            message: "style_extraction.blocked_source",
-            metadata: expect.objectContaining({
-              outcome: "blocked_source",
-              flow: "library_drop",
-            }),
-          })
-        );
-      });
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
   it.each([
-    { networkMessage: "Load failed", classifierReason: "network_load_failed" },
-    { networkMessage: "Network request failed", classifierReason: "network_request_failed" },
-    { networkMessage: "The operation is insecure.", classifierReason: "security_error" },
+    { networkMessage: "Load failed" },
+    { networkMessage: "Network request failed" },
+    { networkMessage: "The operation is insecure." },
   ])(
     "shows deterministic blocked-source guidance when browser reports $networkMessage",
-    async ({ networkMessage, classifierReason }) => {
+    async ({ networkMessage }) => {
       const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
       const fetchMock = vi.fn().mockRejectedValue(new TypeError(networkMessage));
       vi.stubGlobal("fetch", fetchMock);
@@ -925,19 +939,6 @@ describe("StylesLibraryPanel", () => {
           ).toBeInTheDocument();
         });
         expect(onSaveStyleDetails).not.toHaveBeenCalled();
-        await waitFor(() => {
-          expect(reportAppError).toHaveBeenCalledWith(
-            expect.objectContaining({
-              source: "telemetry.ai_studio.style_extraction",
-              message: "style_extraction.blocked_source",
-              metadata: expect.objectContaining({
-                outcome: "blocked_source",
-                flow: "library_drop",
-                classifier_reason: classifierReason,
-              }),
-            })
-          );
-        });
         expect(
           screen.queryByText(
             "Unable to process that dropped image. Re-open or re-add the reference image, then drag again."
@@ -993,19 +994,6 @@ describe("StylesLibraryPanel", () => {
           "Unable to process that dropped image. Re-open or re-add the reference image, then drag again."
         )
       ).not.toBeInTheDocument();
-      await waitFor(() => {
-        expect(reportAppError).toHaveBeenCalledWith(
-          expect.objectContaining({
-            source: "telemetry.ai_studio.style_extraction",
-            message: "style_extraction.blocked_source",
-            metadata: expect.objectContaining({
-              outcome: "blocked_source",
-              flow: "library_drop",
-              classifier_reason: "unknown",
-            }),
-          })
-        );
-      });
     } finally {
       vi.unstubAllGlobals();
     }

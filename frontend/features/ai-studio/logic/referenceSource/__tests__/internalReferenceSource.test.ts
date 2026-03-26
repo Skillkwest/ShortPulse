@@ -1,7 +1,11 @@
+/**
+ * Unit tests for the shared internal reference source contract.
+ * Verifies app-owned references resolve to lazy blob authority without relying on preview URLs.
+ */
 import { describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../../types";
 import type { InternalReferenceDragPayload } from "../../../utils/dragDrop";
-import { resolveStyleInternalDropCandidates } from "../internalDropResolver";
+import { resolveInternalReferenceSource } from "../internalReferenceSource";
 
 const makePayload = (
   overrides: Partial<InternalReferenceDragPayload> = {}
@@ -35,11 +39,11 @@ const makeImageOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
     ...overrides,
   }) as StudioOutput;
 
-describe("resolveStyleInternalDropCandidates", () => {
-  it("resolves one internal source descriptor from existing output state", async () => {
+describe("resolveInternalReferenceSource", () => {
+  it("resolves app-owned output state into a shared authoritative source contract", async () => {
     const output = makeImageOutput();
 
-    const resolved = await resolveStyleInternalDropCandidates({
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload(),
       getOutputById: () => output,
       getOutputSnapshot: () => ({
@@ -60,6 +64,7 @@ describe("resolveStyleInternalDropCandidates", () => {
     expect(resolved).toEqual(
       expect.objectContaining({
         kind: "internal",
+        sourceKind: "generated_output",
         sourceId: "media-1",
         outputId: "out-1",
         mediaId: "media-1",
@@ -67,6 +72,9 @@ describe("resolveStyleInternalDropCandidates", () => {
         previewStoragePath: "user-1/generations/images/out-1-preview.png",
         fullStoragePath: "user-1/generations/images/out-1-full.png",
         promptText: "cinematic portrait",
+        preview: {
+          url: "https://cdn.example.com/out-1-preview.png",
+        },
       })
     );
     expect(resolved?.provenance).toEqual({
@@ -80,14 +88,14 @@ describe("resolveStyleInternalDropCandidates", () => {
     await expect(resolved?.loadBlob()).rejects.toBeTruthy();
   });
 
-  it("awaits persistence and uses persisted delivery storage when available", async () => {
+  it("awaits persistence metadata before falling back to weaker compatibility hints", async () => {
     const output = makeImageOutput({
       savedMediaIds: [],
       previewStoragePath: null,
       fullStoragePath: null,
     });
 
-    const resolved = await resolveStyleInternalDropCandidates({
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload(),
       getOutputById: () => output,
       getOutputSnapshot: () => ({
@@ -110,13 +118,45 @@ describe("resolveStyleInternalDropCandidates", () => {
       resolveSavedMediaIdFromOutput: (row) => row?.savedMediaIds?.[0] ?? null,
     });
 
+    expect(resolved?.sourceKind).toBe("generated_output");
     expect(resolved?.provenance.resolutionReason).toBe("persisted_delivery");
     expect(resolved?.previewStoragePath).toBe("user-1/generations/images/out-1-preview.png");
     expect(resolved?.fullStoragePath).toBe("user-1/generations/images/out-1-full.png");
   });
 
-  it("falls back to media-id lookup when the output row is missing", async () => {
-    const resolved = await resolveStyleInternalDropCandidates({
+  it("preserves local upload authority through lazy blob fallback instead of preview-url ranking", async () => {
+    const output = makeImageOutput({
+      mediaSource: "upload",
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      localObjectUrl: "blob:local-style-source",
+    });
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({ mediaId: null }),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved?.sourceKind).toBe("local_file");
+    expect(resolved?.provenance.resolutionReason).toBe("local_object_url");
+  });
+
+  it("keeps compatibility fallback for unresolved media-library-backed references", async () => {
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload({
         outputId: "out-missing",
         mediaId: "media-lookup",
@@ -141,6 +181,7 @@ describe("resolveStyleInternalDropCandidates", () => {
     expect(resolved).toEqual(
       expect.objectContaining({
         kind: "internal",
+        sourceKind: "media_library",
         sourceId: "media-lookup",
         outputId: "out-missing",
         mediaId: "media-lookup",
@@ -150,7 +191,7 @@ describe("resolveStyleInternalDropCandidates", () => {
   });
 
   it("returns null when no internal identity or compatibility hint can be resolved", async () => {
-    const resolved = await resolveStyleInternalDropCandidates({
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload({
         outputId: null,
         referenceId: null,

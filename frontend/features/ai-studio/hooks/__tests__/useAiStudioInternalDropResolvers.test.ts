@@ -11,18 +11,18 @@ import {
   useAiStudioInternalDropResolvers,
 } from "../useAiStudioInternalDropResolvers";
 
-const { resolveMediaLibraryInternalDropResolverMock, resolveStyleInternalDropCandidatesMock } =
+const { resolveMediaLibraryInternalDropResolverMock, resolveInternalReferenceSourceMock } =
   vi.hoisted(() => ({
     resolveMediaLibraryInternalDropResolverMock: vi.fn(),
-    resolveStyleInternalDropCandidatesMock: vi.fn(),
+    resolveInternalReferenceSourceMock: vi.fn(),
   }));
 
 vi.mock("../../logic/mediaLibraryInternalDropResolver", () => ({
   resolveMediaLibraryInternalDropResolver: resolveMediaLibraryInternalDropResolverMock,
 }));
 
-vi.mock("../../components/style-creator/internalDropResolver", () => ({
-  resolveStyleInternalDropCandidates: resolveStyleInternalDropCandidatesMock,
+vi.mock("../../logic/referenceSource/internalReferenceSource", () => ({
+  resolveInternalReferenceSource: resolveInternalReferenceSourceMock,
 }));
 
 const makePayload = (
@@ -57,7 +57,7 @@ const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
 describe("useAiStudioInternalDropResolvers", () => {
   beforeEach(() => {
     resolveMediaLibraryInternalDropResolverMock.mockReset();
-    resolveStyleInternalDropCandidatesMock.mockReset();
+    resolveInternalReferenceSourceMock.mockReset();
   });
 
   it("resolves saved media ids by requested index with first-id fallback", () => {
@@ -176,10 +176,27 @@ describe("useAiStudioInternalDropResolvers", () => {
   it("delegates media-library and style internal-drop resolution with shared timeout policy", async () => {
     const output = makeOutput();
     resolveMediaLibraryInternalDropResolverMock.mockResolvedValue({ kind: "media", id: "media-1" });
-    resolveStyleInternalDropCandidatesMock.mockResolvedValue({
-      managedStoragePath: "user-1/generations/images/result-0.png",
-      imageUrlCandidates: ["https://cdn.example.com/result-0.png"],
+    resolveInternalReferenceSourceMock.mockResolvedValue({
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "media-0",
+      outputId: "out-1",
+      mediaId: "media-0",
+      preview: {
+        url: "https://cdn.example.com/preview.png",
+      },
+      previewStoragePath: "user-1/generations/images/result-0.png",
+      fullStoragePath: "user-1/generations/images/result-0.png",
       promptText: "User visible prompt",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-0",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path",
+      },
+      loadBlob: vi.fn(),
     });
     const ensureOutputPersisted = vi.fn(async () => ({
       ok: true,
@@ -211,8 +228,9 @@ describe("useAiStudioInternalDropResolvers", () => {
     });
     await expect(result.current.resolveStyleLibraryInternalDrop(makePayload())).resolves.toEqual(
       expect.objectContaining({
-        managedStoragePath: "user-1/generations/images/result-0.png",
-        imageUrlCandidates: ["https://cdn.example.com/result-0.png"],
+        kind: "internal",
+        sourceId: "media-0",
+        previewStoragePath: "user-1/generations/images/result-0.png",
         promptText: "User visible prompt",
       })
     );
@@ -226,7 +244,7 @@ describe("useAiStudioInternalDropResolvers", () => {
         pollIntervalMs: 120,
       })
     );
-    expect(resolveStyleInternalDropCandidatesMock).toHaveBeenCalledWith(
+    expect(resolveInternalReferenceSourceMock).toHaveBeenCalledWith(
       expect.objectContaining({
         getOutputById: expect.any(Function),
         getOutputSnapshot: expect.any(Function),
@@ -235,7 +253,7 @@ describe("useAiStudioInternalDropResolvers", () => {
     );
 
     const mediaArgs = resolveMediaLibraryInternalDropResolverMock.mock.calls[0]?.[0];
-    const styleArgs = resolveStyleInternalDropCandidatesMock.mock.calls[0]?.[0];
+    const styleArgs = resolveInternalReferenceSourceMock.mock.calls[0]?.[0];
     expect(mediaArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
     expect(styleArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
   });

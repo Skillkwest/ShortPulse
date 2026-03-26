@@ -70,6 +70,53 @@ describe("useAiStudioInternalDropResolvers", () => {
 
   it("resolves character drops from payload media ids or output saved media ids", async () => {
     const output = makeOutput();
+    resolveInternalReferenceSourceMock
+      .mockResolvedValueOnce({
+        kind: "internal",
+        sourceKind: "generated_output",
+        sourceId: "payload-media",
+        outputId: "out-1",
+        mediaId: "payload-media",
+        preview: {
+          url: "https://cdn.example.com/payload-preview.png",
+        },
+        previewStoragePath: "user-1/generations/images/payload-preview.png",
+        fullStoragePath: "user-1/generations/images/payload-full.png",
+        promptText: "User visible prompt",
+        provenance: {
+          origin: "ai-studio-reference-grid",
+          outputId: "out-1",
+          mediaId: "payload-media",
+          imageIndex: 0,
+          sourceSurface: "all-refs",
+          resolutionReason: "saved_media_lookup",
+        },
+        preparedImageUrl: "https://signed.example.com/payload-full.png",
+        loadBlob: vi.fn(),
+      })
+      .mockResolvedValueOnce({
+        kind: "internal",
+        sourceKind: "generated_output",
+        sourceId: "media-1",
+        outputId: "out-1",
+        mediaId: "media-1",
+        preview: {
+          url: "https://cdn.example.com/preview.png",
+        },
+        previewStoragePath: "user-1/generations/images/result-1-preview.png",
+        fullStoragePath: "user-1/generations/images/result-1.png",
+        promptText: "User visible prompt",
+        provenance: {
+          origin: "ai-studio-reference-grid",
+          outputId: "out-1",
+          mediaId: "media-1",
+          imageIndex: 1,
+          sourceSurface: "all-refs",
+          resolutionReason: "output_storage_path",
+        },
+        preparedImageUrl: "https://signed.example.com/result-1.png",
+        loadBlob: vi.fn(),
+      });
     const { result } = renderHook(() =>
       useAiStudioInternalDropResolvers({
         getOutputById: () => output,
@@ -101,6 +148,8 @@ describe("useAiStudioInternalDropResolvers", () => {
         mediaId: "payload-media",
         outputId: "out-1",
         imageIndex: 0,
+        previewUrl: "https://signed.example.com/payload-full.png",
+        storagePath: "user-1/generations/images/payload-full.png",
       })
     );
 
@@ -109,7 +158,8 @@ describe("useAiStudioInternalDropResolvers", () => {
     ).resolves.toEqual(
       expect.objectContaining({
         mediaId: "media-1",
-        previewUrl: "https://cdn.example.com/preview.png",
+        previewUrl: "https://signed.example.com/result-1.png",
+        storagePath: "user-1/generations/images/result-1.png",
         sourceSurface: "all-refs",
       })
     );

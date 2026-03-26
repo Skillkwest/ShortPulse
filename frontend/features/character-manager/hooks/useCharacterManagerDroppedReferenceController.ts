@@ -37,6 +37,10 @@ type UseCharacterManagerDroppedReferenceControllerParams = {
   quickSwapMutating: boolean;
   clearAllMessages: () => void;
   appendQuickSwapFiles: (files: File[]) => Promise<boolean>;
+  appendQuickSwapExistingMediaReference?: (
+    mediaFileId: string,
+    options?: { suppressError?: boolean }
+  ) => Promise<boolean>;
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<unknown>;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   hasQuickSwapMediaFileId: (mediaId: string) => boolean;
@@ -104,6 +108,13 @@ const resolveDroppedStorageCandidates = async (
   reference: DroppedImageReference
 ): Promise<DroppedStorageCandidate[]> => {
   const candidates: DroppedStorageCandidate[] = [];
+  const explicitStoragePath = reference.storagePath?.trim() ?? "";
+  if (explicitStoragePath) {
+    candidates.push({
+      bucket: MEDIA_BUCKET,
+      storagePath: explicitStoragePath,
+    });
+  }
   const urlCandidate = parseDroppedStorageCandidateFromUrl(reference.url);
   if (urlCandidate) {
     candidates.push(urlCandidate);
@@ -238,6 +249,7 @@ export const useCharacterManagerDroppedReferenceController = ({
   quickSwapMutating,
   clearAllMessages,
   appendQuickSwapFiles,
+  appendQuickSwapExistingMediaReference,
   setCharacterSheetPresetFile,
   resolveCharacterDropReference,
   hasQuickSwapMediaFileId,
@@ -355,6 +367,7 @@ export const useCharacterManagerDroppedReferenceController = ({
           ...resolved,
           mediaId,
           previewUrl,
+          storagePath: resolved?.storagePath?.trim() || null,
           outputId: resolved?.outputId ?? payload.outputId,
           imageIndex: resolved?.imageIndex ?? payload.imageIndex,
           sourceSurface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
@@ -489,6 +502,7 @@ export const useCharacterManagerDroppedReferenceController = ({
             url: previewUrl,
             mimeType: null,
             mediaFileId: resolvedMediaId || null,
+            storagePath: resolvedReference.storagePath ?? null,
           });
           return;
         } finally {
@@ -537,6 +551,13 @@ export const useCharacterManagerDroppedReferenceController = ({
           if (!resolvedReference) return;
           const mediaId = resolvedReference.mediaId.trim();
           if (hasQuickSwapMediaFileId(mediaId)) return;
+          if (mediaId && appendQuickSwapExistingMediaReference) {
+            clearAllMessages();
+            const attached = await appendQuickSwapExistingMediaReference(mediaId, {
+              suppressError: true,
+            });
+            if (attached) return;
+          }
           let previewUrl = resolvedReference.previewUrl?.trim() || null;
           if (!previewUrl && mediaId) {
             const mediaReference = await resolveMediaReferenceById(mediaId);
@@ -569,6 +590,7 @@ export const useCharacterManagerDroppedReferenceController = ({
               url: previewUrl,
               mimeType: null,
               mediaFileId: mediaId || null,
+              storagePath: resolvedReference.storagePath ?? null,
             },
             {
               suppressErrorTelemetry: true,
@@ -618,9 +640,11 @@ export const useCharacterManagerDroppedReferenceController = ({
       await ingestQuickSwapDroppedReference(droppedReference);
     },
     [
+      appendQuickSwapExistingMediaReference,
       hasQuickSwapMediaFileId,
       ingestQuickSwapDroppedReference,
       logCharacterDropBreadcrumb,
+      clearAllMessages,
       resolveCharacterDropReference,
       resolveInternalCharacterDrop,
       resolveMediaReferenceById,

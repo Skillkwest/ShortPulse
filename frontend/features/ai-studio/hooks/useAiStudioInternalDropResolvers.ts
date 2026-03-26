@@ -63,32 +63,38 @@ export const useAiStudioInternalDropResolvers = ({
 } => {
   const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
     async (payload: InternalReferenceDragPayload) => {
-      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const resolvedSource = await resolveInternalReferenceSource({
+        payload,
+        getOutputById,
+        getOutputSnapshot,
+        ensureOutputPersisted,
+        resolveSavedMediaIdFromOutput,
+      });
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim() || null;
       const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
-      const payloadMediaId = payload.mediaId?.trim() || null;
-      const output = outputId ? getOutputById(outputId) : null;
-      const existingMediaId = resolveSavedMediaIdFromOutput(output, imageIndex);
-      const resolvedMediaId = payloadMediaId ?? existingMediaId;
-
-      if (resolvedMediaId) {
+      if (!resolvedSource) {
         return {
-          mediaId: resolvedMediaId,
-          previewUrl: output?.previewUrl ?? payload.referenceUrl ?? null,
-          outputId: outputId || null,
+          mediaId: payload.mediaId?.trim() || "",
+          previewUrl: payload.referenceUrl ?? null,
+          outputId,
           imageIndex,
           sourceSurface: payload.sourceSurface ?? null,
         };
       }
-
       return {
-        mediaId: "",
-        previewUrl: output?.previewUrl ?? payload.referenceUrl ?? null,
-        outputId: outputId || null,
-        imageIndex,
-        sourceSurface: payload.sourceSurface ?? null,
+        mediaId: resolvedSource.mediaId?.trim() || "",
+        previewUrl:
+          resolvedSource.preparedImageUrl ??
+          resolvedSource.preview.url ??
+          payload.referenceUrl ??
+          null,
+        storagePath: resolvedSource.fullStoragePath ?? resolvedSource.previewStoragePath ?? null,
+        outputId: resolvedSource.outputId ?? outputId,
+        imageIndex: resolvedSource.provenance.imageIndex,
+        sourceSurface: resolvedSource.provenance.sourceSurface ?? payload.sourceSurface ?? null,
       };
     },
-    [getOutputById]
+    [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );
 
   const resolveCanvasDropReference = useCallback<ResolveCanvasDropReference>(

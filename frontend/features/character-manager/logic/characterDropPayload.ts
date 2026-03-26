@@ -11,6 +11,7 @@ export type DroppedImageReference = {
   url: string;
   mimeType: string | null;
   mediaFileId: string | null;
+  storagePath?: string | null;
 };
 
 /**

@@ -1278,64 +1278,59 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("accepts an internal reference-grid drop into QuickSwap even when URL host is unallowlisted", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      blob: async () => new Blob(["internal"], { type: "image/png" }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-quickswap-1",
       previewUrl: "https://example.com/unallowlisted-quickswap.png",
+      storagePath: "user-1/generations/internal-quickswap-1.png",
       outputId: "output-internal-quickswap-1",
       imageIndex: 0,
       sourceSurface: "all-refs" as const,
     }));
 
-    try {
-      render(
-        <CharacterManagerShell
-          resolveCharacterDropReference={resolveCharacterDropReference}
-          surface="panel"
-        />
-      );
+    render(
+      <CharacterManagerShell
+        resolveCharacterDropReference={resolveCharacterDropReference}
+        surface="panel"
+      />
+    );
 
-      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
-      if (!quickSwapSection) {
-        throw new Error("Unable to resolve QuickSwap deck section.");
-      }
-      const internalDrag = createDataTransfer();
-      addInternalReferenceDragPayload(internalDrag, {
-        outputId: "output-internal-quickswap-1",
-        mediaId: "media-internal-quickswap-1",
-        sourceSurface: "all-refs",
-        referenceUrl: "https://example.com/unallowlisted-quickswap.png",
-      });
-      internalDrag.setData("text/reference-url", "https://example.com/unallowlisted-quickswap.png");
-
-      fireEvent.dragEnter(quickSwapSection, { dataTransfer: internalDrag });
-      fireEvent.dragOver(quickSwapSection, { dataTransfer: internalDrag });
-      fireEvent.drop(quickSwapSection, { dataTransfer: internalDrag });
-
-      await waitFor(() => {
-        expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).toHaveBeenCalledWith("https://example.com/unallowlisted-quickswap.png");
-        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
-      });
-    } finally {
-      vi.unstubAllGlobals();
+    const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+    if (!quickSwapSection) {
+      throw new Error("Unable to resolve QuickSwap deck section.");
     }
+    const internalDrag = createDataTransfer();
+    addInternalReferenceDragPayload(internalDrag, {
+      outputId: "output-internal-quickswap-1",
+      mediaId: "media-internal-quickswap-1",
+      sourceSurface: "all-refs",
+      referenceUrl: "https://example.com/unallowlisted-quickswap.png",
+    });
+    internalDrag.setData("text/reference-url", "https://example.com/unallowlisted-quickswap.png");
+
+    fireEvent.dragEnter(quickSwapSection, { dataTransfer: internalDrag });
+    fireEvent.dragOver(quickSwapSection, { dataTransfer: internalDrag });
+    fireEvent.drop(quickSwapSection, { dataTransfer: internalDrag });
+
+    await waitFor(() => {
+      expect(resolveCharacterDropReference).toHaveBeenCalled();
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+    });
   });
 
-  it("falls back to URL upload when internal QuickSwap media attach fails", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      blob: async () => new Blob(["internal-fallback"], { type: "image/png" }),
-    }));
+  it("falls back to storage-backed upload when internal QuickSwap media attach fails", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
     vi.stubGlobal("fetch", fetchMock);
     quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(async () => false);
+    supabaseClientMockState.storageDownload.mockResolvedValueOnce({
+      data: new Blob(["internal-fallback"], { type: "image/png" }),
+      error: null,
+    });
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-fallback-1",
       previewUrl: "https://example.com/internal-fallback-quickswap.png",
+      storagePath: "user-1/generations/internal-fallback-quickswap.png",
       outputId: "output-internal-fallback-1",
       imageIndex: 0,
       sourceSurface: "all-refs" as const,
@@ -1373,6 +1368,9 @@ describe("CharacterManagerShell behavior", () => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
         expect(fetchMock).toHaveBeenCalledWith(
           "https://example.com/internal-fallback-quickswap.png"
+        );
+        expect(supabaseClientMockState.storageDownload).toHaveBeenCalledWith(
+          "user-1/generations/internal-fallback-quickswap.png"
         );
         expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
       });
@@ -1431,61 +1429,50 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("keeps QuickSwap droppable when dragover only exposes internal token hints", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      blob: async () => new Blob(["internal-token-hint"], { type: "image/png" }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-token-hint-1",
       previewUrl: "https://example.com/internal-token-hint-quickswap.png",
+      storagePath: "user-1/generations/internal-token-hint-quickswap.png",
       outputId: "output-internal-token-hint-1",
       imageIndex: 0,
       sourceSurface: "all-refs" as const,
     }));
 
-    try {
-      render(
-        <CharacterManagerShell
-          resolveCharacterDropReference={resolveCharacterDropReference}
-          surface="panel"
-        />
-      );
+    render(
+      <CharacterManagerShell
+        resolveCharacterDropReference={resolveCharacterDropReference}
+        surface="panel"
+      />
+    );
 
-      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
-      if (!quickSwapSection) {
-        throw new Error("Unable to resolve QuickSwap deck section.");
-      }
-
-      const dragOverTransfer = createDataTransfer();
-      dragOverTransfer.setData("text/reference-drag-token", "");
-      dragOverTransfer.setData("text/reference-output-id", "");
-
-      fireEvent.dragEnter(quickSwapSection, { dataTransfer: dragOverTransfer });
-      fireEvent.dragOver(quickSwapSection, { dataTransfer: dragOverTransfer });
-
-      expect(screen.getByText("Drop reference images here")).toBeInTheDocument();
-
-      const dropTransfer = createDataTransfer();
-      addInternalReferenceDragPayload(dropTransfer, {
-        outputId: "output-internal-token-hint-1",
-        mediaId: "media-internal-token-hint-1",
-        sourceSurface: "all-refs",
-        referenceUrl: "https://example.com/internal-token-hint-quickswap.png",
-      });
-
-      fireEvent.drop(quickSwapSection, { dataTransfer: dropTransfer });
-
-      await waitFor(() => {
-        expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).toHaveBeenCalledWith(
-          "https://example.com/internal-token-hint-quickswap.png"
-        );
-        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
-      });
-    } finally {
-      vi.unstubAllGlobals();
+    const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+    if (!quickSwapSection) {
+      throw new Error("Unable to resolve QuickSwap deck section.");
     }
+
+    const dragOverTransfer = createDataTransfer();
+    dragOverTransfer.setData("text/reference-drag-token", "");
+    dragOverTransfer.setData("text/reference-output-id", "");
+
+    fireEvent.dragEnter(quickSwapSection, { dataTransfer: dragOverTransfer });
+    fireEvent.dragOver(quickSwapSection, { dataTransfer: dragOverTransfer });
+
+    expect(screen.getByText("Drop reference images here")).toBeInTheDocument();
+
+    const dropTransfer = createDataTransfer();
+    addInternalReferenceDragPayload(dropTransfer, {
+      outputId: "output-internal-token-hint-1",
+      mediaId: "media-internal-token-hint-1",
+      sourceSurface: "all-refs",
+      referenceUrl: "https://example.com/internal-token-hint-quickswap.png",
+    });
+
+    fireEvent.drop(quickSwapSection, { dataTransfer: dropTransfer });
+
+    await waitFor(() => {
+      expect(resolveCharacterDropReference).toHaveBeenCalled();
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+    });
   });
 
   it("shows a pending QuickSwap overlay state while internal drop attachment is in flight", async () => {
@@ -1501,6 +1488,7 @@ describe("CharacterManagerShell behavior", () => {
         })
     );
     vi.stubGlobal("fetch", fetchMock);
+    quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(async () => false);
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-pending-1",
       previewUrl: "https://example.com/unallowlisted-pending.png",

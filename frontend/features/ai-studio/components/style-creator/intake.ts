@@ -947,6 +947,11 @@ export const resolveStyleSource = async ({
   let resolutionStage: "primary" | "server_copy_fallback" = "primary";
   let candidateCount = 0;
   let serverCopyAttempted = false;
+  let recoverySnapshot: StyleDropSnapshot | null = null;
+  let recoveryInternalDropPayload: InternalReferenceDragPayload | null = null;
+  let recoveryInternalDropResolution: ResolvedInternalStyleDrop | null = null;
+  let recoverySnapshotServerCopySourceUrls: string[] = [];
+  let recoveryPromptText = "";
   try {
     if (file) {
       if (!isImageFileCandidate(file)) {
@@ -966,6 +971,7 @@ export const resolveStyleSource = async ({
     }
 
     const snapshot = dropSnapshot ?? (transfer ? captureStyleDropSnapshot(transfer) : null);
+    recoverySnapshot = snapshot;
 
     if (!snapshot) {
       throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
@@ -990,10 +996,12 @@ export const resolveStyleSource = async ({
     const transferLikeSnapshot = buildStyleDropSnapshotTransfer(snapshot);
 
     const internalDropPayload = extractInternalReferenceDragPayload(transferLikeSnapshot);
+    recoveryInternalDropPayload = internalDropPayload;
     const internalDropResolution =
       internalDropPayload && resolveInternalStyleDrop
         ? await resolveInternalStyleDrop(internalDropPayload).catch(() => null)
         : null;
+    recoveryInternalDropResolution = internalDropResolution;
     resolutionReason = internalDropResolution?.resolutionReason ?? null;
     const dragPayload = extractDragDropPayload(transferLikeSnapshot);
     const internalResolvedCandidates = internalDropResolution?.imageUrlCandidates ?? [];
@@ -1018,6 +1026,7 @@ export const resolveStyleSource = async ({
       internalDropPayload,
       dragPayloadImageUrl: dragPayload.imageUrl,
     });
+    recoverySnapshotServerCopySourceUrls = snapshotServerCopySourceUrls;
     const sourceUrls = dedupeStyleSourceUrls([
       internalPrimarySourceUrl,
       payloadRenderedSourceUrl,
@@ -1031,6 +1040,7 @@ export const resolveStyleSource = async ({
     }
     const fallbackPromptText = normalizeStylePromptFallbackText(dragPayload.promptText);
     const internalPromptText = normalizeStylePromptFallbackText(internalDropResolution?.promptText);
+    recoveryPromptText = fallbackPromptText || internalPromptText;
     let sourceImageDataUrl: string | null = null;
     let lastReadError: unknown = null;
     if (managedStoragePath) {
@@ -1093,7 +1103,7 @@ export const resolveStyleSource = async ({
     return {
       kind: internalDropPayload ? "internal" : "external",
       sourceImageDataUrl,
-      promptText: fallbackPromptText || internalPromptText,
+      promptText: recoveryPromptText,
       internalPayloadPresent: Boolean(internalDropPayload),
       resolutionReason,
       resolutionStage,
@@ -1101,6 +1111,52 @@ export const resolveStyleSource = async ({
       serverCopyAttempted,
     };
   } catch (error) {
+    const recoveryServerCopySourceUrls =
+      recoverySnapshotServerCopySourceUrls.length > 0
+        ? recoverySnapshotServerCopySourceUrls
+        : recoverySnapshot && recoveryInternalDropPayload
+          ? collectSnapshotServerCopySourceUrls({
+              snapshot: recoverySnapshot,
+              internalDropPayload: recoveryInternalDropPayload,
+              dragPayloadImageUrl: null,
+            })
+          : [];
+    if (
+      !serverCopyAttempted &&
+      recoveryInternalDropPayload &&
+      STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED &&
+      recoveryServerCopySourceUrls.length > 0
+    ) {
+      resolutionStage = "server_copy_fallback";
+      serverCopyAttempted = true;
+      candidateCount = Math.max(candidateCount, recoveryServerCopySourceUrls.length);
+      for (const sourceUrl of recoveryServerCopySourceUrls) {
+        const fallbackUrl = await resolveFallbackImageUrlViaServerCopy({
+          sourceUrl,
+          payload: recoveryInternalDropPayload,
+          resolvedInternalDrop: recoveryInternalDropResolution,
+          classifierReason:
+            normalizeStyleDropPreviewError(error).classifierReason ?? "missing_drop_payload",
+        }).catch(() => null);
+        if (!fallbackUrl) continue;
+        resolutionReason = "server_copy_delivery";
+        try {
+          const sourceImageDataUrl = await readDroppedImageDataUrlWithRefreshFallback(fallbackUrl);
+          return {
+            kind: "internal",
+            sourceImageDataUrl,
+            promptText: recoveryPromptText,
+            internalPayloadPresent: true,
+            resolutionReason,
+            resolutionStage,
+            candidateCount,
+            serverCopyAttempted,
+          };
+        } catch {
+          // Continue trying remaining copy sources before surfacing the original failure.
+        }
+      }
+    }
     const normalizedError = normalizeStyleDropPreviewError(error);
     throw createStyleDropPreviewError(normalizedError.code, normalizedError.classifierReason, {
       resolutionReason,

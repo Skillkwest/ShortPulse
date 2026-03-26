@@ -10,6 +10,7 @@ import {
   registerInternalReferenceDragSession,
 } from "../../../../../lib/internalReferenceDragSession";
 import { ensureSupabaseClient } from "../../../../../lib/supabaseClient";
+import * as dragDropModule from "../../../utils/dragDrop";
 import * as imageUploadModule from "../../../utils/imageUpload";
 import {
   canAcceptStyleLibraryImageDropHint,
@@ -1117,6 +1118,99 @@ describe("style-creator intake preprocessing", () => {
         "https://cdn.example.com/copied-library-reference-2.png"
       );
     } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("recovers via server-copy from internal snapshot urls when the primary intake lane throws early", async () => {
+    installImageAndCanvasMocks({
+      width: 1200,
+      height: 900,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-render-url",
+        "text/reference-url",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "library-out-3";
+        if (type === "text/reference-render-url") {
+          return "https://cdn.example.com/library-rendered-reference-3.png";
+        }
+        if (type === "text/reference-url") {
+          return "https://cdn.example.com/library-reference-3.png";
+        }
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "https://cdn.example.com/copied-library-reference-3.png") {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "image/png" },
+          blob: async () => new Blob(["mock-image-bytes"], { type: "image/png" }),
+        };
+      }
+      throw new TypeError("Failed to fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(fetchWithAuth).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        delivery: {
+          previewUrl: "https://cdn.example.com/copied-library-reference-3.png",
+          fullUrl: "https://cdn.example.com/copied-library-reference-3.png",
+        },
+      }),
+    } as unknown as Response);
+    const extractDragDropPayloadSpy = vi
+      .spyOn(dragDropModule, "extractDragDropPayload")
+      .mockImplementation(() => {
+        throw new Error("synthetic primary-intake failure");
+      });
+
+    try {
+      const resolved = await resolveDroppedStylePreview(transfer, {
+        resolveInternalStyleDrop: async () => ({
+          imageUrlCandidates: [],
+          fallbackSourceUrls: [],
+          primarySourceUrl: null,
+          promptText: "internal prompt",
+          serverCopyHints: {
+            outputId: "library-out-3",
+            mediaId: "media-library-3",
+            imageIndex: 0,
+            generationId: null,
+            taskId: null,
+            previewStoragePathHint: null,
+            fullStoragePathHint: null,
+            previewUrlHint: "https://cdn.example.com/library-reference-3.png",
+            fullUrlHint: "https://cdn.example.com/library-reference-3.png",
+          },
+        }),
+      });
+      expect(resolved.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+      expect(resolved.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+      expect(fetchWithAuth).toHaveBeenCalledWith(
+        "/api/media/copy-from-url",
+        expect.objectContaining({
+          method: "POST",
+          shortpulseLogScope: "generation",
+          shortpulseSkipErrorLogging: true,
+        })
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://cdn.example.com/copied-library-reference-3.png"
+      );
+    } finally {
+      extractDragDropPayloadSpy.mockRestore();
       vi.unstubAllGlobals();
     }
   });

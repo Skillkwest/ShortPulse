@@ -469,11 +469,20 @@ export function CharacterManagerShell({
     return Boolean(transfer.files?.length);
   }, []);
 
-  const isDroppedImageReferenceEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
-    if (hasInternalReferenceDragTypeHints(event.dataTransfer)) return true;
-    if (extractInternalReferenceDragPayload(event.dataTransfer)) return true;
-    return hasDroppedImageReferenceTransfer(event.dataTransfer);
+  const isInternalReferenceDragEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
+    return (
+      hasInternalReferenceDragTypeHints(event.dataTransfer) ||
+      Boolean(extractInternalReferenceDragPayload(event.dataTransfer))
+    );
   }, []);
+
+  const isDroppedImageReferenceEvent = useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      if (isInternalReferenceDragEvent(event)) return true;
+      return hasDroppedImageReferenceTransfer(event.dataTransfer);
+    },
+    [isInternalReferenceDragEvent]
+  );
 
   const getCharacterInitials = useCallback((name: string) => {
     const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -893,6 +902,12 @@ export function CharacterManagerShell({
                     fileDragDepthRef.current = 0;
                     setIsDropActive(false);
                     if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
+                    if (isInternalReferenceDragEvent(event)) {
+                      void handleQuickSwapReferenceDrop(event.dataTransfer).finally(() => {
+                        setIsDropActive(false);
+                      });
+                      return;
+                    }
                     const files = event.dataTransfer?.files;
                     if (files?.length) {
                       void uploadSimpleFiles(files);

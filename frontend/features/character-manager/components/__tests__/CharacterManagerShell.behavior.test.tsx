@@ -1475,6 +1475,61 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
+  it("routes internal QuickSwap drops through the internal resolver even when a Files payload is present", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("Unexpected fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const appendExistingMediaReferenceImpl = vi.fn(async () => true);
+    quickSwapDeckMockState.appendExistingMediaReferenceImpl = appendExistingMediaReferenceImpl;
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "media-internal-files-payload-1",
+      previewUrl: "https://example.com/internal-files-payload.png",
+      storagePath: "user-1/generations/internal-files-payload.png",
+      outputId: "output-internal-files-payload-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+      const internalDrag = createDataTransfer([
+        new File(["synthetic"], "synthetic.png", { type: "image/png" }),
+      ]);
+      addInternalReferenceDragPayload(internalDrag, {
+        outputId: "output-internal-files-payload-1",
+        mediaId: "media-internal-files-payload-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/internal-files-payload.png",
+      });
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.drop(quickSwapSection, { dataTransfer: internalDrag });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(appendExistingMediaReferenceImpl).toHaveBeenCalledWith(
+          "media-internal-files-payload-1"
+        );
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("shows a pending QuickSwap overlay state while internal drop attachment is in flight", async () => {
     const pendingFetch = {
       resolve: null as

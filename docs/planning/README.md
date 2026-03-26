@@ -62,6 +62,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-reliability-hardening-implementation-entry-checklist-2026-03-20.md`: explicit go/no-go checklist before implementation starts.
 - `generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`: current hourly fleet scheduler cadence contract with daily rollback baseline and promote/hold/rollback criteria.
 - `generation-reliability-hardening-readiness-state-2026-03-20.md`: canonical readiness-state decision register (`hold_with_blockers`, `planning_complete_pending_owner_go`, `ready_for_implementation`).
+- `generation-pipeline-rebuild-blueprint-2026-03-26.md`: canonical rebuild architecture, invariants, and migration sequence for the end-to-end generation pipeline.
+- `generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-26.md`: immediate fail-closed stabilization plan for accepted submit, generated save identity, and linkage telemetry.
 - `generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`: focused execution plan for accepted-submit settlement hardening first, then queue-status/fleet mutation-ownership cleanup with bounded rollout and rollback gates.
 - `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0` through `P9`) with locked constraints, contracts, and exit criteria.
 - `media-rendering-hardening-v2-master-roadmap-2026-03-16.md`: canonical sequencing/dependency roadmap for media rendering hardening workstreams and rollout rings.

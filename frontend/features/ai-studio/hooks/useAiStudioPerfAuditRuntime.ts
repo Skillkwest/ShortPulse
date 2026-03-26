@@ -185,7 +185,11 @@ export function useAiStudioPerfAuditRuntime({
 }: UseAiStudioPerfAuditRuntimeParams): void {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (process.env.NODE_ENV === "production" && !enabled) return;
+    const runtimeEnabled =
+      enabled ||
+      new URLSearchParams(window.location.search).get("perfAuditRuntime")?.trim() === "1";
+    if (process.env.NODE_ENV === "production" && !runtimeEnabled) return;
+    if (!runtimeEnabled) return;
     const perfWindow = window as AiStudioPerfWindow;
     const CLICK_SAMPLES_DEFAULT = 24;
     const DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];

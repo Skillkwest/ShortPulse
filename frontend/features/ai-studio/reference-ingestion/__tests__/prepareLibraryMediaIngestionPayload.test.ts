@@ -176,4 +176,41 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.fullUrl).toBe("https://signed.example.com/full/by-id.jpg");
     expect(result.url).toBe("https://signed.example.com/full/by-id.jpg");
   });
+
+  it("falls back to storage_path-only lookup when preview_storage_path is unavailable in schema cache", async () => {
+    mediaFilesMaybeSingleMock
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message:
+            "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          storage_path: "user-1/full/by-storage-only.jpg",
+        },
+        error: null,
+      });
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/full/by-storage-only.jpg") {
+        return "https://signed.example.com/full/by-storage-only.jpg";
+      }
+      return null;
+    });
+
+    const result = await prepareLibraryMediaIngestionPayload({
+      id: "media-by-storage-only",
+      url: "https://expired.example.com/by-storage-only.jpg",
+      fileType: "image",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+
+    expect(result.previewStoragePath).toBe("user-1/full/by-storage-only.jpg");
+    expect(result.fullStoragePath).toBe("user-1/full/by-storage-only.jpg");
+    expect(result.previewUrl).toBe("https://signed.example.com/full/by-storage-only.jpg");
+    expect(result.fullUrl).toBe("https://signed.example.com/full/by-storage-only.jpg");
+    expect(result.url).toBe("https://signed.example.com/full/by-storage-only.jpg");
+  });
 });

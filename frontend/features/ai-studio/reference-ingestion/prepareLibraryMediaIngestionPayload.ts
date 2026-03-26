@@ -13,11 +13,43 @@ const MEDIA_LIBRARY_BUCKET = "media_library";
 const SIGNED_URL_TTL_SECONDS = 3600;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>["payload"];
+type MediaStoragePathRow = {
+  preview_storage_path?: unknown;
+  storage_path?: unknown;
+};
 
 const normalizeText = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const message =
+    typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message.toLowerCase()
+      : "";
+  return message.includes("preview_storage_path") && message.includes("schema cache");
+};
+
+const resolveStoragePathsFromRow = (
+  row: MediaStoragePathRow | null | undefined
+): {
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+} => {
+  const explicitPreviewStoragePath = asCanonicalStoragePath(
+    typeof row?.preview_storage_path === "string" ? row.preview_storage_path : null
+  );
+  const fullStoragePath =
+    asCanonicalStoragePath(typeof row?.storage_path === "string" ? row.storage_path : null) ??
+    explicitPreviewStoragePath ??
+    null;
+  return {
+    previewStoragePath: explicitPreviewStoragePath ?? fullStoragePath,
+    fullStoragePath,
+  };
 };
 
 const signStoragePath = async (storagePath: string | null): Promise<string | null> => {
@@ -49,25 +81,24 @@ const resolveStoragePathsFromMediaId = async (
   }
   try {
     const supabase = ensureSupabaseClient();
-    const { data, error } = await supabase
-      .from("media_files")
-      .select("preview_storage_path, storage_path")
-      .eq("id", normalizedMediaId)
-      .limit(1)
-      .maybeSingle();
+    const readByColumns = async (columns: "preview_storage_path, storage_path" | "storage_path") =>
+      (await supabase
+        .from("media_files")
+        .select(columns)
+        .eq("id", normalizedMediaId)
+        .limit(1)
+        .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown };
+    let { data, error } = await readByColumns("preview_storage_path, storage_path");
+    if (error && isPreviewStoragePathSchemaError(error)) {
+      ({ data, error } = await readByColumns("storage_path"));
+    }
     if (error) {
       return {
         previewStoragePath: null,
         fullStoragePath: null,
       };
     }
-    const previewStoragePath = asCanonicalStoragePath(data?.preview_storage_path);
-    const fullStoragePath =
-      asCanonicalStoragePath(data?.storage_path) ?? previewStoragePath ?? null;
-    return {
-      previewStoragePath,
-      fullStoragePath,
-    };
+    return resolveStoragePathsFromRow(data);
   } catch {
     return {
       previewStoragePath: null,

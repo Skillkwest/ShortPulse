@@ -2,10 +2,18 @@
  * Unit tests for the shared internal reference source contract.
  * Verifies app-owned references resolve to lazy blob authority without relying on preview URLs.
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import type { InternalReferenceDragPayload } from "../../../utils/dragDrop";
 import { resolveInternalReferenceSource } from "../internalReferenceSource";
+
+const { getSignedMediaUrlMock } = vi.hoisted(() => ({
+  getSignedMediaUrlMock: vi.fn(),
+}));
+
+vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: getSignedMediaUrlMock,
+}));
 
 const makePayload = (
   overrides: Partial<InternalReferenceDragPayload> = {}
@@ -40,6 +48,11 @@ const makeImageOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   }) as StudioOutput;
 
 describe("resolveInternalReferenceSource", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSignedMediaUrlMock.mockResolvedValue(null);
+  });
+
   it("resolves app-owned output state into a shared authoritative source contract", async () => {
     const output = makeImageOutput();
 

@@ -122,6 +122,7 @@ export const getStyleDropPreviewServerCopyAttempted = (error: unknown): boolean 
 export const normalizeStyleDropPreviewError = (
   error: unknown
 ): { code: StyleDropPreviewErrorCode; classifierReason: StyleDropPreviewClassifierReason } => {
+  const explicitClassifierReason = getStyleDropPreviewClassifierReason(error);
   if (error instanceof Error) {
     const message = error.message.trim();
     if (message === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
@@ -130,7 +131,7 @@ export const normalizeStyleDropPreviewError = (
     if (message === BLOCKED_STYLE_IMAGE_SOURCE_ERROR) {
       return {
         code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
-        classifierReason: "network_failed_to_fetch",
+        classifierReason: explicitClassifierReason ?? "network_failed_to_fetch",
       };
     }
     if (message === "missing-dropped-style-image") {
@@ -145,7 +146,7 @@ export const normalizeStyleDropPreviewError = (
   }
   return {
     code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
-    classifierReason: getStyleDropPreviewClassifierReason(error) ?? "unknown",
+    classifierReason: explicitClassifierReason ?? "unknown",
   };
 };
 

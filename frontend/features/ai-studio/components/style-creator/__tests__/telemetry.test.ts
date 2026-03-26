@@ -148,4 +148,31 @@ describe("style-creator telemetry", () => {
     window.__shortpulseStyleSourceResolution?.clear();
     expect(window.__shortpulseStyleSourceResolution?.snapshot()).toEqual([]);
   });
+
+  it("preserves deterministic metadata for unresolved internal-source failures", () => {
+    trackStyleExtractionOutcome("blocked_source", "library_drop", {
+      stage: "preview_source",
+      failureClass: "blocked_source",
+      classifierReason: "internal_source_unresolved",
+      resolutionStage: "primary",
+      resolutionReason: "internal source unresolved",
+      candidateCount: 0,
+      serverCopyAttempted: false,
+      errorMessage: "blocked-style-image-source",
+    });
+
+    expect(reportAppErrorMock).toHaveBeenCalledTimes(1);
+    const payload = reportAppErrorMock.mock.calls[0]?.[0];
+    expect(payload?.metadata).toEqual(
+      expect.objectContaining({
+        stage: "preview_source",
+        failure_class: "blocked_source",
+        classifier_reason: "internal_source_unresolved",
+        resolution_stage: "primary",
+        resolution_reason: "internal_source_unresolved",
+        candidate_count: 0,
+        server_copy_attempted: false,
+      })
+    );
+  });
 });

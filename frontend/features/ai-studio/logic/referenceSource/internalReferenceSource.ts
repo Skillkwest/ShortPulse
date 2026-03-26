@@ -4,6 +4,7 @@
  */
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
+import { getSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../utils/imageUpload";
 import type { PersistOutputSaveResult } from "../../hooks/useAiStudioPersistenceActions";
@@ -16,6 +17,52 @@ type OutputSnapshot = {
   outputById: Record<string, StudioOutput | undefined>;
   archivedOutputById: Record<string, StudioOutput | undefined>;
 };
+
+type InternalReferenceSourceResolutionDebugEntry = {
+  capturedAt: string;
+  origin: string | null;
+  sourceSurface: string | null;
+  outputId: string | null;
+  mediaId: string | null;
+  imageIndex: number;
+  sourceKind: ReferenceSourceKind | null;
+  initialOutputFound: boolean;
+  persistedAttempted: boolean;
+  persistedResolved: boolean;
+  persistedDeliveryPresent: boolean;
+  persistedMediaIdCount: number;
+  outputStoragePathPresent: boolean;
+  mediaLookupAttempted: boolean;
+  mediaLookupResolved: boolean;
+  generationLookupAttempted: boolean;
+  generationLookupResolved: boolean;
+  localObjectUrlPresent: boolean;
+  compatibilityHintUrlPresent: boolean;
+  previewUrlPresent: boolean;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+  resolutionReason: ReferenceSourceResolutionReason;
+  returnedNull: boolean;
+  loadBlobStrategy:
+    | "storage_download"
+    | "signed_storage_url"
+    | "local_object_url"
+    | "compatibility_hint_url"
+    | null;
+  loadBlobOutcome: "pending" | "success" | "error" | null;
+  error: string | null;
+};
+
+type InternalReferenceSourceResolutionDebugHandle = {
+  version: string;
+  snapshot: () => InternalReferenceSourceResolutionDebugEntry[];
+  latest: () => InternalReferenceSourceResolutionDebugEntry | null;
+  clear: () => void;
+};
+
+const INTERNAL_REFERENCE_SOURCE_DEBUG_VERSION = "internal-reference-source-v1";
+const INTERNAL_REFERENCE_SOURCE_DEBUG_LIMIT = 20;
+const internalReferenceSourceDebugBuffer: InternalReferenceSourceResolutionDebugEntry[] = [];
 
 export type ReferenceSourceKind =
   | "local_file"
@@ -80,10 +127,88 @@ type ResolveInternalReferenceSourceArgs = {
 
 const MEDIA_BUCKET = "media_library";
 
+const installInternalReferenceSourceDebugHandle = (): void => {
+  if (typeof window === "undefined") return;
+  if (window.__shortpulseInternalReferenceSourceResolution) return;
+  window.__shortpulseInternalReferenceSourceResolution = {
+    version: INTERNAL_REFERENCE_SOURCE_DEBUG_VERSION,
+    snapshot: () => [...internalReferenceSourceDebugBuffer],
+    latest: () =>
+      internalReferenceSourceDebugBuffer.length
+        ? internalReferenceSourceDebugBuffer[internalReferenceSourceDebugBuffer.length - 1]
+        : null,
+    clear: () => {
+      internalReferenceSourceDebugBuffer.length = 0;
+    },
+  };
+};
+
+const recordInternalReferenceSourceDebugEntry = (
+  entry: InternalReferenceSourceResolutionDebugEntry
+): InternalReferenceSourceResolutionDebugEntry => {
+  internalReferenceSourceDebugBuffer.push(entry);
+  if (internalReferenceSourceDebugBuffer.length > INTERNAL_REFERENCE_SOURCE_DEBUG_LIMIT) {
+    internalReferenceSourceDebugBuffer.splice(
+      0,
+      internalReferenceSourceDebugBuffer.length - INTERNAL_REFERENCE_SOURCE_DEBUG_LIMIT
+    );
+  }
+  installInternalReferenceSourceDebugHandle();
+  return entry;
+};
+
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+type MediaStoragePathRow = {
+  preview_storage_path?: unknown;
+  storage_path?: unknown;
+  metadata?: unknown;
+  created_at?: unknown;
+};
+
+const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const message =
+    typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message.toLowerCase()
+      : "";
+  return message.includes("preview_storage_path") && message.includes("schema cache");
+};
+
+const resolveCanonicalMediaStoragePath = (
+  row: MediaStoragePathRow | null | undefined
+): string | null =>
+  asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path)) ??
+  asCanonicalStoragePath(asTrimmedString(row?.storage_path));
+
+const runMaybeSingleMediaStorageQuery = async <TRow extends MediaStoragePathRow>(args: {
+  runSelect: (
+    columns: "preview_storage_path, storage_path" | "storage_path"
+  ) => Promise<{ data: TRow | null; error: unknown }>;
+}): Promise<TRow | null> => {
+  const primary = await args.runSelect("preview_storage_path, storage_path");
+  if (!primary.error) return primary.data;
+  if (!isPreviewStoragePathSchemaError(primary.error)) return null;
+  const fallback = await args.runSelect("storage_path");
+  return fallback.error ? null : fallback.data;
+};
+
+const runMultiMediaStorageQuery = async <TRow extends MediaStoragePathRow>(args: {
+  runSelect: (
+    columns:
+      | "preview_storage_path, storage_path, metadata, created_at"
+      | "storage_path, metadata, created_at"
+  ) => Promise<{ data: TRow[] | null; error: unknown }>;
+}): Promise<TRow[] | null> => {
+  const primary = await args.runSelect("preview_storage_path, storage_path, metadata, created_at");
+  if (!primary.error) return primary.data;
+  if (!isPreviewStoragePathSchemaError(primary.error)) return null;
+  const fallback = await args.runSelect("storage_path, metadata, created_at");
+  return fallback.error ? null : fallback.data;
 };
 
 const asFiniteOutputIndex = (value: unknown): number | null => {
@@ -128,20 +253,19 @@ const resolveStoragePathByGenerationAndIndex = async ({
 }): Promise<string | null> => {
   const supabase = ensureSupabaseClient();
   const lookupByIndex = async (metadataFilter: Record<string, number>) => {
-    const { data, error } = await supabase
-      .from("media_files")
-      .select("preview_storage_path, storage_path, created_at")
-      .eq("source", "ai_studio")
-      .eq("source_ref", generationId)
-      .contains("metadata", metadataFilter)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) return null;
-    return (
-      asCanonicalStoragePath(asTrimmedString(data?.preview_storage_path)) ??
-      asCanonicalStoragePath(asTrimmedString(data?.storage_path))
-    );
+    const data = await runMaybeSingleMediaStorageQuery({
+      runSelect: async (columns) =>
+        (await supabase
+          .from("media_files")
+          .select(columns)
+          .eq("source", "ai_studio")
+          .eq("source_ref", generationId)
+          .contains("metadata", metadataFilter)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown },
+    });
+    return resolveCanonicalMediaStoragePath(data);
   };
 
   const generationIndexPath = await lookupByIndex({ generation_output_index: imageIndex });
@@ -149,22 +273,22 @@ const resolveStoragePathByGenerationAndIndex = async ({
   const indexPath = await lookupByIndex({ index: imageIndex });
   if (indexPath) return indexPath;
 
-  const { data, error } = await supabase
-    .from("media_files")
-    .select("preview_storage_path, storage_path, metadata, created_at")
-    .eq("source", "ai_studio")
-    .eq("source_ref", generationId)
-    .order("created_at", { ascending: false })
-    .limit(8);
-  if (error || !Array.isArray(data) || !data.length) return null;
+  const data = await runMultiMediaStorageQuery({
+    runSelect: async (columns) =>
+      (await supabase
+        .from("media_files")
+        .select(columns)
+        .eq("source", "ai_studio")
+        .eq("source_ref", generationId)
+        .order("created_at", { ascending: false })
+        .limit(8)) as unknown as { data: MediaStoragePathRow[] | null; error: unknown },
+  });
+  if (!Array.isArray(data) || !data.length) return null;
 
   const indexedRow =
     data.find((row) => resolveMetadataOutputIndex(row?.metadata) === imageIndex) ??
     (data.length === 1 ? data[0] : null);
-  return (
-    asCanonicalStoragePath(asTrimmedString(indexedRow?.preview_storage_path)) ??
-    asCanonicalStoragePath(asTrimmedString(indexedRow?.storage_path))
-  );
+  return resolveCanonicalMediaStoragePath(indexedRow);
 };
 
 const defaultResolveStoragePathFromGenerationOutput = async ({
@@ -189,17 +313,16 @@ const defaultResolveStoragePathFromMediaId = async (mediaId: string): Promise<st
   const normalizedMediaId = mediaId.trim();
   if (!normalizedMediaId) return null;
   const supabase = ensureSupabaseClient();
-  const { data, error } = await supabase
-    .from("media_files")
-    .select("preview_storage_path, storage_path")
-    .eq("id", normalizedMediaId)
-    .limit(1)
-    .maybeSingle();
-  if (error) return null;
-  return (
-    asCanonicalStoragePath(asTrimmedString(data?.preview_storage_path)) ??
-    asCanonicalStoragePath(asTrimmedString(data?.storage_path))
-  );
+  const data = await runMaybeSingleMediaStorageQuery({
+    runSelect: async (columns) =>
+      (await supabase
+        .from("media_files")
+        .select(columns)
+        .eq("id", normalizedMediaId)
+        .limit(1)
+        .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown },
+  });
+  return resolveCanonicalMediaStoragePath(data);
 };
 
 const resolvePayloadOutputId = ({
@@ -304,16 +427,52 @@ export const resolveInternalReferenceSource = async ({
   let resolvedMediaId =
     payload.mediaId?.trim() || resolveSavedMediaIdFromOutput(resolvedOutput, imageIndex) || null;
   let persistedResult: PersistOutputSaveResult | null = null;
+  const debugEntry = recordInternalReferenceSourceDebugEntry({
+    capturedAt: new Date().toISOString(),
+    origin: payload.origin ?? null,
+    sourceSurface: payload.sourceSurface ?? null,
+    outputId: resolvedOutputId || null,
+    mediaId: resolvedMediaId,
+    imageIndex,
+    sourceKind: null,
+    initialOutputFound: Boolean(resolvedOutput),
+    persistedAttempted: false,
+    persistedResolved: false,
+    persistedDeliveryPresent: false,
+    persistedMediaIdCount: 0,
+    outputStoragePathPresent: Boolean(resolvedOutput && resolveOutputStoragePath(resolvedOutput)),
+    mediaLookupAttempted: false,
+    mediaLookupResolved: false,
+    generationLookupAttempted: false,
+    generationLookupResolved: false,
+    localObjectUrlPresent: false,
+    compatibilityHintUrlPresent: false,
+    previewUrlPresent: false,
+    previewStoragePath: null,
+    fullStoragePath: null,
+    resolutionReason: null,
+    returnedNull: false,
+    loadBlobStrategy: null,
+    loadBlobOutcome: null,
+    error: null,
+  });
 
   if (
     resolvedOutputId &&
     (!resolvedOutput || !resolvedMediaId || !resolveOutputStoragePath(resolvedOutput))
   ) {
+    debugEntry.persistedAttempted = true;
     try {
       persistedResult = await ensureOutputPersisted(resolvedOutputId);
+      debugEntry.persistedResolved = true;
+      debugEntry.persistedDeliveryPresent = Boolean(persistedResult.delivery);
+      debugEntry.persistedMediaIdCount = Array.isArray(persistedResult.mediaFileIds)
+        ? persistedResult.mediaFileIds.length
+        : 0;
       const nextOutput = getOutputById(resolvedOutputId);
       if (nextOutput?.mode === "image") {
         resolvedOutput = nextOutput;
+        debugEntry.outputStoragePathPresent = Boolean(resolveOutputStoragePath(nextOutput));
       }
       if (!resolvedMediaId) {
         resolvedMediaId =
@@ -322,6 +481,7 @@ export const resolveInternalReferenceSource = async ({
           resolveSavedMediaIdFromOutput(resolvedOutput, imageIndex) ??
           null;
       }
+      debugEntry.mediaId = resolvedMediaId;
     } catch {
       // Best effort only. Downstream consumers still get deterministic null/error behavior.
     }
@@ -342,15 +502,18 @@ export const resolveInternalReferenceSource = async ({
       : null;
 
   if (!previewStoragePath && !fullStoragePath && resolvedMediaId) {
+    debugEntry.mediaLookupAttempted = true;
     const mediaPath = await resolveStoragePathFromMediaId(resolvedMediaId).catch(() => null);
     if (mediaPath) {
       previewStoragePath = mediaPath;
       fullStoragePath = mediaPath;
       resolutionReason = "saved_media_lookup";
+      debugEntry.mediaLookupResolved = true;
     }
   }
 
   if (!previewStoragePath && !fullStoragePath && resolvedOutput) {
+    debugEntry.generationLookupAttempted = true;
     const generationPath = await resolveStoragePathFromGenerationOutput({
       generationId: asTrimmedString(resolvedOutput.generationId),
       taskId: asTrimmedString(resolvedOutput.taskId),
@@ -360,6 +523,7 @@ export const resolveInternalReferenceSource = async ({
       previewStoragePath = generationPath;
       fullStoragePath = generationPath;
       resolutionReason = "generation_index_lookup";
+      debugEntry.generationLookupResolved = true;
     }
   }
 
@@ -371,32 +535,73 @@ export const resolveInternalReferenceSource = async ({
     asTrimmedString(resolvedOutput?.previewUrl) ??
     asTrimmedString(payload.referenceRenderUrl) ??
     compatibilityHintUrl;
+  debugEntry.localObjectUrlPresent = Boolean(localObjectUrl);
+  debugEntry.compatibilityHintUrlPresent = Boolean(compatibilityHintUrl);
+  debugEntry.previewUrlPresent = Boolean(previewUrl);
+  debugEntry.previewStoragePath = previewStoragePath ?? null;
+  debugEntry.fullStoragePath = fullStoragePath ?? null;
+  debugEntry.resolutionReason =
+    resolutionReason ??
+    (localObjectUrl ? "local_object_url" : compatibilityHintUrl ? "payload_reference_url" : null);
+
+  const preparedImageUrl =
+    (await getSignedMediaUrl({
+      bucket: MEDIA_BUCKET,
+      storagePath: fullStoragePath ?? previewStoragePath ?? "",
+      previewProfile: "none",
+    }).catch(() => null)) ?? null;
 
   const loadBlob = async (): Promise<Blob> => {
-    if (previewStoragePath || fullStoragePath) {
-      const storagePath = previewStoragePath ?? fullStoragePath;
-      if (!storagePath) {
-        throw new Error("Internal reference source is missing storage path.");
-      }
-      const supabase = ensureSupabaseClient();
-      const { data, error } = await supabase.storage.from(MEDIA_BUCKET).download(storagePath);
-      if (error || !data) {
+    try {
+      if (previewStoragePath || fullStoragePath) {
+        debugEntry.loadBlobStrategy = "storage_download";
+        debugEntry.loadBlobOutcome = "pending";
+        const storagePath = previewStoragePath ?? fullStoragePath;
+        if (!storagePath) {
+          throw new Error("Internal reference source is missing storage path.");
+        }
+        const supabase = ensureSupabaseClient();
+        const { data, error } = await supabase.storage.from(MEDIA_BUCKET).download(storagePath);
+        if (!error && data) {
+          debugEntry.loadBlobOutcome = "success";
+          return data;
+        }
+        if (preparedImageUrl) {
+          debugEntry.loadBlobStrategy = "signed_storage_url";
+          const blob = await downloadBlobFromUrl(preparedImageUrl);
+          debugEntry.loadBlobOutcome = "success";
+          return blob;
+        }
         throw error ?? new Error("Unable to download internal reference source.");
       }
-      return data;
+      if (localObjectUrl) {
+        debugEntry.loadBlobStrategy = "local_object_url";
+        debugEntry.loadBlobOutcome = "pending";
+        const blob = await downloadBlobFromUrl(localObjectUrl);
+        debugEntry.loadBlobOutcome = "success";
+        return blob;
+      }
+      if (compatibilityHintUrl) {
+        debugEntry.loadBlobStrategy = "compatibility_hint_url";
+        debugEntry.loadBlobOutcome = "pending";
+        const blob = await downloadBlobFromUrl(compatibilityHintUrl);
+        debugEntry.loadBlobOutcome = "success";
+        return blob;
+      }
+      throw new Error("Internal reference source could not be resolved.");
+    } catch (error) {
+      debugEntry.loadBlobOutcome = "error";
+      debugEntry.error = error instanceof Error ? error.message : String(error);
+      throw error;
     }
-    if (localObjectUrl) {
-      return await downloadBlobFromUrl(localObjectUrl);
-    }
-    if (compatibilityHintUrl) {
-      return await downloadBlobFromUrl(compatibilityHintUrl);
-    }
-    throw new Error("Internal reference source could not be resolved.");
   };
 
   if (!previewStoragePath && !fullStoragePath && !localObjectUrl && !compatibilityHintUrl) {
+    debugEntry.returnedNull = true;
     return null;
   }
+
+  debugEntry.sourceKind = resolveSharedSourceKind(resolvedOutput, resolvedMediaId);
 
   return {
     kind: "internal",
@@ -430,6 +635,13 @@ export const resolveInternalReferenceSource = async ({
     previewStoragePath: previewStoragePath ?? null,
     fullStoragePath: fullStoragePath ?? null,
     promptText: resolvedOutput?.prompt || resolvedOutput?.previewText || null,
+    preparedImageUrl,
     loadBlob,
   };
 };
+
+declare global {
+  interface Window {
+    __shortpulseInternalReferenceSourceResolution?: InternalReferenceSourceResolutionDebugHandle;
+  }
+}

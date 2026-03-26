@@ -1278,6 +1278,10 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("accepts an internal reference-grid drop into QuickSwap even when URL host is unallowlisted", async () => {
+    supabaseClientMockState.storageDownload.mockResolvedValueOnce({
+      data: new Blob(["internal"], { type: "image/png" }),
+      error: null,
+    });
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-quickswap-1",
       previewUrl: "https://example.com/unallowlisted-quickswap.png",
@@ -1313,16 +1317,18 @@ describe("CharacterManagerShell behavior", () => {
 
     await waitFor(() => {
       expect(resolveCharacterDropReference).toHaveBeenCalled();
+      expect(supabaseClientMockState.storageDownload).toHaveBeenCalledWith(
+        "user-1/generations/internal-quickswap-1.png"
+      );
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
     });
   });
 
-  it("falls back to storage-backed upload when internal QuickSwap media attach fails", async () => {
+  it("uses storage-backed upload for internal QuickSwap drops when a canonical storage path is available", async () => {
     const fetchMock = vi.fn(async () => {
       throw new TypeError("Failed to fetch");
     });
     vi.stubGlobal("fetch", fetchMock);
-    quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(async () => false);
     supabaseClientMockState.storageDownload.mockResolvedValueOnce({
       data: new Blob(["internal-fallback"], { type: "image/png" }),
       error: null,
@@ -1366,9 +1372,7 @@ describe("CharacterManagerShell behavior", () => {
 
       await waitFor(() => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).toHaveBeenCalledWith(
-          "https://example.com/internal-fallback-quickswap.png"
-        );
+        expect(fetchMock).not.toHaveBeenCalled();
         expect(supabaseClientMockState.storageDownload).toHaveBeenCalledWith(
           "user-1/generations/internal-fallback-quickswap.png"
         );
@@ -1429,6 +1433,10 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("keeps QuickSwap droppable when dragover only exposes internal token hints", async () => {
+    supabaseClientMockState.storageDownload.mockResolvedValueOnce({
+      data: new Blob(["internal-token-hint"], { type: "image/png" }),
+      error: null,
+    });
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-token-hint-1",
       previewUrl: "https://example.com/internal-token-hint-quickswap.png",
@@ -1471,6 +1479,9 @@ describe("CharacterManagerShell behavior", () => {
 
     await waitFor(() => {
       expect(resolveCharacterDropReference).toHaveBeenCalled();
+      expect(supabaseClientMockState.storageDownload).toHaveBeenCalledWith(
+        "user-1/generations/internal-token-hint-quickswap.png"
+      );
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
     });
   });
@@ -1480,8 +1491,10 @@ describe("CharacterManagerShell behavior", () => {
       throw new TypeError("Unexpected fetch");
     });
     vi.stubGlobal("fetch", fetchMock);
-    const appendExistingMediaReferenceImpl = vi.fn(async () => true);
-    quickSwapDeckMockState.appendExistingMediaReferenceImpl = appendExistingMediaReferenceImpl;
+    supabaseClientMockState.storageDownload.mockResolvedValueOnce({
+      data: new Blob(["internal-files"], { type: "image/png" }),
+      error: null,
+    });
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-files-payload-1",
       previewUrl: "https://example.com/internal-files-payload.png",
@@ -1519,8 +1532,8 @@ describe("CharacterManagerShell behavior", () => {
 
       await waitFor(() => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(appendExistingMediaReferenceImpl).toHaveBeenCalledWith(
-          "media-internal-files-payload-1"
+        expect(supabaseClientMockState.storageDownload).toHaveBeenCalledWith(
+          "user-1/generations/internal-files-payload.png"
         );
       });
       expect(fetchMock).not.toHaveBeenCalled();
@@ -1543,7 +1556,6 @@ describe("CharacterManagerShell behavior", () => {
         })
     );
     vi.stubGlobal("fetch", fetchMock);
-    quickSwapDeckMockState.appendExistingMediaReferenceImpl = vi.fn(async () => false);
     const resolveCharacterDropReference = vi.fn(async () => ({
       mediaId: "media-internal-pending-1",
       previewUrl: "https://example.com/unallowlisted-pending.png",

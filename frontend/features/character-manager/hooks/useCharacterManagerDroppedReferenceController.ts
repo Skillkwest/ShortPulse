@@ -37,10 +37,6 @@ type UseCharacterManagerDroppedReferenceControllerParams = {
   quickSwapMutating: boolean;
   clearAllMessages: () => void;
   appendQuickSwapFiles: (files: File[]) => Promise<boolean>;
-  appendQuickSwapExistingMediaReference?: (
-    mediaFileId: string,
-    options?: { suppressError?: boolean }
-  ) => Promise<boolean>;
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<unknown>;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   hasQuickSwapMediaFileId: (mediaId: string) => boolean;
@@ -149,6 +145,28 @@ const resolveDroppedStorageCandidates = async (
 const downloadDroppedReferenceBlob = async (
   reference: DroppedImageReference
 ): Promise<{ blob: Blob; resolvedStoragePath: string | null }> => {
+  const storageCandidates = await resolveDroppedStorageCandidates(reference);
+  if (reference.storagePath?.trim() && storageCandidates.length) {
+    let prioritizedDownloadError: Error | null = null;
+    const supabase = ensureSupabaseClient();
+    for (const candidate of storageCandidates) {
+      const { data, error } = await supabase.storage
+        .from(candidate.bucket)
+        .download(candidate.storagePath);
+      if (error || !data) {
+        prioritizedDownloadError = error ?? new Error("Failed to download dropped image.");
+        continue;
+      }
+      return {
+        blob: data,
+        resolvedStoragePath: candidate.storagePath,
+      };
+    }
+    if (prioritizedDownloadError) {
+      throw prioritizedDownloadError;
+    }
+  }
+
   let directFetchError: Error | null = null;
   try {
     const response = await fetch(reference.url);
@@ -164,7 +182,6 @@ const downloadDroppedReferenceBlob = async (
       nextError instanceof Error ? nextError : new Error("Failed to read dropped image.");
   }
 
-  const storageCandidates = await resolveDroppedStorageCandidates(reference);
   if (storageCandidates.length) {
     let downloadError: Error | null = null;
     const supabase = ensureSupabaseClient();
@@ -249,7 +266,6 @@ export const useCharacterManagerDroppedReferenceController = ({
   quickSwapMutating,
   clearAllMessages,
   appendQuickSwapFiles,
-  appendQuickSwapExistingMediaReference,
   setCharacterSheetPresetFile,
   resolveCharacterDropReference,
   hasQuickSwapMediaFileId,
@@ -551,13 +567,6 @@ export const useCharacterManagerDroppedReferenceController = ({
           if (!resolvedReference) return;
           const mediaId = resolvedReference.mediaId.trim();
           if (hasQuickSwapMediaFileId(mediaId)) return;
-          if (mediaId && appendQuickSwapExistingMediaReference) {
-            clearAllMessages();
-            const attached = await appendQuickSwapExistingMediaReference(mediaId, {
-              suppressError: true,
-            });
-            if (attached) return;
-          }
           let previewUrl = resolvedReference.previewUrl?.trim() || null;
           if (!previewUrl && mediaId) {
             const mediaReference = await resolveMediaReferenceById(mediaId);
@@ -640,11 +649,9 @@ export const useCharacterManagerDroppedReferenceController = ({
       await ingestQuickSwapDroppedReference(droppedReference);
     },
     [
-      appendQuickSwapExistingMediaReference,
       hasQuickSwapMediaFileId,
       ingestQuickSwapDroppedReference,
       logCharacterDropBreadcrumb,
-      clearAllMessages,
       resolveCharacterDropReference,
       resolveInternalCharacterDrop,
       resolveMediaReferenceById,

@@ -57,16 +57,6 @@ const isMissingColumnError = (error: unknown): boolean =>
     (error as { code?: string }).code === "42703"
   );
 
-const isMissingUpsertConflictTargetError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const maybeError = error as { code?: string; message?: string };
-  if (maybeError.code === "42P10") return true;
-  return Boolean(
-    typeof maybeError.message === "string" &&
-    maybeError.message.toLowerCase().includes("no unique or exclusion constraint matching")
-  );
-};
-
 export type QuickSwapArchivedCursor = {
   createdAt: string;
   id: string;
@@ -642,64 +632,52 @@ export const appendQuickSwapExistingMediaReference = async ({
     label: "Dropped quick swap media storage path",
   });
 
-  const { error: quickSwapError } = await supabase.from("character_quick_swap_items").upsert(
-    {
+  const { data: existingRow, error: existingError } = await supabase
+    .from("character_quick_swap_items")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("character_id", trimmedCharacterId)
+    .eq("media_file_id", typedMediaRow.id)
+    .maybeSingle();
+  if (existingError) {
+    if (isMissingRelationError(existingError)) {
+      throw new Error(
+        "QuickSwap Deck migration is missing in this environment. Apply migration 045 and retry."
+      );
+    }
+    throw new Error(asErrorMessage(existingError, "Failed to append quick swap image."));
+  }
+  if (existingRow?.id) {
+    const { error: reactivateError } = await supabase
+      .from("character_quick_swap_items")
+      .update({
+        status: "active",
+        archived_at: null,
+        storage_path: storagePath,
+      })
+      .eq("id", existingRow.id)
+      .eq("user_id", userId)
+      .eq("character_id", trimmedCharacterId);
+    if (reactivateError) {
+      throw new Error(asErrorMessage(reactivateError, "Failed to append quick swap image."));
+    }
+  } else {
+    const { error: insertError } = await supabase.from("character_quick_swap_items").insert({
       user_id: userId,
       character_id: trimmedCharacterId,
       media_file_id: typedMediaRow.id,
       storage_path: storagePath,
       status: "active",
       archived_at: null,
-    },
-    {
-      onConflict: "character_id,media_file_id",
-    }
-  );
-  if (quickSwapError && isMissingUpsertConflictTargetError(quickSwapError)) {
-    const { data: existingRow, error: existingError } = await supabase
-      .from("character_quick_swap_items")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("character_id", trimmedCharacterId)
-      .eq("media_file_id", typedMediaRow.id)
-      .maybeSingle();
-    if (existingError) {
-      throw new Error(asErrorMessage(existingError, "Failed to append quick swap image."));
-    }
-    if (existingRow?.id) {
-      const { error: reactivateError } = await supabase
-        .from("character_quick_swap_items")
-        .update({
-          status: "active",
-          archived_at: null,
-          storage_path: storagePath,
-        })
-        .eq("id", existingRow.id)
-        .eq("user_id", userId)
-        .eq("character_id", trimmedCharacterId);
-      if (reactivateError) {
-        throw new Error(asErrorMessage(reactivateError, "Failed to append quick swap image."));
+    });
+    if (insertError) {
+      if (isMissingRelationError(insertError)) {
+        throw new Error(
+          "QuickSwap Deck migration is missing in this environment. Apply migration 045 and retry."
+        );
       }
-    } else {
-      const { error: insertError } = await supabase.from("character_quick_swap_items").insert({
-        user_id: userId,
-        character_id: trimmedCharacterId,
-        media_file_id: typedMediaRow.id,
-        storage_path: storagePath,
-        status: "active",
-        archived_at: null,
-      });
-      if (insertError) {
-        throw new Error(asErrorMessage(insertError, "Failed to append quick swap image."));
-      }
+      throw new Error(asErrorMessage(insertError, "Failed to append quick swap image."));
     }
-  } else if (quickSwapError) {
-    if (isMissingRelationError(quickSwapError)) {
-      throw new Error(
-        "QuickSwap Deck migration is missing in this environment. Apply migration 045 and retry."
-      );
-    }
-    throw new Error(asErrorMessage(quickSwapError, "Failed to append quick swap image."));
   }
 
   await archiveOverflowForCharacter(trimmedCharacterId, CHARACTER_QUICK_SWAP_ACTIVE_LIMIT);

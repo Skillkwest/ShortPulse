@@ -431,7 +431,7 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
-  it("logs accepted-path linkage failures but still returns the accepted upstream response", async () => {
+  it("fails closed when accepted submit cannot durably link billing state even if generation persistence succeeds", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(JSON.stringify({ request_id: "req-linkage-pending" }), {
         status: 200,
@@ -469,17 +469,26 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        request_id: "req-linkage-pending",
-        generationId: "gen-1",
-      })
-    );
+    const charge = await chargeGenerationRequestMock.mock.results.at(-1)?.value;
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
+      code: "GENERATION_SUBMIT_TRACKING_FAILED",
+    });
     expect(ensureSubmittedGenerationRecordMock).toHaveBeenCalledWith(
       expect.objectContaining({
         providerRequestId: "req-linkage-pending",
         sourceRef: "source-ref-1",
+      })
+    );
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: accepted submit could not be durably linked.",
+      expect.objectContaining({
+        provider_request_id: "req-linkage-pending",
+        submit_link_status: "failed",
+        submit_link_code: "PGRST301",
+        persistence_error: null,
       })
     );
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
@@ -611,6 +620,119 @@ describe("createFalSubmitHandler", () => {
       error:
         "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
       code: "GENERATION_SUBMIT_TRACKING_FAILED",
+    });
+  });
+
+  it("fails closed when upstream accepts but generation persistence fails even if billing linkage succeeds", async () => {
+    const markSubmittedMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: "reserved",
+      sourceRef: "source-ref-persist-fail",
+      message: null,
+      code: null,
+    });
+    ensureSubmittedGenerationRecordMock.mockResolvedValueOnce({
+      ok: false,
+      error: "insert failed",
+    });
+    chargeGenerationRequestMock.mockResolvedValueOnce({
+      userId: "user-1",
+      sourceRef: "source-ref-persist-fail",
+      billingMode: "reservation",
+      markSubmitted: markSubmittedMock,
+      refund: vi.fn().mockResolvedValue(undefined),
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ request_id: "req-persist-fail" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results.at(-1)?.value;
+    expect(markSubmittedMock).toHaveBeenCalledWith(
+      "req-persist-fail",
+      expect.objectContaining({
+        upstream_status: 200,
+      })
+    );
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: accepted submit could not be durably linked.",
+      expect.objectContaining({
+        provider_request_id: "req-persist-fail",
+        submit_link_status: "reserved",
+        persistence_error: "insert failed",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
+      code: "GENERATION_SUBMIT_TRACKING_FAILED",
+    });
+  });
+
+  it("fails closed when the admission check throws before provider submit", async () => {
+    evaluateUserGenerationAdmissionMock.mockRejectedValueOnce(
+      new Error("admission db unavailable")
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results.at(-1)?.value;
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: generation admission check failed.",
+      expect.objectContaining({
+        reason: "admission_check_failed",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.admission_check_failed",
+        message: "Generation admission check failed; submit rejected fail-closed.",
+        statusCode: 503,
+      })
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Generation admission is temporarily unavailable. Please retry shortly.",
+      code: "GENERATION_ADMISSION_UNAVAILABLE",
+      retryAfterSeconds: 20,
     });
   });
 

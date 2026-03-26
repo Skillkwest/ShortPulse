@@ -109,7 +109,12 @@ Safety checks:
   - `503`
   - `code: GENERATION_ADMISSION_UNAVAILABLE`
   - immediate refund and `Retry-After`.
-- Successful submit records `provider_request_id` on the reservation/charge context.
+- Direct submit succeeds only after `provider_request_id` attachment and canonical generation persistence both succeed.
+- If upstream accepts submit but billing linkage or generation persistence fails, the route fails closed with:
+  - `500`
+  - `code: GENERATION_SUBMIT_TRACKING_FAILED`
+  - explicit refund/release before response
+- Queue dispatch also fails closed when upstream accepts submit but post-accept linkage cannot be completed; it must not retry provider submission after acceptance.
 - Kie submit routes also persist `taskId` as `provider_request_id` on the charge context for ownership checks during status polling.
 - Status polling denies requests unless provider request ownership resolves as `owned` for the caller.
 - Webhook/recovery routes settle generation outcomes idempotently by `provider_request_id`:
@@ -138,7 +143,7 @@ Safety checks:
 
 ## Failure-settlement lifecycle (Fal)
 1. Submit route reserves credits keyed by `source_ref` (`x-shortpulse-request-id`).
-2. Submit success stores `provider_request_id` on reservation context.
+2. Submit success stores `provider_request_id` on reservation context and returns only after canonical generation tracking is durable.
 3. Status route settles final outcome:
    - success -> capture reservation as `generation_charge`.
    - failure -> release reservation.

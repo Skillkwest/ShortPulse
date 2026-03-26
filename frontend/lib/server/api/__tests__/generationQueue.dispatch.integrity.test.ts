@@ -250,7 +250,7 @@ describe("generationQueue/dispatch transition integrity", () => {
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 
-  it("exhausts without releasing reservation when generation running update fails post-submit", async () => {
+  it("exhausts and releases reservation when generation running update fails post-submit", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({ generationUpdateError: "write failed" })
     );
@@ -274,11 +274,20 @@ describe("generationQueue/dispatch transition integrity", () => {
         lastErrorCode: "GENERATION_MARK_RUNNING_DB_ERROR",
       })
     );
-    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
+    expect(releaseGenerationReservationBySourceRefMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "Auto-release: accepted queued submit could not be durably linked.",
+        metadata: expect.objectContaining({
+          submit_accepted: true,
+          accepted_submit_tracked: false,
+          error_code: "GENERATION_MARK_RUNNING_DB_ERROR",
+        }),
+      })
+    );
     expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
   });
 
-  it("retries queue item when reservation submit returns retryable failure", async () => {
+  it("fails closed instead of retrying when reservation submit fails after provider acceptance", async () => {
     markGenerationReservationSubmittedMock.mockResolvedValue({
       status: "failed",
       sourceRef: "source-1",
@@ -295,18 +304,28 @@ describe("generationQueue/dispatch transition integrity", () => {
     expect(result).toEqual(
       expect.objectContaining({
         claimed: 1,
-        retried: 1,
-        exhausted: 0,
+        retried: 0,
+        exhausted: 1,
         errors: 1,
       })
     );
-    expect(updateQueueItemForRetryMock).toHaveBeenCalledWith(
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
       expect.objectContaining({
         lastErrorCode: "RESERVATION_SUBMIT_FAILED",
       })
     );
+    expect(releaseGenerationReservationBySourceRefMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "Auto-release: accepted queued submit could not be durably linked.",
+        metadata: expect.objectContaining({
+          submit_accepted: true,
+          accepted_submit_tracked: false,
+          error_code: "RESERVATION_SUBMIT_FAILED",
+        }),
+      })
+    );
     expect(removeQueueItemMock).not.toHaveBeenCalled();
-    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
+    expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
   });
 
   it("reconciles reservation then removes queue item when generation already has request id", async () => {

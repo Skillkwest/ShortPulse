@@ -638,18 +638,25 @@ export const createFalSubmitHandler = ({
         );
       }
     } catch (error) {
+      const retryAfterSeconds = runtimeFlags.admission.retryAfterSeconds;
+      await charge.refund("Auto-release: generation admission check failed.", {
+        reason: "admission_check_failed",
+        detail: String(error),
+      });
       await logGenerationFailure({
         req,
         routeLabel,
         source: "api.fal_submit.admission_check_failed",
-        message: "Generation admission check failed; submit proceeded fail-open.",
-        statusCode: 500,
+        message: "Generation admission check failed; submit rejected fail-closed.",
+        statusCode: 503,
         userId: charge.userId,
         metadata: {
           model_id: modelId,
           detail: String(error),
         },
       });
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      return res.status(503).json(buildAdmissionUnavailablePayload(retryAfterSeconds));
     }
 
     const resolvedSubmitTargets: SubmitTarget[] =
@@ -787,7 +794,7 @@ export const createFalSubmitHandler = ({
             routeLabel,
             source: "api.fal_submit.mark_submitted_failed",
             message: "Accepted submit could not durably link billing state to provider request.",
-            statusCode: persistenceResult.ok ? 200 : 500,
+            statusCode: 500,
             userId: charge.userId,
             metadata: {
               model_id: modelId,
@@ -801,23 +808,23 @@ export const createFalSubmitHandler = ({
               persistence_error: persistenceResult.ok ? null : persistenceResult.error,
             },
           });
-          if (!persistenceResult.ok && charge.billingMode === "reservation") {
-            await charge.refund("Auto-release: accepted submit could not be durably linked.", {
-              provider_request_id: providerRequestId,
-              submit_link_status: markSubmittedResult.status,
-              submit_link_message: markSubmittedResult.message ?? null,
-              submit_link_code: markSubmittedResult.code ?? null,
-              persistence_error: persistenceResult.error,
-              upstream_status: upstream.status,
-              upstream_target_url: upstreamResult.targetUrl,
-              upstream_target_index: upstreamResult.targetIndex,
-            });
-            return res.status(500).json({
-              error:
-                "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
-              code: "GENERATION_SUBMIT_TRACKING_FAILED",
-            });
-          }
+        }
+        if (!markSubmittedResult.ok || !persistenceResult.ok) {
+          await charge.refund("Auto-release: accepted submit could not be durably linked.", {
+            provider_request_id: providerRequestId,
+            submit_link_status: markSubmittedResult.status,
+            submit_link_message: markSubmittedResult.message ?? null,
+            submit_link_code: markSubmittedResult.code ?? null,
+            persistence_error: persistenceResult.ok ? null : persistenceResult.error,
+            upstream_status: upstream.status,
+            upstream_target_url: upstreamResult.targetUrl,
+            upstream_target_index: upstreamResult.targetIndex,
+          });
+          return res.status(500).json({
+            error:
+              "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
+            code: "GENERATION_SUBMIT_TRACKING_FAILED",
+          });
         }
       }
       const responsePayload = {

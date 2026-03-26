@@ -581,6 +581,7 @@ const processClaimedQueueItem = async ({
   const timeoutMs = Math.max(1000, item.timeoutMs);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   let submitAccepted = false;
+  let acceptedSubmitTracked = false;
 
   try {
     assertQueueIdentityInvariant({
@@ -919,6 +920,7 @@ const processClaimedQueueItem = async ({
       affectedCount: Array.isArray(generationUpdate.data) ? generationUpdate.data.length : 0,
       errorMessage: generationUpdate.error?.message ?? null,
     });
+    acceptedSubmitTracked = true;
 
     const removeResult = await removeQueueItem(item.queueId);
     assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
@@ -986,29 +988,43 @@ const processClaimedQueueItem = async ({
         lastErrorCode: errorCode,
       });
       assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
-      if (!submitAccepted || errorCode === "QUEUE_IDENTITY_MISMATCH") {
+      const shouldReleaseReservation =
+        !submitAccepted || errorCode === "QUEUE_IDENTITY_MISMATCH" || !acceptedSubmitTracked;
+      if (shouldReleaseReservation) {
         await releaseGenerationReservationBySourceRef({
           userId: item.userId,
           sourceRef: item.sourceRef,
           reason:
             errorCode === "QUEUE_IDENTITY_MISMATCH"
               ? "Auto-release: queue dispatch identity mismatch."
-              : "Auto-release: queue dispatch exception.",
+              : submitAccepted
+                ? "Auto-release: accepted queued submit could not be durably linked."
+                : "Auto-release: queue dispatch exception.",
           metadata: {
             queue_id: item.queueId,
             queue_attempts: attemptNumber,
             error: message,
             error_code: errorCode,
+            submit_accepted: submitAccepted,
+            accepted_submit_tracked: acceptedSubmitTracked,
           },
         });
-        await setGenerationFailed({
-          generationId: item.generationId,
-          userId: item.userId,
-          message:
-            errorCode === "QUEUE_IDENTITY_MISMATCH"
-              ? "Generation failed queue identity validation. Please retry."
-              : "Generation failed while queued. Please retry.",
-        });
+        const shouldMarkFailed =
+          !submitAccepted ||
+          errorCode === "QUEUE_IDENTITY_MISMATCH" ||
+          (submitAccepted && errorCode !== "GENERATION_MARK_RUNNING_DB_ERROR");
+        if (shouldMarkFailed) {
+          await setGenerationFailed({
+            generationId: item.generationId,
+            userId: item.userId,
+            message:
+              errorCode === "QUEUE_IDENTITY_MISMATCH"
+                ? "Generation failed queue identity validation. Please retry."
+                : submitAccepted
+                  ? "Unable to finalize queued generation tracking. Please verify recent outputs before retrying."
+                  : "Generation failed while queued. Please retry.",
+          });
+        }
       }
       metrics.exhausted += 1;
     }

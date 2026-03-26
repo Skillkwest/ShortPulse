@@ -150,11 +150,7 @@ export const decideQueueTransitionCompensation = ({
   if (attemptNumber >= maxAttempts) {
     return "exhaust";
   }
-  if (
-    submitAccepted &&
-    error instanceof QueueTransitionError &&
-    error.step === "generation_mark_running"
-  ) {
+  if (submitAccepted) {
     // Provider already accepted the submit; retrying this queue item could double-submit.
     return "exhaust";
   }

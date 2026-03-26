@@ -76,4 +76,19 @@ describe("model catalog route coverage", () => {
 
     expect(filesWithQueueLiterals).toEqual([]);
   });
+
+  it("pins Seedream status polling to the shared Bytedance queue root", () => {
+    const seedreamModelIds = [
+      "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      "fal-ai/bytedance/seedream/v4.5/edit",
+      "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+      "fal-ai/bytedance/seedream/v5/lite/edit",
+    ];
+
+    for (const modelId of seedreamModelIds) {
+      expect(getModelCatalogEntry(modelId)?.falStatusBaseUrls).toEqual([
+        "https://queue.fal.run/fal-ai/bytedance/requests",
+      ]);
+    }
+  });
 });

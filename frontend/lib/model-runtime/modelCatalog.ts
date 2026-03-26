@@ -508,13 +508,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/bytedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -536,13 +530,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/bytedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -562,13 +550,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_3K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/bytedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/text-to-image/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/edit/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -587,13 +569,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_3K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/edit",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/bytedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/text-to-image/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/edit/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],

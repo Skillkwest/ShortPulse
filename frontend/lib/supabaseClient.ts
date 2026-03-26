@@ -3,6 +3,7 @@
  * Centralizes environment variable handling for client-side Supabase usage.
  */
 import { createClient } from "@supabase/supabase-js";
+import { processLock } from "@supabase/auth-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -13,6 +14,8 @@ export const supabaseClient =
         auth: {
           persistSession: true,
           autoRefreshToken: true,
+          // Avoid Navigator LockManager aborts in local/client auth bootstrap flows.
+          lock: processLock,
         },
       })
     : null;

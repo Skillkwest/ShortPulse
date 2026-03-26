@@ -322,11 +322,13 @@ Mode policy:
 - Secret source:
   - GitHub Environment secret `SUPABASE_DB_URL` (`staging`/`production`)
   - GitHub Environment secret `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN` (required for `configure_bypass_secret`)
-- Inputs: `operation` (`configure_bypass_secret|configure_generation_recovery_scheduler|configure_admin_user_health_fleet_scheduler`), `confirm_token`
+  - GitHub Environment secret `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` (required for `configure_generation_recovery_cron_secret`)
+- Inputs: `operation` (`configure_bypass_secret|configure_generation_recovery_cron_secret|configure_generation_recovery_scheduler|configure_media_derivative_scheduler|configure_admin_user_health_fleet_scheduler`), `confirm_token`
 - Safety controls:
   - explicit operation selection
   - fixed confirmation token (`apply-control-plane-ops`)
   - bypass operation hard-fails if bypass secret is unset
+  - recovery secret sync hard-fails if `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` is unset
 
 ## Branch protection mapping
 

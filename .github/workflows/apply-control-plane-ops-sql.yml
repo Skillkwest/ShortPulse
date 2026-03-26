@@ -16,6 +16,7 @@ on:
         type: choice
         options:
           - configure_bypass_secret
+          - configure_generation_recovery_cron_secret
           - configure_generation_recovery_scheduler
           - configure_media_derivative_scheduler
           - configure_admin_user_health_fleet_scheduler
@@ -50,6 +51,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BYPASS_TOKEN: ${{ secrets.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN }}
+          RECONCILER_CRON_SECRET: ${{ secrets.SHORTPULSE_FAL_RECONCILER_CRON_SECRET }}
           OPERATION: ${{ github.event.inputs.operation }}
           CONFIRM_TOKEN: ${{ github.event.inputs.confirm_token }}
         run: |
@@ -74,6 +76,15 @@ jobs:
               fi
               echo "Applying $SQL_FILE"
               psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -v bypass_token="$BYPASS_TOKEN" -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+              ;;
+            configure_generation_recovery_cron_secret)
+              SQL_FILE="sql/configure_generation_recovery_cron_secret_supabase.sql"
+              if [ -z "${RECONCILER_CRON_SECRET:-}" ]; then
+                echo "::error::Missing environment secret SHORTPULSE_FAL_RECONCILER_CRON_SECRET."
+                exit 1
+              fi
+              echo "Applying $SQL_FILE"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -v reconciler_cron_secret="$RECONCILER_CRON_SECRET" -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             configure_generation_recovery_scheduler)
               SQL_FILE="sql/configure_generation_recovery_scheduler_supabase.sql"

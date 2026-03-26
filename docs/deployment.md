@@ -268,6 +268,8 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
    - `shortpulse_recovery_run_url` = full endpoint URL (for example `https://<deployment-domain>/api/internal/generation-recovery/run`)
    - `shortpulse_reconciler_cron_secret` = same value as `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
    - optional when deployment protection is enabled: `shortpulse_vercel_protection_bypass_token` = Vercel protection bypass token
+   - Preferred repeatable path: use `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=configure_generation_recovery_cron_secret` to sync `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` into Vault before applying the scheduler SQL.
+   - If the target deployment is Vercel-protected, also use `operation=configure_bypass_secret` to sync `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN` into Vault.
    - Use idempotent SQL to create-or-update (safe on reruns):
    ```sql
    do $$
@@ -351,6 +353,7 @@ Notes:
 - Vercel cron is not required for this route.
 - `CRON_SECRET` remains optional for manual cURL/bearer invocation and non-Supabase fallback workflows.
 - If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
+- If `sql/check_pg_net_failure_taxonomy.sql` shows recurring `401` responses while `sql/check_control_plane_scheduler_health.sql` shows the cron job itself succeeding, treat that as scheduler auth drift first: resync `shortpulse_reconciler_cron_secret` and, for preview/protected targets, `shortpulse_vercel_protection_bypass_token`.
 
 ## Media derivative scheduler (Supabase Cron)
 

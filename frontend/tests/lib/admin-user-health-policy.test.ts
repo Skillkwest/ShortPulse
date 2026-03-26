@@ -15,7 +15,7 @@ const baseMetrics = {
   totalCount24h: 0,
   stuckGenerationsCount: 0,
   exhaustedQueueCount: 0,
-  reservedWithProviderOver2hCount: 0,
+  reservedWithProviderOver1hCount: 0,
   reservedWithoutProviderOver15mCount: 0,
   costWithoutSuccessCents: 0,
   costWithoutSuccessLinkedCents: 0,
@@ -42,7 +42,7 @@ describe("evaluateFleetUserHealth", () => {
     const result = evaluateFleetUserHealth({
       ...baseMetrics,
       stuckGenerationsCount: 2,
-      reservedWithProviderOver2hCount: 1,
+      reservedWithProviderOver1hCount: 1,
       failRate24hPercent: 12,
       failCount24h: 6,
       totalCount24h: 50,

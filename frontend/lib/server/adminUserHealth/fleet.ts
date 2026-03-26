@@ -20,11 +20,14 @@ import {
   toNumber,
 } from "./fleetQueryUtils";
 import { readAdminUserHealthFleetRuntimeFlags } from "./runtime";
+import {
+  PRE_SUBMIT_RESERVED_HOLD_WARNING_MS,
+  PROVIDER_ATTACHED_RESERVED_HOLD_CRITICAL_MS,
+  STUCK_GENERATION_CRITICAL_MS,
+} from "./thresholds";
 import type { FleetSnapshotDraft, FleetTargetUser, FleetUserMetricInput } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
-const MINUTE_MS = 60 * 1000;
 
 type BalanceRow = {
   user_id: string;
@@ -200,7 +203,7 @@ const loadChunkMetrics = async ({
       .in("user_id", userIds)
       .in("status", ["pending", "submitted", "running", "fail"])
       .in("recovery_state", ["queued", "recovering"])
-      .lte("created_at", new Date(nowMs - 2 * HOUR_MS).toISOString()),
+      .lte("created_at", new Date(nowMs - STUCK_GENERATION_CRITICAL_MS).toISOString()),
     supabaseAdmin
       .from("ai_generation_submit_queue")
       .select("user_id,status")
@@ -334,7 +337,7 @@ const loadChunkMetrics = async ({
   }
 
   const reservedByUser = new Map<string, number>();
-  const reservedWithProviderOver2hByUser = new Map<string, number>();
+  const reservedWithProviderOver1hByUser = new Map<string, number>();
   const reservedWithoutProviderOver15mByUser = new Map<string, number>();
   const reservationBySourceRef = new Map<string, ReservationRow>();
   for (const row of reservationRows) {
@@ -347,13 +350,19 @@ const loadChunkMetrics = async ({
 
       const createdAtMs = parseTimestamp(row.created_at);
       if (row.provider_request_id) {
-        if (createdAtMs !== null && nowMs - createdAtMs >= 2 * HOUR_MS) {
-          reservedWithProviderOver2hByUser.set(
+        if (
+          createdAtMs !== null &&
+          nowMs - createdAtMs >= PROVIDER_ATTACHED_RESERVED_HOLD_CRITICAL_MS
+        ) {
+          reservedWithProviderOver1hByUser.set(
             userId,
-            (reservedWithProviderOver2hByUser.get(userId) ?? 0) + 1
+            (reservedWithProviderOver1hByUser.get(userId) ?? 0) + 1
           );
         }
-      } else if (createdAtMs !== null && nowMs - createdAtMs >= 15 * MINUTE_MS) {
+      } else if (
+        createdAtMs !== null &&
+        nowMs - createdAtMs >= PRE_SUBMIT_RESERVED_HOLD_WARNING_MS
+      ) {
         reservedWithoutProviderOver15mByUser.set(
           userId,
           (reservedWithoutProviderOver15mByUser.get(userId) ?? 0) + 1
@@ -431,7 +440,7 @@ const loadChunkMetrics = async ({
       totalCount24h,
       stuckGenerationsCount: stuckCountByUser.get(target.userId) ?? 0,
       exhaustedQueueCount: exhaustedQueueCountByUser.get(target.userId) ?? 0,
-      reservedWithProviderOver2hCount: reservedWithProviderOver2hByUser.get(target.userId) ?? 0,
+      reservedWithProviderOver1hCount: reservedWithProviderOver1hByUser.get(target.userId) ?? 0,
       reservedWithoutProviderOver15mCount:
         reservedWithoutProviderOver15mByUser.get(target.userId) ?? 0,
       costWithoutSuccessCents: costWithoutSuccess.total,

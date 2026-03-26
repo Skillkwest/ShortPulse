@@ -27,7 +27,7 @@ export type FleetUserMetricInput = {
   totalCount24h: number;
   stuckGenerationsCount: number;
   exhaustedQueueCount: number;
-  reservedWithProviderOver2hCount: number;
+  reservedWithProviderOver1hCount: number;
   reservedWithoutProviderOver15mCount: number;
   costWithoutSuccessCents: number;
   costWithoutSuccessLinkedCents: number;

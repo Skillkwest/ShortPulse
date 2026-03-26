@@ -90,7 +90,7 @@ const resolveRiskScore = ({
     score += Math.min(15, metrics.failRate24hPercent / 2);
   }
   if (
-    metrics.reservedWithProviderOver2hCount > 0 ||
+    metrics.reservedWithProviderOver1hCount > 0 ||
     metrics.reservedWithoutProviderOver15mCount > 0
   ) {
     score += 10;
@@ -109,7 +109,7 @@ export const evaluateFleetUserHealth = (metrics: FleetUserMetricInput): FleetUse
   const findings: FleetFinding[] = [];
 
   if (
-    metrics.reservedWithProviderOver2hCount > 0 ||
+    metrics.reservedWithProviderOver1hCount > 0 ||
     metrics.reservedWithoutProviderOver15mCount > 0
   ) {
     addFinding(
@@ -118,7 +118,7 @@ export const evaluateFleetUserHealth = (metrics: FleetUserMetricInput): FleetUse
       "high",
       "ACTIVE_RESERVED_HOLDS",
       "Aged active reservation holds detected.",
-      `${metrics.reservedWithProviderOver2hCount} provider-attached holds are older than 2h and ${metrics.reservedWithoutProviderOver15mCount} pre-submit holds are older than 15m.`,
+      `${metrics.reservedWithProviderOver1hCount} provider-attached holds are older than 1h and ${metrics.reservedWithoutProviderOver15mCount} pre-submit holds are older than 15m.`,
       [
         "Run /api/internal/generation-recovery/run and re-check hold counts.",
         "Use /admin/generation-trace for affected request_id/source_ref rows.",
@@ -133,7 +133,7 @@ export const evaluateFleetUserHealth = (metrics: FleetUserMetricInput): FleetUse
       "high",
       "STUCK_GENERATIONS",
       "Stuck generations detected.",
-      `${metrics.stuckGenerationsCount} generation rows are older than 2h in queued/recovering states.`,
+      `${metrics.stuckGenerationsCount} generation rows are older than 1h in queued/recovering states.`,
       [
         "Inspect one affected row in /admin/generation-trace.",
         "Replay targeted rows with /api/admin/generation-recovery/replay.",

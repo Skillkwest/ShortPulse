@@ -74,10 +74,10 @@ describe("buildAdminHealthResponse", () => {
           provider: "fal",
           model_id: "model-1",
           request_id: "req-1",
-          created_at: "2026-03-17T09:00:00.000Z",
+          created_at: "2026-03-17T10:30:00.000Z",
           completed_at: null,
           failure_reason_code: "provider_timeout",
-          next_recovery_at: "2026-03-17T09:30:00.000Z",
+          next_recovery_at: "2026-03-17T10:45:00.000Z",
         },
       ],
       reservations: [
@@ -89,7 +89,7 @@ describe("buildAdminHealthResponse", () => {
           model_id: "model-1",
           amount_cents: 200,
           metadata: null,
-          created_at: "2026-03-17T09:30:00.000Z",
+          created_at: "2026-03-17T10:30:00.000Z",
           released_at: null,
           captured_at: null,
         },
@@ -140,13 +140,56 @@ describe("buildAdminHealthResponse", () => {
     );
     expect(result.generations).toEqual(
       expect.objectContaining({
-        stuckOver2hCount: 1,
+        stuckOver1hCount: 1,
       })
     );
     expect(result.reservations).toEqual(
       expect.objectContaining({
-        reservedWithProviderOver2hCount: 1,
+        reservedWithProviderOver1hCount: 1,
       })
+    );
+  });
+
+  it("surfaces delayed generations before they cross the critical stuck threshold", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,recovery_state,request_id",
+      reservationsSupported: true,
+      queueSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [
+        {
+          id: "gen-30m",
+          status: "running",
+          recovery_state: "queued",
+          provider: "fal",
+          model_id: "model-1",
+          request_id: "req-30m",
+          created_at: "2026-03-17T11:20:00.000Z",
+          completed_at: null,
+          failure_reason_code: null,
+          next_recovery_at: "2026-03-17T11:22:00.000Z",
+        },
+      ],
+      reservations: [],
+      queueRows: [],
+      ledger: [],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["DELAYED_GENERATIONS"])
+    );
+    expect(result.findings.map((finding) => finding.code)).not.toEqual(
+      expect.arrayContaining(["STUCK_GENERATIONS"])
     );
   });
 });

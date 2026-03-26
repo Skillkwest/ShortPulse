@@ -135,7 +135,7 @@ export default function AdminUserHealthPage() {
     return {
       spendable: result.credits.spendableCents,
       failRate24h: result.generations.last24h.failRatePercent,
-      stuckCount: result.generations.stuckOver2hCount,
+      stuckCount: result.generations.stuckOver1hCount,
       costWithoutSuccess: result.drainage.costWithoutSuccessfulGeneration.debitCents,
     };
   }, [result]);
@@ -306,7 +306,7 @@ export default function AdminUserHealthPage() {
                   <span className={styles.adminLabel}>Stuck generations</span>
                 </div>
                 <p className={styles.adminMetric}>{formatNumber(headline?.stuckCount ?? 0)}</p>
-                <p className={styles.adminSubtext}>older than 2h in queued/recovering</p>
+                <p className={styles.adminSubtext}>older than 1h in queued/recovering</p>
               </div>
               <div className={styles.adminCard}>
                 <div className={styles.adminCardTop}>

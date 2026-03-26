@@ -257,8 +257,8 @@ export type AdminUserHealthResponse = {
     last7d: { total: number; success: number; fail: number; failRatePercent: number };
     last30d: { total: number; success: number; fail: number; failRatePercent: number };
     topFailReasonsLookback: Array<{ reason: string; count: number }>;
-    stuckOver2hCount: number;
-    stuckOver2hSample: Array<{
+    stuckOver1hCount: number;
+    stuckOver1hSample: Array<{
       id: string;
       status: string | null;
       recoveryState: string | null;
@@ -272,7 +272,7 @@ export type AdminUserHealthResponse = {
   reservations: {
     total: number;
     byStatus: Record<string, number>;
-    reservedWithProviderOver2hCount: number;
+    reservedWithProviderOver1hCount: number;
     reservedWithoutProviderOver15mCount: number;
     topCapturedModels: Array<{ modelId: string; cents: number }>;
   };

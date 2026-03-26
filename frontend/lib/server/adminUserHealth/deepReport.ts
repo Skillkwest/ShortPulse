@@ -9,9 +9,15 @@ import {
   ratioPercent,
   type DeepLookupMode as LookupMode,
 } from "./deep";
+import {
+  HOUR_MS,
+  PRE_SUBMIT_RESERVED_HOLD_WARNING_MS,
+  PROVIDER_ATTACHED_RESERVED_HOLD_CRITICAL_MS,
+  STUCK_GENERATION_CRITICAL_MS,
+  STUCK_GENERATION_WARNING_MS,
+} from "./thresholds";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
 
 type FindingSeverity = "info" | "warning" | "critical";
 type FindingConfidence = "high" | "medium" | "low";
@@ -162,8 +168,8 @@ export type AdminHealthResponse = {
     last7d: { total: number; success: number; fail: number; failRatePercent: number };
     last30d: { total: number; success: number; fail: number; failRatePercent: number };
     topFailReasonsLookback: Array<{ reason: string; count: number }>;
-    stuckOver2hCount: number;
-    stuckOver2hSample: Array<{
+    stuckOver1hCount: number;
+    stuckOver1hSample: Array<{
       id: string;
       status: string | null;
       recoveryState: string | null;
@@ -177,7 +183,7 @@ export type AdminHealthResponse = {
   reservations: {
     total: number;
     byStatus: Record<string, number>;
-    reservedWithProviderOver2hCount: number;
+    reservedWithProviderOver1hCount: number;
     reservedWithoutProviderOver15mCount: number;
     topCapturedModels: Array<{ modelId: string; cents: number }>;
   };
@@ -493,7 +499,7 @@ export const buildAdminHealthResponse = ({
     .slice(0, 10)
     .map(([reason, count]) => ({ reason, count }));
 
-  const stuckOver2h = generations.filter((row) => {
+  const delayedOver30m = generations.filter((row) => {
     if (!row.request_id) return false;
     const status = row.status ?? "";
     if (!["pending", "submitted", "running", "fail"].includes(status)) return false;
@@ -501,21 +507,27 @@ export const buildAdminHealthResponse = ({
     if (!["queued", "recovering"].includes(recoveryState)) return false;
     const createdAtMs = parseTimestamp(row.created_at);
     if (createdAtMs === null) return false;
-    return nowMs - createdAtMs >= 2 * HOUR_MS;
+    return nowMs - createdAtMs >= STUCK_GENERATION_WARNING_MS;
+  });
+
+  const stuckOver1h = delayedOver30m.filter((row) => {
+    const createdAtMs = parseTimestamp(row.created_at);
+    if (createdAtMs === null) return false;
+    return nowMs - createdAtMs >= STUCK_GENERATION_CRITICAL_MS;
   });
 
   const reservationsByStatus = computeStatusCounts(reservations);
-  const reservedWithProviderOver2h = reservations.filter((row) => {
+  const reservedWithProviderOver1h = reservations.filter((row) => {
     if (row.status !== "reserved" || !row.provider_request_id) return false;
     const createdAtMs = parseTimestamp(row.created_at);
     if (createdAtMs === null) return false;
-    return nowMs - createdAtMs >= 2 * HOUR_MS;
+    return nowMs - createdAtMs >= PROVIDER_ATTACHED_RESERVED_HOLD_CRITICAL_MS;
   });
   const reservedWithoutProviderOver15m = reservations.filter((row) => {
     if (row.status !== "reserved" || row.provider_request_id) return false;
     const createdAtMs = parseTimestamp(row.created_at);
     if (createdAtMs === null) return false;
-    return nowMs - createdAtMs >= 15 * 60 * 1000;
+    return nowMs - createdAtMs >= PRE_SUBMIT_RESERVED_HOLD_WARNING_MS;
   });
 
   const capturedByModelMap = new Map<string, number>();
@@ -574,13 +586,13 @@ export const buildAdminHealthResponse = ({
     findings.push({ severity, confidence, code, summary, details, recommendedActions });
   };
 
-  if (reservedWithProviderOver2h.length > 0 || reservedWithoutProviderOver15m.length > 0) {
+  if (reservedWithProviderOver1h.length > 0 || reservedWithoutProviderOver15m.length > 0) {
     addFinding(
       "critical",
       "high",
       "ACTIVE_RESERVED_HOLDS",
       "Found aged active reservation holds.",
-      `${reservedWithProviderOver2h.length} provider-attached holds are older than 2h; ${reservedWithoutProviderOver15m.length} pre-submit holds are older than 15m.`,
+      `${reservedWithProviderOver1h.length} provider-attached holds are older than 1h; ${reservedWithoutProviderOver15m.length} pre-submit holds are older than 15m.`,
       [
         "Run /api/internal/generation-recovery/run and re-check reservation counts.",
         "Use /admin/generation-trace on affected source_ref/request_id values.",
@@ -601,17 +613,30 @@ export const buildAdminHealthResponse = ({
     );
   }
 
-  if (stuckOver2h.length > 0) {
+  if (stuckOver1h.length > 0) {
     addFinding(
       "critical",
       "high",
       "STUCK_GENERATIONS",
       "Stuck generations detected in queued/recovering states.",
-      `${stuckOver2h.length} generation rows are older than 2h and still in queued/recovering states.`,
+      `${stuckOver1h.length} generation rows are older than 1h and still in queued/recovering states.`,
       [
         "Open /admin/generation-trace for one impacted generation/request.",
         "Run /api/admin/generation-recovery/replay for explicit stuck rows.",
         "Inspect provider status and failure codes before manual settlement actions.",
+      ]
+    );
+  } else if (delayedOver30m.length > 0) {
+    addFinding(
+      "warning",
+      "medium",
+      "DELAYED_GENERATIONS",
+      "Queued or recovering generations are aging past the normal recovery window.",
+      `${delayedOver30m.length} generation rows are older than 30m and still in queued/recovering states.`,
+      [
+        "Run /api/internal/generation-recovery/run and verify rows converge.",
+        "Inspect one affected row in /admin/generation-trace.",
+        "If the same rows recur, audit scheduler health before changing cleanup thresholds.",
       ]
     );
   }
@@ -768,8 +793,8 @@ export const buildAdminHealthResponse = ({
       last7d: last7dSummary,
       last30d: last30dSummary,
       topFailReasonsLookback,
-      stuckOver2hCount: stuckOver2h.length,
-      stuckOver2hSample: stuckOver2h.slice(0, 20).map((row) => {
+      stuckOver1hCount: stuckOver1h.length,
+      stuckOver1hSample: stuckOver1h.slice(0, 20).map((row) => {
         const createdAtMs = parseTimestamp(row.created_at);
         return {
           id: row.id,
@@ -787,7 +812,7 @@ export const buildAdminHealthResponse = ({
     reservations: {
       total: reservations.length,
       byStatus: reservationsByStatus,
-      reservedWithProviderOver2hCount: reservedWithProviderOver2h.length,
+      reservedWithProviderOver1hCount: reservedWithProviderOver1h.length,
       reservedWithoutProviderOver15mCount: reservedWithoutProviderOver15m.length,
       topCapturedModels,
     },

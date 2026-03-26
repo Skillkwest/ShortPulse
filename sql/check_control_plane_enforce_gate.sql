@@ -17,7 +17,7 @@ create temporary table pg_temp.control_plane_enforce_checks (
   check_name text not null,
   pass boolean not null,
   detail text not null
-) on commit drop;
+);
 
 insert into pg_temp.control_plane_enforce_checks (check_name, pass, detail)
 with scheduler as (
@@ -205,6 +205,54 @@ unauthorized_recent as (
   from net._http_response r
   where r.created > now() - interval '10 minutes'
     and r.status_code = 401
+),
+scheduler_function_contract as (
+  with expected_contract as (
+    select *
+    from (
+      values
+        (
+          'public.invoke_generation_recovery_scheduler()'::text,
+          'shortpulse_vercel_protection_bypass_token'::text,
+          'x-vercel-protection-bypass'::text
+        ),
+        (
+          'public.invoke_media_derivative_scheduler()'::text,
+          'shortpulse_vercel_protection_bypass_token'::text,
+          'x-vercel-protection-bypass'::text
+        ),
+        (
+          'public.invoke_admin_user_health_fleet_scheduler()'::text,
+          'shortpulse_vercel_protection_bypass_token'::text,
+          'x-vercel-protection-bypass'::text
+        )
+    ) as t(function_signature, required_secret_snippet, required_header_snippet)
+  ),
+  resolved as (
+    select
+      e.function_signature,
+      e.required_secret_snippet,
+      e.required_header_snippet,
+      to_regprocedure(e.function_signature) as regproc
+    from expected_contract e
+  ),
+  definitions as (
+    select
+      r.function_signature,
+      r.required_secret_snippet,
+      r.required_header_snippet,
+      r.regproc,
+      case
+        when r.regproc is null then null
+        else pg_get_functiondef(r.regproc)
+      end as function_definition
+    from resolved r
+  )
+  select count(*)::integer as failing_checks
+  from definitions
+  where regproc is null
+     or function_definition not like '%' || required_secret_snippet || '%'
+     or function_definition not like '%' || required_header_snippet || '%'
 )
 select
   'scheduler_alive'::text as check_name,
@@ -275,7 +323,14 @@ union all
 select
   'no_recent_unauthorized_pg_net_401'::text,
   ((select unauthorized_10m_count from unauthorized_recent) = 0) as pass,
-  'no HTTP 401 responses in net._http_response over the last 10 minutes' as detail;
+  'no HTTP 401 responses in net._http_response over the last 10 minutes' as detail
+
+union all
+
+select
+  'scheduler_function_contract_parity'::text,
+  ((select failing_checks from scheduler_function_contract) = 0) as pass,
+  'scheduler functions must read bypass token secret and send x-vercel-protection-bypass header' as detail;
 
 select
   check_name,

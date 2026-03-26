@@ -305,9 +305,15 @@ Mode policy:
 - SQL bundle:
   - `sql/check_control_plane_scheduler_health.sql`
   - `sql/check_pg_net_failure_taxonomy.sql`
-  - `sql/check_runtime_sql_security_audit.sql`
-  - `sql/check_generation_settlement_integrity.sql`
-  - `sql/check_control_plane_enforce_gate.sql`
+- `sql/check_runtime_sql_security_audit.sql`
+- `sql/check_generation_settlement_integrity.sql`
+- `sql/check_control_plane_enforce_gate.sql`
+- Enforce gate coverage includes:
+  - required scheduler job liveness/schedule posture
+  - recent unauthorized `pg_net` failures
+  - runtime SQL security posture
+  - settlement integrity
+  - scheduler function contract parity for `invoke_generation_recovery_scheduler()`, `invoke_media_derivative_scheduler()`, and `invoke_admin_user_health_fleet_scheduler()`
 - Modes: `warn` and `enforce` via dispatch input
 - Enforce semantics:
   - `enforce` fails when SQL execution fails or `check_control_plane_enforce_gate.sql` reports non-zero `failing_check_count`.

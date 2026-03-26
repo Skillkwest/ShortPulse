@@ -151,3 +151,64 @@ select
 from latest
 where rn = 1
 order by jobname;
+
+-- 6) Scheduler function contract parity (catches stale live SQL bodies).
+with expected_contract as (
+  select *
+  from (
+    values
+      (
+        'public.invoke_generation_recovery_scheduler()'::text,
+        'shortpulse_vercel_protection_bypass_token'::text,
+        'x-vercel-protection-bypass'::text
+      ),
+      (
+        'public.invoke_media_derivative_scheduler()'::text,
+        'shortpulse_vercel_protection_bypass_token'::text,
+        'x-vercel-protection-bypass'::text
+      ),
+      (
+        'public.invoke_admin_user_health_fleet_scheduler()'::text,
+        'shortpulse_vercel_protection_bypass_token'::text,
+        'x-vercel-protection-bypass'::text
+      )
+  ) as t(function_signature, required_secret_snippet, required_header_snippet)
+),
+resolved as (
+  select
+    e.function_signature,
+    e.required_secret_snippet,
+    e.required_header_snippet,
+    to_regprocedure(e.function_signature) as regproc
+  from expected_contract e
+),
+definitions as (
+  select
+    r.function_signature,
+    r.required_secret_snippet,
+    r.required_header_snippet,
+    r.regproc,
+    case
+      when r.regproc is null then null
+      else pg_get_functiondef(r.regproc)
+    end as function_definition
+  from resolved r
+)
+select
+  function_signature,
+  (regproc is not null) as function_present,
+  (function_definition like '%' || required_secret_snippet || '%') as has_required_secret_read,
+  (function_definition like '%' || required_header_snippet || '%') as has_required_bypass_header,
+  case
+    when regproc is null then 'missing_function'
+    when function_definition not like '%' || required_secret_snippet || '%'
+      and function_definition not like '%' || required_header_snippet || '%'
+      then 'missing_secret_and_header'
+    when function_definition not like '%' || required_secret_snippet || '%'
+      then 'missing_secret_read'
+    when function_definition not like '%' || required_header_snippet || '%'
+      then 'missing_bypass_header'
+    else 'ok'
+  end as contract_status
+from definitions
+order by function_signature;

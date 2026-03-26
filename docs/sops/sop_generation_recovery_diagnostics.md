@@ -116,6 +116,9 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
    - cleanup (aggregated pre-submit + provider-attached): `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
 3. Re-run blocker diagnostics after each pass until counts stabilize and trend down.
+4. Treat control-plane enforce diagnostics as the contract check for hosted scheduler drift:
+   - `check_control_plane_enforce_gate.sql` now fails when the live scheduler functions are missing either the Vault read for `shortpulse_vercel_protection_bypass_token` or the `x-vercel-protection-bypass` header send.
+   - This specifically catches stale hosted `invoke_generation_recovery_scheduler()` bodies that can leave `pg_cron` green while `pg_net` still returns Vercel `401 Authentication Required`.
 
 ### 3) Guarded manual remediation (only for confirmed stale blockers)
 1. Use the commented remediation transaction in `sql/check_generation_queue_blockers.sql`.

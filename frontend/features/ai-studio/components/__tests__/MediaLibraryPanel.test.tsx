@@ -597,6 +597,51 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps.adaptivePreviewQualityEnabled).toBe(false);
   });
 
+  it("tracks media selection state inside the panel surface", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
+
+    await waitFor(() => {
+      const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+      expect(latestProps?.selectedIds).toBeInstanceOf(Set);
+      expect(latestProps?.selectedIds.has("media-1")).toBe(true);
+    });
+  });
+
+  it("clears panel selection when switching root tabs", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
+
+    await waitFor(() => {
+      const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+      expect(latestProps?.selectedIds.has("media-1")).toBe(true);
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+
+    await waitFor(() => {
+      const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+      expect(latestProps?.selectedIds).toBeInstanceOf(Set);
+      expect(latestProps?.selectedIds.size).toBe(0);
+    });
+  });
+
   it("downloads media from the panel media hover action", async () => {
     const originalCreateElement = document.createElement.bind(document);
     const anchor = originalCreateElement("a");

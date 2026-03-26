@@ -3,11 +3,7 @@
  * Bearer verification is authoritative; proxy headers are advisory metadata only.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import {
-  mergeVerifiedUserWithProxyContext,
-  readProxyAuthenticatedUser,
-  shouldTrustProxyAuthHeaders,
-} from "./authProxyContext";
+import { mergeVerifiedUserWithProxyContext, readProxyAuthenticatedUser } from "./authProxyContext";
 import {
   parseBearerToken,
   verifyBearerRequestUser,
@@ -36,10 +32,6 @@ export const getOptionalApiUser = async (
   const verifiedUser = await resolveVerifiedApiUser(req);
   if (verifiedUser) return verifiedUser;
 
-  if (shouldTrustProxyAuthHeaders() && !parseBearerToken(req.headers.authorization)) {
-    return readProxyAuthenticatedUser(req);
-  }
-
   return null;
 };
 
@@ -52,13 +44,6 @@ export const requireApiUser = async (
 ): Promise<AuthenticatedApiUser | null> => {
   const token = parseBearerToken(req.headers.authorization);
   if (!token) {
-    if (shouldTrustProxyAuthHeaders()) {
-      const proxyUser = readProxyAuthenticatedUser(req);
-      if (proxyUser) {
-        return proxyUser;
-      }
-    }
-
     res.status(401).json({ error: "Unauthorized" });
     return null;
   }

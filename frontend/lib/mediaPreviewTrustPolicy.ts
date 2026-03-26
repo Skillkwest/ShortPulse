@@ -112,11 +112,17 @@ export const resolveMediaPreviewTrustedHosts = (): string[] => {
   const hosts = new Set<string>();
   const supabaseHost = resolveSupabaseHost();
   if (supabaseHost) hosts.add(supabaseHost);
-  for (const host of parseHostList(
-    process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS ??
-      process.env.NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS
-  )) {
-    hosts.add(host);
+  const allowExternal = parseBooleanEnv(
+    process.env.SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS,
+    process.env.NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS
+  );
+  if (allowExternal) {
+    for (const host of parseHostList(
+      process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS ??
+        process.env.NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS
+    )) {
+      hosts.add(host);
+    }
   }
   hosts.add("localhost");
   hosts.add("127.0.0.1");

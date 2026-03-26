@@ -7,15 +7,13 @@ import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
 import { getFalModelProfileByModelId } from "../../../lib/server/falIntegration/modelProfiles";
 
 const veoI2vProfile = getFalModelProfileByModelId("fal-ai/veo3.1/image-to-video");
-if (!veoI2vProfile) {
-  throw new Error("Missing Fal model profile for fal-ai/veo3.1/image-to-video");
-}
-
-const baseHandler = createFalStatusHandler({
-  queueBaseUrl: veoI2vProfile.statusBases,
-  routeLabel: "Fal Veo image-to-video",
-  timeoutMs: veoI2vProfile.timeoutMs,
-});
+const baseHandler = veoI2vProfile
+  ? createFalStatusHandler({
+      queueBaseUrl: veoI2vProfile.statusBases,
+      routeLabel: "Fal Veo image-to-video",
+      timeoutMs: veoI2vProfile.timeoutMs,
+    })
+  : null;
 
 const readQueryRequestId = (req: NextApiRequest): string | null => {
   const queryValue = Array.isArray(req.query.requestId)
@@ -36,6 +34,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "GET") {
+    if (!baseHandler) {
+      return res.status(500).json({ error: "Fal Veo image-to-video is unavailable." });
+    }
     const requestId = readQueryRequestId(req);
     const proxiedReq = {
       ...req,
@@ -48,5 +49,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return baseHandler(proxiedReq, res);
   }
 
+  if (!baseHandler) {
+    return res.status(500).json({ error: "Fal Veo image-to-video is unavailable." });
+  }
   return baseHandler(req, res);
 }

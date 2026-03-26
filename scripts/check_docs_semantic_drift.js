@@ -46,7 +46,7 @@ function listPageRoutes() {
     if (parts.some((part) => part.startsWith("["))) continue;
 
     if (parts.length === 1 && parts[0] === "index") {
-      routes.add("/index");
+      routes.add("/");
       continue;
     }
 

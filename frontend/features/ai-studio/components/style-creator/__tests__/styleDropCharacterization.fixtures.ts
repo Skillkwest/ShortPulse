@@ -2,8 +2,6 @@
  * Characterization fixtures for Reference Grid -> Styles drag packets.
  * Mirrors the user-reported passing and failing source classes.
  */
-import type { DataTransfer } from "happy-dom";
-
 type TransferMap = Record<string, string>;
 
 const buildTransfer = ({

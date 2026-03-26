@@ -107,7 +107,7 @@ describe("auth helper token-first behavior", () => {
     expect(accessVia).toBe("allowlist");
   });
 
-  it("allows emergency proxy-header trust only when explicitly enabled and bearer is absent", async () => {
+  it("does not allow proxy-header trust even when the legacy env flag is enabled", async () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "true";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -124,9 +124,9 @@ describe("auth helper token-first behavior", () => {
 
     const user = await requireApiUser(req as never, res as never);
 
-    expect(user?.id).toBe("proxy-user-1");
+    expect(user).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it("does not fallback to proxy headers when bearer verification fails", async () => {

@@ -2,6 +2,7 @@
  * Shared charged submit proxy for Fal generation endpoints.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
@@ -168,6 +169,9 @@ export const createFalSubmitHandler = ({
   return async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
+    }
+    if (!(await requireApiUser(req, res))) {
+      return;
     }
 
     const providerKey = provider.trim().toLowerCase();

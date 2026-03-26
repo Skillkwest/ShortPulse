@@ -601,13 +601,14 @@ describe("ai-studio page character mode submission", () => {
     );
     expect(addBreadcrumbMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "character_mode_reference_refresh_empty",
+        message: "character_mode_bundle_refresh_skipped",
         data: expect.objectContaining({
           selected_character_id: "char-1",
+          reason: "fresh_bundle_reuse",
         }),
       })
     );
-    expect(reportAppErrorMock).toHaveBeenCalledWith(
+    expect(reportAppErrorMock).not.toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.character_mode",
         message: "character_mode_reference_refresh_empty",

@@ -11,7 +11,7 @@ import {
   resolveStyleSource,
   resizeImageDataUrlForExtraction,
 } from "../intake";
-import type { ResolveInternalStyleDrop } from "../styleSourceResolver";
+import type { ResolveInternalStyleDrop, ResolvedInternalStyleSource } from "../styleSourceResolver";
 
 const originalImage = globalThis.Image;
 const originalFileReader = globalThis.FileReader;
@@ -194,8 +194,9 @@ describe("style-creator source normalization", () => {
         return "";
       },
     } as unknown as DataTransfer;
-    const resolver: ResolveInternalStyleDrop = vi.fn(async () => ({
+    const resolvedInternal: ResolvedInternalStyleSource = {
       kind: "internal",
+      sourceKind: "generated_output",
       sourceId: "media-1",
       provenance: {
         origin: "ai-studio-reference-grid",
@@ -208,11 +209,17 @@ describe("style-creator source normalization", () => {
       outputId: "out-1",
       mediaId: "media-1",
       mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/stale-reference.png",
+        width: 1024,
+        height: 768,
+      },
       previewStoragePath: "user-1/generations/images/out-1.png",
       fullStoragePath: "user-1/generations/images/out-1.png",
       promptText: "golden hour portrait",
       loadBlob: async () => new Blob(["internal-bytes"], { type: "image/png" }),
-    }));
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
 
     const resolved = await resolveStyleSource({
       transfer,
@@ -248,8 +255,9 @@ describe("style-creator source normalization", () => {
         return "";
       },
     } as unknown as DataTransfer;
-    const resolver: ResolveInternalStyleDrop = vi.fn(async () => ({
+    const resolvedInternal: ResolvedInternalStyleSource = {
       kind: "internal",
+      sourceKind: "generated_output",
       sourceId: "media-1",
       provenance: {
         origin: "ai-studio-reference-grid",
@@ -262,11 +270,17 @@ describe("style-creator source normalization", () => {
       outputId: "out-1",
       mediaId: "media-1",
       mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/stale-reference.png",
+        width: 1600,
+        height: 1200,
+      },
       previewStoragePath: "user-1/generations/images/out-1.png",
       fullStoragePath: "user-1/generations/images/out-1.png",
       promptText: "golden hour portrait",
       loadBlob: async () => new Blob(["internal-bytes"], { type: "image/png" }),
-    }));
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
 
     const resolved = await resolveDroppedStylePreview(transfer, {
       resolveInternalStyleDrop: resolver,

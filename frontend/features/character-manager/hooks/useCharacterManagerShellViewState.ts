@@ -196,7 +196,7 @@ export const useCharacterManagerShellViewState = ({
         const nextIndex = (current.index + step + total) % total;
         return {
           index: nextIndex,
-          aspectRatio: clampReferencePreviewAspectRatio(null),
+          aspectRatio: current.aspectRatio,
         };
       });
     },

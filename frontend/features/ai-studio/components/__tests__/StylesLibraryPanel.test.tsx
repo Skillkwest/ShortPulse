@@ -7,6 +7,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
+import type { ResolvedInternalStyleSource } from "../style-creator/intake";
 import {
   postExtractStyle,
   prepareStyleImageUrl,
@@ -386,8 +387,9 @@ describe("StylesLibraryPanel", () => {
 
   it("creates a style from internal reference-grid drops using resolved internal candidates", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
-    const resolveInternalStyleDrop = vi.fn(async () => ({
+    const resolvedInternal: ResolvedInternalStyleSource = {
       kind: "internal",
+      sourceKind: "generated_output",
       sourceId: "media-1",
       provenance: {
         origin: "ai-studio-reference-grid",
@@ -400,11 +402,17 @@ describe("StylesLibraryPanel", () => {
       outputId: "out-123",
       mediaId: "media-1",
       mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/stale-reference.png",
+        width: 1024,
+        height: 768,
+      },
       previewStoragePath: "user-1/generations/images/out-123.png",
       fullStoragePath: "user-1/generations/images/out-123.png",
       promptText: "internal prompt",
       loadBlob: async () => new Blob(["internal-drop"], { type: "image/png" }),
-    }));
+    };
+    const resolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
     const originalImage = globalThis.Image;
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
     const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
@@ -504,8 +512,9 @@ describe("StylesLibraryPanel", () => {
 
   it("creates a style from internal drops even when only the internal render identity is present", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
-    const resolveInternalStyleDrop = vi.fn(async () => ({
+    const resolvedInternal: ResolvedInternalStyleSource = {
       kind: "internal",
+      sourceKind: "generated_output",
       sourceId: "media-identity",
       provenance: {
         origin: "ai-studio-reference-grid",
@@ -518,11 +527,17 @@ describe("StylesLibraryPanel", () => {
       outputId: "out-identity",
       mediaId: "media-identity",
       mediaSource: "generated",
+      preview: {
+        url: "/_next/image?url=%2Finternal-style.png&w=1080&q=75",
+        width: 1024,
+        height: 768,
+      },
       previewStoragePath: null,
       fullStoragePath: null,
       promptText: "internal prompt",
       loadBlob: async () => new Blob(["internal-identity"], { type: "image/png" }),
-    }));
+    };
+    const resolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
     const originalImage = globalThis.Image;
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
     const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;

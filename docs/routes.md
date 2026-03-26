@@ -19,8 +19,8 @@ Reference for pages, auth expectations, and ownership.
 | `/admin/user-health` | Yes | Admin user health diagnostics page | Operator-only diagnostics route for user-level generation/queue/reservation/ledger health checks and next-step recommendations. |
 | `/admin/user-health-fleet` | Yes | Admin fleet health diagnostics page | Operator-only hourly triage view for active users, including risk/severity filters and drill-down links to per-user health and generation trace pages. |
 | `/admin/generation-trace` | Yes | Admin generation trace page | Operator-only debugging route for stitched generation timelines. |
-| `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |
+| `/onboarding` | No | Onboarding placeholder route | Currently a “Coming soon” placeholder with a back-link to `/dashboard`. |
 | `/creator-studio` | Yes | Legacy alias to AI Studio | Re-export of `/ai-studio`. |
-| `/index` | No | Root entry redirect alias | Mirrors the root entry redirect and forwards to `/dashboard`. |
+| `/` | No | Root entry redirect | Forwards to `/dashboard`, which then applies the auth gate. |
 
 Keep this table updated when adding routes and reflect protection rules in `frontend/lib/authGuard.ts`.

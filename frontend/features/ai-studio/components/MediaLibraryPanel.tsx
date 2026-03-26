@@ -97,7 +97,6 @@ type MediaLibraryPanelProps = {
 };
 
 const ROOT_FOLDER_LABEL = "All Media";
-const EMPTY_SELECTED_IDS = new Set<string>();
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
@@ -179,7 +178,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const [error, setError] = useState<string | null>(null);
   const [, setMembershipMessage] = useState<string | null>(null);
-  const selectedIds = EMPTY_SELECTED_IDS;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
 
   const signedUrlRetryRef = useRef<Record<string, number>>({});
@@ -215,7 +214,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-panel-grid");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
-    surface: "media-library-modal",
+    surface: "media-library-panel",
     enabled: adaptivePreviewQualityEnabled,
   });
 
@@ -324,6 +323,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     setMembershipMessage(null);
   }, [activeFolderId, itemType, normalizedSearch]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeFolderId, itemType]);
 
   useEffect(() => {
     setError(dataError);
@@ -548,6 +551,32 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     refreshSignedUrl,
     signStoragePath,
   });
+
+  const handleSelectPromptCardWithSelection = useCallback(
+    (prompt: PromptRow) => {
+      setSelectedIds((prev) => {
+        if (prev.has(prompt.id)) return prev;
+        const next = new Set(prev);
+        next.add(prompt.id);
+        return next;
+      });
+      handleSelectPromptCard(prompt);
+    },
+    [handleSelectPromptCard]
+  );
+
+  const handleSelectMediaFileWithSelection = useCallback(
+    async (file: MediaFileRow) => {
+      setSelectedIds((prev) => {
+        if (prev.has(file.id)) return prev;
+        const next = new Set(prev);
+        next.add(file.id);
+        return next;
+      });
+      await handleSelectMediaFile(file);
+    },
+    [handleSelectMediaFile]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -945,7 +974,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
         onSelectMediaFile={(file) => {
-          void handleSelectMediaFile(file);
+          void handleSelectMediaFileWithSelection(file);
         }}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
@@ -981,7 +1010,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleDownloadMediaFile,
       handleMediaPreviewError,
       handleRemoveItemFromActiveFolder,
-      handleSelectMediaFile,
+      handleSelectMediaFileWithSelection,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
@@ -1012,7 +1041,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               prompts={visiblePromptRows}
               sortedPrompts={visiblePromptRows}
               selectedIds={selectedIds}
-              onSelectPromptCard={handleSelectPromptCard}
+              onSelectPromptCard={handleSelectPromptCardWithSelection}
               onPromptDragStart={handlePromptCardDragStart}
               onPromptDragEnd={handleCardDragEnd}
               showRemoveAction={canShowFolderItemRemoveAction}
@@ -1052,7 +1081,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleCardDragEnd,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
-      handleSelectPromptCard,
+      handleSelectPromptCardWithSelection,
       promptHasMore,
       promptLoading,
       selectedIds,

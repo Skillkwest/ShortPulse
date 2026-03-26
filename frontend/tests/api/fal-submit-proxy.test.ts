@@ -8,6 +8,11 @@ const evaluateUserGenerationAdmissionMock = vi.fn();
 const hasFreshLocalGenerationWorkerHeartbeatMock = vi.fn();
 const isLocalDevGenerationWorkerRequiredMock = vi.fn();
 const readActiveProviderCapacitySnapshotMock = vi.fn();
+const requireApiUserMock = vi.fn();
+
+vi.mock("../../lib/server/api/auth", () => ({
+  requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
+}));
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
@@ -94,6 +99,12 @@ describe("createFalSubmitHandler", () => {
       tierActive: 0,
       staleIgnoredGlobal: 0,
       staleIgnoredTier: 0,
+    });
+    requireApiUserMock.mockResolvedValue({
+      id: "user-1",
+      email: "user-1@example.com",
+      app_metadata: {},
+      user_metadata: {},
     });
   });
 

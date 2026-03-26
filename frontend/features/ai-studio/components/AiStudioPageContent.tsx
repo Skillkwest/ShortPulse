@@ -82,7 +82,11 @@ import {
   readMediaLibraryDragPayload,
   getMediaLibraryDragTypes,
 } from "../logic/mediaLibraryDragPayload";
-import { getNormalizedTransferTypes, type InternalReferenceDragPayload } from "../utils/dragDrop";
+import {
+  getNormalizedTransferTypes,
+  hasInternalReferenceDragTypeHints,
+  type InternalReferenceDragPayload,
+} from "../utils/dragDrop";
 import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 
 type FailureCard = Pick<
@@ -256,7 +260,7 @@ const resolveRightColumnDropMode = (
       type.includes("prompt") ||
       type.includes("utf8")
   );
-  if (types.includes("text/reference-id")) return "none";
+  if (hasInternalReferenceDragTypeHints(transfer)) return "none";
   if (hasLibraryDragType) return "media";
   if (fileCount > 0) return "media";
   if (hasMediaUrlHints) return "media";
@@ -269,7 +273,7 @@ const resolveRightColumnDropMode = (
 };
 
 const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropPayload => {
-  if (transfer.getData("text/reference-id")) return { kind: "internal" };
+  if (hasInternalReferenceDragTypeHints(transfer)) return { kind: "internal" };
   const mediaLibraryDragPayload = readMediaLibraryDragPayload(transfer);
   if (mediaLibraryDragPayload?.kind === "libraryMedia") {
     return { kind: "libraryMedia", payload: mediaLibraryDragPayload.payload };

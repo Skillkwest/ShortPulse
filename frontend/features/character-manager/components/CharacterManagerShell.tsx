@@ -20,7 +20,10 @@ import {
   logAdaptiveDetailFullQualityUsed,
 } from "../../../lib/adaptive-media";
 import { normalizePlanId } from "../../billing/catalog";
-import { extractInternalReferenceDragPayload } from "../../../lib/internalReferenceDragPayload";
+import {
+  extractInternalReferenceDragPayload,
+  hasInternalReferenceDragTypeHints,
+} from "../../../lib/internalReferenceDragPayload";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
@@ -465,6 +468,7 @@ export function CharacterManagerShell({
   }, []);
 
   const isDroppedImageReferenceEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (hasInternalReferenceDragTypeHints(event.dataTransfer)) return true;
     if (extractInternalReferenceDragPayload(event.dataTransfer)) return true;
     return hasDroppedImageReferenceTransfer(event.dataTransfer);
   }, []);

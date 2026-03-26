@@ -1430,6 +1430,64 @@ describe("CharacterManagerShell behavior", () => {
     }
   });
 
+  it("keeps QuickSwap droppable when dragover only exposes internal token hints", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["internal-token-hint"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "media-internal-token-hint-1",
+      previewUrl: "https://example.com/internal-token-hint-quickswap.png",
+      outputId: "output-internal-token-hint-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+
+      const dragOverTransfer = createDataTransfer();
+      dragOverTransfer.setData("text/reference-drag-token", "");
+      dragOverTransfer.setData("text/reference-output-id", "");
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: dragOverTransfer });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: dragOverTransfer });
+
+      expect(screen.getByText("Drop reference images here")).toBeInTheDocument();
+
+      const dropTransfer = createDataTransfer();
+      addInternalReferenceDragPayload(dropTransfer, {
+        outputId: "output-internal-token-hint-1",
+        mediaId: "media-internal-token-hint-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/internal-token-hint-quickswap.png",
+      });
+
+      fireEvent.drop(quickSwapSection, { dataTransfer: dropTransfer });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://example.com/internal-token-hint-quickswap.png"
+        );
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("shows a pending QuickSwap overlay state while internal drop attachment is in flight", async () => {
     const pendingFetch = {
       resolve: null as

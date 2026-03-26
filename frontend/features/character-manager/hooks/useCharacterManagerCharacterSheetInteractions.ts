@@ -5,7 +5,10 @@ import {
   type DragEvent,
   type SetStateAction,
 } from "react";
-import { extractInternalReferenceDragPayload } from "../../../lib/internalReferenceDragPayload";
+import {
+  extractInternalReferenceDragPayload,
+  hasInternalReferenceDragTypeHints,
+} from "../../../lib/internalReferenceDragPayload";
 import { CHARACTER_SHEET_DROP_ZONES } from "../constants";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
 import type {
@@ -174,13 +177,15 @@ export const useCharacterManagerCharacterSheetInteractions = ({
           | "") || draggedCharacterSheetZoneKey;
       const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
       const internalReferenceGridPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      const hasInternalReferenceGridHints = hasInternalReferenceDragTypeHints(event.dataTransfer);
       const hasExternalImageReference = hasDroppedImageReferenceTransfer(event.dataTransfer);
       const isInternalSheetDrag =
         Boolean(sourceCharacterSheetZoneKey) &&
         CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey);
       const isInternalReferenceDrag = Boolean(quickSwapItem);
       const isInternalReferenceGridDrag = Boolean(
-        internalReferenceGridPayload && canResolveCharacterDropReference
+        canResolveCharacterDropReference &&
+        (internalReferenceGridPayload || hasInternalReferenceGridHints)
       );
       if (
         !isInternalSheetDrag &&

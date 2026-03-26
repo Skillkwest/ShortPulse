@@ -213,6 +213,13 @@ const makeEmptyFileList = (): FileList =>
     item: () => null,
   }) as unknown as FileList;
 
+const createDataTransfer = (data: Record<string, string> = {}): DataTransfer =>
+  ({
+    files: makeEmptyFileList(),
+    types: Object.keys(data),
+    getData: (type: string) => data[type] ?? "",
+  }) as unknown as DataTransfer;
+
 const createProps = (
   overrides: Partial<AiStudioPageContentProps> = {}
 ): AiStudioPageContentProps => ({
@@ -474,6 +481,44 @@ describe("AiStudioPageContent right column drop router", () => {
       "visible"
     );
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
+  });
+
+  it("treats token-only internal drags as internal so the shell does not intercept them", () => {
+    const onPasteMediaReference = vi.fn();
+    const onPasteTextReference = vi.fn();
+
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "character",
+          referenceGridProps: {
+            ...createProps().referenceGridProps,
+            onAddCuratedReference: vi.fn(),
+            onRemoveCuratedReference: vi.fn(),
+            onReorderCuratedReference: vi.fn(),
+            onPasteMediaReference,
+            onPasteTextReference,
+          },
+        })}
+      />
+    );
+
+    const shellRightColumn = document.querySelector(".ai-shell-right");
+    if (!(shellRightColumn instanceof HTMLElement)) {
+      throw new Error("Unable to resolve AI Studio right column.");
+    }
+
+    const transfer = createDataTransfer({
+      "text/reference-drag-token": "",
+      "text/reference-output-id": "",
+    });
+
+    fireEvent.dragEnter(shellRightColumn, { dataTransfer: transfer });
+    fireEvent.dragOver(shellRightColumn, { dataTransfer: transfer });
+    fireEvent.drop(shellRightColumn, { dataTransfer: transfer });
+
+    expect(onPasteMediaReference).not.toHaveBeenCalled();
+    expect(onPasteTextReference).not.toHaveBeenCalled();
   });
 
   it("does not collapse to minimum when canvas is selected on initial hydration", () => {

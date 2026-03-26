@@ -29,7 +29,6 @@ const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
   "text/reference-output-id",
   "text/reference-media-id",
   "text/reference-origin",
-  "text/reference-url",
   "text/reference-source-surface",
 ]);
 

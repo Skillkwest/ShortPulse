@@ -22,7 +22,18 @@ export const supabaseClient =
  */
 export const ensureSupabaseClient = () => {
   if (!supabaseClient) {
-    throw new Error("Supabase env vars missing: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    throw new Error(
+      "Supabase env vars missing: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    );
   }
   return supabaseClient;
+};
+
+/**
+ * Identifies the auth-js abort shape surfaced during cancelled session reads in the browser.
+ */
+export const isSupabaseAbortError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  if (error.name === "AbortError") return true;
+  return error.message.toLowerCase().includes("signal is aborted");
 };

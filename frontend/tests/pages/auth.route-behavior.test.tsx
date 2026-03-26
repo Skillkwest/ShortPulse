@@ -35,6 +35,8 @@ vi.mock("next/router", () => ({
 
 vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  isSupabaseAbortError: (error: unknown) =>
+    error instanceof Error && error.message.toLowerCase().includes("signal is aborted"),
 }));
 
 describe("Auth route behavior", () => {
@@ -68,6 +70,17 @@ describe("Auth route behavior", () => {
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/profile?section=billing");
     });
+  });
+
+  it("ignores aborted session reads during auth bootstrap", async () => {
+    getSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
+
+    render(<AuthPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    });
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it("falls back to /dashboard when sign-in receives an unsafe redirect target", async () => {

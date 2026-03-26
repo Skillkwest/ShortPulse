@@ -43,6 +43,8 @@ vi.mock("next/router", () => ({
 
 vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  isSupabaseAbortError: (error: unknown) =>
+    error instanceof Error && error.message.toLowerCase().includes("signal is aborted"),
 }));
 
 describe("Landing route behavior", () => {
@@ -74,6 +76,17 @@ describe("Landing route behavior", () => {
     render(<LandingPage />);
 
     expect(screen.getByRole("heading", { name: /see what’s winning\./i })).toBeInTheDocument();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores aborted session reads during landing bootstrap", async () => {
+    getSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
+
+    render(<LandingPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /see what’s winning\./i })).toBeInTheDocument();
+    });
     expect(replaceMock).not.toHaveBeenCalled();
   });
 

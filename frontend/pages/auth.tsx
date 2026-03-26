@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import { Eye, EyeSlash, LockSimple, PaperPlaneTilt, SignIn } from "phosphor-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { ensureSupabaseClient } from "../lib/supabaseClient";
+import { ensureSupabaseClient, isSupabaseAbortError } from "../lib/supabaseClient";
 
 type Mode = "signin" | "signup";
 
@@ -58,11 +58,16 @@ export default function AuthPage() {
 
   useEffect(() => {
     const supabase = ensureSupabaseClient();
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        router.replace(nextPath);
-      }
-    });
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (data.session) {
+          router.replace(nextPath);
+        }
+      })
+      .catch((error) => {
+        if (isSupabaseAbortError(error)) return;
+      });
   }, [router, nextPath]);
 
   const isSubmitDisabled = !email.trim() || !password || loading;

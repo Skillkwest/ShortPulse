@@ -15,38 +15,39 @@
 
 create extension if not exists supabase_vault;
 
-do $$
-declare
-  v_secret_id uuid;
-  v_reconciler_cron_secret text := nullif(trim(:'reconciler_cron_secret'), '');
-begin
-  if v_reconciler_cron_secret is null then
-    raise exception 'Missing required psql variable: reconciler_cron_secret';
-  end if;
+\set reconciler_cron_secret_value ''
+select nullif(trim(:'reconciler_cron_secret'), '') as reconciler_cron_secret_value \gset
 
+\if :{?reconciler_cron_secret_value}
+\else
+  \echo 'Missing required psql variable: reconciler_cron_secret'
+  \quit 1
+\endif
+
+with existing_secret as (
   select ds.id
-    into v_secret_id
   from vault.decrypted_secrets ds
   where ds.name = 'shortpulse_reconciler_cron_secret'
   order by ds.created_at desc
-  limit 1;
+  limit 1
+)
+select id as existing_secret_id
+from existing_secret \gset
 
-  if v_secret_id is null then
-    perform vault.create_secret(
-      v_reconciler_cron_secret,
-      'shortpulse_reconciler_cron_secret',
-      'ShortPulse generation recovery cron bearer secret'
-    );
-  else
-    perform vault.update_secret(
-      v_secret_id,
-      v_reconciler_cron_secret,
-      'shortpulse_reconciler_cron_secret',
-      'ShortPulse generation recovery cron bearer secret'
-    );
-  end if;
-end;
-$$;
+\if :{?existing_secret_id}
+select vault.update_secret(
+  :'existing_secret_id',
+  :'reconciler_cron_secret_value',
+  'shortpulse_reconciler_cron_secret',
+  'ShortPulse generation recovery cron bearer secret'
+);
+\else
+select vault.create_secret(
+  :'reconciler_cron_secret_value',
+  'shortpulse_reconciler_cron_secret',
+  'ShortPulse generation recovery cron bearer secret'
+);
+\endif
 
 -- Verification query:
 -- select name, created_at

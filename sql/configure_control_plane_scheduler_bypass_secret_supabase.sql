@@ -15,38 +15,39 @@
 
 create extension if not exists supabase_vault;
 
-do $$
-declare
-  v_secret_id uuid;
-  v_bypass_token text := nullif(trim(:'bypass_token'), '');
-begin
-  if v_bypass_token is null then
-    raise exception 'Missing required psql variable: bypass_token';
-  end if;
+\set bypass_token_value ''
+select nullif(trim(:'bypass_token'), '') as bypass_token_value \gset
 
+\if :{?bypass_token_value}
+\else
+  \echo 'Missing required psql variable: bypass_token'
+  \quit 1
+\endif
+
+with existing_secret as (
   select ds.id
-    into v_secret_id
   from vault.decrypted_secrets ds
   where ds.name = 'shortpulse_vercel_protection_bypass_token'
   order by ds.created_at desc
-  limit 1;
+  limit 1
+)
+select id as existing_secret_id
+from existing_secret \gset
 
-  if v_secret_id is null then
-    perform vault.create_secret(
-      v_bypass_token,
-      'shortpulse_vercel_protection_bypass_token',
-      'ShortPulse scheduler Vercel protection bypass token'
-    );
-  else
-    perform vault.update_secret(
-      v_secret_id,
-      v_bypass_token,
-      'shortpulse_vercel_protection_bypass_token',
-      'ShortPulse scheduler Vercel protection bypass token'
-    );
-  end if;
-end;
-$$;
+\if :{?existing_secret_id}
+select vault.update_secret(
+  :'existing_secret_id',
+  :'bypass_token_value',
+  'shortpulse_vercel_protection_bypass_token',
+  'ShortPulse scheduler Vercel protection bypass token'
+);
+\else
+select vault.create_secret(
+  :'bypass_token_value',
+  'shortpulse_vercel_protection_bypass_token',
+  'ShortPulse scheduler Vercel protection bypass token'
+);
+\endif
 
 -- Verification query:
 -- select name, created_at

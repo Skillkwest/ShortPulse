@@ -3,10 +3,10 @@
  * Keeps storage/generation lookup and browser download behavior isolated from hooks.
  */
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
-import type { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import type { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
 
-type SupabaseClient = ReturnType<typeof ensureSupabaseClient>;
+type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
 type MediaFileRow = {
   storage_path?: unknown;

@@ -3,7 +3,7 @@
  * Owns scoped bootstrap loading, snapshot application, and best-effort character list refresh.
  */
 import React from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { readSupabaseUserId } from "../../../lib/supabaseClient";
 import { CHARACTER_SHEET_PRESET_IDS } from "../constants";
 import {
   listCharacterManagerCharacters,
@@ -295,12 +295,7 @@ export const useCharacterManagerBootstrapController = ({
       setLoading(true);
       setError(null);
       try {
-        const { data: sessionData, error: sessionError } =
-          await ensureSupabaseClient().auth.getSession();
-        if (sessionError) {
-          throw sessionError;
-        }
-        const scopedUserId = sessionData.session?.user?.id?.trim() ?? null;
+        const scopedUserId = (await readSupabaseUserId())?.trim() ?? null;
         selectedCharacterStorageScopeRef.current = scopedUserId;
         const snapshot = await loadOrCreateCharacterManagerDraft(
           readPersistedSelectedCharacterId(scopedUserId ? { userId: scopedUserId } : undefined)

@@ -5,7 +5,7 @@
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../../lib/supabaseClient";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../utils/imageUpload";
 import type { PersistOutputSaveResult } from "../../hooks/useAiStudioPersistenceActions";
 import type { StudioOutput } from "../../types";
@@ -232,7 +232,7 @@ const resolveMetadataOutputIndex = (metadata: unknown): number | null => {
 const resolveGenerationIdByTaskId = async (taskId: string): Promise<string | null> => {
   const normalizedTaskId = taskId.trim();
   if (!normalizedTaskId) return null;
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   const { data, error } = await supabase
     .from("ai_generations")
     .select("id, created_at")
@@ -251,7 +251,7 @@ const resolveStoragePathByGenerationAndIndex = async ({
   generationId: string;
   imageIndex: number;
 }): Promise<string | null> => {
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   const lookupByIndex = async (metadataFilter: Record<string, number>) => {
     const data = await runMaybeSingleMediaStorageQuery({
       runSelect: async (columns) =>
@@ -312,7 +312,7 @@ const defaultResolveStoragePathFromGenerationOutput = async ({
 const defaultResolveStoragePathFromMediaId = async (mediaId: string): Promise<string | null> => {
   const normalizedMediaId = mediaId.trim();
   if (!normalizedMediaId) return null;
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   const data = await runMaybeSingleMediaStorageQuery({
     runSelect: async (columns) =>
       (await supabase
@@ -560,7 +560,7 @@ export const resolveInternalReferenceSource = async ({
         if (!storagePath) {
           throw new Error("Internal reference source is missing storage path.");
         }
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         const { data, error } = await supabase.storage.from(MEDIA_BUCKET).download(storagePath);
         if (!error && data) {
           debugEntry.loadBlobOutcome = "success";

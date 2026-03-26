@@ -2,13 +2,13 @@ import { act, renderHook } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaFileModalCrud } from "../useMediaFileModalCrud";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../../lib/supabaseClient";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 
 type Row = {
   id: string;
@@ -35,7 +35,7 @@ const makeRow = (id: string, filename: string): Row => ({
 describe("useMediaFileModalCrud", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: () => ({
         update: () => ({
           eq: async () => ({ error: null }),

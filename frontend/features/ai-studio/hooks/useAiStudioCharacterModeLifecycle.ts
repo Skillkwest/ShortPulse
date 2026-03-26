@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { ToolId } from "../types";
 import {
   listCharacterManagerCharacters,
@@ -138,17 +138,15 @@ export const useAiStudioCharacterModeLifecycle = ({
 
   useEffect(() => {
     let active = true;
-    void ensureSupabaseClient()
-      .auth.getSession()
-      .then(({ data, error }) => {
-        if (!active || error) return;
-        const resolvedScope = data.session?.user?.id?.trim() ?? null;
-        setSelectedCharacterStorageScope(resolvedScope);
-        if (!resolvedScope) return;
-        const persistedId = readPersistedSelectedCharacterId({ userId: resolvedScope });
-        if (!persistedId) return;
-        setSelectedCharacterId((current) => (current.trim().length > 0 ? current : persistedId));
-      });
+    void readSupabaseUserId().then((userId) => {
+      if (!active) return;
+      const resolvedScope = userId?.trim() ?? null;
+      setSelectedCharacterStorageScope(resolvedScope);
+      if (!resolvedScope) return;
+      const persistedId = readPersistedSelectedCharacterId({ userId: resolvedScope });
+      if (!persistedId) return;
+      setSelectedCharacterId((current) => (current.trim().length > 0 ? current : persistedId));
+    });
     return () => {
       active = false;
     };

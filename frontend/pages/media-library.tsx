@@ -6,7 +6,7 @@ import Head from "next/head";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAdaptiveSurfaceEnabled } from "../lib/adaptive-media";
 import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
-import { ensureSupabaseClient } from "../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../lib/supabaseClient";
 import {
   isMoveDestinationDataTab,
   type MediaTab,
@@ -213,7 +213,7 @@ export default function MediaLibrary() {
 
   const refreshStorageUsageBytes = useCallback(async () => {
     try {
-      const supabase = ensureSupabaseClient();
+      const supabase = ensureSupabaseQueryClient();
       const { data, error } = await supabase.rpc("get_media_library_usage_bytes");
       if (error) {
         if (isMissingRoutineError(error)) return;
@@ -413,7 +413,7 @@ export default function MediaLibrary() {
   const downloadFile = async (row: MediaRow) => {
     setError(null);
     try {
-      const supabase = ensureSupabaseClient();
+      const supabase = ensureSupabaseQueryClient();
       const { data, error: downloadError } = await supabase.storage
         .from(BUCKET)
         .download(row.storage_path);

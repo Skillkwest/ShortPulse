@@ -10,7 +10,7 @@ const {
   refreshSupabaseSignedUrlIfNeededMock,
   mediaFilesMaybeSingleMock,
   mediaFilesFromMock,
-  ensureSupabaseClientMock,
+  ensureSupabaseQueryClientMock,
 } = vi.hoisted(() => {
   const mediaFilesMaybeSingleMock = vi.fn();
   const mediaFilesSelectMock = vi.fn(() => ({
@@ -28,7 +28,7 @@ const {
     refreshSupabaseSignedUrlIfNeededMock: vi.fn(),
     mediaFilesMaybeSingleMock,
     mediaFilesFromMock,
-    ensureSupabaseClientMock: vi.fn(() => ({
+    ensureSupabaseQueryClientMock: vi.fn(() => ({
       from: mediaFilesFromMock,
     })),
   };
@@ -48,7 +48,7 @@ vi.mock("../../utils/imageUpload", async () => {
 });
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: ensureSupabaseClientMock,
+  ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
 }));
 
 describe("prepareLibraryMediaIngestionPayload", () => {
@@ -168,7 +168,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
       fullStoragePath: null,
     });
 
-    expect(ensureSupabaseClientMock).toHaveBeenCalledTimes(1);
+    expect(ensureSupabaseQueryClientMock).toHaveBeenCalledTimes(1);
     expect(mediaFilesFromMock).toHaveBeenCalledWith("media_files");
     expect(result.previewStoragePath).toBe("user-1/previews/by-id.jpg");
     expect(result.fullStoragePath).toBe("user-1/full/by-id.jpg");

@@ -3,7 +3,7 @@
  * Reads from `/api/credits/snapshot` when available, then falls back to direct table/ledger reads.
  */
 import { useCallback, useEffect, useState } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
 type BalanceState = {
@@ -45,6 +45,14 @@ type CreditSnapshotApiResponse = {
 let preferredBalanceQueryAttempt: BalanceQueryAttempt | null = null;
 let skipBalanceTableProbe = false;
 let preferLegacyLedgerQuery = false;
+let skipCreditSnapshotApi = false;
+
+export const resetUseCreditsTestState = () => {
+  preferredBalanceQueryAttempt = null;
+  skipBalanceTableProbe = false;
+  preferLegacyLedgerQuery = false;
+  skipCreditSnapshotApi = false;
+};
 
 const isSchemaCompatibilityError = (message: string) => {
   const text = message.toLowerCase();
@@ -58,19 +66,13 @@ const isSchemaCompatibilityError = (message: string) => {
 };
 
 const fetchUserId = async () => {
-  const supabase = ensureSupabaseClient();
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (!sessionError && sessionData.session?.user?.id) {
-    return sessionData.session.user.id;
-  }
-
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw new Error(error?.message || "No Supabase user");
-  return data.user.id;
+  const userId = await readSupabaseUserId();
+  if (!userId) throw new Error("No Supabase user");
+  return userId;
 };
 
 const queryBalanceRow = async ({ userId, select }: { userId: string; select: string }) => {
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   return supabase
     .from("ai_credit_balance")
     .select(select)
@@ -128,7 +130,7 @@ const fetchBalanceFromTable = async (userId: string): Promise<BalanceSnapshot | 
 };
 
 const fetchLedgerBalanceCents = async (userId: string) => {
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
 
   if (!preferLegacyLedgerQuery) {
     const { data: richData, error: richError } = await supabase
@@ -219,6 +221,9 @@ const parseCreditSnapshot = (payload: unknown): CreditSnapshotApiResponse | null
 };
 
 const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> => {
+  if (skipCreditSnapshotApi) {
+    return null;
+  }
   try {
     const response = await fetchWithAuth("/api/credits/snapshot", {
       method: "GET",
@@ -230,10 +235,14 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
       shortpulseLogScope: "generation",
       shortpulseSkipErrorLogging: true,
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      skipCreditSnapshotApi = true;
+      return null;
+    }
     const payload = await response.json();
     return parseCreditSnapshot(payload);
   } catch {
+    skipCreditSnapshotApi = true;
     return null;
   }
 };

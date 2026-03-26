@@ -1,13 +1,15 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCharacterQuickSwapTipPreference } from "../useCharacterQuickSwapTipPreference";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
+  readSupabaseUserId: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 
 type SupabaseMockInput = {
   userId: string | null;
@@ -15,10 +17,7 @@ type SupabaseMockInput = {
 };
 
 const createSupabaseMock = ({ userId, storedPreference }: SupabaseMockInput) => {
-  const getSession = vi.fn(async () => ({
-    data: { session: userId ? { user: { id: userId } } : null },
-    error: null,
-  }));
+  readSupabaseUserIdMock.mockResolvedValue(userId);
   const maybeSingle = vi.fn(async () => ({ data: storedPreference, error: null }));
   type SelectQuery = {
     eq: (column: string, value: string) => SelectQuery;
@@ -34,11 +33,10 @@ const createSupabaseMock = ({ userId, storedPreference }: SupabaseMockInput) => 
     select,
     upsert,
   }));
-  ensureSupabaseClientMock.mockReturnValue({
-    auth: { getSession },
+  ensureSupabaseQueryClientMock.mockReturnValue({
     from,
-  } as unknown as ReturnType<typeof ensureSupabaseClient>);
-  return { getSession, maybeSingle, upsert, from };
+  } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
+  return { maybeSingle, upsert, from };
 };
 
 describe("useCharacterQuickSwapTipPreference", () => {
@@ -91,6 +89,30 @@ describe("useCharacterQuickSwapTipPreference", () => {
       { user_id: "user-a", ai_studio_character_quickswap_tip_hidden: true },
       { onConflict: "user_id" }
     );
+  });
+
+  it("supports local-only hiding without issuing a remote upsert", async () => {
+    const { upsert } = createSupabaseMock({
+      userId: "user-a",
+      storedPreference: { ai_studio_character_quickswap_tip_hidden: false },
+    });
+    const { result } = renderHook(() => useCharacterQuickSwapTipPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.isQuickSwapTipHidden).toBe(false);
+    });
+
+    await act(async () => {
+      const ok = await result.current.markQuickSwapTipHidden({ persistRemotely: false });
+      expect(ok).toBe(true);
+    });
+
+    expect(result.current.isQuickSwapTipHidden).toBe(true);
+    expect(
+      window.localStorage.getItem("shortpulse.character_manager.quickswap_tip_hidden.v2:user-a")
+    ).toBe("true");
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("keeps tip visibility isolated across account switches", async () => {

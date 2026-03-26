@@ -29,7 +29,7 @@ import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { useProtectedRoute } from "../lib/authGuard";
-import { ensureSupabaseClient } from "../lib/supabaseClient";
+import { ensureSupabaseClient, primeSupabaseSession } from "../lib/supabaseClient";
 
 type ProfileSection = "account" | "subscription" | "billing";
 
@@ -290,6 +290,7 @@ export default function ProfilePage() {
     try {
       const supabase = ensureSupabaseClient();
       await supabase.auth.signOut();
+      primeSupabaseSession(null);
       await router.replace("/auth");
     } finally {
       setShowLogoutConfirm(false);

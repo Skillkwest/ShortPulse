@@ -1,16 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const getSessionMock = vi.fn();
+const readSupabaseAccessTokenMock = vi.fn();
 const reportAppErrorMock = vi.fn();
 const addBreadcrumbMock = vi.fn();
 const redactUrlForTelemetryMock = vi.fn((value: string) => value);
 
 vi.mock("../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: () => ({
-    auth: {
-      getSession: () => getSessionMock(),
-    },
-  }),
+  readSupabaseAccessToken: () => readSupabaseAccessTokenMock(),
 }));
 
 vi.mock("../../lib/appErrorReporter", () => ({
@@ -28,10 +24,7 @@ describe("fetchWithAuth telemetry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", vi.fn());
-    getSessionMock.mockResolvedValue({
-      data: { session: { access_token: "token-123" } },
-      error: null,
-    });
+    readSupabaseAccessTokenMock.mockResolvedValue("token-123");
   });
 
   afterEach(() => {

@@ -7,7 +7,7 @@ import {
   invalidateSignedMediaUrl,
 } from "../../../lib/mediaSignedUrlCache";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import {
   CHARACTER_SHEET_PRESET_IDS,
   CHARACTER_MANAGER_SLOT_KEYS,
@@ -649,12 +649,8 @@ export const createCharacterSheetPresetStoragePath = ({
  * Resolve authenticated client context for Character Manager operations.
  */
 export const resolveSupabaseContext = async () => {
-  const supabase = ensureSupabaseClient();
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    throw new Error(error.message);
-  }
-  const userId = data.session?.user?.id;
+  const supabase = ensureSupabaseQueryClient();
+  const userId = await readSupabaseUserId();
   if (!userId) {
     throw new Error("Please sign in to access Character Manager.");
   }

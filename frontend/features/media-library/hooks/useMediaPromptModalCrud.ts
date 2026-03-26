@@ -3,7 +3,7 @@
  * Owns open/close, edit-save, and prompt delete behavior for saved prompt modals.
  */
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { deleteMediaPromptById } from "../logic/mediaLibraryDataEffects";
 
 type PromptModalRow = {
@@ -101,7 +101,7 @@ export const useMediaPromptModalCrud = <TRow extends PromptModalRow>({
     setPromptModalError(null);
     setPromptSaveSuccess(false);
     try {
-      const supabase = ensureSupabaseClient();
+      const supabase = ensureSupabaseQueryClient();
       const nextPromptText = promptEditValue;
       const updatedAt = new Date().toISOString();
       const { error } = await supabase

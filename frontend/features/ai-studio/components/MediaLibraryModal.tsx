@@ -10,7 +10,7 @@ import {
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
   BUCKET,
@@ -322,7 +322,7 @@ export function MediaLibraryModal({
       if (downloadFallbackInFlightRef.current[file.id]) return null;
       downloadFallbackInFlightRef.current[file.id] = true;
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         return await hydrateMediaPreviewViaStorageDownload({
           row: file,
           currentUserId: currentUserIdRef.current,

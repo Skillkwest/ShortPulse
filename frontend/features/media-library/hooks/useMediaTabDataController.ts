@@ -15,7 +15,7 @@ import {
   type SetStateAction,
 } from "react";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import { MEDIA_LIST_API_ENABLED } from "../logic/mediaLibraryFeatureFlags";
 import { fetchMediaListPage } from "../logic/mediaListApi";
@@ -310,9 +310,8 @@ export const useMediaTabDataController = <
           : null;
 
       try {
-        const supabase = ensureSupabaseClient();
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user?.id;
+        const supabase = ensureSupabaseQueryClient();
+        const userId = await readSupabaseUserId();
         if (!userId) throw new Error("Not signed in");
         currentUserIdRef.current = userId;
 
@@ -483,9 +482,8 @@ export const useMediaTabDataController = <
     setLoading(true);
     setError(null);
     try {
-      const supabase = ensureSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
+      const supabase = ensureSupabaseQueryClient();
+      const userId = await readSupabaseUserId();
       if (!userId) throw new Error("Not signed in");
       const promptQuery = supabase
         .from("media_prompts")

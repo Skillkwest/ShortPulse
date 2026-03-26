@@ -7,7 +7,7 @@ import {
   type ReferenceDragSourceSurface,
 } from "../../../lib/internalReferenceDragPayload";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   resolveDroppedImageReference,
   type DroppedImageReference,
@@ -118,7 +118,7 @@ const resolveDroppedStorageCandidates = async (
 
   if (reference.mediaFileId) {
     try {
-      const supabase = ensureSupabaseClient();
+      const supabase = ensureSupabaseQueryClient();
       const { data, error } = await supabase
         .from("media_files")
         .select("storage_path")
@@ -148,7 +148,7 @@ const downloadDroppedReferenceBlob = async (
   const storageCandidates = await resolveDroppedStorageCandidates(reference);
   if (reference.storagePath?.trim() && storageCandidates.length) {
     let prioritizedDownloadError: Error | null = null;
-    const supabase = ensureSupabaseClient();
+    const supabase = ensureSupabaseQueryClient();
     for (const candidate of storageCandidates) {
       const { data, error } = await supabase.storage
         .from(candidate.bucket)
@@ -184,7 +184,7 @@ const downloadDroppedReferenceBlob = async (
 
   if (storageCandidates.length) {
     let downloadError: Error | null = null;
-    const supabase = ensureSupabaseClient();
+    const supabase = ensureSupabaseQueryClient();
     for (const candidate of storageCandidates) {
       const { data, error } = await supabase.storage
         .from(candidate.bucket)
@@ -282,7 +282,7 @@ export const useCharacterManagerDroppedReferenceController = ({
     const cached = mediaReferenceCacheRef.current.get(normalizedMediaId) ?? null;
     if (cached) return cached;
     try {
-      const supabase = ensureSupabaseClient();
+      const supabase = ensureSupabaseQueryClient();
       const { data, error } = await supabase
         .from("media_files")
         .select("storage_path")

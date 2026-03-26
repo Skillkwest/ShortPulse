@@ -7,7 +7,12 @@ import { useRouter } from "next/router";
 import { Eye, EyeSlash, LockSimple, PaperPlaneTilt, SignIn } from "phosphor-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { ensureSupabaseClient, isSupabaseAbortError } from "../lib/supabaseClient";
+import {
+  ensureSupabaseClient,
+  isSupabaseAbortError,
+  primeSupabaseSession,
+  readSupabaseSession,
+} from "../lib/supabaseClient";
 
 type Mode = "signin" | "signup";
 
@@ -57,11 +62,9 @@ export default function AuthPage() {
   }, [router.asPath, router.isReady, router.query.next]);
 
   useEffect(() => {
-    const supabase = ensureSupabaseClient();
-    void supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (data.session) {
+    void readSupabaseSession()
+      .then((session) => {
+        if (session) {
           router.replace(nextPath);
         }
       })
@@ -96,12 +99,14 @@ export default function AuthPage() {
           setMode("signin");
           return;
         }
+        primeSupabaseSession(data.session);
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { error: signInError, data } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
           password,
         });
         if (signInError) throw signInError;
+        primeSupabaseSession(data.session ?? null);
       }
       router.push(nextPath);
     } catch (err: unknown) {

@@ -19,7 +19,7 @@ import {
   Target,
   VideoCamera,
 } from "phosphor-react";
-import { ensureSupabaseClient, isSupabaseAbortError } from "../lib/supabaseClient";
+import { isSupabaseAbortError, readSupabaseSession } from "../lib/supabaseClient";
 
 const testimonials = [
   {
@@ -72,20 +72,14 @@ export default function LandingPage() {
 
   useEffect(() => {
     let mounted = true;
-    try {
-      const supabase = ensureSupabaseClient();
-      void supabase.auth
-        .getSession()
-        .then(({ data }) => {
-          if (!mounted || !data.session) return;
-          router.replace("/dashboard");
-        })
-        .catch((error) => {
-          if (!mounted || isSupabaseAbortError(error)) return;
-        });
-    } catch {
-      // No-op: landing should remain accessible when Supabase env vars are missing.
-    }
+    void readSupabaseSession()
+      .then((session) => {
+        if (!mounted || !session) return;
+        router.replace("/dashboard");
+      })
+      .catch((error) => {
+        if (!mounted || isSupabaseAbortError(error)) return;
+      });
 
     return () => {
       mounted = false;

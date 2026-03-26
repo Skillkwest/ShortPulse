@@ -2,13 +2,13 @@ import { act, renderHook } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaPromptModalCrud } from "../useMediaPromptModalCrud";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../../lib/supabaseClient";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 
 type PromptRow = {
   id: string;
@@ -34,7 +34,7 @@ const makePrompt = (overrides: Partial<PromptRow> = {}): PromptRow => ({
 describe("useMediaPromptModalCrud", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: () => ({
         delete: () => ({
           eq: async () => ({ error: null }),

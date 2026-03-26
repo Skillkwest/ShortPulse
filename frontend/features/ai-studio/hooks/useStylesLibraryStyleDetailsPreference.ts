@@ -3,7 +3,7 @@
  * Keeps a local fallback while synchronizing with `user_preferences.ai_studio_style_details_overrides`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { supabaseClient } from "../../../lib/supabaseClient";
+import { readSupabaseUserId, supabaseQueryClient } from "../../../lib/supabaseClient";
 import type { StylesLibraryStyleDetails, StylesLibraryStyleDetailsMap } from "../types";
 import {
   areStyleDetailMapsEqual,
@@ -88,7 +88,7 @@ export const useStylesLibraryStyleDetailsPreference =
       (async () => {
         updateLocalValue(readLocalStyleDetails());
         try {
-          if (!supabaseClient) {
+          if (!supabaseQueryClient) {
             if (!active) return;
             remoteSyncEnabledRef.current = false;
             setUserId(null);
@@ -97,9 +97,7 @@ export const useStylesLibraryStyleDetailsPreference =
             return;
           }
 
-          const { data, error: sessionError } = await supabaseClient.auth.getSession();
-          if (sessionError) throw sessionError;
-          const id = data.session?.user?.id;
+          const id = await readSupabaseUserId();
           if (!id) {
             if (!active) return;
             setUserId(null);
@@ -110,7 +108,7 @@ export const useStylesLibraryStyleDetailsPreference =
           if (!active) return;
           setUserId(id);
 
-          const { data: storedPreference, error: preferenceError } = await supabaseClient
+          const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
             .from("user_preferences")
             .select("ai_studio_style_details_overrides")
             .eq("user_id", id)
@@ -124,20 +122,6 @@ export const useStylesLibraryStyleDetailsPreference =
           const mergedValue = mergeStyleDetailsMaps(remoteValue, latestValueRef.current);
           if (!hasLocalOverrideRef.current) {
             updateLocalValue(mergedValue);
-          }
-
-          if (
-            !storedPreference ||
-            !storedPreference.ai_studio_style_details_overrides ||
-            !areStyleDetailMapsEqual(remoteValue, mergedValue)
-          ) {
-            const { error: upsertError } = await supabaseClient
-              .from("user_preferences")
-              .upsert(
-                { user_id: id, ai_studio_style_details_overrides: mergedValue },
-                { onConflict: "user_id" }
-              );
-            if (upsertError) throw upsertError;
           }
 
           if (!active) return;
@@ -184,7 +168,7 @@ export const useStylesLibraryStyleDetailsPreference =
         setSyncState("saving");
         setError(null);
 
-        if (!userId || !remoteSyncEnabledRef.current || !supabaseClient) {
+        if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
           if (requestVersion === writeVersionRef.current) {
             setSyncState("ready");
           }
@@ -192,7 +176,7 @@ export const useStylesLibraryStyleDetailsPreference =
         }
 
         try {
-          const { error: upsertError } = await supabaseClient
+          const { error: upsertError } = await supabaseQueryClient
             .from("user_preferences")
             .upsert(
               { user_id: userId, ai_studio_style_details_overrides: nextValue },

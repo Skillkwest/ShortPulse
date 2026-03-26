@@ -11,7 +11,7 @@ import {
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
@@ -360,11 +360,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   useEffect(() => {
     let cancelled = false;
-    void ensureSupabaseClient()
-      .auth.getSession()
-      .then(({ data }) => {
+    void readSupabaseUserId()
+      .then((userId) => {
         if (cancelled) return;
-        currentUserIdRef.current = data.session?.user?.id ?? null;
+        currentUserIdRef.current = userId;
       })
       .catch(() => {
         if (cancelled) return;
@@ -451,7 +450,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       if (downloadFallbackInFlightRef.current[row.id]) return null;
       downloadFallbackInFlightRef.current[row.id] = true;
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         return await hydrateMediaPreviewViaStorageDownload({
           row,
           currentUserId: currentUserIdRef.current,
@@ -813,7 +812,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     const primaryStoragePath = (file.storage_path ?? "").trim();
     if (primaryStoragePath) {
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         const { data, error: downloadError } = await supabase.storage
           .from(BUCKET)
           .download(primaryStoragePath);

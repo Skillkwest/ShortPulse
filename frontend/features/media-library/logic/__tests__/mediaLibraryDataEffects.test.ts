@@ -5,20 +5,20 @@ import {
   removeStoragePaths,
 } from "../mediaLibraryDataEffects";
 import { invalidateSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
+  readSupabaseUserId: vi.fn(),
 }));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   invalidateSignedMediaUrl: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const invalidateSignedMediaUrlMock = vi.mocked(invalidateSignedMediaUrl);
-
-const authGetSessionMock = vi.fn();
 const mediaEventsInsertMock = vi.fn();
 const mediaVariantsInMock = vi.fn();
 const storageRemoveMock = vi.fn();
@@ -26,21 +26,12 @@ const storageRemoveMock = vi.fn();
 describe("mediaLibraryDataEffects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authGetSessionMock.mockResolvedValue({
-      data: {
-        session: {
-          user: { id: "user-1" },
-        },
-      },
-    });
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
     mediaEventsInsertMock.mockResolvedValue({ error: null });
     mediaVariantsInMock.mockResolvedValue({ data: [], error: null });
     storageRemoveMock.mockResolvedValue({ error: null });
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: authGetSessionMock,
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: (table: string) => {
         if (table === "media_events") {
           return {

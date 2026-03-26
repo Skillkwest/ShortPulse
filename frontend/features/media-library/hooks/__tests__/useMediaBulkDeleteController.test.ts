@@ -2,13 +2,13 @@ import { act, renderHook } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaBulkDeleteController } from "../useMediaBulkDeleteController";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../../lib/supabaseClient";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 
 type MediaRow = {
   id: string;
@@ -59,7 +59,7 @@ const createSupabaseClient = () => ({
 describe("useMediaBulkDeleteController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensureSupabaseClientMock.mockReturnValue(createSupabaseClient() as never);
+    ensureSupabaseQueryClientMock.mockReturnValue(createSupabaseClient() as never);
   });
 
   it("deletes selected prompts immediately on prompt tabs", async () => {

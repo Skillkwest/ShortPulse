@@ -1,12 +1,12 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../../lib/supabaseClient";
 import type { StudioOutput } from "../../types";
 import { useAiStudioReferenceAssetActions } from "../useAiStudioReferenceAssetActions";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
 }));
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
@@ -162,7 +162,7 @@ describe("useAiStudioReferenceAssetActions", () => {
         },
       ],
     });
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click, link } = installDownloadDomMocks();
     const output = {
       ...makeOutput("out-1", "Saved prompt"),
@@ -204,7 +204,7 @@ describe("useAiStudioReferenceAssetActions", () => {
         },
       ],
     });
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click } = installDownloadDomMocks();
     const output = {
       ...makeOutput("out-2", "Generation prompt"),
@@ -244,7 +244,7 @@ describe("useAiStudioReferenceAssetActions", () => {
         },
       ],
     });
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click, link } = installDownloadDomMocks();
     const output = {
       ...makeOutput("out-task", "Task derived prompt"),
@@ -273,7 +273,7 @@ describe("useAiStudioReferenceAssetActions", () => {
 
   it("uses provider fetch blob fallback for generated references when no storage file is found", async () => {
     const { supabase, storageDownload } = createSupabaseMock();
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click, link } = installDownloadDomMocks();
     const fetchMock = vi
       .fn()
@@ -313,7 +313,7 @@ describe("useAiStudioReferenceAssetActions", () => {
 
   it("keeps non-generated fallback behavior when only preview URL is available", async () => {
     const { supabase } = createSupabaseMock();
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click, link } = installDownloadDomMocks();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -343,7 +343,7 @@ describe("useAiStudioReferenceAssetActions", () => {
 
   it("downloads media via canonical output storage paths when ids are absent", async () => {
     const { supabase, storageDownload } = createSupabaseMock();
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click, link } = installDownloadDomMocks();
     const output = {
       ...makeOutput("out-storage-path", "Durable upload"),
@@ -372,7 +372,7 @@ describe("useAiStudioReferenceAssetActions", () => {
 
   it("unwraps next-image optimizer URLs before triggering direct URL download fallback", async () => {
     const { supabase } = createSupabaseMock();
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click, link } = installDownloadDomMocks();
     const output = {
       ...makeOutput("out-next-image", "Optimizer source"),
@@ -406,7 +406,7 @@ describe("useAiStudioReferenceAssetActions", () => {
         },
       ],
     });
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click } = installDownloadDomMocks();
     const setUiError = vi.fn();
     const output = {
@@ -435,7 +435,7 @@ describe("useAiStudioReferenceAssetActions", () => {
 
   it("surfaces generated URL download failures instead of opening a new tab", async () => {
     const { supabase } = createSupabaseMock();
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click } = installDownloadDomMocks();
     const setUiError = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 403 }));
@@ -473,7 +473,7 @@ describe("useAiStudioReferenceAssetActions", () => {
   it("maps generated URL download timeouts to a stable provider error message", async () => {
     vi.useFakeTimers();
     const { supabase } = createSupabaseMock();
-    vi.mocked(ensureSupabaseClient).mockReturnValue(supabase as never);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click } = installDownloadDomMocks();
     const setUiError = vi.fn();
     const fetchMock = vi.fn((_url: string, init?: RequestInit) => {

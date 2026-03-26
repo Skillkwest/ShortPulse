@@ -3,7 +3,7 @@
  * Keeps a local fallback while synchronizing with `user_preferences.ai_studio_deleted_style_ids`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { supabaseClient } from "../../../lib/supabaseClient";
+import { readSupabaseUserId, supabaseQueryClient } from "../../../lib/supabaseClient";
 
 const DELETED_STYLE_IDS_STORAGE_KEY = "shortpulse.ai_studio.deleted_style_ids";
 
@@ -103,7 +103,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
       (async () => {
         updateLocalValue(readLocalDeletedStyleIds());
         try {
-          if (!supabaseClient) {
+          if (!supabaseQueryClient) {
             if (!active) return;
             remoteSyncEnabledRef.current = false;
             setUserId(null);
@@ -112,9 +112,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
             return;
           }
 
-          const { data, error: sessionError } = await supabaseClient.auth.getSession();
-          if (sessionError) throw sessionError;
-          const id = data.session?.user?.id;
+          const id = await readSupabaseUserId();
           if (!id) {
             if (!active) return;
             setUserId(null);
@@ -125,7 +123,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
           if (!active) return;
           setUserId(id);
 
-          const { data: storedPreference, error: preferenceError } = await supabaseClient
+          const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
             .from("user_preferences")
             .select("ai_studio_deleted_style_ids")
             .eq("user_id", id)
@@ -139,20 +137,6 @@ export const useStylesLibraryDeletedStyleIdsPreference =
           const mergedValue = normalizeDeletedStyleIds([...remoteValue, ...latestValueRef.current]);
           if (!hasLocalOverrideRef.current) {
             updateLocalValue(mergedValue);
-          }
-
-          if (
-            !storedPreference ||
-            !Array.isArray(storedPreference.ai_studio_deleted_style_ids) ||
-            !areStringArraysEqual(remoteValue, mergedValue)
-          ) {
-            const { error: upsertError } = await supabaseClient
-              .from("user_preferences")
-              .upsert(
-                { user_id: id, ai_studio_deleted_style_ids: mergedValue },
-                { onConflict: "user_id" }
-              );
-            if (upsertError) throw upsertError;
           }
 
           if (!active) return;
@@ -194,7 +178,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
         setSyncState("saving");
         setError(null);
 
-        if (!userId || !remoteSyncEnabledRef.current || !supabaseClient) {
+        if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
           if (requestVersion === writeVersionRef.current) {
             setSyncState("ready");
           }
@@ -202,7 +186,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
         }
 
         try {
-          const { error: upsertError } = await supabaseClient
+          const { error: upsertError } = await supabaseQueryClient
             .from("user_preferences")
             .upsert(
               { user_id: userId, ai_studio_deleted_style_ids: nextValue },

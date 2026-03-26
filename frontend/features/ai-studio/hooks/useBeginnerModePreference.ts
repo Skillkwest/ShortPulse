@@ -3,7 +3,7 @@
  * Loads the persisted toggle for the signed-in user and keeps it in sync with the database.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 
 const DEFAULT_BEGINNER_MODE = false;
 const BEGINNER_MODE_STORAGE_KEY = "shortpulse.ai_studio.beginner_mode";
@@ -62,10 +62,8 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
     (async () => {
       updateLocalMode(readLocalBeginnerMode());
       try {
-        const supabase = ensureSupabaseClient();
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        const id = data.session?.user?.id;
+        const supabase = ensureSupabaseQueryClient();
+        const id = await readSupabaseUserId();
         if (!id) {
           if (!active) return;
           setUserId(null);
@@ -87,16 +85,6 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
         const nextValue = storedPreference?.beginner_mode ?? DEFAULT_BEGINNER_MODE;
         if (!hasLocalOverrideRef.current) {
           updateLocalMode(nextValue);
-        }
-
-        if (!storedPreference) {
-          const { error: insertError } = await supabase
-            .from("user_preferences")
-            .upsert(
-              { user_id: id, beginner_mode: DEFAULT_BEGINNER_MODE },
-              { onConflict: "user_id" }
-            );
-          if (insertError) throw insertError;
         }
 
         if (!active) return;
@@ -143,7 +131,7 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
       }
 
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         const { error: upsertError } = await supabase
           .from("user_preferences")
           .upsert({ user_id: userId, beginner_mode: value }, { onConflict: "user_id" });

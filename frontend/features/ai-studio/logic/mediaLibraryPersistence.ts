@@ -2,7 +2,7 @@
  * Media library persistence helpers for AI Studio.
  * Handles Supabase inserts/updates for generations, prompts, and audit events.
  */
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
@@ -85,9 +85,8 @@ const buildFilename = (promptText: string | null | undefined, extension: string,
 };
 
 const resolveSupabaseContext = async () => {
-  const supabase = ensureSupabaseClient();
-  const { data } = await supabase.auth.getSession();
-  const userId = data.session?.user?.id;
+  const supabase = ensureSupabaseQueryClient();
+  const userId = await readSupabaseUserId();
   if (!userId) {
     throw new Error("Not signed in");
   }
@@ -294,7 +293,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   generationId,
   index,
 }: {
-  supabase: ReturnType<typeof ensureSupabaseClient>;
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
   userId: string;
   generationId: string;
   index: number;

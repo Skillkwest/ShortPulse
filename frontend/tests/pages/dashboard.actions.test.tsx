@@ -9,6 +9,9 @@ import DashboardPage from "../../pages/dashboard";
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
+const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 const signOutMock = vi.hoisted(() => vi.fn());
@@ -48,6 +51,9 @@ vi.mock("../../features/ai-studio/hooks/useCredits", () => ({
 
 vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
+  useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+  primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
 
 vi.mock("../../lib/authenticatedFetch", () => ({
@@ -65,14 +71,6 @@ const appUser = {
 
 const buildSupabaseClient = () => ({
   auth: {
-    getUser: vi.fn(async () => ({ data: { user: appUser } })),
-    onAuthStateChange: vi.fn(() => ({
-      data: {
-        subscription: {
-          unsubscribe: vi.fn(),
-        },
-      },
-    })),
     signOut: signOutMock,
   },
   from: vi.fn((table: string) => {
@@ -121,7 +119,13 @@ describe("Dashboard actions", () => {
       balanceCents: 86,
       balanceLoading: false,
     });
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: appUser },
+      user: appUser,
+    });
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
+    ensureSupabaseQueryClientMock.mockReturnValue(buildSupabaseClient());
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({ announcement: null }),
@@ -189,6 +193,7 @@ describe("Dashboard actions", () => {
 
     await waitFor(() => {
       expect(signOutMock).toHaveBeenCalledTimes(1);
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith(null);
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
     });
   });

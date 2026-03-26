@@ -3,7 +3,7 @@
  * Centralizes Supabase operations used by delete flows so page orchestration stays thin.
  */
 import { invalidateSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { BUCKET, isMissingRelationError, isNonEmptyString } from "./mediaLibraryPageHelpers";
 
 type MediaVariantPathRow = {
@@ -34,9 +34,8 @@ export const logMediaEvent = async (
   metadata: Record<string, unknown> = {}
 ) => {
   try {
-    const supabase = ensureSupabaseClient();
-    const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user?.id;
+    const supabase = ensureSupabaseQueryClient();
+    const userId = await readSupabaseUserId();
     if (!userId) return;
     const { error } = await supabase.from("media_events").insert({
       user_id: userId,
@@ -74,7 +73,7 @@ export const collectMediaStoragePathsForDelete = async (
   const targetIds = targets.map((target) => target.id);
   if (!targetIds.length) return dedupedBasePaths;
 
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   const { data: variantRows, error: variantError } = await supabase
     .from("media_asset_variants")
     .select("storage_path")
@@ -100,7 +99,7 @@ export const collectMediaStoragePathsForDelete = async (
  */
 export const removeStoragePaths = async (paths: string[]): Promise<void> => {
   if (!paths.length) return;
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   for (let start = 0; start < paths.length; start += STORAGE_DELETE_BATCH_SIZE) {
     const batch = paths.slice(start, start + STORAGE_DELETE_BATCH_SIZE);
     const { error: storageError } = await supabase.storage.from(BUCKET).remove(batch);
@@ -118,7 +117,7 @@ export const removeStoragePaths = async (paths: string[]): Promise<void> => {
  * Side effects: removes bucket objects and deletes one `media_files` row.
  */
 export const deleteMediaFileWithStorage = async (target: MediaDeleteTarget): Promise<void> => {
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   const deletePaths = await collectMediaStoragePathsForDelete([target]);
   await removeStoragePaths(deletePaths);
   const { error: deleteError } = await supabase.from("media_files").delete().eq("id", target.id);
@@ -134,7 +133,7 @@ export const deleteMediaFileWithStorage = async (target: MediaDeleteTarget): Pro
 export const deleteMediaPromptById = async (promptId: string): Promise<void> => {
   const normalizedPromptId = promptId.trim();
   if (!normalizedPromptId) return;
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   const { error: deleteError } = await supabase
     .from("media_prompts")
     .delete()

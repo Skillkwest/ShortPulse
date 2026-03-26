@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaAutosavePreference } from "../useMediaAutosavePreference";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -18,27 +19,26 @@ const createDeferred = <T>(): Deferred<T> => {
   return { promise, resolve, reject };
 };
 
-const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
+const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: ensureSupabaseClientMock,
+  ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
+  readSupabaseUserId: readSupabaseUserIdMock,
 }));
 
 describe("useMediaAutosavePreference", () => {
   beforeEach(() => {
-    ensureSupabaseClientMock.mockReset();
+    vi.mocked(ensureSupabaseQueryClient).mockReset();
+    vi.mocked(readSupabaseUserId).mockReset();
     window.localStorage.clear();
   });
 
   it("loads local preference and becomes ready when no user session exists", async () => {
     window.localStorage.setItem("shortpulse.ai_studio.media_autosave_enabled", "false");
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
-      },
-      from: vi.fn(),
-    });
+    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
 
     const { result } = renderHook(() => useMediaAutosavePreference());
 
@@ -67,13 +67,8 @@ describe("useMediaAutosavePreference", () => {
       .fn()
       .mockResolvedValue({ data: { media_autosave_enabled: true }, error: null });
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-1");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "user_preferences") throw new Error("Unexpected table");
         return {
@@ -85,7 +80,7 @@ describe("useMediaAutosavePreference", () => {
           upsert,
         };
       }),
-    });
+    } as never);
 
     const { result } = renderHook(() => useMediaAutosavePreference());
 

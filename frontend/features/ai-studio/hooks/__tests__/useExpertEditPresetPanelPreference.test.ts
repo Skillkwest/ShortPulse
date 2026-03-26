@@ -6,6 +6,7 @@ import {
   type ExpertEditPresetId,
 } from "../../components/edit/expertEditPresets";
 import { useExpertEditPresetPanelPreference } from "../useExpertEditPresetPanelPreference";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -23,15 +24,18 @@ const createDeferred = <T>(): Deferred<T> => {
   return { promise, resolve, reject };
 };
 
-const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
+const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: ensureSupabaseClientMock,
+  ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
+  readSupabaseUserId: readSupabaseUserIdMock,
 }));
 
 describe("useExpertEditPresetPanelPreference", () => {
   beforeEach(() => {
-    ensureSupabaseClientMock.mockReset();
+    vi.mocked(ensureSupabaseQueryClient).mockReset();
+    vi.mocked(readSupabaseUserId).mockReset();
     window.localStorage.clear();
   });
 
@@ -47,12 +51,8 @@ describe("useExpertEditPresetPanelPreference", () => {
       })
     );
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
-      },
-      from: vi.fn(),
-    });
+    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
 
     const { result } = renderHook(() => useExpertEditPresetPanelPreference());
 
@@ -68,17 +68,12 @@ describe("useExpertEditPresetPanelPreference", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("falls back to seeded defaults when stored/remote values are missing", async () => {
+  it("falls back to seeded defaults when stored/remote values are missing without backfilling on mount", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-1");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "user_preferences") throw new Error("Unexpected table");
         return {
@@ -90,7 +85,7 @@ describe("useExpertEditPresetPanelPreference", () => {
           upsert,
         };
       }),
-    });
+    } as never);
 
     const { result } = renderHook(() => useExpertEditPresetPanelPreference());
 
@@ -101,14 +96,7 @@ describe("useExpertEditPresetPanelPreference", () => {
 
     expect(result.current.presetPanelIds).toEqual(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS);
     expect(result.current.customPresetOverrides).toEqual({});
-    expect(upsert).toHaveBeenCalledWith(
-      {
-        user_id: "user-1",
-        expert_edit_preset_panel_ids: EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
-        expert_edit_custom_presets: {},
-      },
-      { onConflict: "user_id" }
-    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("preserves an explicitly empty preset panel allocation", async () => {
@@ -117,12 +105,8 @@ describe("useExpertEditPresetPanelPreference", () => {
       JSON.stringify([])
     );
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
-      },
-      from: vi.fn(),
-    });
+    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
 
     const { result } = renderHook(() => useExpertEditPresetPanelPreference());
 
@@ -143,7 +127,7 @@ describe("useExpertEditPresetPanelPreference", () => {
     expect(JSON.parse(storedRaw ?? "null")).toEqual([]);
   });
 
-  it("uses legacy label fallback from remote and backfills new id columns", async () => {
+  it("uses legacy label fallback from remote without backfilling new id columns on mount", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
@@ -154,13 +138,8 @@ describe("useExpertEditPresetPanelPreference", () => {
       error: null,
     });
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-2" } } },
-          error: null,
-        }),
-      },
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-2");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "user_preferences") throw new Error("Unexpected table");
         return {
@@ -172,7 +151,7 @@ describe("useExpertEditPresetPanelPreference", () => {
           upsert,
         };
       }),
-    });
+    } as never);
 
     const { result } = renderHook(() => useExpertEditPresetPanelPreference());
 
@@ -181,14 +160,7 @@ describe("useExpertEditPresetPanelPreference", () => {
     });
 
     expect(result.current.presetPanelIds).toEqual(["selfie"]);
-    expect(upsert).toHaveBeenCalledWith(
-      {
-        user_id: "user-2",
-        expert_edit_preset_panel_ids: ["selfie"],
-        expert_edit_custom_presets: {},
-      },
-      { onConflict: "user_id" }
-    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("normalizes oversized/invalid values and ignores stale failed writes", async () => {
@@ -216,13 +188,8 @@ describe("useExpertEditPresetPanelPreference", () => {
       error: null,
     });
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-1");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "user_preferences") throw new Error("Unexpected table");
         return {
@@ -234,7 +201,7 @@ describe("useExpertEditPresetPanelPreference", () => {
           upsert,
         };
       }),
-    });
+    } as never);
 
     const { result } = renderHook(() => useExpertEditPresetPanelPreference());
 

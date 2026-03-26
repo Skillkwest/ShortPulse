@@ -13,7 +13,7 @@ import {
 } from "react";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import { type MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   hydrateMediaPreviewViaStorageDownload,
   resolveAndApplySignedPreviewUrlsByRows,
@@ -301,7 +301,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
       if (downloadFallbackInFlightRef.current[row.id]) return null;
       downloadFallbackInFlightRef.current[row.id] = true;
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         return await hydrateMediaPreviewViaStorageDownload({
           row,
           currentUserId: currentUserIdRef.current,

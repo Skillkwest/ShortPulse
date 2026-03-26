@@ -8,7 +8,7 @@ import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
 } from "./mediaPreviewTransformProfile";
-import { ensureSupabaseClient } from "./supabaseClient";
+import { ensureSupabaseQueryClient } from "./supabaseClient";
 
 type SignedMediaUrlOptions = {
   bucket: string;
@@ -150,7 +150,7 @@ const signStoragePathDirect = async (
   expiresInSeconds: number,
   previewProfile: MediaPreviewTransformProfile
 ): Promise<string | null> => {
-  const supabase = ensureSupabaseClient();
+  const supabase = ensureSupabaseQueryClient();
   const transform = resolvePolicySignedImageTransform(previewProfile, storagePath);
   const { data, error } = await supabase.storage
     .from(bucket)

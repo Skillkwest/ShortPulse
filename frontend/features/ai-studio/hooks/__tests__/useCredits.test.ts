@@ -4,18 +4,20 @@
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useCredits } from "../useCredits";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { resetUseCreditsTestState, useCredits } from "../useCredits";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
+  readSupabaseUserId: vi.fn(),
 }));
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 
 type QueryError = {
@@ -27,23 +29,15 @@ const asError = (message: string): QueryError => ({ message });
 describe("useCredits isolation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetUseCreditsTestState();
     fetchWithAuthMock.mockRejectedValue(new Error("snapshot unavailable"));
+    readSupabaseUserIdMock.mockResolvedValue("user-123");
   });
 
   it("loads balance via user-scoped ai_credit_balance queries", async () => {
     const balanceFilters: Array<{ column: string; value: string; select: string }> = [];
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { user: { id: "user-123" } } },
-          error: null,
-        })),
-        getUser: vi.fn(async () => ({
-          data: { user: { id: "user-123" } },
-          error: null,
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: (table: string) => {
         if (table !== "ai_credit_balance") {
           throw new Error(`Unexpected table query: ${table}`);
@@ -88,17 +82,7 @@ describe("useCredits isolation", () => {
   it("falls back to user-scoped ledger reads when balance table is incompatible", async () => {
     const ledgerFilters: Array<{ column: string; value: string }> = [];
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { user: { id: "user-123" } } },
-          error: null,
-        })),
-        getUser: vi.fn(async () => ({
-          data: { user: { id: "user-123" } },
-          error: null,
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {
@@ -163,17 +147,7 @@ describe("useCredits isolation", () => {
       }),
     } as unknown as Response);
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { user: { id: "user-123" } } },
-          error: null,
-        })),
-        getUser: vi.fn(async () => ({
-          data: { user: { id: "user-123" } },
-          error: null,
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {
@@ -236,17 +210,7 @@ describe("useCredits isolation", () => {
       }),
     } as unknown as Response);
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { user: { id: "user-123" } } },
-          error: null,
-        })),
-        getUser: vi.fn(async () => ({
-          data: { user: { id: "user-123" } },
-          error: null,
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {

@@ -3,7 +3,7 @@
  * Keeps a local fallback while synchronizing per-user preference when available.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 
 const DEFAULT_MEDIA_AUTOSAVE_ENABLED = true;
 const MEDIA_AUTOSAVE_STORAGE_KEY = "shortpulse.ai_studio.media_autosave_enabled";
@@ -67,10 +67,8 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
     (async () => {
       updateLocalValue(readLocalMediaAutosave());
       try {
-        const supabase = ensureSupabaseClient();
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        const id = data.session?.user?.id;
+        const supabase = ensureSupabaseQueryClient();
+        const id = await readSupabaseUserId();
         if (!id) {
           if (!active) return;
           setUserId(null);
@@ -93,16 +91,6 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
           storedPreference?.media_autosave_enabled ?? DEFAULT_MEDIA_AUTOSAVE_ENABLED;
         if (!hasLocalOverrideRef.current) {
           updateLocalValue(nextValue);
-        }
-
-        if (!storedPreference) {
-          const { error: insertError } = await supabase
-            .from("user_preferences")
-            .upsert(
-              { user_id: id, media_autosave_enabled: DEFAULT_MEDIA_AUTOSAVE_ENABLED },
-              { onConflict: "user_id" }
-            );
-          if (insertError) throw insertError;
         }
 
         if (!active) return;
@@ -149,7 +137,7 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
       }
 
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         const { error: upsertError } = await supabase
           .from("user_preferences")
           .upsert({ user_id: userId, media_autosave_enabled: value }, { onConflict: "user_id" });

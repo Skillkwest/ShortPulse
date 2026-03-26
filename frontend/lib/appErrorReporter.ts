@@ -2,7 +2,7 @@
  * Browser-side reporter for actionable application failures.
  * Sends structured events to `/api/log/client-error` for admin triage.
  */
-import { ensureSupabaseClient } from "./supabaseClient";
+import { readSupabaseAccessToken } from "./supabaseClient";
 import { getBreadcrumbsSnapshot } from "./clientBreadcrumbs";
 
 type JsonObject = Record<string, unknown>;
@@ -61,10 +61,7 @@ const resolveMessageAndStack = (error: unknown): { message: string; stack: strin
 
 const readAccessToken = async (): Promise<string | null> => {
   try {
-    const supabase = ensureSupabaseClient();
-    const { data, error } = await supabase.auth.getSession();
-    if (error) return null;
-    return data.session?.access_token ?? null;
+    return await readSupabaseAccessToken();
   } catch {
     return null;
   }

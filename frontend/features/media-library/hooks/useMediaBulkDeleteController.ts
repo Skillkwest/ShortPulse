@@ -12,7 +12,7 @@ import {
   type SetStateAction,
 } from "react";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
 
 type BulkDeleteMediaRowBase = {
@@ -126,7 +126,7 @@ export const useMediaBulkDeleteController = <
       setPageError(null);
 
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         if (isPromptTab) {
           const { error: deleteError } = await supabase
             .from("media_prompts")

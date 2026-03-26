@@ -45,7 +45,6 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
    - webhook ingestion (`/api/fal/webhook`) when enabled.
 4. Queue dispatch and recovery claim flows use lease-based claim semantics to prevent duplicate concurrent processing.
-5. Once provider submit is accepted, queue dispatch must not retry provider submission. Post-accept linkage failures exhaust and compensate fail-closed instead of re-dispatching upstream work.
 
 ## Credit Settlement Invariants
 1. Reserve before submit:

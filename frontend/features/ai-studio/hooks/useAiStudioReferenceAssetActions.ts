@@ -3,7 +3,7 @@
  * Encapsulates download/save handlers used by reference cards and detail modal.
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   downloadBlobToFile,
   downloadUrlToFile,
@@ -33,7 +33,7 @@ export const useAiStudioReferenceAssetActions = ({
       const target = findOutputById(outputId);
       if (!target || typeof window === "undefined") return;
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         const resolvedTarget = await resolveReferenceDownloadTarget({
           output: target,
           supabase,

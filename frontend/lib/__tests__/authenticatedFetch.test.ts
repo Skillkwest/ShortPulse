@@ -7,10 +7,10 @@ import {
   fetchWithAuth,
   isAuthSessionTimeoutError,
 } from "../authenticatedFetch";
-import { ensureSupabaseClient } from "../supabaseClient";
+import { readSupabaseAccessToken } from "../supabaseClient";
 
 vi.mock("../supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  readSupabaseAccessToken: vi.fn(),
 }));
 
 vi.mock("../appErrorReporter", () => ({
@@ -22,7 +22,7 @@ vi.mock("../clientBreadcrumbs", () => ({
   redactUrlForTelemetry: (value: string) => value,
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const readSupabaseAccessTokenMock = vi.mocked(readSupabaseAccessToken);
 
 describe("fetchWithAuth auth-session timeout", () => {
   beforeEach(() => {
@@ -33,11 +33,7 @@ describe("fetchWithAuth auth-session timeout", () => {
     vi.useFakeTimers();
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     try {
-      ensureSupabaseClientMock.mockReturnValue({
-        auth: {
-          getSession: () => new Promise(() => undefined),
-        },
-      } as unknown as ReturnType<typeof ensureSupabaseClient>);
+      readSupabaseAccessTokenMock.mockImplementation(() => new Promise(() => undefined));
 
       const pending = fetchWithAuth("/api/fal/nano-banana-pro-edit-submit", {
         shortpulseAuthTimeoutMs: 4,
@@ -55,14 +51,7 @@ describe("fetchWithAuth auth-session timeout", () => {
   });
 
   it("preserves baseline behavior when auth timeout is not configured", async () => {
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { access_token: "token-123" } },
-          error: null,
-        })),
-      },
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    readSupabaseAccessTokenMock.mockResolvedValue("token-123");
 
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("{}", {

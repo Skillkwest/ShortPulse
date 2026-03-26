@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AuthPage from "../../pages/auth";
 
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const pushMock = vi.hoisted(() => vi.fn());
 const replaceMock = vi.hoisted(() => vi.fn());
 const routerState = vi.hoisted(() => ({
@@ -35,6 +37,8 @@ vi.mock("next/router", () => ({
 
 vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
+  primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
   isSupabaseAbortError: (error: unknown) =>
     error instanceof Error && error.message.toLowerCase().includes("signal is aborted"),
 }));
@@ -46,8 +50,8 @@ describe("Auth route behavior", () => {
     routerState.isReady = true;
     routerState.asPath = "/auth";
 
-    getSessionMock.mockResolvedValue({ data: { session: null } });
-    signInWithPasswordMock.mockResolvedValue({ error: null });
+    readSupabaseSessionMock.mockResolvedValue(null);
+    signInWithPasswordMock.mockResolvedValue({ error: null, data: { session: null } });
     signUpMock.mockResolvedValue({ error: null, data: { session: null } });
     resetPasswordForEmailMock.mockResolvedValue({ error: null });
 
@@ -63,7 +67,7 @@ describe("Auth route behavior", () => {
 
   it("redirects an existing session to the sanitized next path", async () => {
     routerState.query = { next: "/profile?section=billing" };
-    getSessionMock.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+    readSupabaseSessionMock.mockResolvedValue({ user: { id: "user-1" } });
 
     render(<AuthPage />);
 
@@ -73,7 +77,7 @@ describe("Auth route behavior", () => {
   });
 
   it("ignores aborted session reads during auth bootstrap", async () => {
-    getSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
+    readSupabaseSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
 
     render(<AuthPage />);
 
@@ -85,6 +89,10 @@ describe("Auth route behavior", () => {
 
   it("falls back to /dashboard when sign-in receives an unsafe redirect target", async () => {
     routerState.query = { next: "//evil.example" };
+    signInWithPasswordMock.mockResolvedValue({
+      error: null,
+      data: { session: { user: { id: "user-1" } } },
+    });
 
     render(<AuthPage />);
 
@@ -97,6 +105,7 @@ describe("Auth route behavior", () => {
         email: "user@example.com",
         password: "password123",
       });
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith({ user: { id: "user-1" } });
       expect(pushMock).toHaveBeenCalledWith("/dashboard");
     });
   });
@@ -104,6 +113,10 @@ describe("Auth route behavior", () => {
   it("uses asPath fallback while router query is hydrating", async () => {
     routerState.isReady = false;
     routerState.asPath = "/auth?next=%2Fmedia-library";
+    signInWithPasswordMock.mockResolvedValue({
+      error: null,
+      data: { session: { user: { id: "user-1" } } },
+    });
 
     render(<AuthPage />);
 
@@ -140,6 +153,23 @@ describe("Auth route behavior", () => {
       screen.getByText("Check your email to confirm your account, then sign in to continue.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Forgot password?" })).toBeInTheDocument();
+  });
+
+  it("primes shared session state after sign in succeeds", async () => {
+    signInWithPasswordMock.mockResolvedValue({
+      error: null,
+      data: { session: { user: { id: "user-2" } } },
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "prime@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith({ user: { id: "user-2" } });
+    });
   });
 
   it("validates empty email before requesting a reset link and sends the reset with /auth redirect", async () => {

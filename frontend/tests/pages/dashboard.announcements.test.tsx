@@ -9,6 +9,8 @@ import DashboardPage from "../../pages/dashboard";
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
+const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
@@ -46,6 +48,8 @@ vi.mock("../../features/ai-studio/hooks/useCredits", () => ({
 
 vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
+  useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
 }));
 
 vi.mock("../../lib/authenticatedFetch", () => ({
@@ -63,14 +67,6 @@ const appUser = {
 
 const buildSupabaseClient = () => ({
   auth: {
-    getUser: vi.fn(async () => ({ data: { user: appUser } })),
-    onAuthStateChange: vi.fn(() => ({
-      data: {
-        subscription: {
-          unsubscribe: vi.fn(),
-        },
-      },
-    })),
     signOut: vi.fn(async () => ({ error: null })),
   },
   from: vi.fn((table: string) => {
@@ -115,7 +111,13 @@ describe("Dashboard announcement rendering", () => {
       balanceCents: 86,
       balanceLoading: false,
     });
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: appUser },
+      user: appUser,
+    });
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
+    ensureSupabaseQueryClientMock.mockReturnValue(buildSupabaseClient());
   });
 
   it("renders active announcement title and message when available", async () => {

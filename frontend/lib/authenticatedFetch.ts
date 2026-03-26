@@ -2,7 +2,7 @@
  * Browser fetch helper that attaches the current Supabase access token.
  * Use this for authenticated API routes so server handlers can enforce session checks.
  */
-import { ensureSupabaseClient } from "./supabaseClient";
+import { readSupabaseAccessToken } from "./supabaseClient";
 import { reportAppError } from "./appErrorReporter";
 import { addBreadcrumb, redactUrlForTelemetry } from "./clientBreadcrumbs";
 
@@ -63,15 +63,10 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T
 
 const readAccessToken = async (timeoutMs?: number): Promise<string | null> => {
   try {
-    const supabase = ensureSupabaseClient();
-    const sessionPromise = supabase.auth.getSession();
-    const authSession =
-      typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
-        ? await withTimeout(sessionPromise, timeoutMs)
-        : await sessionPromise;
-    const { data, error } = authSession;
-    if (error) return null;
-    return data.session?.access_token ?? null;
+    const accessTokenPromise = readSupabaseAccessToken();
+    return typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? await withTimeout(accessTokenPromise, timeoutMs)
+      : await accessTokenPromise;
   } catch (error) {
     if (isAuthSessionTimeoutError(error)) {
       throw error;

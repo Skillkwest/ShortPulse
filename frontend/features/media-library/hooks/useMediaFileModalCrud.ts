@@ -3,7 +3,7 @@
  * Owns open/close, rename, and single-file delete behavior for the focused media modal.
  */
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
 
 type MediaFileModalRow = {
@@ -109,7 +109,7 @@ export const useMediaFileModalCrud = <TRow extends MediaFileModalRow>({
     setDeletingSingle(true);
     setPageError(null);
     try {
-      const supabase = ensureSupabaseClient();
+      const supabase = ensureSupabaseQueryClient();
       const deletePaths = await collectMediaStoragePathsForDelete([deleteTarget]);
       await removeStoragePaths(deletePaths);
       const { error: deleteError } = await supabase
@@ -154,7 +154,7 @@ export const useMediaFileModalCrud = <TRow extends MediaFileModalRow>({
     try {
       const previousName = focusedFile.filename;
       const nextName = renameValue.trim();
-      const supabase = ensureSupabaseClient();
+      const supabase = ensureSupabaseQueryClient();
       const { error } = await supabase
         .from("media_files")
         .update({ filename: nextName })

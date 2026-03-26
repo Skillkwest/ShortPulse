@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import type { User } from "@supabase/supabase-js";
 import {
   ChartBar,
   CloudArrowUp,
@@ -25,7 +24,12 @@ import {
   normalizePlanId,
   type BillingPlanRecord,
 } from "../features/billing/catalog";
-import { ensureSupabaseClient } from "../lib/supabaseClient";
+import {
+  ensureSupabaseClient,
+  ensureSupabaseQueryClient,
+  primeSupabaseSession,
+  useSupabaseSessionState,
+} from "../lib/supabaseClient";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 
 const DEFAULT_PLAN_TIER = "business";
@@ -71,7 +75,7 @@ const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null =
 export default function DashboardPage() {
   const router = useRouter();
   const { balanceCents, balanceLoading } = useCredits();
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useSupabaseSessionState();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
@@ -84,39 +88,6 @@ export default function DashboardPage() {
   );
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    let unsubscribe: (() => void) | null = null;
-
-    const bootstrapUser = async () => {
-      try {
-        const supabase = ensureSupabaseClient();
-        const { data } = await supabase.auth.getUser();
-        if (!active) return;
-        setUser(data.user ?? null);
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-          if (!active) return;
-          if (event === "USER_UPDATED" || event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
-            setUser(session?.user ?? null);
-          }
-          if (event === "SIGNED_OUT") {
-            setUser(null);
-          }
-        });
-        unsubscribe = () => authListener?.subscription?.unsubscribe();
-      } catch {
-        if (active) {
-          setUser(null);
-        }
-      }
-    };
-
-    void bootstrapUser();
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, []);
   useEffect(() => {
     function handleClick(event: MouseEvent) {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
@@ -161,7 +132,7 @@ export default function DashboardPage() {
 
       setUsageLoading(true);
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         const [billingProfileResponse, billingPlansResponse, mediaFilesResponse] =
           await Promise.all([
             supabase
@@ -363,7 +334,7 @@ export default function DashboardPage() {
     try {
       const supabase = ensureSupabaseClient();
       await supabase.auth.signOut();
-      setUser(null);
+      primeSupabaseSession(null);
       setShowLogoutConfirm(false);
       setProfileMenuOpen(false);
       router.replace("/");

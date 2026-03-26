@@ -4,18 +4,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../authenticatedFetch";
 import { getSignedMediaUrlsBatch } from "../mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../supabaseClient";
+import { ensureSupabaseQueryClient } from "../supabaseClient";
 
 vi.mock("../authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
 }));
 
 vi.mock("../supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
 }));
 
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 
 const createDeferred = <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -30,13 +30,13 @@ const createDeferred = <T>() => {
 describe("getSignedMediaUrlsBatch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       storage: {
         from: () => ({
           createSignedUrl: vi.fn(),
         }),
       },
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
   });
 
   it("chunks API signing requests and resolves all paths when count exceeds batch limit", async () => {
@@ -73,7 +73,7 @@ describe("getSignedMediaUrlsBatch", () => {
     for (const path of storagePaths) {
       expect(signedByPath.get(path)).toBe(`https://signed.test/${encodeURIComponent(path)}`);
     }
-    expect(ensureSupabaseClientMock).not.toHaveBeenCalled();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
   });
 
   it("coalesces concurrent batch callers for the same unresolved path", async () => {

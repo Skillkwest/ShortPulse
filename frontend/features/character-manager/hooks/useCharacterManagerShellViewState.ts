@@ -8,7 +8,7 @@ import type {
 type UseCharacterManagerShellViewStateParams = {
   initialWorkflowTab?: CharacterWorkflowTab;
   isQuickSwapTipHidden: boolean;
-  markQuickSwapTipHidden: () => Promise<unknown>;
+  markQuickSwapTipHidden: (options?: { persistRemotely?: boolean }) => Promise<unknown>;
   quickSwapActiveItems: CharacterQuickSwapItem[];
   isDeletingCharacter: boolean;
   isSavingCharacterSheetPreset: boolean;
@@ -163,7 +163,7 @@ export const useCharacterManagerShellViewState = ({
   React.useEffect(() => {
     if (isQuickSwapTipHidden) return;
     if (quickSwapVisibleRowCount < QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD) return;
-    void markQuickSwapTipHidden();
+    void markQuickSwapTipHidden({ persistRemotely: false });
   }, [isQuickSwapTipHidden, markQuickSwapTipHidden, quickSwapVisibleRowCount]);
 
   const cancelDeleteCharacter = React.useCallback(() => {

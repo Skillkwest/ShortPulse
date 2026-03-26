@@ -5,7 +5,7 @@
  */
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 import type { ReferenceIngestionInput } from "./types";
 
@@ -80,7 +80,7 @@ const resolveStoragePathsFromMediaId = async (
     };
   }
   try {
-    const supabase = ensureSupabaseClient();
+    const supabase = ensureSupabaseQueryClient();
     const readByColumns = async (columns: "preview_storage_path, storage_path" | "storage_path") =>
       (await supabase
         .from("media_files")

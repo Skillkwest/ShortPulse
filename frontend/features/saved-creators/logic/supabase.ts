@@ -1,7 +1,7 @@
 /**
  * Supabase data access for the Saved Creators feature.
  */
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { Creator, Platform } from "../types";
 import { sanitizeHandle } from "../utils/handles";
 
@@ -34,9 +34,8 @@ const mapRowToCreator = (row: SavedCreatorRow): Creator => ({
 });
 
 const getUserId = async () => {
-  const supabase = ensureSupabaseClient();
-  const { data } = await supabase.auth.getSession();
-  const userId = data.session?.user?.id;
+  const supabase = ensureSupabaseQueryClient();
+  const userId = await readSupabaseUserId();
   if (!userId) {
     throw new Error(AUTH_REQUIRED_ERROR);
   }

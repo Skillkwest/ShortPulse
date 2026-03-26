@@ -17,7 +17,7 @@ import {
   type ImageDimensions,
 } from "../../../lib/mediaDimensionMetadata";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import {
   BUCKET,
@@ -200,9 +200,8 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
       setUploading(true);
       let placeholderIds: string[] = [];
       try {
-        const supabase = ensureSupabaseClient();
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user?.id;
+        const supabase = ensureSupabaseQueryClient();
+        const userId = await readSupabaseUserId();
         if (!userId) {
           setError("Not signed in");
           return;

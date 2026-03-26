@@ -4,7 +4,7 @@
  * `user_preferences.ai_studio_character_quickswap_tip_hidden`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import {
   buildUserScopedStorageKey,
   readLocalStorageValue,
@@ -23,7 +23,7 @@ type UseCharacterQuickSwapTipPreferenceResult = {
   loading: boolean;
   error: string | null;
   syncState: CharacterQuickSwapTipSyncState;
-  markQuickSwapTipHidden: () => Promise<boolean>;
+  markQuickSwapTipHidden: (options?: { persistRemotely?: boolean }) => Promise<boolean>;
 };
 
 const parseStoredBoolean = (value: string | null): boolean | null => {
@@ -98,10 +98,8 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
 
     (async () => {
       try {
-        const supabase = ensureSupabaseClient();
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        const id = data.session?.user?.id?.trim() ?? null;
+        const supabase = ensureSupabaseQueryClient();
+        const id = (await readSupabaseUserId())?.trim() ?? null;
         if (!active) return;
         setUserId(id);
         userIdRef.current = id;
@@ -120,7 +118,7 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
 
         const { data: storedPreference, error: preferenceError } = await supabase
           .from("user_preferences")
-          .select("ai_studio_character_quickswap_tip_hidden")
+          .select("*")
           .eq("user_id", id)
           .maybeSingle();
         if (preferenceError) throw preferenceError;
@@ -135,20 +133,6 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
             : localValue;
         if (!hasLocalOverrideRef.current) {
           updateLocalValue(mergedValue, id);
-        }
-
-        if (
-          !hasStoredPreference ||
-          storedPreference?.ai_studio_character_quickswap_tip_hidden !== mergedValue
-        ) {
-          const { error: upsertError } = await supabase.from("user_preferences").upsert(
-            {
-              user_id: id,
-              ai_studio_character_quickswap_tip_hidden: mergedValue,
-            },
-            { onConflict: "user_id" }
-          );
-          if (upsertError) throw upsertError;
         }
 
         if (!active) return;
@@ -176,51 +160,55 @@ export const useCharacterQuickSwapTipPreference = (): UseCharacterQuickSwapTipPr
     };
   }, [updateLocalValue]);
 
-  const markQuickSwapTipHidden = useCallback(async (): Promise<boolean> => {
-    if (latestValueRef.current) return true;
-    const requestVersion = writeVersionRef.current + 1;
-    writeVersionRef.current = requestVersion;
-    hasLocalOverrideRef.current = true;
+  const markQuickSwapTipHidden = useCallback(
+    async (options?: { persistRemotely?: boolean }): Promise<boolean> => {
+      const persistRemotely = options?.persistRemotely ?? true;
+      if (latestValueRef.current) return true;
+      const requestVersion = writeVersionRef.current + 1;
+      writeVersionRef.current = requestVersion;
+      hasLocalOverrideRef.current = true;
 
-    const previousValue = latestValueRef.current;
-    updateLocalValue(true, userIdRef.current);
-    setSyncState("saving");
-    setError(null);
-
-    if (!userId || !remoteSyncEnabledRef.current) {
-      if (requestVersion === writeVersionRef.current) {
-        setSyncState("ready");
-      }
-      return true;
-    }
-
-    try {
-      const supabase = ensureSupabaseClient();
-      const { error: upsertError } = await supabase
-        .from("user_preferences")
-        .upsert(
-          { user_id: userId, ai_studio_character_quickswap_tip_hidden: true },
-          { onConflict: "user_id" }
-        );
-      if (upsertError) throw upsertError;
-      if (requestVersion !== writeVersionRef.current) return true;
+      const previousValue = latestValueRef.current;
+      updateLocalValue(true, userIdRef.current);
+      setSyncState("saving");
       setError(null);
-      setSyncState("ready");
-      return true;
-    } catch (err) {
-      if (requestVersion !== writeVersionRef.current) return true;
-      if (isMissingQuickSwapTipPreferenceError(err)) {
-        remoteSyncEnabledRef.current = false;
+
+      if (!persistRemotely || !userId || !remoteSyncEnabledRef.current) {
+        if (requestVersion === writeVersionRef.current) {
+          setSyncState("ready");
+        }
+        return true;
+      }
+
+      try {
+        const supabase = ensureSupabaseQueryClient();
+        const { error: upsertError } = await supabase
+          .from("user_preferences")
+          .upsert(
+            { user_id: userId, ai_studio_character_quickswap_tip_hidden: true },
+            { onConflict: "user_id" }
+          );
+        if (upsertError) throw upsertError;
+        if (requestVersion !== writeVersionRef.current) return true;
         setError(null);
         setSyncState("ready");
         return true;
+      } catch (err) {
+        if (requestVersion !== writeVersionRef.current) return true;
+        if (isMissingQuickSwapTipPreferenceError(err)) {
+          remoteSyncEnabledRef.current = false;
+          setError(null);
+          setSyncState("ready");
+          return true;
+        }
+        updateLocalValue(previousValue, userIdRef.current);
+        setError(err instanceof Error ? err.message : "Unable to update QuickSwap tip preference.");
+        setSyncState("error");
+        return false;
       }
-      updateLocalValue(previousValue, userIdRef.current);
-      setError(err instanceof Error ? err.message : "Unable to update QuickSwap tip preference.");
-      setSyncState("error");
-      return false;
-    }
-  }, [updateLocalValue, userId]);
+    },
+    [updateLocalValue, userId]
+  );
 
   return {
     isQuickSwapTipHidden,

@@ -3,7 +3,7 @@
  * Keeps local fallback values while synchronizing per-user preferences when remote columns exist.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
@@ -180,10 +180,8 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
     (async () => {
       updateLocalValue(readLocalPresetPreferenceValue());
       try {
-        const supabase = ensureSupabaseClient();
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        const id = data.session?.user?.id;
+        const supabase = ensureSupabaseQueryClient();
+        const id = await readSupabaseUserId();
         if (!id) {
           if (!active) return;
           setUserId(null);
@@ -212,23 +210,6 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
 
         if (!hasLocalOverrideRef.current) {
           updateLocalValue(nextValue);
-        }
-
-        const shouldBackfillRemote =
-          !storedPreference ||
-          !Array.isArray(storedPreference.expert_edit_preset_panel_ids) ||
-          storedPreference.expert_edit_custom_presets == null;
-
-        if (shouldBackfillRemote) {
-          const { error: upsertError } = await supabase.from("user_preferences").upsert(
-            {
-              user_id: id,
-              expert_edit_preset_panel_ids: nextValue.presetPanelIds,
-              expert_edit_custom_presets: nextValue.customPresetOverrides,
-            },
-            { onConflict: "user_id" }
-          );
-          if (upsertError) throw upsertError;
         }
 
         if (!active) return;
@@ -274,7 +255,7 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
       }
 
       try {
-        const supabase = ensureSupabaseClient();
+        const supabase = ensureSupabaseQueryClient();
         const { error: upsertError } = await supabase.from("user_preferences").upsert(
           {
             user_id: userId,

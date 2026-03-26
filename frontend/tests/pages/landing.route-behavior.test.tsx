@@ -6,9 +6,8 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LandingPage from "../../pages/landing";
 
-const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const replaceMock = vi.hoisted(() => vi.fn());
-const getSessionMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -42,7 +41,7 @@ vi.mock("next/router", () => ({
 }));
 
 vi.mock("../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
   isSupabaseAbortError: (error: unknown) =>
     error instanceof Error && error.message.toLowerCase().includes("signal is aborted"),
 }));
@@ -50,16 +49,11 @@ vi.mock("../../lib/supabaseClient", () => ({
 describe("Landing route behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionMock.mockResolvedValue({ data: { session: null } });
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: getSessionMock,
-      },
-    });
+    readSupabaseSessionMock.mockResolvedValue(null);
   });
 
   it("redirects signed-in visitors to the dashboard", async () => {
-    getSessionMock.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+    readSupabaseSessionMock.mockResolvedValue({ user: { id: "user-1" } });
 
     render(<LandingPage />);
 
@@ -69,9 +63,7 @@ describe("Landing route behavior", () => {
   });
 
   it("stays accessible when the Supabase client is unavailable", () => {
-    ensureSupabaseClientMock.mockImplementation(() => {
-      throw new Error("Supabase env vars missing");
-    });
+    readSupabaseSessionMock.mockRejectedValue(new Error("Supabase env vars missing"));
 
     render(<LandingPage />);
 
@@ -80,7 +72,7 @@ describe("Landing route behavior", () => {
   });
 
   it("ignores aborted session reads during landing bootstrap", async () => {
-    getSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
+    readSupabaseSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
 
     render(<LandingPage />);
 

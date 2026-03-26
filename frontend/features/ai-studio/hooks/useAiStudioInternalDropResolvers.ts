@@ -9,7 +9,7 @@ import type { PersistOutputSaveResult } from "./useAiStudioPersistenceActions";
 import { resolveMediaLibraryInternalDropResolver } from "../logic/mediaLibraryInternalDropResolver";
 import { resolveInternalReferenceSource } from "../logic/referenceSource/internalReferenceSource";
 import type { StudioOutput } from "../types";
-import type { InternalReferenceDragPayload } from "../utils/dragDrop";
+import type { InternalReferenceDragPayload, ReferenceDragSourceSurface } from "../utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 
 const MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS = 3500;
@@ -41,6 +41,11 @@ export const resolveSavedMediaIdFromOutput = (
   const candidate = output.savedMediaIds[safeIndex] ?? output.savedMediaIds[0];
   const normalized = candidate?.trim() ?? "";
   return normalized.length ? normalized : null;
+};
+
+const normalizeReferenceDragSourceSurface = (value: unknown): ReferenceDragSourceSurface | null => {
+  if (value === "all-refs" || value === "curated") return value;
+  return null;
 };
 
 /**
@@ -91,7 +96,9 @@ export const useAiStudioInternalDropResolvers = ({
         storagePath: resolvedSource.fullStoragePath ?? resolvedSource.previewStoragePath ?? null,
         outputId: resolvedSource.outputId ?? outputId,
         imageIndex: resolvedSource.provenance.imageIndex,
-        sourceSurface: resolvedSource.provenance.sourceSurface ?? payload.sourceSurface ?? null,
+        sourceSurface: normalizeReferenceDragSourceSurface(
+          resolvedSource.provenance.sourceSurface ?? payload.sourceSurface ?? null
+        ),
       };
     },
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]

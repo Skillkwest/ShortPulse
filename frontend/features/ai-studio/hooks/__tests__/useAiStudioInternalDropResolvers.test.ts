@@ -307,4 +307,59 @@ describe("useAiStudioInternalDropResolvers", () => {
     expect(mediaArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
     expect(styleArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
   });
+
+  it("drops invalid source-surface strings from resolved provenance", async () => {
+    const output = makeOutput();
+    resolveInternalReferenceSourceMock.mockResolvedValueOnce({
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "media-1",
+      outputId: "out-1",
+      mediaId: "media-1",
+      preview: {
+        url: "https://cdn.example.com/preview.png",
+      },
+      previewStoragePath: "user-1/generations/images/result-1-preview.png",
+      fullStoragePath: "user-1/generations/images/result-1.png",
+      promptText: "User visible prompt",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-1",
+        imageIndex: 1,
+        sourceSurface: "stale-surface",
+        resolutionReason: "output_storage_path",
+      },
+      preparedImageUrl: "https://signed.example.com/result-1.png",
+      loadBlob: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: true,
+          mediaFileIds: ["media-0", "media-1"],
+          delivery: null,
+          error: null,
+        })),
+        saveReferenceToLibrary: vi.fn(),
+      })
+    );
+
+    await expect(
+      result.current.resolveCharacterDropReference(makePayload({ imageIndex: 1 }))
+    ).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: "media-1",
+        sourceSurface: null,
+      })
+    );
+  });
 });

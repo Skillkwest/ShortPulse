@@ -1,7 +1,10 @@
 import { getModelConfig } from "../../model-runtime/pricing";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { resolveProviderFromModelId } from "../providerIntegration/providerRuntimeConfig";
-import { ensureAcceptedGenerationAttempt } from "./generationAttempts";
+import {
+  ensureAcceptedGenerationAttempt,
+  updateGenerationAttemptState,
+} from "./generationAttempts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -149,6 +152,35 @@ const insertGenerationWithRecoveryFallback = async (payload: JsonObject) => {
   return supabaseAdmin.from("ai_generations").insert(payload).select("id").single();
 };
 
+const ensureRunningGenerationAttemptState = async ({
+  providerRequestId,
+  userId,
+  sourceRef,
+  submitTargetUrl,
+  submitTargetIndex,
+}: {
+  providerRequestId: string;
+  userId: string;
+  sourceRef: string;
+  submitTargetUrl: string;
+  submitTargetIndex: number;
+}): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const observedAt = new Date().toISOString();
+  return updateGenerationAttemptState({
+    providerRequestId,
+    userId,
+    status: "running",
+    observedAt,
+    metadata: {
+      source_ref: sourceRef,
+      submit_target_url: submitTargetUrl,
+      submit_target_index: submitTargetIndex,
+      direct_submit_at: observedAt,
+      dispatch_source: "direct_submit",
+    },
+  });
+};
+
 /**
  * Ensures a durable ai_generations row exists as soon as submit returns request_id.
  * Callers decide whether persistence failure is recoverable or must fail closed.
@@ -258,6 +290,19 @@ export const ensureSubmittedGenerationRecord = async (
             error: attemptResult.error,
           };
         }
+        const runningAttemptResult = await ensureRunningGenerationAttemptState({
+          providerRequestId: input.providerRequestId,
+          userId: input.userId,
+          sourceRef: input.sourceRef,
+          submitTargetUrl: input.submitTargetUrl,
+          submitTargetIndex: input.submitTargetIndex,
+        });
+        if (!runningAttemptResult.ok) {
+          return {
+            ok: false,
+            error: runningAttemptResult.error,
+          };
+        }
         return { ok: true, generationId: existingId };
       }
     }
@@ -325,6 +370,19 @@ export const ensureSubmittedGenerationRecord = async (
       return {
         ok: false,
         error: attemptResult.error,
+      };
+    }
+    const runningAttemptResult = await ensureRunningGenerationAttemptState({
+      providerRequestId: input.providerRequestId,
+      userId: input.userId,
+      sourceRef: input.sourceRef,
+      submitTargetUrl: input.submitTargetUrl,
+      submitTargetIndex: input.submitTargetIndex,
+    });
+    if (!runningAttemptResult.ok) {
+      return {
+        ok: false,
+        error: runningAttemptResult.error,
       };
     }
 

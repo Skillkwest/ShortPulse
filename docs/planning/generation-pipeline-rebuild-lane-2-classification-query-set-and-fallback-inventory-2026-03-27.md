@@ -137,7 +137,7 @@ select
   case
     when lower(g.status) = 'success'
          and coalesce(output_summary.output_count, 0) = 0
-         and jsonb_typeof(coalesce(g.metadata->'result_urls', g.metadata->'resultUrls')) <> 'array'
+         and jsonb_typeof(coalesce(g.metadata->'result_urls', g.metadata->'resultUrls')) is distinct from 'array'
          and coalesce(legacy_media_summary.legacy_media_count, 0) = 0
       then 'success_without_outputs'
     when coalesce(dup_output_summary.duplicate_slot_count, 0) > 0
@@ -214,7 +214,7 @@ left join public.ai_generation_outputs o
   on o.generation_id = g.id
 where lower(g.status) = 'success'
   and o.id is null
-  and jsonb_typeof(coalesce(g.metadata->'result_urls', g.metadata->'resultUrls')) <> 'array';
+  and jsonb_typeof(coalesce(g.metadata->'result_urls', g.metadata->'resultUrls')) is distinct from 'array';
 ```
 
 ### Legacy media rows with `generation_output_index` but no trustworthy generation linkage
@@ -318,9 +318,35 @@ These are no longer the target authority for new runtime writes, but Lane 2 must
 `GPR-L2-S1` is done when:
 1. the query set above is accepted as the baseline classification contract
 2. the fallback-reader inventory is accepted as the bounded retirement list
-3. a follow-up evidence packet can plug in measured counts without redefining the row classes
+3. a fixed read-only execution path exists for baseline counts
+4. a follow-up evidence packet can plug in measured counts without redefining the row classes
+
+## Approved Baseline Execution Path
+Use the fixed read-only hosted runner instead of ad hoc SQL access when local `SUPABASE_DB_URL` is unavailable.
+
+1. Workflow: `.github/workflows/generation-pipeline-backfill-baseline.yml`
+2. Script: `scripts/generation_pipeline_backfill_baseline.sh`
+3. SQL entrypoint: `sql/check_generation_pipeline_backfill_baseline.sql`
+
+This path exists because:
+1. the Supabase CLI in this repo context can confirm the linked project but cannot run the full custom Lane 2 query set directly
+2. `SUPABASE_DB_URL` is not guaranteed in local shell context
+3. repo guardrails prohibit treating `supabase/.temp/*` as authoritative connection state
+4. the existing hosted diagnostics workflow pattern is already the approved model for read-only staged SQL evidence
+
+Recommended operator flow:
+```bash
+gh workflow run generation-pipeline-backfill-baseline.yml \
+  -f target_environment=staging
+
+gh run list --workflow generation-pipeline-backfill-baseline.yml --limit 5
+
+gh run download <run-id> \
+  --name generation-pipeline-backfill-baseline-<run-id> \
+  --dir /tmp/generation-pipeline-backfill-baseline
+```
 
 ## Immediate Next Move
-1. run these classification queries in a controlled dry-run environment
-2. record counts by row class and inconsistency class
+1. dispatch `.github/workflows/generation-pipeline-backfill-baseline.yml` against `staging`
+2. record counts by row class and inconsistency class from the uploaded artifact
 3. use the results to decide the first historical backfill slice

@@ -1,0 +1,58 @@
+name: Generation Pipeline Backfill Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "GitHub Environment containing SUPABASE_DB_URL"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: generation-pipeline-backfill-baseline-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
+jobs:
+  generation_pipeline_backfill_baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.target_environment }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run Lane 2 baseline diagnostics
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          GENERATION_BACKFILL_BASELINE_LOG_DIR: /tmp/generation_pipeline_backfill_baseline
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
+
+          ./scripts/generation_pipeline_backfill_baseline.sh 2>&1 | tee /tmp/generation_pipeline_backfill_baseline.log
+
+      - name: Upload baseline artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generation-pipeline-backfill-baseline-${{ github.run_id }}
+          path: |
+            /tmp/generation_pipeline_backfill_baseline.log
+            /tmp/generation_pipeline_backfill_baseline
+          if-no-files-found: ignore

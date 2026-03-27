@@ -51,6 +51,7 @@ Exit gate:
 2. every inconsistency class is measurable
 3. the repo has a concrete fallback-reader inventory for output authority
 4. `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md` exists
+5. the repo has an approved fixed read-only execution path for baseline counts without relying on local temp files or ad hoc DB access
 
 ### `GPR-L2-S2`
 Status:
@@ -134,4 +135,4 @@ Stop Lane 2 when:
 
 ## Immediate Next Move
 1. execute `GPR-L2-S1`
-2. start with the historical row classification query set and fallback-reader inventory
+2. use the fixed hosted read-only baseline runner to capture the first count packet in staging

@@ -4,7 +4,6 @@
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
 import { persistGenerationOutputRecords } from "../api/generationOutputs";
-import { updateGenerationAttemptState } from "../api/generationAttempts";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
@@ -17,7 +16,7 @@ import {
   collectRecoveredUrls,
   resolveRetryDelaySeconds,
 } from "./recoveryExecutionRuntime";
-import { readRecoveryGenerationRow, type RecoveryGenerationRow } from "./recoveryGenerationLookup";
+import { readRecoveryGenerationRow } from "./recoveryGenerationLookup";
 import {
   buildAlreadyPersistedSuccessUpdate,
   buildMissingRequestUpdate,
@@ -34,10 +33,9 @@ import {
 import { probeGenerationProviderResult } from "../providerIntegration/recoveryProviderDispatcher";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
+import { applyRecoveryTransition } from "./recoveryTransitionService";
 
 type JsonObject = Record<string, unknown>;
-
-type GenerationRow = RecoveryGenerationRow;
 
 export type RecoveryProbeState = "running" | "failed" | "completed";
 export type RecoveryActor = "reconciler" | "admin_replay" | "webhook";
@@ -141,54 +139,6 @@ const logRecoveryAutosaveDecisionEvent = async ({
   }
 };
 
-const updateGenerationRecoveryState = async ({
-  generation,
-  updates,
-}: {
-  generation: GenerationRow;
-  updates: Record<string, unknown>;
-}) => {
-  const { error } = await getSupabaseAdmin()
-    .from("ai_generations")
-    .update(updates)
-    .eq("id", generation.id)
-    .eq("user_id", generation.user_id);
-  if (error) throw error;
-};
-
-const updateAttemptStateBestEffort = async ({
-  generation,
-  status,
-  nowIso,
-  completedAt = null,
-  failureReasonCode = null,
-  errorMessage = null,
-  metadata = {},
-}: {
-  generation: GenerationRow;
-  status: "running" | "succeeded" | "failed" | "timed_out";
-  nowIso: string;
-  completedAt?: string | null;
-  failureReasonCode?: string | null;
-  errorMessage?: string | null;
-  metadata?: Record<string, unknown>;
-}) => {
-  if (!generation.request_id) return;
-  const result = await updateGenerationAttemptState({
-    providerRequestId: generation.request_id,
-    userId: generation.user_id,
-    status,
-    observedAt: nowIso,
-    completedAt,
-    failureReasonCode,
-    errorMessage,
-    metadata,
-  });
-  if (!result.ok && result.error !== "attempt_not_found") {
-    throw new Error(result.error);
-  }
-};
-
 /**
  * Execute shared recovery flow for reconciler, admin replay, webhook, and status proxy.
  */
@@ -226,14 +176,16 @@ export const executeGenerationRecovery = async ({
   if (generation.status.toLowerCase() === "success") {
     const existingRows = await readExistingRecoveryMediaRows(generation.id);
     if (existingRows.length) {
-      await updateAttemptStateBestEffort({
+      await applyRecoveryTransition({
         generation,
-        status: "succeeded",
-        nowIso,
-        completedAt: generation.completed_at ?? nowIso,
-        metadata: {
-          recovery_actor: actor,
-          recovery_outcome: "already_persisted",
+        attemptTransition: {
+          status: "succeeded",
+          observedAt: nowIso,
+          completedAt: generation.completed_at ?? nowIso,
+          metadata: {
+            recovery_actor: actor,
+            recovery_outcome: "already_persisted",
+          },
         },
       });
       return {
@@ -249,9 +201,9 @@ export const executeGenerationRecovery = async ({
   }
 
   if (!generation.request_id) {
-    await updateGenerationRecoveryState({
+    await applyRecoveryTransition({
       generation,
-      updates: buildMissingRequestUpdate(nowIso),
+      generationUpdates: buildMissingRequestUpdate(nowIso),
     });
     return {
       ok: true,
@@ -279,9 +231,9 @@ export const executeGenerationRecovery = async ({
         existing_media_count: existingRows.length,
       },
     });
-    await updateGenerationRecoveryState({
+    await applyRecoveryTransition({
       generation,
-      updates: buildAlreadyPersistedSuccessUpdate({
+      generationUpdates: buildAlreadyPersistedSuccessUpdate({
         completedAt: generation.completed_at,
         nowIso,
       }),
@@ -319,16 +271,18 @@ export const executeGenerationRecovery = async ({
     const hardTimeoutReached =
       runningHardTimeoutSeconds > 0 && generationAgeSeconds >= runningHardTimeoutSeconds;
     if (hardTimeoutReached) {
-      await updateAttemptStateBestEffort({
+      await applyRecoveryTransition({
         generation,
-        status: "timed_out",
-        nowIso,
-        completedAt: nowIso,
-        failureReasonCode: "provider_running_timeout",
-        errorMessage: "Provider exceeded running hard-timeout during recovery execution.",
-        metadata: {
-          recovery_actor: actor,
-          recovery_outcome: "running_timeout",
+        attemptTransition: {
+          status: "timed_out",
+          observedAt: nowIso,
+          completedAt: nowIso,
+          failureReasonCode: "provider_running_timeout",
+          errorMessage: "Provider exceeded running hard-timeout during recovery execution.",
+          metadata: {
+            recovery_actor: actor,
+            recovery_outcome: "running_timeout",
+          },
         },
       });
       try {
@@ -367,9 +321,9 @@ export const executeGenerationRecovery = async ({
           running_hard_timeout_seconds: runningHardTimeoutSeconds,
         },
       });
-      await updateGenerationRecoveryState({
+      await applyRecoveryTransition({
         generation,
-        updates: {
+        generationUpdates: {
           status: "fail",
           completed_at: nowIso,
           recovery_state: "exhausted",
@@ -414,18 +368,20 @@ export const executeGenerationRecovery = async ({
             : queuePlanBase.nextRecoveryAt
           : queuePlanBase.nextRecoveryAt,
     };
-    await updateAttemptStateBestEffort({
+    await applyRecoveryTransition({
       generation,
-      status: queuePlan.isExhausted ? "timed_out" : "running",
-      nowIso,
-      completedAt: queuePlan.isExhausted ? nowIso : null,
-      failureReasonCode: queuePlan.isExhausted ? "recovery_exhausted" : null,
-      errorMessage: queuePlan.isExhausted
-        ? "Provider remained running after recovery attempts were exhausted."
-        : null,
-      metadata: {
-        recovery_actor: actor,
-        recovery_outcome: queuePlan.isExhausted ? "running_exhausted" : "provider_running",
+      attemptTransition: {
+        status: queuePlan.isExhausted ? "timed_out" : "running",
+        observedAt: nowIso,
+        completedAt: queuePlan.isExhausted ? nowIso : null,
+        failureReasonCode: queuePlan.isExhausted ? "recovery_exhausted" : null,
+        errorMessage: queuePlan.isExhausted
+          ? "Provider remained running after recovery attempts were exhausted."
+          : null,
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: queuePlan.isExhausted ? "running_exhausted" : "provider_running",
+        },
       },
     });
     if (queuePlan.isExhausted) {
@@ -443,9 +399,9 @@ export const executeGenerationRecovery = async ({
         },
       });
     }
-    await updateGenerationRecoveryState({
+    await applyRecoveryTransition({
       generation,
-      updates: buildProviderRunningUpdate({ nowIso, attempts, queuePlan }),
+      generationUpdates: buildProviderRunningUpdate({ nowIso, attempts, queuePlan }),
     });
     return {
       ok: true,
@@ -459,16 +415,18 @@ export const executeGenerationRecovery = async ({
   }
 
   if (currentObservation.state === "failed") {
-    await updateAttemptStateBestEffort({
+    await applyRecoveryTransition({
       generation,
-      status: "failed",
-      nowIso,
-      completedAt: nowIso,
-      failureReasonCode: "provider_error",
-      errorMessage: "Provider reported failed state during recovery execution.",
-      metadata: {
-        recovery_actor: actor,
-        recovery_outcome: "provider_failed",
+      attemptTransition: {
+        status: "failed",
+        observedAt: nowIso,
+        completedAt: nowIso,
+        failureReasonCode: "provider_error",
+        errorMessage: "Provider reported failed state during recovery execution.",
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: "provider_failed",
+        },
       },
     });
     await settleGenerationOutcome({
@@ -482,9 +440,9 @@ export const executeGenerationRecovery = async ({
         generation_id: generation.id,
       },
     });
-    await updateGenerationRecoveryState({
+    await applyRecoveryTransition({
       generation,
-      updates: buildProviderFailedUpdate(nowIso),
+      generationUpdates: buildProviderFailedUpdate(nowIso),
     });
     return {
       ok: true,
@@ -498,16 +456,18 @@ export const executeGenerationRecovery = async ({
   }
 
   if (!recoveredUrls.length) {
-    await updateAttemptStateBestEffort({
+    await applyRecoveryTransition({
       generation,
-      status: "succeeded",
-      nowIso,
-      completedAt: nowIso,
-      failureReasonCode: "terminal_success_no_media",
-      errorMessage: "Provider terminal success without media payload.",
-      metadata: {
-        recovery_actor: actor,
-        recovery_outcome: "terminal_success_no_media",
+      attemptTransition: {
+        status: "succeeded",
+        observedAt: nowIso,
+        completedAt: nowIso,
+        failureReasonCode: "terminal_success_no_media",
+        errorMessage: "Provider terminal success without media payload.",
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: "terminal_success_no_media",
+        },
       },
     });
     await settleGenerationOutcome({
@@ -530,9 +490,9 @@ export const executeGenerationRecovery = async ({
       exhaustMinAgeSeconds: runtimeFlags.noMediaExhaustMinAgeSeconds,
       enforceMinAgeForExhaustion: true,
     });
-    await updateGenerationRecoveryState({
+    await applyRecoveryTransition({
       generation,
-      updates: buildNoMediaUpdate({ nowIso, queuePlan }),
+      generationUpdates: buildNoMediaUpdate({ nowIso, queuePlan }),
     });
     return {
       ok: true,
@@ -570,16 +530,18 @@ export const executeGenerationRecovery = async ({
     mediaAutosaveEnabled,
   });
   if (!autosavePolicyDecision.allowed) {
-    await updateAttemptStateBestEffort({
+    await applyRecoveryTransition({
       generation,
-      status: "succeeded",
-      nowIso,
-      completedAt: nowIso,
-      metadata: {
-        recovery_actor: actor,
-        recovery_outcome: "recovered_success",
-        autosave_decision: "autosave_skipped",
-        autosave_decision_reason: autosavePolicyDecision.reason,
+      attemptTransition: {
+        status: "succeeded",
+        observedAt: nowIso,
+        completedAt: nowIso,
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: "recovered_success",
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: autosavePolicyDecision.reason,
+        },
       },
     });
     await persistGenerationOutputRecords({
@@ -619,9 +581,9 @@ export const executeGenerationRecovery = async ({
       autosaveDecision: "autosave_skipped",
       decisionReason: autosavePolicyDecision.reason,
     });
-    await updateGenerationRecoveryState({
+    await applyRecoveryTransition({
       generation,
-      updates: buildRecoveredSuccessUpdate({
+      generationUpdates: buildRecoveredSuccessUpdate({
         nowIso,
         metadata: asObject(generation.metadata),
         actor,
@@ -646,17 +608,19 @@ export const executeGenerationRecovery = async ({
     generation,
     mediaUrls: recoveredUrls,
   });
-  await updateAttemptStateBestEffort({
+  await applyRecoveryTransition({
     generation,
-    status: "succeeded",
-    nowIso,
-    completedAt: nowIso,
-    metadata: {
-      recovery_actor: actor,
-      recovery_outcome: "recovered_success",
-      autosave_decision: "auto_persisted",
-      autosave_decision_reason: autosavePolicyDecision.reason,
-      media_file_count: mediaFileIds.length,
+    attemptTransition: {
+      status: "succeeded",
+      observedAt: nowIso,
+      completedAt: nowIso,
+      metadata: {
+        recovery_actor: actor,
+        recovery_outcome: "recovered_success",
+        autosave_decision: "auto_persisted",
+        autosave_decision_reason: autosavePolicyDecision.reason,
+        media_file_count: mediaFileIds.length,
+      },
     },
   });
   await persistGenerationOutputRecords({
@@ -697,9 +661,9 @@ export const executeGenerationRecovery = async ({
     autosaveDecision: "auto_persisted",
     decisionReason: autosavePolicyDecision.reason,
   });
-  await updateGenerationRecoveryState({
+  await applyRecoveryTransition({
     generation,
-    updates: buildRecoveredSuccessUpdate({
+    generationUpdates: buildRecoveredSuccessUpdate({
       nowIso,
       metadata,
       actor,

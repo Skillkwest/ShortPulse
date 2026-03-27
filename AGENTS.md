@@ -32,6 +32,7 @@ npm run build
 - Follow `docs/dev-ground-rules.md` and `docs/conventions.md`.
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
 - Keep user data isolated (Supabase RLS + private storage); never expose service-role keys.
+- Branch promotion policy: never push directly to `main`. Work must land on user-chosen development branches first, then be promoted to the staging preview branch, and only after staging validation may it be promoted to `main`.
 - Supabase operations policy: use Supabase CLI for Supabase access; do not use Docker-based Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
@@ -78,6 +79,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 6. **Execution/closeout defaults**
 - Keep diffs minimal and scoped to the request.
 - Do not continue by adjacency or momentum alone; each new lane must have a concrete repo-backed problem statement and better ROI than stopping.
+- Do not push to `main` directly. Treat `main` as promotion-only after successful development-branch work and staging preview validation.
 - Run relevant validation checks for touched areas.
 - Perform a final self-audit for missed high-value updates and provide suggested next steps.
 

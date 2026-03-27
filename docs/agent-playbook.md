@@ -48,6 +48,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Start each new lane with a concrete problem statement: the risk/bug, why it matters, and why this target has better ROI than stopping.
 - Require route/API tests to cover route-owned behavior or failure handling that shared logic tests do not already protect.
 - Prefer one coherent lane at a time. Finish it, checkpoint it, or explicitly stop it before starting another lane.
+- Never push directly to `main`. Use user-chosen development branches for active work, then promote to the staging preview branch, then promote to `main` only after staging passes.
 - Use targeted validation during a lane and reserve full `npm run validate` for meaningful checkpoints, not every small diff.
 - Stop when the next change is no longer clearly reducing risk more than it adds churn.
 

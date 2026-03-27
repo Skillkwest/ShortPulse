@@ -558,7 +558,10 @@ Checklist:
 
 ## AI Studio session persistence emergency rollback posture
 Checklist:
-- Confirm these flags are set to `false` in the active frontend/server runtime when forcing rollback baseline:
+- Default posture is now legacy session persistence hard-off.
+- Confirm this client master gate is unset or `false`:
+  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED`
+- If forcing a full rollback baseline, also confirm these flags are `false` in the active frontend/server runtime:
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED`
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED`
@@ -567,7 +570,8 @@ Checklist:
 - Expected behavior in this baseline:
   - no session restore/switch UX,
   - no `/api/ai/sessions*` traffic during normal AI Studio usage,
-  - workspace state remains runtime-local only.
+  - workspace state remains runtime-local only,
+  - `sid` remains runtime identity only and does not imply resumable restore.
 - Full-canvas persistence runbook:
   - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
   - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
@@ -589,6 +593,8 @@ Checklist:
 
 ## AI Studio session restore candidate does not appear
 Checklist:
+- Confirm legacy session persistence is explicitly opted in:
+  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED=true`
 - Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false` in the frontend environment.
 - Ensure `sid` is present and valid in URL (`/ai-studio?sid=<uuid>`).
 - If remote restore candidate is expected, ensure `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` is not `false`.
@@ -597,6 +603,8 @@ Checklist:
 
 ## AI Studio session snapshot is loaded but not applied to UI
 Checklist:
+- Confirm legacy session persistence is explicitly opted in:
+  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED=true`
 - Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` is not `false`.
 - Ensure restore-candidate loading is enabled:
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false`.

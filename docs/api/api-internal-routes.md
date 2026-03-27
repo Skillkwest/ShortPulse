@@ -114,11 +114,12 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (`5000` default; bounded `1000..60000` for runtime active-policy cache TTL).
   - `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (`true` default; client pre-send mirror gate in studio-agent chat path).
 - AI Studio sessions API flag:
+  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` (`false` by default; master opt-in for the legacy AI Studio session save/restore system. When `false`, the client keeps `sid` for runtime identity but does not save or restore legacy session snapshots.)
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (`true` by default; disables `/api/ai/sessions/*` when `false`).
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (`true` by default; when `false`, remote mirror to `/api/ai/sessions/save` is disabled and local shadow remains active).
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (`true` by default; when `false`, restore-candidate loading by `sid` is disabled).
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (`true` by default; when `false`, loaded restore candidates are not hydrated into UI state).
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (`true` by default; when `false`, one-shot restore apply hydrates workspace/output/canvas state but skips agent transcript/input hydration).
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (`true` by default once the legacy master opt-in is enabled; when `false`, remote mirror to `/api/ai/sessions/save` is disabled and local shadow remains active).
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (`true` by default once the legacy master opt-in is enabled; when `false`, restore-candidate loading by `sid` is disabled).
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (`true` by default once the legacy master opt-in is enabled; when `false`, loaded restore candidates are not hydrated into UI state).
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (`true` by default once the legacy master opt-in is enabled; when `false`, one-shot restore apply hydrates workspace/output/canvas state but skips agent transcript/input hydration).
 - Media preview trust policy:
   - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)

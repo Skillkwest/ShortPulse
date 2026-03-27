@@ -158,6 +158,7 @@ describe("useAiStudioSessionRestoreHydration", () => {
           hydrateFromSessionAgentSnapshot,
           hydrateFromSessionCanvasSnapshot,
           applyEnabled: true,
+          agentApplyEnabled: true,
         }),
       {
         initialProps: {

@@ -51,7 +51,7 @@ describe("useAiStudioSessionRestoreCandidate", () => {
     expect(result.current.source).toBe("local");
     expect(loadCandidateMock).toHaveBeenCalledWith({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
-      remoteEnabled: true,
+      remoteEnabled: false,
     });
   });
 });

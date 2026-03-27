@@ -7,7 +7,7 @@ Operational runbook for AI Studio session persistence with full durability acros
 3. agent transcript/input state,
 4. canvas scene + main/rail viewport cameras + transient text edit state.
 
-This SOP governs default-on operation, validation, and emergency rollback.
+This SOP governs the legacy AI Studio session persistence system. That system is now hard-disabled by default pending the future Projects redesign; use this SOP only when explicitly opting the legacy system back on for controlled testing.
 
 ## Prerequisites
 1. Session SQL migration `044_add_ai_studio_sessions_persistence.sql` is applied.
@@ -17,16 +17,18 @@ This SOP governs default-on operation, validation, and emergency rollback.
 ## Runtime Flags
 Core flags:
 1. `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (default enabled)
-2. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (master client switch; default enabled)
-3. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED` (default enabled)
-4. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (default enabled)
-5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (default enabled)
-6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default enabled)
-7. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (default enabled)
+2. `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` (master legacy opt-in; default disabled)
+3. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (legacy client master switch; default enabled once legacy opt-in is enabled)
+4. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED` (default enabled once legacy opt-in is enabled)
+5. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (default enabled once legacy opt-in is enabled)
+6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (default enabled once legacy opt-in is enabled)
+7. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default enabled once legacy opt-in is enabled)
+8. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (default enabled once legacy opt-in is enabled)
 
 Policy note:
-1. When `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=false`, client persistence is fully disabled regardless of scoped per-lane flags.
-2. Remote restore/list reads require both restore shadow and remote shadow lanes to be enabled.
+1. When `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` is unset or `false`, legacy client persistence is fully disabled regardless of the scoped per-lane flags below.
+2. When `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=false`, client persistence is fully disabled even if the legacy master opt-in is enabled.
+3. Remote restore/list reads require both restore shadow and remote shadow lanes to be enabled.
 
 ## Persistence Contract
 1. Snapshot schema version is `2` (V2 write path).
@@ -93,12 +95,13 @@ Policy note:
 ## Rollback
 Emergency full rollback:
 1. `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED=false`
-2. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=false`
-3. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED=false`
-4. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=false`
-5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=false`
-6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=false`
-7. Restart frontend runtime and re-run smoke checks.
+2. `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED=false`
+3. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=false`
+4. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED=false`
+5. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=false`
+6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=false`
+7. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=false`
+8. Restart frontend runtime and re-run smoke checks.
 
 ## Maintenance
 1. Keep this SOP aligned with:

@@ -2,9 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readRecoveryGenerationRow } from "../recoveryGenerationLookup";
 
 const getSupabaseAdminMock = vi.fn();
+const lookupGenerationAttemptByProviderRequestMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../api/generationAttempts", () => ({
+  lookupGenerationAttemptByProviderRequest: (...args: unknown[]) =>
+    lookupGenerationAttemptByProviderRequestMock(...args),
 }));
 
 const createLookupAdmin = (responses: Array<{ data: unknown; error: unknown }>) => {
@@ -46,6 +52,7 @@ const fullRow = {
 describe("readRecoveryGenerationRow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
   });
 
   it("reads by generation id with optional user scoping and parses typed row", async () => {
@@ -80,6 +87,30 @@ describe("readRecoveryGenerationRow", () => {
     });
 
     expect(lookup.eq).toHaveBeenNthCalledWith(1, "request_id", "req-1");
+    expect(row?.id).toBe("gen-1");
+  });
+
+  it("resolves request-id lookup through generation_attempts before legacy ai_generations.request_id", async () => {
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        generationId: "gen-1",
+      },
+      error: null,
+    });
+    const lookup = createLookupAdmin([{ data: [fullRow], error: null }]);
+    getSupabaseAdminMock.mockReturnValue(lookup.admin);
+
+    const row = await readRecoveryGenerationRow({
+      requestId: "req-1",
+      userId: "user-1",
+    });
+
+    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenCalledWith({
+      providerRequestId: "req-1",
+      userId: "user-1",
+    });
+    expect(lookup.eq).toHaveBeenNthCalledWith(1, "id", "gen-1");
+    expect(lookup.eq).toHaveBeenNthCalledWith(2, "user_id", "user-1");
     expect(row?.id).toBe("gen-1");
   });
 

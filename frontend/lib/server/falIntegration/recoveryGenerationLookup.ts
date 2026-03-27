@@ -3,6 +3,8 @@
  * Isolates ai_generations read/query behavior from recovery orchestration.
  */
 
+import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
+import { isMissingGenerationAttemptSchemaError } from "../api/generationBilling/errorGuards";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { asString } from "./falAdapter";
 
@@ -86,15 +88,40 @@ export const readRecoveryGenerationRow = async ({
     "failure_reason_code",
     "completed_at",
   ].join(", ");
-  if (generationId) {
-    let query = supabaseAdmin.from("ai_generations").select(selectFields).eq("id", generationId);
+  const readByGenerationId = async (
+    resolvedGenerationId: string
+  ): Promise<RecoveryGenerationRow | null> => {
+    let query = supabaseAdmin
+      .from("ai_generations")
+      .select(selectFields)
+      .eq("id", resolvedGenerationId);
     if (userId) query = query.eq("user_id", userId);
     const { data, error } = await query.order("created_at", { ascending: false }).limit(1);
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : null;
     return parseRecoveryGenerationRow(row);
+  };
+  if (generationId) {
+    return readByGenerationId(generationId);
   }
   if (!requestId) return null;
+  const attemptLookup = await lookupGenerationAttemptByProviderRequest({
+    providerRequestId: requestId,
+    userId,
+  });
+  if (attemptLookup.error) {
+    if (
+      !isMissingGenerationAttemptSchemaError(
+        attemptLookup.error.code ?? null,
+        attemptLookup.error.message ?? undefined
+      )
+    ) {
+      throw new Error(attemptLookup.error.message ?? "attempt_provider_request_lookup_failed");
+    }
+  } else if (attemptLookup.data?.generationId) {
+    const generation = await readByGenerationId(attemptLookup.data.generationId);
+    if (generation) return generation;
+  }
   let query = supabaseAdmin.from("ai_generations").select(selectFields).eq("request_id", requestId);
   if (userId) query = query.eq("user_id", userId);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(1);

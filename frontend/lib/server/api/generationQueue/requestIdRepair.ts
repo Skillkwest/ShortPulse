@@ -1,4 +1,7 @@
-import { lookupLatestGenerationAttempt } from "../generationAttempts";
+import {
+  ensureAcceptedRunningGenerationAttempt,
+  lookupLatestGenerationAttempt,
+} from "../generationAttempts";
 import { isMissingGenerationAttemptSchemaError } from "../generationBilling/errorGuards";
 import { buildRequestIdRepairGenerationUpdate } from "../generationRequestTransitions";
 import { getSupabaseAdmin } from "../supabaseAdmin";
@@ -14,6 +17,7 @@ type RepairCandidate = {
   userId: string;
   requestId: string | null;
   provider: string;
+  modelId: string;
   status: string;
   recoveryState: string;
   recoveryAttempts: number;
@@ -92,15 +96,17 @@ const parseRepairCandidate = (value: unknown): RepairCandidate | null => {
   const id = asString(row.id);
   const userId = asString(row.user_id);
   const provider = asString(row.provider);
+  const modelId = asString(row.model_id);
   const status = asString(row.status)?.toLowerCase();
   const recoveryState = asString(row.recovery_state)?.toLowerCase();
   const metadata = asObject(row.metadata) ?? {};
-  if (!id || !userId || !provider || !status || !recoveryState) return null;
+  if (!id || !userId || !provider || !modelId || !status || !recoveryState) return null;
   return {
     id,
     userId,
     requestId: asString(row.request_id),
     provider,
+    modelId,
     status,
     recoveryState,
     recoveryAttempts: Math.max(0, asInteger(row.recovery_attempts, 0)),
@@ -120,7 +126,7 @@ const readRepairCandidate = async ({
 }): Promise<ReadRepairCandidateResult> => {
   const supabase = getSupabaseAdmin();
   const selectFields =
-    "id, user_id, request_id, provider, status, recovery_state, recovery_attempts, metadata";
+    "id, user_id, request_id, provider, model_id, status, recovery_state, recovery_attempts, metadata";
 
   if (generationId) {
     const { data, error } = await supabase
@@ -291,6 +297,38 @@ const applyRequestIdRepair = async ({
   };
 };
 
+const ensureAttemptForReservationRepair = async ({
+  candidate,
+  providerRequestId,
+}: {
+  candidate: RepairCandidate;
+  providerRequestId: string;
+}): Promise<{ ok: true } | { ok: false; errorMessage: string }> => {
+  const repairedAt = new Date().toISOString();
+  const attemptResult = await ensureAcceptedRunningGenerationAttempt({
+    generationId: candidate.id,
+    userId: candidate.userId,
+    provider: candidate.provider,
+    modelId: candidate.modelId,
+    providerRequestId,
+    dispatchSource: "reconciler",
+    observedAt: repairedAt,
+    metadata: {
+      source_ref: candidate.sourceRef,
+      request_id_repaired_at: repairedAt,
+      request_id_repair_source: "reservation_backfill",
+      repair_origin: "request_id_repair",
+    },
+  });
+  if (!attemptResult.ok) {
+    return {
+      ok: false,
+      errorMessage: attemptResult.error,
+    };
+  }
+  return { ok: true };
+};
+
 export const repairGenerationRequestIdFromReservation = async ({
   userId,
   generationId,
@@ -439,6 +477,21 @@ export const repairGenerationRequestIdFromReservation = async ({
     };
   }
 
+  const attemptEnsureResult = await ensureAttemptForReservationRepair({
+    candidate,
+    providerRequestId: reservationLookup.providerRequestId,
+  });
+  if (!attemptEnsureResult.ok) {
+    return {
+      repaired: false,
+      generationId: candidate.id,
+      requestId: null,
+      sourceRef: candidate.sourceRef,
+      reason: "db_error",
+      errorMessage: attemptEnsureResult.errorMessage,
+    };
+  }
+
   return applyRequestIdRepair({
     candidate,
     providerRequestId: reservationLookup.providerRequestId,
@@ -456,7 +509,7 @@ export const repairGenerationRequestIdsFromReservations = async ({
   const { data, error } = await supabase
     .from("ai_generations")
     .select(
-      "id, user_id, request_id, provider, status, recovery_state, recovery_attempts, metadata"
+      "id, user_id, request_id, provider, model_id, status, recovery_state, recovery_attempts, metadata"
     )
     .is("request_id", null)
     .order("created_at", { ascending: true })

@@ -12,7 +12,7 @@ import {
 export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi" | "keyframes";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
 export type ToolConfig = { id: ToolId; label: string; desc: string };
-export const AI_STUDIO_TOOLBAR_LOGO_SRC = "/ai-studio-toolbar-logo.png";
+export const AI_STUDIO_TOOLBAR_LOGO_SRC = "/small good d.png";
 export const FLUX_LOGO_SRC = "/flux-logo.png";
 export const GOOGLE_LOGO_SRC = "/google-logo.png";
 export const KLING_LOGO_SRC = "/kling-logo.png";

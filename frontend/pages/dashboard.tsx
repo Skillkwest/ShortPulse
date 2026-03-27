@@ -368,7 +368,7 @@ export default function DashboardPage() {
         <header className="app-bar">
           <Link href="/" className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
             <Image
-              src="/brand-logo.png"
+              src="/small good d.png"
               alt="ShortPulse logo"
               className="brand-logo"
               width={203}

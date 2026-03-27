@@ -420,6 +420,52 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   generationId: string;
   index: number;
 }): Promise<ExistingMediaRow | null> => {
+  const { data: canonicalOutput, error: canonicalOutputError } = await getSupabaseAdmin()
+    .from("ai_generation_outputs")
+    .select("media_file_id")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .eq("output_index", index)
+    .limit(1)
+    .maybeSingle();
+  if (!canonicalOutputError) {
+    const mediaFileId = asOptionalString(asRecord(canonicalOutput).media_file_id);
+    if (mediaFileId) {
+      const { data: canonicalMedia, error: canonicalMediaError } = await getSupabaseAdmin()
+        .from("media_files")
+        .select(
+          "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+        )
+        .eq("user_id", userId)
+        .eq("id", mediaFileId)
+        .limit(1)
+        .maybeSingle();
+      if (!canonicalMediaError && canonicalMedia) {
+        const id = asOptionalString(canonicalMedia.id);
+        if (id) {
+          return {
+            id,
+            storagePath: asCanonicalStoragePath(asOptionalString(canonicalMedia.storage_path)),
+            fileType:
+              asOptionalString(canonicalMedia.file_type)?.toLowerCase() === "video"
+                ? ("video" as const)
+                : ("image" as const),
+            metadata: asObjectMetadata(canonicalMedia.metadata),
+            thumbVariantPath: asCanonicalStoragePath(
+              asOptionalString(canonicalMedia.thumb_variant_path)
+            ),
+            posterVariantPath: asCanonicalStoragePath(
+              asOptionalString(canonicalMedia.poster_variant_path)
+            ),
+            previewVariantPath: asCanonicalStoragePath(
+              asOptionalString(canonicalMedia.preview_variant_path)
+            ),
+          };
+        }
+      }
+    }
+  }
+
   const { data, error } = await getSupabaseAdmin()
     .from("media_files")
     .select(

@@ -77,6 +77,8 @@ const createMockResponse = () => ({
 const createSupabaseAdmin = (options?: {
   existingRow?: ExistingMediaRow | null;
   generationOutputRows?: Array<Record<string, unknown>>;
+  canonicalOutputMediaFileId?: string | null;
+  canonicalOutputMaybeSingleError?: { message?: string } | null;
   insertRow?: MediaInsertRow | null;
   insertError?: { code?: string; message?: string } | null;
   uploadError?: { message: string } | null;
@@ -121,6 +123,13 @@ const createSupabaseAdmin = (options?: {
     data: generationOutputRows,
     error: null,
   }));
+  const generationOutputMaybeSingle = vi.fn(async () => ({
+    data:
+      options?.canonicalOutputMediaFileId === undefined
+        ? null
+        : { media_file_id: options.canonicalOutputMediaFileId },
+    error: options?.canonicalOutputMaybeSingleError ?? null,
+  }));
   const generationOutputUpdateMock = vi.fn(() => ({
     eq: vi.fn(() => ({
       eq: vi.fn(async () => ({ error: null })),
@@ -130,20 +139,17 @@ const createSupabaseAdmin = (options?: {
 
   const fromMock = vi.fn((table: string) => {
     if (table === "media_files") {
+      const mediaSelectBuilder = {
+        eq: vi.fn(),
+        contains: vi.fn(),
+        limit: vi.fn(),
+        maybeSingle: maybeSingleMock,
+      };
+      mediaSelectBuilder.eq.mockReturnValue(mediaSelectBuilder);
+      mediaSelectBuilder.contains.mockReturnValue(mediaSelectBuilder);
+      mediaSelectBuilder.limit.mockReturnValue(mediaSelectBuilder);
       return {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                contains: vi.fn(() => ({
-                  limit: vi.fn(() => ({
-                    maybeSingle: maybeSingleMock,
-                  })),
-                })),
-              })),
-            })),
-          })),
-        })),
+        select: vi.fn(() => mediaSelectBuilder),
         insert: vi.fn(() => ({
           select: vi.fn(() => ({ single: singleMock })),
         })),
@@ -151,15 +157,26 @@ const createSupabaseAdmin = (options?: {
     }
     if (table === "ai_generation_outputs") {
       return {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              order: vi.fn(() => ({
-                limit: generationOutputLimit,
-              })),
-            })),
-          })),
-        })),
+        select: vi.fn((fields: string) => {
+          if (fields === "media_file_id") {
+            const builder = {
+              eq: vi.fn(),
+              limit: vi.fn(),
+              maybeSingle: generationOutputMaybeSingle,
+            };
+            builder.eq.mockReturnValue(builder);
+            builder.limit.mockReturnValue(builder);
+            return builder;
+          }
+          const builder = {
+            eq: vi.fn(),
+            order: vi.fn(),
+            limit: generationOutputLimit,
+          };
+          builder.eq.mockReturnValue(builder);
+          builder.order.mockReturnValue(builder);
+          return builder;
+        }),
         update: generationOutputUpdateMock,
         insert: generationOutputInsertMock,
       };
@@ -267,12 +284,13 @@ describe("POST /api/media/copy-from-url", () => {
         poster_variant_path: null,
         preview_variant_path: null,
       },
+      canonicalOutputMediaFileId: "media-existing-1",
       generationOutputRows: [
         {
           id: "gen-output-1",
           output_index: 0,
           result_url: "https://trusted.example.com/reference.png",
-          media_file_id: null,
+          media_file_id: "media-existing-1",
         },
       ],
       signedUrls: {
@@ -316,6 +334,63 @@ describe("POST /api/media/copy-from-url", () => {
     expect(supabase.generationOutputUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         media_file_id: "media-existing-1",
+      })
+    );
+  });
+
+  it("falls back to legacy metadata-index lookup when canonical output media linkage is absent", async () => {
+    const supabase = createSupabaseAdmin({
+      existingRow: {
+        id: "media-existing-legacy-1",
+        storage_path: "user-1/generations/images/existing-legacy.png",
+        file_type: "image",
+        metadata: { generation_output_index: 0 },
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+      },
+      canonicalOutputMediaFileId: null,
+      generationOutputRows: [
+        {
+          id: "gen-output-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/reference.png",
+          media_file_id: null,
+        },
+      ],
+      signedUrls: {
+        "user-1/generations/images/existing-legacy.png": "https://signed.test/existing-legacy.png",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        source: "ai_studio",
+        generationId: "gen-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(supabase.uploadMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-existing-legacy-1",
+      })
+    );
+    expect(supabase.generationOutputUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-existing-legacy-1",
       })
     );
   });

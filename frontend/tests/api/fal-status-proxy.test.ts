@@ -214,6 +214,55 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("returns the successful generation id when persisted metadata fallback skips newer non-success rows", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    persistedGenerationRows = [
+      {
+        id: "gen-persisted-processing-1",
+        status: "processing",
+        metadata: {},
+      },
+      {
+        id: "gen-persisted-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+        },
+      },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-persisted-success" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-persisted-success",
+        generationId: "gen-persisted-success-1",
+        status: "completed",
+        state: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+      })
+    );
+  });
+
   it("returns persisted completed payload even when provider key is unavailable", async () => {
     delete process.env.KIE_API_KEY;
     delete process.env.SHORTPULSE_KIE_API_KEY;

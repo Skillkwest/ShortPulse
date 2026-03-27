@@ -9,6 +9,7 @@ import {
 const getSupabaseAdminMock = vi.fn();
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
 let persistedOutputRows: Array<Record<string, unknown>> = [];
+let outputEqCalls: Array<[string, unknown]> = [];
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: () => getSupabaseAdminMock(),
@@ -19,6 +20,7 @@ describe("falStatusPersistedResults", () => {
     vi.clearAllMocks();
     persistedGenerationRows = [];
     persistedOutputRows = [];
+    outputEqCalls = [];
     getSupabaseAdminMock.mockImplementation(() => {
       const generationQueryChain = {
         eq: vi.fn(),
@@ -33,7 +35,10 @@ describe("falStatusPersistedResults", () => {
         order: vi.fn(),
         limit: vi.fn(async () => ({ data: persistedOutputRows, error: null })),
       };
-      outputQueryChain.eq.mockReturnValue(outputQueryChain);
+      outputQueryChain.eq.mockImplementation((field: string, value: unknown) => {
+        outputEqCalls.push([field, value]);
+        return outputQueryChain;
+      });
       outputQueryChain.order.mockReturnValue(outputQueryChain);
 
       return {
@@ -91,12 +96,14 @@ describe("falStatusPersistedResults", () => {
   it("reads persisted success rows only", async () => {
     persistedGenerationRows = [
       {
+        id: "gen-processing-1",
         status: "processing",
         metadata: {
           result_urls: ["https://cdn.shortpulse.test/ignore-me.mp4"],
         },
       },
       {
+        id: "gen-success-1",
         status: "success",
         metadata: {
           media_urls: [{ url: "https://cdn.shortpulse.test/final.mp4" }],
@@ -110,6 +117,35 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-1",
       })
     ).resolves.toEqual(["https://cdn.shortpulse.test/final.mp4"]);
+  });
+
+  it("returns the successful generation id when metadata fallback is used", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-processing-1",
+        status: "processing",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/ignore-me.mp4"],
+        },
+      },
+      {
+        id: "gen-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/final.mp4"],
+        },
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-success-1",
+      resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
+    });
   });
 
   it("prefers canonical persisted generation outputs over metadata result urls", async () => {
@@ -139,6 +175,39 @@ describe("falStatusPersistedResults", () => {
         "https://cdn.shortpulse.test/output-b.mp4",
       ],
     });
+  });
+
+  it("scopes canonical persisted output reads to the successful generation row", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-processing-1",
+        status: "processing",
+        metadata: {},
+      },
+      {
+        id: "gen-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/legacy-fallback.mp4"],
+        },
+      },
+    ];
+    persistedOutputRows = [
+      { output_index: 0, result_url: "https://cdn.shortpulse.test/output-a.mp4" },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-success-1",
+      resultUrls: ["https://cdn.shortpulse.test/output-a.mp4"],
+    });
+
+    expect(outputEqCalls).toContainEqual(["generation_id", "gen-success-1"]);
+    expect(outputEqCalls).not.toContainEqual(["generation_id", "gen-processing-1"]);
   });
 
   it("builds the completed proxy payload shape", () => {

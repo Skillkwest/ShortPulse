@@ -12,6 +12,12 @@ export type PersistedGenerationStatusContext = {
   resultUrls: string[];
 };
 
+const asOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
 const toResultUrlList = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -93,12 +99,13 @@ export const readPersistedGenerationStatusContext = async ({
       return { generationId: null, resultUrls: [] };
     }
 
-    let generationId: string | null = null;
+    let latestGenerationId: string | null = null;
     for (const item of data) {
       if (!item || typeof item !== "object" || Array.isArray(item)) continue;
       const row = item as Record<string, unknown>;
-      if (!generationId && typeof row.id === "string" && row.id.trim().length > 0) {
-        generationId = row.id.trim();
+      const generationId = asOptionalString(row.id);
+      if (!latestGenerationId && generationId) {
+        latestGenerationId = generationId;
       }
       const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
       if (status !== "success") continue;
@@ -122,7 +129,7 @@ export const readPersistedGenerationStatusContext = async ({
       const urls = readPersistedResultUrlsFromMetadata(row.metadata);
       if (urls.length) return { generationId, resultUrls: urls };
     }
-    return { generationId, resultUrls: [] };
+    return { generationId: latestGenerationId, resultUrls: [] };
   } catch {
     return { generationId: null, resultUrls: [] };
   }

@@ -37,6 +37,23 @@ export const isMissingReservationSchemaError = (
   );
 };
 
+export const isMissingGenerationAttemptSchemaError = (
+  code?: string | null,
+  message?: string
+): boolean => {
+  const normalizedCode = String(code ?? "").toUpperCase();
+  if (normalizedCode === "42703" || normalizedCode === "PGRST204" || normalizedCode === "42P01") {
+    return true;
+  }
+  const text = String(message ?? "");
+  return (
+    /relation .* does not exist/i.test(text) ||
+    /could not find the table/i.test(text) ||
+    /column .*generation_attempts.*does not exist/i.test(text) ||
+    /could not find the '.*' column of 'generation_attempts'/i.test(text)
+  );
+};
+
 export const isMissingRpcFunctionError = (code?: string | null, message?: string): boolean => {
   const normalizedCode = String(code ?? "").toUpperCase();
   if (normalizedCode === "PGRST202" || normalizedCode === "42883") return true;

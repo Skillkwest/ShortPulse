@@ -1,8 +1,10 @@
 import { insertCreditLedgerEntry } from "../creditLedger";
 import { readFalRuntimeFlags } from "../falRuntimeFlags";
+import { lookupGenerationAttemptByProviderRequest } from "../generationAttempts";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
   isDuplicateError,
+  isMissingGenerationAttemptSchemaError,
   isMissingLedgerSchemaError,
   isRecoverableReservationFailure,
   readErrorCode,
@@ -172,6 +174,59 @@ const lookupGenerationSourceRefByProviderRequest = async ({
   userId: string;
   providerRequestId: string;
 }): Promise<{ generationId: string | null; sourceRef: string | null }> => {
+  const attemptLookup = await lookupGenerationAttemptByProviderRequest({
+    userId,
+    providerRequestId,
+  });
+  if (attemptLookup.error) {
+    if (
+      !isMissingGenerationAttemptSchemaError(
+        attemptLookup.error.code ?? null,
+        attemptLookup.error.message ?? undefined
+      )
+    ) {
+      console.error(
+        "[generationBilling] lookupGenerationSourceRefByProviderRequest attempt lookup failed",
+        {
+          providerRequestId,
+          userId,
+          message: attemptLookup.error.message ?? null,
+        }
+      );
+    }
+  } else if (attemptLookup.data?.generationId) {
+    try {
+      const supabaseAdmin = getSupabaseAdmin();
+      const { data, error } = await supabaseAdmin
+        .from("ai_generations")
+        .select("id, metadata")
+        .eq("id", attemptLookup.data.generationId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) {
+        console.error(
+          "[generationBilling] lookupGenerationSourceRefByProviderRequest generation lookup failed",
+          error.message
+        );
+      } else {
+        const row = readObject(data);
+        const metadata = readJsonObject(row.metadata);
+        const sourceRef = asString(metadata.source_ref) ?? null;
+        if (sourceRef) {
+          return {
+            generationId: asString(row.id) ?? attemptLookup.data.generationId,
+            sourceRef,
+          };
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[generationBilling] lookupGenerationSourceRefByProviderRequest generation lookup threw",
+        String(error)
+      );
+    }
+  }
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin

@@ -1,5 +1,7 @@
+import { lookupGenerationAttemptByProviderRequest } from "../generationAttempts";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
+  isMissingGenerationAttemptSchemaError,
   isMissingLedgerSchemaError,
   isMissingReservationSchemaError,
   readErrorCode,
@@ -68,6 +70,30 @@ const lookupLedgerOwnerByProviderRequestId = async (
   }
 };
 
+const lookupAttemptOwnerByProviderRequestId = async (
+  providerRequestId: string
+): Promise<string | null> => {
+  try {
+    const { data, error } = await lookupGenerationAttemptByProviderRequest({
+      providerRequestId,
+    });
+    if (error) {
+      if (!isMissingGenerationAttemptSchemaError(error.code ?? null, error.message ?? undefined)) {
+        console.error("[generationBilling] lookupAttemptOwnerByProviderRequestId failed", {
+          providerRequestId,
+          message: error.message ?? null,
+        });
+      }
+      return null;
+    }
+    const ownerUserId = data?.userId;
+    return typeof ownerUserId === "string" && ownerUserId.trim().length ? ownerUserId : null;
+  } catch (error) {
+    console.error("[generationBilling] lookupAttemptOwnerByProviderRequestId threw", String(error));
+    return null;
+  }
+};
+
 const lookupGenerationOwnersByProviderRequestId = async (
   providerRequestId: string
 ): Promise<string[]> => {
@@ -119,6 +145,11 @@ export const resolveProviderRequestOwnership = async ({
   const reservationOwner = await lookupReservationOwnerByProviderRequestId(normalized);
   if (reservationOwner) {
     return reservationOwner === userId ? "owned" : "forbidden";
+  }
+
+  const attemptOwner = await lookupAttemptOwnerByProviderRequestId(normalized);
+  if (attemptOwner) {
+    return attemptOwner === userId ? "owned" : "forbidden";
   }
 
   const ledgerOwner = await lookupLedgerOwnerByProviderRequestId(normalized);

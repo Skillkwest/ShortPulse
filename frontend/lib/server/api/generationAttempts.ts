@@ -25,6 +25,20 @@ type EnsureAcceptedGenerationAttemptResult =
       error: string;
     };
 
+type LookupGenerationAttemptByProviderRequestInput = {
+  providerRequestId: string;
+  userId?: string | null;
+};
+
+export type GenerationAttemptLookupRow = {
+  id: string | null;
+  generationId: string | null;
+  userId: string | null;
+  attemptNumber: number | null;
+  providerRequestId: string | null;
+  metadata: JsonObject;
+};
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -66,6 +80,51 @@ const lookupAttemptByProviderRequest = async ({
     .limit(1)
     .maybeSingle();
   return { data, error };
+};
+
+export const lookupGenerationAttemptByProviderRequest = async ({
+  providerRequestId,
+  userId = null,
+}: LookupGenerationAttemptByProviderRequestInput): Promise<{
+  data: GenerationAttemptLookupRow | null;
+  error: { code?: string | null; message?: string | null } | null;
+}> => {
+  const normalizedProviderRequestId = asString(providerRequestId);
+  if (!normalizedProviderRequestId) {
+    return { data: null, error: null };
+  }
+
+  const query = getSupabaseAdmin()
+    .from("generation_attempts")
+    .select("id, generation_id, user_id, attempt_number, provider_request_id, metadata")
+    .eq("provider_request_id", normalizedProviderRequestId)
+    .order("attempt_number", { ascending: false })
+    .limit(1);
+  const scopedQuery = userId ? query.eq("user_id", userId) : query;
+  const { data, error } = await scopedQuery.maybeSingle();
+  if (error) {
+    return {
+      data: null,
+      error: {
+        code: readErrorCode(error),
+        message: error.message ?? "attempt_provider_request_lookup_failed",
+      },
+    };
+  }
+  const row = asObject(data);
+  return {
+    data: data
+      ? {
+          id: asString(row.id),
+          generationId: asString(row.generation_id),
+          userId: asString(row.user_id),
+          attemptNumber: asNumber(row.attempt_number),
+          providerRequestId: asString(row.provider_request_id),
+          metadata: asObject(row.metadata),
+        }
+      : null,
+    error: null,
+  };
 };
 
 const lookupLatestAttempt = async ({

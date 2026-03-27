@@ -1,5 +1,6 @@
 import { lookupLatestGenerationAttempt } from "../generationAttempts";
 import { isMissingGenerationAttemptSchemaError } from "../generationBilling/errorGuards";
+import { buildRequestIdRepairGenerationUpdate } from "../generationRequestTransitions";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
@@ -239,22 +240,19 @@ const applyRequestIdRepair = async ({
   const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
   const { data, error } = await getSupabaseAdmin()
     .from("ai_generations")
-    .update({
-      request_id: providerRequestId,
-      status: "running",
-      failure_reason_code: null,
-      error_message: null,
-      completed_at: null,
-      recovery_state: "queued",
-      next_recovery_at: nextRecoveryAtIso,
-      metadata: {
-        ...candidate.metadata,
-        source_ref: candidate.sourceRef,
-        provider_request_id: providerRequestId,
-        request_id_repaired_at: new Date().toISOString(),
-        request_id_repair_source: repairSource,
-      },
-    })
+    .update(
+      buildRequestIdRepairGenerationUpdate({
+        providerRequestId,
+        nextRecoveryAtIso,
+        metadata: {
+          ...candidate.metadata,
+          source_ref: candidate.sourceRef,
+          provider_request_id: providerRequestId,
+          request_id_repaired_at: new Date().toISOString(),
+          request_id_repair_source: repairSource,
+        },
+      })
+    )
     .eq("id", candidate.id)
     .eq("user_id", candidate.userId)
     .is("request_id", null)

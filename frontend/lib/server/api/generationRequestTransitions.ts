@@ -8,6 +8,12 @@ type BuildAcceptedRunningGenerationUpdateInput = {
   metadata: JsonObject;
 };
 
+type BuildRequestIdRepairGenerationUpdateInput = {
+  providerRequestId: string;
+  nextRecoveryAtIso: string;
+  metadata: JsonObject;
+};
+
 export const buildAcceptedRunningGenerationUpdate = ({
   provider,
   modelId,
@@ -27,5 +33,20 @@ export const buildAcceptedRunningGenerationUpdate = ({
   last_recovery_at: null,
   next_recovery_at: nextRecoveryAtIso,
   last_media_detected_at: null,
+  metadata,
+});
+
+export const buildRequestIdRepairGenerationUpdate = ({
+  providerRequestId,
+  nextRecoveryAtIso,
+  metadata,
+}: BuildRequestIdRepairGenerationUpdateInput): Record<string, unknown> => ({
+  request_id: providerRequestId,
+  status: "running",
+  failure_reason_code: null,
+  error_message: null,
+  completed_at: null,
+  recovery_state: "queued",
+  next_recovery_at: nextRecoveryAtIso,
   metadata,
 });

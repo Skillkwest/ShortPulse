@@ -21,6 +21,38 @@ describe("referenceGridMedia", () => {
 
     expect(resolved.previewUrl).toBe("https://cdn.example.com/fallback.png");
     expect(resolved.fullUrl).toBe("https://cdn.example.com/fallback.png");
+    expect(resolved.authorityTier).toBe("preview-only");
+  });
+
+  it("marks weakly tracked generated outputs as preview-only and withholds fullUrl promotion", () => {
+    const resolved = resolveReferenceCardUrls({
+      mediaSource: "generated",
+      generationId: undefined,
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: "https://provider.example.com/generated-preview.png",
+      resultUrls: ["https://provider.example.com/generated-full.png"],
+    });
+
+    expect(resolved.previewUrl).toBe("https://provider.example.com/generated-preview.png");
+    expect(resolved.fullUrl).toBeNull();
+    expect(resolved.authorityTier).toBe("preview-only");
+  });
+
+  it("marks durably tracked generated outputs as tracked when storage authority is absent", () => {
+    const resolved = resolveReferenceCardUrls({
+      mediaSource: "generated",
+      generationId: "gen-1",
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: "https://provider.example.com/generated-preview.png",
+      resultUrls: ["https://provider.example.com/generated-full.png"],
+    });
+
+    expect(resolved.fullUrl).toBeTruthy();
+    expect(resolved.authorityTier).toBe("tracked");
   });
 
   it("resolves adaptive preview quality band by pressure level", () => {

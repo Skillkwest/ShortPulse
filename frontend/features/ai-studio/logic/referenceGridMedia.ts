@@ -15,10 +15,16 @@ import {
   type AdaptiveSurface,
 } from "../../../lib/adaptive-media";
 import { canUseNextImageOptimizerForUrl } from "../../../lib/mediaPreviewTrustPolicy";
+import {
+  isGeneratedOutput,
+  resolveReferenceOutputAuthorityTier,
+  type ReferenceOutputAuthorityTier,
+} from "./referenceOutputAuthority";
 import type { StudioOutput } from "../types";
 
 type ReferenceMediaCandidate = string | null | undefined;
 export type ReferenceGridPreviewQualityBand = "high" | "balanced" | "compact";
+export type ReferenceGridMediaAuthorityTier = ReferenceOutputAuthorityTier;
 type ReferenceGridMediaKindHint = "image" | "video" | null;
 
 const SUPABASE_HOST_SUFFIX = ".supabase.co";
@@ -206,7 +212,13 @@ const hasDistinctDurablePreviewAsset = (
 const resolveReferenceCardUrlsLegacy = (
   output: Pick<
     StudioOutput,
-    "previewStoragePath" | "fullStoragePath" | "previewUrl" | "resultUrls"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "previewUrl"
+    | "resultUrls"
+    | "mediaSource"
+    | "generationId"
+    | "savedMediaIds"
   > & { mode?: StudioOutput["mode"] | null },
   options?: {
     strictPreviewLadder?: boolean;
@@ -217,6 +229,8 @@ const resolveReferenceCardUrlsLegacy = (
     surface?: AdaptiveSurface;
   }
 ) => {
+  const authorityTier = resolveReferenceOutputAuthorityTier(output);
+  const isPreviewOnlyGenerated = authorityTier === "preview-only" && isGeneratedOutput(output);
   const strictPreviewLadder = options?.strictPreviewLadder === true;
   const adaptivePreviewQuality = options?.adaptivePreviewQuality === true;
   const shouldApplyAdaptivePreviewQuality =
@@ -253,7 +267,10 @@ const resolveReferenceCardUrlsLegacy = (
         : resolvedPreviewUrl;
     return {
       previewUrl,
-      fullUrl: fullStorageUrl ?? previewStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null,
+      fullUrl: isPreviewOnlyGenerated
+        ? null
+        : (fullStorageUrl ?? previewStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null),
+      authorityTier,
       previewQualityBand: shouldApplyAdaptivePreviewQuality ? qualityBand : "high",
       targetLongEdgePx: shouldApplyAdaptivePreviewQuality ? targetLongEdgePx : 960,
     };
@@ -273,7 +290,10 @@ const resolveReferenceCardUrlsLegacy = (
 
   return {
     previewUrl,
-    fullUrl: fullStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null,
+    fullUrl: isPreviewOnlyGenerated
+      ? null
+      : (fullStorageUrl ?? legacyPreviewUrl ?? resultFallbackUrl ?? null),
+    authorityTier,
     previewQualityBand: shouldApplyAdaptivePreviewQuality ? qualityBand : "high",
     targetLongEdgePx: shouldApplyAdaptivePreviewQuality ? targetLongEdgePx : 960,
   };
@@ -285,7 +305,13 @@ const resolveReferenceCardUrlsLegacy = (
 export const resolveReferenceCardUrls = (
   output: Pick<
     StudioOutput,
-    "previewStoragePath" | "fullStoragePath" | "previewUrl" | "resultUrls"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "previewUrl"
+    | "resultUrls"
+    | "mediaSource"
+    | "generationId"
+    | "savedMediaIds"
   > & { mode?: StudioOutput["mode"] | null },
   options?: {
     strictPreviewLadder?: boolean;
@@ -296,6 +322,7 @@ export const resolveReferenceCardUrls = (
     surface?: AdaptiveSurface;
   }
 ) => {
+  const authorityTier = resolveReferenceOutputAuthorityTier(output);
   const surface = options?.surface ?? "reference-grid";
   const shouldApplyAdaptivePreviewQuality =
     options?.adaptivePreviewQuality === true && !hasDistinctDurablePreviewAsset(output);
@@ -334,7 +361,9 @@ export const resolveReferenceCardUrls = (
 
   const resolved = {
     previewUrl: v2Resolved.previewUrl,
-    fullUrl: v2Resolved.fullUrl,
+    fullUrl:
+      authorityTier === "preview-only" && isGeneratedOutput(output) ? null : v2Resolved.fullUrl,
+    authorityTier,
     previewQualityBand: shouldApplyAdaptivePreviewQuality
       ? v2Resolved.decision.qualityBand
       : ("high" satisfies ReferenceGridPreviewQualityBand),

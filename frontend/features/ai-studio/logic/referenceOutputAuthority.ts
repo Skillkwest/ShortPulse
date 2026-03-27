@@ -1,5 +1,7 @@
 import type { StudioOutput } from "../types";
 
+export type ReferenceOutputAuthorityTier = "reusable" | "tracked" | "preview-only";
+
 const hasText = (value: string | null | undefined): boolean =>
   typeof value === "string" && value.trim().length > 0;
 
@@ -39,4 +41,15 @@ export const canExposeDirectReferenceUrls = (
 ): boolean => {
   if (!isGeneratedOutput(output)) return true;
   return hasStorageAuthority(output);
+};
+
+export const resolveReferenceOutputAuthorityTier = (
+  output: Pick<
+    StudioOutput,
+    "mediaSource" | "generationId" | "previewStoragePath" | "fullStoragePath" | "savedMediaIds"
+  >
+): ReferenceOutputAuthorityTier => {
+  if (hasStorageAuthority(output)) return "reusable";
+  if (hasDurableGenerationIdentity(output)) return "tracked";
+  return "preview-only";
 };

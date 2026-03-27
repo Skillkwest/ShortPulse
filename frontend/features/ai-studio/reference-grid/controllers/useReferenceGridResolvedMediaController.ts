@@ -6,8 +6,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
   resolveReferenceCardUrls,
+  type ReferenceGridMediaAuthorityTier,
   type ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
+import { isGeneratedOutput } from "../../logic/referenceOutputAuthority";
 import type { StudioOutput } from "../../types";
 import {
   isOutputVideoPreview,
@@ -20,6 +22,7 @@ export type ReferenceGridResolvedCardMedia = {
   previewUrl: string | null;
   fullUrl: string | null;
   fallbackUrl: string | null;
+  authorityTier: ReferenceGridMediaAuthorityTier;
   previewQualityBand: ReferenceGridPreviewQualityBand;
   targetLongEdgePx: number;
   isVideoPreview: boolean;
@@ -53,6 +56,9 @@ const getResolvedMediaCacheKey = ({
     item.fullStoragePath ?? "",
     item.previewUrl ?? "",
     item.resultUrls?.[0] ?? "",
+    item.mediaSource ?? "",
+    item.generationId ?? "",
+    item.savedMediaIds?.[0] ?? "",
     mediaSurface,
     cardLongEdgePx,
   ].join("::");
@@ -100,19 +106,26 @@ export const useReferenceGridResolvedMediaController = ({
       const previewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
       const fullUrl = resolvedCardUrls.fullUrl ?? null;
       const fallbackUrl =
-        resolveFirstRenderableUrl(
-          resolvedCardUrls.fullUrl ?? null,
-          item.previewUrl ?? null,
-          item.fullStoragePath ?? null,
-          item.previewStoragePath ?? null,
-          item.resultUrls?.[0] ?? null
-        ) ?? null;
+        resolvedCardUrls.authorityTier === "preview-only" && isGeneratedOutput(item)
+          ? (resolveFirstRenderableUrl(
+              resolvedCardUrls.previewUrl ?? null,
+              item.previewUrl ?? null,
+              item.resultUrls?.[0] ?? null
+            ) ?? null)
+          : (resolveFirstRenderableUrl(
+              resolvedCardUrls.fullUrl ?? null,
+              item.previewUrl ?? null,
+              item.fullStoragePath ?? null,
+              item.previewStoragePath ?? null,
+              item.resultUrls?.[0] ?? null
+            ) ?? null);
       const isVideoPreview = isOutputVideoPreview(item, previewUrl);
 
       const resolvedMedia: ReferenceGridResolvedCardMedia = {
         previewUrl,
         fullUrl,
         fallbackUrl,
+        authorityTier: resolvedCardUrls.authorityTier,
         previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",
         targetLongEdgePx: resolvedCardUrls.targetLongEdgePx ?? 960,
         isVideoPreview,

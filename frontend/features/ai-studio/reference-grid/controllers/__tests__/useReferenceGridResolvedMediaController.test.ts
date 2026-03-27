@@ -83,4 +83,35 @@ describe("useReferenceGridResolvedMediaController", () => {
 
     expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(3);
   });
+
+  it("keeps weak generated outputs previewable without upgrading fallback authority", () => {
+    const output = {
+      ...createImageOutput("out-generated-weak"),
+      mediaSource: "generated",
+      generationId: undefined,
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: "https://provider.example.com/generated-preview.png",
+      resultUrls: ["https://provider.example.com/generated-full.png"],
+    } as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: output,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.authorityTier).toBe("preview-only");
+    expect(resolved.previewUrl).toBe("https://provider.example.com/generated-preview.png");
+    expect(resolved.fullUrl).toBeNull();
+    expect(resolved.fallbackUrl).toBe("https://provider.example.com/generated-preview.png");
+  });
 });

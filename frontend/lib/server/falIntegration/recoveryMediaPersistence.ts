@@ -9,6 +9,10 @@ import { randomUUID } from "crypto";
 import { withCanonicalImageDimensions } from "../../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import {
+  attachMediaFileToGenerationOutput,
+  readPersistedGenerationOutputs,
+} from "../api/generationOutputs";
 import { asString } from "./falAdapter";
 import { extractImageDimensionsFromBuffer } from "../imageDimensions";
 import {
@@ -79,8 +83,25 @@ const fetchBufferWithRetry = async (
 };
 
 export const readExistingRecoveryMediaRows = async (
-  generationId: string
+  generationId: string,
+  userId?: string
 ): Promise<ExistingRecoveryMediaRow[]> => {
+  const canonicalRows =
+    userId && userId.trim().length
+      ? await readPersistedGenerationOutputs({
+          generationId,
+          userId,
+        }).catch(() => [])
+      : [];
+  const rowsByIndex = new Map<number, ExistingRecoveryMediaRow>();
+  for (const row of canonicalRows) {
+    if (!row.mediaFileId) continue;
+    rowsByIndex.set(row.outputIndex, {
+      id: row.mediaFileId,
+      index: row.outputIndex,
+    });
+  }
+
   const { data, error } = await getSupabaseAdmin()
     .from("media_files")
     .select("id, metadata")
@@ -89,8 +110,13 @@ export const readExistingRecoveryMediaRows = async (
     .order("created_at", { ascending: true })
     .limit(50);
   if (error) throw error;
-  if (!Array.isArray(data)) return [];
-  const rows: ExistingRecoveryMediaRow[] = [];
+  if (!Array.isArray(data)) {
+    return Array.from(rowsByIndex.values()).sort((left, right) => {
+      const leftIndex = left.index ?? Number.MAX_SAFE_INTEGER;
+      const rightIndex = right.index ?? Number.MAX_SAFE_INTEGER;
+      return leftIndex - rightIndex;
+    });
+  }
   for (const rawRow of data) {
     const row = asObject(rawRow);
     const id = asString(row.id);
@@ -99,12 +125,18 @@ export const readExistingRecoveryMediaRows = async (
       String(asObject(row.metadata).generation_output_index ?? ""),
       10
     );
-    rows.push({
+    const index = Number.isFinite(rawIndex) ? rawIndex : null;
+    if (index !== null && rowsByIndex.has(index)) continue;
+    rowsByIndex.set(index ?? rowsByIndex.size + 1000, {
       id,
-      index: Number.isFinite(rawIndex) ? rawIndex : null,
+      index,
     });
   }
-  return rows;
+  return Array.from(rowsByIndex.values()).sort((left, right) => {
+    const leftIndex = left.index ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = right.index ?? Number.MAX_SAFE_INTEGER;
+    return leftIndex - rightIndex;
+  });
 };
 
 export const persistRecoveryMediaFilesForGeneration = async ({
@@ -115,7 +147,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
   mediaUrls: string[];
 }): Promise<string[]> => {
   const supabaseAdmin = getSupabaseAdmin();
-  const existingRows = await readExistingRecoveryMediaRows(generation.id);
+  const existingRows = await readExistingRecoveryMediaRows(generation.id, generation.user_id);
   if (existingRows.length && existingRows.length >= mediaUrls.length) {
     return existingRows.map((row) => row.id);
   }
@@ -212,6 +244,21 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           } catch {
             // best-effort cleanup only
           }
+          try {
+            await attachMediaFileToGenerationOutput({
+              generationId: generation.id,
+              userId: generation.user_id,
+              outputIndex: index,
+              mediaFileId: existingRowId,
+              resultUrl: mediaUrl,
+              providerRequestId: generation.request_id,
+              metadata: {
+                recovery_execution: true,
+              },
+            });
+          } catch {
+            // best-effort canonical output linkage only
+          }
           mediaFileIds.push(existingRowId);
           continue;
         }
@@ -219,7 +266,24 @@ export const persistRecoveryMediaFilesForGeneration = async ({
       throw new Error(`media_files insert failed: ${insertError.message}`);
     }
     const mediaFileId = asString(asObject(data).id);
-    if (mediaFileId) mediaFileIds.push(mediaFileId);
+    if (mediaFileId) {
+      try {
+        await attachMediaFileToGenerationOutput({
+          generationId: generation.id,
+          userId: generation.user_id,
+          outputIndex: index,
+          mediaFileId,
+          resultUrl: mediaUrl,
+          providerRequestId: generation.request_id,
+          metadata: {
+            recovery_execution: true,
+          },
+        });
+      } catch {
+        // best-effort canonical output linkage only
+      }
+      mediaFileIds.push(mediaFileId);
+    }
   }
 
   await supabaseAdmin.from("media_events").insert({

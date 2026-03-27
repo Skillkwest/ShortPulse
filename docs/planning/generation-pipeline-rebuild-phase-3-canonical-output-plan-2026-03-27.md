@@ -32,12 +32,12 @@ By the end of Phase 3, the server should own a first-class output record for eac
 | --- | --- | --- | --- | --- | --- |
 | `GPR-P3-S1` | Introduce canonical output schema and first recovery dual-write | `sql/migrations/071_add_ai_generation_outputs.sql`, recovery success paths, persisted status helpers | recovered generations create `ai_generation_outputs` rows on both autosave-persisted and autosave-skipped success | targeted recovery/status vitest bundle + docs parity checks | Completed |
 | `GPR-P3-S2` | Prefer canonical outputs in persisted server reads | persisted status/result helpers and adjacent server readers still using metadata-first output reads | persisted status APIs read canonical outputs first with metadata fallback only for compatibility | targeted status proxy/persisted results vitest bundle | Completed |
-| `GPR-P3-S3` | Extend canonical outputs into manual-save and downstream server persistence lanes | manual save/copy flows and adjacent persistence helpers | later persistence can attach `media_file_id` to existing output rows instead of inventing new output authority | targeted AI Studio persistence/api vitest bundle | Completed |
+| `GPR-P3-S3` | Extend canonical outputs into manual-save and downstream server persistence lanes | manual save/copy flows, recovery media persistence, and adjacent persistence helpers | later persistence can attach `media_file_id` to existing output rows instead of inventing new output authority | targeted AI Studio persistence/api vitest bundle | Completed |
 | `GPR-P3-S4` | Prepare compatibility contraction | backfill strategy, metadata fallback audit, and read-path contraction plan | concrete removal/backfill checklist exists before any compatibility-field cleanup | docs/checklist updates + targeted drift audit | Planned |
 
 ## Execution Order
 1. Land `GPR-P3-S1` and `GPR-P3-S2` first so new generations have canonical output rows and server readers can consume them.
-2. Later/manual persistence is now connected to canonical output rows instead of creating another output authority.
+2. Later/manual persistence and recovery media persistence are now connected to canonical output rows instead of creating another output authority.
 3. Do not start compatibility removal until `GPR-P3-S4` has a concrete backfill and cutover checklist.
 
 ## Constraints

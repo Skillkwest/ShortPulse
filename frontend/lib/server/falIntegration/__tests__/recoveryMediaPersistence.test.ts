@@ -15,6 +15,9 @@ type SupabaseScenario = {
   insertResponses?: Array<{ data: unknown; error: unknown }>;
   duplicateLookupResponses?: Array<{ data: unknown; error: unknown }>;
   uploadResponses?: Array<{ error: unknown }>;
+  generationOutputListResponses?: Array<{ data: unknown; error: unknown }>;
+  generationOutputInsertResponses?: Array<{ error: unknown }>;
+  generationOutputUpdateResponses?: Array<{ error: unknown }>;
 };
 
 const createSupabaseScenario = (scenario: SupabaseScenario) => {
@@ -22,9 +25,14 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
   const insertResponses = [...(scenario.insertResponses ?? [])];
   const duplicateLookupResponses = [...(scenario.duplicateLookupResponses ?? [])];
   const uploadResponses = [...(scenario.uploadResponses ?? [])];
+  const generationOutputListResponses = [...(scenario.generationOutputListResponses ?? [])];
+  const generationOutputInsertResponses = [...(scenario.generationOutputInsertResponses ?? [])];
+  const generationOutputUpdateResponses = [...(scenario.generationOutputUpdateResponses ?? [])];
 
   const mediaFileInsertPayloads: Record<string, unknown>[] = [];
   const mediaEventInsertPayloads: Record<string, unknown>[] = [];
+  const generationOutputInsertPayloads: Record<string, unknown>[] = [];
+  const generationOutputUpdatePayloads: Record<string, unknown>[] = [];
 
   const mediaFilesTable = {
     select: vi.fn((fields: string) => {
@@ -64,12 +72,39 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
     }),
   };
 
+  const aiGenerationOutputsTable = {
+    select: vi.fn((fields: string) => {
+      if (fields === "id, output_index, result_url, media_file_id") {
+        const limit = vi.fn(
+          async () => generationOutputListResponses.shift() ?? { data: [], error: null }
+        );
+        const order = vi.fn(() => ({ limit }));
+        const secondEq = vi.fn(() => ({ order }));
+        return { eq: vi.fn(() => ({ eq: secondEq })) };
+      }
+
+      throw new Error(`Unexpected ai_generation_outputs select fields: ${fields}`);
+    }),
+    insert: vi.fn(async (payload: Record<string, unknown>) => {
+      generationOutputInsertPayloads.push(payload);
+      return generationOutputInsertResponses.shift() ?? { error: null };
+    }),
+    update: vi.fn((payload: Record<string, unknown>) => {
+      generationOutputUpdatePayloads.push(payload);
+      const secondEq = vi.fn(
+        async () => generationOutputUpdateResponses.shift() ?? { error: null }
+      );
+      return { eq: vi.fn(() => ({ eq: secondEq })) };
+    }),
+  };
+
   const upload = vi.fn(async () => uploadResponses.shift() ?? { error: null });
   const remove = vi.fn(async () => ({ error: null }));
   const fromStorage = vi.fn(() => ({ upload, remove }));
   const fromTable = vi.fn((table: string) => {
     if (table === "media_files") return mediaFilesTable;
     if (table === "media_events") return mediaEventsTable;
+    if (table === "ai_generation_outputs") return aiGenerationOutputsTable;
     throw new Error(`Unexpected table: ${table}`);
   });
 
@@ -82,8 +117,11 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
     remove,
     mediaFileInsertPayloads,
     mediaEventInsertPayloads,
+    generationOutputInsertPayloads,
+    generationOutputUpdatePayloads,
     mediaFilesTable,
     mediaEventsTable,
+    aiGenerationOutputsTable,
   };
 };
 
@@ -98,10 +136,23 @@ describe("recoveryMediaPersistence", () => {
 
   it("reads existing recovery media rows with parsed output indexes", async () => {
     const scenario = createSupabaseScenario({
+      generationOutputListResponses: [
+        {
+          data: [
+            {
+              id: "output-1",
+              output_index: 0,
+              result_url: "https://cdn.shortpulse.test/generated-a.png",
+              media_file_id: "canonical-media-1",
+            },
+          ],
+          error: null,
+        },
+      ],
       listResponses: [
         {
           data: [
-            { id: "media-1", metadata: { generation_output_index: 0 } },
+            { id: "legacy-media-1", metadata: { generation_output_index: 0 } },
             { id: "media-2", metadata: { generation_output_index: "2" } },
             { id: "media-3", metadata: { generation_output_index: "NaN" } },
             { id: null, metadata: { generation_output_index: 4 } },
@@ -112,22 +163,32 @@ describe("recoveryMediaPersistence", () => {
     });
     getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
 
-    const rows = await readExistingRecoveryMediaRows("gen-1");
+    const rows = await readExistingRecoveryMediaRows("gen-1", "user-1");
 
     expect(rows).toEqual([
-      { id: "media-1", index: 0 },
+      { id: "canonical-media-1", index: 0 },
       { id: "media-2", index: 2 },
       { id: "media-3", index: null },
     ]);
   });
 
-  it("returns already-persisted media ids without fetch/upload when coverage is complete", async () => {
+  it("returns already-persisted canonical media ids without fetch/upload when coverage is complete", async () => {
     const scenario = createSupabaseScenario({
-      listResponses: [
+      generationOutputListResponses: [
         {
           data: [
-            { id: "media-1", metadata: { generation_output_index: 0 } },
-            { id: "media-2", metadata: { generation_output_index: 1 } },
+            {
+              id: "output-1",
+              output_index: 0,
+              result_url: "https://cdn.shortpulse.test/a.png",
+              media_file_id: "media-1",
+            },
+            {
+              id: "output-2",
+              output_index: 1,
+              result_url: "https://cdn.shortpulse.test/b.png",
+              media_file_id: "media-2",
+            },
           ],
           error: null,
         },
@@ -157,8 +218,61 @@ describe("recoveryMediaPersistence", () => {
     expect(scenario.mediaEventsTable.insert).not.toHaveBeenCalled();
   });
 
-  it("persists recovery media and resolves duplicate inserts via indexed lookup", async () => {
+  it("persists recovery media and updates canonical output rows during insert and duplicate fallback", async () => {
     const scenario = createSupabaseScenario({
+      generationOutputListResponses: [
+        {
+          data: [
+            {
+              id: "output-1",
+              output_index: 0,
+              result_url: "https://cdn.shortpulse.test/frame-a.png",
+              media_file_id: null,
+            },
+            {
+              id: "output-2",
+              output_index: 1,
+              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              media_file_id: null,
+            },
+          ],
+          error: null,
+        },
+        {
+          data: [
+            {
+              id: "output-1",
+              output_index: 0,
+              result_url: "https://cdn.shortpulse.test/frame-a.png",
+              media_file_id: null,
+            },
+            {
+              id: "output-2",
+              output_index: 1,
+              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              media_file_id: null,
+            },
+          ],
+          error: null,
+        },
+        {
+          data: [
+            {
+              id: "output-1",
+              output_index: 0,
+              result_url: "https://cdn.shortpulse.test/frame-a.png",
+              media_file_id: null,
+            },
+            {
+              id: "output-2",
+              output_index: 1,
+              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              media_file_id: null,
+            },
+          ],
+          error: null,
+        },
+      ],
       listResponses: [{ data: [], error: null }],
       insertResponses: [
         { data: { id: "media-new-1" }, error: null },
@@ -209,6 +323,15 @@ describe("recoveryMediaPersistence", () => {
     expect(scenario.remove).toHaveBeenCalledTimes(1);
     expect(mediaFileIds).toEqual(["media-new-1", "media-existing-2"]);
     expect(scenario.mediaFileInsertPayloads).toHaveLength(2);
+    expect(scenario.generationOutputInsertPayloads).toEqual([]);
+    expect(scenario.generationOutputUpdatePayloads).toEqual([
+      expect.objectContaining({
+        media_file_id: "media-new-1",
+      }),
+      expect.objectContaining({
+        media_file_id: "media-existing-2",
+      }),
+    ]);
     expect(scenario.mediaFileInsertPayloads[0]).toEqual(
       expect.objectContaining({
         source_ref: "gen-1",

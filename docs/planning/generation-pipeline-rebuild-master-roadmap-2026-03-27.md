@@ -71,17 +71,69 @@ Primary surfaces:
 Exit gate:
 1. old compatibility paths can be removed intentionally with rollback evidence and operator clarity
 
+## Cross-Cutting Contracts
+### Replay and idempotency
+This rebuild must explicitly define:
+1. submit retry contract
+2. queue replay and redispatch contract
+3. webhook replay contract
+4. admin replay contract
+5. reconciler rerun contract
+
+These rules are mandatory inputs to Lane 1 and Lane 4. No lane may rely on repair-by-accident behavior.
+
+### Billing migration
+This rebuild must explicitly define:
+1. how reservation ownership moves from `source_ref` to canonical request identity
+2. when `provider_request_id` becomes attempt-only identity rather than top-level request identity
+3. whether direct-debit fallback remains supported
+4. when settlement repair paths stop being a normal success mechanism
+
+This contract is mandatory in Lane 1 before Lane 2 migration work opens.
+
+### Provider event durability
+The roadmap assumes current webhook inboxing is useful but not automatically sufficient. Lane 1 must explicitly decide:
+1. whether current `fal_webhook_events` coverage is enough for canonical request/attempt replay
+2. whether Kie/Fal callbacks need a more normalized provider-event ledger
+3. whether replay idempotency should be unified behind one event shape
+
+### Validation bundles
+Every lane must define a concrete validation bundle before implementation begins. Exit gates are not enough on their own.
+
 ## Sequencing Rules
 1. Lane 1 comes first.
 2. Lane 2 must not begin implementation until Lane 1 has a locked target model.
 3. Lane 3 must not become a broad UI refactor before Lane 2 has historical canonical coverage.
 4. Lane 4 is continuous for validation, but final cleanup belongs last.
+5. Replay/idempotency and billing migration contracts must be explicit before any request/attempt schema implementation begins.
 
 ## Stop Rules
 Stop the current lane when:
 1. the next step does not materially close that lane's exit gate
 2. the next step would widen into another lane
 3. the remaining work becomes operational backfill/governance rather than implementation in the active lane
+
+## Lane Validation Expectations
+### Lane 1
+1. identity matrix and transition matrix are current
+2. billing-linkage contract is explicit
+3. replay/idempotency ownership is explicit
+4. provider-event durability posture is explicit
+
+### Lane 2
+1. historical data quality classification rules are documented
+2. backfill dry-run and mismatch evidence are produced before fallback retirement
+3. legacy fallback removal is gated by measured coverage, not assumption
+
+### Lane 3
+1. drag/drop contract protection is explicit before broad Reference Grid cutover
+2. download/save/reference reuse behavior has targeted regression coverage
+3. cutover order is explicit so read-model work does not widen into broad UI redesign
+
+### Lane 4
+1. operator SOPs and admin trace views reflect the new request/attempt/output model
+2. rollback rules exist before legacy contracts are removed
+3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
 1. advance Lane 1 into `GPR-L1-S3` and define target schema deltas plus compatibility posture with `ai_generations`

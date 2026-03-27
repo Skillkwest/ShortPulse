@@ -124,9 +124,13 @@ Exit gate:
 Goal:
 1. define the billing contract against the new request/attempt model
 2. define queue/recovery/polling integration points
+3. define replay/idempotency ownership for submit, queue, webhook, admin replay, and reconciler reruns
+4. define provider-event durability posture for Fal and Kie callbacks
 
 Exit gate:
 1. no unresolved authority conflict remains between submit, queue, recovery, and billing
+2. replay/idempotency rules are explicit
+3. provider-event durability posture is explicit
 
 ## Validation
 1. docs parity checks
@@ -142,4 +146,5 @@ Lane 1 is complete when:
 1. the request/attempt target model is locked
 2. the transition matrix is explicit
 3. the billing and control-plane integration points are defined
-4. Lane 2 backfill planning can proceed without guessing the target lifecycle
+4. replay/idempotency and provider-event durability rules are defined
+5. Lane 2 backfill planning can proceed without guessing the target lifecycle

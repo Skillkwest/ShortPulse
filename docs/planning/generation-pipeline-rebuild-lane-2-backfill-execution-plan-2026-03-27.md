@@ -36,7 +36,7 @@ Lane 2 may execute because:
 ## Execution Slices
 ### `GPR-L2-S1`
 Status:
-1. Pending
+1. In progress
 
 Goal:
 1. produce the historical row classification queries and baseline counts
@@ -50,6 +50,7 @@ Exit gate:
 1. every required historical row class is measurable
 2. every inconsistency class is measurable
 3. the repo has a concrete fallback-reader inventory for output authority
+4. `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md` exists
 
 ### `GPR-L2-S2`
 Status:

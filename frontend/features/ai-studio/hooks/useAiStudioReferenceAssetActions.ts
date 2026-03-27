@@ -8,6 +8,7 @@ import {
   downloadBlobToFile,
   downloadUrlToFile,
   downloadReferenceProviderBlob,
+  REFERENCE_MISSING_GENERATION_ID_ERROR_MESSAGE,
   REFERENCE_PROVIDER_DOWNLOAD_ERROR_MESSAGE,
   resolveReferenceDownloadFilename,
   resolveReferenceDownloadTarget,
@@ -61,8 +62,11 @@ export const useAiStudioReferenceAssetActions = ({
         const directUrl = resolvedTarget.directUrl ?? target.previewUrl ?? null;
         if (directUrl) {
           const isGeneratedReference =
-            target.mediaSource === "generated" || Boolean(target.generationId || target.taskId);
+            target.mediaSource === "generated" || Boolean(target.generationId);
           if (isGeneratedReference) {
+            if (!resolvedTarget.generationId && !resolvedTarget.fileRecord?.storagePath) {
+              throw new Error(REFERENCE_MISSING_GENERATION_ID_ERROR_MESSAGE);
+            }
             const blob = await downloadReferenceProviderBlob({
               url: directUrl,
             });

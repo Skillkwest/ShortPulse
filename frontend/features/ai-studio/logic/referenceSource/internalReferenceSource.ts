@@ -120,7 +120,6 @@ type ResolveInternalReferenceSourceArgs = {
   resolveStoragePathFromMediaId?: (mediaId: string) => Promise<string | null>;
   resolveStoragePathFromGenerationOutput?: (args: {
     generationId: string | null;
-    taskId: string | null;
     imageIndex: number;
   }) => Promise<string | null>;
 };
@@ -229,21 +228,6 @@ const resolveMetadataOutputIndex = (metadata: unknown): number | null => {
   );
 };
 
-const resolveGenerationIdByTaskId = async (taskId: string): Promise<string | null> => {
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) return null;
-  const supabase = ensureSupabaseQueryClient();
-  const { data, error } = await supabase
-    .from("ai_generations")
-    .select("id, created_at")
-    .eq("request_id", normalizedTaskId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) return null;
-  return asTrimmedString(data?.id);
-};
-
 const resolveStoragePathByGenerationAndIndex = async ({
   generationId,
   imageIndex,
@@ -293,15 +277,12 @@ const resolveStoragePathByGenerationAndIndex = async ({
 
 const defaultResolveStoragePathFromGenerationOutput = async ({
   generationId,
-  taskId,
   imageIndex,
 }: {
   generationId: string | null;
-  taskId: string | null;
   imageIndex: number;
 }): Promise<string | null> => {
-  const resolvedGenerationId =
-    generationId?.trim() || (taskId ? await resolveGenerationIdByTaskId(taskId) : null);
+  const resolvedGenerationId = generationId?.trim() || null;
   if (!resolvedGenerationId) return null;
   return await resolveStoragePathByGenerationAndIndex({
     generationId: resolvedGenerationId,
@@ -516,7 +497,6 @@ export const resolveInternalReferenceSource = async ({
     debugEntry.generationLookupAttempted = true;
     const generationPath = await resolveStoragePathFromGenerationOutput({
       generationId: asTrimmedString(resolvedOutput.generationId),
-      taskId: asTrimmedString(resolvedOutput.taskId),
       imageIndex,
     }).catch(() => null);
     if (generationPath) {
@@ -529,8 +509,19 @@ export const resolveInternalReferenceSource = async ({
 
   const localObjectUrl =
     asTrimmedString(resolvedOutput?.localObjectUrl)?.replace(/#video=1$/i, "") ?? null;
-  const compatibilityHintUrl =
-    asTrimmedString(payload.referenceUrl) ?? asTrimmedString(resolvedOutput?.previewUrl) ?? null;
+  const missingDurableGeneratedIdentity =
+    resolveSharedSourceKind(resolvedOutput, resolvedMediaId) === "generated_output" &&
+    !(
+      resolvedMediaId ||
+      previewStoragePath ||
+      fullStoragePath ||
+      asTrimmedString(resolvedOutput?.generationId)
+    );
+  const compatibilityHintUrl = missingDurableGeneratedIdentity
+    ? null
+    : (asTrimmedString(payload.referenceUrl) ??
+      asTrimmedString(resolvedOutput?.previewUrl) ??
+      null);
   const previewUrl =
     asTrimmedString(resolvedOutput?.previewUrl) ??
     asTrimmedString(payload.referenceRenderUrl) ??

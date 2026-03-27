@@ -6,16 +6,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import type { InternalReferenceDragPayload } from "../../../utils/dragDrop";
 
-const { ensureSupabaseClientMock, mediaMaybeSingleMock, mediaListMock, getSignedMediaUrlMock } =
-  vi.hoisted(() => ({
-    ensureSupabaseClientMock: vi.fn(),
-    mediaMaybeSingleMock: vi.fn(),
-    mediaListMock: vi.fn(),
-    getSignedMediaUrlMock: vi.fn(),
-  }));
+const {
+  ensureSupabaseClientMock,
+  ensureSupabaseQueryClientMock,
+  mediaMaybeSingleMock,
+  mediaListMock,
+  getSignedMediaUrlMock,
+} = vi.hoisted(() => ({
+  ensureSupabaseClientMock: vi.fn(),
+  ensureSupabaseQueryClientMock: vi.fn(),
+  mediaMaybeSingleMock: vi.fn(),
+  mediaListMock: vi.fn(),
+  getSignedMediaUrlMock: vi.fn(),
+}));
 
 vi.mock("../../../../../lib/supabaseClient", () => ({
   ensureSupabaseClient: ensureSupabaseClientMock,
+  ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
 }));
 
 vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
@@ -114,6 +121,7 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ensureSupabaseClientMock.mockReturnValue(createSupabaseMock());
+    ensureSupabaseQueryClientMock.mockReturnValue(createSupabaseMock());
     mediaMaybeSingleMock.mockResolvedValue({ data: null, error: null });
     mediaListMock.mockResolvedValue({ data: [], error: null });
     getSignedMediaUrlMock.mockResolvedValue(null);
@@ -201,14 +209,16 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     const downloadMock = vi
       .fn()
       .mockResolvedValue({ data: null, error: new Error("download denied") });
-    ensureSupabaseClientMock.mockReturnValue({
+    const supabaseMock = {
       ...createSupabaseMock(),
       storage: {
         from: () => ({
           download: downloadMock,
         }),
       },
-    });
+    };
+    ensureSupabaseClientMock.mockReturnValue(supabaseMock);
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseMock);
     getSignedMediaUrlMock.mockResolvedValue("https://signed.example.com/out-1-full.png");
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

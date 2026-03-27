@@ -13,10 +13,6 @@ type MediaFileRow = {
   filename?: unknown;
 };
 
-type GenerationRow = {
-  id?: unknown;
-};
-
 export type ResolvedReferenceDownloadTarget = {
   fileRecord: {
     storagePath: string;
@@ -39,6 +35,8 @@ const NEXT_IMAGE_PATH_PATTERN = /(?:^|\/)_next\/image(?:$|\?)/i;
 
 export const REFERENCE_PROVIDER_DOWNLOAD_ERROR_MESSAGE =
   "Unable to download media from provider URL.";
+export const REFERENCE_MISSING_GENERATION_ID_ERROR_MESSAGE =
+  "Generated media is missing durable generation tracking.";
 
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -194,23 +192,6 @@ const resolveLatestMediaFileByGenerationId = async (
   return toMediaFileRecord(row);
 };
 
-const resolveGenerationIdByTaskId = async (
-  supabase: SupabaseClient,
-  taskId: string
-): Promise<string | null> => {
-  const { data, error } = await supabase
-    .from("ai_generations")
-    .select("id, created_at")
-    .eq("request_id", taskId)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (error) {
-    throw new Error(error.message || "Failed to resolve generation for download.");
-  }
-  const row = (Array.isArray(data) ? data[0] : null) as GenerationRow | null;
-  return asTrimmedString(row?.id);
-};
-
 /**
  * Resolve the best available storage-backed download target for a reference output.
  */
@@ -252,11 +233,7 @@ export const resolveReferenceDownloadTarget = async ({
     };
   }
 
-  let generationId = asTrimmedString(output.generationId);
-  const taskId = asTrimmedString(output.taskId);
-  if (!generationId && taskId) {
-    generationId = await resolveGenerationIdByTaskId(supabase, taskId);
-  }
+  const generationId = asTrimmedString(output.generationId);
   if (!generationId) {
     return {
       fileRecord: null,

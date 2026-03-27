@@ -229,23 +229,11 @@ describe("useAiStudioReferenceAssetActions", () => {
     expect(click).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves generation id by task id before querying media files", async () => {
-    const { supabase, from, storageDownload } = createSupabaseMock({
-      generationResults: [
-        {
-          data: [{ id: "gen-from-task" }],
-          error: null,
-        },
-      ],
-      mediaResults: [
-        {
-          data: [{ storage_path: "user-1/generations/images/task-derived.png", filename: null }],
-          error: null,
-        },
-      ],
-    });
+  it("fails closed when generated download is missing durable generation identity", async () => {
+    const { supabase, from, storageDownload } = createSupabaseMock();
     vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
-    const { click, link } = installDownloadDomMocks();
+    const { click } = installDownloadDomMocks();
+    const setUiError = vi.fn();
     const output = {
       ...makeOutput("out-task", "Task derived prompt"),
       taskId: "req-123",
@@ -257,6 +245,7 @@ describe("useAiStudioReferenceAssetActions", () => {
       useAiStudioReferenceAssetActions(
         createParams({
           findOutputById: (id) => (id === "out-task" ? output : null),
+          setUiError: asDispatch<string | null>(setUiError),
         })
       )
     );
@@ -265,13 +254,15 @@ describe("useAiStudioReferenceAssetActions", () => {
       await result.current.handleDownloadReference("out-task");
     });
 
-    expect(from.mock.calls.map((call) => call[0])).toEqual(["ai_generations", "media_files"]);
-    expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/task-derived.png");
-    expect(link.download).toBe("Task derived prompt.jpeg");
-    expect(click).toHaveBeenCalledTimes(1);
+    expect(from).not.toHaveBeenCalledWith("ai_generations");
+    expect(storageDownload).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(
+      "Generated media is missing durable generation tracking."
+    );
+    expect(click).not.toHaveBeenCalled();
   });
 
-  it("uses provider fetch blob fallback for generated references when no storage file is found", async () => {
+  it("uses provider fetch blob fallback for durably tracked generated references when no storage file is found", async () => {
     const { supabase, storageDownload } = createSupabaseMock();
     vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
     const { click, link } = installDownloadDomMocks();
@@ -284,6 +275,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     const output = {
       ...makeOutput("out-generated", "Generated fallback"),
       mediaSource: "generated",
+      generationId: "gen-fallback-1",
       previewUrl: "https://fal.media/files/generated-fallback.png",
     } satisfies StudioOutput;
 
@@ -397,42 +389,6 @@ describe("useAiStudioReferenceAssetActions", () => {
     expect(click).toHaveBeenCalledTimes(1);
   });
 
-  it("surfaces lookup errors from task-to-generation resolution", async () => {
-    const { supabase } = createSupabaseMock({
-      generationResults: [
-        {
-          data: null,
-          error: { message: "lookup failed" },
-        },
-      ],
-    });
-    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
-    const { click } = installDownloadDomMocks();
-    const setUiError = vi.fn();
-    const output = {
-      ...makeOutput("out-err", "Generated error"),
-      mediaSource: "generated",
-      taskId: "req-error",
-      previewUrl: "https://fal.media/files/generated-error.png",
-    } satisfies StudioOutput;
-
-    const { result } = renderHook(() =>
-      useAiStudioReferenceAssetActions(
-        createParams({
-          findOutputById: (id) => (id === "out-err" ? output : null),
-          setUiError: asDispatch<string | null>(setUiError),
-        })
-      )
-    );
-
-    await act(async () => {
-      await result.current.handleDownloadReference("out-err");
-    });
-
-    expect(setUiError).toHaveBeenCalledWith("lookup failed");
-    expect(click).not.toHaveBeenCalled();
-  });
-
   it("surfaces generated URL download failures instead of opening a new tab", async () => {
     const { supabase } = createSupabaseMock();
     vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
@@ -443,6 +399,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     const output = {
       ...makeOutput("out-fail", "Generated failure"),
       mediaSource: "generated",
+      generationId: "gen-failure-1",
       previewUrl: "https://fal.media/files/generated-failure.png",
     } satisfies StudioOutput;
 
@@ -492,6 +449,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     const output = {
       ...makeOutput("out-timeout", "Generated timeout"),
       mediaSource: "generated",
+      generationId: "gen-timeout-1",
       previewUrl: "https://fal.media/files/generated-timeout.png",
     } satisfies StudioOutput;
 

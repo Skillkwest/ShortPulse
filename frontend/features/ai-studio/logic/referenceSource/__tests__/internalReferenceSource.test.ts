@@ -168,6 +168,39 @@ describe("resolveInternalReferenceSource", () => {
     expect(resolved?.provenance.resolutionReason).toBe("local_object_url");
   });
 
+  it("fails closed for generated outputs missing durable generation identity", async () => {
+    const output = makeImageOutput({
+      mediaSource: "generated",
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      generationId: undefined,
+      taskId: "req-generated-missing-id",
+      previewUrl: "https://cdn.example.com/generated-preview-only.png",
+      resultUrls: ["https://cdn.example.com/generated-preview-only.png"],
+    });
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload(),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved).toBeNull();
+  });
+
   it("keeps compatibility fallback for unresolved media-library-backed references", async () => {
     const resolved = await resolveInternalReferenceSource({
       payload: makePayload({

@@ -30,6 +30,11 @@ type LookupGenerationAttemptByProviderRequestInput = {
   userId?: string | null;
 };
 
+type LookupLatestGenerationAttemptInput = {
+  generationId: string;
+  userId: string;
+};
+
 export type GenerationAttemptLookupRow = {
   id: string | null;
   generationId: string | null;
@@ -143,6 +148,46 @@ const lookupLatestAttempt = async ({
     .limit(1)
     .maybeSingle();
   return { data, error };
+};
+
+export const lookupLatestGenerationAttempt = async ({
+  generationId,
+  userId,
+}: LookupLatestGenerationAttemptInput): Promise<{
+  data: GenerationAttemptLookupRow | null;
+  error: { code?: string | null; message?: string | null } | null;
+}> => {
+  const { data, error } = await getSupabaseAdmin()
+    .from("generation_attempts")
+    .select("id, generation_id, user_id, attempt_number, provider_request_id, metadata")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .order("attempt_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    return {
+      data: null,
+      error: {
+        code: readErrorCode(error),
+        message: error.message ?? "attempt_generation_lookup_failed",
+      },
+    };
+  }
+  const row = asObject(data);
+  return {
+    data: data
+      ? {
+          id: asString(row.id),
+          generationId: asString(row.generation_id),
+          userId: asString(row.user_id),
+          attemptNumber: asNumber(row.attempt_number),
+          providerRequestId: asString(row.provider_request_id),
+          metadata: asObject(row.metadata),
+        }
+      : null,
+    error: null,
+  };
 };
 
 export const ensureAcceptedGenerationAttempt = async ({

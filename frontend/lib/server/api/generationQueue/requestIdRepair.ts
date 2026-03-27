@@ -1,3 +1,5 @@
+import { lookupLatestGenerationAttempt } from "../generationAttempts";
+import { isMissingGenerationAttemptSchemaError } from "../generationBilling/errorGuards";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
@@ -24,6 +26,11 @@ type ReadRepairCandidateResult = {
 };
 
 type ReservationProviderRequestIdLookupResult = {
+  providerRequestId: string | null;
+  errorMessage: string | null;
+};
+
+type AttemptProviderRequestIdLookupResult = {
   providerRequestId: string | null;
   errorMessage: string | null;
 };
@@ -181,12 +188,53 @@ const readReservationProviderRequestId = async ({
   };
 };
 
+const readAttemptProviderRequestId = async ({
+  userId,
+  generationId,
+}: {
+  userId: string;
+  generationId: string;
+}): Promise<AttemptProviderRequestIdLookupResult> => {
+  const attemptLookup = await lookupLatestGenerationAttempt({
+    userId,
+    generationId,
+  });
+  if (attemptLookup.error) {
+    if (
+      isMissingGenerationAttemptSchemaError(
+        attemptLookup.error.code ?? null,
+        attemptLookup.error.message ?? undefined
+      )
+    ) {
+      return {
+        providerRequestId: null,
+        errorMessage: null,
+      };
+    }
+    console.error("[generationQueue] attempt lookup for request-id repair failed", {
+      userId,
+      generationId,
+      message: attemptLookup.error.message ?? null,
+    });
+    return {
+      providerRequestId: null,
+      errorMessage: attemptLookup.error.message ?? "attempt_lookup_failed",
+    };
+  }
+  return {
+    providerRequestId: asString(attemptLookup.data?.providerRequestId),
+    errorMessage: null,
+  };
+};
+
 const applyRequestIdRepair = async ({
   candidate,
   providerRequestId,
+  repairSource,
 }: {
   candidate: RepairCandidate;
   providerRequestId: string;
+  repairSource: "attempt_backfill" | "reservation_backfill";
 }): Promise<GenerationRequestIdRepairResult> => {
   const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
   const { data, error } = await getSupabaseAdmin()
@@ -204,7 +252,7 @@ const applyRequestIdRepair = async ({
         source_ref: candidate.sourceRef,
         provider_request_id: providerRequestId,
         request_id_repaired_at: new Date().toISOString(),
-        request_id_repair_source: "reservation_backfill",
+        request_id_repair_source: repairSource,
       },
     })
     .eq("id", candidate.id)
@@ -346,6 +394,28 @@ export const repairGenerationRequestIdFromReservation = async ({
     };
   }
 
+  const attemptLookup = await readAttemptProviderRequestId({
+    userId,
+    generationId: candidate.id,
+  });
+  if (attemptLookup.errorMessage) {
+    return {
+      repaired: false,
+      generationId: candidate.id,
+      requestId: null,
+      sourceRef: candidate.sourceRef,
+      reason: "db_error",
+      errorMessage: attemptLookup.errorMessage,
+    };
+  }
+  if (attemptLookup.providerRequestId) {
+    return applyRequestIdRepair({
+      candidate,
+      providerRequestId: attemptLookup.providerRequestId,
+      repairSource: "attempt_backfill",
+    });
+  }
+
   const reservationLookup = await readReservationProviderRequestId({
     userId,
     sourceRef: candidate.sourceRef,
@@ -374,6 +444,7 @@ export const repairGenerationRequestIdFromReservation = async ({
   return applyRequestIdRepair({
     candidate,
     providerRequestId: reservationLookup.providerRequestId,
+    repairSource: "reservation_backfill",
   });
 };
 

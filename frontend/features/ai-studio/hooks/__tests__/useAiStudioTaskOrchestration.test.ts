@@ -763,6 +763,78 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
+  it("backfills generation id during queue resume dispatch when output lost it", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-queued-missing-gen",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        generationId: "gen-resume-1",
+        queueState: "queued",
+        taskState: "pending",
+        provider: "fal",
+      }),
+    ];
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) =>
+        item.id === id ? updater({ ...item, generationId: undefined }) : item
+      );
+    });
+    const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "dispatched",
+      generationId: "gen-resume-1",
+      sourceRef: "source-1",
+      requestId: "req-queued-2",
+      provider: "fal",
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(outputs[0]?.generationId).toBe("gen-resume-1");
+    expect(outputs[0]?.taskId).toBe("req-queued-2");
+  });
+
   it("defers resume watchdog checks for freshly queued outputs so submit polling can own queue-status", async () => {
     vi.useFakeTimers();
     try {

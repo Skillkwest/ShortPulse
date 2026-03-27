@@ -269,10 +269,16 @@ export const useAiStudioTaskOrchestration = ({
             });
             clearPollTimer(output.id);
             updateOutputById(output.id, (item) => {
-              if (item.taskId) return item;
+              if (item.taskId && item.generationId) return item;
               return {
                 ...item,
                 provider: item.provider ?? provider,
+                generationId:
+                  item.generationId ??
+                  (typeof queueStatus.generationId === "string" &&
+                  queueStatus.generationId.trim().length > 0
+                    ? queueStatus.generationId.trim()
+                    : item.generationId),
                 taskId: requestId,
                 generationTraceId: requestId,
                 queueState: "dispatched",

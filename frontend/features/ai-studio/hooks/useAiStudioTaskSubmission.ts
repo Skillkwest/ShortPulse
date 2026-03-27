@@ -681,6 +681,21 @@ export const useAiStudioTaskSubmission = ({
                 submission_trace_id: submissionTraceId,
                 generation_trace_id: normalizedTaskId,
               },
+            }).then((resolvedGenerationId) => {
+              if (
+                typeof resolvedGenerationId !== "string" ||
+                resolvedGenerationId.trim().length === 0
+              ) {
+                return;
+              }
+              const normalizedGenerationId = resolvedGenerationId.trim();
+              updateOutputById(id, (item) => {
+                if (item.generationId === normalizedGenerationId) return item;
+                return {
+                  ...item,
+                  generationId: normalizedGenerationId,
+                };
+              });
             });
             addBreadcrumb({
               type: "ui",

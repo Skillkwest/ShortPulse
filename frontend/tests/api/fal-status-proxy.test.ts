@@ -8,6 +8,7 @@ const resolveProviderRequestOwnershipMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
+let persistedOutputRows: Array<Record<string, unknown>> = [];
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -62,15 +63,37 @@ describe("createFalStatusHandler", () => {
       processed: true,
     });
     persistedGenerationRows = [];
+    persistedOutputRows = [];
     getSupabaseAdminMock.mockImplementation(() => {
-      const queryChain = {
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue({ data: persistedGenerationRows, error: null }),
+      const generationQueryChain = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: vi.fn(async () => ({ data: persistedGenerationRows, error: null })),
       };
+      generationQueryChain.eq.mockReturnValue(generationQueryChain);
+      generationQueryChain.order.mockReturnValue(generationQueryChain);
+
+      const outputQueryChain = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: vi.fn(async () => ({ data: persistedOutputRows, error: null })),
+      };
+      outputQueryChain.eq.mockReturnValue(outputQueryChain);
+      outputQueryChain.order.mockReturnValue(outputQueryChain);
+
       return {
-        from: vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue(queryChain),
+        from: vi.fn((tableName: string) => {
+          if (tableName === "ai_generations") {
+            return {
+              select: vi.fn().mockReturnValue(generationQueryChain),
+            };
+          }
+          if (tableName === "ai_generation_outputs") {
+            return {
+              select: vi.fn().mockReturnValue(outputQueryChain),
+            };
+          }
+          throw new Error(`Unexpected table ${tableName}`);
         }),
       };
     });

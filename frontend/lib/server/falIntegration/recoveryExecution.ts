@@ -3,6 +3,7 @@
  * Centralizes retrieval, persistence, settlement, and lifecycle transitions.
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
+import { persistGenerationOutputRecords } from "../api/generationOutputs";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
@@ -475,6 +476,19 @@ export const executeGenerationRecovery = async ({
     mediaAutosaveEnabled,
   });
   if (!autosavePolicyDecision.allowed) {
+    await persistGenerationOutputRecords({
+      generationId: generation.id,
+      userId: generation.user_id,
+      providerRequestId: generation.request_id,
+      resultUrls: recoveredUrls,
+      mediaFileIds: [],
+      metadata: {
+        actor,
+        autosave_decision: "autosave_skipped",
+        autosave_decision_reason: autosavePolicyDecision.reason,
+        recovery_execution: true,
+      },
+    });
     await settleGenerationOutcome({
       userId: generation.user_id,
       providerRequestId: generation.request_id,
@@ -527,6 +541,19 @@ export const executeGenerationRecovery = async ({
   const mediaFileIds = await persistRecoveryMediaFilesForGeneration({
     generation,
     mediaUrls: recoveredUrls,
+  });
+  await persistGenerationOutputRecords({
+    generationId: generation.id,
+    userId: generation.user_id,
+    providerRequestId: generation.request_id,
+    resultUrls: recoveredUrls,
+    mediaFileIds,
+    metadata: {
+      actor,
+      autosave_decision: "auto_persisted",
+      autosave_decision_reason: autosavePolicyDecision.reason,
+      recovery_execution: true,
+    },
   });
   const metadata = asObject(generation.metadata);
   await settleGenerationOutcome({

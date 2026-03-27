@@ -220,6 +220,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` (timestamptz, default now)
 - `completed_at` (timestamptz, nullable)
 - `metadata` (jsonb, default `{}`): Provider payload summary plus compact retrieval/recovery probe trace snapshots.
+  - Compatibility fields `result_urls` and `media_file_ids` may still be written during the transition to canonical `ai_generation_outputs` rows.
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Constraints and indexes:
   - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.
@@ -227,6 +228,21 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Unique partial index on `(user_id, request_id)` where `request_id is not null`.
   - Reconciler scan index on `(recovery_state, next_recovery_at, created_at)`.
   - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions, with guarded recovery override for `fail -> success` when `failure_reason_code='terminal_success_no_media'` and recovery state is converging to `recovered`.
+
+### ai_generation_outputs
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `generation_id` (uuid): Parent `ai_generations` row with cascade delete.
+- `user_id` (uuid): Owner for RLS scoping.
+- `output_index` (int): Canonical zero-based provider output slot index.
+- `provider_request_id` (text, nullable): Provider job handle attached to this output snapshot.
+- `result_url` (text): Provider-returned result URL captured at recovery time.
+- `media_file_id` (uuid, nullable): Linked durable `media_files` row when autosave or later persistence exists.
+- `metadata` (jsonb, default `{}`): Compact output-level recovery metadata such as autosave decision and actor.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Constraints and indexes:
+  - Unique `(generation_id, output_index)` prevents duplicate canonical output rows for the same generation slot.
+  - `(user_id, provider_request_id)` index supports request-level output lookups when needed.
 
 ### media_events
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -242,6 +258,9 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `media_files_generation_output_idx_unique`:
   - Unique index on `(source_ref, metadata->>'generation_output_index')` for `source='ai_studio'`.
   - Prevents duplicate media rows for the same generation output slot.
+- `ux_ai_generation_outputs_generation_index`:
+  - Unique index on `(generation_id, output_index)`.
+  - Canonical output-slot idempotency key for persisted generation outputs.
 
 ### reconciler claim function
 - `claim_generation_recovery_batch(p_limit, p_max_attempts, p_min_age_seconds, p_lease_seconds)`:

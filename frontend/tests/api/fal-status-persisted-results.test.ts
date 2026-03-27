@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPersistedCompletedPayload,
+  readPersistedGenerationStatusContext,
   readPersistedResultUrlsFromMetadata,
   readPersistedSuccessResultUrls,
 } from "../../lib/server/api/falStatusPersistedResults";
 
 const getSupabaseAdminMock = vi.fn();
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
+let persistedOutputRows: Array<Record<string, unknown>> = [];
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: () => getSupabaseAdminMock(),
@@ -16,15 +18,39 @@ describe("falStatusPersistedResults", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     persistedGenerationRows = [];
+    persistedOutputRows = [];
     getSupabaseAdminMock.mockImplementation(() => {
-      const queryChain = {
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue({ data: persistedGenerationRows, error: null }),
+      const generationQueryChain = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: vi.fn(async () => ({ data: persistedGenerationRows, error: null })),
       };
+      generationQueryChain.eq.mockReturnValue(generationQueryChain);
+      generationQueryChain.order.mockReturnValue(generationQueryChain);
+
+      const outputQueryChain = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: vi.fn(async () => ({ data: persistedOutputRows, error: null })),
+      };
+      outputQueryChain.eq.mockReturnValue(outputQueryChain);
+      outputQueryChain.order.mockReturnValue(outputQueryChain);
+
       return {
-        from: vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue(queryChain),
+        from: vi.fn((tableName: string) => {
+          if (tableName === "ai_generations") {
+            return {
+              select: vi.fn().mockReturnValue(generationQueryChain),
+            };
+          }
+
+          if (tableName === "ai_generation_outputs") {
+            return {
+              select: vi.fn().mockReturnValue(outputQueryChain),
+            };
+          }
+
+          throw new Error(`Unexpected table ${tableName}`);
         }),
       };
     });
@@ -84,6 +110,35 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-1",
       })
     ).resolves.toEqual(["https://cdn.shortpulse.test/final.mp4"]);
+  });
+
+  it("prefers canonical persisted generation outputs over metadata result urls", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/legacy-fallback.mp4"],
+        },
+      },
+    ];
+    persistedOutputRows = [
+      { output_index: 1, result_url: "https://cdn.shortpulse.test/output-b.mp4" },
+      { output_index: 0, result_url: "https://cdn.shortpulse.test/output-a.mp4" },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-1",
+      resultUrls: [
+        "https://cdn.shortpulse.test/output-a.mp4",
+        "https://cdn.shortpulse.test/output-b.mp4",
+      ],
+    });
   });
 
   it("builds the completed proxy payload shape", () => {

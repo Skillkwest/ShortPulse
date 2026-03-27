@@ -7,6 +7,7 @@ const settleGenerationOutcomeMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const readExistingRecoveryMediaRowsMock = vi.fn();
 const persistRecoveryMediaFilesForGenerationMock = vi.fn();
+const persistGenerationOutputRecordsMock = vi.fn();
 const probeGenerationProviderResultMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
@@ -19,6 +20,11 @@ vi.mock("../../api/falRuntimeFlags", () => ({
 
 vi.mock("../../api/generationBilling", () => ({
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
+}));
+
+vi.mock("../../api/generationOutputs", () => ({
+  persistGenerationOutputRecords: (...args: unknown[]) =>
+    persistGenerationOutputRecordsMock(...args),
 }));
 
 vi.mock("../../api/appErrorLogs", () => ({
@@ -131,6 +137,7 @@ describe("executeGenerationRecovery", () => {
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue(undefined);
     probeGenerationProviderResultMock.mockResolvedValue({
       state: "running",
       payload: null,
@@ -431,6 +438,15 @@ describe("executeGenerationRecovery", () => {
         outcome: "success",
       })
     );
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        providerRequestId: "req-1",
+        resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        mediaFileIds: ["media-1", "media-2"],
+      })
+    );
     expect(scenario.updatePayloads).toHaveLength(1);
     expect(scenario.updatePayloads[0]).toEqual(
       expect.objectContaining({
@@ -490,6 +506,15 @@ describe("executeGenerationRecovery", () => {
       })
     );
     expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        providerRequestId: "req-1",
+        resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        mediaFileIds: [],
+      })
+    );
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "success",

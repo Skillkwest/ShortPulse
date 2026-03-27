@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { readPersistedGenerationOutputs } from "./generationOutputs";
 
 type PersistedResultsParams = {
   userId: string;
@@ -101,6 +102,23 @@ export const readPersistedGenerationStatusContext = async ({
       }
       const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
       if (status !== "success") continue;
+      if (generationId) {
+        try {
+          const outputRows = await readPersistedGenerationOutputs({
+            generationId,
+            userId,
+            supabaseAdmin: adminClient,
+          });
+          if (outputRows.length) {
+            return {
+              generationId,
+              resultUrls: outputRows.map((row) => row.resultUrl),
+            };
+          }
+        } catch {
+          // fall back to compatibility metadata when canonical output reads fail
+        }
+      }
       const urls = readPersistedResultUrlsFromMetadata(row.metadata);
       if (urls.length) return { generationId, resultUrls: urls };
     }

@@ -3,12 +3,12 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Completed
 
 ## Summary
-Phase 2 starts the transition from linkage hardening to canonical read authority.
+Phase 2 completed the transition from linkage hardening to stricter read authority.
 
-This phase stays pre-schema. It focuses on reducing mixed transient-vs-durable read behavior so generated outputs stop being treated as fully reusable or durable before the system has canonical authority to say so.
+This phase stayed pre-schema and focused on reducing mixed transient-vs-durable read behavior so generated outputs stopped being treated as fully reusable or durable before the system had canonical authority to say so.
 
 ## Scope
 In scope:
@@ -32,23 +32,23 @@ By the end of Phase 2, generated-media read surfaces should distinguish clearly 
 
 The UI may still preview transient output, but it should not misclassify that output as durably reusable or fully saved.
 
+Phase 2 has now handed off to [generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md](./generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md) for additive schema and server-authoritative output recording.
+
 ## Slice Tracker
 | Slice ID | Goal | Primary Surfaces | Exit Gate | Validation | Status |
 | --- | --- | --- | --- | --- | --- |
 | `GPR-P2-S1` | Remove remaining weak-identity generated read fallbacks | Reference/detail/download/reuse helpers still deriving from `taskId` or equivalent weak hints | generated read actions and reuse helpers no longer repair identity from `taskId` or provider-only state | targeted AI Studio hook/logic vitest bundle | Completed |
-| `GPR-P2-S2` | Tighten generated-output ready/reusable classification | read-derivation helpers such as `referenceGridMedia.ts`, preview/detail derivations, and adjacent classifiers | generated outputs without durable authority are previewable but not classified as fully reusable/saved | targeted Reference Grid/detail derivation vitest bundle | In Progress |
-| `GPR-P2-S3` | Normalize server payload support for durable read authority | status/recovery/queue payload contracts where client still needs compatibility inference | generated-output clients receive the durable identifiers and persistence hints required to avoid local repair logic | targeted API/status/recovery vitest bundle | Planned |
-| `GPR-P2-S4` | Lock docs and branch planning to the read-authority contract | rebuild docs, SOPs, and touched ADR/status surfaces | docs describe transient vs durable generated-output authority without drift | `npm -C frontend run docs:check` | Planned |
+| `GPR-P2-S2` | Tighten generated-output ready/reusable classification | read-derivation helpers such as `referenceGridMedia.ts`, preview/detail derivations, and adjacent classifiers | generated outputs without durable authority are previewable but not classified as fully reusable/saved | targeted Reference Grid/detail derivation vitest bundle | Completed |
+| `GPR-P2-S3` | Normalize server payload support for durable read authority | status/recovery/queue payload contracts where client still needs compatibility inference | generated-output clients receive the durable identifiers and persistence hints required to avoid local repair logic | targeted API/status/recovery vitest bundle | Completed |
+| `GPR-P2-S4` | Lock docs and branch planning to the read-authority contract | rebuild docs, SOPs, and touched ADR/status surfaces | docs describe transient vs durable generated-output authority without drift | `npm -C frontend run docs:check` | Completed |
 
 ## Execution Order
-1. Finish `GPR-P2-S1` anywhere a generated read lane still depends on weak identity repair.
-2. Land `GPR-P2-S2` once those fallbacks are removed so classification logic can rely on stricter signals.
-3. Use `GPR-P2-S3` only where the client still lacks server-provided durable authority signals.
-4. Keep `GPR-P2-S4` updated with the runtime changes, not afterward as a cleanup project.
+1. Phase 2 completed before additive schema work began.
+2. Canonical output recording now continues in Phase 3.
 
 ## Constraints
 1. Do not introduce new client-owned lifecycle truth.
-2. Do not add schema-first abstractions before the current read contract is tightened.
+2. Phase 2 is complete; schema-first work is now tracked separately in Phase 3.
 3. Prefer hiding or degrading invalid generated actions over speculative repair.
 4. Keep previews working where safe, but distinguish previewability from durability.
 

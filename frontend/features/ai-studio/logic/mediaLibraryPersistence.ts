@@ -320,6 +320,83 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   return { id, storagePath, fileType };
 };
 
+const attachMediaFileToAiStudioGenerationOutput = async ({
+  supabase,
+  userId,
+  generationId,
+  index,
+  mediaFileId,
+  resultUrl,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
+  userId: string;
+  generationId: string;
+  index: number;
+  mediaFileId: string;
+  resultUrl: string;
+}) => {
+  const nowIso = new Date().toISOString();
+  const { data: existingOutput, error: existingOutputError } = await supabase
+    .from("ai_generation_outputs")
+    .select("id")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .eq("output_index", index)
+    .limit(1)
+    .maybeSingle();
+  if (existingOutputError) throw existingOutputError;
+
+  const existingOutputId = asOptionalString(asRecord(existingOutput).id);
+  if (existingOutputId) {
+    const { error } = await supabase
+      .from("ai_generation_outputs")
+      .update({
+        media_file_id: mediaFileId,
+        updated_at: nowIso,
+      })
+      .eq("id", existingOutputId)
+      .eq("user_id", userId);
+    if (error) throw error;
+    return;
+  }
+
+  const { error: insertError } = await supabase.from("ai_generation_outputs").insert({
+    generation_id: generationId,
+    user_id: userId,
+    output_index: index,
+    result_url: resultUrl,
+    media_file_id: mediaFileId,
+    metadata: {
+      media_library_persistence: true,
+      media_library_persisted_at: nowIso,
+    },
+    updated_at: nowIso,
+  });
+  if (!insertError) return;
+  if (!isDuplicateInsertError(insertError)) throw insertError;
+
+  const { data: duplicateOutput, error: duplicateLookupError } = await supabase
+    .from("ai_generation_outputs")
+    .select("id")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .eq("output_index", index)
+    .limit(1)
+    .maybeSingle();
+  if (duplicateLookupError) throw duplicateLookupError;
+  const duplicateOutputId = asOptionalString(asRecord(duplicateOutput).id);
+  if (!duplicateOutputId) throw insertError;
+  const { error: updateError } = await supabase
+    .from("ai_generation_outputs")
+    .update({
+      media_file_id: mediaFileId,
+      updated_at: nowIso,
+    })
+    .eq("id", duplicateOutputId)
+    .eq("user_id", userId);
+  if (updateError) throw updateError;
+};
+
 /**
  * Save a prompt record to the media library.
  */
@@ -376,6 +453,18 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       index: input.index,
     });
     if (existingRow) {
+      try {
+        await attachMediaFileToAiStudioGenerationOutput({
+          supabase,
+          userId,
+          generationId: input.generationId,
+          index: input.index,
+          mediaFileId: existingRow.id,
+          resultUrl: input.url,
+        });
+      } catch {
+        // best-effort canonical output linkage only
+      }
       const delivery = {
         previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
         fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
@@ -468,6 +557,18 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         } catch {
           // best-effort cleanup only
         }
+        try {
+          await attachMediaFileToAiStudioGenerationOutput({
+            supabase,
+            userId,
+            generationId: input.generationId,
+            index: input.index,
+            mediaFileId: existingRow.id,
+            resultUrl: input.url,
+          });
+        } catch {
+          // best-effort canonical output linkage only
+        }
         const delivery = {
           previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
           fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
@@ -492,6 +593,21 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     previewUrl: input.previewUrlHint ?? null,
     fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
   };
+
+  if (input.source === "ai_studio" && input.generationId && data?.id) {
+    try {
+      await attachMediaFileToAiStudioGenerationOutput({
+        supabase,
+        userId,
+        generationId: input.generationId,
+        index: input.index,
+        mediaFileId: data.id,
+        resultUrl: input.url,
+      });
+    } catch {
+      // best-effort canonical output linkage only
+    }
+  }
 
   return {
     mediaFileId: data?.id ?? null,

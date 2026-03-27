@@ -30,6 +30,17 @@ const createMediaFileSelectBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => 
   return builder;
 };
 
+const createGenerationOutputSelectBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => {
+  const builder = {
+    eq: vi.fn(),
+    limit: vi.fn(),
+    maybeSingle,
+  };
+  builder.eq.mockReturnValue(builder);
+  builder.limit.mockReturnValue(builder);
+  return builder;
+};
+
 describe("saveMediaUrlToLibrary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,16 +62,37 @@ describe("saveMediaUrlToLibrary", () => {
       error: null,
     });
     const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: { id: "gen-output-existing" },
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
     const insert = vi.fn();
     const upload = vi.fn();
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
-        if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
-        return {
-          select: vi.fn(() => selectBuilder),
-          insert,
-        };
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: generationOutputUpdate,
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
       }),
       storage: {
         from: vi.fn(() => ({
@@ -85,6 +117,11 @@ describe("saveMediaUrlToLibrary", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
+    expect(generationOutputUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-existing",
+      })
+    );
   });
 
   it("maps duplicate ai_studio insert to existing row and returns success semantics", async () => {
@@ -109,6 +146,11 @@ describe("saveMediaUrlToLibrary", () => {
         error: null,
       });
     const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputInsert = vi.fn(async () => ({ error: null }));
     const single = vi.fn().mockResolvedValue({
       data: null,
       error: { code: "23505", message: "duplicate key value violates unique constraint" },
@@ -123,11 +165,20 @@ describe("saveMediaUrlToLibrary", () => {
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
-        if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
-        return {
-          select: vi.fn(() => selectBuilder),
-          insert,
-        };
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            insert: generationOutputInsert,
+            update: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
       }),
       storage: {
         from: vi.fn(() => ({
@@ -159,6 +210,13 @@ describe("saveMediaUrlToLibrary", () => {
     expect(upload).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(insert).toHaveBeenCalledTimes(1);
+    expect(generationOutputInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-1",
+        output_index: 0,
+        media_file_id: "media-existing-after-duplicate",
+      })
+    );
   });
 
   it("falls back to server copy when browser fetch is blocked", async () => {
@@ -278,6 +336,11 @@ describe("saveMediaUrlToLibrary", () => {
       error: null,
     });
     const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputInsert = vi.fn(async () => ({ error: null }));
     const single = vi.fn().mockResolvedValue({
       data: { id: "media-new" },
       error: null,
@@ -291,11 +354,20 @@ describe("saveMediaUrlToLibrary", () => {
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
-        if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
-        return {
-          select: vi.fn(() => selectBuilder),
-          insert,
-        };
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            insert: generationOutputInsert,
+            update: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
       }),
       storage: {
         from: vi.fn(() => ({
@@ -340,6 +412,13 @@ describe("saveMediaUrlToLibrary", () => {
         generation_output_index: 1,
         index: 1,
         custom_flag: true,
+      })
+    );
+    expect(generationOutputInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-2",
+        output_index: 1,
+        media_file_id: "media-new",
       })
     );
   });

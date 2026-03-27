@@ -76,6 +76,7 @@ const createMockResponse = () => ({
 
 const createSupabaseAdmin = (options?: {
   existingRow?: ExistingMediaRow | null;
+  generationOutputRows?: Array<Record<string, unknown>>;
   insertRow?: MediaInsertRow | null;
   insertError?: { code?: string; message?: string } | null;
   uploadError?: { message: string } | null;
@@ -115,28 +116,55 @@ const createSupabaseAdmin = (options?: {
     error: options?.insertError ?? null,
   }));
 
+  const generationOutputRows = [...(options?.generationOutputRows ?? [])];
+  const generationOutputLimit = vi.fn(async () => ({
+    data: generationOutputRows,
+    error: null,
+  }));
+  const generationOutputUpdateMock = vi.fn(() => ({
+    eq: vi.fn(() => ({
+      eq: vi.fn(async () => ({ error: null })),
+    })),
+  }));
+  const generationOutputInsertMock = vi.fn(async () => ({ error: null }));
+
   const fromMock = vi.fn((table: string) => {
-    if (table !== "media_files") {
-      throw new Error(`Unexpected table: ${table}`);
-    }
-    return {
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
+    if (table === "media_files") {
+      return {
+        select: vi.fn(() => ({
           eq: vi.fn(() => ({
             eq: vi.fn(() => ({
-              contains: vi.fn(() => ({
-                limit: vi.fn(() => ({
-                  maybeSingle: maybeSingleMock,
+              eq: vi.fn(() => ({
+                contains: vi.fn(() => ({
+                  limit: vi.fn(() => ({
+                    maybeSingle: maybeSingleMock,
+                  })),
                 })),
               })),
             })),
           })),
         })),
-      })),
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({ single: singleMock })),
-      })),
-    };
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({ single: singleMock })),
+        })),
+      };
+    }
+    if (table === "ai_generation_outputs") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: generationOutputLimit,
+              })),
+            })),
+          })),
+        })),
+        update: generationOutputUpdateMock,
+        insert: generationOutputInsertMock,
+      };
+    }
+    throw new Error(`Unexpected table: ${table}`);
   });
 
   return {
@@ -144,6 +172,8 @@ const createSupabaseAdmin = (options?: {
     uploadMock,
     createSignedUrlMock,
     removeMock,
+    generationOutputUpdateMock,
+    generationOutputInsertMock,
     admin: {
       from: fromMock,
       storage: {
@@ -237,6 +267,14 @@ describe("POST /api/media/copy-from-url", () => {
         poster_variant_path: null,
         preview_variant_path: null,
       },
+      generationOutputRows: [
+        {
+          id: "gen-output-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/reference.png",
+          media_file_id: null,
+        },
+      ],
       signedUrls: {
         "user-1/generations/images/existing.png": "https://signed.test/existing.png",
       },
@@ -275,6 +313,59 @@ describe("POST /api/media/copy-from-url", () => {
         fullUrl: "https://signed.test/existing.png",
       },
     });
+    expect(supabase.generationOutputUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-existing-1",
+      })
+    );
+  });
+
+  it("fetches, uploads, and links a trusted ai_studio image URL", async () => {
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-generated-1",
+        storage_path: "user-1/generations/images/media-generated-1.png",
+        file_type: "image",
+        metadata: { prompt: "generated reference" },
+      },
+      signedUrls: {
+        "user-1/generations/images/media-generated-1.png":
+          "https://signed.test/media-generated-1.png",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+        status: 200,
+        headers: { "Content-Type": "image/png", "Content-Length": "4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/generated-reference.png",
+        promptText: "generated reference",
+        mode: "image",
+        source: "ai_studio",
+        generationId: "gen-22",
+        index: 2,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(supabase.generationOutputInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-22",
+        output_index: 2,
+        media_file_id: "media-generated-1",
+      })
+    );
   });
 
   it("rejects redirect hops that leave the trusted allowlist", async () => {

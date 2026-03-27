@@ -12,6 +12,7 @@ export type PersistGenerationOutputsInput = {
 };
 
 export type PersistedGenerationOutputRow = {
+  id?: string;
   outputIndex: number;
   resultUrl: string;
   mediaFileId: string | null;
@@ -96,7 +97,7 @@ export const readPersistedGenerationOutputs = async ({
 
   const { data, error } = await adminClient
     .from("ai_generation_outputs")
-    .select("output_index, result_url, media_file_id")
+    .select("id, output_index, result_url, media_file_id")
     .eq("generation_id", generationId)
     .eq("user_id", userId)
     .order("output_index", { ascending: true })
@@ -110,6 +111,7 @@ export const readPersistedGenerationOutputs = async ({
       const resultUrl = asString(record.result_url);
       if (outputIndex === null || !resultUrl) return null;
       return {
+        id: asString(record.id) ?? undefined,
         outputIndex,
         resultUrl,
         mediaFileId: asString(record.media_file_id),
@@ -118,4 +120,89 @@ export const readPersistedGenerationOutputs = async ({
     .filter((row): row is PersistedGenerationOutputRow => Boolean(row));
 
   return rows.sort((left, right) => left.outputIndex - right.outputIndex);
+};
+
+export const attachMediaFileToGenerationOutput = async ({
+  generationId,
+  userId,
+  outputIndex,
+  mediaFileId,
+  resultUrl,
+  providerRequestId,
+  metadata = {},
+}: {
+  generationId: string;
+  userId: string;
+  outputIndex: number;
+  mediaFileId: string;
+  resultUrl?: string | null;
+  providerRequestId?: string | null;
+  metadata?: JsonObject;
+}): Promise<void> => {
+  const adminClient = getSupabaseAdmin();
+  const existingRows = await readPersistedGenerationOutputs({
+    generationId,
+    userId,
+    supabaseAdmin: adminClient,
+  });
+  const existingRow = existingRows.find((row) => row.outputIndex === outputIndex);
+  const nowIso = new Date().toISOString();
+
+  if (existingRow?.id) {
+    const { error } = await adminClient
+      .from("ai_generation_outputs")
+      .update({
+        media_file_id: mediaFileId,
+        updated_at: nowIso,
+      })
+      .eq("id", existingRow.id)
+      .eq("user_id", userId);
+    if (error) throw error;
+    return;
+  }
+
+  const normalizedResultUrl = asString(resultUrl);
+  if (!normalizedResultUrl) return;
+
+  const insertPayload: Record<string, unknown> = {
+    generation_id: generationId,
+    user_id: userId,
+    output_index: outputIndex,
+    result_url: normalizedResultUrl,
+    media_file_id: mediaFileId,
+    metadata,
+    updated_at: nowIso,
+  };
+  const normalizedProviderRequestId = asString(providerRequestId);
+  if (normalizedProviderRequestId) {
+    insertPayload.provider_request_id = normalizedProviderRequestId;
+  }
+
+  const { error } = await adminClient.from("ai_generation_outputs").insert(insertPayload);
+  if (!error) return;
+
+  const duplicateError =
+    asString((error as { code?: unknown }).code) === "23505" ||
+    String((error as { message?: unknown }).message ?? "")
+      .toLowerCase()
+      .includes("duplicate");
+  if (!duplicateError) throw error;
+
+  const fallbackRows = await readPersistedGenerationOutputs({
+    generationId,
+    userId,
+    supabaseAdmin: adminClient,
+  });
+  const fallbackRow = fallbackRows.find((row) => row.outputIndex === outputIndex);
+  if (!fallbackRow?.id) throw error;
+
+  const { error: updateError } = await adminClient
+    .from("ai_generation_outputs")
+    .update({
+      media_file_id: mediaFileId,
+      updated_at: nowIso,
+    })
+    .eq("id", fallbackRow.id)
+    .eq("user_id", userId);
+  if (updateError) throw updateError;
 };

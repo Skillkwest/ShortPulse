@@ -13,6 +13,7 @@ import { resolveMediaPreviewTrustedHosts } from "../../../lib/mediaPreviewTrustP
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { attachMediaFileToGenerationOutput } from "../../../lib/server/api/generationOutputs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "../../../lib/server/imageDimensions";
 import { detectImageMimeType, detectVideoMimeType } from "../../../lib/server/uploadSignature";
@@ -571,6 +572,21 @@ export default async function handler(
         index,
       });
       if (existing) {
+        try {
+          await attachMediaFileToGenerationOutput({
+            generationId,
+            userId: user.id,
+            outputIndex: index,
+            mediaFileId: existing.id,
+            resultUrl: parsedUrl.toString(),
+            metadata: {
+              media_copy_route: true,
+              media_copy_existing: true,
+            },
+          });
+        } catch {
+          // best-effort canonical output linkage only
+        }
         const delivery = await resolveDelivery({
           row: {
             storage_path: existing.storagePath,
@@ -682,6 +698,21 @@ export default async function handler(
           } catch {
             // best-effort cleanup
           }
+          try {
+            await attachMediaFileToGenerationOutput({
+              generationId,
+              userId: user.id,
+              outputIndex: index,
+              mediaFileId: existing.id,
+              resultUrl: parsedUrl.toString(),
+              metadata: {
+                media_copy_route: true,
+                media_copy_existing: true,
+              },
+            });
+          } catch {
+            // best-effort canonical output linkage only
+          }
           const delivery = await resolveDelivery({
             row: {
               storage_path: existing.storagePath,
@@ -728,8 +759,27 @@ export default async function handler(
       fullUrlHint,
     });
 
+    const insertedMediaFileId = asOptionalString(data?.id);
+    if (source === "ai_studio" && generationId && insertedMediaFileId) {
+      try {
+        await attachMediaFileToGenerationOutput({
+          generationId,
+          userId: user.id,
+          outputIndex: index,
+          mediaFileId: insertedMediaFileId,
+          resultUrl: parsedUrl.toString(),
+          metadata: {
+            media_copy_route: true,
+            media_copy_existing: false,
+          },
+        });
+      } catch {
+        // best-effort canonical output linkage only
+      }
+    }
+
     return res.status(200).json({
-      mediaFileId: asOptionalString(data?.id),
+      mediaFileId: insertedMediaFileId,
       storagePath,
       fileType,
       fileSize: fetched.buffer.byteLength,

@@ -167,6 +167,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`
 - `docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md`
 - `docs/planning/generation-reliability-hardening-master-roadmap-2026-03-20.md`
 - `docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md`

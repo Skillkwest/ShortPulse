@@ -5,6 +5,10 @@
 import React from "react";
 import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";
 import { canRerollOutput } from "../../logic/generationReplay";
+import {
+  canDownloadReferenceOutput,
+  canSaveReferenceOutput,
+} from "../../logic/referenceActionAvailability";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 
@@ -123,14 +127,18 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const isSelected = activeOutputId === item.id;
   const saveDisabled = item.saveState === "saving";
   const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
+  const canSaveReference = canSaveReferenceOutput(item);
+  const canDownloadReference = canDownloadReferenceOutput(item);
   const shouldShowSaveAction = Boolean(
     onSaveToLibrary &&
+    canSaveReference &&
     item.saveState !== "saved" &&
     (isPromptOnly || isImagePreview || isVideoPreview)
   );
   const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
   const shouldShowReferenceActionRow = Boolean(
-    shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview))
+    shouldShowSaveAction ||
+    (onDownload && canDownloadReference && (isImagePreview || isVideoPreview))
   );
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
   const dragImageSrc =
@@ -275,7 +283,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {showCuratedRemoveAction && onRemoveCuratedReference && isSelected ? (
         <div className="reference-card-actions" aria-label="Curated actions">
-          {onDownload && (isImagePreview || isVideoPreview) ? (
+          {onDownload && canDownloadReference && (isImagePreview || isVideoPreview) ? (
             <button
               type="button"
               className="reference-card-action-btn"
@@ -333,7 +341,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               {saveIcon}
             </button>
           ) : null}
-          {onDownload && (isImagePreview || isVideoPreview) ? (
+          {onDownload && canDownloadReference && (isImagePreview || isVideoPreview) ? (
             <button
               type="button"
               className="reference-card-action-btn"

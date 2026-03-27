@@ -1350,6 +1350,7 @@ describe("ReferenceGrid curated split", () => {
       timestamp: "Now",
       previewUrl: "https://example.com/generated-image.png",
       mediaSource: "generated",
+      generationId: "gen-image-1",
     };
 
     const { getByLabelText } = render(
@@ -1363,6 +1364,38 @@ describe("ReferenceGrid curated split", () => {
     );
 
     expect(getByLabelText("Save to media library")).toBeInTheDocument();
+  });
+
+  it("hides save and download actions for generated media missing durable identity", () => {
+    const generatedImage: StudioOutput = {
+      id: "generated-image-missing-id-1",
+      prompt: "Generated image missing id",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-image-missing-id.png",
+      mediaSource: "generated",
+      generationId: undefined,
+      savedMediaIds: [],
+      previewStoragePath: undefined,
+      fullStoragePath: undefined,
+    };
+
+    const { queryByLabelText } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedImage],
+          activeOutputId: generatedImage.id,
+          onSaveToLibrary: vi.fn(),
+          onDownload: vi.fn(),
+        })}
+      />
+    );
+
+    expect(queryByLabelText("Save to media library")).toBeNull();
+    expect(queryByLabelText("Download reference")).toBeNull();
   });
 
   it("shows reroll action for generated image references with replay snapshots", () => {
@@ -1598,6 +1631,7 @@ describe("ReferenceGrid curated split", () => {
       timestamp: "Now",
       previewUrl: "https://example.com/generated-video.mp4",
       mediaSource: "generated",
+      generationId: "gen-video-1",
     };
 
     const { getByLabelText } = render(

@@ -232,6 +232,29 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });
 
+  it("hides save and download actions for generated media missing durable identity", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mediaSource: "generated",
+          generationId: undefined,
+          previewStoragePath: undefined,
+          fullStoragePath: undefined,
+          savedMediaIds: [],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onDownloadReference={vi.fn()}
+        onSaveReference={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
+  });
+
   it("shows Retry Save for failed media persistence state", () => {
     render(
       <DetailModal

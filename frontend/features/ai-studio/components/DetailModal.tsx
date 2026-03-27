@@ -6,6 +6,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
+import {
+  canDownloadReferenceOutput,
+  canSaveReferenceOutput,
+} from "../logic/referenceActionAvailability";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
@@ -266,8 +270,10 @@ export function DetailModal({
   const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
   const isPromptLibrarySaved = Boolean(outputId && promptLibrarySavedOutputId === outputId);
   const mediaSaveState = output?.saveState ?? "idle";
+  const canSaveReferenceMedia = output ? canSaveReferenceOutput(output) : false;
+  const canDownloadReferenceMedia = output ? canDownloadReferenceOutput(output) : false;
   const isMediaSaveButtonVisible = Boolean(
-    !isPromptOnly && displayPreviewUrl && outputId && onSaveReference
+    !isPromptOnly && displayPreviewUrl && outputId && onSaveReference && canSaveReferenceMedia
   );
   const isMediaSaved = mediaSaveState === "saved";
   const isMediaSaveDisabled = mediaSaveState === "saving" || mediaSaveState === "saved";
@@ -828,7 +834,7 @@ export function DetailModal({
                     {mediaSaveLabel}
                   </button>
                 ) : null}
-                {displayPreviewUrl && (
+                {displayPreviewUrl && canDownloadReferenceMedia && (
                   <button
                     type="button"
                     className="art-action-btn"

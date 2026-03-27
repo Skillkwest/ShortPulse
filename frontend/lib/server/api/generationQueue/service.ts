@@ -1,4 +1,6 @@
 import { getSupabaseAdmin } from "../supabaseAdmin";
+import { lookupLatestGenerationAttempt } from "../generationAttempts";
+import { isMissingGenerationAttemptSchemaError } from "../generationBilling/errorGuards";
 
 const QUEUE_TABLE = "ai_generation_submit_queue";
 
@@ -471,6 +473,32 @@ const readSourceRefFromGenerationMetadata = (metadata: unknown): string | null =
   return asString(object?.source_ref);
 };
 
+const readAttemptRequestIdForGeneration = async ({
+  userId,
+  generationId,
+}: {
+  userId: string;
+  generationId: string | null;
+}): Promise<string | null> => {
+  if (!generationId) return null;
+  const lookup = await lookupLatestGenerationAttempt({
+    userId,
+    generationId,
+  });
+  if (lookup.error) {
+    if (
+      isMissingGenerationAttemptSchemaError(
+        lookup.error.code ?? null,
+        lookup.error.message ?? undefined
+      )
+    ) {
+      return null;
+    }
+    throw new Error(lookup.error.message ?? "attempt_generation_lookup_failed");
+  }
+  return asString(lookup.data?.providerRequestId);
+};
+
 export const readGenerationQueueStatus = async ({
   userId,
   generationId,
@@ -534,7 +562,12 @@ export const readGenerationQueueStatus = async ({
     sourceRef ??
     readSourceRefFromGenerationMetadata(generationRow?.metadata);
 
-  const requestId = asString(generationRow?.request_id);
+  const requestId =
+    asString(generationRow?.request_id) ??
+    (await readAttemptRequestIdForGeneration({
+      userId,
+      generationId: resolvedGenerationId,
+    }));
   const generationStatus = asString(generationRow?.status)?.toLowerCase();
   const queueStatus = parseQueueStatus(queueRow?.status);
 

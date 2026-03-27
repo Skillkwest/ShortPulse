@@ -7,9 +7,14 @@ import {
 } from "../generationQueue/service";
 
 const getSupabaseAdminMock = vi.fn();
+const lookupLatestGenerationAttemptMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../generationAttempts", () => ({
+  lookupLatestGenerationAttempt: (...args: unknown[]) => lookupLatestGenerationAttemptMock(...args),
 }));
 
 describe("generationQueue/service.claimGenerationSubmitQueueBatch", () => {
@@ -227,6 +232,7 @@ describe("generationQueue/service mutation result guards", () => {
 describe("generationQueue/service.readGenerationQueueStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lookupLatestGenerationAttemptMock.mockResolvedValue({ data: null, error: null });
   });
 
   const createStatusSupabaseMock = ({
@@ -327,6 +333,46 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       generationId: "gen-2",
       sourceRef: "src-2",
       retryAfterMs: 7000,
+    });
+  });
+
+  it("returns dispatched when the canonical generation attempt has a provider request id", async () => {
+    lookupLatestGenerationAttemptMock.mockResolvedValue({
+      data: {
+        providerRequestId: "req-attempt-1",
+      },
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-3",
+          status: "running",
+          request_id: null,
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-3" },
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-3",
+      })
+    ).resolves.toEqual({
+      status: "dispatched",
+      generationId: "gen-3",
+      sourceRef: "src-3",
+      requestId: "req-attempt-1",
+      provider: "fal",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+    });
+    expect(lookupLatestGenerationAttemptMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      generationId: "gen-3",
     });
   });
 });

@@ -169,6 +169,10 @@ type MediaStoragePathRow = {
   created_at?: unknown;
 };
 
+type GenerationOutputStorageRow = {
+  media_file_id?: unknown;
+};
+
 const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
   const message =
@@ -236,6 +240,34 @@ const resolveStoragePathByGenerationAndIndex = async ({
   imageIndex: number;
 }): Promise<string | null> => {
   const supabase = ensureSupabaseQueryClient();
+  const canonicalOutputLookup = await (async () => {
+    try {
+      const { data, error } = await supabase
+        .from("ai_generation_outputs")
+        .select("media_file_id")
+        .eq("generation_id", generationId)
+        .eq("output_index", imageIndex)
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return null;
+      const mediaFileId = asTrimmedString((data as GenerationOutputStorageRow).media_file_id);
+      if (!mediaFileId) return null;
+      const mediaRow = await runMaybeSingleMediaStorageQuery({
+        runSelect: async (columns) =>
+          (await supabase
+            .from("media_files")
+            .select(columns)
+            .eq("id", mediaFileId)
+            .limit(1)
+            .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown },
+      });
+      return resolveCanonicalMediaStoragePath(mediaRow);
+    } catch {
+      return null;
+    }
+  })();
+  if (canonicalOutputLookup) return canonicalOutputLookup;
+
   const lookupByIndex = async (metadataFilter: Record<string, number>) => {
     const data = await runMaybeSingleMediaStorageQuery({
       runSelect: async (columns) =>

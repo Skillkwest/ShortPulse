@@ -11,12 +11,14 @@ const {
   ensureSupabaseQueryClientMock,
   mediaMaybeSingleMock,
   mediaListMock,
+  generationOutputMaybeSingleMock,
   getSignedMediaUrlMock,
 } = vi.hoisted(() => ({
   ensureSupabaseClientMock: vi.fn(),
   ensureSupabaseQueryClientMock: vi.fn(),
   mediaMaybeSingleMock: vi.fn(),
   mediaListMock: vi.fn(),
+  generationOutputMaybeSingleMock: vi.fn(),
   getSignedMediaUrlMock: vi.fn(),
 }));
 
@@ -73,19 +75,19 @@ const createSupabaseMock = () => ({
       return {
         select: (columns: string) => {
           const base = {
-            eq: (_field: string, _value: unknown) => base,
-            contains: (_field: string, _value: unknown) => base,
-            order: (_field: string, _value: unknown) => base,
-            limit: (_value: number) => base,
+            eq: () => base,
+            contains: () => base,
+            order: () => base,
+            limit: () => base,
             maybeSingle: async () => await mediaMaybeSingleMock(columns),
             then: undefined,
           };
           if (columns.includes("metadata")) {
             return {
-              eq: (_field: string, _value: unknown) => ({
-                eq: (_field2: string, _value2: unknown) => ({
-                  order: (_field3: string, _value3: unknown) => ({
-                    limit: async (_value4: number) => await mediaListMock(columns),
+              eq: () => ({
+                eq: () => ({
+                  order: () => ({
+                    limit: async () => await mediaListMock(columns),
                   }),
                 }),
               }),
@@ -93,6 +95,19 @@ const createSupabaseMock = () => ({
           }
           return base;
         },
+      };
+    }
+    if (table === "ai_generation_outputs") {
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              limit: () => ({
+                maybeSingle: async () => await generationOutputMaybeSingleMock(),
+              }),
+            }),
+          }),
+        }),
       };
     }
     if (table === "ai_generations") {
@@ -124,6 +139,7 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     ensureSupabaseQueryClientMock.mockReturnValue(createSupabaseMock());
     mediaMaybeSingleMock.mockResolvedValue({ data: null, error: null });
     mediaListMock.mockResolvedValue({ data: [], error: null });
+    generationOutputMaybeSingleMock.mockResolvedValue({ data: null, error: null });
     getSignedMediaUrlMock.mockResolvedValue(null);
   });
 
@@ -199,6 +215,46 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     expect(resolved?.previewStoragePath).toBe("user-1/generations/images/from-generation.png");
     expect(resolved?.fullStoragePath).toBe("user-1/generations/images/from-generation.png");
     expect(resolved?.provenance.resolutionReason).toBe("generation_index_lookup");
+  });
+
+  it("prefers canonical generation output media linkage before legacy metadata scans", async () => {
+    const output = makeImageOutput({
+      generationId: "gen-1",
+      taskId: "task-1",
+    });
+    generationOutputMaybeSingleMock.mockResolvedValue({
+      data: { media_file_id: "media-from-canonical-output" },
+      error: null,
+    });
+    mediaMaybeSingleMock.mockResolvedValue({
+      data: { storage_path: "user-1/generations/images/from-canonical-output.png" },
+      error: null,
+    });
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload(),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved?.previewStoragePath).toBe(
+      "user-1/generations/images/from-canonical-output.png"
+    );
+    expect(resolved?.fullStoragePath).toBe("user-1/generations/images/from-canonical-output.png");
+    expect(resolved?.provenance.resolutionReason).toBe("generation_index_lookup");
+    expect(mediaListMock).not.toHaveBeenCalled();
   });
 
   it("falls back to a signed storage URL when direct storage download fails", async () => {

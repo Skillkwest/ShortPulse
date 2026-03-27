@@ -41,6 +41,11 @@ vi.mock("../../providerIntegration/recoveryProviderDispatcher", () => ({
   probeGenerationProviderResult: (...args: unknown[]) => probeGenerationProviderResultMock(...args),
 }));
 
+const asObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
 const createAiGenerationsAdmin = (
   rows: Array<Record<string, unknown>>,
   options?: {
@@ -454,6 +459,8 @@ describe("executeGenerationRecovery", () => {
         recovery_state: "recovered",
       })
     );
+    expect(asObject(scenario.updatePayloads[0]?.metadata)).not.toHaveProperty("result_urls");
+    expect(asObject(scenario.updatePayloads[0]?.metadata)).not.toHaveProperty("media_file_ids");
     expect(scenario.mediaEventInserts).toHaveLength(1);
     expect(scenario.mediaEventInserts[0]).toEqual(
       expect.objectContaining({
@@ -539,6 +546,8 @@ describe("executeGenerationRecovery", () => {
         }),
       })
     );
+    expect(asObject(scenario.updatePayloads[0]?.metadata)).not.toHaveProperty("result_urls");
+    expect(asObject(scenario.updatePayloads[0]?.metadata)).not.toHaveProperty("media_file_ids");
     expect(scenario.mediaEventInserts).toHaveLength(1);
     expect(scenario.mediaEventInserts[0]).toEqual(
       expect.objectContaining({

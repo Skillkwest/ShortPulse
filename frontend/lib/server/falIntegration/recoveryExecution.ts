@@ -518,8 +518,6 @@ export const executeGenerationRecovery = async ({
       updates: buildRecoveredSuccessUpdate({
         nowIso,
         metadata: asObject(generation.metadata),
-        mediaUrls: recoveredUrls,
-        mediaFileIds: [],
         actor,
         autosaveEnabled: mediaAutosaveEnabled,
         autosaveDecision: "autosave_skipped",
@@ -585,8 +583,6 @@ export const executeGenerationRecovery = async ({
     updates: buildRecoveredSuccessUpdate({
       nowIso,
       metadata,
-      mediaUrls: recoveredUrls,
-      mediaFileIds,
       actor,
       autosaveEnabled: mediaAutosaveEnabled,
       autosaveDecision: "auto_persisted",

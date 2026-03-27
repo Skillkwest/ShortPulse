@@ -52,8 +52,7 @@ Remaining compatibility surfaces confirmed on this branch:
 2. [mediaLibraryPersistence.ts](../../frontend/features/ai-studio/logic/mediaLibraryPersistence.ts) still uses `media_files.source_ref + metadata.generation_output_index` to discover existing AI Studio rows before save.
 3. [copy-from-url.ts](../../frontend/pages/api/media/copy-from-url.ts) still uses the same legacy metadata-index lookup in the server copy fallback.
 4. [recoveryMediaPersistence.ts](../../frontend/lib/server/falIntegration/recoveryMediaPersistence.ts) now prefers canonical output rows, but still retains legacy `media_files` metadata-index fallback for historical coverage.
-5. [recoveryLifecycleTransitions.ts](../../frontend/lib/server/falIntegration/recoveryLifecycleTransitions.ts) still writes `result_urls` and `media_file_ids` into `ai_generations.metadata` for compatibility.
-6. [data-dictionary.md](../data-dictionary.md) and [022_generation_persist_idempotency.sql](../../sql/migrations/022_generation_persist_idempotency.sql) still document/support the legacy `metadata.generation_output_index` uniqueness path.
+5. [data-dictionary.md](../data-dictionary.md) and [022_generation_persist_idempotency.sql](../../sql/migrations/022_generation_persist_idempotency.sql) still document/support the legacy `metadata.generation_output_index` uniqueness path.
 
 ## Compatibility Contraction Checklist
 Before removing compatibility fields or legacy read paths:
@@ -61,8 +60,7 @@ Before removing compatibility fields or legacy read paths:
 2. Convert the highest-value remaining server readers to canonical-first, compatibility-fallback behavior, starting with persisted status fallback and AI Studio existing-row discovery.
 3. Define a backfill plan for historical generations that have `media_files` rows but no `ai_generation_outputs` rows, including duplicate-slot handling.
 4. Define a backfill plan for historical success generations that only retain `metadata.result_urls` and do not yet have canonical output rows.
-5. Add an explicit cutover gate for when it is safe to stop writing `result_urls` and `media_file_ids` into `ai_generations.metadata`.
-6. Keep the legacy uniqueness/indexed lookup path until the historical backfill and read-path conversion are both complete and verified.
+5. Keep the legacy uniqueness/indexed lookup path until the historical backfill and read-path conversion are both complete and verified.
 
 ## Validation Bundle
 1. targeted recovery execution vitest suites

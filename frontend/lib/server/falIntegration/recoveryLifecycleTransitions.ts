@@ -121,8 +121,6 @@ export const buildNoMediaUpdate = ({
 export const buildRecoveredSuccessUpdate = ({
   nowIso,
   metadata,
-  mediaUrls,
-  mediaFileIds,
   actor,
   autosaveEnabled,
   autosaveDecision,
@@ -130,8 +128,6 @@ export const buildRecoveredSuccessUpdate = ({
 }: {
   nowIso: string;
   metadata: JsonObject;
-  mediaUrls: string[];
-  mediaFileIds: string[];
   actor: "reconciler" | "admin_replay" | "webhook";
   autosaveEnabled?: boolean;
   autosaveDecision?: string;
@@ -141,8 +137,6 @@ export const buildRecoveredSuccessUpdate = ({
   completed_at: nowIso,
   metadata: {
     ...metadata,
-    result_urls: mediaUrls,
-    media_file_ids: mediaFileIds,
     recovery_execution_at: nowIso,
     recovery_execution_actor: actor,
     autosave_enabled: autosaveEnabled ?? true,

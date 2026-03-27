@@ -220,7 +220,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` (timestamptz, default now)
 - `completed_at` (timestamptz, nullable)
 - `metadata` (jsonb, default `{}`): Provider payload summary plus compact retrieval/recovery probe trace snapshots.
-  - Compatibility fields `result_urls` and `media_file_ids` may still be written during the transition to canonical `ai_generation_outputs` rows.
+  - Historical rows may still contain compatibility fields such as `result_urls` and `media_file_ids` from the pre-canonical-output transition window.
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Constraints and indexes:
   - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.

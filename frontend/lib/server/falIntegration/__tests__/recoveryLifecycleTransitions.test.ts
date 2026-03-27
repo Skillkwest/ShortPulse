@@ -176,8 +176,6 @@ describe("recoveryLifecycleTransitions", () => {
     const update = buildRecoveredSuccessUpdate({
       nowIso,
       metadata: { prior: true },
-      mediaUrls: ["https://cdn.shortpulse.test/out.png"],
-      mediaFileIds: ["media-1"],
       actor: "webhook",
     });
 
@@ -190,8 +188,6 @@ describe("recoveryLifecycleTransitions", () => {
         autosave_decision_reason: "auto_allowed",
         autosave_skipped: false,
         prior: true,
-        result_urls: ["https://cdn.shortpulse.test/out.png"],
-        media_file_ids: ["media-1"],
         recovery_execution_at: nowIso,
         recovery_execution_actor: "webhook",
       },

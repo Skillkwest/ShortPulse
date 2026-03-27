@@ -29,7 +29,7 @@ A milestone is done when:
 ### Roadmap done
 The rebuild is done when:
 1. requests, attempts, and outputs are the canonical runtime authority
-2. historical rows are backfilled or intentionally quarantined
+2. historical rows are either safely contained behind bounded compatibility paths or intentionally repaired only where they threaten forward correctness
 3. legacy metadata and request-id fallbacks are not primary runtime paths
 4. user-facing read and reuse surfaces rely on canonical output/storage authority
 5. billing, replay, recovery, and operator tooling converge on the same model
@@ -57,10 +57,10 @@ Done state:
 4. queue/admission/control-plane readers prefer attempts where provider ownership matters
 5. remaining `ai_generations.request_id` use is compatibility-only or part of a later explicit state-transition refactor
 
-### Lane 2: Historical Backfill And Legacy Fallback Retirement
+### Lane 2: Historical Compatibility Containment
 Goal:
-1. make historical success generations and saved outputs converge into canonical `ai_generation_outputs`
-2. retire legacy output-authority fallbacks safely
+1. measure and bound historical compatibility risk so old rows do not weaken the forward pipeline
+2. repair or retire legacy fallback paths only where they threaten forward correctness or safe operation
 
 Primary surfaces:
 1. `sql/migrations/022_generation_persist_idempotency.sql`
@@ -71,12 +71,12 @@ Primary surfaces:
 6. admin/trace tooling and backfill scripts to be introduced
 
 Exit gate:
-1. historical generations can be read from canonical output rows with bounded, explicit fallback only where backfill has not yet completed
+1. historical generations are either safely contained behind bounded compatibility reads or explicitly selected for targeted repair because they block forward correctness
 
 Done state:
 1. historical success generations are classified and measurable by row class
-2. canonical output backfill and media-link backfill can run safely
-3. legacy output fallbacks are retained only where coverage evidence requires them
+2. legacy output fallbacks are retained only where forward safety requires them
+3. any targeted historical repair is justified by a concrete forward-pipeline risk, not normalization for its own sake
 4. ambiguous historical rows are quarantined rather than silently guessed
 
 ### Lane 3: Delivery And Read-Model Cutover
@@ -166,7 +166,7 @@ Stop the current lane when:
 
 ### Lane 2
 1. historical data quality classification rules are documented
-2. backfill dry-run and mismatch evidence are produced before fallback retirement
+2. repair or retirement decisions are evidence-based and tied to forward-pipeline risk
 3. legacy fallback removal is gated by measured coverage, not assumption
 
 ### Lane 3
@@ -180,6 +180,6 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. execute `GPR-L2-S1` from the Lane 2 backfill execution plan
-2. produce the historical row classification query set and fallback-reader inventory
-3. do not reopen Lane 1 narrow compatibility reads unless a missing authority seam clearly blocks Lane 2
+1. keep Lane 2 limited to compatibility containment and evidence, not broad historical normalization
+2. return to forward-path work through the broader Lane 1 request/attempt state-transition refactor
+3. only reopen historical repair if evidence shows a concrete forward-pipeline risk

@@ -312,7 +312,7 @@ These are the known output-authority readers that still retain legacy compatibil
 2. old `ai_generations.metadata.media_file_ids`
 3. old `media_files.metadata.generation_output_index`
 
-These are no longer the target authority for new runtime writes, but Lane 2 must account for them when backfilling historical rows.
+These are no longer the target authority for new runtime writes, but Lane 2 must account for them when evaluating whether historical compatibility poses a forward-pipeline risk.
 
 ## Lane 2 Baseline Packet Checklist
 `GPR-L2-S1` is done when:
@@ -321,8 +321,10 @@ These are no longer the target authority for new runtime writes, but Lane 2 must
 3. a fixed read-only execution path exists for baseline counts
 4. a follow-up evidence packet can plug in measured counts without redefining the row classes
 
+This baseline packet is optional until a concrete forward-path risk justifies historical measurement work.
+
 ## Approved Baseline Execution Path
-Use the fixed read-only hosted runner instead of ad hoc SQL access when local `SUPABASE_DB_URL` is unavailable.
+Use the fixed read-only hosted runner instead of ad hoc SQL access when local `SUPABASE_DB_URL` is unavailable and historical measurement is justified by a concrete forward-path risk.
 
 1. Workflow: `.github/workflows/generation-pipeline-backfill-baseline.yml`
 2. Script: `scripts/generation_pipeline_backfill_baseline.sh`
@@ -351,6 +353,6 @@ Current limitation:
 2. branch-only workflow files cannot be dispatched through GitHub Actions workflow lookup, even when `--ref generation-pipeline-rebuild` is supplied
 
 ## Immediate Next Move
-1. dispatch `.github/workflows/generation-pipeline-backfill-baseline.yml` against `staging`
-2. record counts by row class and inconsistency class from the uploaded artifact
-3. use the results to decide the first historical backfill slice
+1. keep this baseline path available for evidence if a historical compatibility issue threatens the forward pipeline
+2. do not run broad historical measurement by default
+3. prefer forward-path request/attempt state-transition work unless a real historical interference case appears

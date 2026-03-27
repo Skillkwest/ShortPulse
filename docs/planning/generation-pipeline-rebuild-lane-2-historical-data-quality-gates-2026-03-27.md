@@ -8,7 +8,7 @@ Status: Active
 ## Purpose
 This document defines the historical data quality gates that must be satisfied before Lane 2 backfill and legacy fallback retirement can proceed.
 
-Lane 2 is not just a migration script lane. It is a data-classification and safety lane.
+Lane 2 is not a mandatory normalization lane. It is a data-classification and safety lane whose job is to keep historical compatibility from weakening the forward pipeline.
 
 ## Required Historical Row Classes
 Every historical generation row must be classified into one of these buckets before fallback retirement:
@@ -33,12 +33,13 @@ Lane 2 must explicitly measure and classify at least these conditions:
 6. generations whose billing state implies success while outputs are absent
 
 ## Lane 2 Safety Gates
-Backfill implementation may begin only after:
+Targeted historical repair may begin only after:
 1. historical row classes are queryable and measurable
 2. the repo has a documented rule for each inconsistency class:
    - auto-fix
    - quarantine for operator review
    - retain compatibility fallback temporarily
+3. there is a concrete forward-pipeline risk that justifies historical mutation work
 
 Fallback retirement may begin only after:
 1. canonical coverage is measured
@@ -53,7 +54,9 @@ Before retiring a legacy output-authority fallback, Lane 2 must produce:
 3. mismatch counts for duplicate or ambiguous lineage
 4. explicit list of fallback readers still relying on compatibility state
 
+If no concrete forward-path risk exists, these gates should be treated as optional cleanup evidence rather than mandatory rebuild work.
+
 ## Relationship To Other Lanes
 1. Lane 1 must lock request/attempt identity before Lane 2 begins implementation.
-2. Lane 3 broad read-model cutover must wait for Lane 2 canonical coverage evidence.
+2. Lane 3 broad read-model cutover must wait for Lane 2 evidence only if historical compatibility still threatens forward read safety.
 3. Lane 4 cleanup must wait until incompatible historical rows are either repaired or intentionally quarantined.

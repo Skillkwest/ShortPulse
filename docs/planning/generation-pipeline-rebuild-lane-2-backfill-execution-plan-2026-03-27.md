@@ -53,6 +53,9 @@ Exit gate:
 4. `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md` exists
 5. the repo has an approved fixed read-only execution path for baseline counts without relying on local temp files or ad hoc DB access
 
+Current blocker:
+1. the hosted workflow `.github/workflows/generation-pipeline-backfill-baseline.yml` is not dispatchable until that workflow file exists on the default branch; GitHub Actions resolves manual workflow identifiers from the default branch, so a branch-only workflow cannot yet produce the first staging evidence packet
+
 ### `GPR-L2-S2`
 Status:
 1. Pending
@@ -134,5 +137,6 @@ Stop Lane 2 when:
 3. canonical coverage is good enough that the remaining work becomes pure cleanup
 
 ## Immediate Next Move
-1. execute `GPR-L2-S1`
-2. use the fixed hosted read-only baseline runner to capture the first count packet in staging
+1. land `.github/workflows/generation-pipeline-backfill-baseline.yml` on the default branch through the normal merge path
+2. execute `GPR-L2-S1`
+3. use the fixed hosted read-only baseline runner to capture the first count packet in staging

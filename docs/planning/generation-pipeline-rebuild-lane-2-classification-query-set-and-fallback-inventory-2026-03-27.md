@@ -346,6 +346,10 @@ gh run download <run-id> \
   --dir /tmp/generation-pipeline-backfill-baseline
 ```
 
+Current limitation:
+1. this manual dispatch works only after `.github/workflows/generation-pipeline-backfill-baseline.yml` exists on the default branch
+2. branch-only workflow files cannot be dispatched through GitHub Actions workflow lookup, even when `--ref generation-pipeline-rebuild` is supplied
+
 ## Immediate Next Move
 1. dispatch `.github/workflows/generation-pipeline-backfill-baseline.yml` against `staging`
 2. record counts by row class and inconsistency class from the uploaded artifact

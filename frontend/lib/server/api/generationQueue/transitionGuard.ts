@@ -4,6 +4,7 @@ import type { QueueMutationResult } from "./service";
 type QueueTransitionStep =
   | "reservation_submitted"
   | "generation_attempt_recorded"
+  | "generation_attempt_running"
   | "generation_mark_running"
   | "identity_check"
   | "queue_retry"
@@ -108,6 +109,24 @@ export const assertGenerationAttemptRecorded = ({
   });
 };
 
+export const assertGenerationAttemptMarkedRunning = ({
+  ok,
+  errorMessage,
+}: {
+  ok: boolean;
+  errorMessage: string | null;
+}): void => {
+  if (ok) {
+    return;
+  }
+  throw new QueueTransitionError({
+    code: "GENERATION_ATTEMPT_RUNNING_FAILED",
+    step: "generation_attempt_running",
+    message: errorMessage ?? "Generation attempt could not be marked running.",
+    retryable: true,
+  });
+};
+
 export const assertQueueMutationApplied = ({
   result,
   step,
@@ -172,7 +191,9 @@ export const decideQueueTransitionCompensation = ({
   if (
     submitAccepted &&
     error instanceof QueueTransitionError &&
-    (error.step === "generation_mark_running" || error.step === "generation_attempt_recorded")
+    (error.step === "generation_mark_running" ||
+      error.step === "generation_attempt_recorded" ||
+      error.step === "generation_attempt_running")
   ) {
     // Provider already accepted the submit; retrying this queue item could double-submit.
     return "exhaust";

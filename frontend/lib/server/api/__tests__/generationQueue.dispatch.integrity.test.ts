@@ -17,6 +17,7 @@ const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
 const ensureAcceptedGenerationAttemptMock = vi.fn();
+const updateGenerationAttemptStateMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -67,6 +68,7 @@ vi.mock("../generationQueue/service", () => ({
 vi.mock("../generationAttempts", () => ({
   ensureAcceptedGenerationAttempt: (...args: unknown[]) =>
     ensureAcceptedGenerationAttemptMock(...args),
+  updateGenerationAttemptState: (...args: unknown[]) => updateGenerationAttemptStateMock(...args),
 }));
 
 const queueItem = {
@@ -207,6 +209,7 @@ describe("generationQueue/dispatch transition integrity", () => {
       attemptId: "attempt-1",
       attemptNumber: 1,
     });
+    updateGenerationAttemptStateMock.mockResolvedValue({ ok: true });
   });
 
   it("exhausts legacy raw video payloads when queue compatibility normalization is disabled", async () => {
@@ -317,6 +320,36 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
     expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
+  });
+
+  it("exhausts without releasing reservation when generation attempt running update fails post-submit", async () => {
+    updateGenerationAttemptStateMock.mockResolvedValueOnce({
+      ok: false,
+      error: "attempt_running_update_failed",
+    });
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        exhausted: 1,
+        errors: 1,
+      })
+    );
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "GENERATION_ATTEMPT_RUNNING_FAILED",
+      })
+    );
+    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
+    expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
+    expect(removeQueueItemMock).not.toHaveBeenCalled();
   });
 
   it("retries queue item when reservation submit returns retryable failure", async () => {
@@ -514,6 +547,13 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(withWebhookTargetsMock).not.toHaveBeenCalled();
     expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        userId: "user-1",
+        status: "running",
+      })
+    );
 
     delete process.env.KIE_API_KEY;
     delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
@@ -558,6 +598,13 @@ describe("generationQueue/dispatch transition integrity", () => {
         provider: "kie",
         modelId: "kie-ai/veo-3.1-fast-i2v",
         targets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
+      })
+    );
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        userId: "user-1",
+        status: "running",
       })
     );
 

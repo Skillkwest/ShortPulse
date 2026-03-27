@@ -26,6 +26,7 @@ import {
 } from "./service";
 import {
   QueueTransitionError,
+  assertGenerationAttemptMarkedRunning,
   assertGenerationAttemptRecorded,
   assertGenerationMarkedRunning,
   assertQueueIdentityInvariant,
@@ -39,7 +40,10 @@ import {
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
-import { ensureAcceptedGenerationAttempt } from "../generationAttempts";
+import {
+  ensureAcceptedGenerationAttempt,
+  updateGenerationAttemptState,
+} from "../generationAttempts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -865,12 +869,13 @@ const processClaimedQueueItem = async ({
     }
 
     submitAccepted = true;
+    const dispatchAtIso = new Date().toISOString();
     const reservationResult = await markGenerationReservationSubmitted({
       userId: item.userId,
       sourceRef: item.sourceRef,
       providerRequestId,
       metadata: {
-        queue_dispatch_at: new Date().toISOString(),
+        queue_dispatch_at: dispatchAtIso,
         queue_id: item.queueId,
         queue_attempts: attemptNumber,
         submit_route: item.submitRoute,
@@ -901,7 +906,7 @@ const processClaimedQueueItem = async ({
         next_recovery_at: nextRecoveryAtIso,
         metadata: mergeGenerationMetadata(generationRow.metadata, {
           source_ref: item.sourceRef,
-          queue_dispatched_at: new Date().toISOString(),
+          queue_dispatched_at: dispatchAtIso,
           queue_id: item.queueId,
           queue_attempts: attemptNumber,
           provider,
@@ -941,6 +946,22 @@ const processClaimedQueueItem = async ({
     assertGenerationAttemptRecorded({
       ok: attemptResult.ok,
       errorMessage: attemptResult.ok ? null : attemptResult.error,
+    });
+    const attemptRunningResult = await updateGenerationAttemptState({
+      providerRequestId,
+      userId: item.userId,
+      status: "running",
+      observedAt: dispatchAtIso,
+      metadata: {
+        queue_dispatch_at: dispatchAtIso,
+        queue_id: item.queueId,
+        queue_attempts: attemptNumber,
+        dispatch_source: "queued_submit",
+      },
+    });
+    assertGenerationAttemptMarkedRunning({
+      ok: attemptRunningResult.ok,
+      errorMessage: attemptRunningResult.ok ? null : attemptRunningResult.error,
     });
 
     const removeResult = await removeQueueItem(item.queueId);

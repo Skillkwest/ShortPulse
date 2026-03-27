@@ -3,6 +3,7 @@
  * Separates generation lifecycle loading from media hydration loading.
  */
 import type { StudioOutput } from "../../types";
+import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import {
   isReferenceOutputFailing,
   isReferenceOutputLoadingTaskState,
@@ -10,6 +11,7 @@ import {
 
 export type ReferenceGridCardVisualInput = {
   item: StudioOutput;
+  authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
   isLoaded: boolean;
   decodeBudgetEnabled: boolean;
@@ -33,6 +35,7 @@ export type ReferenceGridCardVisualState = {
  */
 export const classifyReferenceGridCardVisualState = ({
   item,
+  authorityTier,
   cardPreviewUrl,
   isLoaded,
   decodeBudgetEnabled,
@@ -46,6 +49,8 @@ export const classifyReferenceGridCardVisualState = ({
     isReferenceOutputLoadingTaskState({
       taskState: item.taskState,
       previewText: item.previewText,
+      mediaSource: item.mediaSource,
+      authorityTier,
       cardPreviewUrl,
     });
 

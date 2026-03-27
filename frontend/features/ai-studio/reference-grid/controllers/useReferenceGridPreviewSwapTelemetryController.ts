@@ -3,9 +3,11 @@
  * Encapsulates URL swap-rate tracking and reset logic away from ReferenceGrid composition.
  */
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 
 type PreviewSwapCard = {
   item: { id: string };
+  authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
 };
 
@@ -54,6 +56,7 @@ export const useReferenceGridPreviewSwapTelemetryController = ({
     const previousVisibleUrlById = previousVisiblePreviewUrlByIdRef.current;
     let swappedCount = 0;
     visibleCardItems.forEach((card) => {
+      if (card.authorityTier === "preview-only") return;
       const nextUrl = nextVisibleUrlById[card.item.id] ?? null;
       const previousUrl = previousVisibleUrlById[card.item.id];
       if (typeof previousUrl !== "string") return;

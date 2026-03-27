@@ -18,6 +18,7 @@ describe("referenceGridCardVisualState", () => {
   it("uses spinner visual for generation loading states", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({ taskState: "running" }),
+      authorityTier: "reusable",
       cardPreviewUrl: null,
       isLoaded: false,
       decodeBudgetEnabled: true,
@@ -32,6 +33,7 @@ describe("referenceGridCardVisualState", () => {
   it("uses hydration visual for decode lag after generation success", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({ taskState: "success" }),
+      authorityTier: "reusable",
       cardPreviewUrl: "https://cdn.test/image.png",
       isLoaded: false,
       decodeBudgetEnabled: false,
@@ -48,6 +50,7 @@ describe("referenceGridCardVisualState", () => {
   it("does not mark failures as loading", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({ taskState: "fail" }),
+      authorityTier: "reusable",
       cardPreviewUrl: null,
       isLoaded: false,
       decodeBudgetEnabled: true,
@@ -58,5 +61,24 @@ describe("referenceGridCardVisualState", () => {
     expect(state.isFailing).toBe(true);
     expect(state.isLoading).toBe(false);
     expect(state.loadingVisual).toBe("none");
+  });
+
+  it("keeps preview-only generated successes in generation loading state", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      authorityTier: "preview-only",
+      cardPreviewUrl: "https://provider.example.com/generated-preview.png",
+      isLoaded: true,
+      decodeBudgetEnabled: true,
+      isImagePreview: true,
+      isPriorityHydration: false,
+      imageSrc: "https://provider.example.com/generated-preview.png",
+    });
+
+    expect(state.isGenerationLoading).toBe(true);
+    expect(state.loadingVisual).toBe("spinner");
   });
 });

@@ -3,12 +3,14 @@
  * Encapsulates loading/spinner derivation so render composition stays focused on layout wiring.
  */
 import React from "react";
+import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
 import { classifyReferenceGridCardVisualState } from "../logic/referenceGridCardVisualState";
 
 type LoadingVisualCard = {
   item: StudioOutput;
   surface: "all-refs" | "curated";
+  authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
   isImagePreview: boolean;
   isPriorityHydration: boolean;
@@ -48,6 +50,7 @@ export const useReferenceGridLoadingVisualController = ({
       if (card.surface === "all-refs" && visibleQuickSlotIdSet.has(card.item.id)) return;
       const visualState = classifyReferenceGridCardVisualState({
         item: card.item,
+        authorityTier: card.authorityTier,
         cardPreviewUrl: card.cardPreviewUrl,
         isLoaded: Boolean(loadedMap[card.item.id]),
         decodeBudgetEnabled,

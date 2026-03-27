@@ -12,8 +12,13 @@ type PreviewSwapMetrics = {
   lastSwapBurstCount: number;
 };
 
-const createCard = (id: string, cardPreviewUrl: string | null) => ({
+const createCard = (
+  id: string,
+  cardPreviewUrl: string | null,
+  authorityTier: "reusable" | "tracked" | "preview-only" = "reusable"
+) => ({
   item: { id },
+  authorityTier,
   cardPreviewUrl,
 });
 
@@ -86,5 +91,36 @@ describe("useReferenceGridPreviewSwapTelemetryController", () => {
 
     expect(setPreviewSwapMetrics).toHaveBeenCalledTimes(1);
     expect(metrics.lastSwapBurstCount).toBe(1);
+  });
+
+  it("ignores preview-only cards when counting swap churn", () => {
+    const previousVisiblePreviewUrlByIdRef = {
+      current: {
+        "out-1": "https://provider.example.com/a.png",
+      },
+    };
+    const previewSwapTelemetryRef = {
+      current: {
+        windowStartedAtMs: 1,
+        totalSwapCount: 0,
+        repaintSpikeCount: 0,
+      },
+    };
+    const setPreviewSwapMetrics = vi.fn();
+
+    renderHook(() =>
+      useReferenceGridPreviewSwapTelemetryController({
+        visibleCardItems: [
+          createCard("out-1", "https://provider.example.com/b.png", "preview-only"),
+        ],
+        renderedItemCount: 1,
+        outputsLength: 1,
+        previousVisiblePreviewUrlByIdRef,
+        previewSwapTelemetryRef,
+        setPreviewSwapMetrics,
+      })
+    );
+
+    expect(setPreviewSwapMetrics).not.toHaveBeenCalled();
   });
 });

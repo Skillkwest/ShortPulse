@@ -12,6 +12,7 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   status: "ready",
   timestamp: "now",
   mediaSource: "generated",
+  generationId: "gen-1",
   previewUrl: "https://cdn.shortpulse.test/out.png",
   saveState: "idle",
   ...overrides,
@@ -89,6 +90,26 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
           createOutput({
             id: "saving-1",
             saveState: "saving",
+          }),
+        ],
+        mediaAutosaveEnabled: true,
+        saveReferenceToLibrary,
+      })
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
+
+  it("does not autosave generated outputs until durable generation identity exists", () => {
+    const saveReferenceToLibrary = vi.fn();
+    renderHook(() =>
+      useAiStudioMediaAutosaveOrchestrator({
+        outputs: [
+          createOutput({
+            id: "generated-missing-id-1",
+            mediaSource: "generated",
+            generationId: undefined,
+            taskId: "req-generated-missing-id",
           }),
         ],
         mediaAutosaveEnabled: true,

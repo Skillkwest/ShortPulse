@@ -8,6 +8,7 @@ import {
   type MediaAutosaveSource,
   type PersistenceIntent,
 } from "../../../lib/mediaAutosavePolicy";
+import { hasDurableGenerationIdentity } from "./useAiStudioPersistenceActions";
 import type { StudioOutput } from "../types";
 
 type UseAiStudioMediaAutosaveOrchestratorArgs = {
@@ -21,7 +22,7 @@ const hasRenderableMedia = (output: StudioOutput): boolean =>
 
 const inferMediaSource = (output: StudioOutput): MediaAutosaveSource => {
   if (output.mediaSource) return output.mediaSource;
-  if (output.generationId || output.taskId) return "generated";
+  if (output.generationId) return "generated";
   return "upload";
 };
 
@@ -57,6 +58,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
 
     outputs.forEach((output) => {
       if (attemptedOutputIdsRef.current.has(output.id)) return;
+      if (output.mediaSource === "generated" && !hasDurableGenerationIdentity(output)) return;
       const decision = canAutoSaveOutput(buildDecisionInput(output, mediaAutosaveEnabled));
       if (!decision.allowed) return;
       attemptedOutputIdsRef.current.add(output.id);

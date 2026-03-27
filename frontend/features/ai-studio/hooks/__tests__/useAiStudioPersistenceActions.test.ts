@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
+  hasDurableGenerationIdentity,
+  isDurablyGeneratedOutput,
   mergeOutputWithPersistedDelivery,
   resolvePersistableOutputUrls,
   type PersistedMediaDelivery,
@@ -106,5 +108,62 @@ describe("resolvePersistableOutputUrls", () => {
     expect(resolvePersistableOutputUrls(output)).toEqual([
       "https://provider.example.com/result-1.png",
     ]);
+  });
+});
+
+describe("isDurablyGeneratedOutput", () => {
+  it("returns true when a generation id is present", () => {
+    expect(
+      isDurablyGeneratedOutput(
+        makeOutput({
+          generationId: "gen-1",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("returns true when media source is generated", () => {
+    expect(
+      isDurablyGeneratedOutput(
+        makeOutput({
+          mediaSource: "generated",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("does not treat task id alone as durable generated identity", () => {
+    expect(
+      isDurablyGeneratedOutput(
+        makeOutput({
+          taskId: "req-1",
+        })
+      )
+    ).toBe(false);
+  });
+});
+
+describe("hasDurableGenerationIdentity", () => {
+  it("returns true only when generation id is present", () => {
+    expect(
+      hasDurableGenerationIdentity(
+        makeOutput({
+          generationId: "gen-1",
+          taskId: "req-1",
+          mediaSource: "generated",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("does not treat media source or task id alone as durable generation identity", () => {
+    expect(
+      hasDurableGenerationIdentity(
+        makeOutput({
+          mediaSource: "generated",
+          taskId: "req-1",
+        })
+      )
+    ).toBe(false);
   });
 });

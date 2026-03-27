@@ -69,6 +69,12 @@ export const resolvePersistableOutputUrls = (output: StudioOutput): string[] => 
   return videoUrls.length ? videoUrls : baseUrls;
 };
 
+export const isDurablyGeneratedOutput = (output: StudioOutput): boolean =>
+  output.mediaSource === "generated" || Boolean(output.generationId);
+
+export const hasDurableGenerationIdentity = (output: StudioOutput): boolean =>
+  Boolean(output.generationId);
+
 /**
  * Merges delivery metadata from persistence into an output row.
  * Prefers fresh delivery URLs over stale preview URLs when provided.
@@ -389,7 +395,7 @@ export const useAiStudioPersistenceActions = ({
             };
           }
           const provider = (output.provider ?? "fal") as Provider;
-          const generatedOutput = Boolean(output.generationId || output.taskId);
+          const generatedOutput = isDurablyGeneratedOutput(output);
           const source = generatedOutput ? "ai_studio" : "upload";
           const generationId = generatedOutput
             ? (output.generationId ??

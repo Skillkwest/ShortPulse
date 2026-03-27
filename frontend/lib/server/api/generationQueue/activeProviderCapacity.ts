@@ -6,6 +6,10 @@ import {
   resolveGenerationAdmissionTier,
   type GenerationAdmissionTier,
 } from "../../../model-runtime/generationAdmissionTiers";
+import {
+  isMissingGenerationAttemptSchemaError,
+  readErrorCode,
+} from "../generationBilling/errorGuards";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
@@ -18,6 +22,18 @@ type ReservationRow = {
 
 type GenerationRow = {
   requestId: string;
+  status: string | null;
+  recoveryState: string | null;
+  createdAtMs: number | null;
+};
+
+type GenerationAttemptRow = {
+  requestId: string;
+  generationId: string;
+};
+
+type GenerationStateRow = {
+  generationId: string;
   status: string | null;
   recoveryState: string | null;
   createdAtMs: number | null;
@@ -79,7 +95,94 @@ const parseGenerationRow = (value: unknown): GenerationRow | null => {
   };
 };
 
+const parseGenerationAttemptRow = (value: unknown): GenerationAttemptRow | null => {
+  const row = asObject(value);
+  if (!row) return null;
+  const requestId = asString(row.provider_request_id);
+  const generationId = asString(row.generation_id);
+  if (!requestId || !generationId) return null;
+  return {
+    requestId,
+    generationId,
+  };
+};
+
+const parseGenerationStateRow = (value: unknown): GenerationStateRow | null => {
+  const row = asObject(value);
+  if (!row) return null;
+  const generationId = asString(row.id);
+  if (!generationId) return null;
+  return {
+    generationId,
+    status: asString(row.status)?.toLowerCase() ?? null,
+    recoveryState: asString(row.recovery_state)?.toLowerCase() ?? null,
+    createdAtMs: parseTimestampMs(row.created_at),
+  };
+};
+
 const STALE_ACTIVE_RECOVERY_STATES = new Set(["queued", "recovering"]);
+
+const readGenerationRowsByAttemptRequestIds = async ({
+  userId,
+  requestIds,
+}: {
+  userId: string;
+  requestIds: string[];
+}): Promise<{ rows: GenerationRow[]; handled: boolean }> => {
+  const attemptsResponse = await getSupabaseAdmin()
+    .from("generation_attempts")
+    .select("provider_request_id, generation_id")
+    .eq("user_id", userId)
+    .in("provider_request_id", requestIds);
+
+  if (attemptsResponse.error) {
+    if (
+      isMissingGenerationAttemptSchemaError(
+        readErrorCode(attemptsResponse.error),
+        attemptsResponse.error.message
+      )
+    ) {
+      return { rows: [], handled: false };
+    }
+    throw attemptsResponse.error;
+  }
+
+  const attemptRows = (Array.isArray(attemptsResponse.data) ? attemptsResponse.data : [])
+    .map((row) => parseGenerationAttemptRow(row))
+    .filter((row): row is GenerationAttemptRow => Boolean(row));
+  if (!attemptRows.length) {
+    return { rows: [], handled: true };
+  }
+
+  const generationIds = Array.from(new Set(attemptRows.map((row) => row.generationId)));
+  const generationsResponse = await getSupabaseAdmin()
+    .from("ai_generations")
+    .select("id, status, recovery_state, created_at")
+    .eq("user_id", userId)
+    .in("id", generationIds);
+  if (generationsResponse.error) throw generationsResponse.error;
+
+  const generationsById = new Map<string, GenerationStateRow>();
+  const generationRows = (Array.isArray(generationsResponse.data) ? generationsResponse.data : [])
+    .map((row) => parseGenerationStateRow(row))
+    .filter((row): row is GenerationStateRow => Boolean(row));
+
+  for (const row of generationRows) {
+    generationsById.set(row.generationId, row);
+  }
+
+  const resolvedRows: GenerationRow[] = [];
+  for (const attemptRow of attemptRows) {
+    const generation = generationsById.get(attemptRow.generationId);
+    if (!generation) continue;
+    resolvedRows.push({
+      ...generation,
+      requestId: attemptRow.requestId,
+    });
+  }
+
+  return { rows: resolvedRows, handled: true };
+};
 
 const classifyGenerationRequestState = ({
   rows,
@@ -176,16 +279,23 @@ export const readActiveProviderCapacitySnapshot = async ({
 
   const requestIds = Array.from(new Set(reservations.map((row) => row.providerRequestId)));
   const generationRowsByRequestId = new Map<string, GenerationRow[]>();
+  const attemptScopedRows = await readGenerationRowsByAttemptRequestIds({
+    userId,
+    requestIds,
+  });
+  let generationRows = attemptScopedRows.rows;
 
-  const generationsResponse = await getSupabaseAdmin()
-    .from("ai_generations")
-    .select("request_id, status, recovery_state, created_at")
-    .eq("user_id", userId)
-    .in("request_id", requestIds);
-  if (generationsResponse.error) throw generationsResponse.error;
-  const generationRows = (Array.isArray(generationsResponse.data) ? generationsResponse.data : [])
-    .map((row) => parseGenerationRow(row))
-    .filter((row): row is GenerationRow => Boolean(row));
+  if (!attemptScopedRows.handled) {
+    const generationsResponse = await getSupabaseAdmin()
+      .from("ai_generations")
+      .select("request_id, status, recovery_state, created_at")
+      .eq("user_id", userId)
+      .in("request_id", requestIds);
+    if (generationsResponse.error) throw generationsResponse.error;
+    generationRows = (Array.isArray(generationsResponse.data) ? generationsResponse.data : [])
+      .map((row) => parseGenerationRow(row))
+      .filter((row): row is GenerationRow => Boolean(row));
+  }
 
   for (const row of generationRows) {
     const existing = generationRowsByRequestId.get(row.requestId) ?? [];

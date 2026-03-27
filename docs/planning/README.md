@@ -50,6 +50,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`: source-of-truth current-state matrix for request, attempt, output, and billing identities in Lane 1.
 - `generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`: legal transition and mutation-ownership matrix for the future request/attempt state machine in Lane 1.
 - `generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`: target request/attempt schema delta and explicit transition posture for `ai_generations`, queue rows, outputs, reservations, and webhook rows.
+- `generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`: explicit billing ownership, replay/idempotency, and provider-event durability contract completing Lane 1.
 - `generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`: required row classes, inconsistency buckets, and evidence gates before historical backfill and fallback retirement.
 - `generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`: explicit cutover gates protecting drag/drop, reuse, and delivery contracts before broad read-model migration.
 - `generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`: completed checkpoint for the initial fail-closed submit and durable-linkage hardening slices.

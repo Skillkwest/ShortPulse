@@ -123,7 +123,7 @@ Exit gate:
 
 ### `GPR-L1-S4`
 Status:
-1. Next
+1. Completed
 
 Goal:
 1. define the billing contract against the new request/attempt model
@@ -145,6 +145,7 @@ Exit gate:
 1. `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`
 2. `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
 3. `docs/planning/generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`
+4. `docs/planning/generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`
 
 ## Completion Gate
 Lane 1 is complete when:
@@ -153,3 +154,6 @@ Lane 1 is complete when:
 3. the billing and control-plane integration points are defined
 4. replay/idempotency and provider-event durability rules are defined
 5. Lane 2 backfill planning can proceed without guessing the target lifecycle
+
+## Lane 1 Status
+1. Planning-complete

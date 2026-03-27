@@ -136,5 +136,5 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. advance Lane 1 into `GPR-L1-S4` and define the billing, replay/idempotency, and provider-event contracts against the new request/attempt model
-2. do not open Lane 2 migration work until the request/attempt target model is locked
+1. open Lane 2 with a concrete historical backfill and fallback-retirement execution plan
+2. do not broaden Lane 3 UI cutover work until Lane 2 canonical-coverage planning is explicit

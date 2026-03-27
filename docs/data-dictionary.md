@@ -229,6 +229,30 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Reconciler scan index on `(recovery_state, next_recovery_at, created_at)`.
   - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions, with guarded recovery override for `fail -> success` when `failure_reason_code='terminal_success_no_media'` and recovery state is converging to `recovered`.
 
+### generation_attempts
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `generation_id` (uuid): Parent `ai_generations` row with cascade delete.
+- `user_id` (uuid): Owner for RLS scoping.
+- `attempt_number` (int): Monotonic attempt lineage index per generation (`>= 1`).
+- `provider` (text): Provider family for the accepted attempt (`fal`, `kie`, ...).
+- `model_id` (text): Model used for the attempt.
+- `provider_request_id` (text, nullable): Provider request handle once acceptance succeeds.
+- `status` (text): `created | submitted | running | succeeded | failed | timed_out | abandoned`.
+- `dispatch_source` (text): `direct_submit | queued_submit | admin_replay | reconciler`.
+- `submit_route` (text, nullable): Route that produced the attempt.
+- `queue_id` (uuid, nullable): Transitional queue correlation id for queued-submit lineage.
+- `submitted_at` / `started_at` / `completed_at` / `last_observed_at` (timestamptz, nullable): Attempt lifecycle timestamps.
+- `failure_reason_code` / `error_message` (text, nullable): Attempt failure detail.
+- `metadata` (jsonb, default `{}`): Compact attempt context such as `source_ref`, queue attempts, and submit target details.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Constraints and indexes:
+  - Unique `(generation_id, attempt_number)` preserves ordered attempt lineage.
+  - Partial unique `(user_id, provider_request_id)` where provider handle is present.
+  - `generation_attempts_attempt_number_positive_check` enforces positive attempt numbers.
+  - `generation_attempts_status_check` enforces bounded attempt states.
+  - `generation_attempts_dispatch_source_check` enforces bounded dispatch-source values.
+
 ### ai_generation_outputs
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `generation_id` (uuid): Parent `ai_generations` row with cascade delete.

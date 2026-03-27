@@ -1,0 +1,230 @@
+import { getSupabaseAdmin } from "./supabaseAdmin";
+
+type JsonObject = Record<string, unknown>;
+
+type EnsureAcceptedGenerationAttemptInput = {
+  generationId: string;
+  userId: string;
+  provider: string;
+  modelId: string;
+  providerRequestId: string;
+  dispatchSource: "direct_submit" | "queued_submit" | "admin_replay" | "reconciler";
+  submitRoute?: string | null;
+  queueId?: string | null;
+  metadata?: JsonObject;
+};
+
+type EnsureAcceptedGenerationAttemptResult =
+  | {
+      ok: true;
+      attemptId: string | null;
+      attemptNumber: number | null;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+const asString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const asNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isInteger(parsed)) return parsed;
+  }
+  return null;
+};
+
+const asObject = (value: unknown): JsonObject =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+
+const readErrorCode = (error: unknown): string | null => {
+  if (!error || typeof error !== "object" || Array.isArray(error)) return null;
+  return asString((error as Record<string, unknown>).code);
+};
+
+const lookupAttemptByProviderRequest = async ({
+  generationId,
+  userId,
+  providerRequestId,
+}: {
+  generationId: string;
+  userId: string;
+  providerRequestId: string;
+}) => {
+  const { data, error } = await getSupabaseAdmin()
+    .from("generation_attempts")
+    .select("id, attempt_number, metadata")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .eq("provider_request_id", providerRequestId)
+    .limit(1)
+    .maybeSingle();
+  return { data, error };
+};
+
+const lookupLatestAttempt = async ({
+  generationId,
+  userId,
+}: {
+  generationId: string;
+  userId: string;
+}) => {
+  const { data, error } = await getSupabaseAdmin()
+    .from("generation_attempts")
+    .select("id, attempt_number")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .order("attempt_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return { data, error };
+};
+
+export const ensureAcceptedGenerationAttempt = async ({
+  generationId,
+  userId,
+  provider,
+  modelId,
+  providerRequestId,
+  dispatchSource,
+  submitRoute = null,
+  queueId = null,
+  metadata = {},
+}: EnsureAcceptedGenerationAttemptInput): Promise<EnsureAcceptedGenerationAttemptResult> => {
+  try {
+    const normalizedProviderRequestId = asString(providerRequestId);
+    if (!normalizedProviderRequestId) {
+      return { ok: false, error: "provider_request_id_required" };
+    }
+
+    const existingLookup = await lookupAttemptByProviderRequest({
+      generationId,
+      userId,
+      providerRequestId: normalizedProviderRequestId,
+    });
+    if (existingLookup.error) {
+      return {
+        ok: false,
+        error: existingLookup.error.message ?? "attempt_existing_lookup_failed",
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const metadataPatch = {
+      ...metadata,
+      provider_request_id: normalizedProviderRequestId,
+    };
+
+    const existingRow = asObject(existingLookup.data);
+    const existingId = asString(existingRow.id);
+    const existingAttemptNumber = asNumber(existingRow.attempt_number);
+
+    if (existingId) {
+      const { error } = await getSupabaseAdmin()
+        .from("generation_attempts")
+        .update({
+          provider,
+          model_id: modelId,
+          status: "submitted",
+          dispatch_source: dispatchSource,
+          submit_route: submitRoute,
+          queue_id: queueId,
+          submitted_at: nowIso,
+          updated_at: nowIso,
+          metadata: {
+            ...asObject(existingRow.metadata),
+            ...metadataPatch,
+          },
+        })
+        .eq("id", existingId)
+        .eq("user_id", userId);
+      if (error) {
+        return {
+          ok: false,
+          error: error.message ?? "attempt_update_failed",
+        };
+      }
+      return {
+        ok: true,
+        attemptId: existingId,
+        attemptNumber: existingAttemptNumber,
+      };
+    }
+
+    const latestLookup = await lookupLatestAttempt({ generationId, userId });
+    if (latestLookup.error) {
+      return {
+        ok: false,
+        error: latestLookup.error.message ?? "attempt_sequence_lookup_failed",
+      };
+    }
+
+    const latestRow = asObject(latestLookup.data);
+    const nextAttemptNumber = Math.max(asNumber(latestRow.attempt_number) ?? 0, 0) + 1;
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("generation_attempts")
+      .insert({
+        generation_id: generationId,
+        user_id: userId,
+        attempt_number: nextAttemptNumber,
+        provider,
+        model_id: modelId,
+        provider_request_id: normalizedProviderRequestId,
+        status: "submitted",
+        dispatch_source: dispatchSource,
+        submit_route: submitRoute,
+        queue_id: queueId,
+        submitted_at: nowIso,
+        metadata: metadataPatch,
+        updated_at: nowIso,
+      })
+      .select("id, attempt_number")
+      .single();
+
+    if (!error) {
+      const insertedRow = asObject(data);
+      return {
+        ok: true,
+        attemptId: asString(insertedRow.id),
+        attemptNumber: asNumber(insertedRow.attempt_number),
+      };
+    }
+
+    if (readErrorCode(error) !== "23505") {
+      return {
+        ok: false,
+        error: error.message ?? "attempt_insert_failed",
+      };
+    }
+
+    const retryLookup = await lookupAttemptByProviderRequest({
+      generationId,
+      userId,
+      providerRequestId: normalizedProviderRequestId,
+    });
+    if (retryLookup.error) {
+      return {
+        ok: false,
+        error: retryLookup.error.message ?? "attempt_duplicate_lookup_failed",
+      };
+    }
+    const retryRow = asObject(retryLookup.data);
+    return {
+      ok: true,
+      attemptId: asString(retryRow.id),
+      attemptNumber: asNumber(retryRow.attempt_number),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error),
+    };
+  }
+};

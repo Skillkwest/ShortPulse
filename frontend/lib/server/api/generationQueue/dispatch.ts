@@ -26,6 +26,7 @@ import {
 } from "./service";
 import {
   QueueTransitionError,
+  assertGenerationAttemptRecorded,
   assertGenerationMarkedRunning,
   assertQueueIdentityInvariant,
   assertQueueMutationApplied,
@@ -38,6 +39,7 @@ import {
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
+import { ensureAcceptedGenerationAttempt } from "../generationAttempts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -918,6 +920,27 @@ const processClaimedQueueItem = async ({
     assertGenerationMarkedRunning({
       affectedCount: Array.isArray(generationUpdate.data) ? generationUpdate.data.length : 0,
       errorMessage: generationUpdate.error?.message ?? null,
+    });
+
+    const attemptResult = await ensureAcceptedGenerationAttempt({
+      generationId: item.generationId,
+      userId: item.userId,
+      provider,
+      modelId: item.modelId,
+      providerRequestId,
+      dispatchSource: "queued_submit",
+      submitRoute: item.submitRoute,
+      queueId: item.queueId,
+      metadata: {
+        source_ref: item.sourceRef,
+        queue_attempts: attemptNumber,
+        upstream_target_url: submitResult.targetUrl,
+        upstream_target_index: submitResult.targetIndex,
+      },
+    });
+    assertGenerationAttemptRecorded({
+      ok: attemptResult.ok,
+      errorMessage: attemptResult.ok ? null : attemptResult.error,
     });
 
     const removeResult = await removeQueueItem(item.queueId);

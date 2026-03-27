@@ -117,6 +117,7 @@ Current set:
 - `069_harden_provider_attached_stale_cleanup_execute_grants.sql`
 - `070_harden_queue_claim_collision_advisory_lock.sql`
 - `071_add_ai_generation_outputs.sql`
+- `072_add_generation_attempts.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

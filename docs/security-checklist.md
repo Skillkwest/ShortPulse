@@ -8,7 +8,7 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - SQL runbook reference: `docs/sops/sop_sql_migration_operations.md`.
 
 ## Required controls
-- **RLS**: Enable Row-Level Security on Supabase tables; policies should enforce `user_id = auth.uid()` for select/insert/update/delete on user-owned tables (`saved_creators`, `media_files`, `media_prompts`, `media_folders`, `ai_generations`). Membership tables (`media_folder_media_items`, `media_folder_prompt_items`) should enforce user-scoped select/insert/delete. `media_events` allows select + insert only.
+- **RLS**: Enable Row-Level Security on Supabase tables; policies should enforce `user_id = auth.uid()` for select/insert/update/delete on user-owned tables (`saved_creators`, `media_files`, `media_prompts`, `media_folders`, `ai_generations`, `generation_attempts`, `ai_generation_outputs`). Membership tables (`media_folder_media_items`, `media_folder_prompt_items`) should enforce user-scoped select/insert/delete. `media_events` allows select + insert only.
 - **Billing tables**: Keep `billing_profiles`, `ai_credit_balance`, and `ai_credit_ledger` isolated per user (`user_id = auth.uid()`). Do not allow users to self-credit with positive ledger rows.
 - **Client credit reads**: Query credit tables with an explicit per-user filter (`user_id = current user id`); never use unscoped fallback reads like `.limit(1)` on shared relations.
 - **Ledger integrity**: Enforce credit underflow protection at the database layer so debits cannot push balances below zero.

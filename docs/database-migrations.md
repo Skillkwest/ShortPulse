@@ -183,6 +183,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 69. `sql/migrations/069_harden_provider_attached_stale_cleanup_execute_grants.sql`
 70. `sql/migrations/070_harden_queue_claim_collision_advisory_lock.sql`
 71. `sql/migrations/071_add_ai_generation_outputs.sql`
+72. `sql/migrations/072_add_generation_attempts.sql`
 72. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`

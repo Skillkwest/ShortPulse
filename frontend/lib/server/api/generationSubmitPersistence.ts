@@ -1,6 +1,7 @@
 import { getModelConfig } from "../../model-runtime/pricing";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { resolveProviderFromModelId } from "../providerIntegration/providerRuntimeConfig";
+import { ensureAcceptedGenerationAttempt } from "./generationAttempts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -237,6 +238,26 @@ export const ensureSubmittedGenerationRecord = async (
             error: error.message ?? "update_existing_generation_failed",
           };
         }
+        const attemptResult = await ensureAcceptedGenerationAttempt({
+          generationId: existingId,
+          userId: input.userId,
+          provider,
+          modelId: input.modelId,
+          providerRequestId: input.providerRequestId,
+          dispatchSource: "direct_submit",
+          submitRoute: input.routeLabel,
+          metadata: {
+            source_ref: input.sourceRef,
+            submit_target_url: input.submitTargetUrl,
+            submit_target_index: input.submitTargetIndex,
+          },
+        });
+        if (!attemptResult.ok) {
+          return {
+            ok: false,
+            error: attemptResult.error,
+          };
+        }
         return { ok: true, generationId: existingId };
       }
     }
@@ -278,7 +299,36 @@ export const ensureSubmittedGenerationRecord = async (
       };
     }
 
-    return { ok: true, generationId: asString((data as { id?: unknown } | null)?.id) };
+    const insertedGenerationId = asString((data as { id?: unknown } | null)?.id);
+    if (!insertedGenerationId) {
+      return {
+        ok: false,
+        error: "insert_generation_missing_id",
+      };
+    }
+
+    const attemptResult = await ensureAcceptedGenerationAttempt({
+      generationId: insertedGenerationId,
+      userId: input.userId,
+      provider,
+      modelId: input.modelId,
+      providerRequestId: input.providerRequestId,
+      dispatchSource: "direct_submit",
+      submitRoute: input.routeLabel,
+      metadata: {
+        source_ref: input.sourceRef,
+        submit_target_url: input.submitTargetUrl,
+        submit_target_index: input.submitTargetIndex,
+      },
+    });
+    if (!attemptResult.ok) {
+      return {
+        ok: false,
+        error: attemptResult.error,
+      };
+    }
+
+    return { ok: true, generationId: insertedGenerationId };
   } catch (error) {
     return {
       ok: false,

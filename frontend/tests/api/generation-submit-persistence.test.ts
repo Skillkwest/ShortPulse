@@ -2,9 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSubmittedGenerationRecord } from "../../lib/server/api/generationSubmitPersistence";
 
 const getSupabaseAdminMock = vi.fn();
+const ensureAcceptedGenerationAttemptMock = vi.fn();
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationAttempts", () => ({
+  ensureAcceptedGenerationAttempt: (...args: unknown[]) =>
+    ensureAcceptedGenerationAttemptMock(...args),
 }));
 
 type TableMockConfig = {
@@ -57,6 +63,11 @@ const createAiGenerationsTableMock = (config: TableMockConfig) => {
 describe("ensureSubmittedGenerationRecord", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ensureAcceptedGenerationAttemptMock.mockResolvedValue({
+      ok: true,
+      attemptId: "attempt-1",
+      attemptNumber: 1,
+    });
   });
 
   it("queues recovery metadata and scheduling fields when inserting a fresh generation row", async () => {
@@ -88,6 +99,14 @@ describe("ensureSubmittedGenerationRecord", () => {
     });
 
     expect(result).toEqual({ ok: true, generationId: "gen-1" });
+    expect(ensureAcceptedGenerationAttemptMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        providerRequestId: "req-1",
+        dispatchSource: "direct_submit",
+      })
+    );
     expect(aiGenerations.insertPayloads).toHaveLength(1);
     const payload = aiGenerations.insertPayloads[0] ?? {};
     expect(payload).toEqual(
@@ -110,5 +129,36 @@ describe("ensureSubmittedGenerationRecord", () => {
         recovery_queue_reason: "submit_persisted",
       })
     );
+  });
+
+  it("fails when the accepted generation attempt cannot be persisted", async () => {
+    const aiGenerations = createAiGenerationsTableMock({
+      selectResponses: [{ data: [], error: null }],
+      insertResponses: [{ data: { id: "gen-1" }, error: null }],
+    });
+    ensureAcceptedGenerationAttemptMock.mockResolvedValueOnce({
+      ok: false,
+      error: "attempt_insert_failed",
+    });
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (tableName: string) => {
+        if (tableName === "ai_generations") return aiGenerations.table;
+        throw new Error(`unexpected table ${tableName}`);
+      },
+    });
+
+    const result = await ensureSubmittedGenerationRecord({
+      userId: "user-1",
+      modelId: "fal-ai/nano-banana-pro",
+      routeLabel: "Fal Nano Banana Pro",
+      payload: { prompt: "Portrait" },
+      providerRequestId: "req-1",
+      sourceRef: "source-1",
+      submitTargetUrl: "https://queue.fal.run/fal-ai/nano-banana-pro",
+      submitTargetIndex: 0,
+    });
+
+    expect(result).toEqual({ ok: false, error: "attempt_insert_failed" });
   });
 });

@@ -16,6 +16,7 @@ const markQueueItemExhaustedMock = vi.fn();
 const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
+const ensureAcceptedGenerationAttemptMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -61,6 +62,11 @@ vi.mock("../generationQueue/service", () => ({
   releaseQueueLeaseBackToQueued: (...args: unknown[]) => releaseQueueLeaseBackToQueuedMock(...args),
   removeQueueItem: (...args: unknown[]) => removeQueueItemMock(...args),
   updateQueueItemForRetry: (...args: unknown[]) => updateQueueItemForRetryMock(...args),
+}));
+
+vi.mock("../generationAttempts", () => ({
+  ensureAcceptedGenerationAttempt: (...args: unknown[]) =>
+    ensureAcceptedGenerationAttemptMock(...args),
 }));
 
 const queueItem = {
@@ -196,6 +202,11 @@ describe("generationQueue/dispatch transition integrity", () => {
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(mutationSuccess("retry"));
+    ensureAcceptedGenerationAttemptMock.mockResolvedValue({
+      ok: true,
+      attemptId: "attempt-1",
+      attemptNumber: 1,
+    });
   });
 
   it("exhausts legacy raw video payloads when queue compatibility normalization is disabled", async () => {
@@ -276,6 +287,36 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
     expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
+    expect(ensureAcceptedGenerationAttemptMock).not.toHaveBeenCalled();
+  });
+
+  it("exhausts without releasing reservation when generation attempt write fails post-submit", async () => {
+    ensureAcceptedGenerationAttemptMock.mockResolvedValueOnce({
+      ok: false,
+      error: "attempt_insert_failed",
+    });
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        exhausted: 1,
+        errors: 1,
+      })
+    );
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "GENERATION_ATTEMPT_RECORD_FAILED",
+      })
+    );
+    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
+    expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
   });
 
   it("retries queue item when reservation submit returns retryable failure", async () => {
@@ -334,6 +375,7 @@ describe("generationQueue/dispatch transition integrity", () => {
         providerRequestId: "req-existing",
       })
     );
+    expect(ensureAcceptedGenerationAttemptMock).not.toHaveBeenCalled();
     expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });

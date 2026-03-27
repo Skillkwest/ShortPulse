@@ -408,8 +408,48 @@ describe("generationQueue/dispatch transition integrity", () => {
         providerRequestId: "req-existing",
       })
     );
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-existing",
+        userId: "user-1",
+        status: "running",
+      })
+    );
     expect(ensureAcceptedGenerationAttemptMock).not.toHaveBeenCalled();
     expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+  });
+
+  it("retries existing-request reconciliation when attempt running update fails", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({ existingRequestId: "req-existing" })
+    );
+    updateGenerationAttemptStateMock.mockResolvedValueOnce({
+      ok: false,
+      error: "attempt_state_update_failed",
+    });
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        retried: 1,
+        exhausted: 0,
+        errors: 1,
+      })
+    );
+    expect(updateQueueItemForRetryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "GENERATION_ATTEMPT_RUNNING_FAILED",
+      })
+    );
+    expect(removeQueueItemMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 

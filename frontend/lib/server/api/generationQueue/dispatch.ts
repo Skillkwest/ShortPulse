@@ -109,6 +109,41 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const markAttemptRunningForExistingRequestId = async ({
+  providerRequestId,
+  userId,
+  queueId,
+  attemptNumber,
+}: {
+  providerRequestId: string;
+  userId: string;
+  queueId: string;
+  attemptNumber: number;
+}) => {
+  const observedAt = new Date().toISOString();
+  const result = await updateGenerationAttemptState({
+    providerRequestId,
+    userId,
+    status: "running",
+    observedAt,
+    metadata: {
+      queue_reconcile_at: observedAt,
+      queue_id: queueId,
+      queue_attempts: attemptNumber,
+      queue_reconcile_reason: "existing_request_id",
+    },
+  });
+  if (result.ok || result.error === "attempt_not_found") {
+    return;
+  }
+  throw new QueueTransitionError({
+    code: "GENERATION_ATTEMPT_RUNNING_FAILED",
+    step: "generation_attempt_running",
+    message: result.error,
+    retryable: true,
+  });
+};
+
 const readProviderCapacityState = async ({
   userId,
   modelId,
@@ -357,18 +392,25 @@ const processClaimedQueueItem = async ({
   const existingRequestId = asString(generationRow.request_id);
   if (existingRequestId) {
     try {
+      const reconcileAtIso = new Date().toISOString();
       const reservationResult = await markGenerationReservationSubmitted({
         userId: item.userId,
         sourceRef: item.sourceRef,
         providerRequestId: existingRequestId,
         metadata: {
-          queue_reconcile_at: new Date().toISOString(),
+          queue_reconcile_at: reconcileAtIso,
           queue_id: item.queueId,
           queue_attempts: attemptNumber,
           queue_reconcile_reason: "existing_request_id",
         },
       });
       assertReservationSubmissionAccepted({ result: reservationResult });
+      await markAttemptRunningForExistingRequestId({
+        providerRequestId: existingRequestId,
+        userId: item.userId,
+        queueId: item.queueId,
+        attemptNumber,
+      });
 
       const removeResult = await removeQueueItem(item.queueId);
       assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });

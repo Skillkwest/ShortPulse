@@ -53,19 +53,35 @@ describe("saveMediaUrlToLibrary", () => {
   });
 
   it("returns existing ai_studio media row before upload when output index already exists", async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({
-      data: {
-        id: "media-existing",
-        storage_path: "user-1/generations/images/existing.png",
-        file_type: "image",
-      },
-      error: null,
-    });
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          id: "media-existing",
+          storage_path: "user-1/generations/images/existing.png",
+          file_type: "image",
+        },
+        error: null,
+      })
+      .mockResolvedValue({
+        data: {
+          id: "legacy-media-existing",
+          storage_path: "user-1/generations/images/legacy.png",
+          file_type: "image",
+        },
+        error: null,
+      });
     const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
-    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
-      data: { id: "gen-output-existing" },
-      error: null,
-    });
+    const generationOutputMaybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: { media_file_id: "media-existing" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: "gen-output-existing" },
+        error: null,
+      });
     const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
       generationOutputMaybeSingle
     );
@@ -117,11 +133,74 @@ describe("saveMediaUrlToLibrary", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
+    expect(selectBuilder.contains).not.toHaveBeenCalled();
     expect(generationOutputUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         media_file_id: "media-existing",
       })
     );
+  });
+
+  it("falls back to legacy metadata-index lookup when canonical output media linkage is absent", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: "media-existing",
+        storage_path: "user-1/generations/images/existing.png",
+        file_type: "image",
+      },
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: { media_file_id: null },
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: generationOutputUpdate,
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn());
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.png",
+      mode: "image",
+      source: "ai_studio",
+      generationId: "gen-1",
+      index: 0,
+    });
+
+    expect(result.mediaFileId).toBe("media-existing");
+    expect(selectBuilder.contains).toHaveBeenCalledWith("metadata", { generation_output_index: 0 });
   });
 
   it("maps duplicate ai_studio insert to existing row and returns success semantics", async () => {

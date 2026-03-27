@@ -300,6 +300,38 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   generationId: string;
   index: number;
 }): Promise<{ id: string; storagePath: string | null; fileType: "image" | "video" } | null> => {
+  const { data: canonicalOutput, error: canonicalOutputError } = await supabase
+    .from("ai_generation_outputs")
+    .select("media_file_id")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .eq("output_index", index)
+    .limit(1)
+    .maybeSingle();
+  if (!canonicalOutputError) {
+    const mediaFileId = asOptionalString(asRecord(canonicalOutput).media_file_id);
+    if (mediaFileId) {
+      const { data: canonicalMediaRow, error: canonicalMediaError } = await supabase
+        .from("media_files")
+        .select("id, storage_path, file_type")
+        .eq("user_id", userId)
+        .eq("id", mediaFileId)
+        .limit(1)
+        .maybeSingle();
+      if (!canonicalMediaError && canonicalMediaRow) {
+        const id = asOptionalString(canonicalMediaRow.id);
+        if (id) {
+          const storagePath = asOptionalString(canonicalMediaRow.storage_path);
+          const fileType =
+            String(canonicalMediaRow.file_type ?? "").toLowerCase() === "video"
+              ? ("video" as const)
+              : ("image" as const);
+          return { id, storagePath, fileType };
+        }
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from("media_files")
     .select("id, storage_path, file_type")

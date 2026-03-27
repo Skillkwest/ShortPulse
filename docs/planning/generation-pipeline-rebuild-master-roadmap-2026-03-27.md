@@ -136,5 +136,5 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. advance Lane 1 into `GPR-L1-S3` and define target schema deltas plus compatibility posture with `ai_generations`
+1. advance Lane 1 into `GPR-L1-S4` and define the billing, replay/idempotency, and provider-event contracts against the new request/attempt model
 2. do not open Lane 2 migration work until the request/attempt target model is locked

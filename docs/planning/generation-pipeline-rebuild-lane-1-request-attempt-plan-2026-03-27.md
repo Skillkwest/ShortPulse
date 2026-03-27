@@ -111,7 +111,7 @@ Exit gate:
 
 ### `GPR-L1-S3`
 Status:
-1. Next
+1. Completed
 
 Goal:
 1. define target schema deltas for request/attempt modeling
@@ -119,8 +119,12 @@ Goal:
 
 Exit gate:
 1. schema target is clear enough for migration planning
+2. `generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md` exists
 
 ### `GPR-L1-S4`
+Status:
+1. Next
+
 Goal:
 1. define the billing contract against the new request/attempt model
 2. define queue/recovery/polling integration points
@@ -140,6 +144,7 @@ Exit gate:
 ## Lane 1 Working Artifacts
 1. `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`
 2. `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
+3. `docs/planning/generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`
 
 ## Completion Gate
 Lane 1 is complete when:
